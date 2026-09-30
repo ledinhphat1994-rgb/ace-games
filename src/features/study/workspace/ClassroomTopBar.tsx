@@ -18,6 +18,7 @@ import {
   Crown,
   Loader2,
   MessageSquare,
+  Users,
   Wifi,
   WifiOff,
   X,
@@ -42,7 +43,7 @@ export interface ClassroomTopBarProps {
 }
 
 const NUT_KHUNG =
-  'relative flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'relative flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function ClassroomTopBar({
   roomTitle,
@@ -70,7 +71,7 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="z-30 flex min-h-16 sm:min-h-[68px] shrink-0 items-center justify-between gap-3 bg-canvas px-2 py-1 select-none sm:px-3"
+      className="z-30 flex min-h-16 sm:min-h-[68px] shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-canvas px-2 py-1 select-none sm:px-3"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
@@ -119,13 +120,17 @@ export function ClassroomTopBar({
 
       {/* ── CENTER: MEMBER STRIP (vùng 1 ra 1+ và căn giữa) ── */}
       {memberStrip && (
-        <div className="flex flex-1 min-w-0 items-center justify-center px-1">
+        <div className="order-3 flex w-full min-w-0 items-center justify-center px-1 lg:order-none lg:w-auto lg:flex-1">
           {memberStrip}
         </div>
       )}
 
       {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS + CLOSE ROOM ── */}
-      <div className="flex flex-1 min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+      <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 lg:flex-1 lg:min-w-0">
+        <button type="button" onClick={() => onTogglePanel('members')} className={nutPanel(activePanel === 'members')} aria-label="Thành viên & ghi chú" title="Thành viên & ghi chú" data-testid="topbar-btn-members">
+          <Users className="size-4" />
+          <span className="hidden sm:inline">Thành viên</span>
+        </button>
         {/* Chat Drawer Toggle */}
         <button
           type="button"

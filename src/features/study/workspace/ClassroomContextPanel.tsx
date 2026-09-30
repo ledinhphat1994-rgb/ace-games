@@ -139,14 +139,14 @@ export function ClassroomContextPanel({
     <>
       {/* Mobile backdrop for drawer overlay */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
 
       <aside
         aria-label="Khung thông tin bên phải"
-        className="fixed sm:relative right-0 inset-y-0 sm:inset-y-auto sm:h-full z-50 sm:z-20 flex w-80 sm:w-72 md:w-80 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden border-l border-border-default bg-surface shadow-2xl sm:rounded-2xl sm:border sm:shadow-none"
+        className="fixed lg:relative right-0 inset-y-0 lg:inset-y-auto h-dvh lg:h-full z-50 lg:z-20 flex w-full sm:w-96 lg:w-80 max-w-full shrink-0 flex-col overflow-hidden border-l border-border-default bg-surface shadow-2xl lg:rounded-2xl lg:border lg:shadow-none pb-[env(safe-area-inset-bottom)]"
         data-testid="classroom-context-panel"
       >
         {/* ── PANEL HEADER ── */}

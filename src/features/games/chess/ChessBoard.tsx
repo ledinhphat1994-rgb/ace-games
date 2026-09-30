@@ -606,8 +606,8 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         </div>
 
         {/* Bàn cờ 8×8 thiết kế gỗ sang trọng - 100% hiển thị đầy đủ, không bị che */}
-        <div className="relative p-2 sm:p-3 rounded-2xl bg-amber-950/80 border-4 border-amber-900 shadow-2xl shadow-black/60 shrink-0 flex flex-col items-center">
-          <div className="grid grid-cols-8 grid-rows-8 w-[320px] h-[320px] sm:w-[400px] sm:h-[400px] md:w-[460px] md:h-[460px] lg:w-[500px] lg:h-[500px] xl:w-[540px] xl:h-[540px] 2xl:w-[570px] 2xl:h-[570px] border border-amber-900/60 rounded-lg overflow-hidden select-none">
+        <div className="game-board-shell w-full max-w-[600px] min-w-0 relative p-2 sm:p-3 rounded-2xl bg-amber-950/80 border-4 border-amber-900 shadow-2xl shadow-black/60 shrink flex flex-col items-center">
+          <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-amber-900/60 rounded-lg overflow-hidden select-none">
             {Array.from({ length: 64 }, (_, idx) => {
               // Hiển thị từ hàng 8 xuống hàng 1 (Trắng ở dưới); cầm quân Đen thì xoay bàn cho quân mình ở dưới
               const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)

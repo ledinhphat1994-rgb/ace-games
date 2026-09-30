@@ -393,7 +393,7 @@ export function ClassroomWorkspace({
 
   return (
     <div
-      className="relative flex h-svh w-full flex-col overflow-hidden bg-canvas text-slate-100 select-none font-sans"
+      className="relative flex h-dvh w-full flex-col overflow-hidden bg-canvas text-slate-100 select-none font-sans"
       data-testid="classroom-workspace"
       data-room-id={roomId}
     >

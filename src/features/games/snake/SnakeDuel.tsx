@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { Flame, Play, RotateCcw } from 'lucide-react'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
@@ -28,7 +27,7 @@ interface SnakeDuelProps {
   onTabChange?: (tab: 'duel' | 'classic') => void
 }
 
-export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
+export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) {
   // Thiết lập PvE / PvP nhớ theo thiết bị
   const [thietLap, setThietLap] = useState<ThietLapRan>(docThietLap)
   const [mode, setMode] = useState<PlayMode>('ai')
@@ -51,12 +50,13 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
     const el = fullscreenContainerRef.current
     if (!el) return
 
-    if (!document.fullscreenElement) {
-      el.requestFullscreen?.().catch(() => {
-        toast.error('Trình duyệt không cho phép chuyển chế độ toàn màn hình')
-      })
+    if (isFullscreen) {
+      if (document.fullscreenElement) void document.exitFullscreen?.()
+      setIsFullscreen(false)
+    } else if (el.requestFullscreen) {
+      void el.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => setIsFullscreen(true))
     } else {
-      document.exitFullscreen?.().catch(() => {})
+      setIsFullscreen(true)
     }
   }
 
@@ -115,7 +115,7 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
     setRestartKey((k) => k + 1)
   }
 
-  const handleGameOver = (winner: boolean, _reason?: string) => {
+  const handleGameOver = (winner: boolean, _reason?: string, finalScore = playerScore) => {
     setIsRunning(false)
     setIsGameOver(true)
     if (winner) {
@@ -123,8 +123,8 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
     } else {
       playGameOverSound('lose')
     }
-    if (onSaveScore && playerScore > 0) {
-      onSaveScore(playerScore)
+    if (onSaveScore && finalScore > 0) {
+      onSaveScore(finalScore)
     }
   }
 
@@ -138,11 +138,11 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
       ref={fullscreenContainerRef}
       className={cn(
         'flex flex-col items-center justify-between w-full h-full max-w-6xl mx-auto transition-all',
-        isFullscreen && 'fixed inset-0 z-50 w-screen h-screen max-w-none p-0 bg-slate-950 justify-center overflow-hidden'
+        isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-2 bg-slate-950 justify-center overflow-hidden'
       )}
     >
       {/* ── 1. THANH CÔNG CỤ: cùng khung với các bàn cờ (Quay lại · tên game · chế độ · biểu cảm · toàn màn hình · chơi lại) — ẩn khi toàn màn hình ── */}
-      {!isFullscreen && (
+      {(
         <GamePlayToolbar
           onBack={onBack}
           title="Rắn Săn Mồi"
@@ -193,6 +193,12 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
         />
       )}
 
+      {onTabChange && !isFullscreen && (
+        <div className="mb-2 flex w-full justify-center gap-2" role="group" aria-label="Chế độ Rắn săn mồi">
+          <button type="button" aria-pressed="true" className="min-h-10 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 text-xs font-semibold text-emerald-300">Đối kháng</button>
+          <button type="button" onClick={() => onTabChange('classic')} className="min-h-10 rounded-xl border border-white/10 px-4 text-xs font-semibold text-slate-300">Cổ điển</button>
+        </div>
+      )}
       {/* ── 2. VÙNG 2: ĐẤU TRƯỜNG RẮN SĂN MỒI MỞ RỘNG 100% KHÔNG GIAN ── */}
       <div className={cn('relative flex items-center justify-center w-full flex-1 h-full min-h-0', !isFullscreen && 'my-auto py-1')}>
         <Wormate3DArena

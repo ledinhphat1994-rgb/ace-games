@@ -442,7 +442,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
 
           {/* Khung bàn cờ phẳng to hơn */}
           <div
-            className="relative rounded-2xl overflow-hidden shrink-0"
+            className="game-board-shell relative w-full max-w-[644px] min-w-0 rounded-2xl overflow-hidden shrink"
             style={{
               boxShadow: [
                 '0 18px 40px rgba(0,0,0,0.7)',
@@ -492,7 +492,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                 aria-label="Bàn cờ Caro 15 nhân 15"
                 aria-rowcount={SIZE}
                 aria-colcount={SIZE}
-                className="grid border border-cyan-500/20 rounded-lg overflow-hidden w-[330px] h-[330px] sm:w-[420px] sm:h-[420px] md:w-[480px] md:h-[480px] lg:w-[540px] lg:h-[540px] xl:w-[580px] xl:h-[580px] 2xl:w-[620px] 2xl:h-[620px] shrink-0"
+                className="grid border border-cyan-500/20 rounded-lg overflow-hidden w-full aspect-square"
                 style={{
                   gridTemplateColumns: `repeat(${SIZE}, minmax(0, 1fr))`,
                   gridTemplateRows: `repeat(${SIZE}, minmax(0, 1fr))`,

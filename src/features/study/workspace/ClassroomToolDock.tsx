@@ -118,8 +118,8 @@ function IconLop({ id, className }: { id: LopId; className?: string }) {
 
 // Điện thoại: chỉ còn biểu tượng để cả dock vừa một hàng.
 const nutDock =
-  'relative flex h-11 w-10 sm:w-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white'
-const nhanDock = 'hidden sm:block'
+  'relative flex h-12 w-12 shrink-0 sm:w-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white'
+const nhanDock = 'block text-[9px] sm:text-[10px]'
 const dangChon = 'bg-brand/12 text-brand ring-1 ring-brand/30'
 const khongChon = 'text-slate-400 hover:bg-white/8 hover:text-slate-200'
 
@@ -217,7 +217,7 @@ export function ClassroomToolDock({
   return (
     <nav
       aria-label="Thanh công cụ trình chiếu"
-      className="flex items-center justify-center px-2 pt-1.5 pb-2 z-30 select-none"
+      className="flex items-center justify-center px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-30 select-none"
       data-testid="classroom-tool-dock"
     >
       {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}

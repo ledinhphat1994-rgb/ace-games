@@ -175,7 +175,7 @@ export function GamePlayToolbar({
   return (
     <div
       className={cn(
-        'relative flex items-center justify-between gap-2 w-full py-1 shrink-0 min-w-0',
+        'game-play-toolbar relative flex flex-wrap items-center justify-between gap-2 w-full py-1 shrink-0 min-w-0',
         className,
       )}
     >
@@ -228,7 +228,7 @@ export function GamePlayToolbar({
 
       {/* ── 2. KHU VỰC CHÍNH GIỮA: CĂN GIỮA TUYỆT ĐỐI THEO BẢNG CHÍNH (50% TRỤC GIỮA) ── */}
       {hideCenterTurn ? (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto z-10">
+        <div className="order-3 flex w-full items-center justify-center pointer-events-auto z-10 @min-[34rem]:order-none @min-[34rem]:w-auto">
           {cumChedo}
         </div>
       ) : (
@@ -274,8 +274,8 @@ export function GamePlayToolbar({
       )}
 
       {/* ── 3. KHU VỰC BÊN PHẢI: biểu cảm / tiện ích của game + nút toàn màn hình + nút hành động chính ── */}
-      <div className="flex items-center justify-end gap-2 shrink-0 z-10 min-w-0">
-        {!hideCenterTurn && cumChedo}
+      <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 z-10 min-w-0">
+        {!hideCenterTurn && <div className="order-3 w-full sm:order-none sm:w-auto">{cumChedo}</div>}
         {rightSlot}
         {nutFullscreen}
         {nutReset}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { MousePointer2, Play, RotateCcw, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SnakeTouchControls } from './SnakeTouchControls'
 
 const ARENA_SIZE = 2400
 const INITIAL_SEGMENT_COUNT = 18
@@ -112,6 +113,7 @@ function playWormSound(type: 'nom' | 'bonus' | 'boost' | 'crash', muted: boolean
     const gain = ctx.createGain()
     osc.connect(gain)
     gain.connect(ctx.destination)
+    osc.onended = () => { void ctx.close() }
     const now = ctx.currentTime
 
     if (type === 'nom') {
@@ -190,7 +192,7 @@ export interface Wormate3DArenaProps {
   mode?: 'ai' | 'pass_and_play'
   playerEmote?: { emoji: string; quote: string } | null
   onScoreUpdate: (score: number, length: number) => void
-  onGameOver: (winner: boolean, reason: string) => void
+  onGameOver: (winner: boolean, reason: string, finalScore?: number) => void
   onOpponentUpdate?: (name: string, score: number, length: number, isAlive: boolean) => void
   onOpponentEmote?: (emote: string, label: string) => void
   onStartGame: () => void
@@ -211,6 +213,11 @@ export function Wormate3DArena({
   onOpponentEmote,
   onStartGame,
 }: Wormate3DArenaProps) {
+  const callbacks = useRef({ onScoreUpdate, onGameOver, onOpponentUpdate, onOpponentEmote, playerEmote })
+  useEffect(() => {
+    callbacks.current = { onScoreUpdate, onGameOver, onOpponentUpdate, onOpponentEmote, playerEmote }
+  }, [onScoreUpdate, onGameOver, onOpponentUpdate, onOpponentEmote, playerEmote])
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [dimensions, setDimensions] = useState({ width: 850, height: 620 })
@@ -494,11 +501,6 @@ export function Wormate3DArena({
     }
   }
 
-  // Khởi chạy vòng lặp hoạt họa 60 FPS Canvas
-  useEffect(() => {
-    initEngine()
-  }, [initEngine])
-
   // Game Loop chính
   useEffect(() => {
     const canvas = canvasRef.current
@@ -507,6 +509,14 @@ export function Wormate3DArena({
     if (!ctx) return
 
     let lastTime = performance.now()
+    let animationFrame = 0
+    let finished = false
+    let lastHudUpdate = 0
+    const finishGame = (winner: boolean, reason: string) => {
+      if (finished) return
+      finished = true
+      callbacks.current.onGameOver(winner, reason)
+    }
 
     const loop = (currentTime: number) => {
       const dt = Math.min(0.05, (currentTime - lastTime) / 1000)
@@ -514,6 +524,7 @@ export function Wormate3DArena({
 
       const eng = engineRef.current
       const player = eng.player
+      if (document.hidden || !player) { animationFrame = requestAnimationFrame(loop); return }
 
       // ── 1. LOGIC CẬP NHẬT TRẠNG THÁI ──
       if (isRunning && !isGameOver && player.isAlive) {
@@ -571,7 +582,7 @@ export function Wormate3DArena({
           playWormSound('crash', muted)
           explodeWormIntoPastries(player)
           setFinalResult({ winner: false, reason: 'Đâm vào hàng rào bảo vệ đấu trường!' })
-          onGameOver(false, 'Đâm vào hàng rào đấu trường!')
+          finishGame(false, 'Đâm vào hàng rào đấu trường!')
         }
 
         // Ăn bánh ngọt
@@ -599,7 +610,7 @@ export function Wormate3DArena({
 
             eng.foods.splice(i, 1)
             eng.foods.push(createFood(eng.nextFoodId++))
-            onScoreUpdate(Math.floor(player.score), player.length)
+            callbacks.current.onScoreUpdate(Math.floor(player.score), player.length)
           }
         }
 
@@ -675,7 +686,7 @@ export function Wormate3DArena({
                 ai.isAlive = false
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(ai)
-                onOpponentEmote?.('🤯', `${ai.name} đã đâm phải bạn!`)
+                callbacks.current.onOpponentEmote?.('🤯', `${ai.name} đã đâm phải bạn!`)
                 break
               }
             }
@@ -690,7 +701,7 @@ export function Wormate3DArena({
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(player)
                 setFinalResult({ winner: false, reason: `Đâm trúng thân của ${ai.name}!` })
-                onGameOver(false, `Bị đâm trúng thân của ${ai.name}!`)
+                finishGame(false, `Bị đâm trúng thân của ${ai.name}!`)
                 break
               }
             }
@@ -737,7 +748,7 @@ export function Wormate3DArena({
             explodeWormIntoPastries(p2)
             if (player.isAlive) {
               setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào tường)' })
-              onGameOver(true, 'Người chơi 1 chiến thắng!')
+              finishGame(true, 'Người chơi 1 chiến thắng!')
             }
           }
 
@@ -764,7 +775,7 @@ export function Wormate3DArena({
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(player)
                 setFinalResult({ winner: false, reason: 'Người chơi 2 chiến thắng! (Người chơi 1 đâm vào thân Người chơi 2)' })
-                onGameOver(false, 'Người chơi 2 chiến thắng!')
+                finishGame(false, 'Người chơi 2 chiến thắng!')
                 break
               }
             }
@@ -779,7 +790,7 @@ export function Wormate3DArena({
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(p2)
                 setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào thân Người chơi 1)' })
-                onGameOver(true, 'Người chơi 1 chiến thắng!')
+                finishGame(true, 'Người chơi 1 chiến thắng!')
                 break
               }
             }
@@ -797,7 +808,7 @@ export function Wormate3DArena({
                   explodeWormIntoPastries(p2)
                   if (player.isAlive) {
                     setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào bot)' })
-                    onGameOver(true, 'Người chơi 1 chiến thắng!')
+                    finishGame(true, 'Người chơi 1 chiến thắng!')
                   }
                   break
                 }
@@ -810,6 +821,8 @@ export function Wormate3DArena({
         const allWorms = [player, ...(eng.player2 ? [eng.player2] : []), ...eng.aiWorms]
         const sorted = [...allWorms].sort((a, b) => b.score - a.score)
         const pRank = sorted.findIndex((w) => w.id === player.id) + 1
+        if (currentTime - lastHudUpdate >= 120) {
+        lastHudUpdate = currentTime
         setPlayerRank(pRank)
         setLeaderboard(
           sorted.map((w) => ({
@@ -822,13 +835,15 @@ export function Wormate3DArena({
           }))
         )
 
+        }
+
         // Báo đối thủ mạnh nhất ra bảng ngoài
-        if (onOpponentUpdate) {
+        if (callbacks.current.onOpponentUpdate) {
           const aliveAis = eng.aiWorms.filter((w) => w.isAlive)
           aliveAis.sort((a, b) => b.score - a.score)
           const topAi = aliveAis[0] || eng.aiWorms[0]
           if (topAi) {
-            onOpponentUpdate(topAi.name, Math.floor(topAi.score), topAi.length, topAi.isAlive)
+            callbacks.current.onOpponentUpdate?.(topAi.name, Math.floor(topAi.score), topAi.length, topAi.isAlive)
           }
         }
       }
@@ -924,7 +939,7 @@ export function Wormate3DArena({
         draw3DWorm(ctx, player, player.id === topWormId)
 
         // Vẽ biểu cảm nổi trên đầu Người chơi 1 nếu có
-        if (playerEmote) {
+        if (callbacks.current.playerEmote) {
           ctx.save()
           ctx.font = '20px sans-serif'
           ctx.textAlign = 'center'
@@ -936,7 +951,7 @@ export function Wormate3DArena({
           ctx.strokeStyle = '#38bdf8'
           ctx.lineWidth = 2
           ctx.stroke()
-          ctx.fillText(playerEmote.emoji, player.x, player.y - player.radius - 23)
+          ctx.fillText(callbacks.current.playerEmote.emoji, player.x, player.y - player.radius - 23)
           ctx.restore()
         }
       }
@@ -951,19 +966,21 @@ export function Wormate3DArena({
       // ── 3. VẼ RADAR / MINIMAP GÓC PHẢI DƯỚI ──
       drawMinimap(ctx, w, eng)
 
-      engineRef.current.animFrame = requestAnimationFrame(loop)
+      animationFrame = requestAnimationFrame(loop)
     }
 
-    engineRef.current.animFrame = requestAnimationFrame(loop)
+    animationFrame = requestAnimationFrame(loop)
 
     return () => {
-      if (engineRef.current.animFrame) cancelAnimationFrame(engineRef.current.animFrame)
+      cancelAnimationFrame(animationFrame)
     }
-  }, [isRunning, isGameOver, createFood, difficulty, muted, onGameOver, onOpponentEmote, onOpponentUpdate, onScoreUpdate, mode, playerEmote])
+  }, [isRunning, isGameOver, createFood, difficulty, muted, mode, restartKey])
 
   // Lắng nghe phím Spacebar để Tăng Tốc và phím WASD / Mũi tên cho Player 2
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isRunning || isGameOver || (e.target instanceof HTMLElement && (e.target.matches('input, textarea, select') || e.target.isContentEditable))) return
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
       if (e.code === 'Space') {
         e.preventDefault()
         engineRef.current.keys.boost = true
@@ -1005,18 +1022,26 @@ export function Wormate3DArena({
         engineRef.current.keys.p2Boost = false
       }
     }
+    const releaseKeys = () => {
+      const keys = engineRef.current.keys
+      keys.boost = keys.p2Boost = keys.p2Up = keys.p2Down = keys.p2Left = keys.p2Right = false
+    }
+    window.addEventListener('blur', releaseKeys)
+    document.addEventListener('visibilitychange', releaseKeys)
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
     return () => {
+      window.removeEventListener('blur', releaseKeys)
+      document.removeEventListener('visibilitychange', releaseKeys)
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [])
+  }, [isRunning, isGameOver])
 
   // Mouse & Touch Control Handlers
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas || !engineRef.current.player) return
     const rect = canvas.getBoundingClientRect()
     const centerX = rect.width / 2
     const centerY = rect.height / 2
@@ -1027,8 +1052,10 @@ export function Wormate3DArena({
     engineRef.current.player.targetAngle = angle
   }
 
-  const handlePointerDown = () => {
-    engineRef.current.keys.boost = true
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    handlePointerMove(e)
+    if (e.pointerType !== 'touch') engineRef.current.keys.boost = true
   }
 
   const handlePointerUp = () => {
@@ -1039,10 +1066,10 @@ export function Wormate3DArena({
     <div
       ref={containerRef}
       className={cn(
-        'relative flex flex-col items-center justify-center w-full rounded-2xl border-2 border-slate-700/80 bg-slate-950 shadow-2xl shadow-cyan-500/10 overflow-hidden select-none',
+        'snake-arena relative flex flex-col items-center justify-center w-full rounded-2xl border-2 border-slate-700/80 bg-slate-950 shadow-2xl shadow-cyan-500/10 overflow-hidden select-none',
         isFullscreen
           ? 'h-full flex-1 min-h-0 border-none rounded-none'
-          : 'flex-1 h-full min-h-[500px] max-h-[660px]'
+          : 'h-[clamp(300px,calc(100dvh-16rem),660px)] xl:flex-1 xl:h-full xl:min-h-0'
       )}
     >
       {/* Canvas Game 3D theo kích thước vùng chứa */}
@@ -1053,11 +1080,14 @@ export function Wormate3DArena({
         onPointerMove={handlePointerMove}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
-        className="size-full cursor-crosshair touch-none select-none block"
+        onPointerCancel={handlePointerUp}
+        onLostPointerCapture={handlePointerUp}
+        className="absolute inset-0 size-full cursor-crosshair touch-none select-none block"
+        aria-label="Đấu trường Rắn săn mồi"
       />
 
       {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI HIỆN TẠI (Làm mờ, không cản trở góc nhìn game) */}
-      <div className="absolute top-3.5 left-3.5 z-10 select-none pointer-events-none w-52 sm:w-60 p-2.5 rounded-2xl bg-slate-950/45 backdrop-blur-md border border-white/10 shadow-xl text-xs transition-opacity duration-300">
+      <div className="absolute top-3.5 left-3.5 z-10 select-none pointer-events-none w-[min(52%,15rem)] p-1.5 sm:p-2.5 rounded-2xl bg-slate-950/45 backdrop-blur-md border border-white/10 shadow-xl text-xs transition-opacity duration-300">
         <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
           <div className="flex items-center gap-1.5 font-black text-[11px] text-amber-300 uppercase tracking-wider">
             <Trophy className="size-3.5 text-amber-400" />
@@ -1107,7 +1137,7 @@ export function Wormate3DArena({
 
       {/* HUD thông số người chơi ở góc dưới bên trái */}
       {isRunning && !isGameOver && (
-        <div className="absolute bottom-3.5 left-3.5 z-10 flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
+        <div className="absolute bottom-3.5 left-3.5 z-10 flex items-center pointer-coarse:bottom-40 gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
           <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
             <span className="size-2 rounded-full bg-cyan-400" />
             <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {Math.floor(engineRef.current.player?.score || 0)}đ</span>
@@ -1130,6 +1160,13 @@ export function Wormate3DArena({
         </div>
       )}
 
+      {isRunning && !isGameOver && (
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 hidden justify-between gap-2 pointer-coarse:flex">
+          <div className="pointer-events-auto"><SnakeTouchControls player={1} onSteer={angle => { engineRef.current.player.targetAngle = angle }} onBoost={boost => { engineRef.current.keys.boost = boost }} /></div>
+          {mode === 'pass_and_play' && <div className="pointer-events-auto"><SnakeTouchControls player={2} onSteer={angle => { if (engineRef.current.player2) engineRef.current.player2.targetAngle = angle }} onBoost={boost => { engineRef.current.keys.p2Boost = boost }} /></div>}
+        </div>
+      )}
+
       {/* Màn sẵn sàng */}
       {!isRunning && !isGameOver && (
         <button
@@ -1137,12 +1174,12 @@ export function Wormate3DArena({
           onClick={onStartGame}
           aria-label="Bắt đầu chơi Rắn Săn Mồi"
           data-testid="ran-man-san-sang"
-          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center gap-6 rounded-2xl bg-slate-950/80 p-6 text-center backdrop-blur-sm animate-in fade-in duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center gap-3 sm:gap-6 rounded-2xl bg-slate-950/80 p-3 sm:p-6 text-center backdrop-blur-sm animate-in fade-in duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
         >
           <span className="relative flex items-center justify-center py-2">
             <span aria-hidden className="absolute size-36 rounded-full bg-emerald-400/30 blur-2xl motion-safe:animate-hao-quang-tho" />
             <span className="relative motion-safe:animate-troi-lo-lung drop-shadow-[0_10px_24px_rgb(0_0_0/0.55)]">
-              <CuteSnakeLogo className="size-24" />
+              <CuteSnakeLogo className="size-16 sm:size-24" />
             </span>
           </span>
           <span className="pt-1 text-2xl leading-[1.35] font-black tracking-[0.18em] text-emerald-300 uppercase [text-shadow:0_0_20px_rgb(52_211_153/0.55)] sm:text-3xl">
@@ -1177,7 +1214,7 @@ export function Wormate3DArena({
           {/* Nút BẮT ĐẦU to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
           <div className="pt-2">
             <span
-              className="inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <Play className="size-5 fill-white text-white drop-shadow animate-pulse" />
               <span>BẮT ĐẦU NGAY</span>
@@ -1193,7 +1230,7 @@ export function Wormate3DArena({
           onClick={onStartGame}
           aria-label="Chơi lại"
           data-testid="ran-man-ket-thuc"
-          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-6 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none">
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-3 sm:p-6 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none">
           <div className="size-16 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 shadow-xl shadow-rose-500/30 mb-3">
             <div className="size-full bg-slate-950 rounded-2xl flex items-center justify-center text-3xl">
               {finalResult?.winner ? '👑' : '💥'}
@@ -1207,7 +1244,7 @@ export function Wormate3DArena({
           </p>
 
           {/* Thống kê ván */}
-          <div className="grid grid-cols-2 gap-3 my-4 w-64 p-3 rounded-xl bg-white/5 border border-white/10">
+          <div className="grid grid-cols-2 gap-3 my-4 w-full max-w-64 p-3 rounded-xl bg-white/5 border border-white/10">
             <div className="flex flex-col items-center">
               <span className="text-lg font-black font-mono text-cyan-300">
                 {Math.floor(engineRef.current.player?.score || 0)}đ

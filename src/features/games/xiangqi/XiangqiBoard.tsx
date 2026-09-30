@@ -543,9 +543,9 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         </div>
 
         {/* Bàn cờ Cờ Tướng truyền thống Á Đông (9 cột × 10 hàng) - 100% hiển thị đầy đủ, không bị che */}
-        <div className="relative p-2.5 sm:p-3 rounded-2xl bg-[#caa472] border-4 border-[#82542a] shadow-2xl shadow-black/60 select-none shrink-0 flex flex-col items-center">
+        <div className="game-board-shell w-full max-w-[572px] min-w-0 relative p-2.5 sm:p-3 rounded-2xl bg-[#caa472] border-4 border-[#82542a] shadow-2xl shadow-black/60 select-none shrink flex flex-col items-center">
           {/* Lưới và Sông */}
-          <div className="relative grid grid-cols-9 grid-rows-10 w-[324px] h-[360px] sm:w-[396px] sm:h-[440px] md:w-[450px] md:h-[500px] lg:w-[486px] lg:h-[540px] xl:w-[513px] xl:h-[570px] 2xl:w-[540px] 2xl:h-[600px]">
+          <div className="relative grid grid-cols-9 grid-rows-10 w-full aspect-[9/10]">
             {/* Đường vẽ sông Sở Hà Hán Giới ở giữa hàng 4 và 5 */}
             <div className="absolute inset-x-2 top-[45%] h-[10%] flex items-center justify-around pointer-events-none text-xs sm:text-sm md:text-base font-serif font-black text-[#6d441f]/75 tracking-widest border-y border-[#6d441f]/60 bg-[#d8b586]/40">
               <span>楚 河 (Sở Hà)</span>
