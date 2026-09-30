@@ -50,11 +50,12 @@ describe('Bảng chọn cấp độ máy — một kiểu cho mọi game', () =>
   })
 })
 
-describe('Rắn Săn Mồi: sảnh poster + màn chơi theo khung bàn cờ', () => {
-  it('sảnh trò chơi đơn: hiển thị bìa trò chơi (poster), bấm vào poster hoặc Chơi ngay đều vào ván', () => {
-    expect(lobbyRaw).toContain('data-testid="game-lobby-solo"')
-    expect(lobbyRaw).toContain('<GameArt gameType={gameType} className="size-full object-cover')
-    expect(lobbyRaw).toContain("choiNgay={{ nhan: 'Chơi ngay'")
+describe('Lobby các game đồng nhất: mọi game cùng dùng chung sảnh Bàn đang mở', () => {
+  it('sảnh mọi game (bao gồm trò chơi đơn) có danh sách bàn, ô tìm kiếm, nút Tạo phòng và Chơi ngay', () => {
+    expect(lobbyRaw).toContain("tieuDe: 'Bàn đang mở'")
+    expect(lobbyRaw).toContain("testId: 'game-lobby-create'")
+    expect(lobbyRaw).toContain("testId: 'game-lobby-play-now'")
+    expect(lobbyRaw).not.toContain('game-lobby-solo')
   })
 
   it('màn chơi: thanh công cụ chung (Bắt đầu nổi bật · Toàn màn hình), màn sẵn sàng / kết thúc không có nút thứ hai', () => {

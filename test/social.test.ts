@@ -149,6 +149,18 @@ describe('Social Graph & Presence API — Invariants & Core Matrix', () => {
     expect(stateAFinal.state.friends.some((f) => f.id === userB.accountId)).toBe(true)
     expect(stateBFinal.state.friends.some((f) => f.id === userA.accountId)).toBe(true)
 
+    // B chấp nhận lại lời mời cũ sau khi đã là bạn bè -> không lỗi 404, trả về alreadyFriends: true
+    const resAcceptAgain = await goi('/api/social/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userB.cookie },
+      body: JSON.stringify({ requestId: req.id }),
+    })
+    expect(resAcceptAgain.status).toBe(200)
+    const acceptAgainJson = (await resAcceptAgain.json()) as { ok: boolean; alreadyFriends?: boolean; isFriend?: boolean }
+    expect(acceptAgainJson.ok).toBe(true)
+    expect(acceptAgainJson.isFriend).toBe(true)
+    expect(acceptAgainJson.alreadyFriends).toBe(true)
+
     // Gửi lại khi đã là bạn bè -> idempotent
     const resDup = await goi('/api/social/request', {
       method: 'POST',

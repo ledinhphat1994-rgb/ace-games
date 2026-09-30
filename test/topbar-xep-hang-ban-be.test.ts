@@ -123,14 +123,11 @@ describe('Giao diện', () => {
     expect(leaderboardRaw).toContain("verifiedOnly: '1'")
   })
 
-  it('sảnh trò chơi đơn: một nút Chơi ngay (thanh công cụ); ảnh trò chơi là poster bấm được, không nút thứ hai', () => {
-    expect(lobbyRaw).toContain('data-testid="game-lobby-solo"')
+  it('sảnh trò chơi: sảnh các game là như nhau, thanh công cụ có Chơi ngay, Tạo phòng, danh sách bàn đồng nhất', () => {
+    expect(lobbyRaw).toContain('testId="game-lobby"')
     expect(lobbyRaw).toContain("choiNgay={{ nhan: 'Chơi ngay'")
-    const poster = lobbyRaw.slice(lobbyRaw.indexOf('noiDungGiua={'), lobbyRaw.indexOf('cotTrai='))
-    expect(poster).toContain('onClick={choiNgay}')
-    expect(poster).not.toContain('<Button')
-    expect(poster).not.toMatch(/>\s*Chơi ngay\s*</) // không có nhãn nút hiển thị
-    expect(lobbyRaw).not.toContain('<Play className')
+    expect(lobbyRaw).toContain("tieuDe: 'Bàn đang mở'")
+    expect(lobbyRaw).toContain("nhan: 'Tạo phòng'")
   })
 
   it('chat chung: bấm ảnh hoặc tên người khác mở hồ sơ; hồ sơ có nút kết bạn theo quan hệ thật', () => {

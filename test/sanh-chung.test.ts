@@ -60,10 +60,10 @@ describe('Sảnh từng trò chơi', () => {
     expect(gameRoomPageRaw).toContain("navigate(sanhVe ? `/arena/${sanhVe}` : '/arena')")
   })
 
-  it('danh sách bàn theo đúng trò (WebSocket sảnh riêng), khách không thấy số giả, trò đơn không có bàn', () => {
+  it('danh sách bàn theo đúng trò (WebSocket sảnh riêng), khách không thấy số giả, sảnh các game đồng nhất', () => {
     expect(gameLobbyPageRaw).toContain('useGameRooms(gameType, coDanhSach)')
-    expect(gameLobbyPageRaw).toContain('const coDanhSach = Boolean(nguoiDung) && !laDon')
+    expect(gameLobbyPageRaw).toContain('const coDanhSach = Boolean(nguoiDung)')
     expect(gameLobbyPageRaw).toContain('soLuong: coDanhSach ? banLoc.length : undefined')
-    expect(gameLobbyPageRaw).toContain('laDon ? undefined')
+    expect(gameLobbyPageRaw).toContain("tieuDe: 'Bàn đang mở'")
   })
 })

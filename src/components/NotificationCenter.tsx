@@ -56,13 +56,26 @@ interface NotificationItemProps {
 
 function NotificationItem({ n, onDismiss }: NotificationItemProps) {
   const navigate = useNavigate()
-  const { acceptFriendRequest, rejectFriendRequest } = useCampusContext()
+  const { acceptFriendRequest, rejectFriendRequest, socialState, lamMoiSocialState } = useCampusContext()
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null)
 
   const requestId = n.meta?.requestId
+  const actorId = n.meta?.actorId
   const roomId = n.meta?.roomId
   const invitationId = n.meta?.invitationId
   const nid = n.id
+
+  const daLaBan = Boolean(
+    (actorId && socialState?.friends.some((f) => f.id === actorId)) ||
+    (n.meta?.actorName &&
+      socialState?.friends.some(
+        (f) => f.displayName === n.meta?.actorName || f.username === n.meta?.actorName,
+      )),
+  )
+
+  const coYeuCauCho = Boolean(
+    requestId && socialState?.incomingRequests.some((r) => r.id === requestId),
+  )
 
   const handleAccept = useCallback(async () => {
     if (!requestId) return
@@ -73,9 +86,19 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
       toast.success('Đã kết bạn!')
       onDismiss(nid)
     } else {
-      toast.error(kq.loi ?? 'Không thể chấp nhận lời mời.')
+      if (kq.loi?.includes('không tồn tại') || kq.loi?.includes('đã được xử lý') || daLaBan) {
+        onDismiss(nid)
+        void lamMoiSocialState()
+        if (daLaBan) {
+          toast.success('Hai bạn đã là bạn bè rồi!')
+        } else {
+          toast.info('Lời mời kết bạn đã được xử lý.')
+        }
+      } else {
+        toast.error(kq.loi ?? 'Không thể chấp nhận lời mời.')
+      }
     }
-  }, [requestId, nid, acceptFriendRequest, onDismiss])
+  }, [requestId, nid, acceptFriendRequest, onDismiss, daLaBan, lamMoiSocialState])
 
   const handleReject = useCallback(async () => {
     if (!requestId) return
@@ -85,9 +108,14 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
     if (kq.ok) {
       onDismiss(nid)
     } else {
-      toast.error(kq.loi ?? 'Không thể từ chối.')
+      if (kq.loi?.includes('không tồn tại') || kq.loi?.includes('đã được xử lý')) {
+        onDismiss(nid)
+        void lamMoiSocialState()
+      } else {
+        toast.error(kq.loi ?? 'Không thể từ chối.')
+      }
     }
-  }, [requestId, nid, rejectFriendRequest, onDismiss])
+  }, [requestId, nid, rejectFriendRequest, onDismiss, lamMoiSocialState])
 
   const handleRoomClick = useCallback(() => {
     onDismiss(nid)
@@ -138,18 +166,31 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
   const Icon = kieu.icon
 
   let hanhDong: ReactNode = null
-  if (n.type === 'friend_request' && n.meta?.requestId) {
-    hanhDong = (
-      <>
-        <Button size="xs" disabled={busy !== null} onClick={handleAccept}>
-          {busy === 'accept' ? <Loader2 className="animate-spin" /> : <Check />}
-          Chấp nhận
-        </Button>
-        <Button size="xs" variant="outline" disabled={busy !== null} onClick={handleReject}>
-          Từ chối
-        </Button>
-      </>
-    )
+  if (n.type === 'friend_request') {
+    if (daLaBan) {
+      hanhDong = (
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400">
+          <Check className="size-3.5" />
+          Đã là bạn bè
+        </span>
+      )
+    } else if (socialState && !coYeuCauCho) {
+      hanhDong = null
+    } else if (n.read) {
+      hanhDong = null
+    } else if (requestId) {
+      hanhDong = (
+        <>
+          <Button size="xs" disabled={busy !== null} onClick={handleAccept}>
+            {busy === 'accept' ? <Loader2 className="animate-spin" /> : <Check />}
+            Chấp nhận
+          </Button>
+          <Button size="xs" variant="outline" disabled={busy !== null} onClick={handleReject}>
+            Từ chối
+          </Button>
+        </>
+      )
+    }
   } else if (n.type === 'study_invite' && n.meta?.invitationId) {
     hanhDong = (
       <>

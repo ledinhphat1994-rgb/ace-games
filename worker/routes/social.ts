@@ -355,6 +355,9 @@ socialApp.post('/request', async (c) => {
     await c.env.DB.batch([
       c.env.DB.prepare('DELETE FROM friend_requests WHERE (sender_id = ?1 AND receiver_id = ?2) OR (sender_id = ?2 AND receiver_id = ?1)').bind(myId, targetId),
       c.env.DB.prepare('INSERT OR IGNORE INTO friendships (account_low_id, account_high_id, created_at) VALUES (?1, ?2, ?3)').bind(low, high, now),
+      c.env.DB.prepare(
+        "UPDATE notifications SET read_at = ?1 WHERE ((recipient_id = ?2 AND json_extract(data_json, '$.actorId') = ?3) OR (recipient_id = ?3 AND json_extract(data_json, '$.actorId') = ?2)) AND type = 'friend_request' AND read_at IS NULL",
+      ).bind(now, myId, targetId),
     ])
 
     // Báo CampusDO cập nhật bạn bè cho cả hai phía
@@ -472,6 +475,36 @@ socialApp.post('/accept', async (c) => {
     }>()
 
   if (!req) {
+    // Kiểm tra xem lời mời này có trong notifications và 2 người đã là bạn bè chưa
+    const notif = await c.env.DB.prepare(
+      "SELECT id, data_json FROM notifications WHERE recipient_id = ?1 AND type = 'friend_request' AND json_extract(data_json, '$.requestId') = ?2",
+    )
+      .bind(myId, requestId)
+      .first<{ id: number; data_json: string }>()
+
+    if (notif) {
+      let actorId: number | undefined
+      try {
+        actorId = (JSON.parse(notif.data_json || '{}') as { actorId?: number }).actorId
+      } catch {}
+
+      if (actorId) {
+        const low = Math.min(myId, actorId)
+        const high = Math.max(myId, actorId)
+        const isFriend = await c.env.DB.prepare(
+          'SELECT 1 FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2',
+        )
+          .bind(low, high)
+          .first()
+
+        if (isFriend) {
+          await c.env.DB.prepare('UPDATE notifications SET read_at = ?1 WHERE id = ?2').bind(Date.now(), notif.id).run()
+          return c.json({ ok: true, isFriend: true, alreadyFriends: true })
+        }
+      }
+      await c.env.DB.prepare('UPDATE notifications SET read_at = ?1 WHERE id = ?2').bind(Date.now(), notif.id).run()
+    }
+
     return loi('Lời mời không tồn tại hoặc đã được xử lý.', 404)
   }
 
@@ -538,6 +571,13 @@ socialApp.post('/accept', async (c) => {
     now,
   })
 
+  // Đánh dấu đã đọc thông báo lời mời kết bạn của myId
+  await c.env.DB.prepare(
+    "UPDATE notifications SET read_at = ?1 WHERE recipient_id = ?2 AND type = 'friend_request' AND read_at IS NULL AND (json_extract(data_json, '$.actorId') = ?3 OR json_extract(data_json, '$.requestId') = ?4)",
+  )
+    .bind(now, myId, otherId, requestId)
+    .run()
+
   return c.json({ ok: true, isFriend: true })
 })
 
@@ -562,6 +602,13 @@ socialApp.post('/reject', async (c) => {
   )
     .bind(requestId, myId)
     .first<{ sender_id: number }>()
+
+  // Đánh dấu đã đọc cho thông báo nếu có
+  await c.env.DB.prepare(
+    "UPDATE notifications SET read_at = ?1 WHERE recipient_id = ?2 AND type = 'friend_request' AND read_at IS NULL AND json_extract(data_json, '$.requestId') = ?3",
+  )
+    .bind(Date.now(), myId, requestId)
+    .run()
 
   if (!delRes) {
     return loi('Lời mời không tồn tại hoặc đã được xử lý.', 404)
@@ -597,6 +644,14 @@ socialApp.post('/cancel', async (c) => {
   )
     .bind(requestId, myId)
     .first<{ receiver_id: number }>()
+
+  if (delRes?.receiver_id) {
+    await c.env.DB.prepare(
+      "DELETE FROM notifications WHERE recipient_id = ?1 AND type = 'friend_request' AND json_extract(data_json, '$.requestId') = ?2",
+    )
+      .bind(delRes.receiver_id, requestId)
+      .run()
+  }
 
   if (!delRes) {
     return loi('Lời mời không tồn tại hoặc đã được xử lý.', 404)

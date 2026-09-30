@@ -286,12 +286,15 @@ export function GameSocialSidebar({
   const ketQuaKhop = timNguoi.status !== 'idle' && timNguoi.query === tuKhoaTim
   const dangTimNguoi = tuKhoaTim !== '' && !(ketQuaKhop && timNguoi.status !== 'searching')
   const loiTimNguoi = ketQuaKhop && timNguoi.status === 'error'
+  const friendIdSet = useMemo(() => new Set(friends.map((f) => f.id)), [friends])
   const nguoiKhac = useMemo(
     () =>
       ketQuaKhop && timNguoi.status === 'success'
-        ? timNguoi.results.filter((r) => r.relationshipStatus !== 'friend' && r.relationshipStatus !== 'self')
+        ? timNguoi.results.filter(
+            (r) => !friendIdSet.has(r.id) && r.relationshipStatus !== 'friend' && r.relationshipStatus !== 'self',
+          )
         : [],
-    [ketQuaKhop, timNguoi],
+    [ketQuaKhop, timNguoi, friendIdSet],
   )
   const loiMoiDen = socialState?.incomingRequests ?? []
 

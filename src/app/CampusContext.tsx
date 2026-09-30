@@ -412,6 +412,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
               outgoingRequests: cur.outgoingRequests.filter((r) => r.id !== id),
             }
           })
+          void lamMoiNotifications()
           break
         }
 
@@ -432,6 +433,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
             ...prev,
             [presence.accountId]: presence,
           }))
+          void lamMoiNotifications()
           break
         }
 

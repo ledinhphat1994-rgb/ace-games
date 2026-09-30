@@ -52,8 +52,8 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
   const game = GAME_CATALOG_BY_ID[gameType]
   const laDon = laTroChoiDon(gameType)
 
-  // Danh sách bàn chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách); trò chơi đơn không có bàn.
-  const coDanhSach = Boolean(nguoiDung) && !laDon
+  // Danh sách bàn chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách).
+  const coDanhSach = Boolean(nguoiDung)
   const { data, isPending, isError, refetch } = useGameRooms(gameType, coDanhSach)
   const tatCaBan = useMemo(
     () => ((data ?? []) as BanSanh[]).filter((t) => t.gameType === gameType && t.trangThai !== 'ended').sort(xepBan),
@@ -115,62 +115,51 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         quayLai={{ nhan: 'Tất cả trò chơi', toi: '/arena' }}
         thongKe={<ThongKeGame gameType={gameType} ban={tatCaBan} sanSang={coDanhSach && !isPending && !isError} />}
         choiNgay={{ nhan: 'Chơi ngay', onClick: choiNgay, testId: 'game-lobby-play-now' }}
-        taoPhong={
-          laDon ? undefined : { nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'game-lobby-create' }
-        }
+        taoPhong={{
+          nhan: 'Tạo phòng',
+          onClick: canDangNhap(() => {
+            if (laDon) {
+              taoBan(0)
+            } else {
+              setMoTaoPhong(true)
+            }
+          }),
+          testId: 'game-lobby-create',
+        }}
         timKiem={coDanhSach ? { giaTri: tuKhoa, onDoi: setTuKhoa, goiY: 'Tìm bàn…' } : undefined}
-        danhSach={
-          laDon
-            ? undefined
-            : {
-                tieuDe: 'Bàn đang mở',
-                soLuong: coDanhSach ? banLoc.length : undefined,
-                trangThai: coDanhSach && isPending ? 'dang_tai' : coDanhSach && isError ? 'dang_ket_noi_lai' : 'san_sang',
-                onKetNoiLai: () => void refetch(),
-                rong: banLoc.length === 0,
-                noiDungRong: !nguoiDung ? (
-                  <KhungTrongSanh
-                    testId="game-lobby-login"
-                    hinh={<AnhTroChoi gameType={gameType} />}
-                    hoatHinh
-                    mauHaoQuang={mauNhanTroChoi(gameType)}
-                    tieuDe="Đăng nhập để xem bàn đang mở"
-                    nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
-                  />
-                ) : tuKhoa.trim() ? (
-                  <KhungTrongSanh
-                    testId="game-lobby-search-empty"
-                    hinh={<Search className="size-6 text-text-tertiary" />}
-                    tieuDe="Không tìm thấy bàn"
-                    nut={{ nhan: 'Xóa tìm kiếm', onClick: () => setTuKhoa(''), phu: true }}
-                  />
-                ) : (
-                  <KhungTrongSanh
-                    testId="game-lobby-empty"
-                    hinh={<AnhTroChoi gameType={gameType} />}
-                    hoatHinh
-                    mauHaoQuang={mauNhanTroChoi(gameType)}
-                    tieuDe="Chưa có bàn nào đang mở"
-                  />
-                ),
-                children: banLoc.map((t) => <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />),
-              }
-        }
-        noiDungGiua={
-          laDon ? (
-            // Trò chơi đơn (PvE): chỉ một nút "Chơi ngay" duy nhất — trên thanh công cụ như mọi sảnh khác. Tấm ảnh trò chơi
-            // là poster, bấm vào cũng vào chơi (không thêm nút thứ hai).
-            <button
-              type="button"
-              onClick={choiNgay}
-              aria-label={`Chơi ${game.shortTitle}`}
-              data-testid="game-lobby-solo"
-              className="group relative block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/[0.07] bg-black/40 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
-            >
-              <GameArt gameType={gameType} className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
-            </button>
-          ) : undefined
-        }
+        danhSach={{
+          tieuDe: 'Bàn đang mở',
+          soLuong: coDanhSach ? banLoc.length : undefined,
+          trangThai: coDanhSach && isPending ? 'dang_tai' : coDanhSach && isError ? 'dang_ket_noi_lai' : 'san_sang',
+          onKetNoiLai: () => void refetch(),
+          rong: banLoc.length === 0,
+          noiDungRong: !nguoiDung ? (
+            <KhungTrongSanh
+              testId="game-lobby-login"
+              hinh={<AnhTroChoi gameType={gameType} />}
+              hoatHinh
+              mauHaoQuang={mauNhanTroChoi(gameType)}
+              tieuDe="Đăng nhập để xem bàn đang mở"
+              nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
+            />
+          ) : tuKhoa.trim() ? (
+            <KhungTrongSanh
+              testId="game-lobby-search-empty"
+              hinh={<Search className="size-6 text-text-tertiary" />}
+              tieuDe="Không tìm thấy bàn"
+              nut={{ nhan: 'Xóa tìm kiếm', onClick: () => setTuKhoa(''), phu: true }}
+            />
+          ) : (
+            <KhungTrongSanh
+              testId="game-lobby-empty"
+              hinh={<AnhTroChoi gameType={gameType} />}
+              hoatHinh
+              mauHaoQuang={mauNhanTroChoi(gameType)}
+              tieuDe="Chưa có bàn nào đang mở"
+            />
+          ),
+          children: banLoc.map((t) => <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />),
+        }}
         cotTrai={<GameArenaLeaderboard defaultGame={gameType} />}
         cotPhai={<GameSocialSidebar coChatPhong={false} />}
       />
