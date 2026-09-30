@@ -11,6 +11,8 @@ import dialogRaw from '../src/components/social/HoSoNguoiDungDialog.tsx?raw'
 import agentsRaw from '../AGENTS.md?raw'
 import rootRulesRaw from '../.agents/rules/00-digital-campus-root.md?raw'
 import apiRaw from '../worker/routes/engagement-api.ts?raw'
+import toolbarRaw from '../src/features/games/GamePlayToolbar.tsx?raw'
+import leaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
 
 describe('Quy tắc thiết kế: Zero Overlap & Nút Thành tựu & Xóa nút Thành viên góc phải', () => {
   it('1. ClassroomTopBar xóa tận gốc nút Thành viên góc phải, giữ dải thành viên trung tâm', () => {
@@ -19,13 +21,19 @@ describe('Quy tắc thiết kế: Zero Overlap & Nút Thành tựu & Xóa nút T
     expect(topBarRaw).toContain('memberStrip')
   })
 
-  it('2. HoSoNguoiDungDialog tách hàng độc lập (Zero Overlap) và có nút / view Thành tựu', () => {
-    // Nút thành tựu
-    expect(dialogRaw).toContain('data-testid="ho-so-btn-thanh-tuu"')
+  it('2. HoSoNguoiDungDialog tách hàng độc lập (Zero Overlap), có card thành tựu và badge Bạn nổi bật ở vùng 3+', () => {
+    // Badge "Bạn" nổi bật ở góc trên trái vùng 3+
+    expect(dialogRaw).toContain('data-testid="badge-ban-highlight"')
+    expect(dialogRaw).toContain('★ BẠN')
+
+    // Card Thành tựu độc lập, không đè
+    expect(dialogRaw).toContain('data-testid="card-thanh-tuu"')
     expect(dialogRaw).toContain('Thành tựu')
-    // Phân tách hàng quan hệ riêng, hàng grid hành động riêng chống đè
+
+    // Phân tách hàng quan hệ riêng, hàng hành động riêng chống đè
     expect(dialogRaw).toContain('data-testid="ho-so-quan-he-row"')
-    expect(dialogRaw).toContain('grid grid-cols-2')
+    expect(dialogRaw).toContain('data-testid="ho-so-btn-nhan-tin"')
+
     // Danh sách thành tựu chi tiết
     expect(dialogRaw).toContain('data-testid="ho-so-danh-sach-thanh-tuu"')
     expect(dialogRaw).toContain('/api/engagement/achievements?accountId=')
@@ -42,5 +50,21 @@ describe('Quy tắc thiết kế: Zero Overlap & Nút Thành tựu & Xóa nút T
   it('4. API /api/engagement/achievements hỗ trợ query accountId', () => {
     expect(apiRaw).toContain("c.req.query('accountId')")
     expect(apiRaw).toContain('parsedTarget')
+  })
+
+  it('5. GamePlayToolbar: 2 icon ngoài cùng cố định, cụm icon giữa có thể kéo qua kéo lại (drag-to-scroll)', () => {
+    expect(toolbarRaw).toContain('game-toolbar-fixed-left')
+    expect(toolbarRaw).toContain('game-toolbar-fixed-right')
+    expect(toolbarRaw).toContain('game-toolbar-scrollable-center')
+    expect(toolbarRaw).toContain('centerScrollRef')
+    expect(toolbarRaw).toContain('batDauKeo')
+    expect(toolbarRaw).toContain('keo')
+    expect(toolbarRaw).toContain('thaKeo')
+    expect(toolbarRaw).toContain('setPointerCapture')
+  })
+
+  it('6. Icon tương tác trên toàn bộ trang sáng rõ, không bị mờ', () => {
+    expect(leaderboardRaw).toContain('text-white/80 hover:text-white')
+    expect(toolbarRaw).toContain('text-white')
   })
 })

@@ -96,6 +96,70 @@ export function GamePlayToolbar({
   }, [])
   const isFs = isFullscreen ?? internalFullscreen
 
+  // Hỗ trợ kéo qua kéo lại (drag-to-scroll) trên cụm icon ở giữa
+  const centerScrollRef = React.useRef<HTMLDivElement>(null)
+  const keoRef = React.useRef<{ x: number; cuon: number; daKeo: boolean; id: number } | null>(null)
+  const [dangKeo, setDangKeo] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = centerScrollRef.current
+    if (!el) return
+    const xuLyWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || el.scrollWidth <= el.clientWidth) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaY
+    }
+    el.addEventListener('wheel', xuLyWheel, { passive: false })
+    return () => el.removeEventListener('wheel', xuLyWheel)
+  }, [])
+
+  const batDauKeo = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const el = centerScrollRef.current
+    if (!el) return
+    keoRef.current = {
+      x: e.clientX,
+      cuon: el.scrollLeft,
+      daKeo: false,
+      id: e.pointerId,
+    }
+  }
+
+  const keo = (e: React.PointerEvent<HTMLDivElement>) => {
+    const k = keoRef.current
+    const el = centerScrollRef.current
+    if (!k || !el || k.id !== e.pointerId) return
+    const dx = e.clientX - k.x
+    if (!k.daKeo && Math.abs(dx) < 4) return
+    if (!k.daKeo) {
+      k.daKeo = true
+      setDangKeo(true)
+      try {
+        el.setPointerCapture(e.pointerId)
+      } catch {}
+    }
+    el.scrollLeft = k.cuon - dx
+  }
+
+  const thaKeo = (e: React.PointerEvent<HTMLDivElement>) => {
+    const k = keoRef.current
+    if (!k || k.id !== e.pointerId) return
+    try {
+      centerScrollRef.current?.releasePointerCapture(e.pointerId)
+    } catch {}
+    setDangKeo(false)
+    setTimeout(() => {
+      keoRef.current = null
+    }, 0)
+  }
+
+  const chanClickKhiKeo = (e: React.MouseEvent) => {
+    if (keoRef.current?.daKeo) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }
+
   const handleFsToggle = (e: React.MouseEvent) => {
     if (onToggleFullscreen) {
       onToggleFullscreen()
@@ -126,11 +190,11 @@ export function GamePlayToolbar({
       variant="outline"
       size="sm"
       onClick={handleFsToggle}
-      className="h-8 gap-1.5 border-white/10 bg-white/5 px-2 text-xs font-bold text-slate-200 transition-all hover:scale-105 hover:bg-white/10 active:scale-95 cursor-pointer shrink-0"
+      className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:scale-105 hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
       title={isFs ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
       aria-label="Toàn màn hình"
     >
-      {isFs ? <Minimize2 className="size-3.5 text-cyan-400" /> : <Maximize2 className="size-3.5 text-cyan-400" />}
+      {isFs ? <Minimize2 className="size-3.5 text-cyan-300" /> : <Maximize2 className="size-3.5 text-cyan-300" />}
       <span className="game-control-label">{isFs ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
     </Button>
   )
@@ -173,10 +237,10 @@ export function GamePlayToolbar({
           ? 'h-9 px-3.5 sm:px-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/30 uppercase tracking-wider'
           : resetLabel === 'Ván mới'
             ? 'h-8 px-2.5 bg-brand text-brand-foreground hover:bg-brand/90 font-bold'
-            : 'h-8 px-2 border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 font-bold',
+            : 'h-8 px-2 border-white/15 bg-white/10 text-white hover:bg-white/20 hover:border-white/30 font-bold',
       )}
     >
-      {resetIcon ?? (laBatDau ? <Play className="size-4 fill-white text-white drop-shadow" /> : resetLabel === 'Ván mới' ? <RotateCcw className="size-3.5" /> : <Flag className="size-3.5 text-rose-400" />)}
+      {resetIcon ?? (laBatDau ? <Play className="size-4 fill-white text-white drop-shadow" /> : resetLabel === 'Ván mới' ? <RotateCcw className="size-3.5 text-white" /> : <Flag className="size-3.5 text-rose-400" />)}
       <span className="game-control-label">{resetLabel ?? 'Xin thua'}</span>
       {surrenderAttempts !== undefined && surrenderAttempts > 0 && resetLabel !== 'Ván mới' && (
         <span className="game-control-label text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
@@ -193,12 +257,12 @@ export function GamePlayToolbar({
         role="toolbar"
         aria-label={title ? `Điều khiển ${title}` : 'Điều khiển trò chơi'}
         className={cn(
-          'game-play-toolbar relative grid items-center gap-x-3 gap-y-2 w-full py-1 min-w-0',
+          'game-play-toolbar relative flex items-center justify-between gap-1.5 sm:gap-2.5 w-full py-1 min-w-0 select-none',
           className,
         )}
       >
-        {/* ── 1. Nút quay lại sảnh & Tiêu đề nổi bật tên game (Vùng 2+ sát mép trái) ── */}
-        <div className="game-toolbar-identity flex items-center gap-2 min-w-0 z-10">
+        {/* ── 1. Nút quay lại sảnh (Icon ngoài cùng bên trái CỐ ĐỊNH) & Tiêu đề game ── */}
+        <div className="game-toolbar-fixed-left flex items-center gap-1.5 sm:gap-2 shrink-0 z-10 min-w-0">
           {onBack && (
             <Button
               variant="outline"
@@ -206,9 +270,9 @@ export function GamePlayToolbar({
               onClick={handleBack}
               aria-label="Quay lại sảnh"
               title="Quay lại sảnh"
-              className="gap-1.5 font-bold border-white/10 hover:bg-white/5 text-xs text-text-secondary hover:text-white h-8 px-2 shrink-0 cursor-pointer"
+              className="gap-1.5 font-bold border-white/15 bg-white/10 text-white hover:bg-white/20 hover:border-white/30 text-xs h-8 px-2 shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-sm"
             >
-              <ArrowLeft className="size-3.5" />
+              <ArrowLeft className="size-3.5 text-white" />
               <span className="game-control-label">Quay lại sảnh</span>
             </Button>
           )}
@@ -245,54 +309,72 @@ export function GamePlayToolbar({
           )}
         </div>
 
-        {/* ── 2. Cụm chuyển đổi chế độ PvE/PvP (Vùng 4+ lên sát mép trên ở giữa) ── */}
-        <div className="game-toolbar-modes min-w-0 flex items-center justify-center">{cumChedo}</div>
-        {!hideCenterTurn && (
-          <div className="game-toolbar-turn flex min-w-0 items-center justify-center px-1">
-            {outcomeNotice ? (
-              <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-bold text-xs shadow-sm">
-                {outcomeNotice}
-              </div>
-            ) : (
-              <div
-                className={cn(
-                  'flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all duration-200',
-                  isRed
-                    ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
-                    : isAiThinking
-                      ? 'bg-cyan-950/70 border border-cyan-500/40 text-cyan-300'
-                      : 'bg-slate-900/80 border border-white/10 text-slate-200',
-                )}
-              >
-                {isRed ? (
-                  <span className="relative flex size-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+        {/* ── 2. Cụm icon ở giữa: PvE/PvP, Biểu cảm, Toàn màn hình (Kéo qua kéo lại khi hover giữ im) ── */}
+        <div
+          ref={centerScrollRef}
+          onPointerDown={batDauKeo}
+          onPointerMove={keo}
+          onPointerUp={thaKeo}
+          onPointerCancel={thaKeo}
+          onClickCapture={chanClickKhiKeo}
+          className={cn(
+            'game-toolbar-scrollable-center flex items-center justify-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-x-auto no-scrollbar scrollbar-none py-0.5 px-1 touch-pan-x',
+            dangKeo ? 'cursor-grabbing select-none' : 'cursor-grab',
+          )}
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          <div className="game-toolbar-modes min-w-0 flex items-center justify-center shrink-0">{cumChedo}</div>
+          {rightSlot && <div className="game-toolbar-slot flex items-center shrink-0">{rightSlot}</div>}
+          {nutFullscreen && <div className="game-toolbar-fullscreen flex items-center shrink-0">{nutFullscreen}</div>}
+          {!hideCenterTurn && (
+            <div className="game-toolbar-turn flex min-w-0 items-center justify-center px-1 shrink-0">
+              {outcomeNotice ? (
+                <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-bold text-xs shadow-sm">
+                  {outcomeNotice}
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    'flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all duration-200',
+                    isRed
+                      ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
+                      : isAiThinking
+                        ? 'bg-cyan-950/70 border border-cyan-500/40 text-cyan-300'
+                        : 'bg-slate-900/80 border border-white/10 text-slate-200',
+                  )}
+                >
+                  {isRed ? (
+                    <span className="relative flex size-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+                    </span>
+                  ) : isAiThinking ? (
+                    <Zap className="size-3.5 text-cyan-400 animate-spin" />
+                  ) : (
+                    (turnIndicator ?? <span className="size-2.5 rounded-full bg-slate-500 ring-2 ring-slate-400/50 animate-pulse" />)
+                  )}
+
+                  <span>
+                    {isRed
+                      ? (mode === 'ai' ? `● Tới lượt bạn (${cleanSideLabel})` : `● Lượt ${cleanSideLabel}`)
+                      : (mode === 'ai'
+                          ? (isAiThinking ? 'Máy đang tính toán…' : 'Lượt của Máy AI')
+                          : `● Lượt ${cleanSideLabel}`)}
                   </span>
-                ) : isAiThinking ? (
-                  <Zap className="size-3.5 text-cyan-400 animate-spin" />
-                ) : (
-                  (turnIndicator ?? <span className="size-2.5 rounded-full bg-slate-500 ring-2 ring-slate-400/50 animate-pulse" />)
-                )}
 
-                <span>
-                  {isRed
-                    ? (mode === 'ai' ? `● Tới lượt bạn (${cleanSideLabel})` : `● Lượt ${cleanSideLabel}`)
-                    : (mode === 'ai'
-                        ? (isAiThinking ? 'Máy đang tính toán…' : 'Lượt của Máy AI')
-                        : `● Lượt ${cleanSideLabel}`)}
-                </span>
+                  {statusAlert}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-                {statusAlert}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── 3. Các thao tác hành động (Vùng 3+ ra sát mép phải) ── */}
-        <div className="game-toolbar-actions flex items-center justify-end gap-2 z-10 min-w-0">
-          {rightSlot}
-          {nutFullscreen}
+        {/* ── 3. Icon ngoài cùng bên phải CỐ ĐỊNH: Nút hành động chính (Bắt đầu / Ván mới / Xin thua) ── */}
+        <div className="game-toolbar-fixed-right flex items-center justify-end gap-1.5 sm:gap-2 z-10 shrink-0 min-w-0">
           {nutReset}
         </div>
       </div>

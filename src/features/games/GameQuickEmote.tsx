@@ -185,8 +185,8 @@ export function GameQuickEmote({
                 title="Cảm xúc nhanh"
                 aria-label="Mở danh sách cảm xúc nhanh"
                 className={cn(
-                  'h-8 gap-1.5 border-white/10 bg-white/5 text-xs text-slate-200 hover:bg-white/10 font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2.5 cursor-pointer',
-                  isOpen && 'bg-white/15 border-white/20 text-white',
+                  'h-8 gap-1.5 border-white/15 bg-white/10 text-xs text-white hover:bg-white/20 hover:border-white/30 font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2.5 cursor-pointer',
+                  isOpen && 'bg-white/20 border-white/30 text-white shadow-md',
                 )}
               >
                 <span className="text-sm leading-none select-none">

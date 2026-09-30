@@ -47,6 +47,7 @@ export function NutQuanHe({ id, trangThaiMayChu, day = false }: NutQuanHeProps) 
   switch (quanHe) {
     case null:
     case 'self':
+      if (day) return null
       return quanHe === 'self' ? <span className="shrink-0 text-xs text-text-tertiary">Bạn</span> : null
     case 'friend':
       if (day) {
