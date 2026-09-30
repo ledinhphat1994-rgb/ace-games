@@ -1,3 +1,4 @@
+import { ResponsiveActivityLayout } from '@/components/layout/ResponsiveActivityLayout'
 import type { GameType } from '@shared/protocol/game'
 import { useGame } from '../../hooks/use-game'
 import { ChessBoard } from './chess/ChessBoard'
@@ -39,73 +40,15 @@ export function GameBoardView({
     playerO: meta.playerO,
   }
 
-  // Cờ vua: Tích hợp chế độ bàn cờ đầy đủ chuẩn 3 cột
-  if (meta.gameType === 'chess') {
-    return (
-      <div className="w-full">
-        <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-stretch w-full">
-          {/* Cột 1 (Trái): Bảng xếp hạng */}
-          <div className="min-w-0 order-2 lg:order-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-            <GameArenaLeaderboard defaultGame="chess" className="h-full" />
-          </div>
-
-          {/* Cột 2 (Trung tâm): Bàn cờ Cờ Vua & Thanh điều khiển */}
-          <div className="min-w-0 order-1 lg:order-2 h-[700px] xl:h-[720px] 2xl:h-[740px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3.5 flex flex-col items-center justify-between overflow-hidden">
-            <ChessBoard onBack={onLeave} online={online} />
-          </div>
-
-          {/* Cột 3 (Phải): Khung Chat Phòng, Chat Chung, Bạn bè */}
-          <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-            <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Vua" userRole={userRole} chatBan={chatBan} className="h-full" />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Cờ tướng: Tích hợp chế độ bàn cờ đầy đủ chuẩn 3 cột
-  if (meta.gameType === 'xiangqi') {
-    return (
-      <div className="w-full">
-        <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-stretch w-full">
-          {/* Cột 1 (Trái): Bảng xếp hạng */}
-          <div className="min-w-0 order-2 lg:order-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-            <GameArenaLeaderboard defaultGame="xiangqi" className="h-full" />
-          </div>
-
-          {/* Cột 2 (Trung tâm): Bàn cờ Cờ Tướng & Thanh điều khiển */}
-          <div className="min-w-0 order-1 lg:order-2 h-[700px] xl:h-[720px] 2xl:h-[740px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3.5 flex flex-col items-center justify-between overflow-hidden">
-            <XiangqiBoard onBack={onLeave} online={online} />
-          </div>
-
-          {/* Cột 3 (Phải): Khung Chat Phòng, Chat Chung, Bạn bè */}
-          <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-            <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Tướng" userRole={userRole} chatBan={chatBan} className="h-full" />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Cờ Caro (caro_15): Chuẩn hoá giao diện theo khuôn mẫu Cờ Tướng
+  const roomName = meta.gameType === 'chess' ? 'Phòng Cờ Vua' : meta.gameType === 'xiangqi' ? 'Phòng Cờ Tướng' : 'Phòng Cờ Caro'
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-stretch w-full">
-        {/* Cột 1 (Trái): Bảng xếp hạng */}
-        <div className="min-w-0 order-2 lg:order-1 h-[720px] xl:h-[750px] 2xl:h-[780px]">
-          <GameArenaLeaderboard defaultGame="caro_15" className="h-full" />
-        </div>
-
-        {/* Cột 2 (Trung tâm): Bàn cờ Caro 15x15 & Thanh điều khiển */}
-        <div className="min-w-0 order-1 lg:order-2 h-[720px] xl:h-[750px] 2xl:h-[780px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3 flex flex-col items-center justify-between overflow-hidden">
-          <CaroBoard onBack={onLeave} online={online} />
-        </div>
-
-        {/* Cột 3 (Phải): Khung Chat Phòng, Chat Chung, Bạn bè */}
-        <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[720px] xl:h-[750px] 2xl:h-[780px]">
-          <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Caro" userRole={userRole} chatBan={chatBan} className="h-full" />
-        </div>
+    <ResponsiveActivityLayout
+      leaderboard={<GameArenaLeaderboard defaultGame={meta.gameType} />}
+      social={<GameSocialSidebar roomId={gameId} roomName={roomName} userRole={userRole} chatBan={chatBan} />}
+    >
+      <div className="game-stage flex min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 p-2.5 shadow-2xl sm:p-3.5">
+        {meta.gameType === 'chess' ? <ChessBoard onBack={onLeave} online={online} /> : meta.gameType === 'xiangqi' ? <XiangqiBoard onBack={onLeave} online={online} /> : <CaroBoard onBack={onLeave} online={online} />}
       </div>
-    </div>
+    </ResponsiveActivityLayout>
   )
 }

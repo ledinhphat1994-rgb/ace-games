@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from 'react'
+import { ResponsiveActivityLayout } from '@/components/layout/ResponsiveActivityLayout'
 import { Gamepad2 } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { useGameRooms } from '../../hooks/use-game-rooms'
@@ -76,12 +77,7 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
       <ThongKeGame ban={tables} sanSang={Boolean(nguoiDung) && !isPending && !isError} />
 
       {/* ── Bố cục chính 3 cột trải rộng: Cột Trái rộng: Bảng xếp hạng | Cột Giữa To Bự: 5 Game | Cột Phải rộng: Chat & Bạn bè ── */}
-      <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-start w-full">
-        {/* ── Cột 1 (Bên trái): Bảng xếp hạng dài & ngang bằng cột chat ── */}
-        <div className="min-w-0 order-2 lg:order-1">
-          <GameArenaLeaderboard />
-        </div>
-
+      <ResponsiveActivityLayout leaderboard={<GameArenaLeaderboard />} social={<GameSocialSidebar onInviteToGame={handleInviteToGame} />}>
         {/* ── Cột 2 (Trung tâm to bự): Danh sách 5 game chiếm trọn không gian giữa ── */}
         <div className="min-w-0 order-1 lg:order-2 flex-1">
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
@@ -96,11 +92,7 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
           </div>
         </div>
 
-        {/* ── Cột 3 (Bên phải): Trò chuyện chung, riêng & Danh sách bạn ── */}
-        <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1">
-          <GameSocialSidebar onInviteToGame={handleInviteToGame} />
-        </div>
-      </div>
+      </ResponsiveActivityLayout>
 
     </div>
   )

@@ -4,6 +4,7 @@
 // Số liệu chỉ dành cho Quản trị trường (khe `thongKe`, mẫu ThongKeNhanh) — người tham gia không thấy dải số.
 
 import type { ReactNode } from 'react'
+import { ResponsiveActivityLayout } from '@/components/layout/ResponsiveActivityLayout'
 import { Link } from 'react-router'
 import { ArrowLeft, Play, Plus, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -51,7 +52,7 @@ export interface SanhHoatDongProps {
 }
 
 /** Cùng chiều cao với cột bảng xếp hạng và cột trò chuyện: ba khung thẳng hàng. */
-const CAO_KHUNG = 'lg:h-[700px] xl:h-[720px] 2xl:h-[740px]'
+const CAO_KHUNG = 'h-[max(420px,calc(100dvh-12rem))] max-h-[740px] xl:h-[720px] 2xl:h-[740px]'
 
 export function SanhHoatDong({
   tieuDe,
@@ -79,11 +80,7 @@ export function SanhHoatDong({
       {thongKe}
 
       {/* Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
-      <div
-        data-testid={`${testId}-layout`}
-        className="grid w-full grid-cols-1 items-start gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px]"
-      >
-        <div className="order-2 min-w-0 lg:order-1">{cotTrai}</div>
+      <ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai}>
 
         <section
           aria-label={tieuDe}
@@ -165,8 +162,7 @@ export function SanhHoatDong({
           {noiDungGiua && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">{noiDungGiua}</div>}
         </section>
 
-        <div className="order-3 min-w-0 lg:col-span-2 xl:col-span-1">{cotPhai}</div>
-      </div>
+      </ResponsiveActivityLayout>
     </div>
   )
 }

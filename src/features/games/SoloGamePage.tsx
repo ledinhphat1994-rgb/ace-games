@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { ResponsiveActivityLayout } from '@/components/layout/ResponsiveActivityLayout'
 import { useQueryClient } from '@tanstack/react-query'
 import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameSocialSidebar } from './GameSocialSidebar'
@@ -36,33 +37,13 @@ export function SoloGamePage({ gameType, onLeave }: SoloGamePageProps) {
   )
 
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-stretch w-full">
-        {/* Cột 1 (Trái): Bảng xếp hạng */}
-        <div className="min-w-0 order-2 lg:order-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-          <GameArenaLeaderboard defaultGame={gameType} className="h-full" />
-        </div>
-
-        {/* Cột 2 (Trung tâm): Khung trò chơi */}
-        <div className="min-w-0 order-1 lg:order-2 h-[700px] xl:h-[720px] 2xl:h-[740px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3.5 flex flex-col items-center justify-between overflow-hidden">
-          <SoloGameStage
-            gameType={gameType}
-            onBack={onLeave}
-            onSaveScore={(s) => void luuDiem(s)}
-            onSnakeSettled={lamMoiBangXepHang}
-          />
-        </div>
-
-        {/* Cột 3 (Phải): Khung Chat & Bạn bè */}
-        <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-          <GameSocialSidebar
-            roomId={`solo_${gameType}`}
-            roomName={gameType === 'solo_snake' ? 'Phòng Rắn Săn Mồi' : 'Phòng Lật Thẻ Trí Nhớ'}
-            userRole="player"
-            className="h-full"
-          />
-        </div>
+    <ResponsiveActivityLayout
+      leaderboard={<GameArenaLeaderboard defaultGame={gameType} />}
+      social={<GameSocialSidebar roomId={`solo_${gameType}`} roomName={gameType === 'solo_snake' ? 'Phòng Rắn Săn Mồi' : 'Phòng Lật Thẻ Trí Nhớ'} userRole="player" />}
+    >
+      <div className="game-stage flex min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 p-2.5 shadow-2xl sm:p-3.5">
+        <SoloGameStage gameType={gameType} onBack={onLeave} onSaveScore={(score) => void luuDiem(score)} onSnakeSettled={lamMoiBangXepHang} />
       </div>
-    </div>
+    </ResponsiveActivityLayout>
   )
 }

@@ -175,8 +175,8 @@ export function ProfilePage() {
 
       {/* Danh tính + số liệu thật */}
       <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4 sm:gap-5">
             {/* Vùng Avatar kèm icon bóng đèn suy nghĩ nhanh */}
             <div className="relative shrink-0">
               {/* Avatar chính có hover effect đổi ảnh */}
@@ -367,8 +367,8 @@ export function ProfilePage() {
         <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
           <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Thông tin cá nhân</h3>
           <form onSubmit={handleUpdateProfile} className="mt-4 max-w-lg space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="card-grid-2">
+              <div className="card-field space-y-1.5">
                 <Label htmlFor="ho-so-ten" className="text-sm font-medium">Họ và tên</Label>
                 <Input
                   id="ho-so-ten"
@@ -380,7 +380,7 @@ export function ProfilePage() {
                   required
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="card-field space-y-1.5">
                 <Label htmlFor="ho-so-ngaysinh" className="text-sm font-medium">Ngày tháng năm sinh</Label>
                 <Input
                   id="ho-so-ngaysinh"
@@ -391,8 +391,8 @@ export function ProfilePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="card-grid-2">
+              <div className="card-field space-y-1.5">
                 <Label htmlFor="ho-so-noisinhsong" className="text-sm font-medium">Nơi sinh sống</Label>
                 <Input
                   id="ho-so-noisinhsong"
@@ -402,7 +402,7 @@ export function ProfilePage() {
                   maxLength={100}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="card-field space-y-1.5">
                 <Label htmlFor="ho-so-sdt" className="text-sm font-medium">SĐT liên hệ</Label>
                 <Input
                   id="ho-so-sdt"
@@ -415,7 +415,7 @@ export function ProfilePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="card-field space-y-1.5">
               <Label htmlFor="ho-so-sothich" className="text-sm font-medium">Sở thích</Label>
               <Input
                 id="ho-so-sothich"
@@ -426,7 +426,7 @@ export function ProfilePage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="card-actions">
               <Button type="submit" disabled={dangLuuProfile}>
                 {dangLuuProfile ? 'Đang lưu…' : 'Lưu thay đổi'}
               </Button>
@@ -505,7 +505,7 @@ function LienKetGoogle() {
     <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
       <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Liên kết Google</h3>
       <div className="mt-4">
-        <div data-testid="google-link" className="flex min-h-10 flex-wrap items-center gap-3">
+        <div data-testid="google-link" className="card-actions">
           {isPending ? (
             <div className="h-10 w-56 animate-pulse rounded-lg bg-surface-overlay" aria-label="Đang tải" />
           ) : isError ? (

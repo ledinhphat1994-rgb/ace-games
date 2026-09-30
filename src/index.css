@@ -556,3 +556,91 @@ body {
     font-size: 0.75rem !important;
   }
 }
+
+/* Responsive activity surfaces share the same controls and data as desktop. */
+html { scrollbar-gutter: stable; }
+body { min-width: 280px; }
+#root { min-width: 0; }
+.activity-sheet-body > * {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+.activity-sheet[data-side="right"] {
+  top: env(safe-area-inset-top, 0px);
+  bottom: auto;
+  height: calc(100dvh - env(safe-area-inset-top, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.game-stage {
+  min-height: 620px;
+  height: max(620px, calc(100dvh - 10rem));
+  max-height: 780px;
+}
+@media (max-width: 767px) {
+  html { scrollbar-gutter: auto; }
+  input:not([type="range"]):not([type="color"]):not([type="checkbox"]), textarea, select { font-size: 16px !important; }
+  [data-slot="dialog-content"] { max-height: calc(100dvh - 2rem); overscroll-behavior: contain; }
+  [data-slot="popover-content"] { max-width: calc(100vw - 1.5rem); }
+  .game-stage { min-height: 0; height: auto; max-height: none; }
+  .game-stage > * { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Zero CLS – Card layout lock
+   Mọi card/section editable phải không thay đổi kích thước khi chỉnh sửa.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Ô field: giữ chiều cao tối thiểu để không nhảy khi switch view/edit */
+.card-field {
+  min-height: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Vùng action row (nút Lưu/Hủy) — luôn chiếm chiều cao cố định */
+.card-actions {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+/* Khung hiển thị giá trị (view mode) — cùng chiều cao với input để không nhảy */
+.card-value {
+  min-height: 2.375rem;
+  display: flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-primary, #f8fafc);
+  word-break: break-words;
+}
+
+/* Empty state placeholder */
+.card-value-empty {
+  color: var(--color-text-tertiary, #64748b);
+  font-style: italic;
+}
+
+/* Grid 2 cột độc lập — 2 cột không kéo nhau khi chiều cao lệch */
+.card-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .card-grid-2 { grid-template-columns: 1fr; }
+}
