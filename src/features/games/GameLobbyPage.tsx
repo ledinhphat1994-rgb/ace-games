@@ -20,7 +20,6 @@ import { GameSocialSidebar } from './GameSocialSidebar'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
 import { laTroChoiDon, taoMaBan } from './game-ids'
 import { TheBanGame } from './TheBanGame'
-import { SanhThietLapRan } from './snake/SanhThietLapRan'
 import { ThongKeGame } from './ThongKeGame'
 
 const THOI_GIAN_LUOT = [15, 30, 60] as const
@@ -159,21 +158,17 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         }
         noiDungGiua={
           laDon ? (
-            gameType === 'solo_snake' ? (
-              // Rắn Săn Mồi (PvE): thiết lập ván ngay tại sảnh; "Chơi ngay" chỉ có một nút trên thanh công cụ.
-              <SanhThietLapRan />
-            ) : (
-              // Trò chơi đơn khác: ảnh trò chơi là poster, bấm vào cũng vào chơi (không thêm nút thứ hai).
-              <button
-                type="button"
-                onClick={choiNgay}
-                aria-label={`Chơi ${game.shortTitle}`}
-                data-testid="game-lobby-solo"
-                className="group relative block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/[0.07] bg-black/40 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
-              >
-                <GameArt gameType={gameType} className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
-              </button>
-            )
+            // Trò chơi đơn (PvE): chỉ một nút "Chơi ngay" duy nhất — trên thanh công cụ như mọi sảnh khác. Tấm ảnh trò chơi
+            // là poster, bấm vào cũng vào chơi (không thêm nút thứ hai).
+            <button
+              type="button"
+              onClick={choiNgay}
+              aria-label={`Chơi ${game.shortTitle}`}
+              data-testid="game-lobby-solo"
+              className="group relative block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/[0.07] bg-black/40 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+            >
+              <GameArt gameType={gameType} className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
+            </button>
           ) : undefined
         }
         cotTrai={<GameArenaLeaderboard defaultGame={gameType} />}

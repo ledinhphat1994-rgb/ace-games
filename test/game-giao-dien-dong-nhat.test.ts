@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import sanhRaw from '../src/components/lobby/SanhHoatDong.tsx?raw'
 import bannerRaw from '../src/features/games/GameHeroicBanner.tsx?raw'
 import lobbyRaw from '../src/features/games/GameLobbyPage.tsx?raw'
-import sanhRanRaw from '../src/features/games/snake/SanhThietLapRan.tsx?raw'
 import snakeRaw from '../src/features/games/snake/SnakeDuel.tsx?raw'
 import arenaRaw from '../src/features/games/snake/Wormate3DArena.tsx?raw'
 import caroRaw from '../src/features/games/caro/CaroBoard.tsx?raw'
@@ -51,13 +50,10 @@ describe('Bảng chọn cấp độ máy — một kiểu cho mọi game', () =>
   })
 })
 
-describe('Rắn Săn Mồi: sảnh thiết lập + màn chơi theo khung bàn cờ', () => {
-  it('sảnh: thiết lập độ khó + số rắn máy, chỉ một nút Chơi ngay (thanh công cụ), không danh sách bàn giả', () => {
-    expect(lobbyRaw).toContain('<SanhThietLapRan />')
-    expect(sanhRanRaw).toContain('data-testid="sanh-thiet-lap-ran"')
-    expect(sanhRanRaw).toContain('ghiThietLap(moi)')
-    expect(sanhRanRaw).not.toMatch(/>\s*Chơi ngay\s*</)
-    expect(sanhRanRaw).not.toContain('<Button')
+describe('Rắn Săn Mồi: sảnh poster + màn chơi theo khung bàn cờ', () => {
+  it('sảnh trò chơi đơn: hiển thị bìa trò chơi (poster), bấm vào poster hoặc Chơi ngay đều vào ván', () => {
+    expect(lobbyRaw).toContain('data-testid="game-lobby-solo"')
+    expect(lobbyRaw).toContain('<GameArt gameType={gameType} className="size-full object-cover')
     expect(lobbyRaw).toContain("choiNgay={{ nhan: 'Chơi ngay'")
   })
 
