@@ -2,14 +2,18 @@ import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNod
 import { useNavigate } from 'react-router'
 import {
   AlertCircle,
+  ArrowLeft,
   Ban,
   Check,
   Clock,
   DoorOpen,
   Loader2,
+  MessageSquare,
   Radio,
   RefreshCw,
   Search,
+  SendHorizontal,
+  Smile,
   UserCheck,
   UserPlus,
   Users,
@@ -32,6 +36,8 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { timKiemNguoiDung } from '@/lib/api'
+import { usePhien } from '@/app/phien'
+import type { FriendItem, SearchResultItem } from '@shared/protocol/social'
 import { cn, getInitials } from '@/lib/utils'
 import {
   UserSearchController,
@@ -39,9 +45,51 @@ import {
   formatLastSeen,
   derivePresenceView,
 } from '@/features/hub/social-semantics'
-import type { SearchResultItem } from '@shared/protocol/social'
 
 type TabBanBe = 'friends' | 'requests' | 'search'
+
+/** Một tin nhắn cục bộ trong DM panel (client-only, lưu RAM). */
+interface TinDM {
+  id: string
+  fromMe: boolean
+  text: string
+  taoLuc: number
+  ten: string
+  avatar: string | null
+}
+
+const DINH_DANG_GIO_DM = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
+const DANH_SACH_EMOJI_DM = ['😊', '😂', '🔥', '👍', '🎉', '❤️', '🏆', '✨', '💪', '🎮', '✌️', '🫡']
+
+/** Lưu tin nhắn DM theo friendId vào sessionStorage để dữ liệu tồn tại khi đóng drawer. */
+function layDMTuSession(friendId: number): TinDM[] {
+  try {
+    const raw = sessionStorage.getItem(`dm_${friendId}`)
+    return raw ? (JSON.parse(raw) as TinDM[]) : []
+  } catch {
+    return []
+  }
+}
+function luuDMVaoSession(friendId: number, msgs: TinDM[]): void {
+  try {
+    sessionStorage.setItem(`dm_${friendId}`, JSON.stringify(msgs.slice(-200)))
+  } catch { /* nếu session bị lỗi thì bỏ qua */ }
+}
+/** Đếm số tin chưa đọc của tất cả bạn bè (so sánh với thời điểm lần cuối xem). */
+function demTinChuaDoc(friends: FriendItem[]): number {
+  let dem = 0
+  for (const f of friends) {
+    try {
+      const raw = sessionStorage.getItem(`dm_${f.id}`)
+      if (!raw) continue
+      const msgs = JSON.parse(raw) as TinDM[]
+      const lastViewedRaw = sessionStorage.getItem(`dm_viewed_${f.id}`)
+      const lastViewed = lastViewedRaw ? parseInt(lastViewedRaw, 10) : 0
+      dem += msgs.filter((m) => !m.fromMe && m.taoLuc > lastViewed).length
+    } catch { /* ignore */ }
+  }
+  return dem
+}
 
 /** Đợi người dùng gõ xong rồi mới hỏi máy chủ — không bắn một truy vấn D1 cho mỗi phím. */
 const TRE_TIM_KIEM_MS = 250
@@ -66,6 +114,7 @@ export function FriendsDrawer({
   onOpenChange: setControlledOpen,
   trigger,
 }: FriendsDrawerProps) {
+  const [dmFriend, setDmFriend] = useState<FriendItem | null>(null)
   const navigate = useNavigate()
   const {
     socialState,
@@ -131,6 +180,14 @@ export function FriendsDrawer({
   const outgoingRequests = useMemo(() => socialState?.outgoingRequests ?? [], [socialState?.outgoingRequests])
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
+
+  // Badge tin nhắn chưa đọc
+  const [tinChuaDoc, setTinChuaDoc] = useState(0)
+  useEffect(() => {
+    setTinChuaDoc(demTinChuaDoc(friends))
+    const interval = setInterval(() => setTinChuaDoc(demTinChuaDoc(friends)), 5000)
+    return () => clearInterval(interval)
+  }, [friends])
 
   const presenceView = useMemo(() => {
     return derivePresenceView({
@@ -308,19 +365,29 @@ export function FriendsDrawer({
           {onlineFriendsCount > 0 && (
             <span className="size-2 rounded-full bg-success" title={`${onlineFriendsCount} bạn trực tuyến`} />
           )}
-          {incomingRequests.length > 0 && (
+          {(incomingRequests.length > 0 || tinChuaDoc > 0) && (
             <Badge
               data-testid="pending-requests-badge"
               variant="destructive"
               className="h-4 min-w-4 px-1 text-[10px] font-semibold tabular-nums"
             >
-              {incomingRequests.length}
+              {incomingRequests.length + tinChuaDoc}
             </Badge>
           )}
         </SheetTrigger>
       )}
 
       <SheetContent side="right" className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+        {dmFriend ? (
+          <DMPanel
+            friend={dmFriend}
+            onBack={() => {
+              setDmFriend(null)
+              setTinChuaDoc(demTinChuaDoc(friends))
+            }}
+          />
+        ) : (
+          <>
         <SheetHeader className="px-4 pt-4 pb-3 pr-12">
           <SheetTitle className="text-base font-semibold text-text-primary">Bạn bè</SheetTitle>
           <SheetDescription className="text-[0.8125rem] text-text-tertiary tabular-nums">
@@ -481,6 +548,16 @@ export function FriendsDrawer({
                         </div>
 
                         <div className="-mt-1 -mr-1.5 flex shrink-0 items-center">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-text-tertiary hover:text-brand"
+                            title="Nhắn tin riêng"
+                            aria-label={`Nhắn tin với ${friend.displayName}`}
+                            onClick={() => setDmFriend(friend)}
+                          >
+                            <MessageSquare />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -722,8 +799,157 @@ export function FriendsDrawer({
             )}
           </TabsContent>
         </Tabs>
+          </>
+        )}
       </SheetContent>
     </Sheet>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// DMPanel — Panel nhắn tin 1-1 với bạn bè, có avatar + tên từng tin nhắn
+// ────────────────────────────────────────────────────────────────────────────
+function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void }) {
+  const { nguoiDung } = usePhien()
+  const [msgs, setMsgs] = useState<TinDM[]>(() => layDMTuSession(friend.id))
+  const [noiDung, setNoiDung] = useState('')
+  const [hienEmoji, setHienEmoji] = useState(false)
+  const cuonRef = useRef<HTMLDivElement | null>(null)
+
+  // Đánh dấu đã xem khi mở panel
+  useEffect(() => {
+    sessionStorage.setItem(`dm_viewed_${friend.id}`, Date.now().toString())
+  }, [friend.id])
+
+  // Tự cuộn xuống cuối khi có tin mới
+  useEffect(() => {
+    const el = cuonRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [msgs.length])
+
+  const xuLyGui = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const text = noiDung.trim()
+    if (!text) return
+    const tin: TinDM = {
+      id: `dm_${Date.now()}_${Math.random()}`,
+      fromMe: true,
+      text,
+      taoLuc: Date.now(),
+      ten: nguoiDung?.ten || nguoiDung?.username || 'Tôi',
+      avatar: nguoiDung?.avatar ?? null,
+    }
+    const next = [...msgs, tin]
+    setMsgs(next)
+    luuDMVaoSession(friend.id, next)
+    setNoiDung('')
+    setHienEmoji(false)
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle px-4 py-3 pr-12">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex size-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-raised hover:text-text-primary transition-colors cursor-pointer"
+          aria-label="Quay lại"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+        <AnhDaiDien ten={friend.displayName} anh={friend.avatar ?? null} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-text-primary truncate">{friend.displayName}</p>
+          {friend.lopTen && <p className="text-xs text-text-tertiary">{friend.lopTen}</p>}
+        </div>
+      </div>
+
+      {/* Danh sách tin nhắn */}
+      <div
+        ref={cuonRef}
+        className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3"
+      >
+        {msgs.length === 0 ? (
+          <div className="flex min-h-full flex-col items-center justify-center py-10 text-center">
+            <MessageSquare className="size-8 text-text-tertiary opacity-40 mb-2" />
+            <p className="text-xs text-text-tertiary">Bắt đầu cuộc trò chuyện với {friend.displayName}</p>
+          </div>
+        ) : (
+          msgs.map((m) => (
+            <div key={m.id} className={`flex items-end gap-2 ${m.fromMe ? 'flex-row-reverse' : 'flex-row'}`}>
+              {/* Avatar */}
+              <AnhDaiDien ten={m.ten} anh={m.avatar} />
+              <div className={`flex max-w-[75%] flex-col ${m.fromMe ? 'items-end' : 'items-start'}`}>
+                {/* Tên + giờ */}
+                <div className={`mb-0.5 flex items-baseline gap-1.5 px-1 ${m.fromMe ? 'flex-row-reverse' : ''}`}>
+                  <span className="text-[11px] font-semibold text-text-secondary">{m.ten}</span>
+                  <time className="text-[10px] tabular-nums text-text-tertiary">
+                    {DINH_DANG_GIO_DM.format(m.taoLuc)}
+                  </time>
+                </div>
+                {/* Bubble */}
+                <p
+                  className={`rounded-2xl px-3 py-2 text-[0.8125rem] leading-relaxed break-words whitespace-pre-wrap text-text-primary ${
+                    m.fromMe ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised'
+                  }`}
+                >
+                  {m.text}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Input gửi tin */}
+      <form
+        onSubmit={xuLyGui}
+        className="shrink-0 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
+        {hienEmoji && (
+          <div className="mb-2 grid grid-cols-6 gap-1 rounded-xl border border-border-subtle bg-surface-raised p-2">
+            {DANH_SACH_EMOJI_DM.map((em) => (
+              <button
+                key={em}
+                type="button"
+                onClick={() => setNoiDung((p) => p + em)}
+                className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHienEmoji((p) => !p)}
+            className="shrink-0 flex size-9 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-raised hover:text-white transition-colors"
+            title="Chèn biểu cảm"
+          >
+            <Smile className="size-5" />
+          </button>
+          <input
+            value={noiDung}
+            onChange={(e) => setNoiDung(e.target.value.slice(0, 500))}
+            placeholder={`Nhắn ${friend.displayName}…`}
+            className="min-w-0 flex-1 rounded-xl border border-border-subtle bg-surface-raised px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-none transition-colors"
+            maxLength={500}
+            enterKeyHint="send"
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            disabled={!noiDung.trim()}
+            className="shrink-0 flex size-9 items-center justify-center rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand/85 transition-colors"
+            aria-label="Gửi"
+          >
+            <SendHorizontal className="size-4" />
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 

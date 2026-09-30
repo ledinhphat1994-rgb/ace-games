@@ -38,16 +38,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--width": "480px",
-          "--normal-bg": "rgba(11, 19, 40, 0.98)",
-          "--normal-text": "#f8fafc",
-          "--normal-border": "rgba(34, 211, 238, 0.28)",
-          "--border-radius": "1.125rem",
+          "--width": "420px",
+          "--normal-bg": "rgba(10, 16, 35, 0.98)",
+          "--normal-text": "#f1f5f9",
+          "--normal-border": "rgba(34, 211, 238, 0.22)",
+          "--border-radius": "1rem",
+          "--toast-close-button-start": "unset",
+          "--toast-close-button-end": "0",
+          "--toast-close-button-top": "0",
         } as CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast !items-center !justify-center !text-center !gap-3",
+          title: "!text-center !font-semibold",
+          description: "!text-center",
+          closeButton: "!absolute !top-2 !right-2 !left-auto !translate-y-0 !translate-x-0 !size-6 !rounded-lg !border-white/15 !bg-white/10 !text-white/70 hover:!bg-white/20 hover:!text-white transition-colors",
         },
       }}
       {...props}

@@ -230,7 +230,7 @@ export function ProfilePage() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 min-h-[2rem]">
                 {dangSuaTen ? (
                   <form
                     onSubmit={async (e) => {
@@ -295,10 +295,10 @@ export function ProfilePage() {
                 @{nguoiDung.username}
               </p>
 
-              {/* Khung suy nghĩ hiển thị trực tiếp (không dùng popup hover) */}
-              <div className="mt-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-2.5 text-xs text-text-primary">
+              {/* Khung suy nghĩ: hover để hiện nút Sửa — không mở rộng thường trực */}
+              <div className="group/suynghi mt-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 min-h-[2.25rem] flex items-center justify-between gap-2">
                 {dangSuaSuyNghi ? (
-                  <form onSubmit={handleLuuSuyNghiNhanh} className="space-y-2">
+                  <form onSubmit={handleLuuSuyNghiNhanh} className="w-full space-y-2">
                     <Input
                       value={suyNghiTam}
                       onChange={(e) => setSuyNghiTam(e.target.value)}
@@ -322,12 +322,7 @@ export function ProfilePage() {
                       ))}
                     </div>
                     <div className="flex justify-end gap-1.5 pt-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setDangSuaSuyNghi(false)}
-                      >
+                      <Button type="button" variant="ghost" size="xs" onClick={() => setDangSuaSuyNghi(false)}>
                         Hủy
                       </Button>
                       <Button type="submit" size="xs" disabled={dangLuuProfile}>
@@ -336,9 +331,9 @@ export function ProfilePage() {
                     </div>
                   </form>
                 ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="italic text-text-primary/90 break-words line-clamp-2">
-                      {tieuDeHoSo ? `“${tieuDeHoSo}”` : '“Chưa có suy nghĩ nào.”'}
+                  <>
+                    <p className="text-xs italic text-text-primary/90 break-words line-clamp-2 flex-1">
+                      {tieuDeHoSo ? `"${tieuDeHoSo}"` : '"Chưa có suy nghĩ nào."'}
                     </p>
                     <button
                       type="button"
@@ -346,16 +341,17 @@ export function ProfilePage() {
                         setSuyNghiTam(tieuDeHoSo)
                         setDangSuaSuyNghi(true)
                       }}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors shrink-0 cursor-pointer ml-2"
+                      className="opacity-0 group-hover/suynghi:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 shrink-0 cursor-pointer ml-1"
                       title="Chỉnh sửa suy nghĩ"
                     >
                       <Pencil className="size-3" />
                       <span>Sửa</span>
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
+
           </div>
 
           <dl className="day-loc-deu shrink-0 lg:w-[380px] [--the-nho-nhat:5.25rem]">
