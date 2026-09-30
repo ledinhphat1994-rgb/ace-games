@@ -158,3 +158,17 @@ export async function timKiemNguoiDung(tuKhoa: string): Promise<import('@shared/
   const res = await goiApi<{ ok: boolean; results: import('@shared/protocol/social').SearchResultItem[] }>(`/api/social/search?${params}`)
   return res.results || []
 }
+
+export async function layTinNhanRieng(friendId: number): Promise<import('@shared/protocol/social').DirectMessage[]> {
+  const res = await goiApi<{ ok: boolean; messages: import('@shared/protocol/social').DirectMessage[] }>(`/api/social/messages/${friendId}`)
+  return res.messages || []
+}
+
+export async function guiTinNhanRieng(friendId: number, noiDung: string): Promise<import('@shared/protocol/social').DirectMessage> {
+  const res = await goiApi<{ ok: boolean; message: import('@shared/protocol/social').DirectMessage }>(`/api/social/messages/${friendId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ noiDung }),
+  })
+  return res.message
+}

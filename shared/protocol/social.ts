@@ -86,6 +86,15 @@ export const LenhSocial = z.discriminatedUnion('type', [
 ])
 export type LenhSocial = z.infer<typeof LenhSocial>
 
+export interface DirectMessage {
+  id: number
+  senderId: number
+  receiverId: number
+  noiDung: string
+  taoLuc: number
+  daDoc: boolean
+}
+
 export type GoiSocial =
   | { type: 'social.presence_snapshot'; friends: FriendPresence[] }
   | { type: 'social.presence_update'; presence: FriendPresence }
@@ -94,6 +103,7 @@ export type GoiSocial =
   | { type: 'social.friend_added'; friend: FriendItem; presence: FriendPresence }
   | { type: 'social.friend_removed'; friendId: number }
   | { type: 'social.blocked'; targetId: number }
+  | { type: 'social.direct_message'; message: DirectMessage }
   | {
       type: 'social.study_invite'
       invitation: {

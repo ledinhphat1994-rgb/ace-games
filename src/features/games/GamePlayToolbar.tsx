@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, Flag, RotateCcw, Zap } from 'lucide-react'
+import { ArrowLeft, Flag, Maximize2, Minimize2, RotateCcw, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CumPvePvp } from './CumPvePvp'
@@ -34,6 +34,11 @@ interface GamePlayToolbarProps {
   hideCenterTurn?: boolean
   /** Slot nội dung bổ sung bên phải thanh toolbar (ví dụ nút Biểu cảm nhanh) */
   rightSlot?: React.ReactNode
+  /** Nút toàn màn hình tùy biến */
+  onToggleFullscreen?: () => void
+  isFullscreen?: boolean
+  /** Ẩn nút toàn màn hình nếu không cần */
+  hideFullscreen?: boolean
   /** Game chỉ có PvE (Rắn Săn Mồi): cụm chế độ chỉ hiện PvE, không có PvP giả. */
   chiPve?: boolean
   /** Phần riêng của game trong bảng chọn PvE (ví dụ số máy). */
@@ -68,12 +73,49 @@ export function GamePlayToolbar({
   outcomeNotice,
   hideCenterTurn = false,
   rightSlot,
+  onToggleFullscreen,
+  isFullscreen,
+  hideFullscreen = false,
   chiPve = false,
   phuPve,
   nhanChipPve,
   resetNoiBat = false,
   className,
 }: GamePlayToolbarProps) {
+  const [internalFullscreen, setInternalFullscreen] = React.useState(false)
+  React.useEffect(() => {
+    const handleFs = () => setInternalFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handleFs)
+    return () => document.removeEventListener('fullscreenchange', handleFs)
+  }, [])
+  const isFs = isFullscreen ?? internalFullscreen
+
+  const handleFsToggle = () => {
+    if (onToggleFullscreen) {
+      onToggleFullscreen()
+      return
+    }
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {})
+    } else {
+      document.exitFullscreen?.().catch(() => {})
+    }
+  }
+
+  const nutFullscreen = !hideFullscreen && (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleFsToggle}
+      className="h-8 gap-1.5 border-white/10 bg-white/5 px-2 text-xs font-bold text-slate-200 transition-all hover:scale-105 hover:bg-white/10 active:scale-95 cursor-pointer shrink-0"
+      title={isFs ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
+      aria-label="Toàn màn hình"
+    >
+      {isFs ? <Minimize2 className="size-3.5 text-cyan-400" /> : <Maximize2 className="size-3.5 text-cyan-400" />}
+      <span className="hidden min-[480px]:inline">{isFs ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
+    </Button>
+  )
+
   // Xác định bên đang đi: nếu không truyền activeSide thì nhận diện theo chữ trong turnLabel
   const isRed = activeSide
     ? activeSide === 'red'
@@ -220,10 +262,11 @@ export function GamePlayToolbar({
         </div>
       )}
 
-      {/* ── 3. KHU VỰC BÊN PHẢI: biểu cảm / tiện ích của game + nút hành động chính ── */}
+      {/* ── 3. KHU VỰC BÊN PHẢI: biểu cảm / tiện ích của game + nút toàn màn hình + nút hành động chính ── */}
       <div className="flex items-center justify-end gap-2 shrink-0 z-10 min-w-0">
         {!hideCenterTurn && cumChedo}
         {rightSlot}
+        {nutFullscreen}
         {nutReset}
       </div>
     </div>

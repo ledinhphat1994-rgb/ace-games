@@ -1105,6 +1105,18 @@ export class CampusDO extends DurableObject<Env> {
         }
         break
       }
+      case 'social.direct_message': {
+        const { message } = suKien
+        if (message) {
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(message.receiverId))) {
+            this.gui(ws, { type: 'social.direct_message', message })
+          }
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(message.senderId))) {
+            this.gui(ws, { type: 'social.direct_message', message })
+          }
+        }
+        break
+      }
       case 'social.request_resolved': {
         for (const aid of suKien.accountIds ?? []) {
           const sockets = this.ctx.getWebSockets(theTaiKhoan(aid))

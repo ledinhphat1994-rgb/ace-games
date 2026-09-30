@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type {
   BlockedUserItem,
+  DirectMessage,
   FriendItem,
   FriendRequestItem,
   HoSoNguoiDung,
@@ -772,6 +773,141 @@ socialApp.post('/unblock', async (c) => {
 
   return c.json({ ok: true })
 })
+
+/** Lấy lịch sử tin nhắn riêng giữa người dùng hiện tại và một người bạn */
+socialApp.get('/messages/:friendId', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+
+  const friendId = Number(c.req.param('friendId'))
+  if (!Number.isInteger(friendId) || friendId <= 0) return loi('Mã bạn bè không hợp lệ.', 400)
+
+  // Kiểm tra chặn
+  const blocked = await c.env.DB.prepare(
+    'SELECT 1 FROM blocks WHERE (blocker_id = ?1 AND blocked_id = ?2) OR (blocker_id = ?2 AND blocked_id = ?1)',
+  )
+    .bind(myId, friendId)
+    .first()
+  if (blocked) return loi('Không thể truy cập cuộc trò chuyện này.', 403)
+
+  // Kiểm tra quan hệ bạn bè (chỉ bạn bè mới được nhắn tin riêng)
+  const lowId = Math.min(myId, friendId)
+  const highId = Math.max(myId, friendId)
+  const isFriend = await c.env.DB.prepare(
+    'SELECT 1 FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2',
+  )
+    .bind(lowId, highId)
+    .first()
+  if (!isFriend) return loi('Bạn chỉ có thể xem tin nhắn riêng với bạn bè.', 403)
+
+  // Đánh dấu các tin gửi cho mình là đã đọc
+  await c.env.DB.prepare(
+    'UPDATE direct_messages SET da_doc = 1 WHERE receiver_id = ?1 AND sender_id = ?2 AND da_doc = 0',
+  )
+    .bind(myId, friendId)
+    .run()
+
+  // Lấy 60 tin nhắn gần nhất
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, sender_id as senderId, receiver_id as receiverId,
+            noi_dung as noiDung, tao_luc as taoLuc, da_doc as daDoc
+       FROM direct_messages
+      WHERE (sender_id = ?1 AND receiver_id = ?2)
+         OR (sender_id = ?2 AND receiver_id = ?1)
+      ORDER BY tao_luc ASC, id ASC
+      LIMIT 60`,
+  )
+    .bind(myId, friendId)
+    .all<{
+      id: number
+      senderId: number
+      receiverId: number
+      noiDung: string
+      taoLuc: number
+      daDoc: number
+    }>()
+
+  const messages: DirectMessage[] = (results ?? []).map((r) => ({
+    id: r.id,
+    senderId: r.senderId,
+    receiverId: r.receiverId,
+    noiDung: r.noiDung,
+    taoLuc: r.taoLuc,
+    daDoc: Boolean(r.daDoc),
+  }))
+
+  return c.json({ ok: true, messages })
+})
+
+/** Gửi tin nhắn riêng tới một người bạn */
+socialApp.post('/messages/:friendId', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+
+  const friendId = Number(c.req.param('friendId'))
+  if (!Number.isInteger(friendId) || friendId <= 0) return loi('Mã bạn bè không hợp lệ.', 400)
+  if (friendId === myId) return loi('Không thể gửi tin nhắn cho chính mình.', 400)
+
+  let body: { noiDung?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return loi('Dữ liệu không hợp lệ.', 400)
+  }
+
+  const noiDung = (body?.noiDung ?? '').trim()
+  if (!noiDung || noiDung.length === 0) return loi('Nội dung tin nhắn không được để trống.', 400)
+  if (noiDung.length > 2000) return loi('Tin nhắn tối đa 2000 ký tự.', 400)
+
+  // Kiểm tra có bị block không
+  const blocked = await c.env.DB.prepare(
+    'SELECT 1 FROM blocks WHERE (blocker_id = ?1 AND blocked_id = ?2) OR (blocker_id = ?2 AND blocked_id = ?1)',
+  )
+    .bind(myId, friendId)
+    .first()
+  if (blocked) return loi('Bạn không thể gửi tin nhắn cho người dùng này.', 403)
+
+  // Kiểm tra bạn bè
+  const low = Math.min(myId, friendId)
+  const high = Math.max(myId, friendId)
+  const coBanBe = await c.env.DB.prepare(
+    'SELECT 1 FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2',
+  )
+    .bind(low, high)
+    .first()
+  if (!coBanBe) return loi('Bạn chỉ có thể gửi tin nhắn riêng cho bạn bè.', 403)
+
+  const now = Date.now()
+
+  // Ghi nhận tin nhắn vào D1
+  const inserted = await c.env.DB.prepare(
+    'INSERT INTO direct_messages (sender_id, receiver_id, noi_dung, tao_luc, da_doc) VALUES (?1, ?2, ?3, ?4, 0) RETURNING id',
+  )
+    .bind(myId, friendId, noiDung, now)
+    .first<{ id: number }>()
+
+  if (!inserted?.id) return loi('Không thể lưu tin nhắn.', 500)
+
+  const message: DirectMessage = {
+    id: inserted.id,
+    senderId: myId,
+    receiverId: friendId,
+    noiDung,
+    taoLuc: now,
+    daDoc: false,
+  }
+
+  // Báo CampusDO phát realtime cho cả người nhận lẫn người gửi
+  await thongBaoCampusDO(c.env, {
+    type: 'social.direct_message',
+    message,
+  })
+
+  return c.json({ ok: true, message })
+})
+
 
 export async function thongBaoCampusDO(env: Env, payload: any): Promise<void> {
   try {

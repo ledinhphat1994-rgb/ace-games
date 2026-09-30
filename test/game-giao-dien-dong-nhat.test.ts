@@ -60,7 +60,7 @@ describe('Lobby các game đồng nhất: mọi game cùng dùng chung sảnh B�
 
   it('màn chơi: thanh công cụ chung (Bắt đầu nổi bật · Toàn màn hình), màn sẵn sàng / kết thúc không có nút thứ hai', () => {
     expect(snakeRaw).toContain("resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}")
-    expect(snakeRaw).toContain('aria-label="Toàn màn hình"')
+    expect(toolbarRaw).toContain('aria-label="Toàn màn hình"')
     expect(arenaRaw).toContain('data-testid="ran-man-san-sang"')
     expect(arenaRaw).toContain('data-testid="ran-man-ket-thuc"')
     expect(arenaRaw).not.toContain('Vào Chơi Ngay')

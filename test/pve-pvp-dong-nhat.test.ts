@@ -31,13 +31,10 @@ describe('PvE · PvP thống nhất', () => {
     for (const raw of [chessRaw, xiangqiRaw, caroRaw, memoryRaw, snakeRaw]) expect(raw).toContain('<GamePlayToolbar')
   })
 
-  it('Rắn Săn Mồi dùng cùng thanh công cụ với các bàn cờ; chỉ PvE (PvP chưa tồn tại nên không hiện nút giả)', () => {
-    expect(snakeRaw).toContain('chiPve')
+  it('Rắn Săn Mồi dùng cùng thanh công cụ với các bàn cờ; hỗ trợ PvE và PvP kèm chọn số máy', () => {
     expect(snakeRaw).toContain('phuPve=')
     expect(snakeRaw).toContain('resetNoiBat={!isRunning && !isGameOver}')
-    expect(cumRaw).toContain('{!chiPve && (')
-    expect(snakeRaw).not.toContain('pass_and_play')
-    expect(snakeRaw).not.toContain('playMode')
+    expect(snakeRaw).toContain('pass_and_play')
   })
 })
 

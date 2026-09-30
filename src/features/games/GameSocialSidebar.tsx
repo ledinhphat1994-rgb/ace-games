@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import {
   MessageSquare,
   Users,
@@ -10,7 +10,6 @@ import {
   Smile,
   Sparkles,
   Loader2,
-  User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCampus } from '@/hooks/use-campus'
@@ -19,13 +18,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn, getInitials } from '@/lib/utils'
+import { layTinNhanRieng, guiTinNhanRieng } from '@/lib/api'
 import { CampusChatDrawer } from '@/features/hub/CampusChatDrawer'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { NutQuanHe } from '@/components/social/NutQuanHe'
 import { nhanVaiTro } from '@/components/social/quan-he'
 import { useTimNguoiDung } from '@/hooks/use-tim-nguoi-dung'
-import type { FriendItem } from '@shared/protocol/social'
+import type { FriendItem, DirectMessage } from '@shared/protocol/social'
 import type { RoomChatMessage } from '@shared/protocol/room'
 import { DO_DAI_TIN_BAN_TOI_DA } from '@/hooks/use-game'
 
@@ -695,110 +695,16 @@ export function GameSocialSidebar({
               </div>
             </div>
           ) : selectedFriend ? (
-            // Giao diện trò chuyện riêng 1v1 khi đã chọn bạn
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Header người bạn đang chat */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/[0.02]">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 text-text-tertiary hover:text-white cursor-pointer"
-                    onClick={() => setSelectedFriend(null)}
-                    title="Quay lại danh sách bạn bè"
-                  >
-                    <ArrowLeft className="size-4" />
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      setNguoiXem(nguoiXemTu(selectedFriend, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }))
-                    }}
-                    className="flex items-center gap-2 min-w-0 text-left cursor-pointer group"
-                    title="Xem hồ sơ & thao tác"
-                  >
-                    <div className="relative shrink-0">
-                      <div className="flex size-7 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold ring-1 ring-white/10 group-hover:ring-brand/40 transition-all">
-                        {getInitials(selectedFriend.displayName)}
-                      </div>
-                      <span
-                        className={cn(
-                          'absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background',
-                          getFriendPresence(selectedFriend.id).color
-                        )}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-text-primary truncate group-hover:text-brand transition-colors">{selectedFriend.displayName}</p>
-                      <p className="text-[10px] text-text-tertiary truncate">
-                        {getFriendPresence(selectedFriend.id).label}
-                      </p>
-                    </div>
-                  </button>
-                </div>
-
-                {onInviteToGame && (
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    onClick={() => onInviteToGame(selectedFriend.id, selectedFriend.displayName)}
-                    className="gap-1 text-[11px] border-white/10 hover:bg-white/5 cursor-pointer"
-                  >
-                    <Gamepad2 className="size-3" />
-                    Mời game
-                  </Button>
-                )}
-              </div>
-
-              {/* Campus chưa có tin nhắn riêng: không giả lập hộp thoại — chỉ ra cách liên lạc thật */}
-              <div className="flex-1 overflow-y-auto p-3 min-h-0">
-                <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-                  <MessageCircle className="size-7 text-text-tertiary mb-2" />
-                  <p className="text-xs font-semibold text-text-primary">Chưa hỗ trợ tin nhắn riêng</p>
-                  <p className="mt-1 text-[11px] text-text-tertiary max-w-[200px]">
-                    Hệ thống hiện dùng Chat chung và Chat phòng học/bàn chơi
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setActiveTab('chat_chung')}
-                      className="gap-1.5 border-white/10 cursor-pointer"
-                    >
-                      <MessageSquare className="size-3.5" />
-                      Mở Chat chung
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setNguoiXem(nguoiXemTu(selectedFriend, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }))
-                      }}
-                      className="gap-1.5 text-text-secondary hover:text-text-primary cursor-pointer"
-                    >
-                      <User className="size-3.5" />
-                      Xem hồ sơ
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0 opacity-60">
-                <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary" disabled>
-                  <Smile className="size-4" />
-                </Button>
-                <Input
-                  disabled
-                  placeholder="Tin nhắn riêng chưa được hỗ trợ"
-                  className="h-8 text-xs bg-white/5 border-white/10 cursor-not-allowed"
-                />
-                <Button disabled size="sm" className="h-8 px-2.5 shrink-0 bg-white/10 text-text-tertiary">
-                  <Send className="size-3.5" />
-                </Button>
-              </div>
-            </div>
+            <HopChatRieng11
+              friend={selectedFriend}
+              myId={nguoiDung?.accountId}
+              presenceInfo={getFriendPresence(selectedFriend.id)}
+              onOpenProfile={(rect) =>
+                setNguoiXem(nguoiXemTu(selectedFriend, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }))
+              }
+              onInviteToGame={onInviteToGame}
+              onBack={() => setSelectedFriend(null)}
+            />
           ) : (
             // Danh sách bạn bè kèm ô tìm kiếm
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -1027,6 +933,238 @@ function HangNguoi({
         </span>
       </button>
       <NutQuanHe id={id} trangThaiMayChu={trangThaiMayChu} />
+    </div>
+  )
+}
+
+function HopChatRieng11({
+  friend,
+  myId,
+  presenceInfo,
+  onOpenProfile,
+  onInviteToGame,
+  onBack,
+}: {
+  friend: FriendItem
+  myId?: number
+  presenceInfo: { label: string; color: string }
+  onOpenProfile: (rect: DOMRect) => void
+  onInviteToGame?: (friendId: number, friendName: string) => void
+  onBack: () => void
+}) {
+  const [messages, setMessages] = useState<DirectMessage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const cuonXuongCuoi = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = scrollRef.current
+      if (el) {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    let unmounted = false
+    setLoading(true)
+    layTinNhanRieng(friend.id)
+      .then((res) => {
+        if (!unmounted) {
+          setMessages(res)
+          setLoading(false)
+          cuonXuongCuoi()
+        }
+      })
+      .catch(() => {
+        if (!unmounted) setLoading(false)
+      })
+    return () => {
+      unmounted = true
+    }
+  }, [friend.id, cuonXuongCuoi])
+
+  useEffect(() => {
+    const handleDm = (e: Event) => {
+      const custom = e as CustomEvent<DirectMessage>
+      const msg = custom.detail
+      if (!msg) return
+      if (
+        (msg.senderId === friend.id && msg.receiverId === myId) ||
+        (msg.senderId === myId && msg.receiverId === friend.id)
+      ) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev
+          return [...prev, msg]
+        })
+        cuonXuongCuoi()
+      }
+    }
+
+    window.addEventListener('campus:direct_message', handleDm)
+    return () => window.removeEventListener('campus:direct_message', handleDm)
+  }, [friend.id, myId, cuonXuongCuoi])
+
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const content = text.trim()
+    if (!content || sending) return
+
+    setSending(true)
+    try {
+      const sent = await guiTinNhanRieng(friend.id, content)
+      setText('')
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === sent.id)) return prev
+        return [...prev, sent]
+      })
+      cuonXuongCuoi()
+    } catch (err: any) {
+      toast.error(err?.message || 'Không gửi được tin nhắn.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="p-2 border-b border-white/10 bg-white/[0.03] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="size-7 text-text-tertiary hover:text-white shrink-0 cursor-pointer"
+            aria-label="Quay lại danh sách bạn bè"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <button
+            type="button"
+            onClick={(e) => onOpenProfile(e.currentTarget.getBoundingClientRect())}
+            className="flex items-center gap-2 min-w-0 text-left hover:opacity-85 transition-opacity group cursor-pointer"
+            title="Xem hồ sơ & thao tác"
+          >
+            <div className="relative shrink-0">
+              <div className="flex size-7 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold ring-1 ring-white/10 group-hover:ring-brand/40 transition-all">
+                {getInitials(friend.displayName)}
+              </div>
+              <span
+                className={cn(
+                  'absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background',
+                  presenceInfo.color
+                )}
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-text-primary truncate group-hover:text-brand transition-colors">
+                {friend.displayName}
+              </p>
+              <p className="text-[10px] text-text-tertiary truncate">{presenceInfo.label}</p>
+            </div>
+          </button>
+        </div>
+
+        {onInviteToGame && (
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => onInviteToGame(friend.id, friend.displayName)}
+            className="gap-1 text-[11px] border-white/10 hover:bg-white/5 cursor-pointer"
+          >
+            <Gamepad2 className="size-3" />
+            Mời game
+          </Button>
+        )}
+      </div>
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 min-h-0 space-y-2.5">
+        {loading ? (
+          <div className="flex items-center justify-center h-full text-xs text-text-tertiary">
+            <Loader2 className="size-4 animate-spin mr-1.5" />
+            Đang tải tin nhắn…
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+            <MessageCircle className="size-7 text-brand/60 mb-2" />
+            <p className="text-xs font-bold text-text-primary">Chưa có tin nhắn nào</p>
+            <p className="mt-1 text-[11px] text-text-tertiary max-w-[200px]">
+              Gửi tin nhắn riêng để trò chuyện và thảo luận với {friend.displayName}!
+            </p>
+          </div>
+        ) : (
+          messages.map((m) => {
+            const isMe = m.senderId === myId
+            return (
+              <div
+                key={m.id}
+                className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}
+              >
+                <div
+                  className={cn(
+                    'px-3 py-1.5 text-xs max-w-[85%] break-words shadow-sm',
+                    isMe
+                      ? 'bg-cyan-500/25 border border-cyan-400/40 text-cyan-100 rounded-2xl rounded-tr-xs'
+                      : 'bg-white/10 border border-white/10 text-slate-100 rounded-2xl rounded-tl-xs',
+                  )}
+                >
+                  {m.noiDung}
+                </div>
+                <span className="text-[9px] text-text-tertiary mt-0.5 px-1 font-mono">
+                  {new Date(m.taoLuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      <form
+        onSubmit={handleSend}
+        className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0"
+      >
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary hover:text-white cursor-pointer">
+                <Smile className="size-4" />
+              </Button>
+            }
+          />
+          <PopoverContent side="top" align="start" className="w-64 p-2 bg-slate-900 border-white/10 shadow-2xl">
+            <div className="grid grid-cols-6 gap-1">
+              {DANH_SACH_EMOJI.map((emo) => (
+                <button
+                  key={emo}
+                  type="button"
+                  onClick={() => setText((t) => t + emo)}
+                  className="size-8 text-lg flex items-center justify-center rounded-lg hover:bg-white/10 cursor-pointer"
+                >
+                  {emo}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={`Nhắn tin cho ${friend.displayName}…`}
+          disabled={sending}
+          className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-text-tertiary focus-visible:ring-1 focus-visible:ring-brand"
+        />
+        <Button
+          type="submit"
+          disabled={!text.trim() || sending}
+          size="sm"
+          className="h-8 px-2.5 shrink-0 bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-40 cursor-pointer"
+        >
+          {sending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+        </Button>
+      </form>
     </div>
   )
 }

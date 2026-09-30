@@ -351,4 +351,63 @@ describe('Social Graph & Presence API — Invariants & Core Matrix', () => {
       body: JSON.stringify({ friendAccountId: userB.accountId }),
     })
   })
+
+  it('Tin nhắn riêng 1-1: chỉ bạn bè mới nhắn được, lưu D1 và đọc lịch sử', async () => {
+    const userA = await dangNhap('qa.v2.thu1')
+    const userB = await dangNhap('qa.v2.thu2')
+
+    // Chưa kết bạn -> 403
+    const resForbidden = await goi(`/api/social/messages/${userB.accountId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userA.cookie },
+      body: JSON.stringify({ noiDung: 'Chào bạn!' }),
+    })
+    expect(resForbidden.status).toBe(403)
+
+    // Kết bạn A <-> B
+    await goi('/api/social/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userA.cookie },
+      body: JSON.stringify({ targetAccountId: userB.accountId }),
+    })
+    const stateB = ((await (await goi('/api/social/state', { headers: { Cookie: userB.cookie } })).json()) as { state: SocialState }).state
+    const req = stateB.incomingRequests.find((r) => r.sender?.id === userA.accountId)!
+    await goi('/api/social/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userB.cookie },
+      body: JSON.stringify({ requestId: req.id }),
+    })
+
+    // A gửi tin nhắn cho B
+    const resSend = await goi(`/api/social/messages/${userB.accountId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userA.cookie },
+      body: JSON.stringify({ noiDung: 'Chào B, mình là A nhé!' }),
+    })
+    expect(resSend.status).toBe(200)
+    const jsonSend = (await resSend.json()) as { ok: boolean; message: any }
+    expect(jsonSend.ok).toBe(true)
+    expect(jsonSend.message.noiDung).toBe('Chào B, mình là A nhé!')
+    expect(jsonSend.message.senderId).toBe(userA.accountId)
+    expect(jsonSend.message.receiverId).toBe(userB.accountId)
+
+    // B đọc lịch sử tin nhắn với A
+    const resGet = await goi(`/api/social/messages/${userA.accountId}`, {
+      headers: { Cookie: userB.cookie },
+    })
+    expect(resGet.status).toBe(200)
+    const jsonGet = (await resGet.json()) as { ok: boolean; messages: any[] }
+    expect(jsonGet.ok).toBe(true)
+    expect(jsonGet.messages.length).toBeGreaterThanOrEqual(1)
+    const msg = jsonGet.messages.find((m) => m.id === jsonSend.message.id)
+    expect(msg).toBeDefined()
+    expect(msg?.noiDung).toBe('Chào B, mình là A nhé!')
+
+    // Dọn dẹp bạn bè sau test
+    await goi('/api/social/unfriend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userA.cookie },
+      body: JSON.stringify({ friendAccountId: userB.accountId }),
+    })
+  })
 })

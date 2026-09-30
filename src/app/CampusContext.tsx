@@ -474,6 +474,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           break
         }
 
+        case 'social.direct_message': {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('campus:direct_message', { detail: goi.message }))
+          }
+          break
+        }
+
         case 'ack': {
           if (goi.reqId) {
             const item = choPhanHoiRef.current.get(goi.reqId)

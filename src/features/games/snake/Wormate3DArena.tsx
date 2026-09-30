@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { MousePointer2, Sparkles, Trophy } from 'lucide-react'
+import { MousePointer2, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ARENA_SIZE = 2400
@@ -186,6 +186,9 @@ export interface Wormate3DArenaProps {
   isRunning: boolean
   isGameOver: boolean
   isFullscreen?: boolean
+  restartKey?: number
+  mode?: 'ai' | 'pass_and_play'
+  playerEmote?: { emoji: string; quote: string } | null
   onScoreUpdate: (score: number, length: number) => void
   onGameOver: (winner: boolean, reason: string) => void
   onOpponentUpdate?: (name: string, score: number, length: number, isAlive: boolean) => void
@@ -199,6 +202,9 @@ export function Wormate3DArena({
   isRunning,
   isGameOver,
   isFullscreen = false,
+  restartKey = 0,
+  mode = 'ai',
+  playerEmote,
   onScoreUpdate,
   onGameOver,
   onOpponentUpdate,
@@ -211,6 +217,7 @@ export function Wormate3DArena({
   const [muted] = useState(false)
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([])
   const [playerRank, setPlayerRank] = useState(1)
+  const [player2Score, setPlayer2Score] = useState(0)
   const [finalResult, setFinalResult] = useState<{ winner: boolean; reason: string } | null>(null)
 
   // Tự động đo kích thước container để canvas chiếm trọn không gian (Zero CLS)
@@ -251,22 +258,38 @@ export function Wormate3DArena({
   // Game Engine Internal State (persists across animation frames)
   const engineRef = useRef<{
     player: Worm
+    player2: Worm | null
     aiWorms: Worm[]
     foods: FoodItem[]
     crumbs: CrumbParticle[]
     camX: number
     camY: number
-    keys: { boost: boolean }
+    keys: {
+      boost: boolean
+      p2Boost: boolean
+      p2Up: boolean
+      p2Down: boolean
+      p2Left: boolean
+      p2Right: boolean
+    }
     animFrame: number | null
     nextFoodId: number
   }>({
     player: null!,
+    player2: null,
     aiWorms: [],
     foods: [],
     crumbs: [],
     camX: ARENA_SIZE / 2,
     camY: ARENA_SIZE / 2,
-    keys: { boost: false },
+    keys: {
+      boost: false,
+      p2Boost: false,
+      p2Up: false,
+      p2Down: false,
+      p2Left: false,
+      p2Right: false,
+    },
     animFrame: null,
     nextFoodId: 1,
   })
@@ -318,16 +341,19 @@ export function Wormate3DArena({
 
     const startX = ARENA_SIZE / 2
     const startY = ARENA_SIZE / 2
+    const isPvp = mode === 'pass_and_play'
+
     const pHistory: { x: number; y: number }[] = []
+    const p1StartX = isPvp ? startX - 160 : startX
     for (let i = 0; i < INITIAL_SEGMENT_COUNT * SEGMENT_SPACING; i++) {
-      pHistory.push({ x: startX - i, y: startY })
+      pHistory.push({ x: p1StartX - i, y: startY })
     }
 
     const playerWorm: Worm = {
       id: 'player',
-      name: 'Bạn (Worm 3D)',
+      name: isPvp ? 'Bạn 1 (Chuột)' : 'Bạn (Worm 3D)',
       isPlayer: true,
-      x: startX,
+      x: p1StartX,
       y: startY,
       angle: 0,
       targetAngle: 0,
@@ -345,13 +371,43 @@ export function Wormate3DArena({
       aiDecisionTimer: 0,
     }
 
-    // Tạo các AI Worms trong đấu trường theo số lượng tùy chỉnh
-    const countToSpawn = Math.max(1, aiCount ?? (difficulty === 'hard' ? 7 : difficulty === 'medium' ? 5 : 4))
+    let player2Worm: Worm | null = null
+    if (isPvp) {
+      const p2History: { x: number; y: number }[] = []
+      const p2StartX = startX + 160
+      for (let i = 0; i < INITIAL_SEGMENT_COUNT * SEGMENT_SPACING; i++) {
+        p2History.push({ x: p2StartX + i, y: startY })
+      }
+      player2Worm = {
+        id: 'player2',
+        name: 'Bạn 2 (WASD)',
+        isPlayer: true,
+        x: p2StartX,
+        y: startY,
+        angle: Math.PI,
+        targetAngle: Math.PI,
+        speed: BASE_SPEED,
+        radius: MIN_RADIUS,
+        length: INITIAL_SEGMENT_COUNT,
+        score: 0,
+        color1: COLOR_PALETTES[1].c1,
+        color2: COLOR_PALETTES[1].c2,
+        colorDark: COLOR_PALETTES[1].cDark,
+        stripeColor: COLOR_PALETTES[1].stripe,
+        history: p2History,
+        isBoosting: false,
+        isAlive: true,
+        aiDecisionTimer: 0,
+      }
+    }
+
+    // Tạo các AI Worms theo aiCount (nếu aiCount === 0 thì không spawn bot)
+    const countToSpawn = aiCount !== undefined ? aiCount : (difficulty === 'hard' ? 7 : difficulty === 'medium' ? 5 : 4)
     const aiWorms: Worm[] = []
 
     for (let idx = 0; idx < countToSpawn; idx++) {
-      const palette = COLOR_PALETTES[(idx + 1) % COLOR_PALETTES.length]
-      const angle = (idx * Math.PI * 2) / countToSpawn
+      const palette = COLOR_PALETTES[(idx + 2) % COLOR_PALETTES.length]
+      const angle = (idx * Math.PI * 2) / Math.max(1, countToSpawn)
       const dist = 380 + Math.random() * 550
       const ax = startX + Math.cos(angle) * dist
       const ay = startY + Math.sin(angle) * dist
@@ -387,16 +443,30 @@ export function Wormate3DArena({
 
     engineRef.current = {
       player: playerWorm,
+      player2: player2Worm,
       aiWorms,
       foods,
       crumbs: [],
       camX: startX,
       camY: startY,
-      keys: { boost: false },
+      keys: {
+        boost: false,
+        p2Boost: false,
+        p2Up: false,
+        p2Down: false,
+        p2Left: false,
+        p2Right: false,
+      },
       animFrame: null,
       nextFoodId: fId,
     }
-  }, [createFood, difficulty, aiCount])
+  }, [createFood, difficulty, aiCount, mode])
+
+  // Lắng nghe restartKey để reset ngay lập tức khi bấm "Chơi lại"
+  useEffect(() => {
+    initEngine()
+    setFinalResult(null)
+  }, [restartKey, initEngine])
 
   // Spawn pastries khi sâu chết
   const explodeWormIntoPastries = (worm: Worm) => {
@@ -627,10 +697,119 @@ export function Wormate3DArena({
           }
         })
 
+        // ── XỬ LÝ NGƯỜI CHƠI 2 (CHẾ ĐỘ PVP PASS & PLAY) ──
+        const p2 = eng.player2
+        if (p2 && p2.isAlive) {
+          let p2Dx = 0
+          let p2Dy = 0
+          if (eng.keys.p2Up) p2Dy -= 1
+          if (eng.keys.p2Down) p2Dy += 1
+          if (eng.keys.p2Left) p2Dx -= 1
+          if (eng.keys.p2Right) p2Dx += 1
+
+          if (p2Dx !== 0 || p2Dy !== 0) {
+            p2.targetAngle = Math.atan2(p2Dy, p2Dx)
+          }
+
+          p2.isBoosting = eng.keys.p2Boost
+          const p2Speed = p2.isBoosting ? BOOST_SPEED : BASE_SPEED
+          let diff2 = p2.targetAngle - p2.angle
+          while (diff2 < -Math.PI) diff2 += Math.PI * 2
+          while (diff2 > Math.PI) diff2 -= Math.PI * 2
+          p2.angle += diff2 * 0.14
+
+          p2.x += Math.cos(p2.angle) * p2Speed * (dt * 60)
+          p2.y += Math.sin(p2.angle) * p2Speed * (dt * 60)
+
+          p2.history.unshift({ x: p2.x, y: p2.y })
+          const p2HistLen = Math.floor(p2.length * SEGMENT_SPACING)
+          while (p2.history.length > p2HistLen) p2.history.pop()
+
+          // Player 2 đâm tường
+          if (
+            p2.x < p2.radius ||
+            p2.x > ARENA_SIZE - p2.radius ||
+            p2.y < p2.radius ||
+            p2.y > ARENA_SIZE - p2.radius
+          ) {
+            p2.isAlive = false
+            playWormSound('crash', muted)
+            explodeWormIntoPastries(p2)
+            if (player.isAlive) {
+              setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào tường)' })
+              onGameOver(true, 'Người chơi 1 chiến thắng!')
+            }
+          }
+
+          // Player 2 ăn thức ăn
+          for (let fIdx = eng.foods.length - 1; fIdx >= 0; fIdx--) {
+            const f = eng.foods[fIdx]
+            const d = Math.hypot(p2.x - f.x, p2.y - f.y)
+            if (d < p2.radius + f.r) {
+              p2.score += f.points
+              p2.length += Math.max(1, Math.floor(f.points / 10))
+              playWormSound('nom', muted)
+              eng.foods.splice(fIdx, 1)
+              eng.foods.push(createFood(eng.nextFoodId++))
+            }
+          }
+          setPlayer2Score(Math.floor(p2.score))
+
+          // Va chạm đối kháng: Player 1 đâm vào thân Player 2
+          if (player.isAlive && p2.isAlive) {
+            for (let sIdx = 4; sIdx < p2.history.length; sIdx += 3) {
+              const seg = p2.history[sIdx]
+              if (Math.hypot(player.x - seg.x, player.y - seg.y) < player.radius + p2.radius * 0.75) {
+                player.isAlive = false
+                playWormSound('crash', muted)
+                explodeWormIntoPastries(player)
+                setFinalResult({ winner: false, reason: 'Người chơi 2 chiến thắng! (Người chơi 1 đâm vào thân Người chơi 2)' })
+                onGameOver(false, 'Người chơi 2 chiến thắng!')
+                break
+              }
+            }
+          }
+
+          // Va chạm đối kháng: Player 2 đâm vào thân Player 1
+          if (player.isAlive && p2.isAlive) {
+            for (let sIdx = 4; sIdx < player.history.length; sIdx += 3) {
+              const seg = player.history[sIdx]
+              if (Math.hypot(p2.x - seg.x, p2.y - seg.y) < p2.radius + player.radius * 0.75) {
+                p2.isAlive = false
+                playWormSound('crash', muted)
+                explodeWormIntoPastries(p2)
+                setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào thân Người chơi 1)' })
+                onGameOver(true, 'Người chơi 1 chiến thắng!')
+                break
+              }
+            }
+          }
+
+          // Player 2 đâm vào AI
+          if (p2.isAlive) {
+            for (const ai of eng.aiWorms) {
+              if (!ai.isAlive) continue
+              for (let sIdx = 4; sIdx < ai.history.length; sIdx += 3) {
+                const seg = ai.history[sIdx]
+                if (Math.hypot(p2.x - seg.x, p2.y - seg.y) < p2.radius + ai.radius * 0.75) {
+                  p2.isAlive = false
+                  playWormSound('crash', muted)
+                  explodeWormIntoPastries(p2)
+                  if (player.isAlive) {
+                    setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào bot)' })
+                    onGameOver(true, 'Người chơi 1 chiến thắng!')
+                  }
+                  break
+                }
+              }
+            }
+          }
+        }
+
         // Cập nhật Bảng Xếp Hạng thời gian thực cho Vùng 3
-        const allWorms = [player, ...eng.aiWorms]
+        const allWorms = [player, ...(eng.player2 ? [eng.player2] : []), ...eng.aiWorms]
         const sorted = [...allWorms].sort((a, b) => b.score - a.score)
-        const pRank = sorted.findIndex((w) => w.isPlayer) + 1
+        const pRank = sorted.findIndex((w) => w.id === player.id) + 1
         setPlayerRank(pRank)
         setLeaderboard(
           sorted.map((w) => ({
@@ -740,9 +919,31 @@ export function Wormate3DArena({
         if (ai.isAlive) draw3DWorm(ctx, ai, ai.id === topWormId)
       })
 
-      // Vẽ Người chơi (Sâu 3D)
+      // Vẽ Người chơi 1 (Sâu 3D)
       if (player.isAlive) {
         draw3DWorm(ctx, player, player.id === topWormId)
+
+        // Vẽ biểu cảm nổi trên đầu Người chơi 1 nếu có
+        if (playerEmote) {
+          ctx.save()
+          ctx.font = '20px sans-serif'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'
+          ctx.beginPath()
+          ctx.arc(player.x, player.y - player.radius - 24, 18, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.strokeStyle = '#38bdf8'
+          ctx.lineWidth = 2
+          ctx.stroke()
+          ctx.fillText(playerEmote.emoji, player.x, player.y - player.radius - 23)
+          ctx.restore()
+        }
+      }
+
+      // Vẽ Người chơi 2 (Chế độ PvP)
+      if (eng.player2 && eng.player2.isAlive) {
+        draw3DWorm(ctx, eng.player2, eng.player2.id === topWormId)
       }
 
       ctx.restore()
@@ -758,20 +959,50 @@ export function Wormate3DArena({
     return () => {
       if (engineRef.current.animFrame) cancelAnimationFrame(engineRef.current.animFrame)
     }
-  }, [isRunning, isGameOver, createFood, difficulty, muted, onGameOver, onOpponentEmote, onOpponentUpdate, onScoreUpdate])
+  }, [isRunning, isGameOver, createFood, difficulty, muted, onGameOver, onOpponentEmote, onOpponentUpdate, onScoreUpdate, mode, playerEmote])
 
-  // Lắng nghe phím Spacebar để Tăng Tốc
+  // Lắng nghe phím Spacebar để Tăng Tốc và phím WASD / Mũi tên cho Player 2
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
         engineRef.current.keys.boost = true
       }
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') {
+        engineRef.current.keys.p2Up = true
+      }
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+        engineRef.current.keys.p2Down = true
+      }
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
+        engineRef.current.keys.p2Left = true
+      }
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') {
+        engineRef.current.keys.p2Right = true
+      }
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        engineRef.current.keys.p2Boost = true
+      }
     }
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
         engineRef.current.keys.boost = false
+      }
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') {
+        engineRef.current.keys.p2Up = false
+      }
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+        engineRef.current.keys.p2Down = false
+      }
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
+        engineRef.current.keys.p2Left = false
+      }
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') {
+        engineRef.current.keys.p2Right = false
+      }
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        engineRef.current.keys.p2Boost = false
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -876,24 +1107,30 @@ export function Wormate3DArena({
 
       {/* HUD thông số người chơi ở góc dưới bên trái */}
       {isRunning && !isGameOver && (
-        <div className="absolute bottom-3.5 left-3.5 z-10 flex items-center gap-3 px-3.5 py-1.5 rounded-xl bg-slate-950/45 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
+        <div className="absolute bottom-3.5 left-3.5 z-10 flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
           <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
-            <Sparkles className="size-3.5 text-cyan-400" />
-            <span className="font-mono text-sm">{Math.floor(engineRef.current.player?.score || 0)}đ</span>
+            <span className="size-2 rounded-full bg-cyan-400" />
+            <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {Math.floor(engineRef.current.player?.score || 0)}đ</span>
           </div>
-          <div className="h-3 w-px bg-white/15" />
-          <div className="text-slate-300 text-[11px]">
-            Dài: <span className="font-mono font-bold text-amber-300">{engineRef.current.player?.length || 18} đốt</span>
-          </div>
+          {mode === 'pass_and_play' && (
+            <>
+              <div className="h-3 w-px bg-white/15" />
+              <div className="flex items-center gap-1.5 text-rose-300 font-bold">
+                <span className="size-2 rounded-full bg-rose-400" />
+                <span className="font-mono text-xs">P2: {player2Score}đ</span>
+              </div>
+            </>
+          )}
           <div className="h-3 w-px bg-white/15 hidden sm:block" />
           <div className="text-[10px] text-slate-400 hidden sm:block">
-            Giữ <span className="text-amber-300 font-bold">Chuột</span> hoặc phím <span className="text-amber-300 font-bold">Space</span> để Tăng Tốc
+            {mode === 'pass_and_play'
+              ? 'P1: Chuột + Space | P2: Phím WASD + Shift'
+              : 'Giữ Chuột hoặc phím Space để Tăng Tốc'}
           </div>
         </div>
       )}
 
-      {/* Màn sẵn sàng: tối giản — biểu tượng lơ lửng, tên game, hai gợi ý điều khiển. Không có nút thứ hai: hành động chính
-          "Bắt đầu" nằm trên thanh công cụ như mọi game; bấm vào màn này cũng bắt đầu. */}
+      {/* Màn sẵn sàng */}
       {!isRunning && !isGameOver && (
         <button
           type="button"
@@ -909,17 +1146,32 @@ export function Wormate3DArena({
             </span>
           </span>
           <span className="pt-1 text-2xl leading-[1.35] font-black tracking-[0.18em] text-emerald-300 uppercase [text-shadow:0_0_20px_rgb(52_211_153/0.55)] sm:text-3xl">
-            Rắn Săn Mồi
+            {mode === 'pass_and_play' ? 'Rắn Săn Mồi (PvP)' : 'Rắn Săn Mồi'}
           </span>
-          <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-400">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
-              <MousePointer2 className="size-3 text-cyan-400" />
-              Lái
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
-              <kbd className="font-mono text-[10px] font-bold text-amber-300">Space</kbd>
-              Tăng tốc
-            </span>
+          <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 flex-wrap justify-center">
+            {mode === 'pass_and_play' ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-cyan-300">
+                  <MousePointer2 className="size-3 text-cyan-400" />
+                  P1: Chuột + Space
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-rose-300">
+                  <kbd className="font-mono text-[10px] font-bold text-rose-300">WASD</kbd>
+                  P2: Phím + Shift
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
+                  <MousePointer2 className="size-3 text-cyan-400" />
+                  Lái
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
+                  <kbd className="font-mono text-[10px] font-bold text-amber-300">Space</kbd>
+                  Tăng tốc
+                </span>
+              </>
+            )}
           </span>
         </button>
       )}
