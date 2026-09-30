@@ -33,6 +33,7 @@ export function SoloGameStage({ gameType, onBack, onSaveScore, onSnakeSettled }:
               variant="ghost"
               size="sm"
               onClick={onBack}
+              aria-label="Quay lại sảnh"
               className="h-8 gap-1.5 text-xs text-text-secondary hover:text-white"
             >
               <ArrowLeft className="size-3.5" />

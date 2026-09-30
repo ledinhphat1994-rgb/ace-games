@@ -105,10 +105,13 @@ describe('Quan hệ bạn bè suy từ SocialState', () => {
 })
 
 describe('Giao diện', () => {
-  it('thanh trên: nền đặc (không kính mờ), ba cột, nhóm tab Học tập · Game căn giữa và nổi bật', () => {
-    expect(headerRaw).toContain('sticky top-0 z-30 border-b border-border-subtle bg-canvas')
+  it('thanh trên: nền đặc, hàng gọn trên mobile; ba cột và tab căn giữa trên desktop', () => {
+    expect(headerRaw).toContain('sticky top-0 z-30')
+    expect(headerRaw).toContain('pt-[env(safe-area-inset-top)]')
+    expect(headerRaw).toContain('border-b border-border-subtle bg-canvas')
     expect(headerRaw).not.toContain('glass')
-    expect(headerRaw).toContain('grid-cols-[1fr_auto_1fr]')
+    expect(headerRaw).toContain('items-center justify-between')
+    expect(headerRaw).toContain('md:grid md:grid-cols-[1fr_auto_1fr]')
     expect(headerRaw).toContain('justify-self-center')
     expect(headerRaw).toContain('data-testid="nav-hoat-dong"')
     expect(headerRaw).toContain('[text-shadow:0_0_14px_rgb(34_211_238/0.8)]')

@@ -12,35 +12,35 @@ interface DraggableBubbleProps {
   className?: string
 }
 
-export function DraggableBubble({ id, label, icon, onClick, bottomOffset = 84, notification, className }: DraggableBubbleProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const [position, setPosition] = useState<Position | null>(null)
-  const dragRef = useRef<{ id: number; x: number; y: number; origin: Position; moved: boolean } | null>(null)
-  const suppressClick = useRef(false)
-  const storageKey = 'campus:bubble:' + id
-
-  const constrain = (p: Position): Position => {
-    const viewport = window.visualViewport
-    const left = viewport?.offsetLeft ?? 0
-    const top = viewport?.offsetTop ?? 0
-    const width = viewport?.width ?? window.innerWidth
-    const height = viewport?.height ?? window.innerHeight
-    const nav = document.querySelector<HTMLElement>('[aria-label="Điều hướng chính di động"]')
-    const bottom = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height + 12 : 12
-    return {
-      x: Math.max(left + 12, Math.min(p.x, left + width - 60)),
-      y: Math.max(top + 64, Math.min(p.y, Math.max(top + 64, top + height - bottom - 48))),
-    }
+const constrain = (p: Position): Position => {
+  const viewport = window.visualViewport
+  const left = viewport?.offsetLeft ?? 0
+  const top = viewport?.offsetTop ?? 0
+  const width = viewport?.width ?? window.innerWidth
+  const height = viewport?.height ?? window.innerHeight
+  const nav = document.querySelector<HTMLElement>('[aria-label="Điều hướng chính di động"]')
+  const bottom = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height + 12 : 12
+  return {
+    x: Math.max(left + 12, Math.min(p.x, left + width - 60)),
+    y: Math.max(top + 64, Math.min(p.y, Math.max(top + 64, top + height - bottom - 48))),
   }
+}
 
-  useEffect(() => {
+export function DraggableBubble({ id, label, icon, onClick, bottomOffset = 84, notification, className }: DraggableBubbleProps) {
+  const storageKey = 'campus:bubble:' + id
+  const [position, setPosition] = useState<Position>(() => {
     let initial = { x: window.innerWidth - 60, y: window.innerHeight - bottomOffset - 48 }
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Position | null
       if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) initial = saved
     } catch { /* Storage is optional. */ }
-    setPosition(constrain(initial))
-    const resize = () => setPosition(p => p ? constrain(p) : p)
+    return constrain(initial)
+  })
+  const dragRef = useRef<{ id: number; x: number; y: number; origin: Position; moved: boolean } | null>(null)
+  const suppressClick = useRef(false)
+
+  useEffect(() => {
+    const resize = () => setPosition(p => constrain(p))
     window.addEventListener('resize', resize)
     window.visualViewport?.addEventListener('resize', resize)
     window.visualViewport?.addEventListener('scroll', resize)
@@ -65,13 +65,12 @@ export function DraggableBubble({ id, label, icon, onClick, bottomOffset = 84, n
 
   return (
     <button
-      ref={buttonRef}
       type="button"
       data-testid={'bubble-' + id}
       aria-label={label}
       title={label + ' · Kéo để di chuyển'}
       className={cn('fixed z-40 flex size-12 touch-none select-none items-center justify-center rounded-full border border-white/20 bg-surface-raised text-brand shadow-[0_8px_28px_rgb(0_0_0/0.45)] outline-none transition-[box-shadow,background-color] active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-brand', className)}
-      style={{ left: position?.x ?? 0, top: position?.y ?? 0, visibility: position ? 'visible' : 'hidden' }}
+      style={{ left: position.x, top: position.y }}
       onPointerDown={e => {
         if (e.button !== 0 || !e.isPrimary || !position) return
         suppressClick.current = false

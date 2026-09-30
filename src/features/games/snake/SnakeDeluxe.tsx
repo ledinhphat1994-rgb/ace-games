@@ -25,6 +25,7 @@ const LY_DO_KET_THUC: Record<string, string> = {
 export function SnakeDeluxe({ onSettled }: SnakeDeluxeProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [score, setScore] = useState(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isDead, setIsDead] = useState(false)
   const [deathReason, setDeathReason] = useState<string | null>(null)
@@ -45,6 +46,7 @@ export function SnakeDeluxe({ onSettled }: SnakeDeluxeProps = {}) {
     if (!controllerRef.current && containerRef.current) {
       controllerRef.current = new SnakeGameController({
         container: containerRef.current,
+        onError: setLoadError,
         onScoreUpdate: (s) => setScore(s),
         onStatusChange: (status, vScore) => {
           setVerificationStatus(status)
@@ -114,11 +116,14 @@ export function SnakeDeluxe({ onSettled }: SnakeDeluxeProps = {}) {
     el.addEventListener('touchstart', handleTouchStart, { passive: true })
     el.addEventListener('touchmove', handleTouchMove, { passive: false })
     el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    const cancelTouch = () => { touchStartRef.current = null }
+    el.addEventListener('touchcancel', cancelTouch, { passive: true })
 
     return () => {
       el.removeEventListener('touchstart', handleTouchStart)
       el.removeEventListener('touchmove', handleTouchMove)
       el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', cancelTouch)
     }
   }, [handleTurn])
 
@@ -159,13 +164,15 @@ export function SnakeDeluxe({ onSettled }: SnakeDeluxeProps = {}) {
               {engineLoading ? 'Đang tải…' : isDead ? 'Chơi lại' : 'Bắt đầu'}
             </Button>
           ) : (
-            <Button variant="outline" size="sm" onClick={startGame}>
+            <Button variant="outline" size="sm" onClick={startGame} disabled={engineLoading}>
               <RotateCcw />
               Chơi lại
             </Button>
           )}
         </div>
       </div>
+
+      {loadError && <p role="alert" className="w-full rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-center text-sm text-destructive">{loadError}</p>}
 
       {isDead && (
         <p

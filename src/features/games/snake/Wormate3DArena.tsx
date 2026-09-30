@@ -225,7 +225,9 @@ export function Wormate3DArena({
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([])
   const [playerRank, setPlayerRank] = useState(1)
   const [player2Score, setPlayer2Score] = useState(0)
-  const [finalResult, setFinalResult] = useState<{ winner: boolean; reason: string } | null>(null)
+  const [playerStats, setPlayerStats] = useState({ score: 0, length: INITIAL_SEGMENT_COUNT })
+  const [roundResult, setRoundResult] = useState<{ restartKey: number; winner: boolean; reason: string } | null>(null)
+  const finalResult = roundResult?.restartKey === restartKey ? roundResult : null
 
   // Tự động đo kích thước container để canvas chiếm trọn không gian (Zero CLS)
   useEffect(() => {
@@ -472,11 +474,10 @@ export function Wormate3DArena({
   // Lắng nghe restartKey để reset ngay lập tức khi bấm "Chơi lại"
   useEffect(() => {
     initEngine()
-    setFinalResult(null)
   }, [restartKey, initEngine])
 
   // Spawn pastries khi sâu chết
-  const explodeWormIntoPastries = (worm: Worm) => {
+  const explodeWormIntoPastries = useCallback((worm: Worm) => {
     const eng = engineRef.current
     const pastryCount = Math.min(30, Math.max(12, Math.floor(worm.length * 0.9)))
     for (let i = 0; i < pastryCount; i++) {
@@ -499,7 +500,7 @@ export function Wormate3DArena({
         alpha: 1,
       })
     }
-  }
+  }, [createFood])
 
   // Game Loop chính
   useEffect(() => {
@@ -515,7 +516,8 @@ export function Wormate3DArena({
     const finishGame = (winner: boolean, reason: string) => {
       if (finished) return
       finished = true
-      callbacks.current.onGameOver(winner, reason)
+      setPlayerStats({ score: Math.floor(engineRef.current.player.score), length: engineRef.current.player.length })
+      callbacks.current.onGameOver(winner, reason, Math.floor(engineRef.current.player.score))
     }
 
     const loop = (currentTime: number) => {
@@ -581,7 +583,7 @@ export function Wormate3DArena({
           player.isAlive = false
           playWormSound('crash', muted)
           explodeWormIntoPastries(player)
-          setFinalResult({ winner: false, reason: 'Đâm vào hàng rào bảo vệ đấu trường!' })
+          setRoundResult({ restartKey, winner: false, reason: 'Đâm vào hàng rào bảo vệ đấu trường!' })
           finishGame(false, 'Đâm vào hàng rào đấu trường!')
         }
 
@@ -700,7 +702,7 @@ export function Wormate3DArena({
                 player.isAlive = false
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(player)
-                setFinalResult({ winner: false, reason: `Đâm trúng thân của ${ai.name}!` })
+                setRoundResult({ restartKey, winner: false, reason: `Đâm trúng thân của ${ai.name}!` })
                 finishGame(false, `Bị đâm trúng thân của ${ai.name}!`)
                 break
               }
@@ -747,7 +749,7 @@ export function Wormate3DArena({
             playWormSound('crash', muted)
             explodeWormIntoPastries(p2)
             if (player.isAlive) {
-              setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào tường)' })
+              setRoundResult({ restartKey, winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào tường)' })
               finishGame(true, 'Người chơi 1 chiến thắng!')
             }
           }
@@ -774,7 +776,7 @@ export function Wormate3DArena({
                 player.isAlive = false
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(player)
-                setFinalResult({ winner: false, reason: 'Người chơi 2 chiến thắng! (Người chơi 1 đâm vào thân Người chơi 2)' })
+                setRoundResult({ restartKey, winner: false, reason: 'Người chơi 2 chiến thắng! (Người chơi 1 đâm vào thân Người chơi 2)' })
                 finishGame(false, 'Người chơi 2 chiến thắng!')
                 break
               }
@@ -789,7 +791,7 @@ export function Wormate3DArena({
                 p2.isAlive = false
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(p2)
-                setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào thân Người chơi 1)' })
+                setRoundResult({ restartKey, winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào thân Người chơi 1)' })
                 finishGame(true, 'Người chơi 1 chiến thắng!')
                 break
               }
@@ -807,7 +809,7 @@ export function Wormate3DArena({
                   playWormSound('crash', muted)
                   explodeWormIntoPastries(p2)
                   if (player.isAlive) {
-                    setFinalResult({ winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào bot)' })
+                    setRoundResult({ restartKey, winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đâm vào bot)' })
                     finishGame(true, 'Người chơi 1 chiến thắng!')
                   }
                   break
@@ -822,19 +824,19 @@ export function Wormate3DArena({
         const sorted = [...allWorms].sort((a, b) => b.score - a.score)
         const pRank = sorted.findIndex((w) => w.id === player.id) + 1
         if (currentTime - lastHudUpdate >= 120) {
-        lastHudUpdate = currentTime
-        setPlayerRank(pRank)
-        setLeaderboard(
-          sorted.map((w) => ({
-            id: w.id,
-            name: w.name,
-            score: Math.floor(w.score),
-            length: w.length,
-            isPlayer: w.isPlayer,
-            isAlive: w.isAlive,
-          }))
-        )
-
+          lastHudUpdate = currentTime
+          setPlayerStats({ score: Math.floor(player.score), length: player.length })
+          setPlayerRank(pRank)
+          setLeaderboard(
+            sorted.map((w) => ({
+              id: w.id,
+              name: w.name,
+              score: Math.floor(w.score),
+              length: w.length,
+              isPlayer: w.isPlayer,
+              isAlive: w.isAlive,
+            }))
+          )
         }
 
         // Báo đối thủ mạnh nhất ra bảng ngoài
@@ -974,7 +976,7 @@ export function Wormate3DArena({
     return () => {
       cancelAnimationFrame(animationFrame)
     }
-  }, [isRunning, isGameOver, createFood, difficulty, muted, mode, restartKey])
+  }, [isRunning, isGameOver, createFood, explodeWormIntoPastries, difficulty, muted, mode, restartKey])
 
   // Lắng nghe phím Spacebar để Tăng Tốc và phím WASD / Mũi tên cho Player 2
   useEffect(() => {
@@ -1130,17 +1132,17 @@ export function Wormate3DArena({
         {playerRank > 6 && (
           <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-200 text-[10px] font-bold">
             <span>#{playerRank} Bạn (Sâu 3D)</span>
-            <span className="font-mono">{engineRef.current.player ? Math.floor(engineRef.current.player.score) : 0}đ</span>
+            <span className="font-mono">{playerStats.score}đ</span>
           </div>
         )}
       </div>
 
       {/* HUD thông số người chơi ở góc dưới bên trái */}
       {isRunning && !isGameOver && (
-        <div className="absolute bottom-3.5 left-3.5 z-10 flex items-center pointer-coarse:bottom-40 gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
+        <div className="snake-hud absolute bottom-3.5 left-3.5 z-10 flex items-center pointer-coarse:bottom-40 gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
           <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
             <span className="size-2 rounded-full bg-cyan-400" />
-            <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {Math.floor(engineRef.current.player?.score || 0)}đ</span>
+            <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {playerStats.score}đ</span>
           </div>
           {mode === 'pass_and_play' && (
             <>
@@ -1247,13 +1249,13 @@ export function Wormate3DArena({
           <div className="grid grid-cols-2 gap-3 my-4 w-full max-w-64 p-3 rounded-xl bg-white/5 border border-white/10">
             <div className="flex flex-col items-center">
               <span className="text-lg font-black font-mono text-cyan-300">
-                {Math.floor(engineRef.current.player?.score || 0)}đ
+                {playerStats.score}đ
               </span>
               <span className="text-[10px] text-text-tertiary">Điểm ngọt ngào</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="text-lg font-black font-mono text-amber-300">
-                {engineRef.current.player?.length || 18} đốt
+                {playerStats.length} đốt
               </span>
               <span className="text-[10px] text-text-tertiary">Độ dài sâu</span>
             </div>

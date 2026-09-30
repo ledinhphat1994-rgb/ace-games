@@ -402,12 +402,12 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
   // ── K. Mobile Contextual Panel ────────────────────────────────────
   describe('K. Mobile Contextual Ergonomics', () => {
     it('context panel renders as sliding overlay on mobile screens with responsive width', () => {
-      expect(contextPanelRaw).toContain('fixed sm:relative right-0 inset-y-0')
-      expect(contextPanelRaw).toContain('w-80 sm:w-72 md:w-80')
+      expect(contextPanelRaw).toContain('fixed lg:relative right-0 inset-y-0')
+      expect(contextPanelRaw).toContain('w-full sm:w-96 lg:w-80')
     })
 
     it('includes a backdrop overlay on mobile to dismiss open contextual panel', () => {
-      expect(contextPanelRaw).toContain('fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden')
+      expect(contextPanelRaw).toContain('fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden')
     })
 
     it('Stage receives flex-1 to dominate mobile viewport', () => {

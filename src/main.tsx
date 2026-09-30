@@ -7,6 +7,7 @@ import { AuthGate } from '@/app/AuthGate'
 import { NotFoundPage } from '@/app/NotFoundPage'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ViewportMetrics } from '@/components/layout/ViewportMetrics'
 import { AppShell } from '@/components/layout/AppShell'
 import { LearningPage } from '@/features/hub/LearningPage'
 import './index.css'
@@ -75,6 +76,7 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ViewportMetrics />
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <RouterProvider router={router} />
