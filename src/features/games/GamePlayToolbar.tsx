@@ -131,7 +131,7 @@ export function GamePlayToolbar({
       aria-label="Toàn màn hình"
     >
       {isFs ? <Minimize2 className="size-3.5 text-cyan-400" /> : <Maximize2 className="size-3.5 text-cyan-400" />}
-      <span className="hidden min-[480px]:inline">{isFs ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
+      <span className="game-control-label">{isFs ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
     </Button>
   )
 
@@ -165,6 +165,7 @@ export function GamePlayToolbar({
       onClick={onReset}
       disabled={resetDisabled}
       aria-label={resetLabel ?? 'Xin thua'}
+      title={resetLabel ?? 'Xin thua'}
       data-testid="nut-hanh-dong-chinh"
       className={cn(
         'gap-2 text-xs font-black transition-all hover:scale-105 active:scale-95 shrink-0 cursor-pointer',
@@ -176,9 +177,9 @@ export function GamePlayToolbar({
       )}
     >
       {resetIcon ?? (laBatDau ? <Play className="size-4 fill-white text-white drop-shadow" /> : resetLabel === 'Ván mới' ? <RotateCcw className="size-3.5" /> : <Flag className="size-3.5 text-rose-400" />)}
-      <span>{resetLabel ?? 'Xin thua'}</span>
+      <span className="game-control-label">{resetLabel ?? 'Xin thua'}</span>
       {surrenderAttempts !== undefined && surrenderAttempts > 0 && resetLabel !== 'Ván mới' && (
-        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+        <span className="game-control-label text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
           {surrenderAttempts}/3
         </span>
       )}
@@ -189,6 +190,8 @@ export function GamePlayToolbar({
     <div className="game-toolbar-frame w-full min-w-0 shrink-0">
       <div
         data-testid="game-play-toolbar"
+        role="toolbar"
+        aria-label={title ? `Điều khiển ${title}` : 'Điều khiển trò chơi'}
         className={cn(
           'game-play-toolbar relative grid items-center gap-x-3 gap-y-2 w-full py-1 min-w-0',
           className,
@@ -202,15 +205,16 @@ export function GamePlayToolbar({
               size="sm"
               onClick={handleBack}
               aria-label="Quay lại sảnh"
+              title="Quay lại sảnh"
               className="gap-1.5 font-bold border-white/10 hover:bg-white/5 text-xs text-text-secondary hover:text-white h-8 px-2 shrink-0 cursor-pointer"
             >
               <ArrowLeft className="size-3.5" />
-              <span className="hidden sm:inline">Quay lại sảnh</span>
+              <span className="game-control-label">Quay lại sảnh</span>
             </Button>
           )}
           {title && (
             <>
-              <div className="h-4 w-px bg-white/10 hidden sm:block shrink-0" />
+              <div className="game-control-detail h-4 w-px bg-white/10 shrink-0" />
               <div className="game-toolbar-title hidden sm:flex items-center gap-2 min-w-0">
                 {icon && (
                   <div className="size-7 sm:size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shadow-sm shrink-0">

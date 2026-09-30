@@ -68,11 +68,11 @@ export function CumPvePvp({
               title="Nhấn để chơi PvE (Đấu máy) hoặc chọn độ khó"
             >
               <Bot className="size-3.5 shrink-0" />
-              <span>PvE</span>
+              <span className="game-control-label">PvE</span>
               {mode === 'ai' && (
                 <span
                   className={cn(
-                    'text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded-full border shadow-sm shrink-0 flex items-center gap-0.5 ml-0.5',
+                    'game-control-detail text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded-full border shadow-sm shrink-0 flex items-center gap-0.5 ml-0.5',
                     CAP_DO_MAY[aiLevel].chip,
                   )}
                 >
@@ -114,10 +114,10 @@ export function CumPvePvp({
                   title="Nhấn để chơi PvP (Đối kháng) hoặc thêm bot"
                 >
                   <Swords className="size-3.5 shrink-0" />
-                  <span>PvP</span>
+                  <span className="game-control-label">PvP</span>
                   {laPvp && (
                     <span
-                      className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded-full border border-amber-300/40 bg-amber-400/20 text-amber-200 shadow-sm shrink-0 flex items-center gap-0.5 ml-0.5"
+                      className="game-control-detail text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded-full border border-amber-300/40 bg-amber-400/20 text-amber-200 shadow-sm shrink-0 flex items-center gap-0.5 ml-0.5"
                     >
                       {nhanChipPvp ?? 'Bot'}
                       <ChevronDown className="size-2 opacity-70" />
@@ -150,7 +150,7 @@ export function CumPvePvp({
             title="Chế độ PvP (Đối kháng)"
           >
             <Swords className="size-3.5 shrink-0" />
-            <span>PvP</span>
+            <span className="game-control-label">PvP</span>
           </button>
         )
       )}

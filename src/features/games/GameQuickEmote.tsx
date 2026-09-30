@@ -192,7 +192,7 @@ export function GameQuickEmote({
                 <span className="text-sm leading-none select-none">
                   {isOpen ? '💬' : '😊'}
                 </span>
-                <span className="hidden min-[480px]:inline">Biểu cảm</span>
+                <span className="game-control-label">Biểu cảm</span>
               </Button>
             ) : (
               <Button
