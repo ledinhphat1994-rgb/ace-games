@@ -785,10 +785,11 @@ export function GameSocialSidebar({
                       return (
                         <div
                           key={friend.id}
+                          data-testid={`game-friend-${friend.id}`}
                           onClick={() => handleStartChatWithFriend(friend)}
-                          className="flex items-center justify-between p-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/15 transition-all cursor-pointer group"
+                          className="flex min-w-0 flex-wrap items-center gap-3 border-b border-border-subtle p-3 hover:bg-surface-overlay transition-colors cursor-pointer group"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex min-w-0 grow basis-48 items-center gap-3">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -799,17 +800,17 @@ export function GameSocialSidebar({
                                 )
                               }}
                               aria-label={`Xem thông tin ${friend.displayName}`}
-                              className="relative shrink-0 cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                              className="relative size-11 shrink-0 cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
                               data-testid={`ban-be-anh-${friend.id}`}
                             >
-                              <AnhNguoiDung ten={friend.displayName} avatar={friend.avatar} className="size-8 text-xs" />
+                              <AnhNguoiDung ten={friend.displayName} avatar={friend.avatar} className="size-11 text-sm" />
                               <span className={cn('absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background', pres.color)} />
                             </button>
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold text-text-primary truncate group-hover:text-purple-300 transition-colors">
+                              <p className="break-words text-sm font-semibold text-text-primary">
                                 {friend.displayName}
                               </p>
-                              <p className="text-[10px] text-text-tertiary truncate">
+                              <p className="break-words text-xs text-text-secondary">
                                 {friend.lopTen ? `${friend.lopTen} · ` : ''}
                                 {pres.label}
                               </p>
@@ -819,20 +820,22 @@ export function GameSocialSidebar({
                           <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="size-7 text-text-tertiary hover:text-brand cursor-pointer"
+                              size="icon-lg"
+                              className="text-text-secondary hover:text-brand cursor-pointer"
                               onClick={() => handleStartChatWithFriend(friend)}
                               title="Nhắn tin"
+                              aria-label={`Nhắn tin với ${friend.displayName}`}
                             >
                               <MessageCircle className="size-3.5" />
                             </Button>
                             {onInviteToGame && (
                               <Button
                                 variant="ghost"
-                                size="icon"
-                                className="size-7 text-text-tertiary hover:text-cyan-400 cursor-pointer"
+                                size="icon-lg"
+                                className="text-text-secondary hover:text-brand cursor-pointer"
                                 onClick={() => onInviteToGame(friend.id, friend.displayName)}
                                 title="Mời chơi game"
+                                aria-label={`Mời ${friend.displayName} chơi game`}
                               >
                                 <Gamepad2 className="size-3.5" />
                               </Button>
@@ -946,19 +949,19 @@ function HangNguoi({
 }) {
   return (
     <div
-      className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] p-2"
+      className="flex min-w-0 flex-wrap items-center gap-3 border-b border-border-subtle p-3"
       data-testid={`hang-nguoi-${id}`}
     >
       <button
         type="button"
         onClick={(e) => onXem(e)}
         aria-label={`Xem thông tin ${ten}`}
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+        className="flex min-h-11 min-w-0 grow basis-48 cursor-pointer items-center gap-3 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
       >
-        <AnhNguoiDung ten={ten} avatar={avatar} className="size-8 text-xs" />
+        <AnhNguoiDung ten={ten} avatar={avatar} className="size-10 text-sm" />
         <span className="min-w-0">
-          <span className="block truncate text-xs font-semibold text-text-primary">{ten}</span>
-          {phu && <span className="block truncate text-[10px] text-text-tertiary">{phu}</span>}
+          <span className="block break-words text-sm font-semibold text-text-primary">{ten}</span>
+          {phu && <span className="block break-words text-xs text-text-secondary">{phu}</span>}
         </span>
       </button>
       <NutQuanHe id={id} trangThaiMayChu={trangThaiMayChu} />
@@ -1059,13 +1062,13 @@ function HopChatRieng11({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="p-2 border-b border-white/10 bg-white/[0.03] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 border-b border-border-subtle p-3">
+        <div className="flex min-w-0 grow basis-48 items-center gap-2">
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-lg"
             onClick={onBack}
-            className="size-7 text-text-tertiary hover:text-white shrink-0 cursor-pointer"
+            className="shrink-0 text-text-secondary hover:text-text-primary cursor-pointer"
             aria-label="Quay lại danh sách bạn bè"
           >
             <ArrowLeft className="size-4" />
@@ -1073,11 +1076,11 @@ function HopChatRieng11({
           <button
             type="button"
             onClick={(e) => onOpenProfile(e.currentTarget.getBoundingClientRect())}
-            className="flex items-center gap-2 min-w-0 text-left hover:opacity-85 transition-opacity group cursor-pointer"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left hover:opacity-85 transition-opacity group cursor-pointer"
             title="Xem hồ sơ & thao tác"
           >
             <div className="relative shrink-0">
-              <div className="flex size-7 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold ring-1 ring-white/10 group-hover:ring-brand/40 transition-all">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold ring-1 ring-white/10 group-hover:ring-brand/40 transition-all">
                 {getInitials(friend.displayName)}
               </div>
               <span
@@ -1088,10 +1091,10 @@ function HopChatRieng11({
               />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-text-primary truncate group-hover:text-brand transition-colors">
+              <p className="break-words text-sm font-semibold text-text-primary group-hover:text-brand transition-colors">
                 {friend.displayName}
               </p>
-              <p className="text-[10px] text-text-tertiary truncate">{presenceInfo.label}</p>
+              <p className="break-words text-xs text-text-secondary">{presenceInfo.label}</p>
             </div>
           </button>
         </div>
@@ -1099,12 +1102,13 @@ function HopChatRieng11({
         {onInviteToGame && (
           <Button
             variant="outline"
-            size="xs"
+            size="icon-lg"
             onClick={() => onInviteToGame(friend.id, friend.displayName)}
-            className="gap-1 text-[11px] border-white/10 hover:bg-white/5 cursor-pointer"
+            className="cursor-pointer"
+            title="Mời chơi game"
+            aria-label={`Mời ${friend.displayName} chơi game`}
           >
             <Gamepad2 className="size-3" />
-            Mời game
           </Button>
         )}
       </div>

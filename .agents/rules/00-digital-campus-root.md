@@ -87,3 +87,7 @@ trigger: always_on
 - Báo cáo ngắn gọn khi hoàn tất: `DONE`, `LOCAL CHECK: PASS`, `TESTS: x/x`, `STAGING: <version | NONE>`, `PR: #xx`, `PRODUCTION: UNTOUCHED`.
 - Báo cáo khi bị chặn: `BLOCKED`, `CAUSE: <1 câu>`, `NEED: <thứ cần quyết định>`.
 - Tuyệt đối không tường thuật trạng thái chờ ("đang chạy", "đang chờ", "build đang chạy").
+
+## Global UI/UX constitution
+
+Before any UI change, read and follow [docs/UI_UX_CONSTITUTION.md](../../docs/UI_UX_CONSTITUTION.md). It is the authoritative responsive layout and visual acceptance contract, overriding earlier UI guidance where inconsistent. Title-only restrictions apply when the user requests only a title edit. For UI-only work, its targeted delivery workflow takes precedence over full-suite defaults above. Preserve behavior, permissions and real data; verify geometry, long Vietnamese content and actual interactions in a browser.

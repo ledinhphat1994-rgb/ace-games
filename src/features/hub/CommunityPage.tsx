@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { LiveDot, PageHeader } from '@/components/layout/PageHeader'
 import { cn, getInitials } from '@/lib/utils'
@@ -44,6 +45,10 @@ export function CommunityPage() {
   } = useCampus()
 
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
+  const moHoSo = (friend: FriendItem, anchorRect: DOMRect) => {
+    setNguoiXem({ id: friend.id, ten: friend.displayName, avatar: friend.avatar, lopTen: friend.lopTen, vaiTro: friend.role, anchorRect })
+  }
   const [drawerDefaultTab, setDrawerDefaultTab] = useState<'friends' | 'requests' | 'search'>('friends')
 
   const openDrawerTab = (tab: 'friends' | 'requests' | 'search') => {
@@ -279,6 +284,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-unconfirmed-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai="unknown"
                       meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
                     />
@@ -293,6 +299,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-in-room-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai="room"
                       meta={
                         <>
@@ -305,7 +312,7 @@ export function CommunityPage() {
                           size="xs"
                           data-testid={`join-room-btn-${friend.username}`}
                           onClick={() => navigate(`/room/phong-${roomId}`)}
-                          className="shrink-0"
+                          className="min-h-11 shrink-0 whitespace-normal text-sm"
                         >
                           <DoorOpen />
                           <span>Vào phòng</span>
@@ -323,6 +330,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-online-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai={isAway ? 'away' : 'online'}
                       meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
                       action={
@@ -342,6 +350,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-offline-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai="offline"
                       meta={`${friend.lopTen ? `${friend.lopTen} · ` : ''}${formatLastSeen(presence?.lastSeen)}`}
                     />
@@ -391,6 +400,7 @@ export function CommunityPage() {
         </aside>
       </div>
 
+      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
       {/* Drawer bạn bè mở theo tab từ các nút trên trang */}
       <FriendsDrawer
         open={drawerOpen}
@@ -442,9 +452,11 @@ function DongBanBe({
   meta,
   action,
   testId,
+  onXem,
 }: {
   friend: FriendItem
   trangThai: TrangThaiBan
+  onXem: (friend: FriendItem, anchorRect: DOMRect) => void
   meta: ReactNode
   action?: ReactNode
   testId: string
@@ -453,32 +465,39 @@ function DongBanBe({
   const cham = MAU_CHAM_TRANG_THAI[trangThai]
 
   return (
-    <li data-testid={testId} className="flex items-center gap-3 px-4 py-3">
-      <div className="relative shrink-0">
-        {friend.avatar ? (
-          <img
-            src={friend.avatar}
-            alt=""
-            className={cn('size-9 rounded-full object-cover', ngoaiTuyen && 'opacity-60 grayscale')}
-          />
-        ) : (
-          <div
-            className={cn(
-              'flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
-              ngoaiTuyen && 'opacity-70',
-            )}
-          >
-            {getInitials(friend.displayName)}
-          </div>
-        )}
-        {cham && <span className={cn('absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface', cham)} />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className={cn('text-sm font-medium break-words', ngoaiTuyen ? 'text-text-secondary' : 'text-text-primary')}>
-          {friend.displayName}
-        </p>
-        <p className="text-xs break-words text-text-tertiary">{meta}</p>
-      </div>
+    <li data-testid={testId} className="flex min-w-0 flex-wrap items-center gap-3 px-4 py-3">
+      <button
+        type="button"
+        onClick={(event) => onXem(friend, event.currentTarget.getBoundingClientRect())}
+        aria-label={'Xem thông tin ' + friend.displayName}
+        className="flex min-h-11 min-w-0 grow basis-48 items-center gap-3 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+      >
+        <div className="relative shrink-0">
+          {friend.avatar ? (
+            <img
+              src={friend.avatar}
+              alt=""
+              className={cn('size-9 rounded-full object-cover', ngoaiTuyen && 'opacity-60 grayscale')}
+            />
+          ) : (
+            <div
+              className={cn(
+                'flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
+                ngoaiTuyen && 'opacity-70',
+              )}
+            >
+              {getInitials(friend.displayName)}
+            </div>
+          )}
+          {cham && <span className={cn('absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface', cham)} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={cn('text-sm font-medium break-words', ngoaiTuyen ? 'text-text-secondary' : 'text-text-primary')}>
+            {friend.displayName}
+          </p>
+          <p className="text-xs break-words text-text-tertiary">{meta}</p>
+        </div>
+      </button>
       {action}
     </li>
   )

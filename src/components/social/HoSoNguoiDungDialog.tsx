@@ -1,10 +1,8 @@
-// Hồ sơ người dùng dạng Popover gọn: xuất hiện sát nơi click, không che mờ toàn màn hình.
-// Thông tin lấy từ /api/social/profile/:id; quan hệ bạn bè theo SocialState thời gian thực.
-
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+// Hồ sơ dùng chung: dữ liệu và quan hệ authoritative; bố cục thích ứng theo kích thước popup.
+import { useMemo, useRef, useState } from 'react'
+import { Popover } from '@base-ui/react/popover'
 import { useQuery } from '@tanstack/react-query'
-import { Award, ChevronLeft, Lock, MessageSquare, Trophy, User, X } from 'lucide-react'
+import { Award, ChevronLeft, Lock, MessageSquare, User, X } from 'lucide-react'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { layHoSoNguoiDung } from '@/lib/api'
@@ -39,57 +37,22 @@ interface HoSoNguoiDungDialogProps {
 
 export function HoSoNguoiDungDialog({ nguoi, onDong }: HoSoNguoiDungDialogProps) {
   if (!nguoi) return null
-
-  return createPortal(
-    <NoiDungHoSoPop key={nguoi.id} nguoi={nguoi} onDong={onDong} />,
-    document.body,
-  )
+  return <NoiDungHoSoPop key={nguoi.id} nguoi={nguoi} onDong={onDong} />
 }
 
 function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void }) {
   const { nguoiDung } = usePhien()
   const isMe = nguoiDung ? nguoiDung.accountId === nguoi.id : false
-  const cardRef = useRef<HTMLDivElement>(null)
   const [xemThanhTuu, setXemThanhTuu] = useState(false)
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDong()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onDong])
-
-  const pos = useMemo(() => {
-    const rect = nguoi.anchorRect
-    const cardW = 320
-    const cardH = xemThanhTuu ? 420 : 340
-    const pad = 12
-
-    const winW = typeof window !== 'undefined' ? window.innerWidth : 1200
-    const winH = typeof window !== 'undefined' ? window.innerHeight : 800
-
-    if (!rect) {
-      return {
-        left: Math.max(pad, winW - cardW - 340),
-        top: Math.max(pad, Math.min(winH - cardH - pad, 120)),
-      }
-    }
-
-    let left: number
-    if (rect.left >= cardW + pad) {
-      left = rect.left - cardW - 8
-    } else if (winW - rect.right >= cardW + pad) {
-      left = rect.right + 8
-    } else {
-      left = Math.max(pad, Math.min(winW - cardW - pad, rect.left))
-    }
-
-    const idealTop = rect.top - 16
-    const top = Math.max(pad, Math.min(winH - cardH - pad, idealTop))
-
-    return { top, left }
-  }, [nguoi.anchorRect, xemThanhTuu])
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const anchor = useMemo(() => ({
+    getBoundingClientRect: () => {
+      const rect = nguoi.anchorRect
+      if (rect) return new DOMRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+      const viewport = window.visualViewport
+      return new DOMRect((viewport?.offsetLeft ?? 0) + (viewport?.width ?? innerWidth) / 2, (viewport?.offsetTop ?? 0) + (viewport?.height ?? innerHeight) / 2, 0, 0)
+    },
+  }), [nguoi.anchorRect])
 
   const { data: hoSo, isPending, isError } = useQuery({
     queryKey: ['ho-so-nguoi-dung', nguoi.id],
@@ -99,7 +62,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   })
 
   // Dữ liệu thành tựu authoritative từ máy chủ
-  const { data: achievementsData } = useQuery<{
+  const { data: achievementsData, isPending: thanhTuuDangTai, isError: thanhTuuLoi } = useQuery<{
     ok: boolean
     achievements?: Array<{
       key: string
@@ -114,7 +77,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
     queryKey: ['engagement', 'achievements', nguoi.id],
     queryFn: async () => {
       const res = await fetch(`/api/engagement/achievements?accountId=${nguoi.id}`)
-      if (!res.ok) return { ok: false, achievements: [] }
+      if (!res.ok) throw new Error('Không tải được thành tựu.')
       return res.json()
     },
     staleTime: 60_000,
@@ -130,238 +93,114 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const unlockedCount =
     achievementsData?.unlockedCount ??
     (danhSachThanhTuu.length > 0 ? danhSachThanhTuu.filter((a) => a.unlocked).length : null)
-  const totalCount = achievementsData?.totalCount ?? danhSachThanhTuu.length ?? 8
+  const totalCount = achievementsData?.totalCount ?? danhSachThanhTuu.length
+
+  const nhanThanhTuu = 'Xem tất cả thành tựu của ' + ten + (unlockedCount !== null ? ' (' + unlockedCount + '/' + totalCount + ')' : '')
 
   return (
-    <>
-      {/* Vùng bấm ra ngoài trong suốt — không làm mờ các vùng xung quanh */}
-      <div
-        className="fixed inset-0 z-40 bg-transparent cursor-default"
-        onClick={onDong}
-        aria-hidden="true"
-      />
-
-      <div
-        ref={cardRef}
-        style={{ top: `${pos.top}px`, left: `${pos.left}px` }}
-        className="fixed z-50 w-80 max-w-[calc(100vw-24px)] rounded-2xl border border-white/10 bg-[#0c1222]/98 backdrop-blur-xl shadow-2xl shadow-black/90 animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden flex flex-col max-h-[90vh]"
-        data-testid="ho-so-nguoi-dung"
-      >
-        {xemThanhTuu ? (
-          /* ── POPUP XEM CHI TIẾT THÀNH TỰU (Mở khi bấm nút Thành tựu) ── */
-          <div data-testid="card-thanh-tuu" className="flex flex-col h-full select-none">
-            {/* Header popup thành tựu */}
-            <div className="flex items-center justify-between border-b border-white/10 px-3.5 py-3 bg-white/[0.02]">
-              <button
-                type="button"
-                onClick={() => setXemThanhTuu(false)}
-                className="flex items-center gap-1.5 text-xs font-bold text-text-secondary hover:text-white transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="size-4" />
-                <span>Quay lại</span>
-              </button>
-              <div className="flex items-center gap-1.5">
-                <Trophy className="size-4 text-amber-400 shrink-0" />
-                <span className="text-xs font-bold text-amber-300">
-                  Thành tựu ({unlockedCount !== null ? `${unlockedCount}/${totalCount}` : '—'})
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={onDong}
-                aria-label="Đóng"
-                className="flex size-7 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* Danh sách thành tựu chi tiết cuộn được */}
-            <div className="p-3 max-h-80 overflow-y-auto space-y-2 select-none" data-testid="ho-so-danh-sach-thanh-tuu">
-              {danhSachThanhTuu.length === 0 ? (
-                <div className="py-8 text-center text-xs text-text-tertiary">
-                  <Award className="size-8 mx-auto mb-2 opacity-30 text-amber-400" />
-                  Đang tải thành tựu…
-                </div>
+    <Popover.Root open modal onOpenChange={(open) => { if (!open) onDong() }}>
+      <Popover.Portal>
+        <Popover.Backdrop className="fixed inset-0 z-40" />
+        <Popover.Positioner
+          anchor={anchor}
+          positionMethod="fixed"
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          collisionPadding={12}
+          collisionAvoidance={{ side: 'shift', align: 'shift' }}
+          sticky
+          className="z-50"
+        >
+          <Popover.Popup
+            initialFocus={closeRef}
+            aria-label={xemThanhTuu ? nhanThanhTuu : 'Hồ sơ của ' + ten}
+            className="flex w-88 max-w-[calc(100vw-24px)] max-h-[min(36rem,var(--available-height,calc(100dvh-24px)))] min-h-0 flex-col rounded-2xl border border-border-default bg-surface-raised shadow-xl outline-none"
+            data-testid="ho-so-nguoi-dung"
+          >
+            <header className="flex min-w-0 shrink-0 items-start gap-2 border-b border-border-subtle p-3">
+              {xemThanhTuu ? (
+                <Button variant="ghost" size="icon-lg" onClick={() => setXemThanhTuu(false)} title="Quay lại hồ sơ" aria-label="Quay lại hồ sơ">
+                  <ChevronLeft />
+                </Button>
               ) : (
-                danhSachThanhTuu.map((ach) => (
-                  <div
-                    key={ach.key}
-                    className={`flex items-start gap-2.5 p-2 rounded-xl border transition-colors ${
-                      ach.unlocked
-                        ? 'border-amber-500/25 bg-amber-500/10 text-text-primary'
-                        : 'border-white/5 bg-white/[0.01] text-text-tertiary opacity-60'
-                    }`}
-                  >
-                    <div
-                      className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                        ach.unlocked ? 'bg-amber-500/20 text-amber-300' : 'bg-white/5 text-text-tertiary'
-                      }`}
-                    >
-                      {ach.unlocked ? <Award className="size-4" /> : <Lock className="size-3.5" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-xs font-bold text-text-primary truncate">{ach.title}</p>
-                        {ach.rewardXp ? (
-                          <span className="text-[10px] font-mono text-amber-300 tabular-nums">+{ach.rewardXp} XP</span>
-                        ) : null}
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <AnhNguoiDung ten={ten} avatar={avatar} className="size-12 text-base" />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <h2 className="break-words text-base font-semibold leading-snug text-text-primary">{ten}</h2>
+                    {isMe && <span data-testid="badge-ban-highlight" className="text-xs font-semibold text-brand">★ BẠN</span>}
+                    {vaiTro && <p className="break-words text-xs text-text-secondary">{vaiTro}</p>}
+                    {lopTen && <p className="break-words text-xs text-text-secondary">{lopTen}</p>}
+                  </div>
+                </div>
+              )}
+              {xemThanhTuu && <h2 className="min-w-0 flex-1 self-center break-words text-sm font-semibold text-text-primary">Thành tựu <span className="text-text-secondary">{unlockedCount !== null ? '(' + unlockedCount + '/' + totalCount + ')' : ''}</span></h2>}
+              <Popover.Close render={<Button ref={closeRef} variant="ghost" size="icon-lg" className="ml-auto" aria-label="Đóng" title="Đóng" />}><X /></Popover.Close>
+            </header>
+
+            {xemThanhTuu ? (
+              <section data-testid="card-thanh-tuu" className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
+                <div data-testid="ho-so-danh-sach-thanh-tuu" className="divide-y divide-border-subtle">
+                  {thanhTuuDangTai || thanhTuuLoi || danhSachThanhTuu.length === 0 ? (
+                    <p role="status" className="py-8 text-center text-sm text-text-secondary">{thanhTuuDangTai ? 'Đang tải thành tựu…' : thanhTuuLoi ? 'Không tải được thành tựu.' : 'Chưa có thành tựu.'}</p>
+                  ) : danhSachThanhTuu.map((ach) => (
+                    <div key={ach.key} className="flex min-w-0 items-start gap-3 py-4">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-overlay text-text-secondary">
+                        {ach.unlocked ? <Award className="size-5 text-amber-400" /> : <Lock className="size-4" />}
+                      </span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                          <h3 className="min-w-0 break-words text-sm font-semibold text-text-primary">{ach.title}</h3>
+                          {ach.rewardXp ? <span className="shrink-0 text-xs tabular-nums text-text-secondary">+{ach.rewardXp} XP</span> : null}
+                        </div>
+                        <p className="break-words text-sm leading-relaxed text-text-secondary">{ach.description}</p>
                       </div>
-                      <p className="text-[11px] text-text-tertiary line-clamp-2 mt-0.5">{ach.description}</p>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        ) : (
-          /* ── GIAO DIỆN HỒ SƠ CHÍNH GỌN GÀNG: CÁC NÚT LUÔN HIỆN RÕ, KHÔNG BỊ TRÀN HAY ĐÈ ── */
-          <>
-            {/* VÙNG 3+: Highlighted chữ "Bạn" nổi bật ở góc trên bên trái khi là chính mình */}
-            {isMe && (
-              <div
-                data-testid="badge-ban-highlight"
-                className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-500/25 to-blue-500/25 border border-cyan-400/50 px-2.5 py-0.5 shadow-[0_0_12px_rgba(6,182,212,0.35)] select-none"
-              >
-                <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-[11px] font-black text-cyan-300 tracking-wider uppercase">★ BẠN</span>
-              </div>
-            )}
-
-            {/* Nút đóng góc phải */}
-            <button
-              type="button"
-              onClick={onDong}
-              aria-label="Đóng"
-              className="absolute top-2.5 right-2.5 z-10 flex size-7 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="size-4" />
-            </button>
-
-            {/* Thân popup */}
-            <div className="p-3.5 flex flex-col gap-3">
-              {/* ── CARD 1: Thông tin người dùng ── */}
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-center flex flex-col items-center gap-2 relative">
-                <AnhNguoiDung ten={ten} avatar={avatar} className="size-16 text-xl ring-2 ring-border-strong" />
-                <h3 className="text-base font-bold text-text-primary break-words leading-tight">{ten}</h3>
-
-                {vaiTro && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    <span className="rounded-full bg-brand/12 border border-brand/20 px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-                      {vaiTro}
-                    </span>
-                  </div>
-                )}
-
-                {hoSo?.tieuDeHoSo && (
-                  <p className="max-w-full text-xs text-text-secondary italic line-clamp-2">“{hoSo.tieuDeHoSo}”</p>
-                )}
-              </div>
-
-              {/* ── CARD 2: Chỉ số Cấp & XP ── */}
-              {isError ? (
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2 text-center text-xs text-text-tertiary" data-testid="ho-so-loi">
-                  Không tải được thông tin.
+                  ))}
                 </div>
-              ) : (
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2">
-                  <dl className="grid grid-cols-2 divide-x divide-white/10">
-                    <div className="px-2 py-1 text-center">
-                      <dt className="text-[10px] font-semibold tracking-wide text-text-tertiary uppercase">Cấp</dt>
-                      <dd className="mt-0.5 text-base font-black tabular-nums text-text-primary" data-testid="ho-so-cap">
-                        {isPending ? <span className="mx-auto block h-5 w-6 animate-pulse rounded bg-white/10" /> : capDo}
-                      </dd>
-                    </div>
-                    <div className="px-2 py-1 text-center">
-                      <dt className="text-[10px] font-semibold tracking-wide text-text-tertiary uppercase">XP</dt>
-                      <dd className="mt-0.5 text-base font-black tabular-nums text-amber-300" data-testid="ho-so-xp">
-                        {isPending ? (
-                          <span className="mx-auto block h-5 w-10 animate-pulse rounded bg-white/10" />
-                        ) : (
-                          (hoSo?.totalXp ?? 0).toLocaleString('vi-VN')
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
+              </section>
+            ) : (
+              <>
+                <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
+
+                  {hoSo?.tieuDeHoSo && <p className="mb-3 break-words text-sm text-text-secondary">{hoSo.tieuDeHoSo}</p>}
+                  {isError ? (
+                    <p data-testid="ho-so-loi" role="status" className="mt-4 text-sm text-text-secondary">Không tải được thông tin.</p>
+                  ) : (
+                    <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-2 text-sm tabular-nums text-text-secondary" aria-busy={isPending}>
+                      <div className="flex items-baseline gap-2"><dt>Cấp</dt><dd data-testid="ho-so-cap" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : capDo}</dd></div>
+                      <div className="flex items-baseline gap-2"><dt>XP</dt><dd data-testid="ho-so-xp" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : (hoSo?.totalXp ?? 0).toLocaleString('vi-VN')}</dd></div>
+                    </dl>
+                  )}
                 </div>
-              )}
-
-              {/* ── CARD 3: Thao tác & Tương tác (Hàng 1: Bạn bè/Hủy kết bạn/Kết bạn; Hàng 2: Nhắn tin + Thành tựu) ── */}
-              <div
-                data-testid="ho-so-quan-he-row"
-                className="rounded-xl border border-white/10 bg-white/[0.02] p-3 flex flex-col gap-2.5"
-              >
-                {/* Hàng nút quan hệ bạn bè (độc lập, 100% bề ngang, không bao giờ bị đè hay chạm) */}
-                {!isMe && (
-                  <div className="w-full flex items-center justify-between">
-                    <NutQuanHe id={nguoi.id} day />
-                  </div>
-                )}
-
-                {/* Hàng nút hành động thứ hai: Nhắn tin + Nút xem chi tiết thành tựu */}
-                <div className="grid grid-cols-2 gap-2 w-full">
-                  {!isMe ? (
+                <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 space-y-3 border-t border-border-subtle p-4">
+                  {!isMe && <NutQuanHe id={nguoi.id} day />}
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_44px] gap-2">
                     <Button
-                      size="sm"
-                      variant="outline"
+                      variant="default"
                       onClick={() => {
-                        window.dispatchEvent(
-                          new CustomEvent('campus:open-dm', {
-                            detail: {
-                              id: nguoi.id,
-                              displayName: ten,
-                              avatar: avatar,
-                              lopTen: lopTen,
-                            },
-                          })
-                        )
+                        if (isMe) window.location.href = '/me'
+                        else window.dispatchEvent(new CustomEvent('campus:open-dm', { detail: { id: nguoi.id, displayName: ten, avatar, lopTen } }))
                         onDong()
                       }}
-                      className="h-9.5 rounded-xl px-2 gap-1.5 border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 hover:text-brand cursor-pointer justify-center font-bold"
-                      title={`Nhắn tin với ${ten}`}
-                      aria-label={`Nhắn tin với ${ten}`}
+                      className="min-h-11 min-w-0 whitespace-normal px-3 text-sm"
+                      title={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
+                      aria-label={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
                       data-testid="ho-so-btn-nhan-tin"
                     >
-                      <MessageSquare className="size-4 shrink-0 text-brand" />
-                      <span className="truncate">Nhắn tin</span>
+                      {isMe ? <User className="size-4 shrink-0" /> : <MessageSquare className="size-4 shrink-0" />}
+                      <span className="break-words">{isMe ? 'Hồ sơ' : 'Nhắn tin'}</span>
                     </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        window.location.href = '/me'
-                        onDong()
-                      }}
-                      className="h-9.5 rounded-xl px-2 gap-1.5 border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200 cursor-pointer justify-center font-bold"
-                      title="Xem hồ sơ của tôi"
-                      aria-label="Xem hồ sơ của tôi"
-                    >
-                      <User className="size-4 shrink-0 text-cyan-300" />
-                      <span className="truncate">Hồ sơ</span>
+                    <Button variant="outline" size="icon-lg" onClick={() => setXemThanhTuu(true)} aria-label={nhanThanhTuu} title={nhanThanhTuu} data-testid="ho-so-btn-thanh-tuu">
+                      <Award className="size-5" />
                     </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setXemThanhTuu(true)}
-                    className="h-9.5 rounded-xl px-2 gap-1.5 border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 cursor-pointer justify-center font-bold"
-                    title={`Xem chi tiết thành tựu của ${ten}`}
-                    aria-label={`Xem chi tiết thành tựu của ${ten}`}
-                    data-testid="ho-so-btn-thanh-tuu"
-                  >
-                    <Award className="size-4 shrink-0 text-amber-400" />
-                    <span className="truncate">
-                      Thành tựu{unlockedCount !== null ? ` (${unlockedCount}/${totalCount})` : ''}
-                    </span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </>
+                  </div>
+                </footer>
+              </>
+            )}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
