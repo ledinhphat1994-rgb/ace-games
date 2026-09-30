@@ -45,10 +45,18 @@ export function NutQuanHe({ id, trangThaiMayChu, day = false }: NutQuanHeProps) 
   const nhan = cn('flex shrink-0 items-center gap-1 text-xs font-semibold', day && 'justify-center text-sm')
 
   switch (quanHe) {
-    case null:
     case 'self':
       if (day) return null
-      return quanHe === 'self' ? <span className="shrink-0 text-xs text-text-tertiary">Bạn</span> : null
+      return <span className="shrink-0 text-xs text-text-tertiary">Bạn</span>
+    case null:
+      if (day) {
+        return (
+          <div className="h-10 w-full animate-pulse rounded-xl bg-white/5 flex items-center justify-center">
+            <Loader2 className="size-4 animate-spin text-text-tertiary" />
+          </div>
+        )
+      }
+      return <Loader2 className="size-3.5 animate-spin text-text-tertiary" />
     case 'friend':
       if (day) {
         return (
