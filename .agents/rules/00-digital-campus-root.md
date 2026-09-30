@@ -44,7 +44,8 @@ trigger: always_on
 - Strip unnecessary subtitles, decorative chips, redundant tags, and explanatory paragraphs.
 - Every screen must be instantly comprehensible within 3 seconds.
 - **Quy tắc bắt buộc khi sửa giao diện (Chỉ đổi tiêu đề, cấm thêm nội dung bổ sung):** Khi nhận lệnh sửa giao diện, chỉ cập nhật đúng tiêu đề, tuyệt đối KHÔNG tự ý chèn thêm phụ đề (subtitles), mô tả phụ, đoạn văn giải thích hay bất kỳ nội dung bổ sung nào cho tiêu đề đó.
-
+- **Tuyệt đối không đè phần tử (Zero Overlap Invariant):** Các card, nút, nhãn và popup không bao giờ được xếp chồng đè hoặc che khuất nhau. Phải sử dụng grid/flex có cấu trúc, padding đầy đủ.
+- **Nút thành tựu:** Hồ sơ và bảng người dùng phải có nút "Thành tựu" trực quan để xem tiến độ huy hiệu.
 
 ## 9. Interaction Principle & Fluid Responsiveness
 - High-contrast typography, generous touch targets (>= 40px), and clear micro-interactions on hover/focus/active.
@@ -53,6 +54,7 @@ trigger: always_on
 ## 10. Mobile as a First-Class Citizen
 - Mobile is not a shrunken desktop. Bottom navigation, sliding drawers, swipe handles, and single-column ergonomics are mandatory.
 - The first viewport on mobile (390px) must be visually clean, focused, and immediately actionable.
+- **Tối ưu không gian hẹp / Mobile (Icon-Only Compact Mode):** Khi không gian hẹp (màn hình nhỏ, popover, thanh công cụ compact), ưu tiên sử dụng icon đại diện thay vì chèn chữ dài dòng gây vỡ bố cục hoặc đè lên nhau, luôn kèm `title` và `aria-label`.
 
 ## 11. Accessibility & Visual Clarity
 - Text contrast must meet standard readability guidelines against deep neutral backgrounds.

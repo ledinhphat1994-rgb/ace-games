@@ -18,7 +18,6 @@ import {
   Crown,
   Loader2,
   MessageSquare,
-  Users,
   Wifi,
   WifiOff,
   X,
@@ -127,10 +126,6 @@ export function ClassroomTopBar({
 
       {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS + CLOSE ROOM ── */}
       <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 lg:flex-1 lg:min-w-0">
-        <button type="button" onClick={() => onTogglePanel('members')} className={nutPanel(activePanel === 'members')} aria-label="Thành viên & ghi chú" title="Thành viên & ghi chú" data-testid="topbar-btn-members">
-          <Users className="size-4" />
-          <span className="hidden sm:inline">Thành viên</span>
-        </button>
         {/* Chat Drawer Toggle */}
         <button
           type="button"

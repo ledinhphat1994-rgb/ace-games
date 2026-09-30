@@ -105,3 +105,8 @@ NEED: <thứ cần quyết định>
 - **Quy tắc bắt buộc trước khi sửa giao diện:** Khi nhận yêu cầu chỉnh sửa giao diện, CHỈ thay đổi đúng nội dung tiêu đề (title/heading) được yêu cầu.
 - **Cấm tuyệt đối thêm nội dung bổ sung:** Tuyệt đối KHÔNG tự ý chèn thêm văn bản bổ sung, mô tả phụ, hướng dẫn sử dụng, phụ đề (subtitles/descriptions), tags giải thích hay đoạn văn chú thích đi kèm cho tiêu đề đó.
 - **Tiêu đề tự tường minh:** Giữ giao diện sạch sẽ, trực quan, tinh gọn tuyệt đối theo nguyên tắc "Obvious UI Does Not Explain Itself".
+
+## 7. Quy tắc thiết kế bố cục: Tuyệt đối không đè phần tử (Zero Overlap Invariant) & Tối ưu không gian hẹp
+- **Cấm đè lên nhau (Zero Overlap Invariant):** Các card, nút bấm (buttons), nhãn, menu và popup tuyệt đối không được chồng đè, lấn át hay che khuất nhau. Phải sử dụng layout có cấu trúc rõ ràng (`grid`, `flex-col`, `gap` tách biệt, `flex-wrap`), dự trù đủ min-width và padding.
+- **Nút thành tựu:** Hồ sơ và bảng thông tin người dùng phải có nút/mục "Thành tựu" (Achievements) rõ ràng, trực quan để người dùng theo dõi huy hiệu và tiến độ học tập / hoạt động.
+- **Tối ưu không gian hẹp / Mobile (Icon-Only Compact Mode):** Khi màn hình hoặc container có không gian hẹp (mobile, popover hẹp, thanh điều khiển thu nhỏ), chuyển sang sử dụng icon đại diện thay vì chèn chữ dài dòng gây vỡ giao diện hoặc tràn đè lên nhau. Luôn kèm `title` và `aria-label` để đảm bảo trải nghiệm và khả năng tiếp cận.
