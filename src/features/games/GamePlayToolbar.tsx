@@ -96,16 +96,29 @@ export function GamePlayToolbar({
   }, [])
   const isFs = isFullscreen ?? internalFullscreen
 
-  const handleFsToggle = () => {
+  const handleFsToggle = (e: React.MouseEvent) => {
     if (onToggleFullscreen) {
       onToggleFullscreen()
       return
     }
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {})
+      const stageEl =
+        (e.currentTarget as HTMLElement).closest('.game-stage') ||
+        document.querySelector('.game-stage') ||
+        document.documentElement
+      stageEl.requestFullscreen?.().catch(() => {
+        document.documentElement.requestFullscreen?.().catch(() => {})
+      })
     } else {
       document.exitFullscreen?.().catch(() => {})
     }
+  }
+
+  const handleBack = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {})
+    }
+    onBack?.()
   }
 
   const nutFullscreen = !hideFullscreen && (
@@ -173,112 +186,111 @@ export function GamePlayToolbar({
   )
 
   return (
-    <div
-      className={cn(
-        'game-play-toolbar relative flex flex-wrap items-center justify-between gap-2 w-full py-1 shrink-0 min-w-0',
-        className,
-      )}
-    >
-      {/* ── 1. Nút quay lại sảnh & Tiêu đề nổi bật tên game ── */}
-      <div className="flex items-center gap-2 min-w-0 z-10">
-        {onBack && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            aria-label="Quay lại sảnh"
-            className="gap-1.5 font-bold border-white/10 hover:bg-white/5 text-xs text-text-secondary hover:text-white h-8 px-2 shrink-0"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span className="hidden 2xl:inline">Quay lại sảnh</span>
-          </Button>
+    <div className="game-toolbar-frame w-full min-w-0 shrink-0">
+      <div
+        data-testid="game-play-toolbar"
+        className={cn(
+          'game-play-toolbar relative grid items-center gap-x-3 gap-y-2 w-full py-1 min-w-0',
+          className,
         )}
-        {title && (
-          <>
-            <div className="h-4 w-px bg-white/10 hidden 2xl:block shrink-0" />
-            <div className="hidden 2xl:flex items-center gap-2 min-w-0">
-              {icon && (
-                <div className="size-7 sm:size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shadow-sm shrink-0">
-                  {icon}
-                </div>
-              )}
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span
-                  className={cn(
-                    'text-sm sm:text-base font-black tracking-wide uppercase bg-clip-text text-transparent drop-shadow-sm truncate',
-                    title.toLowerCase().includes('tướng')
-                      ? 'bg-gradient-to-r from-red-400 to-rose-400'
-                      : title.toLowerCase().includes('rắn')
-                        ? 'bg-gradient-to-r from-emerald-400 to-teal-300'
-                        : 'bg-gradient-to-r from-amber-400 to-yellow-300',
-                  )}
-                >
-                  {title}
-                </span>
-                {badge && (
-                  <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-slate-300 shrink-0">
-                    {badge}
-                  </span>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ── 2. KHU VỰC CHÍNH GIỮA: CĂN GIỮA TUYỆT ĐỐI THEO BẢNG CHÍNH (50% TRỤC GIỮA) ── */}
-      {hideCenterTurn ? (
-        <div className="order-3 flex w-full items-center justify-center pointer-events-auto z-10 @min-[34rem]:order-none @min-[34rem]:w-auto">
-          {cumChedo}
-        </div>
-      ) : (
-        <div className="flex items-center justify-center px-1 shrink-0">
-          {outcomeNotice ? (
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-bold text-xs shadow-sm">
-              {outcomeNotice}
-            </div>
-          ) : (
-            <div
-              className={cn(
-                'flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all duration-200',
-                isRed
-                  ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
-                  : isAiThinking
-                    ? 'bg-cyan-950/70 border border-cyan-500/40 text-cyan-300'
-                    : 'bg-slate-900/80 border border-white/10 text-slate-200',
-              )}
+      >
+        {/* ── 1. Nút quay lại sảnh & Tiêu đề nổi bật tên game (Vùng 2+ sát mép trái) ── */}
+        <div className="game-toolbar-identity flex items-center gap-2 min-w-0 z-10">
+          {onBack && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBack}
+              aria-label="Quay lại sảnh"
+              className="gap-1.5 font-bold border-white/10 hover:bg-white/5 text-xs text-text-secondary hover:text-white h-8 px-2 shrink-0 cursor-pointer"
             >
-              {isRed ? (
-                <span className="relative flex size-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
-                </span>
-              ) : isAiThinking ? (
-                <Zap className="size-3.5 text-cyan-400 animate-spin" />
-              ) : (
-                (turnIndicator ?? <span className="size-2.5 rounded-full bg-slate-500 ring-2 ring-slate-400/50 animate-pulse" />)
-              )}
-
-              <span>
-                {isRed
-                  ? (mode === 'ai' ? `● Tới lượt bạn (${cleanSideLabel})` : `● Lượt ${cleanSideLabel}`)
-                  : (mode === 'ai'
-                      ? (isAiThinking ? 'Máy đang tính toán…' : 'Lượt của Máy AI')
-                      : `● Lượt ${cleanSideLabel}`)}
-              </span>
-
-              {statusAlert}
-            </div>
+              <ArrowLeft className="size-3.5" />
+              <span className="hidden sm:inline">Quay lại sảnh</span>
+            </Button>
+          )}
+          {title && (
+            <>
+              <div className="h-4 w-px bg-white/10 hidden sm:block shrink-0" />
+              <div className="game-toolbar-title hidden sm:flex items-center gap-2 min-w-0">
+                {icon && (
+                  <div className="size-7 sm:size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shadow-sm shrink-0">
+                    {icon}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className={cn(
+                      'text-sm sm:text-base font-black tracking-wide uppercase bg-clip-text text-transparent drop-shadow-sm truncate',
+                      title.toLowerCase().includes('tướng')
+                        ? 'bg-gradient-to-r from-red-400 to-rose-400'
+                        : title.toLowerCase().includes('rắn')
+                          ? 'bg-gradient-to-r from-emerald-400 to-teal-300'
+                          : 'bg-gradient-to-r from-amber-400 to-yellow-300',
+                    )}
+                  >
+                    {title}
+                  </span>
+                  {badge && (
+                    <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-slate-300 shrink-0">
+                      {badge}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
-      )}
 
-      {/* ── 3. KHU VỰC BÊN PHẢI: biểu cảm / tiện ích của game + nút toàn màn hình + nút hành động chính ── */}
-      <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 z-10 min-w-0">
-        {!hideCenterTurn && <div className="order-3 w-full sm:order-none sm:w-auto">{cumChedo}</div>}
-        {rightSlot}
-        {nutFullscreen}
-        {nutReset}
+        {/* ── 2. Cụm chuyển đổi chế độ PvE/PvP (Vùng 4+ lên sát mép trên ở giữa) ── */}
+        <div className="game-toolbar-modes min-w-0 flex items-center justify-center">{cumChedo}</div>
+        {!hideCenterTurn && (
+          <div className="game-toolbar-turn flex min-w-0 items-center justify-center px-1">
+            {outcomeNotice ? (
+              <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-bold text-xs shadow-sm">
+                {outcomeNotice}
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all duration-200',
+                  isRed
+                    ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
+                    : isAiThinking
+                      ? 'bg-cyan-950/70 border border-cyan-500/40 text-cyan-300'
+                      : 'bg-slate-900/80 border border-white/10 text-slate-200',
+                )}
+              >
+                {isRed ? (
+                  <span className="relative flex size-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+                  </span>
+                ) : isAiThinking ? (
+                  <Zap className="size-3.5 text-cyan-400 animate-spin" />
+                ) : (
+                  (turnIndicator ?? <span className="size-2.5 rounded-full bg-slate-500 ring-2 ring-slate-400/50 animate-pulse" />)
+                )}
+
+                <span>
+                  {isRed
+                    ? (mode === 'ai' ? `● Tới lượt bạn (${cleanSideLabel})` : `● Lượt ${cleanSideLabel}`)
+                    : (mode === 'ai'
+                        ? (isAiThinking ? 'Máy đang tính toán…' : 'Lượt của Máy AI')
+                        : `● Lượt ${cleanSideLabel}`)}
+                </span>
+
+                {statusAlert}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 3. Các thao tác hành động (Vùng 3+ ra sát mép phải) ── */}
+        <div className="game-toolbar-actions flex items-center justify-end gap-2 z-10 min-w-0">
+          {rightSlot}
+          {nutFullscreen}
+          {nutReset}
+        </div>
       </div>
     </div>
   )

@@ -672,3 +672,44 @@ body { min-width: 280px; }
 @media (any-pointer: coarse) {
   input:not([type="range"]):not([type="color"]):not([type="checkbox"]), textarea, select { font-size: 16px !important; }
 }
+
+/* Match controls size themselves against the available game width, including fullscreen. */
+.game-toolbar-frame { container: game-toolbar / inline-size; width: 100%; }
+.game-play-toolbar { display: grid; grid-template-columns: 1fr; align-items: center; gap: 0.5rem; width: 100%; }
+.game-toolbar-identity { display: flex; align-items: center; gap: 0.5rem; justify-self: start; }
+.game-toolbar-modes { display: flex; align-items: center; justify-content: center; justify-self: center; }
+.game-toolbar-modes > [data-testid="cum-pve-pvp"] { width: min(100%, 240px); margin-inline: auto; }
+.game-toolbar-actions { display: flex; align-items: center; gap: 0.5rem; justify-self: center; }
+.game-toolbar-turn { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; }
+.game-play-toolbar button { min-height: 36px; }
+.game-play-toolbar [data-testid="cum-pve-pvp"] button { min-height: 0; }
+
+@container game-toolbar (min-width: 28rem) {
+  .game-play-toolbar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+  .game-toolbar-identity { grid-column: 1; grid-row: 1; justify-self: start; }
+  .game-toolbar-modes { grid-column: 2; grid-row: 1; justify-self: center; }
+  .game-toolbar-actions { grid-column: 3; grid-row: 1; justify-self: end; }
+  .game-toolbar-turn { grid-column: 1 / -1; grid-row: 2; }
+  .game-toolbar-title { display: flex; }
+}
+
+/* Vùng 1: Game Stage Fullscreen Styling - chỉ hiển thị Vùng 1 khi toàn màn hình */
+.game-stage:fullscreen,
+.game-stage:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0.75rem 1.5rem !important;
+  background: radial-gradient(circle at center, #0d1527 0%, #050811 100%) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  z-index: 99999 !important;
+}

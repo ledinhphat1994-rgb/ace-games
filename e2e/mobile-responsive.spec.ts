@@ -25,8 +25,8 @@ for (const [width, height] of viewports) {
       await expect(page.locator('main').first()).toBeVisible()
       await noOverflow(page)
       if (width < 1280) {
-        await expect(page.getByTestId('bubble-leaderboard')).toBeVisible()
-        await expect(page.getByTestId('bubble-messages')).toBeVisible()
+        await expect(page.getByTestId('bubble-activity')).toBeVisible()
+        await expect(page.getByTestId('activity-bubble')).toHaveCount(1)
       }
       if (route.startsWith('/arena/') && !route.endsWith('solo_snake')) {
         await page.getByTestId('game-lobby-play-now').click()
@@ -45,36 +45,113 @@ for (const [width, height] of viewports) {
 test.describe('mobile controls', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 
-  test('bubbles drag, remember position, clamp after rotation and open complete panels', async ({ page }) => {
+  test('single bubble moves freely, remembers both coordinates and opens complete panels', async ({ page }) => {
     await page.goto('/learn')
-    const bubble = page.getByTestId('bubble-leaderboard')
+    const bubble = page.getByTestId('bubble-activity')
+    await expect(page.getByTestId('activity-bubble')).toHaveCount(1)
+    await expect(page.getByTestId('activity-bubble-menu')).not.toBeVisible()
     const box = (await bubble.boundingBox())!
     await page.mouse.move(box.x + 24, box.y + 24)
     await page.mouse.down()
-    await page.mouse.move(38, 230, { steps: 12 })
+    await page.mouse.move(185, 230, { steps: 12 })
     await page.mouse.up()
-    await expect(page.getByTestId('activity-panel-leaderboard')).not.toBeVisible()
-    expect((await bubble.boundingBox())!.x).toBe(12)
+    await expect(page.getByTestId('activity-bubble-menu')).not.toBeVisible()
+    expect((await bubble.boundingBox())!.x).toBe(161)
+    expect((await bubble.boundingBox())!.y).toBe(206)
     await page.reload()
-    expect((await bubble.boundingBox())!.x).toBe(12)
-    await page.setViewportSize({ width: 844, height: 390 })
-    const rotated = (await bubble.boundingBox())!
-    expect(rotated.y + rotated.height).toBeLessThanOrEqual(390)
+    expect((await bubble.boundingBox())!.x).toBe(161)
+    expect((await bubble.boundingBox())!.y).toBe(206)
     await bubble.click()
+    await expect(page.getByRole('menuitem')).toHaveCount(2)
+    await page.getByTestId('bubble-action-leaderboard').click()
     await expect(page.getByTestId('activity-panel-leaderboard')).toBeVisible()
+    await expect(bubble).not.toBeVisible()
     await page.getByTestId('activity-panel-leaderboard').getByText('Rắn Săn Mồi', { exact: true }).click()
     await page.keyboard.press('Escape')
-    await page.getByTestId('bubble-messages').click()
+    await bubble.click()
+    await page.getByTestId('bubble-action-messages').click()
     const panel = page.getByTestId('activity-panel-messages')
     await expect(panel.getByRole('button', { name: /Chat chung/ })).toBeVisible()
     await panel.getByRole('button', { name: /Bạn bè/ }).click()
     await page.keyboard.press('Escape')
-    await page.getByTestId('bubble-messages').click()
+    await bubble.click()
+    await page.getByTestId('bubble-action-messages').click()
     await expect(panel.getByRole('button', { name: /Bạn bè/ })).toHaveClass(/bg-purple/)
     await page.keyboard.press('Escape')
+    for (const [width, height] of [[390, 844], [844, 390]]) {
+      await page.setViewportSize({ width, height })
+      for (const [x, y] of [[8, 8], [width - 56, 8], [8, height - 56], [width - 56, height - 56]]) {
+        const current = (await bubble.boundingBox())!
+        await page.mouse.move(current.x + 24, current.y + 24)
+        await page.mouse.down()
+        await page.mouse.move(x + 24, y + 24, { steps: 8 })
+        await page.mouse.up()
+        await bubble.click()
+        const menu = (await page.getByTestId('activity-bubble-menu').boundingBox())!
+        expect(menu.x).toBeGreaterThanOrEqual(0)
+        expect(menu.y).toBeGreaterThanOrEqual(0)
+        expect(menu.x + menu.width).toBeLessThanOrEqual(width)
+        expect(menu.y + menu.height).toBeLessThanOrEqual(height)
+        await page.keyboard.press('Escape')
+      }
+    }
     await page.setViewportSize({ width: 1280, height: 800 })
-    await expect(page.getByTestId('bubble-messages')).toHaveCount(0)
+    await expect(bubble).toHaveCount(0)
     await expect(page.getByRole('complementary', { name: 'Tin nhắn & bạn bè', exact: true })).toBeVisible()
+  })
+
+  test('bubble fades when idle and supports touch and keyboard menus', async ({ page }) => {
+    await page.goto('/learn')
+    const root = page.getByTestId('activity-bubble')
+    const bubble = page.getByTestId('bubble-activity')
+    await expect(root).toHaveAttribute('data-idle', 'true', { timeout: 6000 })
+    await expect(root).toHaveCSS('opacity', '0.35')
+    const box = (await bubble.boundingBox())!
+    await page.touchscreen.tap(box.x + 24, box.y + 24)
+    await expect(bubble).toHaveAttribute('aria-expanded', 'true')
+    await expect(root).toHaveCSS('opacity', '1')
+    await page.keyboard.press('Escape')
+    await expect(bubble).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByTestId('bubble-action-leaderboard')).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByTestId('bubble-action-messages')).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('activity-panel-messages')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(bubble).toBeVisible()
+    await expect(bubble).toBeFocused()
+  })
+
+  test('match toolbar aligns modes and actions while preserving all controls', async ({ page }) => {
+    await page.goto('/arena/xiangqi')
+    await page.getByTestId('game-lobby-play-now').click()
+    const toolbar = page.getByTestId('game-play-toolbar')
+    for (const [width, height] of [[320, 568], [390, 844], [635, 844], [844, 390], [1280, 800], [1920, 1080]]) {
+      await page.setViewportSize({ width, height })
+      await noOverflow(page)
+      const bounds = (await toolbar.boundingBox())!
+      const modes = (await toolbar.getByTestId('cum-pve-pvp').boundingBox())!
+      const actions = (await toolbar.locator('.game-toolbar-actions').boundingBox())!
+      if (bounds.width >= 352) expect(Math.abs(modes.x + modes.width / 2 - bounds.x - bounds.width / 2)).toBeLessThanOrEqual(1)
+      for (const button of await toolbar.locator('button').all()) {
+        const box = (await button.boundingBox())!
+        expect(box.x).toBeGreaterThanOrEqual(bounds.x - 1)
+        expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1)
+      }
+      if (bounds.width < 1024) expect(actions.y).toBeGreaterThanOrEqual(modes.y + modes.height - 1)
+    }
+    await page.setViewportSize({ width: 390, height: 844 })
+    await toolbar.getByTestId('che-do-pve').click()
+    await expect(page.getByTestId('bang-chon-cap-do')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await toolbar.getByTestId('che-do-pvp').click()
+    await expect(toolbar.getByTestId('che-do-pvp')).toHaveClass(/from-amber/)
+    await toolbar.getByRole('button', { name: 'Mở danh sách cảm xúc nhanh', exact: true }).click()
+    await expect(page.getByText('Chọn nhanh cảm xúc', { exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await toolbar.getByTestId('nut-hanh-dong-chinh').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
   })
 
   test('snake starts, steers with touch, releases boost, restarts and supports both players', async ({ page }) => {

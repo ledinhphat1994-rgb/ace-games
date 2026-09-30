@@ -1,46 +1,68 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Position { x: number; y: number }
+interface BubbleAction { id: string; label: string; icon: ReactNode; onSelect: () => void }
 interface DraggableBubbleProps {
   id: string
   label: string
   icon: ReactNode
-  onClick: () => void
+  actions: BubbleAction[]
+  suspended?: boolean
   bottomOffset?: number
-  notification?: boolean
-  className?: string
 }
 
-const constrain = (p: Position): Position => {
+const SIZE = 48
+const EDGE = 8
+const IDLE_DELAY = 3200
+const MENU_WIDTH = 208
+const MENU_HEIGHT = 112
+
+function viewportBounds() {
   const viewport = window.visualViewport
-  const left = viewport?.offsetLeft ?? 0
-  const top = viewport?.offsetTop ?? 0
-  const width = viewport?.width ?? window.innerWidth
-  const height = viewport?.height ?? window.innerHeight
-  const nav = document.querySelector<HTMLElement>('[aria-label="Điều hướng chính di động"]')
-  const bottom = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().height + 12 : 12
   return {
-    x: Math.max(left + 12, Math.min(p.x, left + width - 60)),
-    y: Math.max(top + 64, Math.min(p.y, Math.max(top + 64, top + height - bottom - 48))),
+    left: viewport?.offsetLeft ?? 0, top: viewport?.offsetTop ?? 0,
+    width: viewport?.width ?? window.innerWidth, height: viewport?.height ?? window.innerHeight,
   }
 }
 
-export function DraggableBubble({ id, label, icon, onClick, bottomOffset = 84, notification, className }: DraggableBubbleProps) {
+function constrain(position: Position): Position {
+  const { left, top, width, height } = viewportBounds()
+  return {
+    x: Math.max(left + EDGE, Math.min(position.x, left + width - SIZE - EDGE)),
+    y: Math.max(top + EDGE, Math.min(position.y, top + height - SIZE - EDGE)),
+  }
+}
+
+export function DraggableBubble({ id, label, icon, actions, suspended = false, bottomOffset = 96 }: DraggableBubbleProps) {
   const storageKey = 'campus:bubble:' + id
+  const rootRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const [position, setPosition] = useState<Position>(() => {
-    let initial = { x: window.innerWidth - 60, y: window.innerHeight - bottomOffset - 48 }
+    let initial = { x: window.innerWidth - SIZE - 16, y: window.innerHeight - bottomOffset - SIZE }
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Position | null
       if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) initial = saved
     } catch { /* Storage is optional. */ }
     return constrain(initial)
   })
-  const dragRef = useRef<{ id: number; x: number; y: number; origin: Position; moved: boolean } | null>(null)
+  const [open, setOpen] = useState(false)
+  const [idle, setIdle] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [keyboardFocused, setKeyboardFocused] = useState(false)
+  const dragRef = useRef<{ id: number; x: number; y: number; origin: Position; latest: Position; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
 
   useEffect(() => {
-    const resize = () => setPosition(p => constrain(p))
+    if (open || dragging || hovered || keyboardFocused || suspended) return
+    const timer = window.setTimeout(() => setIdle(true), IDLE_DELAY)
+    return () => window.clearTimeout(timer)
+  }, [open, dragging, hovered, keyboardFocused, suspended])
+
+  useEffect(() => {
+    const resize = () => setPosition(previous => constrain(previous))
     window.addEventListener('resize', resize)
     window.visualViewport?.addEventListener('resize', resize)
     window.visualViewport?.addEventListener('scroll', resize)
@@ -49,51 +71,118 @@ export function DraggableBubble({ id, label, icon, onClick, bottomOffset = 84, n
       window.visualViewport?.removeEventListener('resize', resize)
       window.visualViewport?.removeEventListener('scroll', resize)
     }
-  }, [storageKey, bottomOffset])
+  }, [])
 
-  const finishDrag = (e: PointerEvent<HTMLButtonElement>) => {
+  useEffect(() => {
+    if (!open) return
+    const outside = (event: globalThis.PointerEvent) => {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setOpen(false)
+      buttonRef.current?.focus({ preventScroll: true })
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [open])
+
+  const finishDrag = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current
-    if (!drag || drag.id !== e.pointerId) return
-    suppressClick.current = drag.moved || e.type === 'pointercancel'
+    if (!drag || drag.id !== event.pointerId) return
+    suppressClick.current = drag.moved || event.type === 'pointercancel'
     dragRef.current = null
-    if (drag.moved && position) {
-      const snapped = constrain({ ...position, x: position.x < window.innerWidth / 2 ? 12 : window.innerWidth - 60 })
-      setPosition(snapped)
-      try { localStorage.setItem(storageKey, JSON.stringify(snapped)) } catch { /* Storage is optional. */ }
+    setDragging(false)
+    if (drag.moved) {
+      const finalPosition = constrain(drag.latest)
+      setPosition(finalPosition)
+      try { localStorage.setItem(storageKey, JSON.stringify(finalPosition)) } catch { /* Storage is optional. */ }
     }
   }
 
+  const bounds = viewportBounds()
+  const menuLeft = Math.max(bounds.left + EDGE, Math.min(position.x, bounds.left + bounds.width - MENU_WIDTH - EDGE))
+  const menuTop = Math.max(bounds.top + EDGE, Math.min(
+    position.y - MENU_HEIGHT - 12 >= bounds.top + EDGE ? position.y - MENU_HEIGHT - 12 : position.y + SIZE + 12,
+    bounds.top + bounds.height - MENU_HEIGHT - EDGE,
+  ))
+  const focusAction = (last = false) => window.requestAnimationFrame(() => {
+    const buttons = rootRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    buttons?.[last ? buttons.length - 1 : 0]?.focus({ preventScroll: true })
+  })
+
   return (
-    <button
-      type="button"
-      data-testid={'bubble-' + id}
-      aria-label={label}
-      title={label + ' · Kéo để di chuyển'}
-      className={cn('fixed z-40 flex size-12 touch-none select-none items-center justify-center rounded-full border border-white/20 bg-surface-raised text-brand shadow-[0_8px_28px_rgb(0_0_0/0.45)] outline-none transition-[box-shadow,background-color] active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-brand', className)}
+    <div ref={rootRef} hidden={suspended} data-testid="activity-bubble" data-idle={idle && !open && !dragging}
+      className={cn('fixed z-[45] size-12 transition-opacity duration-300 motion-reduce:transition-none', idle && !open && !dragging ? 'opacity-35' : 'opacity-100')}
       style={{ left: position.x, top: position.y }}
-      onPointerDown={e => {
-        if (e.button !== 0 || !e.isPrimary || !position) return
-        suppressClick.current = false
-        dragRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY, origin: position, moved: false }
-        e.currentTarget.setPointerCapture(e.pointerId)
-      }}
-      onPointerMove={e => {
-        const drag = dragRef.current
-        if (!drag || drag.id !== e.pointerId) return
-        const dx = e.clientX - drag.x
-        const dy = e.clientY - drag.y
-        if (Math.hypot(dx, dy) > 6) drag.moved = true
-        if (drag.moved) setPosition(constrain({ x: drag.origin.x + dx, y: drag.origin.y + dy }))
-      }}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
-      onClick={e => {
-        if (suppressClick.current && e.detail !== 0) { suppressClick.current = false; return }
-        onClick()
-      }}
-    >
-      {icon}
-      {notification && <span className="absolute right-0.5 top-0.5 size-3 rounded-full border-2 border-surface-raised bg-rose-400" aria-label="Có tin mới" />}
-    </button>
+      onPointerEnter={event => { if (event.pointerType === 'mouse') { setHovered(true); setIdle(false) } }}
+      onPointerLeave={event => { if (event.pointerType === 'mouse') setHovered(false) }}
+      onFocus={event => { setIdle(false); if (event.target.matches(':focus-visible')) setKeyboardFocused(true) }}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setKeyboardFocused(false) }}>
+      <button ref={buttonRef} type="button" data-testid={'bubble-' + id} aria-label={label}
+        aria-haspopup="menu" aria-expanded={open} aria-controls={open ? 'activity-bubble-menu' : undefined}
+        title={label + ' · Kéo để di chuyển'}
+        className={cn('flex size-12 touch-none select-none items-center justify-center rounded-full border border-cyan-300/30 bg-surface-raised text-brand shadow-[0_6px_24px_rgb(0_0_0/0.4)] outline-none transition-[background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-brand', dragging ? 'cursor-grabbing' : 'cursor-grab')}
+        onPointerDown={event => {
+          if (event.button !== 0 || !event.isPrimary) return
+          setIdle(false)
+          setDragging(true)
+          suppressClick.current = false
+          dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, origin: position, latest: position, moved: false }
+          event.currentTarget.setPointerCapture(event.pointerId)
+        }}
+        onPointerMove={event => {
+          const drag = dragRef.current
+          if (!drag || drag.id !== event.pointerId) return
+          const dx = event.clientX - drag.x
+          const dy = event.clientY - drag.y
+          if (Math.hypot(dx, dy) > 6) drag.moved = true
+          if (drag.moved) {
+            setOpen(false)
+            setDragging(true)
+            drag.latest = constrain({ x: drag.origin.x + dx, y: drag.origin.y + dy })
+            setPosition(drag.latest)
+          }
+        }}
+        onPointerUp={finishDrag} onPointerCancel={finishDrag} onLostPointerCapture={finishDrag}
+        onKeyDown={event => {
+          if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+          event.preventDefault(); setIdle(false); setOpen(true); focusAction(event.key === 'ArrowUp')
+        }}
+        onClick={event => {
+          if (suppressClick.current && event.detail !== 0) { suppressClick.current = false; return }
+          setIdle(false); setOpen(!open)
+          if (!open && event.detail === 0) focusAction()
+        }}>
+        {open ? <X className="size-5" /> : icon}
+      </button>
+      {open && (
+        <div id="activity-bubble-menu" role="menu" aria-label="Tiện ích" data-testid="activity-bubble-menu"
+          className="fixed grid gap-1.5 rounded-2xl border border-border-default bg-surface-raised p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-150 motion-reduce:animate-none"
+          style={{ left: menuLeft, top: menuTop, width: MENU_WIDTH }}
+          onKeyDown={event => {
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+            event.preventDefault()
+            const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+            const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+            const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+              : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
+            buttons[index]?.focus({ preventScroll: true })
+          }}>
+          {actions.map(action => (
+            <button key={action.id} type="button" role="menuitem" data-testid={'bubble-action-' + action.id}
+              onClick={() => { setIdle(false); setOpen(false); action.onSelect() }}
+              className="flex h-11 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-text-primary outline-none hover:bg-surface-overlay focus-visible:bg-surface-overlay focus-visible:ring-2 focus-visible:ring-brand">
+              <span className="text-brand">{action.icon}</span>{action.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

@@ -579,10 +579,10 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
       />
 
       {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
-      <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mt-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0 max-w-full">
+      <div className="game-compact-status flex min-[1920px]:hidden flex-wrap items-center justify-center gap-x-2 gap-y-1 min-h-10 w-full px-3 py-2 mt-1 border-t border-white/10 text-xs font-bold shrink-0 text-center">
         <span className="text-base leading-none">{emojiTrangThai}</span>
         <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider whitespace-nowrap">{nhanTrangThai}</span>
-        {phuTrangThai && <span className="text-slate-400 font-medium truncate">{phuTrangThai}</span>}
+        {phuTrangThai && <span className="text-slate-400 font-medium break-words">{phuTrangThai}</span>}
       </div>
 
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
