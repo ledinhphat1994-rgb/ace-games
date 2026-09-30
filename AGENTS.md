@@ -111,6 +111,15 @@ NEED: <thứ cần quyết định>
 - **Nút thành tựu:** Hồ sơ và bảng thông tin người dùng phải có nút/mục "Thành tựu" (Achievements) rõ ràng, trực quan để người dùng theo dõi huy hiệu và tiến độ học tập / hoạt động.
 - **Tối ưu không gian hẹp / Mobile (Icon-Only Compact Mode):** Khi màn hình hoặc container có không gian hẹp (mobile, popover hẹp, thanh điều khiển thu nhỏ), chuyển sang sử dụng icon đại diện thay vì chèn chữ dài dòng gây vỡ giao diện hoặc tràn đè lên nhau. Luôn kèm `title` và `aria-label` để đảm bảo trải nghiệm và khả năng tiếp cận.
 
-## Global UI/UX constitution
+## Mandatory UI/UX constitution
 
-Before any UI change, read and follow [docs/UI_UX_CONSTITUTION.md](docs/UI_UX_CONSTITUTION.md). It is the authoritative responsive layout and visual acceptance contract, overriding earlier UI guidance where inconsistent. Title-only restrictions apply when the user requests only a title edit. For UI-only work, its targeted delivery workflow takes precedence over full-suite defaults above. Preserve behavior, permissions and real data; verify geometry, long Vietnamese content and actual interactions in a browser.
+Before modifying any UI/UX, frontend layout, responsive behavior,
+component styling, visual hierarchy, popup, modal, card, toolbar,
+navigation, mobile layout, form, animation, or interaction pattern,
+the agent MUST read and comply with:
+
+[.agents/rules/10-ui-ux-layout-constitution.md](.agents/rules/10-ui-ux-layout-constitution.md)
+
+A UI task is not DONE if it violates any hard invariant in that file.
+
+Conflict precedence: explicit user requirements > security/correctness/product invariants > [Product North Star](docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md) > UI/UX Constitution > legacy implementation. Earlier UI guidance applies only where consistent; title-only restrictions apply only when the user requests a title edit. For UI-only work, the constitution's targeted verification and staging policy (sections 113–114) takes precedence over the full-suite and single-deploy defaults above.
