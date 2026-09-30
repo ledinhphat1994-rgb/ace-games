@@ -151,7 +151,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Trạng thái kết nối WebSocket */}
             {trangThai === 'da_ket_noi' ? (
-              <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+              <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-success">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -159,7 +159,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 <span>{onlineCount} trực tuyến</span>
               </div>
             ) : trangThai === 'dang_ket_noi' ? (
-              <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
+              <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-warning">
                 <RefreshCw className="h-3 w-3 animate-spin" />
                 <span>Đang kết nối…</span>
               </div>
@@ -191,7 +191,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 onClick={doDoTre}
                 title="Bấm để đo độ trễ RTT tới máy chủ"
               >
-                <Wifi className="h-3.5 w-3.5 mr-1 text-emerald-400" />
+                <Wifi className="h-3.5 w-3.5 mr-1 text-success" />
                 {latencyMs !== null ? `${latencyMs} ms` : 'Đo ping'}
               </Button>
             ) : null}
@@ -305,13 +305,13 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
             className="cursor-pointer border border-border/70 bg-card transition-all hover:scale-[1.01] hover:border-emerald-500/50 hover:shadow-lg"
           >
             <CardContent className="flex items-center gap-3.5 p-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-inner">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-success shadow-inner">
                 <Gamepad2 className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-sm text-foreground">Đấu Trường Game 🎮</h3>
-                  <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-400">
+                  <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-success">
                     {soPhongGame} phòng
                   </Badge>
                 </div>
@@ -332,7 +332,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
             }`}
           >
             <CardContent className="flex items-center gap-3.5 p-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-purple-500/30 bg-purple-500/10 text-purple-400 shadow-inner">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-purple-500/30 bg-purple-500/10 text-social shadow-inner">
                 <Landmark className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
@@ -394,7 +394,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 onClick={() => setChiHienCoBanBe((prev) => !prev)}
                 className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
                   chiHienCoBanBe
-                    ? 'border-indigo-500/60 bg-indigo-600 text-white shadow-sm'
+                    ? 'border-indigo-500/60 bg-indigo-600 text-text-primary shadow-sm'
                     : 'border-border/70 bg-background/60 text-muted-foreground hover:border-border hover:text-foreground'
                 }`}
                 aria-pressed={chiHienCoBanBe}
@@ -406,7 +406,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                   <Badge
                     variant="secondary"
                     className={`ml-0.5 px-1.5 py-0 text-[10px] ${
-                      chiHienCoBanBe ? 'bg-white/20 text-white' : ''
+                      chiHienCoBanBe ? 'bg-surface-overlay text-text-primary' : ''
                     }`}
                   >
                     {soPhongCoBanBe}

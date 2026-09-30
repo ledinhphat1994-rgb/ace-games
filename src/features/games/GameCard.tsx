@@ -22,7 +22,7 @@ export function GameCard({ game, waiting, onMoSanh }: GameCardProps) {
       className="group relative flex min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-border-default bg-surface transition-colors hover:border-brand/40 sm:flex-col"
     >
       {/* Artwork container */}
-      <div className="relative w-28 shrink-0 self-stretch overflow-hidden bg-canvas sm:aspect-[16/10] sm:w-full sm:border-b sm:border-border-subtle">
+      <div className="relative w-28 shrink-0 self-stretch overflow-hidden bg-canvas sm:aspect-[4/3] sm:w-full sm:border-b sm:border-border-subtle">
         <GameArt
           gameType={game.id}
           className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
@@ -40,7 +40,7 @@ export function GameCard({ game, waiting, onMoSanh }: GameCardProps) {
       {/* Body container */}
       <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h3 className="text-base font-extrabold tracking-tight text-white group-hover:text-brand transition-colors">
+          <h3 className="text-base font-semibold tracking-tight text-text-primary group-hover:text-brand transition-colors">
             {game.shortTitle}
           </h3>
           <span className="text-xs font-medium text-text-secondary">
@@ -61,6 +61,7 @@ export function GameCard({ game, waiting, onMoSanh }: GameCardProps) {
             }}
             aria-label={`Vào sảnh ${game.shortTitle}`}
             data-testid={`game-card-lobby-${game.id}`}
+            variant="outline"
             className="w-full font-semibold group/btn h-11"
           >
             <DoorOpen className="size-4 transition-transform group-hover/btn:scale-110" />

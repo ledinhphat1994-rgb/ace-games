@@ -86,7 +86,7 @@ export function ProgressSummary({
     return (
       <div
         data-testid="progress-summary-loading"
-        className={`rounded-xl sm:rounded-2xl border border-white/10 bg-[#0c1322]/80 p-2.5 sm:p-3.5 backdrop-blur-md ${className}`}
+        className={`rounded-xl sm:rounded-2xl border border-border-default bg-[#0c1322]/80 p-2.5 sm:p-3.5 backdrop-blur-md ${className}`}
       >
         <div className="flex items-center justify-between gap-3">
           <Skeleton className="h-7 sm:h-8 w-28 sm:w-36 rounded-lg sm:rounded-xl" />
@@ -104,15 +104,15 @@ export function ProgressSummary({
         className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-rose-500/25 bg-[#0c1322]/85 p-2 sm:p-2.5 backdrop-blur-md shadow-md transition-all ${className}`}
       >
         <div className="flex items-center justify-between gap-2.5 sm:gap-4">
-          <div className="flex items-center gap-2 text-xs text-rose-300 font-medium truncate">
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+          <div className="flex items-center gap-2 text-xs text-destructive font-medium truncate">
+            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
             <span className="truncate">Không tải được tiến trình</span>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => refetchProfile()}
-            className="h-7 px-2.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white hover:bg-rose-500/20 gap-1.5 shrink-0"
+            className="h-7 px-2.5 rounded-lg text-xs font-semibold text-destructive hover:text-text-primary hover:bg-rose-500/20 gap-1.5 shrink-0"
           >
             <RotateCw className="h-3 w-3" />
             <span>Thử lại</span>
@@ -130,7 +130,7 @@ export function ProgressSummary({
     <>
       <div
         data-testid="progress-summary"
-        className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-white/10 bg-[#0c1322]/85 p-2 sm:p-3.5 backdrop-blur-md shadow-md sm:shadow-lg transition-all ${className}`}
+        className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-border-default bg-[#0c1322]/85 p-2 sm:p-3.5 backdrop-blur-md shadow-md sm:shadow-lg transition-all ${className}`}
       >
         <div className="flex items-center justify-between gap-2.5 sm:gap-4">
           {/* Left: Streak & XP Badges (Authoritative data only) */}
@@ -140,10 +140,10 @@ export function ProgressSummary({
               className="flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm"
               title={`Chuỗi học tập hiện tại: ${currentStreak} ngày`}
             >
-              <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-400 fill-amber-400/20" />
+              <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning fill-amber-400/20" />
               <div className="flex items-baseline gap-1">
-                <span className="text-xs sm:text-sm font-black text-amber-300">{currentStreak}</span>
-                <span className="text-[11px] sm:text-xs font-semibold text-amber-200/80">ngày</span>
+                <span className="text-xs sm:text-sm font-black text-warning">{currentStreak}</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-warning/80">ngày</span>
               </div>
             </div>
 
@@ -152,13 +152,13 @@ export function ProgressSummary({
               className="flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-cyan-500/15 border border-cyan-500/30 px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm"
               title={`Tổng điểm kinh nghiệm: ${totalXp} XP (+${todayXp} hôm nay)`}
             >
-              <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-cyan-400 fill-cyan-400/20" />
+              <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-brand fill-cyan-400/20" />
               <div className="flex items-baseline gap-1">
-                <span className="text-xs sm:text-sm font-black text-cyan-300">{totalXp}</span>
-                <span className="text-[11px] sm:text-xs font-semibold text-cyan-200/80">XP</span>
+                <span className="text-xs sm:text-sm font-black text-brand">{totalXp}</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-brand/80">XP</span>
               </div>
               {todayXp > 0 && (
-                <span className="hidden md:inline text-xs font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full border border-emerald-500/25">
+                <span className="hidden md:inline text-xs font-bold text-success bg-emerald-500/15 px-1.5 py-0.5 rounded-full border border-emerald-500/25">
                   +{todayXp}
                 </span>
               )}
@@ -169,14 +169,14 @@ export function ProgressSummary({
           {challenge && challenge.targetValue > 0 && (
             <div className="flex-1 min-w-0 max-w-xs hidden lg:block space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-300 truncate">{challenge.title}</span>
-                <span className="text-slate-400 font-mono">
+                <span className="font-semibold text-text-secondary truncate">{challenge.title}</span>
+                <span className="text-text-secondary font-mono">
                   {challenge.currentValue}/{challenge.targetValue}
                 </span>
               </div>
               <Progress
                 value={Math.min(100, Math.round((challenge.currentValue / challenge.targetValue) * 100))}
-                className="h-1.5 bg-slate-800"
+                className="h-1.5 bg-surface"
               />
             </div>
           )}
@@ -187,10 +187,10 @@ export function ProgressSummary({
               variant="ghost"
               size="sm"
               onClick={() => setShowLeaderboard(true)}
-              className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg gap-1.5"
+              className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold text-text-secondary hover:text-warning hover:bg-amber-500/10 rounded-lg gap-1.5"
               title="Bảng xếp hạng chuyên cần"
             >
-              <Trophy className="h-3.5 w-3.5 text-amber-400" />
+              <Trophy className="h-3.5 w-3.5 text-warning" />
               <span>Xếp hạng</span>
             </Button>
 
@@ -198,13 +198,13 @@ export function ProgressSummary({
               variant="ghost"
               size="sm"
               onClick={() => setShowAchievements(true)}
-              className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg gap-1.5"
+              className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold text-text-secondary hover:text-social hover:bg-purple-500/10 rounded-lg gap-1.5"
               title="Danh hiệu & Huy hiệu"
             >
-              <Award className="h-3.5 w-3.5 text-purple-400" />
+              <Award className="h-3.5 w-3.5 text-social" />
               <span>Huy hiệu</span>
               {profile && profile.unlockedAchievementsCount > 0 && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 border-purple-500/40 bg-purple-500/20 text-purple-300">
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 border-purple-500/40 bg-purple-500/20 text-social">
                   {profile.unlockedAchievementsCount}
                 </Badge>
               )}
@@ -215,10 +215,10 @@ export function ProgressSummary({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowChallenge(true)}
-                className="hidden md:inline-flex h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg gap-1.5"
+                className="hidden md:inline-flex h-8 px-2.5 text-xs font-semibold text-text-secondary hover:text-success hover:bg-emerald-500/10 rounded-lg gap-1.5"
                 title={`Thử thách: ${challenge.title}`}
               >
-                <Target className="h-3.5 w-3.5 text-emerald-400" />
+                <Target className="h-3.5 w-3.5 text-success" />
                 <span>Thử thách</span>
               </Button>
             )}
@@ -226,11 +226,11 @@ export function ProgressSummary({
             <Button
               size="sm"
               onClick={() => navigate('/me?tab=progress')}
-              className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs gap-1 shadow-sm transition-all"
+              className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-lg bg-surface-overlay hover:bg-surface-overlay text-text-primary font-bold text-xs gap-1 shadow-sm transition-all"
             >
               <span className="hidden xs:inline">Tiến trình</span>
               <span className="xs:hidden">Chi tiết</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+              <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
             </Button>
           </div>
         </div>

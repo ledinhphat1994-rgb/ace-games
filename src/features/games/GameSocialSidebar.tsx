@@ -131,7 +131,7 @@ function QuickChipsScroll({ chips, onSelectChip }: QuickChipsScrollProps) {
   }
 
   return (
-    <div className="relative px-2 py-1.5 border-t border-white/10 bg-white/[0.01] shrink-0 select-none">
+    <div className="relative px-2 py-1.5 border-t border-border-default bg-surface-overlay shrink-0 select-none">
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
@@ -145,7 +145,7 @@ function QuickChipsScroll({ chips, onSelectChip }: QuickChipsScrollProps) {
             key={chip}
             type="button"
             onClick={() => handleChipClick(chip)}
-            className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 border border-white/10 hover:border-amber-500/40 text-text-secondary active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-xs"
+            className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full bg-surface-overlay hover:bg-amber-500/20 hover:text-warning border border-border-default hover:border-amber-500/40 text-text-secondary active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-xs"
           >
             {chip}
           </button>
@@ -366,7 +366,7 @@ export function GameSocialSidebar({
         <div className={cn('grid min-w-0 gap-1', coChatPhong ? 'grid-cols-3' : 'grid-cols-2')}>
           {coChatPhong && (
             <button type="button" aria-label="Chat phòng" title="Chat phòng" aria-pressed={activeTab === 'chat_phong'} onClick={() => setActiveTab('chat_phong')}
-              className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_phong' ? 'bg-amber-500/15 text-amber-300' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+              className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_phong' ? 'bg-amber-500/15 text-warning' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
               <Gamepad2 className="size-4 shrink-0" /><span>Chat phòng</span>
             </button>
           )}
@@ -392,7 +392,7 @@ export function GameSocialSidebar({
           >
             {!chatBan ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-6 px-3">
-                <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-2">
+                <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-warning mb-2">
                   <Gamepad2 className="size-5" />
                 </div>
                 <p className="text-xs font-semibold text-text-primary">Chat phòng chỉ có ở bàn đấu</p>
@@ -400,7 +400,7 @@ export function GameSocialSidebar({
                   size="sm"
                   variant="outline"
                   onClick={() => setActiveTab('chat_chung')}
-                  className="mt-3 gap-1.5 border-white/10 cursor-pointer"
+                  className="mt-3 gap-1.5 border-border-default cursor-pointer"
                 >
                   <MessageSquare className="size-3.5" />
                   Mở Chat chung
@@ -408,7 +408,7 @@ export function GameSocialSidebar({
               </div>
             ) : roomMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-6 px-3">
-                <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-2">
+                <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-warning mb-2">
                   <Gamepad2 className="size-5" />
                 </div>
                 <p className="text-xs font-semibold text-text-primary">Chưa có tin nhắn trong phòng</p>
@@ -426,8 +426,8 @@ export function GameSocialSidebar({
                 if (isSystem) {
                   return (
                     <div key={m.id} className="flex justify-center my-1.5">
-                      <div className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[10px] text-text-tertiary text-center max-w-[90%] leading-relaxed flex items-center gap-1.5">
-                        <Sparkles className="size-3 text-amber-400 shrink-0" />
+                      <div className="rounded-full bg-surface-overlay border border-border-default px-3 py-1 text-[10px] text-text-tertiary text-center max-w-[90%] leading-relaxed flex items-center gap-1.5">
+                        <Sparkles className="size-3 text-warning shrink-0" />
                         <span>{m.text}</span>
                       </div>
                     </div>
@@ -456,11 +456,11 @@ export function GameSocialSidebar({
                           {tenNguoiGui}
                         </span>
                         {m.role === 'player' ? (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-cyan-500/15 text-brand border border-cyan-500/30">
                             {m.playerSide ? `Đấu thủ ${m.playerSide}` : 'Đấu thủ'}
                           </span>
                         ) : (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-purple-500/15 text-social border border-purple-500/30">
                             Khán giả
                           </span>
                         )}
@@ -471,8 +471,8 @@ export function GameSocialSidebar({
                         className={cn(
                           'rounded-2xl px-3 py-2 text-xs leading-relaxed break-words shadow-md',
                           isMe
-                            ? 'bg-gradient-to-r from-amber-600/90 to-amber-500 text-white rounded-br-xs font-medium'
-                            : 'bg-[#131b2e] border border-white/10 text-text-primary rounded-bl-xs'
+                            ? 'bg-gradient-to-r from-amber-600/90 to-amber-500 text-text-primary rounded-br-xs font-medium'
+                            : 'bg-[#131b2e] border border-border-default text-text-primary rounded-bl-xs'
                         )}
                       >
                         {m.text}
@@ -506,7 +506,7 @@ export function GameSocialSidebar({
               e.preventDefault()
               handleSendRoomMessage()
             }}
-            className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0"
+            className="p-2 border-t border-border-default bg-surface-overlay flex items-center gap-1.5 shrink-0"
           >
             <Popover open={isRoomEmojiOpen} onOpenChange={setIsRoomEmojiOpen}>
               <PopoverTrigger
@@ -516,21 +516,21 @@ export function GameSocialSidebar({
                     variant="ghost"
                     size="icon"
                     disabled={!chatBan}
-                    className="size-8 text-text-tertiary hover:text-amber-400 shrink-0 cursor-pointer"
+                    className="size-8 text-text-tertiary hover:text-warning shrink-0 cursor-pointer"
                     title="Chèn biểu cảm"
                   >
                     <Smile className="size-4" />
                   </Button>
                 }
               />
-              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0d1527] border-white/15 shadow-2xl">
+              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0d1527] border-border-default shadow-2xl">
                 <div className="grid grid-cols-6 gap-1">
                   {DANH_SACH_EMOJI.map((emoji) => (
                     <button
                       key={emoji}
                       type="button"
                       onClick={() => insertRoomEmoji(emoji)}
-                      className="flex items-center justify-center p-1.5 text-base rounded hover:bg-white/10 active:scale-125 transition-transform cursor-pointer"
+                      className="flex items-center justify-center p-1.5 text-base rounded hover:bg-surface-overlay active:scale-125 transition-transform cursor-pointer"
                     >
                       {emoji}
                     </button>
@@ -547,7 +547,7 @@ export function GameSocialSidebar({
               placeholder={
                 !chatBan ? 'Chỉ có ở bàn đấu' : chatBan.daKetNoi ? 'Nhắn tới phòng game…' : 'Đang kết nối lại bàn…'
               }
-              className="h-8 text-xs bg-white/5 border-white/10 focus-visible:ring-amber-500/40"
+              className="h-8 text-xs bg-surface-overlay border-border-default focus-visible:ring-amber-500/40"
             />
             <Button
               type="submit"
@@ -594,7 +594,7 @@ export function GameSocialSidebar({
                 })
                 .finally(() => setIsSendingCampus(false))
             }}
-            className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0"
+            className="p-2 border-t border-border-default bg-surface-overlay flex items-center gap-1.5 shrink-0"
           >
             <Popover open={isCampusEmojiOpen} onOpenChange={setIsCampusEmojiOpen}>
               <PopoverTrigger
@@ -603,14 +603,14 @@ export function GameSocialSidebar({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-8 text-text-tertiary hover:text-cyan-400 shrink-0 cursor-pointer"
+                    className="size-8 text-text-tertiary hover:text-brand shrink-0 cursor-pointer"
                     title="Chèn biểu cảm"
                   >
                     <Smile className="size-4" />
                   </Button>
                 }
               />
-              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0d1527] border-white/15 shadow-2xl">
+              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0d1527] border-border-default shadow-2xl">
                 <div className="grid grid-cols-6 gap-1">
                   {DANH_SACH_EMOJI.map((emoji) => (
                     <button
@@ -620,7 +620,7 @@ export function GameSocialSidebar({
                         setCampusText((prev) => prev + emoji)
                         setIsCampusEmojiOpen(false)
                       }}
-                      className="flex items-center justify-center p-1.5 text-base rounded hover:bg-white/10 active:scale-125 transition-transform cursor-pointer"
+                      className="flex items-center justify-center p-1.5 text-base rounded hover:bg-surface-overlay active:scale-125 transition-transform cursor-pointer"
                     >
                       {emoji}
                     </button>
@@ -633,7 +633,7 @@ export function GameSocialSidebar({
               value={campusText}
               onChange={(e) => setCampusText(e.target.value)}
               placeholder="Nhắn tới cả trường…"
-              className="h-8 text-xs bg-white/5 border-white/10 focus-visible:ring-cyan-500/40"
+              className="h-8 text-xs bg-surface-overlay border-border-default focus-visible:ring-cyan-500/40"
             />
             <Button
               type="submit"
@@ -669,16 +669,16 @@ export function GameSocialSidebar({
                 }}
               />
 
-              <div className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0 opacity-60">
+              <div className="p-2 border-t border-border-default bg-surface-overlay flex items-center gap-1.5 shrink-0 opacity-60">
                 <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary" disabled>
                   <Smile className="size-4" />
                 </Button>
                 <Input
                   disabled
                   placeholder="Đăng nhập để trò chuyện cùng bạn bè…"
-                  className="h-8 text-xs bg-white/5 border-white/10 cursor-not-allowed"
+                  className="h-8 text-xs bg-surface-overlay border-border-default cursor-not-allowed"
                 />
-                <Button disabled size="sm" className="h-8 px-2.5 shrink-0 bg-white/10 text-text-tertiary">
+                <Button disabled size="sm" className="h-8 px-2.5 shrink-0 bg-surface-overlay text-text-tertiary">
                   <Send className="size-3.5" />
                 </Button>
               </div>
@@ -698,14 +698,14 @@ export function GameSocialSidebar({
             // Danh sách bạn bè kèm ô tìm kiếm
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Ô tìm kiếm bạn */}
-              <div className="p-2.5 border-b border-white/5 bg-white/[0.01] shrink-0">
+              <div className="p-2.5 border-b border-border-default bg-surface-overlay shrink-0">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-text-tertiary" />
                   <Input
                     value={friendSearch}
                     onChange={(e) => setFriendSearch(e.target.value)}
                     placeholder="Tìm bạn bè hoặc người khác…"
-                    className="h-8 pl-7 text-xs bg-white/5 border-white/10"
+                    className="h-8 pl-7 text-xs bg-surface-overlay border-border-default"
                   />
                 </div>
               </div>
@@ -861,16 +861,16 @@ export function GameSocialSidebar({
                 }}
               />
 
-              <div className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0 opacity-60">
+              <div className="p-2 border-t border-border-default bg-surface-overlay flex items-center gap-1.5 shrink-0 opacity-60">
                 <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary" disabled>
                   <Smile className="size-4" />
                 </Button>
                 <Input
                   disabled
                   placeholder="Chọn một người bạn ở trên để nhắn tin…"
-                  className="h-8 text-xs bg-white/5 border-white/10 cursor-not-allowed"
+                  className="h-8 text-xs bg-surface-overlay border-border-default cursor-not-allowed"
                 />
-                <Button disabled size="sm" className="h-8 px-2.5 shrink-0 bg-white/10 text-text-tertiary">
+                <Button disabled size="sm" className="h-8 px-2.5 shrink-0 bg-surface-overlay text-text-tertiary">
                   <Send className="size-3.5" />
                 </Button>
               </div>
@@ -1100,7 +1100,7 @@ function HopChatRieng11({
                     'px-3 py-1.5 text-xs max-w-[85%] break-words shadow-sm',
                     isMe
                       ? 'bg-cyan-500/25 border border-cyan-400/40 text-cyan-100 rounded-2xl rounded-tr-xs'
-                      : 'bg-white/10 border border-white/10 text-slate-100 rounded-2xl rounded-tl-xs',
+                      : 'bg-surface-overlay border border-border-default text-text-primary rounded-2xl rounded-tl-xs',
                   )}
                 >
                   {m.noiDung}
@@ -1116,24 +1116,24 @@ function HopChatRieng11({
 
       <form
         onSubmit={handleSend}
-        className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0"
+        className="p-2 border-t border-border-default bg-surface-overlay flex items-center gap-1.5 shrink-0"
       >
         <Popover>
           <PopoverTrigger
             render={
-              <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary hover:text-white cursor-pointer">
+              <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary hover:text-text-primary cursor-pointer">
                 <Smile className="size-4" />
               </Button>
             }
           />
-          <PopoverContent side="top" align="start" className="w-64 p-2 bg-slate-900 border-white/10 shadow-2xl">
+          <PopoverContent side="top" align="start" className="w-64 p-2 bg-surface border-border-default shadow-2xl">
             <div className="grid grid-cols-6 gap-1">
               {DANH_SACH_EMOJI.map((emo) => (
                 <button
                   key={emo}
                   type="button"
                   onClick={() => setText((t) => t + emo)}
-                  className="size-8 text-lg flex items-center justify-center rounded-lg hover:bg-white/10 cursor-pointer"
+                  className="size-8 text-lg flex items-center justify-center rounded-lg hover:bg-surface-overlay cursor-pointer"
                 >
                   {emo}
                 </button>
@@ -1147,7 +1147,7 @@ function HopChatRieng11({
           onChange={(e) => setText(e.target.value)}
           placeholder={`Nhắn tin cho ${friend.displayName}…`}
           disabled={sending}
-          className="h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-text-tertiary focus-visible:ring-1 focus-visible:ring-brand"
+          className="h-8 text-xs bg-surface-overlay border-border-default text-text-primary placeholder:text-text-tertiary focus-visible:ring-1 focus-visible:ring-brand"
         />
         <Button
           type="submit"

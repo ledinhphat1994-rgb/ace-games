@@ -70,7 +70,7 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 bg-canvas px-2 py-2 select-none sm:px-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+      className="z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 bg-canvas px-2 py-1 select-none sm:px-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
@@ -102,9 +102,9 @@ export function ClassroomTopBar({
               Đang kết nối lại…
             </p>
           ) : isOnline ? (
-            // Biểu tượng wifi xanh (text-emerald-400) là tín hiệu "đã vào phòng" mà các bài e2e dựa vào
+            // Biểu tượng wifi xanh (text-success) là tín hiệu "đã vào phòng" mà các bài e2e dựa vào
             <p className="flex items-center gap-1.5 text-[11px] text-text-tertiary" title="Kết nối trực tuyến">
-              <Wifi className="size-3 text-emerald-400" />
+              <Wifi className="size-3 text-success" />
               Trực tuyến
               {latencyMs !== null && latencyMs > 0 && <span className="tabular-nums">· {latencyMs} ms</span>}
             </p>
@@ -152,7 +152,7 @@ export function ClassroomTopBar({
           <button
             type="button"
             onClick={() => setShowConfirmClose(true)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-text-primary transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
             data-testid="topbar-btn-close-room"
             title="Hủy phòng"
             aria-label="Hủy phòng"

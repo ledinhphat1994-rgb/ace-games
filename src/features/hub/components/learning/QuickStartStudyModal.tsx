@@ -111,18 +111,18 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
     <Dialog open={open} onOpenChange={(newOpen) => handleOpenChange(newOpen, onOpenChange)}>
       <DialogContent
         showCloseButton={!isInFlight}
-        className="sm:max-w-md bg-[#0c1222] border-white/10 text-white p-5 sm:p-6 rounded-2xl shadow-2xl"
+        className="sm:max-w-md bg-[#0c1222] border-border-default text-text-primary p-5 sm:p-6 rounded-2xl shadow-2xl"
       >
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-brand border border-cyan-500/30">
               <Sparkles className="h-4 w-4" />
             </span>
-            <DialogTitle className="text-base sm:text-lg font-black text-white">
+            <DialogTitle className="text-base sm:text-lg font-black text-text-primary">
               Bắt đầu học nhanh
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-text-secondary">
             Chọn mục tiêu để hệ thống chuẩn bị phòng học tức thì cho bạn.
           </DialogDescription>
         </DialogHeader>
@@ -142,14 +142,14 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
                 className={`w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                   isSelected
                     ? 'bg-cyan-500/10 border-cyan-500/40 ring-1 ring-cyan-500/25'
-                    : 'bg-slate-900/50 border-white/10 hover:bg-white/5'
+                    : 'bg-surface/50 border-border-default hover:bg-surface-overlay'
                 }`}
               >
                 <div
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
                     isSelected
                       ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
-                      : 'bg-slate-800 text-slate-400 border-white/10'
+                      : 'bg-surface text-text-secondary border-border-default'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -157,14 +157,14 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
-                    <p className={`text-xs font-bold ${isSelected ? 'text-cyan-300' : 'text-slate-200'}`}>
+                    <p className={`text-xs font-bold ${isSelected ? 'text-brand' : 'text-text-primary'}`}>
                       {tmpl.title}
                     </p>
-                    <span className="text-[10px] text-slate-400 font-semibold">
+                    <span className="text-[10px] text-text-secondary font-semibold">
                       Tối đa {tmpl.sucChua} người
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                  <p className="text-[11px] text-text-secondary mt-0.5 leading-snug">
                     {tmpl.description}
                   </p>
                 </div>
@@ -174,14 +174,14 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
         </div>
 
         {/* Action Button */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/5">
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border-default">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => handleOpenChange(false, onOpenChange)}
             disabled={isInFlight}
-            className="text-xs text-slate-400 hover:text-white"
+            className="text-xs text-text-secondary hover:text-text-primary"
           >
             Hủy
           </Button>

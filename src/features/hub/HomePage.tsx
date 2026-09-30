@@ -4,29 +4,29 @@ import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ProgressSummary } from '@/components/progress/ProgressSummary'
-import { CampusHeroBanner } from '@/components/campus/CampusHeroBanner'
-import type { ReactNode } from 'react'
-import { HomeDestinationCard, type HomeDestinationItem, HOME_DESTINATIONS } from './HomeDestinationCard'
 import { RoomCard } from './RoomCard'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
+import { GAME_CATALOG } from '@/features/games/game-catalog'
 import {
   ArrowRight,
   BookOpen,
   DoorOpen,
   Gamepad2,
   Plus,
-  UserPlus,
+  Trophy,
   Users,
+  Sparkles,
+  Calendar,
+  MessageSquare,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { nguoiDung } = usePhien()
+  const { nguoiDung, moAuthModal } = usePhien()
   const { rooms, socialState, presenceMap, presenceReady, trangThai } = useCampus()
 
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
@@ -82,20 +82,6 @@ export function HomePage() {
     })
   }, [friends, presenceMap])
 
-  // Quick Launch 4-card grid: Label-first, no subtitles, no fake badges
-  const destinationItems: HomeDestinationItem[] = useMemo(() => {
-    const iconMap: Record<string, ReactNode> = {
-      learn: <BookOpen className="h-5 w-5" />,
-      arena: <Gamepad2 className="h-5 w-5" />,
-      community: <Users className="h-5 w-5" />,
-      rooms: <DoorOpen className="h-5 w-5" />,
-    }
-    return HOME_DESTINATIONS.map((dest) => ({
-      ...dest,
-      icon: iconMap[dest.id],
-    }))
-  }, [])
-
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
       toast.error('Phòng học đã đầy số lượng người tham gia!')
@@ -108,31 +94,82 @@ export function HomePage() {
     navigate(`/room/phong-${room.id}`)
   }
 
+  const handleOpenChatWith = (_friendId: number, friendName: string) => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
+    window.dispatchEvent(new CustomEvent('campus:open-chat'))
+    toast.info(`Đã mở khung chat — gửi lời nhắn tới ${friendName} nhé!`)
+  }
+
   return (
-    <div className="space-y-3.5 sm:space-y-5 lg:space-y-6">
-      {/* ── 1. Modern Teen Hero Banner (Reduced, dominant CTA, no badge) ── */}
-      <CampusHeroBanner
-        title={`Xin chào, ${displayName}!`}
-        subtitle="Không gian học tập và kết nối số 10A7."
-        primaryAction={{
-          label: 'Vào học ngay',
-          icon: <BookOpen className="h-4 w-4" />,
-          onClick: () => navigate('/learning'),
-        }}
-      />
+    <div className="space-y-6 sm:space-y-8 pb-12">
+      {/* ── 1. Hero Banner (Design Reference 1, 2, 3, 4) ── */}
+      <section
+        aria-label="Lời chào và giới thiệu"
+        className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border-subtle bg-surface shadow-md"
+      >
+        {/* Background Image with Ambient Gradient */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/assets/campus/hero_banner.webp"
+            alt="Digital Campus"
+            className="h-full w-full object-cover object-center opacity-35 dark:opacity-40 transition-opacity duration-300"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-canvas via-canvas/90 to-transparent dark:from-canvas dark:via-canvas/80" />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 p-6 sm:p-10 lg:p-12 max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand mb-3 shadow-xs">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Digital Campus v2 · Chào {displayName}</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-text-primary tracking-tight leading-tight">
+            Học tập. Chơi game. Kết nối bạn bè.
+          </h1>
+
+          <p className="mt-3 text-xs sm:text-sm lg:text-base text-text-secondary leading-relaxed">
+            Một không gian dành riêng cho học sinh, để học tốt hơn, chơi vui hơn và cùng nhau trưởng thành.
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Button
+              size="lg"
+              onClick={() => navigate('/learn')}
+              className="h-11 px-5 rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 font-bold text-sm shadow-md shadow-brand/20 transition-all cursor-pointer"
+            >
+              <span>Bắt đầu khám phá</span>
+              <ArrowRight className="h-4 w-4 ml-1.5" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate('/arena')}
+              className="h-11 px-5 rounded-xl border-border-default bg-surface/80 hover:bg-surface-overlay text-text-primary font-semibold text-sm backdrop-blur-sm cursor-pointer"
+            >
+              <Gamepad2 className="h-4 w-4 mr-2 text-brand" />
+              <span>Chơi game ngay</span>
+            </Button>
+          </div>
+        </div>
+      </section>
 
       {/* ── 2. Smart Continuation Banner (Friend actively studying) ── */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-2.5 sm:p-3 backdrop-blur-md shadow-md">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-              <Users className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/10 p-3 sm:p-4 backdrop-blur-md shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/20 text-brand border border-brand/30">
+              <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">
-                Bạn bè đang học: <span className="text-cyan-400 font-extrabold">{activeFriendStudy.friend.displayName}</span>
+              <p className="text-xs sm:text-sm font-bold text-text-primary truncate">
+                Bạn bè đang học: <span className="text-brand font-black">{activeFriendStudy.friend.displayName}</span>
               </p>
-              <p className="text-xs text-slate-400 truncate">
+              <p className="text-xs text-text-secondary truncate">
                 {activeFriendStudy.roomName}
               </p>
             </div>
@@ -141,7 +178,7 @@ export function HomePage() {
           <Button
             size="sm"
             onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
-            className="shrink-0 gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-md shadow-cyan-500/20 text-xs h-7 sm:h-8 px-2.5 sm:px-3"
+            className="shrink-0 gap-1.5 bg-brand hover:bg-brand/90 text-brand-foreground font-bold text-xs h-9 px-3.5 shadow-sm"
           >
             <DoorOpen className="h-3.5 w-3.5" />
             <span>Vào cùng</span>
@@ -149,34 +186,154 @@ export function HomePage() {
         </div>
       )}
 
-      {/* ── 3. Compact Progress & Gamification Strip ── */}
-      <ProgressSummary />
+      {/* ── 3. 4 Quick Access Feature Cards (Image 1, 2, 3, 4) ── */}
+      <section aria-label="Lối tắt chính">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Card 1: Học tập */}
+          <div
+            onClick={() => navigate('/learn')}
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-surface to-surface hover:border-sky-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30 group-hover:scale-105 transition-transform">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">Học tập</h2>
+              <p className="mt-0.5 text-xs text-text-secondary">Lớp học, tài liệu, bài tập</p>
+            </div>
+          </div>
 
-      {/* ── 4. Quick Launch 4-Tile Grid (Label-first) ── */}
-      <section aria-label="Lối tắt truy cập nhanh">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          {destinationItems.map((item) => (
-            <HomeDestinationCard
-              key={item.id}
-              item={item}
-              onClick={() => navigate(item.href)}
-            />
+          {/* Card 2: Game */}
+          <div
+            onClick={() => navigate('/arena')}
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-surface to-surface hover:border-purple-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 group-hover:scale-105 transition-transform">
+                <Gamepad2 className="h-5 w-5" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">Game</h2>
+              <p className="mt-0.5 text-xs text-text-secondary">Chơi game cùng bạn bè</p>
+            </div>
+          </div>
+
+          {/* Card 3: Cộng đồng */}
+          <div
+            onClick={() => navigate('/community')}
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-500/10 via-surface to-surface hover:border-pink-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30 group-hover:scale-105 transition-transform">
+                <Users className="h-5 w-5" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-pink-400 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">Cộng đồng</h2>
+              <p className="mt-0.5 text-xs text-text-secondary">Bài viết, sự kiện, kết bạn</p>
+            </div>
+          </div>
+
+          {/* Card 4: Bảng xếp hạng */}
+          <div
+            onClick={() => navigate('/rankings')}
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-surface to-surface hover:border-amber-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:scale-105 transition-transform">
+                <Trophy className="h-5 w-5" />
+              </div>
+              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">Bảng xếp hạng</h2>
+              <p className="mt-0.5 text-xs text-text-secondary">Vinh danh thành tích</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. Section: Game nổi bật (Featured Games row with cards & covers) ── */}
+      <section aria-label="Game nổi bật" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            <h2 className="text-base sm:text-lg font-bold text-text-primary">
+              Game nổi bật
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/arena')}
+            className="text-xs font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>Tất cả game</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          {GAME_CATALOG.map((game) => (
+            <div
+              key={game.id}
+              onClick={() => navigate(`/arena/${game.id}`)}
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default bg-surface hover:border-brand/40 hover:shadow-lg transition-all duration-200 cursor-pointer"
+            >
+              {/* Cover Image */}
+              <div className="relative aspect-square w-full overflow-hidden bg-slate-900">
+                <img
+                  src={game.cover}
+                  alt={game.title}
+                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <span className="absolute top-2 right-2 rounded-md bg-black/60 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-bold text-white border border-white/10">
+                  {game.boardLabel || 'Online'}
+                </span>
+                <span className="absolute bottom-2 left-2 text-xs font-black text-white drop-shadow">
+                  {game.shortTitle}
+                </span>
+              </div>
+
+              {/* Card Footer */}
+              <div className="p-2.5 sm:p-3 flex items-center justify-between gap-1 border-t border-border-subtle bg-surface-raised/40">
+                <span className="text-[11px] text-text-secondary truncate">
+                  {game.category === '1v1' ? '1v1 & AI' : 'Chơi đơn & AI'}
+                </span>
+                <Button
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px] font-bold rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/arena/${game.id}`)
+                  }}
+                >
+                  Chơi
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       </section>
 
       {/* ── 5. Main Content Area: Active Rooms + Online Friends ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 columns: Featured Active Rooms */}
-        <section aria-label="Phòng học đang hoạt động" className="lg:col-span-2 space-y-3.5">
+        <section aria-label="Phòng học đang mở" className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-              <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
-                Phòng học nổi bật
+              <h2 className="text-base sm:text-lg font-bold text-text-primary">
+                Phòng học đang mở
               </h2>
               {rooms.length > 0 && (
-                <span className="text-xs text-slate-400 font-mono">({rooms.length})</span>
+                <span className="text-xs text-text-secondary font-mono">({rooms.length})</span>
               )}
             </div>
 
@@ -185,7 +342,7 @@ export function HomePage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setMoTaoPhong(true)}
-                className="h-8 gap-1 text-xs font-semibold border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
+                className="h-8 gap-1.5 text-xs font-semibold border-border-default bg-surface text-text-primary hover:bg-surface-overlay cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Tạo phòng</span>
@@ -195,7 +352,7 @@ export function HomePage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/learn')}
-                className="h-8 gap-1 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                className="h-8 gap-1 text-xs font-bold text-brand hover:text-brand hover:bg-brand/10 cursor-pointer"
               >
                 <span>Xem tất cả</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -206,9 +363,9 @@ export function HomePage() {
           {activeRoomsPreview.length === 0 ? (
             <EmptyState
               icon={BookOpen}
-              title="Chưa có phòng học"
+              title="Chưa có phòng học nào đang mở"
               action={{
-                label: 'Tạo phòng',
+                label: 'Tạo phòng học đầu tiên',
                 onClick: () => setMoTaoPhong(true),
               }}
             />
@@ -226,66 +383,112 @@ export function HomePage() {
           )}
         </section>
 
-        {/* Right 1 column: Live Online Friends Widget */}
-        <section aria-label="Bạn bè trực tuyến" className="space-y-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-cyan-400" />
-              <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
-                Bạn bè online
-              </h2>
-              <span className="text-xs text-slate-400 font-mono">({onlineFriends.length})</span>
+        {/* Right 1 column: Live Online Friends Widget & Events */}
+        <div className="space-y-6">
+          {/* Friends Online */}
+          <section aria-label="Bạn bè online" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-brand" />
+                <h2 className="text-sm sm:text-base font-bold text-text-primary">
+                  Bạn bè online ({onlineFriends.length})
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate('/community?tab=friends')}
+                className="text-xs font-bold text-brand hover:underline cursor-pointer"
+              >
+                Xem tất cả
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => navigate('/community')}
-              className="text-xs font-bold text-cyan-400 hover:underline"
-            >
-              Cộng đồng
-            </button>
-          </div>
-
-          <div className="rounded-xl sm:rounded-2xl border border-white/5 bg-[#0c1222]/60 p-3 sm:p-3.5 backdrop-blur-md min-h-[110px] sm:min-h-[130px] flex flex-col justify-center">
-            {onlineFriends.length === 0 ? (
-              <div className="text-center py-2.5 space-y-1.5">
-                <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-slate-400 border border-white/10">
-                  <UserPlus className="h-3.5 w-3.5" />
-                </div>
-                <p className="text-xs font-semibold text-slate-300">Chưa có bạn online</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/community')}
-                  className="h-6 sm:h-7 px-2.5 text-xs border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
-                >
-                  Tìm bạn
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                {onlineFriends.slice(0, 6).map((friend) => (
-                  <div
-                    key={friend.id}
-                    className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-white/5 transition-colors"
+            <div className="rounded-2xl border border-border-default bg-surface p-3.5 shadow-xs">
+              {onlineFriends.length === 0 ? (
+                <div className="text-center py-4 space-y-2">
+                  <p className="text-xs text-text-secondary">Chưa có bạn nào đang online</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/community')}
+                    className="h-8 px-3 text-xs border-border-default bg-surface hover:bg-surface-overlay text-text-primary cursor-pointer"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="relative">
-                        <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white font-bold text-xs shadow-sm">
-                          {friend.displayName.slice(0, 2).toUpperCase()}
+                    Khám phá bạn học
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {onlineFriends.slice(0, 6).map((friend) => (
+                    <div
+                      key={friend.id}
+                      className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-surface-overlay transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative shrink-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-brand font-bold text-xs border border-brand/30">
+                            {friend.displayName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-surface" />
                         </div>
-                        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0c1222]" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-text-primary truncate">
+                            {friend.displayName}
+                          </p>
+                          <p className="text-[10px] text-text-tertiary truncate">Đang online</p>
+                        </div>
                       </div>
-                      <span className="text-xs font-semibold text-slate-200 truncate">
-                        {friend.displayName}
-                      </span>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-text-secondary hover:text-brand"
+                        onClick={() => handleOpenChatWith(friend.id, friend.displayName)}
+                        title={`Nhắn tin cho ${friend.displayName}`}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Events Widget (Image 1, 2) */}
+          <section aria-label="Sự kiện sắp diễn ra" className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-purple-400" />
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">
+                Sự kiện sắp diễn ra
+              </h2>
+            </div>
+
+            <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-surface to-surface p-4 shadow-xs space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="inline-block rounded-md bg-purple-500/20 text-purple-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-1">
+                    Giải đấu Cờ Vua
+                  </span>
+                  <h3 className="text-xs sm:text-sm font-bold text-text-primary">
+                    Giải Cờ Vua Mùa Thu 10A7
+                  </h3>
+                  <p className="text-[11px] text-text-secondary mt-0.5">
+                    Thứ Bảy này · 19:30 tại Đấu trường Game
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
-        </section>
+
+              <Button
+                size="sm"
+                onClick={() => navigate('/arena/chess')}
+                className="w-full h-8 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-xs cursor-pointer"
+              >
+                Tham gia ngay
+              </Button>
+            </div>
+          </section>
+        </div>
       </div>
 
       {/* Dialogs */}

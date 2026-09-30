@@ -430,7 +430,7 @@ export function FriendsDrawer({
               <TabsTrigger value="requests" data-testid="tab-requests">
                 Lời mời
                 {incomingRequests.length > 0 && (
-                  <span className="min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums">
+                  <span className="min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] leading-4 font-semibold text-text-primary tabular-nums">
                     {incomingRequests.length}
                   </span>
                 )}
@@ -948,7 +948,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
                 key={em}
                 type="button"
                 onClick={() => setNoiDung((p) => p + em)}
-                className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-surface-overlay transition-colors active:scale-95"
               >
                 {em}
               </button>
@@ -959,7 +959,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
           <button
             type="button"
             onClick={() => setHienEmoji((p) => !p)}
-            className="shrink-0 flex size-9 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-raised hover:text-white transition-colors"
+            className="shrink-0 flex size-9 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-raised hover:text-text-primary transition-colors"
             title="Chèn biểu cảm"
           >
             <Smile className="size-5" />
@@ -976,7 +976,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
           <button
             type="submit"
             disabled={!noiDung.trim()}
-            className="shrink-0 flex size-9 items-center justify-center rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand/85 transition-colors"
+            className="shrink-0 flex size-9 items-center justify-center rounded-xl bg-brand text-text-primary disabled:opacity-40 hover:bg-brand/85 transition-colors"
             aria-label="Gửi"
           >
             <SendHorizontal className="size-4" />

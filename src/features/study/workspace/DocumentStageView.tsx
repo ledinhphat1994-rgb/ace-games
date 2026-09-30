@@ -77,35 +77,35 @@ export interface DocumentStageViewProps {
 function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string }) {
   return (
     <div
-      className="flex flex-col items-center justify-center p-6 text-center text-slate-300 max-w-md mx-auto space-y-3 select-auto"
+      className="flex flex-col items-center justify-center p-6 text-center text-text-secondary max-w-md mx-auto space-y-3 select-auto"
       data-testid="pptx-advisory-card"
     >
       <div className="rounded-2xl bg-orange-500/10 p-4 ring-1 ring-orange-500/20">
         <FileSpreadsheet className="h-10 w-10 text-orange-400" />
       </div>
       <div>
-        <h4 className="text-sm font-semibold text-slate-100 break-all line-clamp-2 max-w-md" title={docName}>
+        <h4 className="text-sm font-semibold text-text-primary break-all line-clamp-2 max-w-md" title={docName}>
           {docName}
         </h4>
-        <p className="text-[11px] text-amber-400/90 mt-1 font-medium">
+        <p className="text-[11px] text-warning/90 mt-1 font-medium">
           Tệp PowerPoint đã được lưu trữ an toàn trong phòng học
         </p>
       </div>
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left text-[11px] text-slate-400 space-y-1">
-        <p className="font-semibold text-amber-300 flex items-center gap-1.5">
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left text-[11px] text-text-secondary space-y-1">
+        <p className="font-semibold text-warning flex items-center gap-1.5">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           Chưa hỗ trợ trình chiếu trực tiếp PPTX
         </p>
         <p className="leading-relaxed">
           Để bảo mật dữ liệu phòng học, tài liệu chỉ được truy cập nội bộ bởi thành viên phòng.
-          Bạn hãy <strong className="text-slate-200">xuất bài giảng sang định dạng PDF (.pdf)</strong> để trình chiếu và đồng bộ từng trang trực tiếp trên bảng học.
+          Bạn hãy <strong className="text-text-primary">xuất bài giảng sang định dạng PDF (.pdf)</strong> để trình chiếu và đồng bộ từng trang trực tiếp trên bảng học.
         </p>
       </div>
       {docUrl && (
         <a
           href={docUrl}
           download={docName}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/20 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-surface-overlay px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-overlay transition-colors cursor-pointer"
         >
           <Download className="h-3.5 w-3.5" />
           Tải tệp .pptx về máy
@@ -168,7 +168,7 @@ function OfficeEmbedViewer({
         <button
           type="button"
           onClick={() => setShowAdvisory(false)}
-          className="mt-3 text-xs text-cyan-400 hover:underline cursor-pointer"
+          className="mt-3 text-xs text-brand hover:underline cursor-pointer"
         >
           Quay lại trình chiếu trực tiếp
         </button>
@@ -188,19 +188,19 @@ function OfficeEmbedViewer({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <RefreshCw className="h-5 w-5 animate-spin text-slate-500" aria-label="Đang mở tài liệu" />
+            <RefreshCw className="h-5 w-5 animate-spin text-text-tertiary" aria-label="Đang mở tài liệu" />
           </div>
         )}
       </div>
       {!isGoogleSlides && (
         <div className="flex items-center justify-between px-3 py-1.5 bg-surface border-t border-border-subtle text-xs shrink-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400">Trình xem:</span>
+            <span className="text-[11px] text-text-secondary">Trình xem:</span>
             <button
               type="button"
               onClick={() => setViewerType('microsoft')}
               className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
-                viewerType === 'microsoft' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-white'
+                viewerType === 'microsoft' ? 'bg-orange-500/20 text-orange-300' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               Office Live
@@ -209,7 +209,7 @@ function OfficeEmbedViewer({
               type="button"
               onClick={() => setViewerType('google')}
               className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
-                viewerType === 'google' ? 'bg-blue-500/20 text-blue-300' : 'text-slate-400 hover:text-white'
+                viewerType === 'google' ? 'bg-blue-500/20 text-blue-300' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               Google Docs
@@ -219,7 +219,7 @@ function OfficeEmbedViewer({
             <button
               type="button"
               onClick={() => setShowAdvisory(true)}
-              className="text-[11px] text-slate-400 hover:text-white cursor-pointer"
+              className="text-[11px] text-text-secondary hover:text-text-primary cursor-pointer"
             >
               Thông tin tệp
             </button>
@@ -227,7 +227,7 @@ function OfficeEmbedViewer({
               <a
                 href={docUrl}
                 download={docName}
-                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
+                className="inline-flex items-center gap-1 text-[11px] text-text-secondary hover:text-text-primary"
               >
                 <Download className="h-3 w-3" />
                 Tải tệp
@@ -392,26 +392,14 @@ export function DocumentStageView({
           data-keo-khung
           className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface px-3"
         >
-          <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white">
+          <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-text-primary">
             <FileText className="h-4 w-4 shrink-0 text-orange-400" />
             <span className="truncate">Tài liệu</span>
           </span>
           {dieuKhienKhung}
         </div>
         <div className="flex flex-1 flex-col items-center justify-center p-4 text-center">
-          {canControl ? (
-            <button
-              type="button"
-              onClick={onUploadSlide}
-              className="inline-flex items-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-semibold text-xs px-4 py-2 shadow-lg shadow-orange-600/20 transition-all cursor-pointer"
-              data-testid="stage-upload-doc-cta"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              <span>Tải Slide / PDF</span>
-            </button>
-          ) : (
-            <h3 className="text-sm font-bold text-white">Chưa có tài liệu</h3>
-          )}
+          <h3 className="text-sm font-semibold text-text-secondary">Chưa có tài liệu</h3>
         </div>
       </div>
     )
@@ -431,7 +419,7 @@ export function DocumentStageView({
         {!canControl ? (
           <div className="flex items-center gap-2 truncate pr-2 min-w-0" data-testid="document-stage-docname-badge">
             <FileText className="h-4 w-4 text-orange-400 shrink-0" />
-            <span className="truncate text-xs font-semibold text-white max-w-[110px] sm:max-w-[200px]" data-testid="document-stage-docname" title={slideState?.docName || 'Tài liệu'}>
+            <span className="truncate text-xs font-semibold text-white text-text-primary max-w-[110px] sm:max-w-[200px]" data-testid="document-stage-docname" title={slideState?.docName || 'Tài liệu'}>
               {slideState?.docName || 'Tài liệu'}
             </span>
             {!compact && (
@@ -440,13 +428,13 @@ export function DocumentStageView({
               </span>
             )}
             {isReconnecting && (
-              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-amber-400" aria-label="Đang kết nối lại" />
+              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-warning" aria-label="Đang kết nối lại" />
             )}
           </div>
         ) : (
           <div className="flex items-center gap-2 min-w-0">
             {isReconnecting && (
-              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-amber-400" aria-label="Đang kết nối lại" />
+              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-warning" aria-label="Đang kết nối lại" />
             )}
           </div>
         )}
@@ -454,12 +442,12 @@ export function DocumentStageView({
         {/* Center: Synchronized Page Navigation — VÙNG 3: XÓA VỚI NGƯỜI THAM GIA, CĂN GIỮA VỚI CHỦ PHÒNG */}
         {/* Student: honest read-only indicator without mutation buttons (Section 4) */}
         {canControl && slideState && (slideState.totalPages > 1 || soBuocTrang(trangHienTai) > 0) && coChuyenTrang && (
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10" data-testid="doc-page-nav">
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 bg-surface-overlay rounded-lg px-1.5 py-0.5 border border-border-default" data-testid="doc-page-nav">
             <button
               type="button"
               disabled={!conLui}
               onClick={diLui}
-              className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
+              className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
               title="Trang trước (←)"
               aria-label="Trang trước"
               data-testid="doc-btn-prev"
@@ -473,7 +461,7 @@ export function DocumentStageView({
               type="button"
               disabled={!conTien}
               onClick={diTien}
-              className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
+              className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
               title="Trang sau (→)"
               aria-label="Trang sau"
               data-testid="doc-btn-next"
@@ -487,12 +475,12 @@ export function DocumentStageView({
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
           {/* Thu phóng tại máy mình (không đồng bộ) — chỉ người trình chiếu; ẩn khi là cửa sổ nổi. Người tham gia chỉ xem. */}
           {!compact && !dungPptx && canControl && (
-            <div className="hidden lg:flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/10" data-testid="doc-zoom-controls">
+            <div className="hidden lg:flex items-center gap-0.5 bg-surface-overlay rounded-lg p-0.5 border border-border-default" data-testid="doc-zoom-controls">
               <button
                 type="button"
                 disabled={zoomScale <= 0.5}
                 onClick={handleZoomOut}
-                className="p-1 text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 rounded hover:bg-surface-overlay transition-colors cursor-pointer"
                 title="Thu nhỏ (-)"
                 aria-label="Thu nhỏ"
                 data-testid="doc-btn-zoom-out"
@@ -503,7 +491,7 @@ export function DocumentStageView({
               <button
                 type="button"
                 onClick={handleResetZoom}
-                className="px-1.5 py-0.5 text-[11px] font-mono font-semibold text-slate-200 hover:text-white rounded hover:bg-white/10 transition-colors cursor-pointer"
+                className="px-1.5 py-0.5 text-[11px] font-mono font-semibold text-text-primary hover:text-text-primary rounded hover:bg-surface-overlay transition-colors cursor-pointer"
                 title="Đặt lại độ phóng 100% (0)"
                 aria-label="Đặt lại thu phóng"
                 data-testid="doc-btn-zoom-reset"
@@ -515,7 +503,7 @@ export function DocumentStageView({
                 type="button"
                 disabled={zoomScale >= 3.0}
                 onClick={handleZoomIn}
-                className="p-1 text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 rounded hover:bg-surface-overlay transition-colors cursor-pointer"
                 title="Phóng to (+)"
                 aria-label="Phóng to"
                 data-testid="doc-btn-zoom-in"
@@ -527,7 +515,7 @@ export function DocumentStageView({
                 type="button"
                 onClick={handleToggleFit}
                 className={`hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
-                  fitMode === 'width' ? 'bg-orange-600/40 text-orange-200' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  fitMode === 'width' ? 'bg-orange-600/40 text-orange-200' : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay'
                 }`}
                 title={fitMode === 'page' ? 'Chuyển sang Vừa chiều ngang' : 'Chuyển sang Vừa toàn trang'}
                 aria-label="Chế độ vừa màn hình"
@@ -544,7 +532,7 @@ export function DocumentStageView({
               <button
                 type="button"
                 onClick={onUploadSlide}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary cursor-pointer"
                 title="Đổi tài liệu"
                 aria-label="Đổi tài liệu"
                 data-testid="doc-btn-replace"
@@ -558,7 +546,7 @@ export function DocumentStageView({
                 <button
                   type="button"
                   onClick={onCloseDoc}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-red-400 cursor-pointer"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-red-400 cursor-pointer"
                   title="Đóng trình chiếu"
                   aria-label="Đóng trình chiếu"
                   data-testid="doc-btn-close"
@@ -574,13 +562,13 @@ export function DocumentStageView({
       {/* ── MAIN DOCUMENT VIEWPORT AREA ── */}
       <div className="relative flex-1 bg-canvas overflow-hidden flex items-center justify-center p-2 sm:p-4">
         {status === 'render_error' ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 space-y-2" data-testid="doc-render-error">
-            <AlertTriangle className="h-8 w-8 text-amber-400 opacity-90" />
-            <p className="text-xs font-semibold text-slate-200">Không thể tải tài liệu này</p>
+          <div className="flex flex-col items-center justify-center p-6 text-center text-text-secondary space-y-2" data-testid="doc-render-error">
+            <AlertTriangle className="h-8 w-8 text-warning opacity-90" />
+            <p className="text-xs font-semibold text-text-primary">Không thể tải tài liệu này</p>
             <button
               type="button"
               onClick={() => setHasRenderError(false)}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 transition-colors cursor-pointer"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-overlay px-3 py-1.5 text-xs text-text-primary hover:bg-surface-overlay transition-colors cursor-pointer"
             >
               <RefreshCw className="h-3 w-3" />
               <span>Thử lại</span>
@@ -628,7 +616,7 @@ export function DocumentStageView({
                 src={slideState.docUrl}
                 alt={slideState.docName || 'Bài giảng'}
                 onError={() => setHasRenderError(true)}
-                className="object-contain rounded-lg shadow-2xl border border-white/10 select-none max-h-full max-w-full"
+                className="object-contain rounded-lg shadow-2xl border border-border-default select-none max-h-full max-w-full"
                 draggable={false}
                 data-testid="doc-image-viewer"
               />
@@ -687,10 +675,10 @@ export function DocumentStageView({
             {lopVeNhung && <div className="pointer-events-none absolute inset-0 z-10">{lopVeNhung}</div>}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+          <div className="flex flex-col items-center justify-center p-8 text-center text-text-secondary">
             <FileText className="h-12 w-12 text-orange-400 mb-2 opacity-80" />
-            <p className="text-sm font-semibold text-slate-200">{slideState?.docName}</p>
-            <p className="text-xs text-slate-400 mt-1">Trang {slideState?.currentPage}</p>
+            <p className="text-sm font-semibold text-text-primary">{slideState?.docName}</p>
+            <p className="text-xs text-text-secondary mt-1">Trang {slideState?.currentPage}</p>
           </div>
         )}
       </div>

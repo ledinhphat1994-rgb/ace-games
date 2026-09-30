@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppHeader } from './AppHeader'
+import { AppSidebar } from './AppSidebar'
 import { MobileNav } from './MobileNav'
 import { CampusChatSheet } from './CampusChatSheet'
 
@@ -98,35 +99,46 @@ export function AppShell({ children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
-      {/* 1. Header (Sticky desktop & mobile) */}
+    <div className="flex min-h-svh bg-canvas text-foreground">
+      {/* 0. Desktop Sidebar (Sticky left) */}
       {!isFullscreen && (
-        <AppHeader
+        <AppSidebar
           nguoiDung={nguoiDung}
-          trangThai={trangThai}
-          onlineCount={onlineCount}
-          latencyMs={latencyMs}
           coTinNhanMoi={coTinNhanMoi}
-          onDoDoTre={doDoTre}
-          onKetNoiLai={ketNoiLai}
-          onDangXuat={() => void dangXuat()}
           onToggleChat={() => datMoChat(!isChatOpen)}
-          onLamMoiPhien={lamMoiPhien}
-          onMoAuthModal={moAuthModal}
         />
       )}
 
-      {/* 2. Main Content Container */}
-      <main
-        className={cn(
-          'mx-auto w-full flex-1 transition-all',
-          isFullscreen
-            ? 'p-0 m-0 max-w-none w-full h-screen'
-            : isWidePage
-              ? 'max-w-[1920px] px-2.5 sm:px-4 pt-4 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-8'
-              : 'max-w-7xl px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 md:pb-10'
+      {/* Main Content Column */}
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* 1. Header (Sticky desktop & mobile) */}
+        {!isFullscreen && (
+          <AppHeader
+            nguoiDung={nguoiDung}
+            trangThai={trangThai}
+            onlineCount={onlineCount}
+            latencyMs={latencyMs}
+            coTinNhanMoi={coTinNhanMoi}
+            onDoDoTre={doDoTre}
+            onKetNoiLai={ketNoiLai}
+            onDangXuat={() => void dangXuat()}
+            onToggleChat={() => datMoChat(!isChatOpen)}
+            onLamMoiPhien={lamMoiPhien}
+            onMoAuthModal={moAuthModal}
+          />
         )}
-      >
+
+        {/* 2. Main Content Container */}
+        <main
+          className={cn(
+            'w-full flex-1 transition-all',
+            isFullscreen
+              ? 'p-0 m-0 max-w-none w-full h-screen'
+              : isWidePage
+                ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
+                : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
+          )}
+        >
         {/* Single-device policy warning banner */}
         {trangThai === 'phien_bi_thay' ? (
           <div
@@ -163,6 +175,7 @@ export function AppShell({ children }: AppShellProps) {
 
         <Suspense fallback={<KhungChoTrang />}>{children || <Outlet />}</Suspense>
       </main>
+      </div>
 
       {/* 3. Mobile Bottom Navigation */}
       {!isFullscreen && <MobileNav />}

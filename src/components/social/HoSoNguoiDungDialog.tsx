@@ -154,7 +154,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                   ) : danhSachThanhTuu.map((ach) => (
                     <div key={ach.key} className="flex min-w-0 items-start gap-3 py-4">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-overlay text-text-secondary">
-                        {ach.unlocked ? <Award className="size-5 text-amber-400" /> : <Lock className="size-4" />}
+                        {ach.unlocked ? <Award className="size-5 text-warning" /> : <Lock className="size-4" />}
                       </span>
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">

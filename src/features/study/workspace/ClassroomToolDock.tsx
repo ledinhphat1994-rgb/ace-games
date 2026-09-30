@@ -121,17 +121,17 @@ const nutDock =
   'relative flex size-11 shrink-0 sm:h-14 sm:w-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
 const nhanDock = 'hidden text-xs sm:block'
 const dangChon = 'bg-brand/12 text-brand ring-1 ring-brand/30'
-const khongChon = 'text-slate-400 hover:bg-white/8 hover:text-slate-200'
+const khongChon = 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
 
 const nutKhay =
   'flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl py-2 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
 const khayPopover =
-  'space-y-2.5 rounded-2xl border border-border-default bg-surface-raised p-2.5 text-slate-200 shadow-2xl'
+  'space-y-2.5 rounded-2xl border border-border-default bg-surface-raised p-2.5 text-text-primary shadow-2xl'
 
 function BangMau({ mau, onChonMau, co, onChonCo }: Pick<ClassroomToolDockProps, 'mau' | 'onChonMau' | 'co' | 'onChonCo'>) {
   return (
     <>
-      <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1.5" data-testid="dock-color-palette">
+      <div className="flex items-center justify-between gap-1 rounded-xl bg-surface-overlay px-2 py-1.5" data-testid="dock-color-palette">
         {MAU_VE.map((m) => (
           <button
             key={m.gia}
@@ -140,12 +140,12 @@ function BangMau({ mau, onChonMau, co, onChonCo }: Pick<ClassroomToolDockProps, 
             title={m.ten}
             aria-label={`Màu ${m.ten}`}
             aria-pressed={mau === m.gia}
-            className={`h-5 w-5 rounded-full border border-white/25 transition-transform cursor-pointer ${mau === m.gia ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-slate-950' : 'hover:scale-110'}`}
+            className={`h-5 w-5 rounded-full border border-border-default transition-transform cursor-pointer ${mau === m.gia ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-slate-950' : 'hover:scale-110'}`}
             style={{ backgroundColor: m.gia }}
           />
         ))}
       </div>
-      <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1" data-testid="dock-size-picker">
+      <div className="flex items-center justify-between gap-1 rounded-xl bg-surface-overlay px-2 py-1" data-testid="dock-size-picker">
         {CAC_CO_VE.map((c) => (
           <button
             key={c}
@@ -154,7 +154,7 @@ function BangMau({ mau, onChonMau, co, onChonCo }: Pick<ClassroomToolDockProps, 
             title={['Nhỏ', 'Vừa', 'To', 'Rất to'][c]}
             aria-label={`Cỡ ${['nhỏ', 'vừa', 'to', 'rất to'][c]}`}
             aria-pressed={co === c}
-            className={`flex h-8 flex-1 items-center justify-center rounded-lg cursor-pointer ${co === c ? 'bg-white/15' : 'hover:bg-white/10'}`}
+            className={`flex h-8 flex-1 items-center justify-center rounded-lg cursor-pointer ${co === c ? 'bg-surface-overlay' : 'hover:bg-surface-overlay'}`}
           >
             <span className="rounded-full" style={{ width: 4 + c * 4, height: 4 + c * 4, backgroundColor: mau }} />
           </button>
@@ -221,7 +221,7 @@ export function ClassroomToolDock({
       data-testid="classroom-tool-dock"
     >
       {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}
-      <div className="flex min-w-0 max-w-[calc(100vw-1rem)] items-center gap-2 rounded-2xl border border-border-default bg-surface p-1.5">
+      <div className="flex min-w-0 max-w-[calc(100vw-1rem)] items-center gap-2 rounded-2xl border border-border-default bg-surface/95 p-1.5">
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* ── 0. MIC + CÀI ĐẶT ÂM THANH (mọi người trong phòng) ── */}
         <button
@@ -232,7 +232,7 @@ export function ClassroomToolDock({
           title={!coMic && !myMic ? 'Chủ phòng chưa cấp quyền mic' : myMic ? 'Tắt micro' : 'Bật micro'}
           aria-label={myMic ? 'Tắt micro' : 'Bật micro'}
           data-testid="dock-btn-mic"
-          className={`${nutDock} ${myMic ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40' : khongChon} ${voiceState.isConnecting ? 'cursor-wait opacity-60' : ''} ${!coMic && !myMic ? 'cursor-not-allowed opacity-40' : ''} ${voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400/80' : ''}`}
+          className={`${nutDock} ${myMic ? 'bg-emerald-500/20 text-success ring-1 ring-emerald-400/40' : khongChon} ${voiceState.isConnecting ? 'cursor-wait opacity-60' : ''} ${!coMic && !myMic ? 'cursor-not-allowed opacity-40' : ''} ${voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400/80' : ''}`}
         >
           {voiceState.isConnecting ? (
             <Loader2 className="h-4.5 w-4.5 animate-spin" />
@@ -261,18 +261,18 @@ export function ClassroomToolDock({
           </PopoverTrigger>
           <PopoverContent side="top" align="start" sideOffset={10} className={`w-72 ${khayPopover}`} data-testid="dock-audio-tray">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-white">Âm thanh</span>
-              <span className="text-xs text-slate-400">{voiceState.connectionState === 'connected' ? 'Đã kết nối' : 'Sẵn sàng'}</span>
+              <span className="text-sm font-semibold text-text-primary">Âm thanh</span>
+              <span className="text-xs text-text-secondary">{voiceState.connectionState === 'connected' ? 'Đã kết nối' : 'Sẵn sàng'}</span>
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="voice-in-select" className="text-xs font-medium text-slate-300">
+              <label htmlFor="voice-in-select" className="text-xs font-medium text-text-secondary">
                 Micro
               </label>
               <select
                 id="voice-in-select"
                 value={voiceState.currentInputDeviceId || ''}
                 onChange={(e) => onSetAudioInput(e.target.value)}
-                className="w-full rounded-lg border border-border-default bg-surface px-2 py-1.5 text-xs text-white"
+                className="w-full rounded-lg border border-border-default bg-surface px-2 py-1.5 text-xs text-text-primary"
               >
                 {audioInputs.length === 0 ? (
                   <option value="">Mặc định hệ thống</option>
@@ -287,14 +287,14 @@ export function ClassroomToolDock({
             </div>
             {isSinkIdSupported && (
               <div className="space-y-1.5">
-                <label htmlFor="voice-out-select" className="text-xs font-medium text-slate-300">
+                <label htmlFor="voice-out-select" className="text-xs font-medium text-text-secondary">
                   Loa / Tai nghe
                 </label>
                 <select
                   id="voice-out-select"
                   value={voiceState.currentOutputDeviceId || ''}
                   onChange={(e) => onSetAudioOutput(e.target.value)}
-                  className="w-full rounded-lg border border-border-default bg-surface px-2 py-1.5 text-xs text-white"
+                  className="w-full rounded-lg border border-border-default bg-surface px-2 py-1.5 text-xs text-text-primary"
                 >
                   {audioOutputs.length === 0 ? (
                     <option value="">Mặc định hệ thống</option>
@@ -405,7 +405,7 @@ export function ClassroomToolDock({
                 title="Xoá hết"
                 aria-label="Xoá hết"
                 data-testid="tool-btn-clear-all"
-                className={`${nutDock} text-slate-400 hover:bg-red-500/15 hover:text-red-300`}
+                className={`${nutDock} text-text-secondary hover:bg-red-500/15 hover:text-red-300`}
               >
                 <Trash2 className="h-4.5 w-4.5" />
                 <span className={nhanDock}>Xoá hết</span>
@@ -413,17 +413,17 @@ export function ClassroomToolDock({
 
               <Dialog open={moXacNhanXoaHet} onOpenChange={setMoXacNhanXoaHet}>
                 <DialogContent
-                  className="sm:max-w-sm border-white/10 bg-slate-950/95 backdrop-blur-2xl shadow-2xl p-6 text-white text-center"
+                  className="sm:max-w-sm border-border-default bg-surface/95 backdrop-blur-2xl shadow-2xl p-6 text-text-primary text-center"
                   showCloseButton={true}
                 >
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/15 text-red-400 ring-1 ring-red-500/30">
                     <Trash2 className="h-7 w-7" />
                   </div>
                   <DialogHeader className="items-center text-center pr-0 gap-1.5 mt-2">
-                    <DialogTitle className="text-base font-bold text-white tracking-wide">
+                    <DialogTitle className="text-base font-bold text-text-primary tracking-wide">
                       Xoá toàn bộ nét vẽ?
                     </DialogTitle>
-                    <DialogDescription className="text-xs text-slate-300 leading-relaxed max-w-[260px] mx-auto">
+                    <DialogDescription className="text-xs text-text-secondary leading-relaxed max-w-[260px] mx-auto">
                       Xoá hết nét vẽ, chữ và hình trên bảng và tài liệu. Hành động này không thể hoàn tác.
                     </DialogDescription>
                   </DialogHeader>
@@ -431,7 +431,7 @@ export function ClassroomToolDock({
                     <button
                       type="button"
                       onClick={() => setMoXacNhanXoaHet(false)}
-                      className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                      className="flex-1 rounded-xl border border-border-default bg-surface-overlay py-2 text-xs font-semibold text-text-secondary hover:bg-surface-overlay hover:text-text-primary transition-all cursor-pointer"
                     >
                       Huỷ
                     </button>
@@ -441,7 +441,7 @@ export function ClassroomToolDock({
                         setMoXacNhanXoaHet(false)
                         onXoaHet()
                       }}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 py-2 text-xs font-semibold text-white shadow-lg shadow-red-600/30 hover:from-red-500 hover:to-rose-500 active:scale-95 transition-all cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 py-2 text-xs font-semibold text-text-primary shadow-lg shadow-red-600/30 hover:from-red-500 hover:to-rose-500 active:scale-95 transition-all cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       <span>Xoá hết</span>
@@ -484,7 +484,7 @@ export function ClassroomToolDock({
                     aria-pressed={congCu === id}
                     title={ten}
                     data-testid={testId}
-                    className={`${nutKhay} ${congCu === id ? 'bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40' : 'text-slate-300 hover:bg-white/10'}`}
+                    className={`${nutKhay} ${congCu === id ? 'bg-cyan-500/20 text-brand ring-1 ring-cyan-400/40' : 'text-text-secondary hover:bg-surface-overlay'}`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{ten}</span>
@@ -494,7 +494,7 @@ export function ClassroomToolDock({
             )}
 
             {duocDung('khung') && congCu === 'khung' && (
-              <div className="grid grid-cols-5 gap-1 rounded-xl bg-white/5 p-1" data-testid="dock-shape-picker">
+              <div className="grid grid-cols-5 gap-1 rounded-xl bg-surface-overlay p-1" data-testid="dock-shape-picker">
                 {CAC_HINH.map(({ id, ten }) => {
                   const Icon = ICON_HINH[id]
                   return (
@@ -506,7 +506,7 @@ export function ClassroomToolDock({
                       title={ten}
                       aria-label={ten}
                       data-testid={`shape-btn-${id}`}
-                      className={`flex h-8 items-center justify-center rounded-lg cursor-pointer ${hinh === id ? 'bg-white/15 text-white' : 'text-slate-300 hover:bg-white/10'}`}
+                      className={`flex h-8 items-center justify-center rounded-lg cursor-pointer ${hinh === id ? 'bg-surface-overlay text-text-primary' : 'text-text-secondary hover:bg-surface-overlay'}`}
                     >
                       <Icon className="h-4 w-4" />
                     </button>
@@ -517,13 +517,13 @@ export function ClassroomToolDock({
 
             {congCuKhay && duocDung(congCu) && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}
 
-            <div className={`grid grid-cols-4 gap-1 ${khayDuocDung.length > 0 ? 'border-t border-white/10 pt-2' : ''}`}>
-              <button type="button" onClick={onOpenCalculator} title="Máy tính" className={`${nutKhay} text-slate-300 hover:bg-white/10`} data-testid="tool-btn-calculator">
-                <CalcIcon className="h-4 w-4 text-cyan-400" />
+            <div className={`grid grid-cols-4 gap-1 ${khayDuocDung.length > 0 ? 'border-t border-border-default pt-2' : ''}`}>
+              <button type="button" onClick={onOpenCalculator} title="Máy tính" className={`${nutKhay} text-text-secondary hover:bg-surface-overlay`} data-testid="tool-btn-calculator">
+                <CalcIcon className="h-4 w-4 text-brand" />
                 <span>Máy tính</span>
               </button>
-              <button type="button" onClick={onOpenSessionPanel} title="Phiên học" className={`${nutKhay} text-slate-300 hover:bg-white/10`} data-testid="tool-btn-session">
-                <Clock className="h-4 w-4 text-emerald-400" />
+              <button type="button" onClick={onOpenSessionPanel} title="Phiên học" className={`${nutKhay} text-text-secondary hover:bg-surface-overlay`} data-testid="tool-btn-session">
+                <Clock className="h-4 w-4 text-success" />
                 <span>Phiên học</span>
               </button>
             </div>

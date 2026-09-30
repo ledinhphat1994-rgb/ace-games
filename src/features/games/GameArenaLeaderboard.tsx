@@ -62,7 +62,7 @@ async function layBangXepHangHocTap(): Promise<HighScoreRecord[]> {
 
 // ─── Một dòng xếp hạng: hạng · tên · level · điểm ─────────────────────────────
 
-const MAU_HANG: Record<number, string> = { 1: 'text-amber-300', 2: 'text-slate-300', 3: 'text-orange-400' }
+const MAU_HANG: Record<number, string> = { 1: 'text-warning', 2: 'text-text-secondary', 3: 'text-orange-400' }
 
 function LeaderboardRow({ record, rank, laToi }: { record: HighScoreRecord; rank: number; laToi: boolean }) {
   const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
@@ -70,19 +70,19 @@ function LeaderboardRow({ record, rank, laToi }: { record: HighScoreRecord; rank
     <li
       className={cn(
         'grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 transition-colors',
-        laToi ? 'bg-brand/10 ring-1 ring-brand/25' : rank <= 3 ? 'bg-white/[0.035] hover:bg-white/[0.06]' : 'hover:bg-white/[0.04]',
+        laToi ? 'bg-brand/10 ring-1 ring-brand/25' : rank <= 3 ? 'bg-surface-overlay hover:bg-surface-overlay' : 'hover:bg-surface-overlay',
       )}
       data-testid={`xep-hang-dong-${rank}`}
     >
       <span className={cn('text-center text-sm font-black tabular-nums', MAU_HANG[rank] ?? 'text-text-tertiary')}>{rank}</span>
       <span
-        className={cn('truncate text-sm', rank <= 3 || laToi ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary')}
+        className={cn('min-w-0 break-words text-sm', rank <= 3 || laToi ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary')}
         title={record.playerName}
       >
         {record.playerName}
       </span>
-      <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-text-secondary">Lv.{capDo}</span>
-      <span className="min-w-[3.25rem] text-right font-mono text-sm font-bold tabular-nums text-amber-300">
+      <span className="rounded-md bg-surface-overlay px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-text-secondary">Lv.{capDo}</span>
+      <span className="min-w-[3.25rem] text-right font-mono text-sm font-bold tabular-nums text-warning">
         {record.score.toLocaleString('vi-VN')}
       </span>
     </li>
@@ -96,10 +96,10 @@ function SkeletonLeaderboard() {
     <ul className="flex-1 min-h-0 space-y-1 p-2" aria-busy="true" aria-label="Đang tải bảng xếp hạng">
       {Array.from({ length: 8 }, (_, i) => (
         <li key={i} className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 animate-pulse">
-          <div className="mx-auto h-3 w-3 rounded bg-white/10" />
-          <div className="h-3 rounded bg-white/10" />
-          <div className="h-4 w-9 rounded bg-white/10" />
-          <div className="h-3 w-12 rounded bg-white/10" />
+          <div className="mx-auto h-3 w-3 rounded bg-surface-overlay" />
+          <div className="h-3 rounded bg-surface-overlay" />
+          <div className="h-4 w-9 rounded bg-surface-overlay" />
+          <div className="h-3 w-12 rounded bg-surface-overlay" />
         </li>
       ))}
     </ul>
@@ -200,10 +200,10 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
       )}
     >
       {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3 shrink-0">
+      <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/25 to-yellow-600/10 border border-amber-500/30">
-            <Trophy className="size-4 text-amber-400" />
+            <Trophy className="size-4 text-warning" />
           </div>
           <div>
             <h2
@@ -219,19 +219,19 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           onClick={() => void refetch()}
           disabled={isPending || isRefetching}
           aria-label="Tải lại bảng xếp hạng"
-          className="flex size-11 items-center justify-center rounded-xl hover:bg-white/10 transition-colors text-white/80 hover:text-white disabled:opacity-40 cursor-pointer"
+          className="flex size-11 items-center justify-center rounded-xl hover:bg-surface-overlay transition-colors text-text-primary/80 hover:text-text-primary disabled:opacity-40 cursor-pointer"
         >
           <RefreshCw className={cn('size-3.5', (isPending || isRefetching) && 'animate-spin')} />
         </button>
       </div>
 
       {/* ── Tab bar ── */}
-      <div className="relative border-b border-white/[0.06] shrink-0">
+      <div className="relative border-b border-border-subtle shrink-0">
         <button
           type="button"
           onClick={() => tabsContainerRef.current?.scrollBy({ left: -100, behavior: 'smooth' })}
           aria-label="Trượt sang trái"
-          className="absolute left-0 top-0 bottom-0 z-10 flex w-9 items-center justify-center bg-gradient-to-r from-[#0e1527] via-[#0e1527]/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
+          className="absolute left-0 top-0 bottom-0 z-10 flex w-9 items-center justify-center bg-gradient-to-r from-surface via-surface/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -255,8 +255,8 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
                 className={cn(
                   'flex items-center gap-1.5 min-h-11 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 shrink-0 select-none cursor-pointer border',
                   isActive
-                    ? cn('bg-gradient-to-r text-white border-white/20 shadow-md', tab.accentGradient)
-                    : 'text-slate-300 hover:text-white hover:bg-white/10 border-transparent'
+                    ? 'bg-brand/12 text-brand border-brand/20'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay border-transparent'
                 )}
               >
                 <span className="text-sm leading-none">{tab.icon}</span>
@@ -270,7 +270,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           type="button"
           onClick={() => tabsContainerRef.current?.scrollBy({ left: 100, behavior: 'smooth' })}
           aria-label="Trượt sang phải"
-          className="absolute right-0 top-0 bottom-0 z-10 flex w-9 items-center justify-center bg-gradient-to-l from-[#0e1527] via-[#0e1527]/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
+          className="absolute right-0 top-0 bottom-0 z-10 flex w-9 items-center justify-center bg-gradient-to-l from-[#0e1527] via-[#0e1527]/90 to-transparent text-text-primary/80 hover:text-text-primary hover:scale-110 transition-all cursor-pointer"
         >
           <ChevronRight className="size-4" />
         </button>
@@ -282,13 +282,13 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
       ) : isError ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
           <div className="size-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
-            <Trophy className="size-5 text-rose-400" />
+            <Trophy className="size-5 text-destructive" />
           </div>
           <p className="text-xs text-text-secondary">Không tải được bảng xếp hạng</p>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 text-text-secondary hover:text-white transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-border-default hover:bg-surface-overlay text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
           >
             <RefreshCw className="size-3" />
             Thử lại
@@ -296,11 +296,11 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
         </div>
       ) : records.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-          <div className="size-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-3xl">
+          <div className="size-14 rounded-2xl bg-surface-overlay border border-border-default flex items-center justify-center text-3xl">
             {activeTabCfg.icon}
           </div>
           <div>
-            <p className="text-sm font-bold text-white">Chưa có ai lên bảng!</p>
+            <p className="text-sm font-bold text-text-primary">Chưa có ai lên bảng!</p>
             <p className="text-xs text-text-tertiary mt-1">
               {laHocTap ? 'Học trong phòng' : `Chơi ${activeTabCfg.label}`} để ghi danh Top 50 đầu tiên 🏆
             </p>
@@ -312,12 +312,13 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
+          {records.length >= 3 && <div className="grid grid-cols-3 items-end gap-2 px-4 pt-5 pb-4" data-testid="leaderboard-podium">{[1, 0, 2].map(index => <div key={records[index].id} className={cn('min-w-0 rounded-xl px-2 py-3 text-center', index === 0 ? 'bg-achievement-muted pb-5' : 'bg-canvas')}><Trophy className={cn('mx-auto mb-2 size-5', index === 0 ? 'text-achievement' : 'text-text-tertiary')} /><p className="text-xs font-semibold text-text-secondary">#{index + 1}</p><p className="mt-1 break-words text-xs font-semibold text-text-primary">{records[index].playerName}</p><p className="mt-2 text-sm font-bold tabular-nums text-achievement">{records[index].score.toLocaleString('vi-VN')}</p></div>)}</div>}
           <ol className="space-y-0.5 p-2">
-            {records.map((row, i) => (
+            {records.slice(records.length >= 3 ? 3 : 0).map((row, i) => (
               <LeaderboardRow
                 key={row.id}
                 record={row}
-                rank={i + 1}
+                rank={i + 1 + (records.length >= 3 ? 3 : 0)}
                 laToi={tenToi !== null && row.playerName.trim().toLowerCase() === tenToi}
               />
             ))}

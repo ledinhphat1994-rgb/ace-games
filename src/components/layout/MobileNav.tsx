@@ -10,7 +10,7 @@ export function MobileNav() {
     <nav
       aria-label="Điều hướng chính di động"
       className={[
-        'fixed bottom-0 inset-x-0 z-40 md:hidden',
+        'fixed bottom-0 inset-x-0 z-40 lg:hidden',
         'border-t border-border-subtle glass',
         'pb-[env(safe-area-inset-bottom)]',
       ].join(' ')}

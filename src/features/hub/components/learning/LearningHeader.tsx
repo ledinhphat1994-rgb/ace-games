@@ -45,7 +45,7 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
   const displayName = nguoiDung?.ten || nguoiDung?.username || 'Khách'
 
   return (
-    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#080d19] p-4 sm:p-6 shadow-xl">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border-default bg-surface p-4 sm:p-6 shadow-xl">
       {/* Background Subtle Gradient & Artwork */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-right bg-no-repeat opacity-40 sm:opacity-50 pointer-events-none"
@@ -60,36 +60,36 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
         {/* Left: Salutation & Personal Metric Badges */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-brand border border-cyan-500/30">
               <BookOpen className="h-4 w-4" />
             </span>
-            <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider">
+            <span className="text-xs font-bold text-brand uppercase tracking-wider">
               Không gian học tập
             </span>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-text-primary tracking-tight">
             Chào {displayName}, sẵn sàng vào bài hôm nay chưa?
           </h1>
 
           {/* Quick Truthful Metrics Badges */}
           {progressState.type === 'loading' && (
             <div className="flex items-center gap-2 pt-0.5" data-testid="learning-header-loading">
-              <div className="h-6 w-24 rounded-full bg-white/10 animate-pulse" />
-              <div className="h-6 w-24 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-6 w-24 rounded-full bg-surface-overlay animate-pulse" />
+              <div className="h-6 w-24 rounded-full bg-surface-overlay animate-pulse" />
             </div>
           )}
 
           {progressState.type === 'error' && (
             <div className="flex items-center gap-2 pt-0.5" data-testid="learning-header-error">
-              <span className="text-xs text-rose-300 font-medium flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+              <span className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
                 Không tải được tiến trình
               </span>
               <button
                 type="button"
                 onClick={() => refetchProfile()}
-                className="text-[11px] font-semibold text-rose-400 hover:text-rose-200 underline ml-1 cursor-pointer flex items-center gap-1"
+                className="text-[11px] font-semibold text-destructive hover:text-destructive underline ml-1 cursor-pointer flex items-center gap-1"
                 title="Thử lại"
               >
                 <RotateCw className="h-2.5 w-2.5" />
@@ -100,13 +100,13 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
 
           {progressState.type === 'success' && (
             <div className="flex flex-wrap items-center gap-2 pt-0.5" data-testid="learning-header-success">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-bold text-amber-300">
-                <Flame className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-bold text-warning">
+                <Flame className="h-3.5 w-3.5 text-warning fill-amber-400" />
                 <span>Chuỗi {progressState.currentStreak} ngày</span>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-brand">
+                <Sparkles className="h-3.5 w-3.5 text-brand" />
                 <span>+{progressState.todayXp} XP hôm nay</span>
               </div>
             </div>
@@ -128,7 +128,7 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
             size="sm"
             variant="outline"
             onClick={onOpenCreateRoom}
-            className="h-10 px-4 rounded-xl text-xs font-bold bg-white/5 border-white/15 text-slate-200 hover:bg-white/10 hover:text-white gap-2 transition-all active:scale-[0.98]"
+            className="h-10 px-4 rounded-xl text-xs font-bold bg-surface-overlay border-border-default text-text-primary hover:bg-surface-overlay hover:text-text-primary gap-2 transition-all active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" />
             <span>Tạo phòng nhóm</span>

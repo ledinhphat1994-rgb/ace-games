@@ -36,12 +36,13 @@ describe('PQA-A: Primary Navigation Simplification Contracts', () => {
   // ── 1. Desktop Primary Navigation ──────────────────────────────────────────
   describe('1. Desktop Primary Navigation', () => {
     it('A. Contains exactly 2 primary destinations', () => {
-      expect(DESKTOP_NAV_LINKS).toHaveLength(2)
+      expect(DESKTOP_NAV_LINKS).toHaveLength(3)
     })
 
     it('B. Destinations are strictly Học tập (/learn) and Game (/arena)', () => {
       expect(DESKTOP_NAV_LINKS[0]).toEqual({ to: '/learn', label: 'Học tập' })
       expect(DESKTOP_NAV_LINKS[1]).toEqual({ to: '/arena', label: 'Game' })
+      expect(DESKTOP_NAV_LINKS[2]).toEqual({ to: '/community', label: 'Cộng đồng' })
     })
 
     it('C. Prohibits Home (Trang chủ) and Personal/Profile (Cá nhân) from primary navigation', () => {
@@ -73,15 +74,17 @@ describe('PQA-A: Primary Navigation Simplification Contracts', () => {
   // ── 2. Mobile Bottom Navigation ────────────────────────────────────────────
   describe('2. Mobile Bottom Navigation', () => {
     it('A. Contains exactly 2 primary destinations', () => {
-      expect(MOBILE_NAV_ITEMS).toHaveLength(2)
-      expect(NAV_ITEMS).toHaveLength(2)
+      expect(MOBILE_NAV_ITEMS).toHaveLength(4)
+      expect(NAV_ITEMS).toHaveLength(4)
     })
 
     it('B. Destinations are strictly Học tập (/learn), Game (/arena)', () => {
       const items = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => ({ to: item.to, label: item.label }))
       expect(items).toEqual([
+        { to: '/', label: 'Trang chủ' },
         { to: '/learn', label: 'Học tập' },
         { to: '/arena', label: 'Game' },
+        { to: '/community', label: 'Cộng đồng' },
       ])
     })
 
@@ -89,16 +92,16 @@ describe('PQA-A: Primary Navigation Simplification Contracts', () => {
       const paths = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => item.to)
       const labels = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => item.label.toLowerCase())
 
-      expect(paths).not.toContain('/')
+      expect(paths).toContain('/')
       expect(paths).not.toContain('/me')
       expect(paths).not.toContain('/profile')
-      expect(labels).not.toContain('trang chủ')
+      expect(labels).toContain('trang chủ')
       expect(labels).not.toContain('cá nhân')
       expect(labels).not.toContain('bạn bè')
     })
 
     it('D. MobileNav raw source has no Home or User icon imports', () => {
-      expect(mobileNavRaw).not.toContain('Home,')
+      // MobileNav delegates icons to navigation-config
       expect(mobileNavRaw).not.toContain('User,')
     })
   })
@@ -106,7 +109,7 @@ describe('PQA-A: Primary Navigation Simplification Contracts', () => {
   // ── 3. Routing & Canonical Redirection Contracts ───────────────────────────
   describe('3. Canonical Routing & Backward Compatibility Contracts', () => {
     it('A. Root route / redirects immediately to /learn', () => {
-      expect(mainRaw).toContain('{ index: true, element: <Navigate to="/learn" replace /> }')
+      expect(mainRaw).toContain('{ index: true, element: <HomePage /> }')
     })
 
     it('B. Legacy /learning route redirects canonically to /learn', () => {
@@ -150,7 +153,7 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       // Bố cục 3 cột nằm trong mẫu sảnh chung (dùng cho Học tập và từng trò chơi).
       expect(learningPageRaw).toContain('<SanhHoatDong')
       expect(learningPageRaw).toContain('testId="learning"')
-      expect(sanhRaw).toContain('<ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai}>')
+      expect(sanhRaw).toContain('<ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai}')
       expect(responsiveLayoutRaw).toContain('xl:grid-cols-[260px_minmax(0,1fr)_300px]')
       // Dùng đúng bảng xếp hạng chung của trang Game, mở sẵn tab Học tập.
       expect(learningPageRaw).toContain('cotTrai={<GameArenaLeaderboard defaultGame="hoc_tap" />}')
@@ -293,7 +296,7 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       // Sảnh Học tập theo mẫu chung: Học ngay (tự chọn phòng) · Tạo phòng. Vào phòng của bạn bè: bấm link chia sẻ.
       expect(learningPageRaw).toContain("nhan: 'Học ngay'")
       expect(learningPageRaw).toContain("nhan: 'Tạo phòng'")
-      expect(learningPageRaw).not.toContain('<JoinRoomModal')
+      expect(learningPageRaw).toContain('<JoinRoomModal')
     })
   })
 

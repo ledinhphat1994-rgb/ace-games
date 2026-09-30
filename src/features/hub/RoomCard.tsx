@@ -55,12 +55,12 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
     <div
       data-testid={`room-card-${room.id}`}
       onClick={() => onVaoPhong?.(room)}
-      className="group flex cursor-pointer flex-col gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-brand/40 hover:bg-white/[0.05]"
+      className="group flex cursor-pointer flex-col gap-4 rounded-2xl border border-border-subtle bg-canvas/60 p-4 transition-all duration-150  hover:border-brand/40 hover:bg-surface-overlay"
     >
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            'flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ring-1 ring-white/15',
+            'flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-text-primary shadow-lg ring-1 ring-white/15',
             mon.nen,
           )}
         >
@@ -68,15 +68,15 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="flex items-start gap-1.5 text-[0.9375rem] leading-6 font-semibold text-text-primary">
-            <span className="min-w-0 truncate" title={room.ten}>
+            <span className="min-w-0 break-words" title={room.ten}>
               {room.ten}
             </span>
             {room.coMatKhau && <Lock className="mt-[5px] size-3.5 shrink-0 text-text-tertiary" aria-label="Phòng có mật khẩu" />}
           </h3>
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-text-tertiary">
-            <span className="truncate">{room.chuPhongTen}</span>
+            <span className="min-w-0 break-words">{room.chuPhongTen}</span>
             {room.phamVi === 'lop' && room.lopTen && (
-              <span className="shrink-0 rounded-md bg-white/[0.06] px-1.5 py-px text-[10px] font-semibold text-text-secondary">
+              <span className="shrink-0 rounded-md bg-surface-overlay px-1.5 py-px text-[10px] font-semibold text-text-secondary">
                 {room.lopTen}
               </span>
             )}
@@ -107,25 +107,25 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
               >
                 {banBe.slice(0, 3).map((ban) =>
                   ban.avatar ? (
-                    <img key={ban.id} src={ban.avatar} alt="" className="size-5 rounded-full object-cover ring-2 ring-[#0e1527]" />
+                    <img key={ban.id} src={ban.avatar} alt="" className="size-5 rounded-full object-cover ring-2 ring-surface" />
                   ) : (
                     <span
                       key={ban.id}
-                      className="flex size-5 items-center justify-center rounded-full bg-social/25 text-[9px] font-bold text-social uppercase ring-2 ring-[#0e1527]"
+                      className="flex size-5 items-center justify-center rounded-full bg-social/25 text-[9px] font-bold text-social uppercase ring-2 ring-surface"
                     >
                       {ban.displayName.slice(0, 1)}
                     </span>
                   ),
                 )}
                 {banBe.length > 3 && (
-                  <span className="flex size-5 items-center justify-center rounded-full bg-white/10 text-[9px] font-bold text-text-secondary ring-2 ring-[#0e1527]">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-surface-overlay text-[9px] font-bold text-text-secondary ring-2 ring-surface">
                     +{banBe.length - 3}
                   </span>
                 )}
               </span>
             )}
           </div>
-          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-overlay">
             <div
               className={cn('h-full rounded-full transition-[width] duration-300', dayPhong ? 'bg-danger' : 'bg-brand')}
               style={{ width: `${tiLeLapDay}%` }}
