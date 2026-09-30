@@ -278,8 +278,9 @@ describe('Công cụ vẽ chung', () => {
     expect(netDuocCham([120, 175], cacNetNhieuDong, 5)?.id).toBe('chu-nhieu-dong')
   })
 
-  it('thanh tiêu đề: dải thành viên nằm ở giữa (vùng 1+), không còn nút mở danh sách thành viên bên phải', () => {
-    expect(topBarRaw).not.toContain('topbar-btn-members')
+  it('thanh tiêu đề: giữ dải thành viên và mở được danh sách, ghi chú trên mobile', () => {
+    expect(topBarRaw).toContain('topbar-btn-members')
+    expect(topBarRaw).toContain("onTogglePanel('members')")
     expect(topBarRaw).toContain('memberStrip')
   })
 

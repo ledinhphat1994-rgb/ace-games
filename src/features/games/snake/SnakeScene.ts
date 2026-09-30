@@ -70,15 +70,7 @@ export class SnakeScene {
     this.scene = scene
     this.isDestroyed = false
 
-    // Calculate layout based on canvas dimensions
-    const width = this.scene.cameras.main.width
-    const height = this.scene.cameras.main.height
-    const minDim = Math.min(width, height)
-
-    this.cellSize = Math.floor((minDim - 40) / this.config.width)
-    this.boardPixelSize = this.cellSize * this.config.width
-    this.offsetX = Math.floor((width - this.boardPixelSize) / 2)
-    this.offsetY = Math.floor((height - this.boardPixelSize) / 2)
+    this.resize(this.scene.cameras.main.width, this.scene.cameras.main.height)
 
     this.graphics = this.scene.add.graphics()
 
@@ -90,6 +82,14 @@ export class SnakeScene {
 
     // Initial render
     this.render()
+  }
+
+  resize(width: number, height: number): void {
+    const minDim = Math.min(width, height)
+    this.cellSize = Math.max(1, Math.floor((minDim - 24) / Math.max(this.config.width, this.config.height)))
+    this.boardPixelSize = this.cellSize * this.config.width
+    this.offsetX = Math.floor((width - this.boardPixelSize) / 2)
+    this.offsetY = Math.floor((height - this.cellSize * this.config.height) / 2)
   }
 
   update(): void {
@@ -121,6 +121,7 @@ export class SnakeScene {
     if (!this.scene?.input?.keyboard) return
 
     this.scene.input.keyboard.on('keydown', (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return
       let nextDir: Direction | null = null
       switch (event.key) {
         case 'ArrowUp':

@@ -18,7 +18,9 @@ describe('Mẫu sảnh chung', () => {
     expect(sanhRaw).toContain('data-testid={`${testId}-search-input`}')
     expect(sanhRaw).toContain('data-testid={`${testId}-lobby-loading`}')
     expect(sanhRaw).toContain('data-testid={`${testId}-lobby-reconnecting`}')
-    expect(sanhRaw).toContain("const CAO_KHUNG = 'lg:h-[700px] xl:h-[720px] 2xl:h-[740px]'")
+    expect(sanhRaw).toContain('<ResponsiveActivityLayout')
+    expect(sanhRaw).toContain('calc(100dvh-12rem)')
+    expect(sanhRaw).toContain('xl:h-[720px] 2xl:h-[740px]')
     expect(sanhRaw).toContain('min-h-0 flex-1 overflow-y-auto overscroll-contain')
   })
 

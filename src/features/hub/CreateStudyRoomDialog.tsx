@@ -166,7 +166,7 @@ export function CreateStudyRoomDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
       <DialogContent
-        className="w-full sm:max-w-[440px] sm:w-[440px] h-[520px] min-h-[520px] max-h-[calc(100svh-2rem)] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col justify-between overflow-hidden"
+        className="w-full sm:max-w-[440px] sm:w-[440px] h-[min(520px,calc(100dvh-2rem))] min-h-0 max-h-[calc(100dvh-2rem)] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col justify-between overflow-hidden"
         data-testid="create-room-dialog"
       >
         <DialogHeader className="shrink-0 pb-1">

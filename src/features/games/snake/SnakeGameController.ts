@@ -7,6 +7,7 @@ export type SnakeVerificationStatus = 'idle' | 'verifying' | 'verified' | 'unver
 
 export interface SnakeGameControllerOptions {
   container: HTMLElement
+  onError?: (message: string | null) => void
   onScoreUpdate?: (score: number) => void
   onGameOver?: (finalScore: number, reason: string) => void
   onStatusChange?: (status: SnakeVerificationStatus, verifiedScore: number | null) => void
@@ -21,6 +22,9 @@ export class SnakeGameController {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private phaserGame: any = null
 
+  private runId = 0
+  private resizeObserver: ResizeObserver | null = null
+  private onError?: (message: string | null) => void
   private isPlaying = false
   private isDead = false
   private deathReason: string | null = null
@@ -33,6 +37,7 @@ export class SnakeGameController {
   private onStateChange?: (state: { isPlaying: boolean; isDead: boolean; deathReason: string | null }) => void
 
   constructor(options: SnakeGameControllerOptions) {
+    this.onError = options.onError
     this.container = options.container
     this.onScoreUpdate = options.onScoreUpdate
     this.onGameOver = options.onGameOver
@@ -78,6 +83,10 @@ export class SnakeGameController {
    * Stop the current game instances (Phaser, SnakeScene, SDK) cleanly.
    */
   stop(): void {
+    this.runId++
+    this.isPlaying = false
+    this.resizeObserver?.disconnect()
+    this.resizeObserver = null
     if (this.phaserGame) {
       try {
         this.phaserGame.destroy(true)
@@ -110,6 +119,8 @@ export class SnakeGameController {
     }
 
     this.stop()
+    const runId = this.runId
+    this.onError?.(null)
 
     this.isPlaying = true
     this.isDead = false
@@ -132,6 +143,7 @@ export class SnakeGameController {
 
       // 2. Start server session for seed & anti-cheat
       await sdk.start()
+      if (runId !== this.runId || this.isDestroyed || !this.isPlaying) { sdk.destroy(); return }
       const seed = sdk.getSessionSeed()
       const isPracticeRun = seed === 0
       if (isPracticeRun) {
@@ -146,7 +158,7 @@ export class SnakeGameController {
       // 3. Lazy load Phaser 4.2.1
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const Phaser: any = await GameEngineLoader.loadPhaser()
-      if (!this.container || !this.isPlaying || this.isDestroyed) {
+      if (!this.container || !this.isPlaying || this.isDestroyed || runId !== this.runId) {
         return
       }
 
@@ -156,6 +168,7 @@ export class SnakeGameController {
         sdk,
         onScoreUpdate: (s) => this.onScoreUpdate?.(s),
         onGameOver: async (finalScore, reason) => {
+          if (runId !== this.runId || this.isDestroyed) return
           this.isPlaying = false
           this.isDead = true
           this.deathReason = reason
@@ -171,12 +184,14 @@ export class SnakeGameController {
           this.onStatusChange?.('verifying', null)
           try {
             const finishRes = await sdk.end('game_over', finalScore, snakeScene.getState().elapsedMs)
+            if (runId !== this.runId || this.isDestroyed) return
             if (finishRes?.ok && finishRes.verified) {
               this.onStatusChange?.('verified', finishRes.finalScore)
             } else {
               this.onStatusChange?.('unverified', null)
             }
           } catch {
+            if (runId !== this.runId || this.isDestroyed) return
             this.onStatusChange?.('unverified', null)
           }
         },
@@ -185,8 +200,8 @@ export class SnakeGameController {
 
       // 5. Mount Phaser.Game
       const rect = this.container.getBoundingClientRect()
-      const gameWidth = Math.max(300, Math.floor(rect.width) || 360)
-      const gameHeight = Math.max(300, Math.floor(rect.height) || 360)
+      const gameWidth = Math.max(64, Math.floor(rect.width) - 2 || 360)
+      const gameHeight = Math.max(64, Math.floor(rect.height) - 2 || 360)
 
       const phaserConfig = {
         type: Phaser.AUTO,
@@ -206,13 +221,27 @@ export class SnakeGameController {
       }
 
       this.phaserGame = new Phaser.Game(phaserConfig)
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(() => {
+          if (runId !== this.runId || !this.phaserGame) return
+          const bounds = this.container.getBoundingClientRect()
+          const width = Math.max(64, Math.floor(bounds.width) - 2)
+          const height = Math.max(64, Math.floor(bounds.height) - 2)
+          this.phaserGame.scale?.resize(width, height)
+          snakeScene.resize(width, height)
+        })
+        this.resizeObserver.observe(this.container)
+      }
     } catch (err) {
+      if (runId !== this.runId || this.isDestroyed) return
       console.error('Lỗi khởi động Snake Deluxe:', err)
+      this.stop()
+      this.onError?.('Không tải được trò chơi. Vui lòng thử lại.')
       this.isPlaying = false
       this.notifyState()
       this.onStatusChange?.('practice', null)
     } finally {
-      this.onEngineLoadingChange?.(false)
+      if (runId === this.runId || !this.isPlaying) this.onEngineLoadingChange?.(false)
     }
   }
 
@@ -222,6 +251,9 @@ export class SnakeGameController {
    */
   async handleVisibilityChange(hidden: boolean): Promise<void> {
     if (hidden && this.isPlaying && !this.isDead) {
+      this.runId++
+      this.resizeObserver?.disconnect()
+      this.resizeObserver = null
       const elapsed = this.scene?.getState().elapsedMs
 
       // 1. Stop simulation and renderer immediately

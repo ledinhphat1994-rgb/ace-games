@@ -1191,16 +1191,10 @@ export function AdminControlPlanePage() {
         title="Quản trị trường"
         description="Phòng học, tài khoản, chính sách tự đóng và nhật ký kiểm duyệt của toàn trường."
         actions={
-          <>
-            <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
-              <BarChart3 />
-              Báo cáo
-            </Button>
-            <Button onClick={() => setCreateRoomOpen(true)}>
-              <Plus />
-              Tạo phòng
-            </Button>
-          </>
+          <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
+            <BarChart3 />
+            Báo cáo
+          </Button>
         }
       />
 

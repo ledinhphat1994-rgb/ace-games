@@ -18,7 +18,6 @@ import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
 import { doiAvatar } from '@/lib/api'
 import {
   AlertCircle,
-  ArrowRight,
   Award,
   BookOpen,
   Camera,
@@ -327,10 +326,7 @@ export function AccountQuickCenter({
           </ul>
         )}
 
-        <Button variant="outline" size="sm" className="w-full" onClick={() => diToi('/me?tab=progress')}>
-          Xem toàn bộ tiến trình
-          <ArrowRight />
-        </Button>
+
       </div>
     )
 

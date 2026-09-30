@@ -314,6 +314,26 @@ export function GameSocialSidebar({
     setActiveTab('ban_be')
   }
 
+  useEffect(() => {
+    const handleOpenDM = (e: Event) => {
+      const ce = e as CustomEvent<{ id: number; displayName: string; avatar?: string | null; lopTen?: string | null }>
+      if (!ce.detail) return
+      const { id, displayName, avatar, lopTen } = ce.detail
+      setSelectedFriend({
+        id,
+        displayName,
+        username: '',
+        avatar: avatar ?? null,
+        lopTen: lopTen ?? null,
+        role: 'hoc_sinh',
+        friendedAt: Date.now(),
+      })
+      setActiveTab('ban_be')
+    }
+    window.addEventListener('campus:open-dm', handleOpenDM)
+    return () => window.removeEventListener('campus:open-dm', handleOpenDM)
+  }, [])
+
   const insertRoomEmoji = (emoji: string) => {
     setRoomText((prev) => prev + emoji)
     setIsRoomEmojiOpen(false)
@@ -454,45 +474,54 @@ export function GameSocialSidebar({
                   )
                 }
 
+                const tenNguoiGui = isMe ? (nguoiDung?.ten || nguoiDung?.username || 'Bạn') : m.senderName
                 return (
                   <div
                     key={m.id}
                     className={cn(
-                      'flex flex-col max-w-[85%]',
-                      isMe ? 'ml-auto items-end' : 'mr-auto items-start'
+                      'flex items-end gap-2 max-w-[88%]',
+                      isMe ? 'ml-auto flex-row-reverse' : 'mr-auto flex-row'
                     )}
                   >
-                    {/* Tên người gửi & vai trò */}
-                    <div className="flex items-center gap-1.5 mb-1 px-1">
-                      <span className="text-[11px] font-bold text-text-secondary truncate max-w-[120px]">
-                        {isMe ? 'Bạn' : m.senderName}
-                      </span>
-                      {m.role === 'player' ? (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                          {m.playerSide ? `Đấu thủ ${m.playerSide}` : 'Đấu thủ'}
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">
-                          Khán giả
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Khung nội dung */}
-                    <div
-                      className={cn(
-                        'rounded-2xl px-3 py-2 text-xs leading-relaxed break-words shadow-md',
-                        isMe
-                          ? 'bg-gradient-to-r from-amber-600/90 to-amber-500 text-white rounded-br-xs font-medium'
-                          : 'bg-[#131b2e] border border-white/10 text-text-primary rounded-bl-xs'
-                      )}
+                    <span
+                      aria-hidden
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[10px] font-bold text-text-secondary"
                     >
-                      {m.text}
-                    </div>
-
-                    <span className="text-[9px] text-text-tertiary mt-0.5 px-1 tabular-nums">
-                      {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(m.timestamp)}
+                      {getInitials(tenNguoiGui)}
                     </span>
+                    <div className={cn('flex flex-col min-w-0', isMe ? 'items-end' : 'items-start')}>
+                      {/* Tên người gửi & vai trò */}
+                      <div className={cn('flex items-center gap-1.5 mb-1 px-1', isMe && 'flex-row-reverse')}>
+                        <span className="text-[11px] font-bold text-text-secondary truncate max-w-[120px]">
+                          {tenNguoiGui}
+                        </span>
+                        {m.role === 'player' ? (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                            {m.playerSide ? `Đấu thủ ${m.playerSide}` : 'Đấu thủ'}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                            Khán giả
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Khung nội dung */}
+                      <div
+                        className={cn(
+                          'rounded-2xl px-3 py-2 text-xs leading-relaxed break-words shadow-md',
+                          isMe
+                            ? 'bg-gradient-to-r from-amber-600/90 to-amber-500 text-white rounded-br-xs font-medium'
+                            : 'bg-[#131b2e] border border-white/10 text-text-primary rounded-bl-xs'
+                        )}
+                      >
+                        {m.text}
+                      </div>
+
+                      <span className="text-[9px] text-text-tertiary mt-0.5 px-1 tabular-nums">
+                        {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(m.timestamp)}
+                      </span>
+                    </div>
                   </div>
                 )
               })

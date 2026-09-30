@@ -142,6 +142,26 @@ export function FriendsDrawer({
   }
 
   const [activeTab, setActiveTab] = useState<TabBanBe>(defaultTab || 'friends')
+
+  useEffect(() => {
+    const handleOpenDM = (e: Event) => {
+      const ce = e as CustomEvent<{ id: number; displayName: string; avatar?: string | null; lopTen?: string | null }>
+      if (!ce.detail) return
+      const { id, displayName, avatar, lopTen } = ce.detail
+      handleOpenChange(true)
+      setDmFriend({
+        id,
+        displayName,
+        username: '',
+        avatar: avatar ?? null,
+        lopTen: lopTen ?? null,
+        role: 'hoc_sinh',
+        friendedAt: Date.now(),
+      })
+    }
+    window.addEventListener('campus:open-dm', handleOpenDM)
+    return () => window.removeEventListener('campus:open-dm', handleOpenDM)
+  }, [])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchController] = useState(() => new UserSearchController())
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' })
@@ -876,29 +896,34 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
             <p className="text-xs text-text-tertiary">Bắt đầu cuộc trò chuyện với {friend.displayName}</p>
           </div>
         ) : (
-          msgs.map((m) => (
-            <div key={m.id} className={`flex items-end gap-2 ${m.fromMe ? 'flex-row-reverse' : 'flex-row'}`}>
-              {/* Avatar */}
-              <AnhDaiDien ten={m.ten} anh={m.avatar} />
-              <div className={`flex max-w-[75%] flex-col ${m.fromMe ? 'items-end' : 'items-start'}`}>
-                {/* Tên + giờ */}
-                <div className={`mb-0.5 flex items-baseline gap-1.5 px-1 ${m.fromMe ? 'flex-row-reverse' : ''}`}>
-                  <span className="text-[11px] font-semibold text-text-secondary">{m.ten}</span>
-                  <time className="text-[10px] tabular-nums text-text-tertiary">
-                    {DINH_DANG_GIO_DM.format(m.taoLuc)}
-                  </time>
+          msgs.map((m) => {
+            const isMe = m.fromMe
+            const tenNguoiGui = isMe ? (m.ten || nguoiDung?.ten || nguoiDung?.username || 'Tôi') : (m.ten || friend.displayName)
+            const avatarNguoiGui = isMe ? (m.avatar ?? nguoiDung?.avatar ?? null) : (m.avatar ?? friend.avatar ?? null)
+            return (
+              <div key={m.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                {/* Avatar */}
+                <AnhDaiDien ten={tenNguoiGui} anh={avatarNguoiGui} />
+                <div className={`flex max-w-[75%] flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                  {/* Tên + giờ */}
+                  <div className={`mb-0.5 flex items-baseline gap-1.5 px-1 ${isMe ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-[11px] font-semibold text-text-secondary">{tenNguoiGui}</span>
+                    <time className="text-[10px] tabular-nums text-text-tertiary">
+                      {DINH_DANG_GIO_DM.format(m.taoLuc)}
+                    </time>
+                  </div>
+                  {/* Bubble */}
+                  <p
+                    className={`rounded-2xl px-3 py-2 text-[0.8125rem] leading-relaxed break-words whitespace-pre-wrap text-text-primary ${
+                      isMe ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised'
+                    }`}
+                  >
+                    {m.text}
+                  </p>
                 </div>
-                {/* Bubble */}
-                <p
-                  className={`rounded-2xl px-3 py-2 text-[0.8125rem] leading-relaxed break-words whitespace-pre-wrap text-text-primary ${
-                    m.fromMe ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised'
-                  }`}
-                >
-                  {m.text}
-                </p>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 

@@ -438,12 +438,7 @@ export function ProfilePage() {
         <LienKetGoogle />
 
         {/* Tiến trình học tập */}
-        <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
-          <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Tiến trình học tập</h3>
-          <div className="mt-4">
-            <ProgressPanel />
-          </div>
-        </section>
+        <ProgressPanel />
       </div>
 
       {/* Popup chọn ảnh đại diện nhanh */}

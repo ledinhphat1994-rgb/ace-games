@@ -2,6 +2,7 @@
 // Digital Campus v2: Milestone PQA-A + PQA-B Verification Suite
 // Primary Navigation Simplification & Learning Room Lobby Quality Contracts
 
+import responsiveLayoutRaw from '../src/components/layout/ResponsiveActivityLayout.tsx?raw'
 import { describe, expect, it } from 'vitest'
 import {
   DESKTOP_NAV_LINKS,
@@ -149,8 +150,8 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       // Bố cục 3 cột nằm trong mẫu sảnh chung (dùng cho Học tập và từng trò chơi).
       expect(learningPageRaw).toContain('<SanhHoatDong')
       expect(learningPageRaw).toContain('testId="learning"')
-      expect(sanhRaw).toContain('data-testid={`${testId}-layout`}')
-      expect(sanhRaw).toContain('xl:grid-cols-[360px_minmax(0,1fr)_370px]')
+      expect(sanhRaw).toContain('<ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai}>')
+      expect(responsiveLayoutRaw).toContain('xl:grid-cols-[260px_minmax(0,1fr)_300px]')
       // Dùng đúng bảng xếp hạng chung của trang Game, mở sẵn tab Học tập.
       expect(learningPageRaw).toContain('cotTrai={<GameArenaLeaderboard defaultGame="hoc_tap" />}')
       // Khung rộng như trang Game để ba cột đủ chỗ.

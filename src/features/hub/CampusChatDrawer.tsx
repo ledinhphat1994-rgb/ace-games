@@ -205,11 +205,51 @@ export function CampusChatDrawer({
                     )}
 
                     <div className={cn('group flex items-end gap-2', laCuaMinh && 'flex-row-reverse')}>
-                      {!laCuaMinh &&
-                        (noiTiep ? (
-                          <span aria-hidden className="w-8 shrink-0" />
-                        ) : (
-                          <div className="relative shrink-0 self-start">
+                      {noiTiep ? (
+                        <span aria-hidden className="w-8 shrink-0" />
+                      ) : (
+                        <div className="relative shrink-0 self-start">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setNguoiXem({
+                                id: msg.accountId,
+                                ten: msg.ten,
+                                lopTen: msg.lopTen,
+                                vaiTro: msg.vaiTro,
+                                anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                              })
+                            }}
+                            aria-label={`Xem thông tin ${msg.ten}`}
+                            title={msg.tieuDeHoSo ? `${msg.ten}: “${msg.tieuDeHoSo}”` : msg.ten}
+                            data-testid={`chat-anh-${msg.accountId}`}
+                            className="block cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                          >
+                            <AnhNguoiDung ten={msg.ten} avatar={msg.avatar} className="size-8 text-[11px]" />
+                          </button>
+                          {/* Icon nhỏ góc trên như đã code (bóng đèn suy nghĩ hoặc giáo viên) */}
+                          {msg.tieuDeHoSo ? (
+                            <span
+                              className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-amber-400 bg-amber-500/90 text-amber-100 shadow-sm pointer-events-none"
+                              title={`Suy nghĩ: ${msg.tieuDeHoSo}`}
+                            >
+                              <Lightbulb className="size-2 text-white fill-amber-200" />
+                            </span>
+                          ) : msg.vaiTro === 'giao_vien' ? (
+                            <span
+                              className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-brand bg-brand text-white shadow-sm pointer-events-none"
+                              title="Giáo viên"
+                            >
+                              <Sparkles className="size-2 text-white" />
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+
+                      <div className={cn('flex max-w-[80%] min-w-0 flex-col', laCuaMinh ? 'items-end' : 'items-start')}>
+                        {!noiTiep && (
+                          <p className={cn('mb-1 flex flex-wrap items-baseline gap-x-1.5 px-1 text-xs', laCuaMinh && 'flex-row-reverse')}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -222,60 +262,15 @@ export function CampusChatDrawer({
                                   anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
                                 })
                               }}
-                              aria-label={`Xem thông tin ${msg.ten}`}
-                              title={msg.tieuDeHoSo ? `${msg.ten}: “${msg.tieuDeHoSo}”` : msg.ten}
-                              data-testid={`chat-anh-${msg.accountId}`}
-                              className="block cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                              className="min-w-0 cursor-pointer text-left font-medium break-words text-text-primary hover:text-brand hover:underline focus-visible:underline focus-visible:outline-none"
                             >
-                              <AnhNguoiDung ten={msg.ten} avatar={msg.avatar} className="size-8 text-[11px]" />
+                              {msg.ten}
                             </button>
-                            {/* Icon nhỏ góc trên như đã code (bóng đèn suy nghĩ hoặc giáo viên) */}
-                            {msg.tieuDeHoSo ? (
-                              <span
-                                className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-amber-400 bg-amber-500/90 text-amber-100 shadow-sm pointer-events-none"
-                                title={`Suy nghĩ: ${msg.tieuDeHoSo}`}
-                              >
-                                <Lightbulb className="size-2 text-white fill-amber-200" />
-                              </span>
-                            ) : msg.vaiTro === 'giao_vien' ? (
-                              <span
-                                className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-brand bg-brand text-white shadow-sm pointer-events-none"
-                                title="Giáo viên"
-                              >
-                                <Sparkles className="size-2 text-white" />
-                              </span>
+                            {msg.vaiTro === 'giao_vien' ? (
+                              <span className="rounded bg-brand/12 px-1 text-[10px] font-semibold text-brand">GV</span>
+                            ) : msg.lopTen ? (
+                              <span className="text-text-tertiary">{msg.lopTen}</span>
                             ) : null}
-                          </div>
-                        ))}
-
-                      <div className={cn('flex max-w-[80%] min-w-0 flex-col', laCuaMinh ? 'items-end' : 'items-start')}>
-                        {!noiTiep && (
-                          <p className="mb-1 flex flex-wrap items-baseline gap-x-1.5 px-1 text-xs">
-                            {!laCuaMinh && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect()
-                                    setNguoiXem({
-                                      id: msg.accountId,
-                                      ten: msg.ten,
-                                      lopTen: msg.lopTen,
-                                      vaiTro: msg.vaiTro,
-                                      anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
-                                    })
-                                  }}
-                                  className="min-w-0 cursor-pointer text-left font-medium break-words text-text-primary hover:text-brand hover:underline focus-visible:underline focus-visible:outline-none"
-                                >
-                                  {msg.ten}
-                                </button>
-                                {msg.vaiTro === 'giao_vien' ? (
-                                  <span className="rounded bg-brand/12 px-1 text-[10px] font-semibold text-brand">GV</span>
-                                ) : msg.lopTen ? (
-                                  <span className="text-text-tertiary">{msg.lopTen}</span>
-                                ) : null}
-                              </>
-                            )}
                             <time dateTime={new Date(msg.taoLuc).toISOString()} className="text-text-tertiary tabular-nums">
                               {gio}
                             </time>

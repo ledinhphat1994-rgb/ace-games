@@ -40,9 +40,9 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     // Nền đặc (không dùng kính mờ): cuộn trang thì tiêu đề bên dưới không lộ xuyên qua thanh trên.
-    <header className="sticky top-0 z-30 border-b border-border-subtle bg-canvas">
+    <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-canvas">
       {/* Ba cột: thương hiệu | nhóm tab căn giữa đúng tâm thanh | tài khoản */}
-      <div className="mx-auto grid h-14 w-full max-w-[1920px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-2.5 sm:px-4">
+      <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] px-2.5 sm:px-4">
 
         {/* ── Left: Brand ── */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-self-start">
@@ -114,14 +114,14 @@ export function AppHeader({
                   variant="ghost"
                   size="sm"
                   onClick={() => onMoAuthModal?.('dang_nhap')}
-                  className="h-8 px-2.5 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary"
+                  className="h-10 px-2.5 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary"
                 >
                   Đăng nhập
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => onMoAuthModal?.('dang_ky')}
-                  className="h-8 px-3 text-xs sm:text-sm font-semibold bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm"
+                  className="h-10 px-3 text-xs sm:text-sm font-semibold bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm"
                 >
                   Đăng ký
                 </Button>

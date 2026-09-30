@@ -4,7 +4,9 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { MessageSquare, X } from 'lucide-react'
+import { usePhien } from '@/app/phien'
+import { Button } from '@/components/ui/button'
 import { layHoSoNguoiDung } from '@/lib/api'
 import { tinhLevel } from '@/features/games/GameLeaderboard'
 import { AnhNguoiDung } from './AnhNguoiDung'
@@ -45,6 +47,8 @@ export function HoSoNguoiDungDialog({ nguoi, onDong }: HoSoNguoiDungDialogProps)
 }
 
 function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void }) {
+  const { nguoiDung } = usePhien()
+  const isMe = nguoiDung ? nguoiDung.accountId === nguoi.id : false
   const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -130,18 +134,11 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
           <AnhNguoiDung ten={ten} avatar={avatar} className="size-16 text-xl ring-2 ring-border-strong" />
           <h3 className="text-base font-bold text-text-primary break-words leading-tight">{ten}</h3>
 
-          {(vaiTro || lopTen) && (
+          {vaiTro && (
             <div className="flex flex-wrap items-center justify-center gap-1.5">
-              {vaiTro && (
-                <span className="rounded-full bg-brand/12 px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-                  {vaiTro}
-                </span>
-              )}
-              {lopTen && (
-                <span className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[11px] font-semibold text-text-secondary">
-                  {lopTen}
-                </span>
-              )}
+              <span className="rounded-full bg-brand/12 px-2.5 py-0.5 text-[11px] font-semibold text-brand">
+                {vaiTro}
+              </span>
             </div>
           )}
 
@@ -175,8 +172,34 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
           </dl>
         )}
 
-        <div className="border-t border-white/5 p-3 bg-white/[0.02]">
-          <NutQuanHe id={nguoi.id} day />
+        <div className="border-t border-white/5 p-3 bg-white/[0.02] flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <NutQuanHe id={nguoi.id} day />
+          </div>
+          {!isMe && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent('campus:open-dm', {
+                    detail: {
+                      id: nguoi.id,
+                      displayName: ten,
+                      avatar: avatar,
+                      lopTen: lopTen,
+                    },
+                  })
+                )
+                onDong()
+              }}
+              className="h-10 rounded-xl px-3 gap-1.5 border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 hover:text-brand cursor-pointer shrink-0"
+              title={`Nhắn tin với ${ten}`}
+            >
+              <MessageSquare className="size-4" />
+              <span>Nhắn tin</span>
+            </Button>
+          )}
         </div>
       </div>
     </>

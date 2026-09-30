@@ -188,7 +188,7 @@ export function AuthModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[440px] h-[590px] min-h-[590px] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col justify-start overflow-hidden">
+      <DialogContent className="w-full max-w-[440px] h-[min(590px,calc(100dvh-2rem))] min-h-0 p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col justify-start overflow-hidden">
         <DialogHeader className="space-y-1 pb-1 shrink-0 min-h-[76px]">
           <div className="flex items-center gap-2 select-none mb-1">
             <span className="flex size-8 items-center justify-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
@@ -256,7 +256,7 @@ export function AuthModal({
 
         {/* ── 1. FORM ĐĂNG NHẬP ── */}
         {mode === 'dang_nhap' && (
-          <form onSubmit={handleDangNhap} className="flex-1 flex flex-col justify-between min-h-0 pt-1">
+          <form onSubmit={handleDangNhap} className="flex-1 flex flex-col gap-4 justify-between min-h-0 overflow-y-auto pt-1">
             <div className="space-y-3.5">
               <div className="space-y-1.5">
                 <Label htmlFor="auth-username" className="text-xs font-medium text-text-secondary">

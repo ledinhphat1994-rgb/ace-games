@@ -644,3 +644,31 @@ body { min-width: 280px; }
 @media (max-width: 640px) {
   .card-grid-2 { grid-template-columns: 1fr; }
 }
+
+.game-stage { container-type: inline-size; }
+@container (max-width: 34rem) {
+  .game-play-toolbar { row-gap: 0.5rem; }
+  .game-play-toolbar button { min-height: 40px; }
+}
+@media (pointer: coarse) {
+  .snake-arena .snake-hud { bottom: 10rem; }
+}
+
+[data-slot="dialog-content"] {
+  top: calc(var(--visible-viewport-top, 0px) + var(--visible-viewport-height, 100dvh) / 2);
+  max-height: calc(var(--visible-viewport-height, 100dvh) - 2rem);
+}
+.activity-sheet[data-side="right"] {
+  top: max(var(--visible-viewport-top, 0px), env(safe-area-inset-top, 0px));
+  height: calc(var(--visible-viewport-height, 100dvh) - env(safe-area-inset-top, 0px));
+}
+@media (max-width: 1023px) {
+  [data-testid="classroom-context-panel"] {
+    top: var(--visible-viewport-top, 0px);
+    bottom: auto;
+    height: var(--visible-viewport-height, 100dvh);
+  }
+}
+@media (any-pointer: coarse) {
+  input:not([type="range"]):not([type="color"]):not([type="checkbox"]), textarea, select { font-size: 16px !important; }
+}

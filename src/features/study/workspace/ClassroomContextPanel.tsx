@@ -88,6 +88,8 @@ export function ClassroomContextPanel({
   onResolveNotesConflict,
   isReconnecting = false,
 }: ClassroomContextPanelProps) {
+  const panelRef = useRef<HTMLElement>(null)
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1023px)').matches)
   const [chatInput, setChatInput] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [isSending, setIsSending] = useState(false)
@@ -105,6 +107,39 @@ export function ClassroomContextPanel({
       khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
     }
   }, [chatMessages, view, tinCuoiCuaMinh])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)')
+    const change = () => setCompact(media.matches)
+    media.addEventListener('change', change)
+    return () => media.removeEventListener('change', change)
+  }, [])
+
+  useEffect(() => {
+    if (!compact || view === 'closed') return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    panelRef.current?.focus({ preventScroll: true })
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const elements = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []).filter(element => element.getClientRects().length > 0)
+      const first = elements[0]
+      const last = elements[elements.length - 1]
+      if (!first) { event.preventDefault(); return }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+        event.preventDefault(); last.focus({ preventScroll: true })
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panelRef.current)) {
+        event.preventDefault(); first.focus({ preventScroll: true })
+      }
+    }
+    document.addEventListener('keydown', trapFocus)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', trapFocus)
+      previous?.focus({ preventScroll: true })
+    }
+  }, [compact, view])
 
   // Escape key closes panel
   useEffect(() => {
@@ -145,6 +180,10 @@ export function ClassroomContextPanel({
       />
 
       <aside
+        ref={panelRef}
+        role={compact ? 'dialog' : 'complementary'}
+        aria-modal={compact || undefined}
+        tabIndex={-1}
         aria-label="Khung thông tin bên phải"
         className="fixed lg:relative right-0 inset-y-0 lg:inset-y-auto h-dvh lg:h-full z-50 lg:z-20 flex w-full sm:w-96 lg:w-80 max-w-full shrink-0 flex-col overflow-hidden border-l border-border-default bg-surface shadow-2xl lg:rounded-2xl lg:border lg:shadow-none pb-[env(safe-area-inset-bottom)]"
         data-testid="classroom-context-panel"
@@ -222,8 +261,14 @@ export function ClassroomContextPanel({
                   const isMe = msg.accountId === nguoiDung.accountId
                   return (
                     <div key={msg.id} className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
-                      {!isMe && <span className="mb-0.5 px-1 text-[11px] font-medium text-text-tertiary">{msg.ten}</span>}
-                      <div className={cn('group/chatmsg relative flex max-w-[90%] items-center gap-1', isMe && 'flex-row-reverse')}>
+                      <span className="mb-0.5 px-1 text-[11px] font-medium text-text-tertiary">{msg.ten}</span>
+                      <div className={cn('group/chatmsg relative flex max-w-[90%] items-center gap-1.5', isMe && 'flex-row-reverse')}>
+                        <span
+                          aria-hidden
+                          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[10px] font-semibold text-text-secondary"
+                        >
+                          {getInitials(msg.ten)}
+                        </span>
                         <div
                           className={cn(
                             'min-w-0 rounded-2xl px-3 py-1.5 text-[0.8125rem] leading-relaxed break-words whitespace-pre-wrap text-text-primary select-text',
