@@ -142,7 +142,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
       className={cn(
         // Không dùng justify-center trên khung cuộn (tràn thì người đầu bị cắt, không cuộn tới được): lề tự động ở
         // người đầu / cuối để căn giữa. Đệm ngang + dọc chừa chỗ cho viền, quầng sáng, vương miện, huy hiệu quyền.
-        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
+        'flex min-w-0 max-w-full items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"
@@ -161,9 +161,9 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
             <TooltipTrigger render={<span className="relative flex shrink-0" />}>
               <span
                 className={cn(
-                  'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-150 group-hover:scale-105',
+                  'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-text-primary shadow-md transition-all duration-150 group-hover:scale-105',
                   mauCho(m.key),
-                  laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-white/20',
+                  laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-border-default',
                   m.soKetNoi > 0 ? '' : 'opacity-40',
                 )}
               >
@@ -185,9 +185,9 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                   className="absolute -right-2 -bottom-1 flex items-center gap-1 rounded-full bg-surface px-1.5 py-0.5 border border-brand/50 shadow-lg ring-1 ring-canvas"
                   data-testid={`member-strip-co-quyen-${m.key}`}
                 >
-                  {hasMic && <Mic className="size-3 text-emerald-400 drop-shadow-sm" />}
-                  {hasVe && <Pen className="size-3 text-cyan-300 drop-shadow-sm" />}
-                  {hasLaser && <MousePointer2 className="size-3 text-amber-300 drop-shadow-sm" />}
+                  {hasMic && <Mic className="size-3 text-success drop-shadow-sm" />}
+                  {hasVe && <Pen className="size-3 text-brand drop-shadow-sm" />}
+                  {hasLaser && <MousePointer2 className="size-3 text-warning drop-shadow-sm" />}
                 </span>
               )}
             </TooltipTrigger>
@@ -210,10 +210,10 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                 </PopoverTrigger>
                 <PopoverContent
                   align="start"
-                  className="w-64 rounded-2xl border border-border-default bg-surface-raised p-3 text-slate-200 shadow-2xl"
+                  className="w-64 rounded-2xl border border-border-default bg-surface-raised p-3 text-text-primary shadow-2xl"
                   data-testid="member-grant-panel"
                 >
-                  <p className="mb-2 truncate text-sm font-semibold text-white">{m.ten}</p>
+                  <p className="mb-2 truncate text-sm font-semibold text-text-primary">{m.ten}</p>
                   <div className="grid grid-cols-2 gap-1">
                     {O_QUYEN.map(({ quyen, ten, icon: Icon }) => {
                       const co = cap.includes(quyen)
@@ -226,8 +226,8 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                           className={cn(
                             'flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-xs font-medium transition-colors',
                             co
-                              ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-200'
-                              : 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-slate-200',
+                              ? 'border-cyan-400/50 bg-cyan-500/15 text-brand'
+                              : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                           )}
                           data-testid={`grant-${quyen}`}
                         >
@@ -241,7 +241,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                     <button
                       type="button"
                       onClick={() => onGrant(m.key, [...QUYEN_CONG_CU])}
-                      className="h-8 cursor-pointer rounded-lg border border-white/10 text-xs text-slate-300 transition-colors hover:bg-white/5"
+                      className="h-8 cursor-pointer rounded-lg border border-border-default text-xs text-text-secondary transition-colors hover:bg-surface-overlay"
                       data-testid="grant-all"
                     >
                       Cấp tất cả
@@ -249,7 +249,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                     <button
                       type="button"
                       onClick={() => onGrant(m.key, [])}
-                      className="h-8 cursor-pointer rounded-lg border border-white/10 text-xs text-slate-300 transition-colors hover:bg-white/5"
+                      className="h-8 cursor-pointer rounded-lg border border-border-default text-xs text-text-secondary transition-colors hover:bg-surface-overlay"
                       data-testid="grant-none"
                     >
                       Thu hồi hết

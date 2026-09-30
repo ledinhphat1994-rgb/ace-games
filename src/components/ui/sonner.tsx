@@ -2,11 +2,12 @@ import type { CSSProperties } from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-// Giao diện v2 luôn tối nên cố định theme, không cần next-themes.
+import { useTheme } from '@/app/theme'
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { resolved } = useTheme()
   return (
     <Sonner
-      theme="dark"
+      theme={resolved}
       className="toaster group"
       closeButton
       icons={{
@@ -39,9 +40,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       style={
         {
           "--width": "420px",
-          "--normal-bg": "rgba(10, 16, 35, 0.98)",
-          "--normal-text": "#f1f5f9",
-          "--normal-border": "rgba(34, 211, 238, 0.22)",
+          "--normal-bg": "var(--surface-raised)",
+          "--normal-text": "var(--text-primary)",
+          "--normal-border": "var(--border-default)",
           "--border-radius": "1rem",
           "--toast-close-button-start": "unset",
           "--toast-close-button-end": "0",
@@ -53,7 +54,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast: "cn-toast !items-center !justify-center !text-center !gap-3",
           title: "!text-center !font-semibold",
           description: "!text-center",
-          closeButton: "!absolute !top-2 !right-2 !left-auto !translate-y-0 !translate-x-0 !size-6 !rounded-lg !border-white/15 !bg-white/10 !text-white/70 hover:!bg-white/20 hover:!text-white transition-colors",
+          closeButton: "!absolute !top-2 !right-2 !left-auto !translate-y-0 !translate-x-0 !size-6 !rounded-lg !border-border-default !bg-surface-overlay !text-text-secondary hover:!bg-surface-interactive hover:!text-text-primary transition-colors",
         },
       }}
       {...props}

@@ -393,7 +393,7 @@ export function ClassroomWorkspace({
 
   return (
     <div
-      className="relative flex h-dvh w-full flex-col overflow-hidden bg-canvas text-slate-100 select-none font-sans"
+      className="relative flex h-dvh w-full flex-col overflow-hidden bg-canvas text-slate-100 text-text-primary select-none font-sans"
       data-testid="classroom-workspace"
       data-room-id={roomId}
     >
@@ -423,7 +423,7 @@ export function ClassroomWorkspace({
       {/* ── 2. RECONNECTING / STALE STATE WARNING BANNER ── */}
       {isReconnecting && (
         <div
-          className="flex h-7 shrink-0 items-center justify-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 text-xs font-semibold text-amber-300 z-20 backdrop-blur-md"
+          className="flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-xs font-medium text-warning z-20 backdrop-blur-md"
           data-testid="classroom-reconnecting-banner"
         >
           <Loader2 className="h-3 w-3 animate-spin shrink-0" />
@@ -523,7 +523,7 @@ export function ClassroomWorkspace({
             onPointerEnter={moDock}
             onClick={moDock}
             onFocus={moDock}
-            className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface/90 text-slate-300 shadow-lg backdrop-blur-md transition-colors hover:text-white cursor-pointer"
+            className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface/90 text-text-secondary shadow-lg backdrop-blur-md transition-colors hover:text-text-primary cursor-pointer"
             title="Thanh công cụ"
             aria-label="Hiện thanh công cụ"
             data-testid="dock-handle"

@@ -23,7 +23,7 @@ export function AnhNguoiDung({ ten, avatar, className = 'size-8 text-xs' }: AnhN
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold text-white select-none',
+        'flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-full font-bold text-text-primary select-none',
         avatar && !loi ? 'bg-surface-overlay' : mauTheoTen(ten),
         className,
       )}

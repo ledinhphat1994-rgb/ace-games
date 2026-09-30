@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
-import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { LiveDot, PageHeader } from '@/components/layout/PageHeader'
 import { cn, getInitials } from '@/lib/utils'
@@ -11,17 +11,17 @@ import {
   formatLastSeen,
 } from '@/features/hub/social-semantics'
 import type { FriendItem } from '@shared/protocol/social'
-import type { TinCampus } from '@shared/protocol/campus'
+import { CampusFeed } from './CampusFeed'
+import { GameArenaLeaderboard } from '@/features/games/GameArenaLeaderboard'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowRight,
-  BookOpen,
   DoorOpen,
   MessageSquare,
   RefreshCw,
   Search,
-  ShieldCheck,
+  Trophy,
   UserPlus,
 } from 'lucide-react'
 
@@ -29,7 +29,6 @@ type TrangThaiBan = 'online' | 'away' | 'room' | 'offline' | 'unknown'
 
 export function CommunityPage() {
   const navigate = useNavigate()
-  const { nguoiDung } = usePhien()
   const {
     socialState,
     socialStatus,
@@ -38,12 +37,14 @@ export function CommunityPage() {
     presenceMap,
     presenceReady,
     trangThai,
-    messages,
-    rooms,
-    campusSnapshotReady,
   } = useCampus()
 
+  const [rankingOpen, setRankingOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
+  const moHoSo = (friend: FriendItem, anchorRect: DOMRect) => {
+    setNguoiXem({ id: friend.id, ten: friend.displayName, avatar: friend.avatar, lopTen: friend.lopTen, vaiTro: friend.role, anchorRect })
+  }
   const [drawerDefaultTab, setDrawerDefaultTab] = useState<'friends' | 'requests' | 'search'>('friends')
 
   const openDrawerTab = (tab: 'friends' | 'requests' | 'search') => {
@@ -100,7 +101,7 @@ export function CommunityPage() {
     .filter((ten): ten is string => Boolean(ten))
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Cộng đồng"
         description={moTaTrucTiep}
@@ -118,6 +119,7 @@ export function CommunityPage() {
               <MessageSquare />
               <span>Trò chuyện trường</span>
             </Button>
+            <Button variant="ghost" size="icon-lg" aria-label="Bảng xếp hạng" onClick={() => setRankingOpen(true)}><Trophy className="size-4" /></Button>
           </>
         }
       />
@@ -175,8 +177,9 @@ export function CommunityPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-        <div className="min-w-0 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <CampusFeed />
+        <div className="min-w-0 space-y-5">
           {/* STATE A: đang tải */}
           {socialStatus === 'loading' && (
             <div
@@ -230,17 +233,13 @@ export function CommunityPage() {
           {coDuLieu && friends.length === 0 && (
             <div
               data-testid="community-empty"
-              className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-border-subtle bg-surface px-6 py-12 text-center"
+              className="flex min-h-[256px] flex-col items-center justify-center rounded-2xl border border-border-default bg-surface px-4 py-8 text-center"
             >
               <HinhBanBe />
               <h2 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Chưa có bạn bè trong danh bạ</h2>
               <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-text-secondary">
                 Tìm bạn cùng lớp hoặc trong trường để thấy ai đang trực tuyến và vào phòng học cùng nhau.
               </p>
-              <Button data-testid="empty-find-friends-btn" onClick={() => openDrawerTab('search')} className="mt-6">
-                <Search />
-                <span>Tìm bạn học</span>
-              </Button>
             </div>
           )}
 
@@ -279,6 +278,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-unconfirmed-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai="unknown"
                       meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
                     />
@@ -293,6 +293,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-in-room-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai="room"
                       meta={
                         <>
@@ -305,7 +306,7 @@ export function CommunityPage() {
                           size="xs"
                           data-testid={`join-room-btn-${friend.username}`}
                           onClick={() => navigate(`/room/phong-${roomId}`)}
-                          className="shrink-0"
+                          className="min-h-11 shrink-0 whitespace-normal text-sm"
                         >
                           <DoorOpen />
                           <span>Vào phòng</span>
@@ -323,6 +324,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-online-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai={isAway ? 'away' : 'online'}
                       meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
                       action={
@@ -342,6 +344,7 @@ export function CommunityPage() {
                       key={friend.id}
                       testId={`friend-offline-${friend.username}`}
                       friend={friend}
+                      onXem={moHoSo}
                       trangThai="offline"
                       meta={`${friend.lopTen ? `${friend.lopTen} · ` : ''}${formatLastSeen(presence?.lastSeen)}`}
                     />
@@ -350,47 +353,35 @@ export function CommunityPage() {
               )}
             </>
           )}
+          {/* Nhóm nổi bật (Design Reference 1, 2) */}
+          <div className="rounded-2xl border border-border-default bg-surface p-4 space-y-3 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
+                Nhóm nổi bật
+              </span>
+              <span className="text-xs font-semibold text-brand">48 thành viên</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand font-black text-sm border border-brand/30">
+                  10A7
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-text-primary truncate">Lớp 10A7</p>
+                  <p className="text-xs text-text-secondary truncate">Khóa 2026-2027</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="h-8 text-xs font-semibold shrink-0 border-border-default">
+                Đã tham gia
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <aside className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start lg:grid-cols-1 lg:self-start">
-          <XemTruocTroChuyen messages={messages} onOpen={handleOpenChat} />
-
-          <section className="rounded-2xl border border-border-subtle bg-surface p-4">
-            <div className="flex items-start gap-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                <BookOpen className="size-4" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-text-primary">Học cùng bạn bè</h2>
-                <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-text-secondary">
-                  {/* Khách không nhận danh sách phòng từ sảnh: không khẳng định "chưa có phòng" */}
-                  {campusSnapshotReady && nguoiDung
-                    ? rooms.length > 0
-                      ? `${rooms.length} phòng học đang mở — vào học cùng mọi người.`
-                      : 'Chưa có phòng nào đang mở — hãy mở phòng đầu tiên.'
-                    : 'Mở hoặc tham gia phòng học nhóm trực tuyến.'}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid={friends.length > 0 ? 'community-go-learning-sidebar-cta' : 'community-go-learning-cta'}
-              onClick={() => navigate('/learn')}
-              className="mt-4 w-full"
-            >
-              <span>Đến trang Học tập</span>
-              <ArrowRight />
-            </Button>
-          </section>
-
-          <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-text-tertiary md:col-span-2 lg:col-span-1">
-            <ShieldCheck className="mt-px size-3.5 shrink-0 text-success" />
-            Tôn trọng bạn học, giữ văn minh khi trò chuyện. Bạn luôn có thể chặn hoặc báo cáo khi cần.
-          </p>
-        </aside>
       </div>
 
+      <Sheet open={rankingOpen} onOpenChange={setRankingOpen}><SheetContent className="gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"><SheetHeader className="pr-14"><SheetTitle>Bảng xếp hạng</SheetTitle></SheetHeader><GameArenaLeaderboard defaultGame="hoc_tap" className="h-full min-h-0 rounded-none border-0" /></SheetContent></Sheet>
+      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
       {/* Drawer bạn bè mở theo tab từ các nút trên trang */}
       <FriendsDrawer
         open={drawerOpen}
@@ -442,9 +433,11 @@ function DongBanBe({
   meta,
   action,
   testId,
+  onXem,
 }: {
   friend: FriendItem
   trangThai: TrangThaiBan
+  onXem: (friend: FriendItem, anchorRect: DOMRect) => void
   meta: ReactNode
   action?: ReactNode
   testId: string
@@ -453,88 +446,41 @@ function DongBanBe({
   const cham = MAU_CHAM_TRANG_THAI[trangThai]
 
   return (
-    <li data-testid={testId} className="flex items-center gap-3 px-4 py-3">
-      <div className="relative shrink-0">
-        {friend.avatar ? (
-          <img
-            src={friend.avatar}
-            alt=""
-            className={cn('size-9 rounded-full object-cover', ngoaiTuyen && 'opacity-60 grayscale')}
-          />
-        ) : (
-          <div
-            className={cn(
-              'flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
-              ngoaiTuyen && 'opacity-70',
-            )}
-          >
-            {getInitials(friend.displayName)}
-          </div>
-        )}
-        {cham && <span className={cn('absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface', cham)} />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className={cn('text-sm font-medium break-words', ngoaiTuyen ? 'text-text-secondary' : 'text-text-primary')}>
-          {friend.displayName}
-        </p>
-        <p className="text-xs break-words text-text-tertiary">{meta}</p>
-      </div>
+    <li data-testid={testId} className="flex min-w-0 flex-wrap items-center gap-3 px-4 py-3">
+      <button
+        type="button"
+        onClick={(event) => onXem(friend, event.currentTarget.getBoundingClientRect())}
+        aria-label={'Xem thông tin ' + friend.displayName}
+        className="flex min-h-11 min-w-0 grow basis-48 items-center gap-3 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+      >
+        <div className="relative shrink-0">
+          {friend.avatar ? (
+            <img
+              src={friend.avatar}
+              alt=""
+              className={cn('size-9 rounded-full object-cover', ngoaiTuyen && 'opacity-60 grayscale')}
+            />
+          ) : (
+            <div
+              className={cn(
+                'flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
+                ngoaiTuyen && 'opacity-70',
+              )}
+            >
+              {getInitials(friend.displayName)}
+            </div>
+          )}
+          {cham && <span className={cn('absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface', cham)} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={cn('text-sm font-medium break-words', ngoaiTuyen ? 'text-text-secondary' : 'text-text-primary')}>
+            {friend.displayName}
+          </p>
+          <p className="text-xs break-words text-text-tertiary">{meta}</p>
+        </div>
+      </button>
       {action}
     </li>
-  )
-}
-
-const DINH_DANG_GIO = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
-
-/** Ba tin gần nhất của kênh trò chuyện toàn trường (dữ liệu thật từ CampusDO, đã áp dụng xoá/kiểm duyệt). */
-function XemTruocTroChuyen({ messages, onOpen }: { messages: TinCampus[]; onOpen: () => void }) {
-  const ganDay = messages.slice(-3)
-
-  return (
-    <section aria-labelledby="community-chat-preview-heading" className="rounded-2xl border border-border-subtle bg-surface">
-      <div className="px-4 pt-4 pb-3">
-        <h2 id="community-chat-preview-heading" className="text-sm font-semibold text-text-primary">
-          Trò chuyện toàn trường
-        </h2>
-      </div>
-      <div className="min-h-[132px] px-4">
-        {ganDay.length === 0 ? (
-          <div className="flex min-h-[132px] flex-col items-center justify-center text-center">
-            <MessageSquare className="size-5 text-text-tertiary" />
-            <p className="mt-2 text-[0.8125rem] text-text-secondary">Chưa có tin nhắn gần đây.</p>
-            <p className="text-xs text-text-tertiary">Mở trò chuyện để chào mọi người!</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {ganDay.map((tin) => (
-              <li key={tin.id} className="flex gap-2.5">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[10px] font-semibold text-text-secondary uppercase">
-                  {tin.ten.slice(0, 1)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-xs">
-                    <span className="min-w-0 font-medium break-words text-text-primary">{tin.ten}</span>
-                    {tin.vaiTro === 'giao_vien' && (
-                      <span className="shrink-0 rounded bg-brand/12 px-1 text-[10px] font-semibold text-brand">GV</span>
-                    )}
-                    <span className="shrink-0 text-text-tertiary tabular-nums">{DINH_DANG_GIO.format(tin.taoLuc)}</span>
-                  </p>
-                  <p className="mt-0.5 text-[0.8125rem] leading-snug break-words whitespace-pre-line text-text-secondary">
-                    {tin.noiDung}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="p-4 pt-4">
-        <Button variant="outline" size="sm" onClick={onOpen} className="w-full">
-          <span>Mở trò chuyện</span>
-          <ArrowRight />
-        </Button>
-      </div>
-    </section>
   )
 }
 

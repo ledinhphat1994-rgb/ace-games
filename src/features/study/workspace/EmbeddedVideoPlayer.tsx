@@ -174,7 +174,7 @@ export function EmbeddedVideoPlayer({
         {/* Biểu tượng hiệu ứng khi bấm click vào giữa video (Giống YouTube) */}
         {clickFeedback && (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center animate-in fade-in zoom-in-75 duration-150">
-            <div className="flex size-16 items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white shadow-2xl">
+            <div className="flex size-16 items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-border-default text-text-primary shadow-2xl">
               {clickFeedback === 'play' ? (
                 <Play className="size-8 fill-white ml-1" />
               ) : (
@@ -191,7 +191,7 @@ export function EmbeddedVideoPlayer({
         {!isReady && !errorMessage && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-canvas/90 backdrop-blur-sm gap-2">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-            <span className="text-xs text-slate-400">Đang tải trình phát YouTube...</span>
+            <span className="text-xs text-text-secondary">Đang tải trình phát YouTube...</span>
           </div>
         )}
 
@@ -199,13 +199,13 @@ export function EmbeddedVideoPlayer({
         {errorMessage && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-surface/95 p-6 text-center">
             <AlertCircle className="h-10 w-10 text-red-400 mb-2" />
-            <p className="text-sm font-semibold text-white">Không thể tải video</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm">{errorMessage}</p>
+            <p className="text-sm font-semibold text-text-primary">Không thể tải video</p>
+            <p className="text-xs text-text-secondary mt-1 max-w-sm">{errorMessage}</p>
             {effectiveCanControl && (
               <button
                 type="button"
                 onClick={onOpenSearchQueue}
-                className="mt-4 rounded-xl bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-500 transition-colors"
+                className="mt-4 rounded-xl bg-red-600 px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-red-500 transition-colors"
               >
                 Chọn video khác
               </button>
@@ -216,9 +216,9 @@ export function EmbeddedVideoPlayer({
         {/* Autoplay block banner */}
         {isAutoplayBlocked && !errorMessage && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/85 p-6 text-center">
-            <AlertCircle className="h-8 w-8 text-amber-400 mb-2" />
-            <p className="text-sm font-bold text-amber-200">Trình duyệt đã tạm dừng video tự động</p>
-            <p className="text-xs text-slate-400 mt-1">Bấm nút bên dưới để tiếp tục phát đồng bộ.</p>
+            <AlertCircle className="h-8 w-8 text-warning mb-2" />
+            <p className="text-sm font-bold text-warning">Trình duyệt đã tạm dừng video tự động</p>
+            <p className="text-xs text-text-secondary mt-1">Bấm nút bên dưới để tiếp tục phát đồng bộ.</p>
             <button
               type="button"
               onClick={handleDismissAutoplayBlock}
@@ -239,11 +239,11 @@ export function EmbeddedVideoPlayer({
       >
         <div className="flex items-center gap-2 truncate pr-2 min-w-0">
           <YoutubeIcon className="h-4 w-4 text-red-500 shrink-0 drop-shadow" />
-          <span className="truncate text-xs sm:text-sm font-semibold text-white drop-shadow">
+          <span className="truncate text-xs sm:text-sm font-semibold text-text-primary drop-shadow">
             {mediaState.title || 'Video bài giảng'}
           </span>
           {effectiveCanControl && mediaState.hostOnlyControl && (
-            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-amber-300 drop-shadow" data-testid="video-host-crown">
+            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-warning drop-shadow" data-testid="video-host-crown">
               <Crown className="h-3.5 w-3.5" />
             </span>
           )}
@@ -256,7 +256,7 @@ export function EmbeddedVideoPlayer({
               <button
                 type="button"
                 onClick={onOpenSearchQueue}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary cursor-pointer"
                 title="Đổi video"
                 aria-label="Đổi video"
                 data-testid="video-btn-change"
@@ -270,7 +270,7 @@ export function EmbeddedVideoPlayer({
                 <button
                   type="button"
                   onClick={onCloseVideo}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-red-400 cursor-pointer"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-red-400 cursor-pointer"
                   title="Đóng video"
                   aria-label="Đóng video"
                   data-testid="video-btn-close"
@@ -291,7 +291,7 @@ export function EmbeddedVideoPlayer({
       >
         {/* Scrubber Bar */}
         <div className="flex items-center gap-2.5">
-          <span className="font-mono text-[11px] text-white/80 shrink-0 tabular-nums drop-shadow">
+          <span className="font-mono text-[11px] text-text-primary/80 shrink-0 tabular-nums drop-shadow">
             {dinhDangGiayPhut(isSeeking ? seekVal : currentTime)}
           </span>
           <div className="relative flex-1 flex items-center">
@@ -325,14 +325,14 @@ export function EmbeddedVideoPlayer({
               }}
               aria-label="Tua video"
               className={cn(
-                'w-full h-1.5 rounded-lg appearance-none bg-white/30 accent-red-600 transition-all',
+                'w-full h-1.5 rounded-lg appearance-none bg-surface-overlay accent-red-600 transition-all',
                 effectiveCanControl
                   ? 'hover:h-2 cursor-pointer'
                   : 'cursor-default pointer-events-none opacity-90',
               )}
             />
           </div>
-          <span className="font-mono text-[11px] text-white/80 shrink-0 tabular-nums drop-shadow">
+          <span className="font-mono text-[11px] text-text-primary/80 shrink-0 tabular-nums drop-shadow">
             {dinhDangGiayPhut(duration)}
           </span>
         </div>
@@ -344,14 +344,14 @@ export function EmbeddedVideoPlayer({
               <button
                 type="button"
                 onClick={handleTogglePlay}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-500 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-text-primary hover:bg-red-500 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
                 title={isPlaying ? 'Tạm dừng' : 'Phát'}
               >
                 {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
               </button>
             ) : (
               <div
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white shadow-md cursor-default select-none opacity-90"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-text-primary shadow-md cursor-default select-none opacity-90"
                 title={isPlaying ? 'Chủ phòng đang phát' : 'Chủ phòng đang tạm dừng'}
                 aria-label={isPlaying ? 'Trạng thái phát' : 'Trạng thái tạm dừng'}
               >
@@ -367,7 +367,7 @@ export function EmbeddedVideoPlayer({
                   onVolumeChange(volume === 0 ? 80 : 0)
                   resetIdleTimer()
                 }}
-                className="p-1 text-slate-300 hover:text-white transition-colors cursor-pointer drop-shadow"
+                className="p-1 text-text-secondary hover:text-text-primary transition-colors cursor-pointer drop-shadow"
                 title={volume === 0 ? 'Bật âm lượng' : 'Tắt tiếng'}
               >
                 {volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -381,7 +381,7 @@ export function EmbeddedVideoPlayer({
                   onVolumeChange(Number(e.target.value))
                   resetIdleTimer()
                 }}
-                className={`${compact ? 'w-12' : 'w-16'} h-1 rounded-lg appearance-none bg-white/30 accent-white cursor-pointer`}
+                className={`${compact ? 'w-12' : 'w-16'} h-1 rounded-lg appearance-none bg-surface-overlay accent-white cursor-pointer`}
                 aria-label="Âm lượng"
               />
             </div>
@@ -398,11 +398,11 @@ export function EmbeddedVideoPlayer({
                     handleUserRate(Number(e.target.value) as any)
                     resetIdleTimer()
                   }}
-                  className="rounded-lg border border-white/20 bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-white focus:outline-none cursor-pointer shadow-sm"
+                  className="rounded-lg border border-border-default bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-text-primary focus:outline-none cursor-pointer shadow-sm"
                   aria-label="Tốc độ phát"
                 >
                   {selectableRates.map((r) => (
-                    <option key={r} value={r} className="bg-slate-900 text-white">
+                    <option key={r} value={r} className="bg-surface text-text-primary">
                       {r}x
                     </option>
                   ))}
@@ -410,7 +410,7 @@ export function EmbeddedVideoPlayer({
               ) : (
                 <div
                   title="Tốc độ phát của phòng"
-                  className="rounded-lg border border-white/20 bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-white shadow-sm cursor-default select-none opacity-90"
+                  className="rounded-lg border border-border-default bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-text-primary shadow-sm cursor-default select-none opacity-90"
                   aria-label={`Tốc độ phát: ${playbackRate}x`}
                 >
                   {playbackRate}x

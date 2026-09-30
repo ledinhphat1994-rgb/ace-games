@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
@@ -20,7 +20,6 @@ import {
   Award,
   Camera,
   Flame,
-  Lightbulb,
   Pencil,
   ShieldCheck,
   User,
@@ -32,6 +31,7 @@ const EMOJI_GOI_Y = ['💡', '✨', '🔥', '📚', '🎯', '🚀', '⭐', '🏆
 
 export function ProfilePage() {
   const { nguoiDung, lamMoiPhien, moAuthModal } = usePhien()
+  const focusEditor = useCallback((node: HTMLInputElement | null) => node?.focus({ preventScroll: true }), [])
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Hỗ trợ mở modal từ URL param (?tab=avatar hoặc ?tab=security)
@@ -174,8 +174,9 @@ export function ProfilePage() {
       <PageHeader title="Hồ sơ" />
 
       {/* Danh tính + số liệu thật */}
-      <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+      <section className="overflow-hidden rounded-2xl sm:rounded-3xl border border-border-default bg-surface shadow-xs">
+        <div className="h-36 sm:h-48 bg-cover bg-center" style={{ backgroundImage: 'url(/assets/profile/profile_cover.webp)' }} />
+        <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4 sm:gap-5">
             {/* Vùng Avatar kèm icon bóng đèn suy nghĩ nhanh */}
             <div className="relative shrink-0">
@@ -204,33 +205,16 @@ export function ProfilePage() {
 
                 {/* Overlay hover đổi avatar */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-black/45 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover/avatar:opacity-100">
-                  <Camera className="size-5 text-white" />
-                  <span className="mt-1 text-[10px] font-medium text-white/95">Đổi ảnh</span>
+                  <Camera className="size-5 text-text-primary" />
+                  <span className="mt-1 text-[10px] font-medium text-text-primary/95">Đổi ảnh</span>
                 </div>
               </div>
 
-              {/* Nút camera góc dưới */}
-              <button
-                type="button"
-                onClick={() => setMoAvatarModal(true)}
-                aria-label="Đổi ảnh đại diện"
-                title="Đổi ảnh đại diện"
-                className="absolute -right-1.5 -bottom-1.5 flex size-7 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-secondary shadow-md transition-colors hover:text-text-primary sm:size-8"
-              >
-                <Camera className="size-3.5 sm:size-4" />
-              </button>
 
-              {/* Icon bóng đèn ở góc trên avatar */}
-              <div
-                className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border border-amber-400 bg-amber-500/25 text-amber-300 shadow-md sm:size-7"
-                title="Suy nghĩ nhanh"
-              >
-                <Lightbulb className="size-3 text-amber-400 animate-pulse sm:size-3.5" />
-              </div>
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2 min-h-[2rem]">
+              <div className="flex flex-wrap items-center gap-2 min-h-[2rem] min-w-0">
                 {dangSuaTen ? (
                   <form
                     onSubmit={async (e) => {
@@ -249,14 +233,14 @@ export function ProfilePage() {
                         setDangLuuProfile(false)
                       }
                     }}
-                    className="flex items-center gap-1.5"
+                    className="flex min-w-0 items-center gap-1.5"
                   >
                     <Input
                       value={tenTam}
                       onChange={(e) => setTenTam(e.target.value)}
                       maxLength={TEN_HIEN_THI_TOI_DA}
                       className="h-8 w-44 text-sm font-semibold bg-canvas/60"
-                      autoFocus
+                      ref={focusEditor}
                     />
                     <Button type="submit" size="xs" disabled={dangLuuProfile}>
                       Lưu
@@ -296,7 +280,7 @@ export function ProfilePage() {
               </p>
 
               {/* Khung suy nghĩ: hover để hiện nút Sửa — không mở rộng thường trực */}
-              <div className="group/suynghi mt-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 min-h-[2.25rem] flex items-center justify-between gap-2">
+              <div className="group/suynghi mt-2.5 rounded-xl border border-border-subtle bg-surface-overlay px-3 py-2 min-h-[2.25rem] flex items-center justify-between gap-2">
                 {dangSuaSuyNghi ? (
                   <form onSubmit={handleLuuSuyNghiNhanh} className="w-full space-y-2">
                     <Input
@@ -341,7 +325,7 @@ export function ProfilePage() {
                         setSuyNghiTam(tieuDeHoSo)
                         setDangSuaSuyNghi(true)
                       }}
-                      className="opacity-0 group-hover/suynghi:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 shrink-0 cursor-pointer ml-1"
+                      className="opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-semibold text-warning hover:text-warning shrink-0 cursor-pointer ml-1"
                       title="Chỉnh sửa suy nghĩ"
                     >
                       <Pencil className="size-3" />

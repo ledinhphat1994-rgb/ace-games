@@ -87,3 +87,20 @@ trigger: always_on
 - Báo cáo ngắn gọn khi hoàn tất: `DONE`, `LOCAL CHECK: PASS`, `TESTS: x/x`, `STAGING: <version | NONE>`, `PR: #xx`, `PRODUCTION: UNTOUCHED`.
 - Báo cáo khi bị chặn: `BLOCKED`, `CAUSE: <1 câu>`, `NEED: <thứ cần quyết định>`.
 - Tuyệt đối không tường thuật trạng thái chờ ("đang chạy", "đang chờ", "build đang chạy").
+
+## Mandatory UI/UX constitution
+
+Before modifying any UI/UX, frontend layout, responsive behavior,
+component styling, visual hierarchy, popup, modal, card, toolbar,
+navigation, mobile layout, form, animation, or interaction pattern,
+the agent MUST read and comply with:
+
+[.agents/rules/10-ui-ux-layout-constitution.md](10-ui-ux-layout-constitution.md)
+
+A UI task is not DONE if it violates any hard invariant in that file.
+
+Conflict precedence: explicit user requirements > security/correctness/product invariants > [Product North Star](../../docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md) > UI/UX Constitution > legacy implementation. Earlier UI guidance applies only where consistent; title-only restrictions apply only when the user requests a title edit. For UI-only work, the constitution's targeted verification and staging policy (sections 113–114) takes precedence over the full-suite and single-deploy defaults above.
+
+## Approved full-product redesign (2026-09-30)
+
+Follow [docs/UI_REDESIGN_2026_09_30.md](docs/UI_REDESIGN_2026_09_30.md) and references A–D for premium, calm student UI: no card walls, no duplicate actions, first-class dark/light/system themes, responsive desktop to mobile, real data and authoritative logic preserved. Primary navigation is Học tập / Game / Cộng đồng. Classroom uses a central stage, contextual panels and one tool dock. This explicit user-requested redesign uses one full local final gate (typecheck, lint, npm test, build:bundle, diff check) per milestone. No GitHub CI; concise evidence-based reporting. Production remains untouched.

@@ -234,14 +234,14 @@ export function CampusChatDrawer({
                               className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-amber-400 bg-amber-500/90 text-amber-100 shadow-sm pointer-events-none"
                               title={`Suy nghĩ: ${msg.tieuDeHoSo}`}
                             >
-                              <Lightbulb className="size-2 text-white fill-amber-200" />
+                              <Lightbulb className="size-2 text-text-primary fill-amber-200" />
                             </span>
                           ) : msg.vaiTro === 'giao_vien' ? (
                             <span
-                              className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-brand bg-brand text-white shadow-sm pointer-events-none"
+                              className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-brand bg-brand text-text-primary shadow-sm pointer-events-none"
                               title="Giáo viên"
                             >
-                              <Sparkles className="size-2 text-white" />
+                              <Sparkles className="size-2 text-text-primary" />
                             </span>
                           ) : null}
                         </div>
@@ -337,7 +337,7 @@ export function CampusChatDrawer({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-10 shrink-0 text-text-tertiary hover:text-white hover:bg-white/10"
+                    className="size-10 shrink-0 text-text-tertiary hover:text-text-primary hover:bg-surface-overlay"
                     title="Chèn biểu cảm emoji"
                     aria-label="Chèn biểu cảm emoji"
                   >
@@ -345,7 +345,7 @@ export function CampusChatDrawer({
                   </Button>
                 }
               />
-              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0c1322] border-white/10 shadow-2xl rounded-xl z-50">
+              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0c1322] border-border-default shadow-2xl rounded-xl z-50">
                 <div className="grid grid-cols-6 gap-1">
                   {DANH_SACH_EMOJI.map((em) => (
                     <button
@@ -354,7 +354,7 @@ export function CampusChatDrawer({
                       onClick={() => {
                         setNoiDung((prev) => (prev + em).slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))
                       }}
-                      className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                      className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-surface-overlay transition-colors active:scale-95"
                     >
                       {em}
                     </button>

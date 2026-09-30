@@ -15,14 +15,14 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <header className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8', className)}>
+    <header className={cn('flex min-w-0 flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6', className)}>
       <div className="min-w-0">
-        <h1 className="tieu-de-cap-1 text-[2rem] leading-[1.15] font-extrabold tracking-[-0.03em] sm:text-[2.5rem]">
+        <h1 className="tieu-de-cap-1 text-[1.75rem] leading-[1.2] font-bold tracking-[-0.03em] sm:text-[2.25rem]">
           {title}
         </h1>
         {description ? <div className="mt-2 text-sm leading-relaxed text-text-secondary">{description}</div> : null}
       </div>
-      {actions ? <div className="max-sm:day-loc-deu-co-gian shrink-0 items-center gap-2 sm:flex">{actions}</div> : null}
+      {actions ? <div className="flex min-w-0 flex-wrap items-center gap-2 [&>button]:min-h-11 max-md:[&>button]:flex-1">{actions}</div> : null}
     </header>
   )
 }
@@ -42,7 +42,7 @@ export function SectionHeader({ title, count, description, action, className, id
     <div className={cn('flex flex-wrap items-end justify-between gap-x-3 gap-y-2', className)}>
       <div className="min-w-0">
         <h2 id={id} className="flex items-baseline gap-2 text-[1.0625rem] leading-6 font-bold tracking-[-0.01em]">
-          <span className="tieu-de-cap-2 whitespace-nowrap">{title}</span>
+          <span className="tieu-de-cap-2 min-w-0 break-words">{title}</span>
           {typeof count === 'number' ? <span className="text-sm font-medium tabular-nums text-text-tertiary">{count}</span> : null}
         </h2>
         {description ? <p className="mt-0.5 text-[0.8125rem] text-text-tertiary">{description}</p> : null}

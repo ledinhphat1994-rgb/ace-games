@@ -49,10 +49,12 @@ export interface SanhHoatDongProps {
   cotPhai: ReactNode
   /** Tiền tố data-testid: `${testId}-layout`, `${testId}-search-input`, `${testId}-lobby-loading`… */
   testId: string
+  hero?: ReactNode
+  vaoBangMa?: HanhDongSanh
 }
 
 /** Cùng chiều cao với cột bảng xếp hạng và cột trò chuyện: ba khung thẳng hàng. */
-const CAO_KHUNG = 'h-[max(420px,calc(100dvh-12rem))] max-h-[740px] xl:h-[720px] 2xl:h-[740px]'
+const CAO_KHUNG = 'h-[max(360px,min(680px,calc(100dvh-12rem)))] xl:h-[720px] 2xl:h-[740px]'
 
 export function SanhHoatDong({
   tieuDe,
@@ -67,26 +69,28 @@ export function SanhHoatDong({
   cotTrai,
   cotPhai,
   testId,
+  hero,
+  vaoBangMa,
 }: SanhHoatDongProps) {
-  const coThanhCongCu = Boolean(quayLai || choiNgay || taoPhong || timKiem)
+  const coThanhCongCu = Boolean(quayLai || choiNgay || taoPhong || timKiem || vaoBangMa)
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {hero ?? <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {bieuTuong && <div className="size-11 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/15 sm:size-12">{bieuTuong}</div>}
         <PageHeader title={tieuDe} />
-      </div>
+      </div>}
 
       {thongKe}
 
       {/* Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
-      <ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai}>
+      <ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai} utilityMode="floating">
 
         <section
           aria-label={tieuDe}
           className={cn(
-            '@container order-1 flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:order-2',
-            'bg-gradient-to-b from-[#0e1527]/95 to-[#080c1a]/95',
+            '@container order-1 flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border-default lg:order-2',
+            'bg-surface',
             CAO_KHUNG,
           )}
           data-testid={`${testId}-panel`}
@@ -95,7 +99,7 @@ export function SanhHoatDong({
             // Một hàng co giãn: quay lại · tìm · nút. Khung hẹp: nút xuống hàng dưới và trải đủ bề ngang;
             // không có ô tìm thì nút quay lại đứng cùng hàng với các nút.
             <div
-              className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/[0.06] p-3"
+              className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border-subtle p-3"
               data-testid={`${testId}-actions`}
             >
               {quayLai && (
@@ -104,7 +108,7 @@ export function SanhHoatDong({
                   aria-label={quayLai.nhan}
                   title={quayLai.nhan}
                   data-testid={`${testId}-back`}
-                  className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-text-primary shadow-sm transition-all hover:-translate-x-0.5 hover:border-brand/50 hover:bg-brand/10 hover:text-brand active:scale-95"
+                  className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-overlay text-text-primary shadow-sm transition-all hover:-translate-x-0.5 hover:border-brand/50 hover:bg-brand/10 hover:text-brand active:scale-95"
                 >
                   <ArrowLeft className="size-6" strokeWidth={2.4} />
                 </Link>
@@ -118,24 +122,24 @@ export function SanhHoatDong({
                     placeholder={timKiem.goiY}
                     aria-label="Tìm phòng"
                     data-testid={`${testId}-search-input`}
-                    className="h-12 rounded-xl border-white/10 bg-white/[0.04] pr-9 pl-9 text-sm"
+                    className="h-12 rounded-xl border-white/10 border-border-default bg-surface-overlay pr-12 pl-9 text-sm"
                   />
                   {timKiem.giaTri && (
                     <button
                       type="button"
                       onClick={() => timKiem.onDoi('')}
                       aria-label="Xóa tìm kiếm"
-                      className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+                      className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary"
                     >
                       <X className="size-3.5" />
                     </button>
                   )}
                 </div>
               )}
-              <div className="ml-auto flex flex-1 gap-2 @min-[34rem]:flex-none">
+              <div className="ml-auto flex min-w-0 flex-1 flex-wrap gap-2 @min-[34rem]:flex-none">
                 {taoPhong && (
                   <Button
-                    variant="outline"
+                    variant={testId === 'learning' ? 'default' : 'outline'}
                     onClick={taoPhong.onClick}
                     data-testid={taoPhong.testId}
                     className="h-12 flex-1 rounded-xl px-4 @min-[34rem]:flex-none"
@@ -144,11 +148,13 @@ export function SanhHoatDong({
                     {taoPhong.nhan}
                   </Button>
                 )}
+                {vaoBangMa && <Button variant="outline" onClick={vaoBangMa.onClick} data-testid={vaoBangMa.testId} className={cn('h-12 flex-1 rounded-xl px-4 @min-[34rem]:flex-none')}>{vaoBangMa.nhan}</Button>}
                 {choiNgay && (
                   <Button
+                    variant={testId === 'learning' ? 'ghost' : 'default'}
                     onClick={choiNgay.onClick}
                     data-testid={choiNgay.testId}
-                    className="h-12 flex-1 rounded-xl px-6 font-bold shadow-lg shadow-brand/25 @min-[34rem]:flex-none"
+                    className="h-12 flex-1 rounded-xl px-5 font-semibold @min-[34rem]:flex-none"
                   >
                     <Play className="fill-current" />
                     {choiNgay.nhan}
@@ -174,22 +180,22 @@ function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: s
       <div className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-2">
         <h2 className="tieu-de-cap-2 text-sm font-bold">{tieuDe}</h2>
         {trangThai === 'san_sang' && typeof soLuong === 'number' && (
-          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-text-secondary">
+          <span className="rounded-full bg-surface-overlay px-2 py-0.5 text-[11px] font-semibold tabular-nums text-text-secondary">
             {soLuong}
           </span>
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-1.5 pb-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-1.5 pb-3 max-h-[max(280px,calc(100dvh-18rem))] xl:max-h-none">
         {trangThai === 'dang_tai' && (
           <div
             data-testid={`${testId}-lobby-loading`}
             aria-busy="true"
             aria-label="Đang tải danh sách phòng"
-            className="grid grid-cols-1 gap-3 pt-1 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3"
+            className="grid grid-cols-1 gap-3 pt-1 @min-[34rem]:grid-cols-2"
           >
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-[132px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.03]" />
+              <div key={i} className="h-[132px] animate-pulse rounded-2xl border border-border-subtle bg-surface-overlay" />
             ))}
           </div>
         )}

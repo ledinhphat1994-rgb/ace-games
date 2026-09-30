@@ -397,7 +397,7 @@ export function FriendsDrawer({
         </SheetTrigger>
       )}
 
-      <SheetContent side="right" className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+      <SheetContent side="right" className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md [&_[data-slot=sheet-close]]:size-11">
         {dmFriend ? (
           <DMPanel
             friend={dmFriend}
@@ -408,7 +408,7 @@ export function FriendsDrawer({
           />
         ) : (
           <>
-        <SheetHeader className="px-4 pt-4 pb-3 pr-12">
+        <SheetHeader className="px-4 pt-4 pb-3 pr-16">
           <SheetTitle className="text-base font-semibold text-text-primary">Bạn bè</SheetTitle>
           <SheetDescription className="text-[0.8125rem] text-text-tertiary tabular-nums">
             {friends.length} bạn
@@ -430,7 +430,7 @@ export function FriendsDrawer({
               <TabsTrigger value="requests" data-testid="tab-requests">
                 Lời mời
                 {incomingRequests.length > 0 && (
-                  <span className="min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums">
+                  <span className="min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] leading-4 font-semibold text-text-primary tabular-nums">
                     {incomingRequests.length}
                   </span>
                 )}
@@ -482,95 +482,97 @@ export function FriendsDrawer({
                       <li
                         key={friend.id}
                         data-testid={`friend-item-${friend.username}`}
-                        className="flex items-start gap-3 px-3.5 py-3"
+                        className="flex min-w-0 flex-wrap items-start gap-3 px-3.5 py-3"
                       >
-                        <div className="relative mt-0.5 shrink-0">
-                          <AnhDaiDien ten={friend.displayName} anh={friend.avatar} mo={status === 'offline'} />
-                          <span
-                            data-testid={`presence-dot-${friend.username}`}
-                            className={cn(
-                              'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface',
-                              !presenceSanSang
-                                ? 'bg-slate-600'
-                                : isOnline
-                                  ? 'bg-emerald-500'
-                                  : isAway
-                                    ? 'bg-amber-400'
-                                    : 'bg-slate-500',
-                            )}
-                            title={
-                              !presenceSanSang
-                                ? presenceView.freshness === 'stale'
-                                  ? 'Mất kết nối'
-                                  : 'Đang đồng bộ'
-                                : isOnline
-                                  ? 'Trực tuyến'
-                                  : isAway
-                                    ? 'Vắng mặt'
-                                    : 'Ngoại tuyến'
-                            }
-                          />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <p className="flex flex-wrap items-baseline gap-x-1.5">
-                            <span className="min-w-0 text-sm font-medium break-words text-text-primary">
-                              {friend.displayName}
-                            </span>
-                            {friend.lopTen && <span className="text-xs text-text-tertiary">{friend.lopTen}</span>}
-                          </p>
-
-                          {!presenceSanSang ? (
-                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-text-tertiary">
-                              <Clock className="size-3 shrink-0" />
-                              {presenceView.freshness === 'stale' ? 'Mất kết nối thời gian thực' : 'Đang đồng bộ…'}
-                            </p>
-                          ) : activity ? (
-                            <p
-                              data-testid={`friend-activity-${friend.username}`}
-                              className="mt-0.5 flex items-start gap-1.5 text-xs text-social"
-                            >
-                              <Radio className="mt-px size-3 shrink-0 text-success" />
-                              <span className="min-w-0 break-words">
-                                {activity.type === 'room'
-                                  ? activity.roomTitle
-                                    ? `Đang trong: ${activity.roomTitle}`
-                                    : 'Đang học nhóm'
-                                  : 'Đang ở sảnh Campus'}
-                              </span>
-                            </p>
-                          ) : (
-                            <p
+                        <DanhTinhNguoiDung>
+                          <div className="relative mt-0.5 shrink-0">
+                            <AnhDaiDien ten={friend.displayName} anh={friend.avatar} mo={status === 'offline'} />
+                            <span
+                              data-testid={`presence-dot-${friend.username}`}
                               className={cn(
-                                'mt-0.5 text-xs',
-                                isOnline ? 'text-success' : isAway ? 'text-warning' : 'text-text-tertiary',
+                                'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface',
+                                !presenceSanSang
+                                  ? 'bg-slate-600'
+                                  : isOnline
+                                    ? 'bg-emerald-500'
+                                    : isAway
+                                      ? 'bg-amber-400'
+                                      : 'bg-slate-500',
                               )}
-                            >
-                              {isOnline
-                                ? 'Đang trực tuyến'
-                                : isAway
-                                  ? 'Đang tạm vắng'
-                                  : formatLastSeen(presence?.lastSeen ?? null)}
+                              title={
+                                !presenceSanSang
+                                  ? presenceView.freshness === 'stale'
+                                    ? 'Mất kết nối'
+                                    : 'Đang đồng bộ'
+                                  : isOnline
+                                    ? 'Trực tuyến'
+                                    : isAway
+                                      ? 'Vắng mặt'
+                                      : 'Ngoại tuyến'
+                              }
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="flex flex-wrap items-baseline gap-x-1.5">
+                              <span className="min-w-0 text-sm font-medium break-words text-text-primary">
+                                {friend.displayName}
+                              </span>
+                              {friend.lopTen && <span className="text-xs text-text-tertiary">{friend.lopTen}</span>}
                             </p>
-                          )}
 
-                          {presenceSanSang && activity?.roomId && (
-                            <Button
-                              data-testid={`join-friend-btn-${friend.username}`}
-                              size="xs"
-                              className="mt-2"
-                              onClick={() => handleJoinFriendRoom(activity.roomId!)}
-                            >
-                              <DoorOpen />
-                              Vào phòng
-                            </Button>
-                          )}
-                        </div>
+                            {!presenceSanSang ? (
+                              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-text-tertiary">
+                                <Clock className="size-3 shrink-0" />
+                                {presenceView.freshness === 'stale' ? 'Mất kết nối thời gian thực' : 'Đang đồng bộ…'}
+                              </p>
+                            ) : activity ? (
+                              <p
+                                data-testid={`friend-activity-${friend.username}`}
+                                className="mt-0.5 flex items-start gap-1.5 text-xs text-social"
+                              >
+                                <Radio className="mt-px size-3 shrink-0 text-success" />
+                                <span className="min-w-0 break-words">
+                                  {activity.type === 'room'
+                                    ? activity.roomTitle
+                                      ? `Đang trong: ${activity.roomTitle}`
+                                      : 'Đang học nhóm'
+                                    : 'Đang ở sảnh Campus'}
+                                </span>
+                              </p>
+                            ) : (
+                              <p
+                                className={cn(
+                                  'mt-0.5 text-xs',
+                                  isOnline ? 'text-success' : isAway ? 'text-warning' : 'text-text-tertiary',
+                                )}
+                              >
+                                {isOnline
+                                  ? 'Đang trực tuyến'
+                                  : isAway
+                                    ? 'Đang tạm vắng'
+                                    : formatLastSeen(presence?.lastSeen ?? null)}
+                              </p>
+                            )}
 
-                        <div className="-mt-1 -mr-1.5 flex shrink-0 items-center">
+                            {presenceSanSang && activity?.roomId && (
+                              <Button
+                                data-testid={`join-friend-btn-${friend.username}`}
+                                size="sm"
+                                className="mt-2 min-h-10 whitespace-normal text-sm"
+                                onClick={() => handleJoinFriendRoom(activity.roomId!)}
+                              >
+                                <DoorOpen />
+                                Vào phòng
+                              </Button>
+                            )}
+                          </div>
+                        </DanhTinhNguoiDung>
+
+                        <div className="flex shrink-0 flex-wrap items-center gap-1">
                           <Button
                             variant="ghost"
-                            size="icon-sm"
+                            size="icon-lg"
                             className="text-text-tertiary hover:text-brand"
                             title="Nhắn tin riêng"
                             aria-label={`Nhắn tin với ${friend.displayName}`}
@@ -580,7 +582,7 @@ export function FriendsDrawer({
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon-sm"
+                            size="icon-lg"
                             className="text-text-tertiary hover:text-destructive"
                             title="Hủy kết bạn"
                             aria-label={`Hủy kết bạn với ${friend.displayName}`}
@@ -591,7 +593,7 @@ export function FriendsDrawer({
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon-sm"
+                            size="icon-lg"
                             className="text-text-tertiary hover:text-destructive"
                             title="Chặn người dùng"
                             aria-label={`Chặn ${friend.displayName}`}
@@ -640,14 +642,17 @@ export function FriendsDrawer({
                           <li
                             key={req.id}
                             data-testid={`incoming-request-${sender.username}`}
-                            className="flex items-center gap-3 px-3.5 py-3"
+                            className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3"
                           >
-                            <AnhDaiDien ten={sender.displayName} anh={sender.avatar} />
-                            <NguoiDung ten={sender.displayName} username={sender.username} lop={sender.lopTen} />
-                            <div className="flex shrink-0 items-center gap-1">
+                            <DanhTinhNguoiDung>
+                              <AnhDaiDien ten={sender.displayName} anh={sender.avatar} />
+                              <NguoiDung ten={sender.displayName} username={sender.username} lop={sender.lopTen} />
+                            </DanhTinhNguoiDung>
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
                               <Button
                                 data-testid={`accept-request-btn-${sender.username}`}
-                                size="xs"
+                                size="default"
+                                className="min-h-10 whitespace-normal text-sm"
                                 disabled={dangDongY}
                                 onClick={() => handleAcceptRequest(req.id)}
                               >
@@ -657,7 +662,7 @@ export function FriendsDrawer({
                               <Button
                                 data-testid={`reject-request-btn-${sender.username}`}
                                 variant="ghost"
-                                size="icon-xs"
+                                size="icon-lg"
                                 className="text-text-tertiary hover:text-destructive"
                                 title="Từ chối kết bạn"
                                 aria-label="Từ chối kết bạn"
@@ -687,15 +692,17 @@ export function FriendsDrawer({
                           <li
                             key={req.id}
                             data-testid={`outgoing-request-${receiver.username}`}
-                            className="flex items-center gap-3 px-3.5 py-3"
+                            className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3"
                           >
-                            <AnhDaiDien ten={receiver.displayName} anh={receiver.avatar} />
-                            <NguoiDung ten={receiver.displayName} username={receiver.username} lop={receiver.lopTen} />
+                            <DanhTinhNguoiDung>
+                              <AnhDaiDien ten={receiver.displayName} anh={receiver.avatar} />
+                              <NguoiDung ten={receiver.displayName} username={receiver.username} lop={receiver.lopTen} />
+                            </DanhTinhNguoiDung>
                             <Button
                               data-testid={`cancel-request-btn-${receiver.username}`}
                               variant="outline"
-                              size="xs"
-                              className="shrink-0"
+                              size="sm"
+                              className="min-h-10 shrink-0 whitespace-normal text-sm"
                               disabled={busyActionId === `cancel-${req.id}`}
                               onClick={() => handleCancelRequest(req.id)}
                             >
@@ -763,7 +770,7 @@ export function FriendsDrawer({
                   <AlertCircle className="size-4 shrink-0" />
                   <span className="break-words">{searchState.error}</span>
                 </p>
-                <Button size="xs" variant="outline" data-testid="search-retry-btn" onClick={handleRetrySearch}>
+                <Button size="sm" variant="outline" data-testid="search-retry-btn" onClick={handleRetrySearch}>
                   <RefreshCw />
                   Thử lại
                 </Button>
@@ -776,10 +783,12 @@ export function FriendsDrawer({
                   <li
                     key={user.id}
                     data-testid={`search-result-${user.username}`}
-                    className="flex items-center gap-3 px-3.5 py-3"
+                    className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3"
                   >
-                    <AnhDaiDien ten={user.displayName} anh={user.avatar} />
-                    <NguoiDung ten={user.displayName} username={user.username} lop={user.lopTen} />
+                    <DanhTinhNguoiDung>
+                                <AnhDaiDien ten={user.displayName} anh={user.avatar} />
+                      <NguoiDung ten={user.displayName} username={user.username} lop={user.lopTen} />
+                    </DanhTinhNguoiDung>
                     <QuanHe
                       user={user}
                       dangGui={busyActionId === `send-${user.id}`}
@@ -797,7 +806,7 @@ export function FriendsDrawer({
                 <TieuDeNhom title="Đã chặn" count={blockedUsers.length} />
                 <DanhSach>
                   {blockedUsers.map((b) => (
-                    <li key={b.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                    <li key={b.id} className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm break-words text-text-secondary">{b.displayName}</p>
                         <p className="text-xs break-words text-text-tertiary">@{b.username}</p>
@@ -805,8 +814,8 @@ export function FriendsDrawer({
                       <Button
                         data-testid={`unblock-btn-${b.username}`}
                         variant="outline"
-                        size="xs"
-                        className="shrink-0"
+                        size="sm"
+                        className="min-h-10 shrink-0 whitespace-normal text-sm"
                         disabled={busyActionId === `unblock-${b.id}`}
                         onClick={() => handleUnblock(b.id)}
                       >
@@ -869,7 +878,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle px-4 py-3 pr-12">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle px-4 py-3 pr-16">
         <button
           type="button"
           onClick={onBack}
@@ -939,7 +948,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
                 key={em}
                 type="button"
                 onClick={() => setNoiDung((p) => p + em)}
-                className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-surface-overlay transition-colors active:scale-95"
               >
                 {em}
               </button>
@@ -950,7 +959,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
           <button
             type="button"
             onClick={() => setHienEmoji((p) => !p)}
-            className="shrink-0 flex size-9 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-raised hover:text-white transition-colors"
+            className="shrink-0 flex size-9 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-raised hover:text-text-primary transition-colors"
             title="Chèn biểu cảm"
           >
             <Smile className="size-5" />
@@ -967,7 +976,7 @@ function DMPanel({ friend, onBack }: { friend: FriendItem; onBack: () => void })
           <button
             type="submit"
             disabled={!noiDung.trim()}
-            className="shrink-0 flex size-9 items-center justify-center rounded-xl bg-brand text-white disabled:opacity-40 hover:bg-brand/85 transition-colors"
+            className="shrink-0 flex size-9 items-center justify-center rounded-xl bg-brand text-text-primary disabled:opacity-40 hover:bg-brand/85 transition-colors"
             aria-label="Gửi"
           >
             <SendHorizontal className="size-4" />
@@ -1045,6 +1054,10 @@ function AnhDaiDien({ ten, anh, mo }: { ten: string; anh: string | null; mo?: bo
   )
 }
 
+function DanhTinhNguoiDung({ children }: { children: ReactNode }) {
+  return <div className="flex min-w-0 grow basis-48 items-start gap-3">{children}</div>
+}
+
 function NguoiDung({ ten, username, lop }: { ten: string; username: string; lop: string | null }) {
   return (
     <div className="min-w-0 flex-1">
@@ -1083,7 +1096,7 @@ function QuanHe({
     case 'pending_received':
       // Họ đã mời mình — đưa thẳng tới tab Lời mời để đồng ý
       return (
-        <Button size="xs" variant="outline" className="shrink-0" onClick={onXemLoiMoi}>
+        <Button size="sm" variant="outline" className="min-h-10 shrink-0 whitespace-normal text-sm" onClick={onXemLoiMoi}>
           Xem lời mời
         </Button>
       )
@@ -1093,8 +1106,8 @@ function QuanHe({
       return (
         <Button
           data-testid={`add-friend-btn-${user.username}`}
-          size="xs"
-          className="shrink-0"
+          size="sm"
+          className="min-h-10 shrink-0 whitespace-normal text-sm"
           disabled={dangGui}
           onClick={onKetBan}
         >

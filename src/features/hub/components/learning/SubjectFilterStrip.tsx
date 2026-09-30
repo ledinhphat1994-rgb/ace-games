@@ -19,7 +19,7 @@ export function SubjectFilterStrip({ selectedSubject, onSelectSubject }: Subject
             className={`whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-200 border shrink-0 ${
               isSelected
                 ? 'bg-cyan-500 border-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20'
-                : 'bg-slate-900/60 border-white/10 text-slate-300 hover:bg-white/5 hover:text-white'
+                : 'bg-surface/60 border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
             }`}
           >
             <span>{subject.label}</span>

@@ -169,7 +169,7 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
   if (n.type === 'friend_request') {
     if (daLaBan) {
       hanhDong = (
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
           <Check className="size-3.5" />
           Đã là bạn bè
         </span>
@@ -303,7 +303,7 @@ export function NotificationCenter() {
       >
         <Bell className="size-[18px]" />
         {unreadCount > 0 && (
-          <span className="pointer-events-none absolute top-1 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-canvas">
+          <span className="pointer-events-none absolute top-1 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-semibold text-text-primary tabular-nums ring-2 ring-canvas">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

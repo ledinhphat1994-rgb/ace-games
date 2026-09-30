@@ -11,9 +11,12 @@ import { ViewportMetrics } from '@/components/layout/ViewportMetrics'
 import { AppShell } from '@/components/layout/AppShell'
 import { LearningPage } from '@/features/hub/LearningPage'
 import './index.css'
+import { ThemeProvider } from '@/app/theme'
 
 // Trang đích /learn nằm trong bundle chính; các trang khác tách chunk riêng, chỉ tải khi người dùng mở tới.
 const CommunityPage = lazy(() => import('@/features/hub/CommunityPage').then((m) => ({ default: m.CommunityPage })))
+const HomePage = lazy(() => import('@/features/hub/HomePage').then((m) => ({ default: m.HomePage })))
+const LeaderboardPage = lazy(() => import('@/features/hub/LeaderboardPage').then((m) => ({ default: m.LeaderboardPage })))
 const ProfilePage = lazy(() => import('@/features/hub/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const RoomPage = lazy(() => import('@/features/study/RoomPage').then((m) => ({ default: m.RoomPage })))
 const GameArenaPage = lazy(() => import('@/features/games/GameArenaPage').then((m) => ({ default: m.GameArenaPage })))
@@ -55,12 +58,15 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="/learn" replace /> },
+          { index: true, element: <HomePage /> },
+          { path: 'home', element: <HomePage /> },
           { path: 'learn', element: <LearningPage /> },
           { path: 'learning', element: <Navigate to="/learn" replace /> },
           { path: 'arena', element: <GameArenaPage /> },
           { path: 'arena/:gameType', element: <GameLobbyPage /> },
           { path: 'community', element: <CommunityPage /> },
+          { path: 'rankings', element: <LeaderboardPage /> },
+          { path: 'leaderboard', element: <Navigate to="/rankings" replace /> },
           { path: 'me', element: <ProfilePage /> },
           { path: 'profile', element: <Navigate to="/me" replace /> },
           { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
@@ -76,6 +82,7 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ThemeProvider>
     <ViewportMetrics />
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -89,5 +96,6 @@ createRoot(document.getElementById('root')!).render(
         />
       </TooltipProvider>
     </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

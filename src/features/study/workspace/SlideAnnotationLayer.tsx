@@ -386,7 +386,7 @@ export function SlideAnnotationLayer({
           maxLength={500}
           rows={Math.max(1, chuDangGo.split(/\r?\n/).length)}
           aria-label="Nhập chữ lên tài liệu"
-          className="pointer-events-auto absolute z-30 min-w-44 max-w-md resize-none rounded-md border border-slate-400 bg-white/95 px-2 py-1 font-semibold shadow-xl outline-none leading-snug"
+          className="pointer-events-auto absolute z-30 min-w-44 max-w-md resize-none rounded-md border border-slate-400 bg-surface-overlay px-2 py-1 font-semibold shadow-xl outline-none leading-snug"
           style={{
             left: oChu.left,
             top: oChu.top,

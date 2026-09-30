@@ -1,3 +1,4 @@
+import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { MousePointer2, Play, RotateCcw, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -981,7 +982,13 @@ export function Wormate3DArena({
   // Lắng nghe phím Spacebar để Tăng Tốc và phím WASD / Mũi tên cho Player 2
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isRunning || isGameOver || (e.target instanceof HTMLElement && (e.target.matches('input, textarea, select') || e.target.isContentEditable))) return
+      if (e.defaultPrevented || !isRunning || isGameOver || (e.target instanceof HTMLElement && (e.target.closest('button, a, input, textarea, select, [role="menu"], [data-slot="dialog-content"], [data-slot="popover-content"]') || e.target.isContentEditable))) return
+      const angle = snakeKeyAngle(e.code)
+      if (mode === 'ai' && angle !== null) {
+        e.preventDefault()
+        engineRef.current.player.targetAngle = angle
+        return
+      }
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
       if (e.code === 'Space') {
         e.preventDefault()
@@ -1005,7 +1012,6 @@ export function Wormate3DArena({
     }
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
-        e.preventDefault()
         engineRef.current.keys.boost = false
       }
       if (e.code === 'KeyW' || e.code === 'ArrowUp') {
@@ -1038,7 +1044,7 @@ export function Wormate3DArena({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isRunning, isGameOver])
+  }, [isRunning, isGameOver, mode])
 
   // Mouse & Touch Control Handlers
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1068,10 +1074,10 @@ export function Wormate3DArena({
     <div
       ref={containerRef}
       className={cn(
-        'snake-arena relative flex flex-col items-center justify-center w-full rounded-2xl border-2 border-slate-700/80 bg-slate-950 shadow-2xl shadow-cyan-500/10 overflow-hidden select-none',
+        'snake-arena relative flex flex-col items-center justify-center w-full rounded-xl border border-border-default bg-canvas overflow-hidden select-none',
         isFullscreen
           ? 'h-full flex-1 min-h-0 border-none rounded-none'
-          : 'h-[clamp(300px,calc(100dvh-16rem),660px)] xl:flex-1 xl:h-full xl:min-h-0'
+          : 'h-[clamp(280px,calc(100dvh-16rem),640px)]'
       )}
     >
       {/* Canvas Game 3D theo kích thước vùng chứa */}
@@ -1089,11 +1095,11 @@ export function Wormate3DArena({
       />
 
       {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI HIỆN TẠI (Làm mờ, không cản trở góc nhìn game) */}
-      <div className="absolute top-3.5 left-3.5 z-10 select-none pointer-events-none w-[min(52%,15rem)] p-1.5 sm:p-2.5 rounded-2xl bg-slate-950/45 backdrop-blur-md border border-white/10 shadow-xl text-xs transition-opacity duration-300">
+      <div className="absolute top-3.5 left-3.5 z-10 select-none pointer-events-none w-[min(65%,15rem)] p-1.5 sm:p-2.5 rounded-2xl bg-slate-950/45 backdrop-blur-md border border-white/10 shadow-xl text-xs transition-opacity duration-300">
         <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
           <div className="flex items-center gap-1.5 font-black text-[11px] text-amber-300 uppercase tracking-wider">
             <Trophy className="size-3.5 text-amber-400" />
-            <span>Bảng Xếp Hạng</span>
+            <span className="hidden sm:inline">Bảng Xếp Hạng</span><span className="sm:hidden">Top</span>
           </div>
           <span className="text-[9px] font-mono font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded-full">
             {leaderboard.length} sâu
@@ -1187,7 +1193,7 @@ export function Wormate3DArena({
           <span className="pt-1 text-2xl leading-[1.35] font-black tracking-[0.18em] text-emerald-300 uppercase [text-shadow:0_0_20px_rgb(52_211_153/0.55)] sm:text-3xl">
             {mode === 'pass_and_play' ? 'Rắn Săn Mồi (PvP)' : 'Rắn Săn Mồi'}
           </span>
-          <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 flex-wrap justify-center">
+          <span className="hidden sm:flex items-center gap-2 text-xs font-medium text-text-secondary flex-wrap justify-center">
             {mode === 'pass_and_play' ? (
               <>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-cyan-300">
@@ -1212,6 +1218,8 @@ export function Wormate3DArena({
               </>
             )}
           </span>
+
+          <span className="text-sm text-text-secondary sm:hidden">Kéo cần điều khiển để lái · Giữ ⚡ để tăng tốc</span>
 
           {/* Nút BẮT ĐẦU to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
           <div className="pt-2">

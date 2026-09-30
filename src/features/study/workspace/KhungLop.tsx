@@ -118,7 +118,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
     vaiTro === 'main'
       ? 'absolute inset-0 z-0'
       : vaiTro === 'pip'
-        ? `group/khung absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] rounded-xl border border-white/15 shadow-2xl shadow-black/60`
+        ? `group/khung absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] rounded-xl border border-border-default shadow-2xl shadow-black/60`
         : 'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'
 
   // Kéo cửa sổ nổi bằng thanh tiêu đề (phần tử có data-keo-khung, trừ nút / ô nhập).
@@ -351,7 +351,7 @@ export interface NutKhungProps {
 }
 
 const nut =
-  'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer'
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary cursor-pointer'
 
 /** Vùng điều khiển khung: đổi, phóng to / thu nhỏ, toàn màn hình, góc phải ngoài cùng là ẩn và đóng. */
 export function NutKhung({

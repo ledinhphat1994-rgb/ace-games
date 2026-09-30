@@ -1,6 +1,6 @@
-import { useMemo, useCallback } from 'react'
+import { CampusHero } from '@/components/layout/CampusHero'
+import { useMemo, useCallback, useState } from 'react'
 import { ResponsiveActivityLayout } from '@/components/layout/ResponsiveActivityLayout'
-import { Gamepad2 } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { useGameRooms } from '../../hooks/use-game-rooms'
 import { GameCard } from './GameCard'
@@ -20,6 +20,7 @@ interface GameLobbyViewProps {
 
 export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
   const { nguoiDung } = usePhien()
+  const [category, setCategory] = useState<'all' | '1v1' | 'solo'>('all')
   // Danh sách bàn online chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách): số bàn chờ trên thẻ + thống kê của quản trị.
   const { data: tablesData, isPending, isError } = useGameRooms(undefined, Boolean(nguoiDung))
   const tables = useMemo<BanSanh[]>(
@@ -55,33 +56,22 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* ── Header Đấu Trường Game ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 shadow-xl shadow-cyan-500/25 text-white ring-1 ring-white/20">
-            <Gamepad2 className="size-6 drop-shadow-md" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="tieu-de-cap-1 text-[2rem] leading-[1.15] font-extrabold tracking-[-0.03em] sm:text-[2.5rem]">
-                Game
-              </h1>
-              <span className="rounded-full bg-gradient-to-r from-cyan-500/20 to-brand/20 border border-cyan-500/30 px-3 py-0.5 text-xs font-extrabold text-cyan-300 shadow-sm">
-                5 Bộ Môn
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <CampusHero
+        eyebrow="Game Arena · Lớp 10A7"
+        title="Cùng chơi. Cùng vui. Cùng kết nối."
+        description="Nhiều trò chơi hấp dẫn, bảng xếp hạng, giải đấu và phần thưởng thú vị."
+        art="/assets/games/gaming_poster.webp"
+      />
 
       <ThongKeGame ban={tables} sanSang={Boolean(nguoiDung) && !isPending && !isError} />
 
       {/* ── Bố cục chính 3 cột trải rộng: Cột Trái rộng: Bảng xếp hạng | Cột Giữa To Bự: 5 Game | Cột Phải rộng: Chat & Bạn bè ── */}
-      <ResponsiveActivityLayout leaderboard={<GameArenaLeaderboard />} social={<GameSocialSidebar onInviteToGame={handleInviteToGame} />}>
+      <ResponsiveActivityLayout leaderboard={<GameArenaLeaderboard />} social={<GameSocialSidebar onInviteToGame={handleInviteToGame} />} utilityMode="floating">
         {/* ── Cột 2 (Trung tâm to bự): Danh sách 5 game chiếm trọn không gian giữa ── */}
         <div className="min-w-0 order-1 lg:order-2 flex-1">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-            {allGames.map((game) => (
+          <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Loại trò chơi">{([{ id: 'all', label: 'Tất cả' }, { id: '1v1', label: 'Đối kháng' }, { id: 'solo', label: 'Chơi đơn' }] as const).map(item => <button type="button" key={item.id} aria-pressed={category === item.id} onClick={() => setCategory(item.id)} className="min-h-11 rounded-xl px-4 text-sm font-medium text-text-secondary outline-none hover:bg-surface-overlay focus-visible:ring-2 focus-visible:ring-brand aria-pressed:bg-brand/12 aria-pressed:text-brand">{item.label}</button>)}</div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+            {allGames.filter(game => category === 'all' || game.category === category).map((game) => (
               <GameCard
                 key={game.id}
                 game={game}

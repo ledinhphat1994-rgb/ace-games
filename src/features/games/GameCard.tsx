@@ -19,10 +19,10 @@ export function GameCard({ game, waiting, onMoSanh }: GameCardProps) {
     <article
       data-testid={`game-card-${game.id}`}
       onClick={onMoSanh}
-      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#101728] to-[#0a0f1d] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand/60 hover:shadow-2xl hover:shadow-brand/15"
+      className="group relative flex min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-border-default bg-surface transition-colors hover:border-brand/40 sm:flex-col"
     >
       {/* Artwork container */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-white/5 bg-black/40">
+      <div className="relative w-28 shrink-0 self-stretch overflow-hidden bg-canvas sm:aspect-[4/3] sm:w-full sm:border-b sm:border-border-subtle">
         <GameArt
           gameType={game.id}
           className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
@@ -38,17 +38,17 @@ export function GameCard({ game, waiting, onMoSanh }: GameCardProps) {
       </div>
 
       {/* Body container */}
-      <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="text-base font-extrabold tracking-tight text-white group-hover:text-brand transition-colors">
+      <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h3 className="text-base font-semibold tracking-tight text-text-primary group-hover:text-brand transition-colors">
             {game.shortTitle}
           </h3>
-          <span className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">
+          <span className="text-xs font-medium text-text-secondary">
             {game.boardLabel || 'Bàn cờ'}
           </span>
         </div>
 
-        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-text-secondary">
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-text-secondary">
           {game.description}
         </p>
 
@@ -61,7 +61,8 @@ export function GameCard({ game, waiting, onMoSanh }: GameCardProps) {
             }}
             aria-label={`Vào sảnh ${game.shortTitle}`}
             data-testid={`game-card-lobby-${game.id}`}
-            className="w-full font-bold bg-brand text-brand-foreground hover:bg-brand/90 shadow-md shadow-brand/20 group/btn h-9"
+            variant="outline"
+            className="w-full font-semibold group/btn h-11"
           >
             <DoorOpen className="size-4 transition-transform group-hover/btn:scale-110" />
             Vào sảnh

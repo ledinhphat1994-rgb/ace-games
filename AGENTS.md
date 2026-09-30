@@ -110,3 +110,20 @@ NEED: <thứ cần quyết định>
 - **Cấm đè lên nhau (Zero Overlap Invariant):** Các card, nút bấm (buttons), nhãn, menu và popup tuyệt đối không được chồng đè, lấn át hay che khuất nhau. Phải sử dụng layout có cấu trúc rõ ràng (`grid`, `flex-col`, `gap` tách biệt, `flex-wrap`), dự trù đủ min-width và padding.
 - **Nút thành tựu:** Hồ sơ và bảng thông tin người dùng phải có nút/mục "Thành tựu" (Achievements) rõ ràng, trực quan để người dùng theo dõi huy hiệu và tiến độ học tập / hoạt động.
 - **Tối ưu không gian hẹp / Mobile (Icon-Only Compact Mode):** Khi màn hình hoặc container có không gian hẹp (mobile, popover hẹp, thanh điều khiển thu nhỏ), chuyển sang sử dụng icon đại diện thay vì chèn chữ dài dòng gây vỡ giao diện hoặc tràn đè lên nhau. Luôn kèm `title` và `aria-label` để đảm bảo trải nghiệm và khả năng tiếp cận.
+
+## Mandatory UI/UX constitution
+
+Before modifying any UI/UX, frontend layout, responsive behavior,
+component styling, visual hierarchy, popup, modal, card, toolbar,
+navigation, mobile layout, form, animation, or interaction pattern,
+the agent MUST read and comply with:
+
+[.agents/rules/10-ui-ux-layout-constitution.md](.agents/rules/10-ui-ux-layout-constitution.md)
+
+A UI task is not DONE if it violates any hard invariant in that file.
+
+Conflict precedence: explicit user requirements > security/correctness/product invariants > [Product North Star](docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md) > UI/UX Constitution > legacy implementation. Earlier UI guidance applies only where consistent; title-only restrictions apply only when the user requests a title edit. For UI-only work, the constitution's targeted verification and staging policy (sections 113–114) takes precedence over the full-suite and single-deploy defaults above.
+
+## Approved full-product redesign (2026-09-30)
+
+Follow [docs/UI_REDESIGN_2026_09_30.md](docs/UI_REDESIGN_2026_09_30.md) and references A–D for premium, calm student UI: no card walls, no duplicate actions, first-class dark/light/system themes, responsive desktop to mobile, real data and authoritative logic preserved. Primary navigation is Học tập / Game / Cộng đồng. Classroom uses a central stage, contextual panels and one tool dock. This explicit user-requested redesign uses one full local final gate (typecheck, lint, npm test, build:bundle, diff check) per milestone. No GitHub CI; concise evidence-based reporting. Production remains untouched.

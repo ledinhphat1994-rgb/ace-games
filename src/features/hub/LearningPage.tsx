@@ -1,3 +1,5 @@
+import { CampusHero } from '@/components/layout/CampusHero'
+import { JoinRoomModal } from './components/learning/JoinRoomModal'
 import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
@@ -41,6 +43,7 @@ export function LearningPage() {
   const [tuKhoa, setTuKhoa] = useState(urlQuery)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
+  const [moVaoBangMa, setMoVaoBangMa] = useState(false)
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -111,6 +114,8 @@ export function LearningPage() {
       <SanhHoatDong
         testId="learning"
         tieuDe="Học tập"
+        hero={<CampusHero eyebrow="Digital Campus" title="Học tập" description="Cùng nhau học tốt hơn mỗi ngày." art="/assets/learning/learning_hero.webp" />}
+        vaoBangMa={{ nhan: 'Vào bằng mã', onClick: canDangNhap(() => setMoVaoBangMa(true)), testId: 'join-by-code-btn' }}
         thongKe={<ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />}
         choiNgay={{ nhan: 'Học ngay', onClick: canDangNhap(vaoPhongNhanh), testId: 'quick-join-btn' }}
         taoPhong={{ nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'create-room-btn' }}
@@ -159,6 +164,7 @@ export function LearningPage() {
         />
       )}
 
+      <JoinRoomModal open={moVaoBangMa} onOpenChange={setMoVaoBangMa} onJoinRoomId={id => navigate(`/room/phong-${id}`)} />
       <CreateStudyRoomDialog
         open={moTaoPhong}
         onOpenChange={setMoTaoPhong}

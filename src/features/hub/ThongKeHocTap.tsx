@@ -29,22 +29,22 @@ export function ThongKeHocTap({ rooms, sanSang }: ThongKeHocTapProps) {
       trucTiep: true,
       chiSo: [
         { icon: DoorOpen, nhan: 'Phòng mở', giaTri: sanSang ? rooms.length : null, mau: 'text-brand' },
-        { icon: Users, nhan: 'Đang học', giaTri: sanSang ? dangHoc : null, mau: 'text-emerald-400' },
+        { icon: Users, nhan: 'Đang học', giaTri: sanSang ? dangHoc : null, mau: 'text-success' },
       ],
     },
     {
       tieuDe: 'Hôm nay',
       chiSo: [
         { icon: GraduationCap, nhan: 'Người học', giaTri: lichSu?.tongHomNay.nguoiHoc ?? null, mau: 'text-sky-400' },
-        { icon: BookOpenCheck, nhan: 'Buổi học', giaTri: lichSu?.tongHomNay.buoiHoc ?? null, mau: 'text-violet-400' },
-        { icon: Clock, nhan: 'Phút học', giaTri: lichSu?.tongHomNay.phutHoc ?? null, mau: 'text-amber-400' },
+        { icon: BookOpenCheck, nhan: 'Buổi học', giaTri: lichSu?.tongHomNay.buoiHoc ?? null, mau: 'text-social' },
+        { icon: Clock, nhan: 'Phút học', giaTri: lichSu?.tongHomNay.phutHoc ?? null, mau: 'text-warning' },
       ],
     },
     {
       tieuDe: '7 ngày',
       chiSo: [
         { icon: GraduationCap, nhan: 'Người học', giaTri: lichSu?.tong7Ngay.nguoiHoc ?? null, mau: 'text-sky-400' },
-        { icon: Clock, nhan: 'Phút học', giaTri: lichSu?.tong7Ngay.phutHoc ?? null, mau: 'text-amber-400' },
+        { icon: Clock, nhan: 'Phút học', giaTri: lichSu?.tong7Ngay.phutHoc ?? null, mau: 'text-warning' },
       ],
     },
   ]

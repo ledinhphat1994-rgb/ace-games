@@ -138,7 +138,8 @@ test.describe('mobile controls', () => {
         const box = (await button.boundingBox())!
         expect(box.x).toBeGreaterThanOrEqual(bounds.x - 1)
         expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1)
-        expect(box.height, width + 'px button ' + await button.getAttribute('aria-label')).toBeGreaterThanOrEqual(39)
+        expect(box.height, width + 'px button ' + await button.getAttribute('aria-label')).toBeGreaterThanOrEqual(44)
+        expect(box.width).toBeGreaterThanOrEqual(44)
         boxes.push(box)
         if (bounds.width < 1024) expect((await button.innerText()).trim()).not.toMatch(/PvE|PvP|Quay|Biểu|màn|thua|Vừa|Khó|Dễ/)
       }
@@ -169,10 +170,22 @@ test.describe('mobile controls', () => {
     await toolbar.getByTestId('nut-hanh-dong-chinh').click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await page.keyboard.press('Escape')
+    await page.getByTestId('bubble-activity').click()
+    await page.getByTestId('bubble-action-messages').click()
+    await page.getByTestId('activity-panel-messages').getByRole('button', { name: /Bạn bè/ }).click()
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 844, height: 390 })
     await toolbar.getByRole('button', { name: 'Toàn màn hình', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.classList.contains('game-stage'))).toBe(true)
+    const fullscreenBoard = (await page.locator('.game-board-shell').boundingBox())!
+    expect(fullscreenBoard.y + fullscreenBoard.height).toBeLessThanOrEqual(390)
+    expect(fullscreenBoard.x).toBeGreaterThanOrEqual(0)
     await toolbar.getByRole('button', { name: 'Toàn màn hình', exact: true }).click()
     await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true)
+    await page.getByTestId('bubble-activity').click()
+    await page.getByTestId('bubble-action-messages').click()
+    await expect(page.getByTestId('activity-panel-messages').getByRole('button', { name: /Bạn bè/ })).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Escape')
     await toolbar.getByRole('button', { name: 'Quay lại sảnh', exact: true }).click()
     await expect(page.getByTestId('game-lobby-play-now')).toBeVisible()
   })
@@ -200,6 +213,35 @@ test.describe('mobile controls', () => {
     await expect(page.getByTestId('snake-joystick-p2')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Tăng tốc P2', exact: true })).toBeVisible()
     await noOverflow(page)
+  })
+
+  test('snake keyboard steers the actual PvE renderer and leaves toolbar keyboard actions usable', async ({ page }) => {
+    await page.addInitScript(() => {
+      const rotate = CanvasRenderingContext2D.prototype.rotate
+      CanvasRenderingContext2D.prototype.rotate = function (angle: number) {
+        if (this.canvas.getAttribute('aria-label') === 'Đấu trường Rắn săn mồi') {
+          ;(window as Window & { snakeRenderedAngle?: number }).snakeRenderedAngle = angle
+        }
+        return rotate.call(this, angle)
+      }
+      localStorage.setItem('c10a7:ran-san-moi:thiet-lap', JSON.stringify({ capDo: 'easy', soMay: 4 }))
+    })
+    await page.goto('/arena/solo_snake')
+    await page.getByTestId('game-lobby-play-now').click()
+    await page.getByTestId('ran-man-san-sang').click()
+    for (const [key, target] of [['ArrowUp', -Math.PI / 2], ['ArrowLeft', Math.PI]] as const) {
+      await page.keyboard.press(key)
+      await expect.poll(() => page.evaluate(target => {
+        const angle = (window as Window & { snakeRenderedAngle?: number }).snakeRenderedAngle
+        return angle === undefined ? Infinity : Math.abs(Math.atan2(Math.sin(angle - target), Math.cos(angle - target)))
+      }, target)).toBeLessThan(0.12)
+    }
+    const fullscreen = page.getByRole('button', { name: 'Toàn màn hình', exact: true })
+    await fullscreen.focus()
+    await page.keyboard.press('Space')
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true)
+    await fullscreen.click()
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true)
   })
 
   test('classic snake mounts a single canvas, resizes and stays controllable', async ({ page }) => {
@@ -255,6 +297,13 @@ test('study room retains chat, notes, drawing and all host controls at mobile si
   for (const [width, height] of [[320, 568], [600, 960], [844, 390], [1024, 768]]) {
     await page.setViewportSize({ width, height })
     await noOverflow(page)
+    const audio = page.getByTestId('dock-btn-audio-settings')
+    const audioBox = (await audio.boundingBox())!
+    expect(audioBox.width).toBeGreaterThanOrEqual(44)
+    expect(audioBox.height).toBeGreaterThanOrEqual(44)
+    const toolsBox = (await page.getByTestId('dock-btn-secondary-tools').boundingBox())!
+    expect(toolsBox.x).toBeGreaterThanOrEqual(0)
+    expect(toolsBox.x + toolsBox.width).toBeLessThanOrEqual(width + 1)
     await expect(page.getByTestId('topbar-btn-leave')).toBeVisible()
     await expect(page.getByTestId('member-strip')).toBeVisible()
     await page.getByTestId('topbar-btn-chat').click()
