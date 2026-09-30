@@ -39,10 +39,10 @@ const buttonVariants = cva(
       size: {
         /** 40px — standard control */
         default:
-          "h-10 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
+          "h-10 pointer-coarse:min-h-11 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         /** 32px — compact / dense UI */
         sm:
-          "h-8 px-3 text-[0.8125rem] rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
+          "h-8 pointer-coarse:min-h-11 px-3 text-[0.8125rem] rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
         /** 28px — very tight context */
         xs:
           "h-7 px-2.5 text-xs rounded-[min(var(--radius-sm),10px)] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
@@ -50,9 +50,9 @@ const buttonVariants = cva(
         lg:
           "h-11 px-5 text-[0.9375rem] has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
         /** 40px square icon */
-        icon: "size-10",
+        icon: "size-10 pointer-coarse:size-11",
         /** 32px square icon */
-        "icon-sm": "size-8 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+        "icon-sm": "size-8 pointer-coarse:size-11 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         /** 28px square icon */
         "icon-xs": "size-7 rounded-[min(var(--radius-sm),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         /** 44px square icon — minimum touch target */

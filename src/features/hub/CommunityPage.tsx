@@ -105,7 +105,7 @@ export function CommunityPage() {
     .filter((ten): ten is string => Boolean(ten))
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Cộng đồng"
         description={moTaTrucTiep}
@@ -180,7 +180,7 @@ export function CommunityPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
         <div className="min-w-0 space-y-6">
           {/* STATE A: đang tải */}
           {socialStatus === 'loading' && (
@@ -235,17 +235,13 @@ export function CommunityPage() {
           {coDuLieu && friends.length === 0 && (
             <div
               data-testid="community-empty"
-              className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-border-subtle bg-surface px-6 py-12 text-center"
+              className="flex min-h-[256px] flex-col items-center justify-center rounded-2xl border border-border-default bg-surface px-4 py-8 text-center"
             >
               <HinhBanBe />
               <h2 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Chưa có bạn bè trong danh bạ</h2>
               <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-text-secondary">
                 Tìm bạn cùng lớp hoặc trong trường để thấy ai đang trực tuyến và vào phòng học cùng nhau.
               </p>
-              <Button data-testid="empty-find-friends-btn" onClick={() => openDrawerTab('search')} className="mt-6">
-                <Search />
-                <span>Tìm bạn học</span>
-              </Button>
             </div>
           )}
 
@@ -361,8 +357,8 @@ export function CommunityPage() {
           )}
         </div>
 
-        <aside className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start lg:grid-cols-1 lg:self-start">
-          <XemTruocTroChuyen messages={messages} onOpen={handleOpenChat} />
+        <aside className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start xl:grid-cols-1 xl:self-start">
+          <XemTruocTroChuyen messages={messages} />
 
           <section className="rounded-2xl border border-border-subtle bg-surface p-4">
             <div className="flex items-start gap-3">
@@ -393,7 +389,7 @@ export function CommunityPage() {
             </Button>
           </section>
 
-          <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-text-tertiary md:col-span-2 lg:col-span-1">
+          <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-text-tertiary md:col-span-2 xl:col-span-1">
             <ShieldCheck className="mt-px size-3.5 shrink-0 text-success" />
             Tôn trọng bạn học, giữ văn minh khi trò chuyện. Bạn luôn có thể chặn hoặc báo cáo khi cần.
           </p>
@@ -506,7 +502,7 @@ function DongBanBe({
 const DINH_DANG_GIO = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
 
 /** Ba tin gần nhất của kênh trò chuyện toàn trường (dữ liệu thật từ CampusDO, đã áp dụng xoá/kiểm duyệt). */
-function XemTruocTroChuyen({ messages, onOpen }: { messages: TinCampus[]; onOpen: () => void }) {
+function XemTruocTroChuyen({ messages }: { messages: TinCampus[] }) {
   const ganDay = messages.slice(-3)
 
   return (
@@ -516,9 +512,9 @@ function XemTruocTroChuyen({ messages, onOpen }: { messages: TinCampus[]; onOpen
           Trò chuyện toàn trường
         </h2>
       </div>
-      <div className="min-h-[132px] px-4">
+      <div className="px-4 pb-4">
         {ganDay.length === 0 ? (
-          <div className="flex min-h-[132px] flex-col items-center justify-center text-center">
+          <div className="flex min-h-[100px] flex-col items-center justify-center text-center">
             <MessageSquare className="size-5 text-text-tertiary" />
             <p className="mt-2 text-[0.8125rem] text-text-secondary">Chưa có tin nhắn gần đây.</p>
             <p className="text-xs text-text-tertiary">Mở trò chuyện để chào mọi người!</p>
@@ -546,12 +542,6 @@ function XemTruocTroChuyen({ messages, onOpen }: { messages: TinCampus[]; onOpen
             ))}
           </ul>
         )}
-      </div>
-      <div className="p-4 pt-4">
-        <Button variant="outline" size="sm" onClick={onOpen} className="w-full">
-          <span>Mở trò chuyện</span>
-          <ArrowRight />
-        </Button>
       </div>
     </section>
   )

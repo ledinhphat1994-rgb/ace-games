@@ -392,25 +392,18 @@ body {
 
 /* ============================================================
    CẤP TIÊU ĐỀ — độ nổi bật giảm dần theo cấp (giao diện nền tối):
-   - tieu-de-cap-1: tiêu đề trang (Học tập, Game, Hồ sơ…) — lõi chữ gần trắng,
-     quầng neon xanh nhiều lớp như đèn neon.
-   - tieu-de-cap-2: tiêu đề khu vực (Phòng đang mở, Bảng Xếp Hạng…) — quầng neon nhẹ.
+   - tieu-de-cap-1: tiêu đề trang (Học tập, Game, Hồ sơ…) — chữ chính rõ, cân đối.
+   - tieu-de-cap-2: tiêu đề khu vực (Phòng đang mở, Bảng Xếp Hạng…) — cùng màu, nhỏ hơn.
    Tiêu đề thẻ (tên phòng…) giữ màu chữ chính, không quầng.
    ============================================================ */
 @utility tieu-de-cap-1 {
-  color: #ecfeff;
-  text-shadow:
-    0 0 2px rgb(207 250 254 / 0.95),
-    0 0 10px rgb(34 211 238 / 0.85),
-    0 0 24px rgb(34 211 238 / 0.55),
-    0 0 48px rgb(6 182 212 / 0.35);
+  color: var(--text-primary);
+  text-shadow: none;
 }
 
 @utility tieu-de-cap-2 {
-  color: #cffafe;
-  text-shadow:
-    0 0 6px rgb(34 211 238 / 0.45),
-    0 0 16px rgb(34 211 238 / 0.18);
+  color: var(--text-primary);
+  text-shadow: none;
 }
 
 /* Hoạt hình khung trống của sảnh (KhungTrongSanh hoatHinh): trôi lơ lửng + hào quang thở + bóng co giãn, cùng nhịp. */
@@ -575,9 +568,9 @@ body { min-width: 280px; }
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .game-stage {
-  min-height: 620px;
-  height: max(620px, calc(100dvh - 10rem));
-  max-height: 780px;
+  min-height: 0;
+  height: auto;
+  max-height: none;
 }
 @media (max-width: 767px) {
   html { scrollbar-gutter: auto; }
@@ -673,45 +666,34 @@ body { min-width: 280px; }
   input:not([type="range"]):not([type="color"]):not([type="checkbox"]), textarea, select { font-size: 16px !important; }
 }
 
-/* Compact controls follow the width of the game pane, not the desktop window. */
+/* Toolbar responds to its own pane; important touch targets keep their size. */
 .game-toolbar-frame { container: game-toolbar / inline-size; width: 100%; }
 .game-toolbar-frame .game-play-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
 }
-.game-toolbar-frame .game-toolbar-fixed-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  z-index: 10;
-}
+.game-toolbar-frame .game-toolbar-fixed-left,
 .game-toolbar-frame .game-toolbar-fixed-right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
-  z-index: 10;
+  gap: 8px;
+  min-width: 0;
 }
 .game-toolbar-frame .game-toolbar-scrollable-center {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
+  padding-block: 4px;
   gap: 6px;
-  flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
-  -ms-overflow-style: none;
   touch-action: pan-x;
 }
-.game-toolbar-frame .game-toolbar-scrollable-center::-webkit-scrollbar {
-  display: none;
-}
+.game-toolbar-frame .game-toolbar-scrollable-center::-webkit-scrollbar { display: none; }
 .game-toolbar-frame .game-toolbar-modes,
 .game-toolbar-frame .game-toolbar-slot,
 .game-toolbar-frame .game-toolbar-fullscreen,
@@ -720,44 +702,45 @@ body { min-width: 280px; }
 .game-toolbar-frame .game-control-label,
 .game-toolbar-frame .game-control-detail { display: none; }
 .game-toolbar-frame .game-play-toolbar button {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
-  min-height: 40px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
-  margin: 0;
   gap: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 .game-toolbar-frame .game-play-toolbar button > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .game-toolbar-frame [data-testid="che-do-pve"],
-.game-toolbar-frame [data-testid="che-do-pvp"] { border: 1px solid rgb(255 255 255 / 0.15); }
-.game-toolbar-frame .game-toolbar-turn { flex-shrink: 0; display: flex; justify-content: center; min-width: 0; }
-@container game-toolbar (min-width: 18rem) {
-  .game-toolbar-frame .game-play-toolbar button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+.game-toolbar-frame [data-testid="che-do-pvp"] { border: 1px solid var(--border-default); }
+.game-toolbar-frame .game-toolbar-fixed-right { min-width: 44px; }
+.game-toolbar-frame .game-toolbar-turn { flex-shrink: 0; min-width: 0; }
+@container game-toolbar (max-width: 20rem) {
+  .game-toolbar-frame .game-play-toolbar { gap: 4px; }
+  .game-toolbar-frame .game-toolbar-scrollable-center { gap: 2px; padding-inline: 0; }
+}
+@container game-toolbar (max-width: 16rem) {
+  .game-toolbar-frame .game-play-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; justify-items: center; }
+  .game-toolbar-frame .game-toolbar-fixed-left,
+  .game-toolbar-frame .game-toolbar-fixed-right,
+  .game-toolbar-frame .game-toolbar-scrollable-center { display: contents; }
+}
+@container game-toolbar (min-width: 36rem) {
+  .game-toolbar-frame .game-toolbar-title { display: flex; }
 }
 @container game-toolbar (min-width: 64rem) {
-  .game-toolbar-frame .game-play-toolbar { gap: 12px; }
-  .game-toolbar-frame .game-toolbar-title { display: flex; }
   .game-toolbar-frame .game-control-label { display: inline; }
   .game-toolbar-frame .game-control-detail { display: flex; }
   .game-toolbar-frame .game-toolbar-modes,
   .game-toolbar-frame .game-toolbar-slot,
   .game-toolbar-frame .game-toolbar-fullscreen { display: flex; align-items: center; }
   .game-toolbar-frame [data-testid="cum-pve-pvp"] { display: grid; width: 240px; height: 44px; }
-  .game-toolbar-frame .game-play-toolbar button {
-    width: auto;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
-    padding-inline: 10px;
-    gap: 6px;
-  }
-  .game-toolbar-frame [data-testid="cum-pve-pvp"] button { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+  .game-toolbar-frame .game-play-toolbar button { width: auto; min-width: 44px; padding-inline: 12px; gap: 6px; }
+  .game-toolbar-frame [data-testid="cum-pve-pvp"] button { width: 100%; height: 100%; min-width: 0; }
 }
 
 /* Vùng 1: Game Stage Fullscreen Styling - chỉ hiển thị Vùng 1 khi toàn màn hình */
@@ -771,12 +754,18 @@ body { min-width: 280px; }
   border: none !important;
   margin: 0 !important;
   padding: 0.75rem 1.5rem !important;
-  background: radial-gradient(circle at center, #0d1527 0%, #050811 100%) !important;
+  background: var(--color-canvas) !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: space-between !important;
+  justify-content: flex-start !important;
   align-items: stretch !important;
-  overflow: hidden !important;
+  overflow: auto !important;
   box-sizing: border-box !important;
   z-index: 99999 !important;
+}
+
+/* Keep the whole board visible on phones in landscape fullscreen. */
+.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-shell {
+  width: min(100%, calc((100dvh - 9rem) * 0.9));
+  flex-shrink: 0;
 }

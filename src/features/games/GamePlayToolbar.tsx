@@ -22,6 +22,7 @@ interface GamePlayToolbarProps {
   resetLabel?: string
   resetIcon?: React.ReactNode
   resetDisabled?: boolean
+  hideReset?: boolean
   /** PvP chuyển sang Online (bàn mở từ sảnh, đối thủ là người thật) thay vì hai người cùng máy (chỉ với `hideCenterTurn`). */
   onlineAvailable?: boolean
   surrenderAttempts?: number
@@ -67,6 +68,7 @@ export function GamePlayToolbar({
   resetLabel,
   resetIcon,
   resetDisabled = false,
+  hideReset = false,
   onlineAvailable = false,
   surrenderAttempts,
   activeSide,
@@ -114,9 +116,9 @@ export function GamePlayToolbar({
   }, [])
 
   const batDauKeo = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (e.pointerType !== 'mouse' || e.button !== 0) return
     const el = centerScrollRef.current
-    if (!el) return
+    if (!el || el.scrollWidth <= el.clientWidth) return
     keoRef.current = {
       x: e.clientX,
       cuon: el.scrollLeft,
@@ -190,7 +192,7 @@ export function GamePlayToolbar({
       variant="outline"
       size="sm"
       onClick={handleFsToggle}
-      className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:scale-105 hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
+      className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
       title={isFs ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
       aria-label="Toàn màn hình"
     >
@@ -257,12 +259,12 @@ export function GamePlayToolbar({
         role="toolbar"
         aria-label={title ? `Điều khiển ${title}` : 'Điều khiển trò chơi'}
         className={cn(
-          'game-play-toolbar relative flex items-center justify-between gap-1.5 sm:gap-2.5 w-full py-1 min-w-0 select-none',
+          'game-play-toolbar relative flex items-center justify-between gap-1.5 sm:gap-2.5 w-full min-w-0 select-none',
           className,
         )}
       >
         {/* ── 1. Nút quay lại sảnh (Icon ngoài cùng bên trái CỐ ĐỊNH) & Tiêu đề game ── */}
-        <div className="game-toolbar-fixed-left flex items-center gap-1.5 sm:gap-2 shrink-0 z-10 min-w-0">
+        <div className="game-toolbar-fixed-left flex items-center gap-2 min-w-0">
           {onBack && (
             <Button
               variant="outline"
@@ -318,7 +320,7 @@ export function GamePlayToolbar({
           onPointerCancel={thaKeo}
           onClickCapture={chanClickKhiKeo}
           className={cn(
-            'game-toolbar-scrollable-center flex items-center justify-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-x-auto no-scrollbar scrollbar-none py-0.5 px-1 touch-pan-x',
+            'game-toolbar-scrollable-center flex items-center gap-1.5 min-w-0 overflow-x-auto py-0.5 touch-pan-x',
             dangKeo ? 'cursor-grabbing select-none' : 'cursor-grab',
           )}
           style={{
@@ -374,8 +376,8 @@ export function GamePlayToolbar({
         </div>
 
         {/* ── 3. Icon ngoài cùng bên phải CỐ ĐỊNH: Nút hành động chính (Bắt đầu / Ván mới / Xin thua) ── */}
-        <div className="game-toolbar-fixed-right flex items-center justify-end gap-1.5 sm:gap-2 z-10 shrink-0 min-w-0">
-          {nutReset}
+        <div className="game-toolbar-fixed-right flex items-center justify-end gap-2 min-w-0">
+          {!hideReset && nutReset}
         </div>
       </div>
     </div>

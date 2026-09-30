@@ -26,11 +26,11 @@ export function MobileNav() {
               className={({ isActive }) =>
                 [
                   'flex flex-1 flex-col items-center justify-end min-h-[52px] pb-1 gap-0.5',
-                  'text-[10px] font-medium transition-all duration-150',
+                  'text-xs font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
                   'active:scale-95 select-none',
                   isActive
                     ? 'text-brand font-semibold'
-                    : 'text-text-tertiary hover:text-text-secondary',
+                    : 'text-text-secondary hover:text-text-primary',
                 ].join(' ')
               }
             >

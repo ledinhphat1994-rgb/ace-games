@@ -42,7 +42,7 @@ export interface ClassroomTopBarProps {
 }
 
 const NUT_KHUNG =
-  'relative flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'relative flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function ClassroomTopBar({
   roomTitle,
@@ -70,7 +70,7 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="z-30 flex min-h-16 sm:min-h-[68px] shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-canvas px-2 py-1 select-none sm:px-3"
+      className="z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 bg-canvas px-2 py-2 select-none sm:px-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
@@ -78,7 +78,7 @@ export function ClassroomTopBar({
         <button
           type="button"
           onClick={onLeaveRoom}
-          className={cn(NUT_KHUNG, 'w-10 shrink-0 border-border-default px-0 text-text-secondary hover:bg-surface-overlay hover:text-text-primary sm:w-auto sm:px-3.5')}
+          className={cn(NUT_KHUNG, 'w-11 shrink-0 border-border-default px-0 text-text-secondary hover:bg-surface-overlay hover:text-text-primary sm:w-auto sm:px-3.5')}
           data-testid="topbar-btn-leave"
           title="Rời phòng học"
           aria-label="Rời phòng học"
@@ -119,13 +119,13 @@ export function ClassroomTopBar({
 
       {/* ── CENTER: MEMBER STRIP (vùng 1 ra 1+ và căn giữa) ── */}
       {memberStrip && (
-        <div className="order-3 flex w-full min-w-0 items-center justify-center px-1 lg:order-none lg:w-auto lg:flex-1">
+        <div className="col-span-2 row-start-2 flex min-w-0 items-center justify-start lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:justify-center">
           {memberStrip}
         </div>
       )}
 
       {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS + CLOSE ROOM ── */}
-      <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 lg:flex-1 lg:min-w-0">
+      <div className="flex shrink-0 items-center justify-end gap-2">
         {/* Chat Drawer Toggle */}
         <button
           type="button"
@@ -152,7 +152,7 @@ export function ClassroomTopBar({
           <button
             type="button"
             onClick={() => setShowConfirmClose(true)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
             data-testid="topbar-btn-close-room"
             title="Hủy phòng"
             aria-label="Hủy phòng"
@@ -166,7 +166,7 @@ export function ClassroomTopBar({
       <Dialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
         <DialogContent
           showCloseButton={false}
-          className="w-full max-w-[320px] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col items-center text-center gap-0"
+          className="w-full max-w-[min(320px,calc(100vw-2rem))] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col items-center text-center gap-0"
           data-testid="dialog-confirm-close-room"
         >
           {/* Icon cảnh báo đỏ nổi bật, tinh tế */}

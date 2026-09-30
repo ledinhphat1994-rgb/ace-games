@@ -358,66 +358,26 @@ export function GameSocialSidebar({
     <aside
       aria-label="Cột cộng đồng & trò chuyện"
       className={cn(
-        'flex flex-col h-[700px] xl:h-[720px] 2xl:h-[740px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0b1120] to-[#070b14] shadow-2xl backdrop-blur-md overflow-hidden',
+        'flex min-w-0 flex-col h-[max(420px,min(740px,calc(100dvh-10rem)))] rounded-2xl border border-border-default bg-surface overflow-hidden',
         className
       )}
     >
-      {/* VÙNG 1: Header Tabs (3 tabs: Chat phòng, Chat chung, Bạn bè) */}
-      <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] p-1.5 shrink-0">
-        <div className={cn('grid gap-1 w-full', coChatPhong ? 'grid-cols-3' : 'grid-cols-2')}>
-          {/* Tab 1: Chat phòng */}
+      <div className="shrink-0 border-b border-border-subtle p-2" role="group" aria-label="Loại trò chuyện">
+        <div className={cn('grid min-w-0 gap-1', coChatPhong ? 'grid-cols-3' : 'grid-cols-2')}>
           {coChatPhong && (
-            <button
-              onClick={() => setActiveTab('chat_phong')}
-              className={cn(
-                'flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all duration-150 cursor-pointer',
-                activeTab === 'chat_phong'
-                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm'
-                  : 'text-text-tertiary hover:text-text-primary hover:bg-white/5'
-              )}
-            >
-              <Gamepad2 className="size-3.5 shrink-0" />
-              <span className="truncate">Chat phòng</span>
+            <button type="button" aria-label="Chat phòng" title="Chat phòng" aria-pressed={activeTab === 'chat_phong'} onClick={() => setActiveTab('chat_phong')}
+              className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_phong' ? 'bg-amber-500/15 text-amber-300' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+              <Gamepad2 className="size-4 shrink-0" /><span>Chat phòng</span>
             </button>
           )}
-
-          {/* Tab 2: Chat chung */}
-          <button
-            onClick={() => setActiveTab('chat_chung')}
-            className={cn(
-              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all duration-150 cursor-pointer',
-              activeTab === 'chat_chung'
-                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow-sm'
-                : 'text-text-tertiary hover:text-text-primary hover:bg-white/5'
-            )}
-          >
-            <MessageSquare className="size-3.5 shrink-0" />
-            <span className="truncate">Chat chung</span>
+          <button type="button" aria-label="Chat chung" title="Chat chung" aria-pressed={activeTab === 'chat_chung'} onClick={() => setActiveTab('chat_chung')}
+            className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_chung' ? 'bg-brand/12 text-brand' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+            <MessageSquare className="size-4 shrink-0" /><span>Chat chung</span>
           </button>
-
-          {/* Tab 3: Bạn bè */}
-          <button
-            onClick={() => setActiveTab('ban_be')}
-            className={cn(
-              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all duration-150 cursor-pointer',
-              activeTab === 'ban_be'
-                ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30 shadow-sm'
-                : 'text-text-tertiary hover:text-text-primary hover:bg-white/5'
-            )}
-          >
-            <Users className="size-3.5 shrink-0" />
-            <span className="truncate">Bạn bè</span>
-            <span
-              className={cn(
-                'ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold tabular-nums shrink-0',
-                onlineFriendsCount > 0
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-white/10 text-text-tertiary'
-              )}
-              title={`${onlineFriendsCount} bạn đang trực tuyến`}
-            >
-              {onlineFriendsCount}
-            </span>
+          <button type="button" aria-label="Bạn bè" title="Bạn bè" aria-pressed={activeTab === 'ban_be'} onClick={() => setActiveTab('ban_be')}
+            className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'ban_be' ? 'bg-purple-500/15 text-social' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+            <Users className="size-4 shrink-0" />
+            <span className="flex items-center justify-center gap-1">Bạn bè<span aria-hidden title={onlineFriendsCount + ' bạn đang trực tuyến'} className="rounded-md bg-success/10 px-1 text-success tabular-nums">{onlineFriendsCount > 99 ? '99+' : onlineFriendsCount}</span></span>
           </button>
         </div>
       </div>

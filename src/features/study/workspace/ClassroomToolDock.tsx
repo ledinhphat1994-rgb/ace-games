@@ -118,13 +118,13 @@ function IconLop({ id, className }: { id: LopId; className?: string }) {
 
 // Điện thoại: chỉ còn biểu tượng để cả dock vừa một hàng.
 const nutDock =
-  'relative flex h-12 w-12 shrink-0 sm:w-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white'
-const nhanDock = 'block text-[9px] sm:text-[10px]'
+  'relative flex size-11 shrink-0 sm:h-14 sm:w-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
+const nhanDock = 'hidden text-xs sm:block'
 const dangChon = 'bg-brand/12 text-brand ring-1 ring-brand/30'
 const khongChon = 'text-slate-400 hover:bg-white/8 hover:text-slate-200'
 
 const nutKhay =
-  'flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-colors cursor-pointer'
+  'flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl py-2 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
 const khayPopover =
   'space-y-2.5 rounded-2xl border border-border-default bg-surface-raised p-2.5 text-slate-200 shadow-2xl'
 
@@ -221,7 +221,8 @@ export function ClassroomToolDock({
       data-testid="classroom-tool-dock"
     >
       {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}
-      <div className="flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-2xl border border-border-default bg-surface/95 px-1.5 py-1 shadow-xl shadow-black/30 backdrop-blur-xl [scrollbar-width:none] sm:gap-1 sm:px-2">
+      <div className="flex min-w-0 max-w-[calc(100vw-1rem)] items-center gap-2 rounded-2xl border border-border-default bg-surface p-1.5">
+        <div className="flex min-w-0 items-center gap-1 overflow-x-auto touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* ── 0. MIC + CÀI ĐẶT ÂM THANH (mọi người trong phòng) ── */}
         <button
           type="button"
@@ -251,7 +252,7 @@ export function ClassroomToolDock({
         >
           <PopoverTrigger
             type="button"
-            className={`flex h-11 w-6 items-center justify-center rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${moAmThanh ? dangChon : khongChon}`}
+            className={`flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand ${moAmThanh ? dangChon : khongChon}`}
             title="Cài đặt âm thanh"
             aria-label="Cài đặt âm thanh"
             data-testid="dock-btn-audio-settings"
@@ -454,6 +455,8 @@ export function ClassroomToolDock({
             <div className="mx-0.5 sm:mx-1 h-7 w-px bg-border-strong" />
           </>
         )}
+
+        </div>
 
         {/* ── 2. CÔNG CỤ: dạ quang, chữ, hình, laser (màu / cỡ hiện khi chọn), máy tính, phiên học ── */}
         <Popover open={moCongCu} onOpenChange={setMoCongCu}>

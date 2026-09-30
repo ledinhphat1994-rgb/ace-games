@@ -165,9 +165,9 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(arenaLeaderboardRaw).toContain("fetch('/api/engagement/leaderboard/school'")
     })
 
-    it('C3. Tiêu đề nổi bật giảm dần: tiêu đề trang neon cấp 1, tiêu đề khu vực cấp 2', () => {
+    it('C3. Tiêu đề giữ phân cấp dùng chung cho trang và khu vực', () => {
       expect(pageHeaderRaw).toContain('<h1 className="tieu-de-cap-1')
-      expect(pageHeaderRaw).toContain('<span className="tieu-de-cap-2 whitespace-nowrap">{title}</span>')
+      expect(pageHeaderRaw).toContain('<span className="tieu-de-cap-2')
       expect(arenaLeaderboardRaw).toContain('className="tieu-de-cap-2')
     })
 

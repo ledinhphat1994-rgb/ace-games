@@ -42,7 +42,7 @@ export function AppHeader({
     // Nền đặc (không dùng kính mờ): cuộn trang thì tiêu đề bên dưới không lộ xuyên qua thanh trên.
     <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-canvas">
       {/* Ba cột: thương hiệu | nhóm tab căn giữa đúng tâm thanh | tài khoản */}
-      <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr] px-2.5 sm:px-4">
+      <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center justify-between gap-2 md:grid md:grid-cols-[1fr_auto_1fr] px-2.5 sm:px-4">
 
         {/* ── Left: Brand ── */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-self-start">
@@ -51,7 +51,7 @@ export function AppHeader({
             <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand shadow-sm group-hover:bg-brand/20 transition-all duration-150">
               <GraduationCap className="h-4 w-4" />
             </div>
-            <span className="hidden sm:block text-sm font-extrabold tracking-tight text-text-primary">
+            <span className="hidden min-[360px]:block text-xs sm:text-sm font-bold tracking-tight text-text-primary">
               Digital Campus
             </span>
           </NavLink>
@@ -69,9 +69,9 @@ export function AppHeader({
               to={item.to}
               className={({ isActive }) =>
                 [
-                  'relative whitespace-nowrap rounded-full px-5 lg:px-7 py-1.5 text-[0.9375rem] font-bold tracking-wide transition-all duration-200',
+                  'relative flex min-h-10 items-center whitespace-nowrap rounded-full px-5 lg:px-7 text-sm font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand',
                   isActive
-                    ? 'bg-brand/15 text-brand shadow-[inset_0_0_0_1px_rgb(34_211_238/0.4),0_0_22px_rgb(34_211_238/0.22)] [text-shadow:0_0_14px_rgb(34_211_238/0.8)]'
+                    ? 'bg-brand/12 text-brand'
                     : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                 ].join(' ')
               }

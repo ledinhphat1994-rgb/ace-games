@@ -58,15 +58,15 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
       {/* ── Header Đấu Trường Game ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 shadow-xl shadow-cyan-500/25 text-white ring-1 ring-white/20">
+          <div className="flex size-11 items-center justify-center rounded-xl bg-brand/10 text-brand">
             <Gamepad2 className="size-6 drop-shadow-md" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="tieu-de-cap-1 text-[2rem] leading-[1.15] font-extrabold tracking-[-0.03em] sm:text-[2.5rem]">
+              <h1 className="tieu-de-cap-1 text-[1.75rem] leading-[1.2] font-bold tracking-[-0.03em] sm:text-[2.25rem]">
                 Game
               </h1>
-              <span className="rounded-full bg-gradient-to-r from-cyan-500/20 to-brand/20 border border-cyan-500/30 px-3 py-0.5 text-xs font-extrabold text-cyan-300 shadow-sm">
+              <span className="text-xs font-medium text-text-secondary">
                 5 Bộ Môn
               </span>
             </div>
@@ -80,7 +80,7 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
       <ResponsiveActivityLayout leaderboard={<GameArenaLeaderboard />} social={<GameSocialSidebar onInviteToGame={handleInviteToGame} />}>
         {/* ── Cột 2 (Trung tâm to bự): Danh sách 5 game chiếm trọn không gian giữa ── */}
         <div className="min-w-0 order-1 lg:order-2 flex-1">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             {allGames.map((game) => (
               <GameCard
                 key={game.id}

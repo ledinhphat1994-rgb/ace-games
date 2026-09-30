@@ -98,7 +98,7 @@ function XiangqiPieceToken({ piece }: { piece: number }) {
       {/* Vòng tròn hoa văn bên trong */}
       <div
         className={cn(
-          'size-[85%] rounded-full border border-dashed flex items-center justify-center text-xl sm:text-2xl md:text-3xl 2xl:text-4xl font-serif font-black',
+          'size-[85%] rounded-full border border-dashed flex items-center justify-center text-[clamp(10px,6cqi,36px)] leading-none font-serif font-black',
           isRed ? 'border-red-400' : 'border-slate-500'
         )}
       >
@@ -543,11 +543,11 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         </div>
 
         {/* Bàn cờ Cờ Tướng truyền thống Á Đông (9 cột × 10 hàng) - 100% hiển thị đầy đủ, không bị che */}
-        <div className="game-board-shell w-full max-w-[572px] min-w-0 relative p-2.5 sm:p-3 rounded-2xl bg-[#caa472] border-4 border-[#82542a] shadow-2xl shadow-black/60 select-none shrink flex flex-col items-center">
+        <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] min-w-0 relative p-2.5 sm:p-3 rounded-2xl bg-[#caa472] border-4 border-[#82542a] shadow-2xl shadow-black/60 select-none shrink flex flex-col items-center">
           {/* Lưới và Sông */}
-          <div className="relative grid grid-cols-9 grid-rows-10 w-full aspect-[9/10]">
+          <div className="relative grid grid-cols-9 grid-rows-10 w-full min-h-0 shrink-0 aspect-[9/10]">
             {/* Đường vẽ sông Sở Hà Hán Giới ở giữa hàng 4 và 5 */}
-            <div className="absolute inset-x-2 top-[45%] h-[10%] flex items-center justify-around pointer-events-none text-xs sm:text-sm md:text-base font-serif font-black text-[#6d441f]/75 tracking-widest border-y border-[#6d441f]/60 bg-[#d8b586]/40">
+            <div className="absolute inset-x-2 top-[45%] h-[10%] flex items-center justify-around pointer-events-none text-[clamp(7px,2.2cqi,14px)] whitespace-nowrap font-serif font-black text-[#6d441f]/75 tracking-widest border-y border-[#6d441f]/60 bg-[#d8b586]/40">
               <span>楚 河 (Sở Hà)</span>
               <span>漢 界 (Hán Giới)</span>
             </div>

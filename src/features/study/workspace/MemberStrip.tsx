@@ -142,7 +142,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
       className={cn(
         // Không dùng justify-center trên khung cuộn (tràn thì người đầu bị cắt, không cuộn tới được): lề tự động ở
         // người đầu / cuối để căn giữa. Đệm ngang + dọc chừa chỗ cho viền, quầng sáng, vương miện, huy hiệu quyền.
-        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
+        'flex min-w-0 max-w-full items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"

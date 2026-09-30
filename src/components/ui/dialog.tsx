@@ -63,7 +63,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3 text-text-tertiary hover:text-text-primary"
+                className="absolute top-2 right-2 text-text-secondary hover:text-text-primary"
                 size="icon-sm"
               />
             }
@@ -82,7 +82,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1 pr-8", className)}
+      className={cn("flex flex-col gap-1 pr-11", className)}
       {...props}
     />
   )

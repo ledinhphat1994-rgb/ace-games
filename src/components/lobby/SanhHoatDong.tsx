@@ -52,7 +52,7 @@ export interface SanhHoatDongProps {
 }
 
 /** Cùng chiều cao với cột bảng xếp hạng và cột trò chuyện: ba khung thẳng hàng. */
-const CAO_KHUNG = 'h-[max(420px,calc(100dvh-12rem))] max-h-[740px] xl:h-[720px] 2xl:h-[740px]'
+const CAO_KHUNG = 'min-h-[360px] xl:h-[max(420px,min(740px,calc(100dvh-10rem)))]'
 
 export function SanhHoatDong({
   tieuDe,
@@ -85,8 +85,8 @@ export function SanhHoatDong({
         <section
           aria-label={tieuDe}
           className={cn(
-            '@container order-1 flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:order-2',
-            'bg-gradient-to-b from-[#0e1527]/95 to-[#080c1a]/95',
+            '@container order-1 flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border-default lg:order-2',
+            'bg-surface',
             CAO_KHUNG,
           )}
           data-testid={`${testId}-panel`}
@@ -95,7 +95,7 @@ export function SanhHoatDong({
             // Một hàng co giãn: quay lại · tìm · nút. Khung hẹp: nút xuống hàng dưới và trải đủ bề ngang;
             // không có ô tìm thì nút quay lại đứng cùng hàng với các nút.
             <div
-              className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/[0.06] p-3"
+              className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border-subtle p-3"
               data-testid={`${testId}-actions`}
             >
               {quayLai && (
@@ -118,14 +118,14 @@ export function SanhHoatDong({
                     placeholder={timKiem.goiY}
                     aria-label="Tìm phòng"
                     data-testid={`${testId}-search-input`}
-                    className="h-12 rounded-xl border-white/10 bg-white/[0.04] pr-9 pl-9 text-sm"
+                    className="h-12 rounded-xl border-white/10 bg-white/[0.04] pr-12 pl-9 text-sm"
                   />
                   {timKiem.giaTri && (
                     <button
                       type="button"
                       onClick={() => timKiem.onDoi('')}
                       aria-label="Xóa tìm kiếm"
-                      className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+                      className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary"
                     >
                       <X className="size-3.5" />
                     </button>
@@ -148,7 +148,7 @@ export function SanhHoatDong({
                   <Button
                     onClick={choiNgay.onClick}
                     data-testid={choiNgay.testId}
-                    className="h-12 flex-1 rounded-xl px-6 font-bold shadow-lg shadow-brand/25 @min-[34rem]:flex-none"
+                    className="h-12 flex-1 rounded-xl px-5 font-semibold @min-[34rem]:flex-none"
                   >
                     <Play className="fill-current" />
                     {choiNgay.nhan}
@@ -180,7 +180,7 @@ function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: s
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-1.5 pb-3">
+      <div className="min-h-0 max-h-[max(280px,calc(100dvh-18rem))] flex-1 overflow-y-auto overscroll-contain px-3 pt-1.5 pb-3 xl:max-h-none">
         {trangThai === 'dang_tai' && (
           <div
             data-testid={`${testId}-lobby-loading`}

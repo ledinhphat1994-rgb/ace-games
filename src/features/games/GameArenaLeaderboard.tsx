@@ -194,8 +194,8 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
     <section
       aria-labelledby="arena-leaderboard-heading"
       className={cn(
-        'flex flex-col h-[700px] xl:h-[720px] 2xl:h-[740px] overflow-hidden rounded-2xl border border-white/10',
-        'bg-gradient-to-b from-[#0e1527]/97 to-[#080c1a]/95 backdrop-blur-md shadow-2xl',
+        'flex min-w-0 flex-col h-[max(420px,min(740px,calc(100dvh-10rem)))] overflow-hidden rounded-2xl border border-border-default',
+        'bg-surface',
         className
       )}
     >
@@ -219,7 +219,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           onClick={() => void refetch()}
           disabled={isPending || isRefetching}
           aria-label="Tải lại bảng xếp hạng"
-          className="flex size-7 items-center justify-center rounded-lg hover:bg-white/10 transition-colors text-white/80 hover:text-white disabled:opacity-40 cursor-pointer"
+          className="flex size-11 items-center justify-center rounded-xl hover:bg-white/10 transition-colors text-white/80 hover:text-white disabled:opacity-40 cursor-pointer"
         >
           <RefreshCw className={cn('size-3.5', (isPending || isRefetching) && 'animate-spin')} />
         </button>
@@ -231,7 +231,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           type="button"
           onClick={() => tabsContainerRef.current?.scrollBy({ left: -100, behavior: 'smooth' })}
           aria-label="Trượt sang trái"
-          className="absolute left-0 top-0 bottom-0 z-10 flex w-7 items-center justify-center bg-gradient-to-r from-[#0e1527] via-[#0e1527]/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
+          className="absolute left-0 top-0 bottom-0 z-10 flex w-9 items-center justify-center bg-gradient-to-r from-[#0e1527] via-[#0e1527]/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -253,7 +253,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
                 type="button"
                 onClick={() => handleTabClick(tab.id)}
                 className={cn(
-                  'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-all duration-150 shrink-0 select-none cursor-pointer border',
+                  'flex items-center gap-1.5 min-h-11 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 shrink-0 select-none cursor-pointer border',
                   isActive
                     ? cn('bg-gradient-to-r text-white border-white/20 shadow-md', tab.accentGradient)
                     : 'text-slate-300 hover:text-white hover:bg-white/10 border-transparent'
@@ -270,7 +270,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           type="button"
           onClick={() => tabsContainerRef.current?.scrollBy({ left: 100, behavior: 'smooth' })}
           aria-label="Trượt sang phải"
-          className="absolute right-0 top-0 bottom-0 z-10 flex w-7 items-center justify-center bg-gradient-to-l from-[#0e1527] via-[#0e1527]/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
+          className="absolute right-0 top-0 bottom-0 z-10 flex w-9 items-center justify-center bg-gradient-to-l from-[#0e1527] via-[#0e1527]/90 to-transparent text-white/80 hover:text-white hover:scale-110 transition-all cursor-pointer"
         >
           <ChevronRight className="size-4" />
         </button>

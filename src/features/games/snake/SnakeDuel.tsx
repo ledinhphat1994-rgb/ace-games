@@ -164,6 +164,7 @@ export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) 
             </div>
           }
           onReset={handleStartGame}
+          hideReset={!isRunning}
           phuPvp={
             <div className="space-y-1.5">
               <p className="px-1 text-[11px] font-bold text-text-tertiary">

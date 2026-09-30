@@ -123,7 +123,7 @@ export function AppShell({ children }: AppShellProps) {
           isFullscreen
             ? 'p-0 m-0 max-w-none w-full h-screen'
             : isWidePage
-              ? 'max-w-[1920px] px-2.5 sm:px-4 pt-4 pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-8'
+              ? 'max-w-[1920px] px-2.5 sm:px-4 pt-4 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-8'
               : 'max-w-7xl px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 md:pb-10'
         )}
       >
