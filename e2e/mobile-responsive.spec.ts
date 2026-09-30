@@ -123,25 +123,41 @@ test.describe('mobile controls', () => {
     await expect(bubble).toBeFocused()
   })
 
-  test('match toolbar aligns modes and actions while preserving all controls', async ({ page }) => {
-    await page.goto('/arena/xiangqi')
-    await page.getByTestId('game-lobby-play-now').click()
+  test('compact icon toolbar never overlaps and preserves all controls', async ({ page }) => {
+    await page.goto('/game/xiangqi-mobile-toolbar?gameType=xiangqi&turn=30')
     const toolbar = page.getByTestId('game-play-toolbar')
-    for (const [width, height] of [[320, 568], [390, 844], [635, 844], [844, 390], [1280, 800], [1920, 1080]]) {
+    await expect(toolbar).toBeVisible()
+    for (const [width, height] of [[280, 568], [320, 568], [360, 640], [390, 844], [414, 896], [480, 800], [600, 960], [635, 844], [655, 900], [768, 1024], [844, 390], [1024, 768], [1280, 800], [1440, 900], [1920, 1080]]) {
       await page.setViewportSize({ width, height })
       await noOverflow(page)
       const bounds = (await toolbar.boundingBox())!
-      const modes = (await toolbar.getByTestId('cum-pve-pvp').boundingBox())!
-      const actions = (await toolbar.locator('.game-toolbar-actions').boundingBox())!
-      if (bounds.width >= 352) expect(Math.abs(modes.x + modes.width / 2 - bounds.x - bounds.width / 2)).toBeLessThanOrEqual(1)
-      for (const button of await toolbar.locator('button').all()) {
+      const buttons = await toolbar.locator('button').all()
+      expect(buttons).toHaveLength(6)
+      const boxes = []
+      for (const button of buttons) {
         const box = (await button.boundingBox())!
         expect(box.x).toBeGreaterThanOrEqual(bounds.x - 1)
         expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1)
+        expect(box.height, width + 'px button ' + await button.getAttribute('aria-label')).toBeGreaterThanOrEqual(39)
+        boxes.push(box)
+        if (bounds.width < 1024) expect((await button.innerText()).trim()).not.toMatch(/PvE|PvP|Quay|Biểu|màn|thua|Vừa|Khó|Dễ/)
       }
-      if (bounds.width < 1024) expect(actions.y).toBeGreaterThanOrEqual(modes.y + modes.height - 1)
+      for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j]
+        const intersectWidth = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
+        const intersectHeight = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
+        expect(intersectWidth <= 0.5 || intersectHeight <= 0.5, width + 'px controls overlap: ' + i + ', ' + j).toBeTruthy()
+      }
+      if (bounds.width < 260) {
+        expect(new Set(boxes.map(box => box.y)).size).toBe(2)
+        expect(boxes[0].y).toBe(boxes[2].y)
+        expect(boxes[3].y).toBe(boxes[5].y)
+      } else if (bounds.width < 1024) expect(bounds.height).toBeLessThanOrEqual(53)
     }
+    await page.setViewportSize({ width: 655, height: 900 })
+    await toolbar.screenshot({ path: 'artifacts/mobile/icon-toolbar-655.png' })
     await page.setViewportSize({ width: 390, height: 844 })
+    await toolbar.screenshot({ path: 'artifacts/mobile/icon-toolbar-390.png' })
     await toolbar.getByTestId('che-do-pve').click()
     await expect(page.getByTestId('bang-chon-cap-do')).toBeVisible()
     await page.keyboard.press('Escape')
@@ -152,6 +168,13 @@ test.describe('mobile controls', () => {
     await page.keyboard.press('Escape')
     await toolbar.getByTestId('nut-hanh-dong-chinh').click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await toolbar.getByRole('button', { name: 'Toàn màn hình', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.classList.contains('game-stage'))).toBe(true)
+    await toolbar.getByRole('button', { name: 'Toàn màn hình', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true)
+    await toolbar.getByRole('button', { name: 'Quay lại sảnh', exact: true }).click()
+    await expect(page.getByTestId('game-lobby-play-now')).toBeVisible()
   })
 
   test('snake starts, steers with touch, releases boost, restarts and supports both players', async ({ page }) => {
