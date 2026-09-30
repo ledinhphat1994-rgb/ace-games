@@ -5,22 +5,15 @@ import { usePhien } from '@/app/phien'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PasswordInput } from '@/components/ui/password-input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
+import { DoiMatKhauDialog } from '@/features/profile/DoiMatKhauDialog'
 import { ProgressPanel } from '@/features/profile/ProgressPanel'
-import { capNhatHoSo, doiAvatar, doiMatKhau, goLienKetGoogle, layTrangThaiGoogle } from '@/lib/api'
+import { capNhatHoSo, doiAvatar, goLienKetGoogle, layTrangThaiGoogle } from '@/lib/api'
 import { cn, getInitials, tenLop } from '@/lib/utils'
 import { TEN_HIEN_THI_TOI_DA } from '@shared/protocol/common'
 import type { EngagementProfile } from '@shared/protocol/engagement'
