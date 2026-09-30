@@ -1,7 +1,7 @@
 // Hồ sơ người dùng dạng Popover gọn: xuất hiện sát nơi click, không che mờ toàn màn hình.
 // Thông tin lấy từ /api/social/profile/:id; quan hệ bạn bè theo SocialState thời gian thực.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
@@ -46,7 +46,6 @@ export function HoSoNguoiDungDialog({ nguoi, onDong }: HoSoNguoiDungDialogProps)
 
 function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void }) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 100, left: 100 })
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -56,22 +55,21 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onDong])
 
-  useEffect(() => {
+  const pos = useMemo(() => {
     const rect = nguoi.anchorRect
     const cardW = 280
     const cardH = 340
     const pad = 12
 
-    const winW = window.innerWidth
-    const winH = window.innerHeight
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 1200
+    const winH = typeof window !== 'undefined' ? window.innerHeight : 800
 
     if (!rect) {
       // Mặc định nếu không có anchor: neo bên trái thanh sidebar bên phải
-      setPos({
+      return {
         left: Math.max(pad, winW - cardW - 340),
         top: Math.max(pad, Math.min(winH - cardH - pad, 120)),
-      })
-      return
+      }
     }
 
     // Nếu click ở nửa bên phải màn hình (như sidebar / chat), popover sẽ mở sang bên trái của phần tử click
@@ -88,7 +86,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
     const idealTop = rect.top - 16
     const top = Math.max(pad, Math.min(winH - cardH - pad, idealTop))
 
-    setPos({ top, left })
+    return { top, left }
   }, [nguoi.anchorRect])
 
   const { data: hoSo, isPending, isError } = useQuery({
