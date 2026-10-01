@@ -526,7 +526,7 @@ body {
   font-family: var(--font-sans);
   border-radius: 1.125rem !important;
   padding: 0.875rem 1.125rem !important;
-  background: color-mix(in srgb, var(--surface-raised) 94%, black) !important;
+  background: var(--surface-raised) !important;
   border: 1px solid var(--border-strong) !important;
   box-shadow: var(--shadow-panel) !important;
   backdrop-filter: blur(20px) !important;
@@ -573,10 +573,10 @@ body {
   font-size: 0.8125rem !important;
   font-weight: 800 !important;
   letter-spacing: 0.02em !important;
-  color: var(--primary-foreground) !important;
+  color: var(--brand-foreground) !important;
   background: var(--brand) !important;
   box-shadow: none !important;
-  border: 1px solid color-mix(in srgb, var(--brand) 70%, black) !important;
+  border: 1px solid var(--border-active) !important;
   transition: all 150ms ease !important;
   flex-shrink: 0 !important;
   cursor: pointer !important;
@@ -600,14 +600,14 @@ body {
   font-weight: 700 !important;
   color: var(--text-secondary) !important;
   background: var(--surface-overlay) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid var(--border-default) !important;
   transition: all 150ms ease !important;
   flex-shrink: 0 !important;
 }
 
 [data-sonner-toast] [data-button][data-cancel]:hover {
-  background: rgba(255, 255, 255, 0.14) !important;
-  color: #ffffff !important;
+  background: var(--surface-interactive) !important;
+  color: var(--text-primary) !important;
 }
 
 [data-sonner-toast] [data-close-button] {
@@ -621,7 +621,7 @@ body {
 [data-sonner-toast] [data-close-button]:hover {
   background: var(--surface-overlay) !important;
   color: var(--text-primary) !important;
-  border-color: rgba(255, 255, 255, 0.4) !important;
+  border-color: var(--border-strong) !important;
 }
 
 @media (max-width: 640px) {
