@@ -5,8 +5,8 @@ import { DraggableBubble } from './DraggableBubble'
 import { cn } from '@/lib/utils'
 
 interface ResponsiveActivityLayoutProps {
-  leaderboard: ReactNode
-  social: ReactNode
+  leaderboard?: ReactNode
+  social?: ReactNode
   children: ReactNode
   testId?: string
   utilityMode?: 'inline' | 'floating'
@@ -43,16 +43,17 @@ export function ResponsiveActivityLayout({ leaderboard, social, children, testId
     return () => window.removeEventListener('activity:open-panel', handleOpenPanel)
   }, [])
 
-  const inlinePanels = desktop && utilityMode === 'inline'
   const panels = [
-    { id: 'leaderboard' as const, label: 'Bảng xếp hạng', content: leaderboard, icon: <Trophy className="size-5" /> },
-    { id: 'messages' as const, label: 'Tin nhắn & bạn bè', content: social, icon: <MessageCircle className="size-5" /> },
-  ]
+    leaderboard ? { id: 'leaderboard' as const, label: 'Bảng xếp hạng', content: leaderboard, icon: <Trophy className="size-5" /> } : null,
+    social ? { id: 'messages' as const, label: 'Tin nhắn & bạn bè', content: social, icon: <MessageCircle className="size-5" /> } : null,
+  ].filter(Boolean) as { id: 'leaderboard' | 'messages'; label: string; content: ReactNode; icon: ReactNode }[]
+
+  const inlinePanels = desktop && utilityMode === 'inline' && panels.length > 0
 
   return (
     <div data-testid={testId} className={cn('activity-layout grid w-full min-w-0 grid-cols-1 items-start gap-5', inlinePanels && 'xl:grid-cols-[240px_minmax(0,1fr)_280px] 2xl:grid-cols-[260px_minmax(0,1fr)_300px]', isFullscreen && 'activity-layout--fullscreen')}>
       <div className={cn('min-w-0', inlinePanels && 'xl:col-start-2 xl:row-start-1')}>{children}</div>
-      {!inlinePanels && !isFullscreen && (
+      {!inlinePanels && !isFullscreen && panels.length > 0 && (
         <DraggableBubble id="activity" bottomOffset={bubbleBottomOffset} label="Mở tiện ích" icon={<LayoutGrid className="size-5" />} suspended={panel !== null}
           actions={panels.map(item => ({ id: item.id, label: item.label, icon: item.icon, onSelect: () => setPanel(item.id) }))} />
       )}

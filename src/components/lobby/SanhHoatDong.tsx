@@ -45,8 +45,8 @@ export interface SanhHoatDongProps {
   danhSach?: DanhSachSanh
   /** Nội dung khung sảnh khi hoạt động không có phòng (trò chơi đơn). */
   noiDungGiua?: ReactNode
-  cotTrai: ReactNode
-  cotPhai: ReactNode
+  cotTrai?: ReactNode
+  cotPhai?: ReactNode
   /** Tiền tố data-testid: `${testId}-layout`, `${testId}-search-input`, `${testId}-lobby-loading`… */
   testId: string
   hero?: ReactNode
@@ -81,9 +81,7 @@ export function SanhHoatDong({
         <PageHeader title={tieuDe} />
       </div>}
 
-      {thongKe}
-
-      {/* Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
+      {/* Sảnh chính (và tiện ích hai bên nếu có) */}
       <ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai} utilityMode="inline">
 
         <section
@@ -114,7 +112,7 @@ export function SanhHoatDong({
                 </Link>
               )}
               {timKiem && (
-                <div className="relative min-w-0 flex-1 basis-48">
+                <div className="relative order-3 min-w-0 w-full sm:order-2 sm:w-auto sm:flex-1 sm:basis-48">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
                   <Input
                     value={timKiem.giaTri}
@@ -136,7 +134,7 @@ export function SanhHoatDong({
                   )}
                 </div>
               )}
-              <div className="ml-auto flex min-w-0 flex-1 flex-wrap gap-2 @min-[34rem]:flex-none">
+              <div className="order-2 ml-auto flex min-w-0 flex-1 flex-wrap gap-2 sm:order-3 @min-[34rem]:flex-none">
                 {taoPhong && (
                   <Button
                     variant={testId === 'learning' ? 'default' : 'outline'}
@@ -169,6 +167,8 @@ export function SanhHoatDong({
         </section>
 
       </ResponsiveActivityLayout>
+
+      {thongKe}
     </div>
   )
 }
