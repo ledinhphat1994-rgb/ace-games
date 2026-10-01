@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { LogIn, Play, Plus, Search } from 'lucide-react'
+import { LogIn, Plus, Search } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
@@ -124,7 +124,7 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
               }
         }
         timKiem={!laDon && coDanhSach ? { giaTri: tuKhoa, onDoi: setTuKhoa, goiY: 'Tìm bàn…' } : undefined}
-        noiDungGiua={laDon ? <NoiDungSolo game={game} gameType={gameType} onChoiNgay={choiNgay} /> : undefined}
+        noiDungGiua={laDon ? <NoiDungSolo game={game} /> : undefined}
         danhSach={
           laDon
             ? undefined
@@ -250,59 +250,25 @@ function SanhGameHero({ game, gameType }: { game: GameDefinition; gameType: Game
   )
 }
 
-/** Giao diện trung tâm cho trò chơi đơn: không bàn, không danh sách rỗng, tập trung vào trải nghiệm chơi. */
-function NoiDungSolo({
-  game,
-  gameType,
-  onChoiNgay,
-}: {
-  game: GameDefinition
-  gameType: GameType
-  onChoiNgay: () => void
-}) {
-  const isMemory = gameType === 'solo_memory'
-  const dacDiem = isMemory
-    ? [
-        { tieuDe: 'Luật chơi', moTa: 'Lật tìm các cặp biểu tượng khớp trên lưới 4×4.' },
-        { tieuDe: 'Mục tiêu', moTa: 'Hoàn thành lượt chơi với số bước ít nhất.' },
-        { tieuDe: 'Chế độ', moTa: 'Chơi đơn rèn luyện trí nhớ và phản xạ nhanh.' },
-      ]
-    : [
-        { tieuDe: 'Luật chơi', moTa: 'Điều khiển rắn săn mồi neon trên lưới 24×24.' },
-        { tieuDe: 'Mục tiêu', moTa: 'Ăn mồi phát sáng và sống sót càng lâu càng tốt.' },
-        { tieuDe: 'Chế độ', moTa: 'Chơi đơn thử thách tốc độ và sự khéo léo.' },
-      ]
-
+/** Giao diện trung tâm cho trò chơi đơn: không bàn, không danh sách rỗng, sử dụng thông tin danh mục thật. */
+function NoiDungSolo({ game }: { game: GameDefinition }) {
   return (
     <div className="flex h-full min-h-[320px] flex-col items-center justify-center p-6 text-center">
-      <div className="mx-auto max-w-md space-y-6">
-        <div className="mx-auto size-28 overflow-hidden rounded-2xl border border-border-default bg-surface-raised shadow-sm">
+      <div className="mx-auto max-w-sm space-y-4">
+        <div className="mx-auto size-32 overflow-hidden rounded-2xl border border-border-default bg-surface-raised shadow-sm">
           <img src={game.cover} alt="" className="size-full object-cover" />
         </div>
 
         <div>
           <h2 className="text-xl font-bold text-text-primary">{game.shortTitle}</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">{game.description}</p>
+          <p className="mt-2 text-sm leading-relaxed text-text-secondary">{game.description}</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 text-left">
-          {dacDiem.map((item) => (
-            <div key={item.tieuDe} className="rounded-xl border border-border-subtle bg-surface-raised p-3">
-              <h3 className="text-xs font-semibold text-text-primary">{item.tieuDe}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-text-secondary">{item.moTa}</p>
-            </div>
-          ))}
-        </div>
-
-        <Button
-          size="lg"
-          onClick={onChoiNgay}
-          data-testid="game-lobby-play-solo"
-          className="h-12 w-full max-w-xs font-bold gap-2 text-base shadow-sm"
-        >
-          <Play className="size-5 fill-current" />
-          Bắt đầu chơi
-        </Button>
+        {game.boardLabel && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 py-1 text-xs font-medium text-text-secondary">
+            Bàn {game.boardLabel}
+          </div>
+        )}
       </div>
     </div>
   )
