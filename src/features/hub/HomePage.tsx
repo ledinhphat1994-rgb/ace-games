@@ -2,7 +2,7 @@
 // src/features/hub/HomePage.tsx
 
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, Link } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,6 @@ import {
   Users,
   Trophy,
   MessageSquare,
-  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -109,15 +108,6 @@ export function HomePage() {
     navigate(`/room/phong-${room.id}`)
   }
 
-  const handleOpenChatWith = (_friendId: number, friendName: string) => {
-    if (!nguoiDung) {
-      moAuthModal?.('dang_nhap')
-      return
-    }
-    window.dispatchEvent(new CustomEvent('campus:open-chat'))
-    toast.info(`Đã mở khung chat — gửi lời nhắn tới ${friendName} nhé!`)
-  }
-
   const handleOpenCampusChat = () => {
     if (!nguoiDung) {
       moAuthModal?.('dang_nhap')
@@ -198,7 +188,7 @@ export function HomePage() {
             Cùng nhau học tập, chơi game, kết nối bạn bè và phát triển kỹ năng để tạo nên một cộng đồng học sinh năng động.
           </p>
 
-          {/* Canonical CTAs */}
+          {/* Canonical CTA */}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button
               size="lg"
@@ -207,16 +197,6 @@ export function HomePage() {
             >
               <span>Bắt đầu khám phá</span>
               <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setMoTaoPhong(true)}
-              className="h-11 px-5 rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary font-semibold text-sm transition-all cursor-pointer"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              <span>Tạo phòng học mới</span>
             </Button>
           </div>
         </div>
@@ -227,11 +207,11 @@ export function HomePage() {
         {destinationTiles.map((tile) => {
           const Icon = tile.icon
           return (
-            <div
+            <Link
               key={tile.to}
-              onClick={() => navigate(tile.to)}
+              to={tile.to}
               className={cn(
-                'group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-border-default/80 bg-surface hover:bg-surface-raised/80 transition-all duration-200 cursor-pointer shadow-xs',
+                'group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-border-default/80 bg-surface hover:bg-surface-raised/80 transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand',
                 tile.borderStyle,
               )}
             >
@@ -259,7 +239,7 @@ export function HomePage() {
                   {tile.description}
                 </p>
               </div>
-            </div>
+            </Link>
           )
         })}
       </section>
@@ -376,10 +356,10 @@ export function HomePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               {featuredGames.map((game) => (
-                <div
+                <Link
                   key={game.id}
-                  onClick={() => navigate(`/arena/${game.id}`)}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 bg-surface hover:border-brand/40 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs"
+                  to={`/arena/${game.id}`}
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 bg-surface hover:border-brand/40 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   <div className="relative aspect-[16/10] w-full overflow-hidden bg-canvas">
                     <img
@@ -398,18 +378,11 @@ export function HomePage() {
                     <span className="text-[11px] font-medium text-text-secondary truncate">
                       {game.boardLabel || 'Online'}
                     </span>
-                    <Button
-                      size="sm"
-                      className="h-7 px-3 text-xs font-semibold rounded-lg bg-brand text-brand-foreground hover:bg-brand-hover cursor-pointer shadow-xs"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`/arena/${game.id}`)
-                      }}
-                    >
+                    <span className="h-7 px-3 text-xs font-semibold rounded-lg bg-brand text-brand-foreground group-hover:bg-brand-hover inline-flex items-center justify-center transition-colors shadow-xs">
                       Chơi ngay
-                    </Button>
+                    </span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </section>
@@ -479,17 +452,6 @@ export function HomePage() {
                             <p className="text-[10px] text-text-tertiary truncate">{activityText}</p>
                           </div>
                         </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-text-secondary hover:text-text-primary shrink-0"
-                          onClick={() => handleOpenChatWith(friend.id, friend.displayName)}
-                          title={`Nhắn tin cho ${friend.displayName}`}
-                          aria-label={`Nhắn tin cho ${friend.displayName}`}
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        </Button>
                       </div>
                     )
                   })}
@@ -533,10 +495,11 @@ export function HomePage() {
               ) : (
                 <div className="space-y-2.5">
                   {recentMessagesPreview.map((msg) => (
-                    <div
+                    <button
                       key={msg.id}
+                      type="button"
                       onClick={handleOpenCampusChat}
-                      className="group p-2 rounded-xl bg-surface-raised/40 hover:bg-surface-raised transition-colors cursor-pointer"
+                      className="group w-full p-2 rounded-xl bg-surface-raised/40 hover:bg-surface-raised transition-colors cursor-pointer text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand"
                     >
                       <div className="flex items-center justify-between gap-1 text-[11px] mb-1">
                         <span className="font-bold text-text-primary truncate">
@@ -552,7 +515,7 @@ export function HomePage() {
                       <p className="text-xs text-text-secondary line-clamp-1 break-words group-hover:text-text-primary transition-colors">
                         {msg.noiDung}
                       </p>
-                    </div>
+                    </button>
                   ))}
 
                   <Button
@@ -566,32 +529,6 @@ export function HomePage() {
                   </Button>
                 </div>
               )}
-            </div>
-          </section>
-
-          {/* Quick Shortcuts */}
-          <section aria-label="Lối tắt" className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-xs">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              <h2 className="text-sm font-bold text-text-primary">Lối tắt nhanh</h2>
-            </div>
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => navigate('/me')}
-                className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-colors text-left cursor-pointer"
-              >
-                <span>Hồ sơ & Thành tựu cá nhân</span>
-                <ArrowRight className="h-3.5 w-3.5 text-text-tertiary" />
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/rankings')}
-                className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-colors text-left cursor-pointer"
-              >
-                <span>Bảng vinh danh tuần</span>
-                <ArrowRight className="h-3.5 w-3.5 text-text-tertiary" />
-              </button>
             </div>
           </section>
         </div>
