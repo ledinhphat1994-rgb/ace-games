@@ -14,6 +14,8 @@ import {
   parseRoomJoinTarget,
   deriveLobbyState,
   filterLobbyRooms,
+  deriveActiveFriendStudy,
+  deriveQuickJoinRoom,
 } from '../src/features/hub/learning-semantics'
 import { buildRoomFriendsMap } from '../src/features/hub/room-discovery'
 import type { PhongSanh } from '../shared/protocol/campus'
@@ -475,6 +477,288 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(friendsIn42).toHaveLength(1)
       expect(friendsIn42![0].id).toBe(101)
       expect(friendsIn42![0].displayName).toBe('Bạn A')
+    })
+  })
+
+  // ── 11. UI-3 Fail-Closed Friend Study & Truthful Quick Join Contracts ──────
+  describe('11. Fail-Closed Friend Study & Truthful Quick Join Contracts (UI-3)', () => {
+    const sampleRoom42: PhongSanh = {
+      id: 42,
+      ten: 'Phòng Toán 10',
+      chuPhongTen: 'Nguyễn Văn An',
+      phamVi: 'truong',
+      lopId: null,
+      lopTen: null,
+      soNguoi: 2,
+      sucChua: 20,
+      coMatKhau: false,
+      monHoc: 'toan',
+      moTa: 'Ôn tập chương 1',
+      dangPhat: null,
+      taoLuc: 1700000000000,
+    }
+
+    const sampleRoomFull: PhongSanh = {
+      id: 43,
+      ten: 'Phòng Văn Đầy Chỗ',
+      chuPhongTen: 'Trần Thị Bình',
+      phamVi: 'lop',
+      lopId: 10,
+      lopTen: '10A7',
+      soNguoi: 15,
+      sucChua: 15,
+      coMatKhau: false,
+      monHoc: 'ngu-van',
+      moTa: 'Phân tích văn học',
+      dangPhat: null,
+      taoLuc: 1700000000000,
+    }
+
+    const sampleRoomPassword: PhongSanh = {
+      id: 44,
+      ten: 'Phòng Riêng Có Khóa',
+      chuPhongTen: 'Lê Hoàng Nam',
+      phamVi: 'truong',
+      lopId: null,
+      lopTen: null,
+      soNguoi: 1,
+      sucChua: 10,
+      coMatKhau: true,
+      monHoc: 'tieng-anh',
+      moTa: 'Luyện thi riêng',
+      dangPhat: null,
+      taoLuc: 1700000000000,
+    }
+
+    const friendA: FriendItem = {
+      id: 101,
+      username: 'bana',
+      displayName: 'Bạn A',
+      avatar: null,
+      role: 'hoc_sinh',
+      lopTen: '10A7',
+      friendedAt: 1700000000000,
+    }
+
+    const presenceWithRoom42: Record<number, FriendPresence> = {
+      101: {
+        accountId: 101,
+        state: 'online',
+        lastSeen: Date.now(),
+        activity: {
+          type: 'room',
+          roomId: 42,
+          roomTitle: 'Phòng Toán 10',
+        },
+      },
+    }
+
+    // A. stale/reconnecting presence cannot produce friend-study continuation
+    it('A. stale/reconnecting presence cannot produce friend-study continuation', () => {
+      // Pre-existing room friends map with friend present
+      const activeMap = new Map([[42, [{ id: 101, displayName: 'Bạn A', username: 'bana', avatar: null }]]])
+
+      // 1. presenceReady is false => null
+      expect(
+        deriveActiveFriendStudy({
+          rooms: [sampleRoom42],
+          roomFriendsMap: activeMap,
+          presenceReady: false,
+          trangThai: 'da_ket_noi',
+        }),
+      ).toBeNull()
+
+      // 2. trangThai is mat_ket_noi (reconnecting) => null
+      expect(
+        deriveActiveFriendStudy({
+          rooms: [sampleRoom42],
+          roomFriendsMap: activeMap,
+          presenceReady: true,
+          trangThai: 'mat_ket_noi',
+        }),
+      ).toBeNull()
+
+      // 3. trangThai is dang_ket_noi (connecting) => null
+      expect(
+        deriveActiveFriendStudy({
+          rooms: [sampleRoom42],
+          roomFriendsMap: activeMap,
+          presenceReady: false,
+          trangThai: 'dang_ket_noi',
+        }),
+      ).toBeNull()
+
+      // 4. End-to-end with buildRoomFriendsMap during disconnect
+      const disconnectedFriendsMap = buildRoomFriendsMap(
+        [sampleRoom42],
+        [friendA],
+        presenceWithRoom42,
+        [],
+        { presenceReady: false, connectionStatus: 'mat_ket_noi' },
+      )
+      expect(
+        deriveActiveFriendStudy({
+          rooms: [sampleRoom42],
+          roomFriendsMap: disconnectedFriendsMap,
+          presenceReady: false,
+          trangThai: 'mat_ket_noi',
+        }),
+      ).toBeNull()
+    })
+
+    // B. friend-study continuation uses an authoritative current room
+    it('B. friend-study continuation uses an authoritative current room', () => {
+      // 1. Friend presence points to roomId: 999 which does NOT exist in authoritative rooms
+      const presenceWithNonExistentRoom: Record<number, FriendPresence> = {
+        101: {
+          accountId: 101,
+          state: 'online',
+          lastSeen: Date.now(),
+          activity: {
+            type: 'room',
+            roomId: 999,
+            roomTitle: 'Phòng Ảo Đã Đóng',
+          },
+        },
+      }
+      const mapNonExistent = buildRoomFriendsMap(
+        [sampleRoom42], // authoritative rooms only has 42, not 999
+        [friendA],
+        presenceWithNonExistentRoom,
+        [],
+        { presenceReady: true, connectionStatus: 'da_ket_noi' },
+      )
+      expect(
+        deriveActiveFriendStudy({
+          rooms: [sampleRoom42],
+          roomFriendsMap: mapNonExistent,
+          presenceReady: true,
+          trangThai: 'da_ket_noi',
+        }),
+      ).toBeNull()
+
+      // 2. Even if roomFriendsMap has an orphaned entry for 999, it is never returned because 999 is not in rooms
+      const orphanedMap = new Map([[999, [{ id: 101, displayName: 'Bạn A', username: 'bana', avatar: null }]]])
+      expect(
+        deriveActiveFriendStudy({
+          rooms: [sampleRoom42],
+          roomFriendsMap: orphanedMap,
+          presenceReady: true,
+          trangThai: 'da_ket_noi',
+        }),
+      ).toBeNull()
+
+      // 3. Authoritative room 42 exists and friend is active in it
+      const validMap = buildRoomFriendsMap(
+        [sampleRoom42],
+        [friendA],
+        presenceWithRoom42,
+        [],
+        { presenceReady: true, connectionStatus: 'da_ket_noi' },
+      )
+      const continuation = deriveActiveFriendStudy({
+        rooms: [sampleRoom42],
+        roomFriendsMap: validMap,
+        presenceReady: true,
+        trangThai: 'da_ket_noi',
+      })
+      expect(continuation).not.toBeNull()
+      expect(continuation!.friend.displayName).toBe('Bạn A')
+      expect(continuation!.room).toBe(sampleRoom42) // Retains real authoritative PhongSanh object
+      expect(continuation!.room.id).toBe(42)
+    })
+
+    // C. quick join is unavailable while reconnecting
+    it('C. quick join is unavailable while reconnecting or loading', () => {
+      const activeMap = new Map([[42, []]])
+
+      // Reconnecting state => null
+      const reconnectingResult = deriveQuickJoinRoom({
+        lobbyStatus: 'reconnecting',
+        rooms: [sampleRoom42],
+        roomFriendsMap: activeMap,
+      })
+      expect(reconnectingResult).toBeNull()
+
+      // Loading state => null
+      const loadingResult = deriveQuickJoinRoom({
+        lobbyStatus: 'loading',
+        rooms: [sampleRoom42],
+        roomFriendsMap: activeMap,
+      })
+      expect(loadingResult).toBeNull()
+    })
+
+    // D. quick join is unavailable when all rooms are full/password-protected
+    it('D. quick join is unavailable when all rooms are full or password-protected', () => {
+      const activeMap = new Map()
+
+      // 1. Authoritative room list is empty
+      expect(
+        deriveQuickJoinRoom({
+          lobbyStatus: 'ready',
+          rooms: [],
+          roomFriendsMap: activeMap,
+        }),
+      ).toBeNull()
+
+      // 2. Every room is full
+      expect(
+        deriveQuickJoinRoom({
+          lobbyStatus: 'ready',
+          rooms: [sampleRoomFull],
+          roomFriendsMap: activeMap,
+        }),
+      ).toBeNull()
+
+      // 3. Every available room requires a password
+      expect(
+        deriveQuickJoinRoom({
+          lobbyStatus: 'ready',
+          rooms: [sampleRoomPassword],
+          roomFriendsMap: activeMap,
+        }),
+      ).toBeNull()
+
+      // 4. Combination of only full and password-protected rooms
+      expect(
+        deriveQuickJoinRoom({
+          lobbyStatus: 'ready',
+          rooms: [sampleRoomFull, sampleRoomPassword],
+          roomFriendsMap: activeMap,
+        }),
+      ).toBeNull()
+    })
+
+    // E. quick join is available for a valid public room with capacity
+    it('E. quick join is available for a valid public room with capacity', () => {
+      const activeMap = new Map()
+      const candidateRooms = [sampleRoomFull, sampleRoomPassword, sampleRoom42]
+
+      const quickRoom = deriveQuickJoinRoom({
+        lobbyStatus: 'ready',
+        rooms: candidateRooms,
+        roomFriendsMap: activeMap,
+      })
+
+      expect(quickRoom).not.toBeNull()
+      expect(quickRoom!.id).toBe(42)
+      expect(quickRoom!.soNguoi).toBeLessThan(quickRoom!.sucChua)
+      expect(quickRoom!.coMatKhau).toBe(false)
+      expect(quickRoom).toBe(sampleRoom42)
+    })
+
+    // F. LearningPage source guarantees fail-closed and admission flow
+    it('F. LearningPage source guarantees fail-closed and admission flow', () => {
+      // Fail-closed friend study uses deriveActiveFriendStudy
+      expect(learningPageRaw).toContain('deriveActiveFriendStudy')
+      expect(learningPageRaw).toContain('activeFriendStudy.room')
+      // Vào cùng navigates via admission flow xuLyVaoPhong(activeFriendStudy.room)
+      expect(learningPageRaw).toContain('xuLyVaoPhong(activeFriendStudy.room)')
+      // Truthful quick join uses deriveQuickJoinRoom
+      expect(learningPageRaw).toContain('deriveQuickJoinRoom')
+      expect(learningPageRaw).toContain('quickJoinRoom &&')
+      expect(learningPageRaw).toContain('xuLyVaoPhong(quickJoinRoom)')
     })
   })
 })

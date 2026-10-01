@@ -12,7 +12,7 @@ import { ThongKeHocTap } from './ThongKeHocTap'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { JoinRoomModal } from './components/learning/JoinRoomModal'
-import { buildRoomFriendsMap, chonPhongVaoNhanh, sortDiscoveryRooms } from './room-discovery'
+import { buildRoomFriendsMap, sortDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
 import {
   BookOpen,
@@ -30,7 +30,9 @@ import {
 import { toast } from 'sonner'
 import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
+  deriveActiveFriendStudy,
   deriveLobbyState,
+  deriveQuickJoinRoom,
   filterLobbyRooms,
 } from './learning-semantics'
 
@@ -81,22 +83,17 @@ export function LearningPage() {
     [rooms, tuKhoa, roomFriendsMap],
   )
 
-  // Smart continuation: friend actively studying
-  const activeFriendStudy = useMemo(() => {
-    const friendWithRoom = friends.find((f) => {
-      const act = presenceMap[f.id]?.activity
-      return act?.type === 'room' && Boolean(act.roomId)
-    })
-    if (!friendWithRoom) return null
-    const act = presenceMap[friendWithRoom.id]?.activity
-    const roomId = act?.roomId as number
-    const targetRoom = rooms.find((r) => r.id === roomId)
-    return {
-      friend: friendWithRoom,
-      roomId,
-      roomName: targetRoom?.ten || `Phòng #${roomId}`,
-    }
-  }, [friends, presenceMap, rooms])
+  // Smart continuation: friend actively studying (fail-closed, authoritative room)
+  const activeFriendStudy = useMemo(
+    () =>
+      deriveActiveFriendStudy({
+        rooms,
+        roomFriendsMap,
+        presenceReady,
+        trangThai,
+      }),
+    [rooms, roomFriendsMap, presenceReady, trangThai],
+  )
 
   const datTuKhoa = (giaTri: string) => {
     setTuKhoa(giaTri)
@@ -123,14 +120,15 @@ export function LearningPage() {
     viec()
   }
 
-  // Quick join: auto-select best public room with capacity
+  // Quick join: memoized best open room with capacity and no password, available ONLY when lobby is ready
+  const quickJoinRoom = useMemo(
+    () => deriveQuickJoinRoom({ lobbyStatus: lobbyState.status, rooms, roomFriendsMap }),
+    [lobbyState.status, rooms, roomFriendsMap],
+  )
+
   const vaoPhongNhanh = () => {
-    const phong = chonPhongVaoNhanh(rooms, roomFriendsMap)
-    if (!phong) {
-      toast.info('Các phòng đang mở đều đã đầy hoặc cần mật khẩu.')
-      return
-    }
-    navigate(`/room/phong-${phong.id}`)
+    if (!quickJoinRoom) return
+    xuLyVaoPhong(quickJoinRoom)
   }
 
   const laAdminToanQuyen = Boolean(
@@ -171,7 +169,10 @@ export function LearningPage() {
 
       {/* ── 2. Smart Continuation: Friend actively studying ── */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand/35 bg-brand/10 p-3.5 sm:p-4 backdrop-blur-md shadow-xs">
+        <div
+          data-testid="friend-study-continuation"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-brand/35 bg-brand/10 p-3.5 sm:p-4 backdrop-blur-md shadow-xs"
+        >
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/20 text-brand border border-brand/30">
               <Users className="h-4.5 w-4.5" />
@@ -181,14 +182,15 @@ export function LearningPage() {
                 Bạn bè đang học: <span className="text-brand font-black">{activeFriendStudy.friend.displayName}</span>
               </p>
               <p className="text-xs text-text-secondary truncate">
-                {activeFriendStudy.roomName}
+                {activeFriendStudy.room.ten || `Phòng #${activeFriendStudy.room.id}`}
               </p>
             </div>
           </div>
 
           <Button
+            data-testid="join-friend-study-btn"
             size="sm"
-            onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
+            onClick={canDangNhap(() => xuLyVaoPhong(activeFriendStudy.room))}
             className="shrink-0 gap-1.5 bg-brand hover:bg-brand-hover text-brand-foreground font-bold text-xs h-9 px-3.5 shadow-xs"
           >
             <DoorOpen className="h-3.5 w-3.5" />
@@ -224,8 +226,8 @@ export function LearningPage() {
 
         {/* Action Buttons Cluster */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Quick Join (Contextual: only when valid rooms exist) */}
-          {rooms.length > 0 && (
+          {/* Quick Join (Contextual: only when valid open room is ready) */}
+          {quickJoinRoom && (
             <Button
               data-testid="quick-join-btn"
               variant="outline"
