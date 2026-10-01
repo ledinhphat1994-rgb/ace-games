@@ -295,13 +295,32 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           </button>
         </div>
       ) : records.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-          <div className="size-14 rounded-2xl bg-surface-overlay border border-border-default flex items-center justify-center text-3xl">
-            {activeTabCfg.icon}
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-8 text-center select-none">
+          {/* Mô phỏng bục vinh danh Top 3 đang chờ đón tân vương */}
+          <div className="w-full max-w-[240px] flex items-end justify-center gap-2 pt-2 pb-1">
+            {/* Hạng 2 */}
+            <div className="flex-1 rounded-xl border border-dashed border-border-default/80 bg-surface/50 p-2 flex flex-col items-center justify-end h-20 text-center">
+              <Trophy className="size-4 text-text-tertiary mb-1 opacity-70" />
+              <span className="text-[11px] font-bold text-text-tertiary">#2</span>
+              <span className="text-[9px] text-text-tertiary/60">Trống</span>
+            </div>
+            {/* Hạng 1 */}
+            <div className="flex-1 rounded-xl border border-dashed border-amber-500/50 bg-amber-500/10 p-2.5 flex flex-col items-center justify-end h-26 text-center shadow-xs">
+              <Trophy className="size-5 text-warning mb-1" />
+              <span className="text-xs font-black text-warning">#1</span>
+              <span className="text-[9px] font-bold text-warning/80">Vô địch</span>
+            </div>
+            {/* Hạng 3 */}
+            <div className="flex-1 rounded-xl border border-dashed border-border-default/80 bg-surface/50 p-2 flex flex-col items-center justify-end h-16 text-center">
+              <Trophy className="size-3.5 text-text-tertiary mb-1 opacity-50" />
+              <span className="text-[11px] font-bold text-text-tertiary">#3</span>
+              <span className="text-[9px] text-text-tertiary/60">Trống</span>
+            </div>
           </div>
-          <div>
+
+          <div className="max-w-[220px]">
             <p className="text-sm font-bold text-text-primary">Chưa có ai lên bảng!</p>
-            <p className="text-xs text-text-tertiary mt-1">
+            <p className="text-xs text-text-tertiary mt-1 leading-relaxed">
               {laHocTap ? 'Học trong phòng' : `Chơi ${activeTabCfg.label}`} để ghi danh Top 50 đầu tiên 🏆
             </p>
           </div>

@@ -37,12 +37,23 @@ export function GameCapturedTray({
   const friendlyMajors = safeFriendly.filter((t) => t !== pawnType)
 
   return (
-    <div className={cn('relative flex flex-col justify-between w-full h-full select-none transition-all', className)}>
+    <div
+      className={cn(
+        'w-full h-full rounded-2xl border border-border-default/80 bg-surface/90 shadow-xl backdrop-blur-md p-3 flex flex-col justify-between select-none transition-all duration-300',
+        className,
+      )}
+    >
       {/* NỬA TRÊN (50% CHIỀU CAO): VÙNG 1+ (Tin nhắn địch ở trên cùng) + Quân ta bị mất đổ về trung tâm */}
-      <div className="flex flex-col justify-between h-1/2 w-full pb-2 overflow-visible">
+      <div className="flex flex-col justify-between h-1/2 w-full pb-1 overflow-visible">
         {/* VÙNG 1+: Tin nhắn địch xuất hiện ở đỉnh */}
-        <div className="w-full flex justify-center shrink-0 min-h-0">
+        <div className="w-full flex justify-center shrink-0 min-h-0 mb-1">
           {topSlot}
+        </div>
+
+        {/* Tiêu đề góc địch */}
+        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-400/90 mb-1 shrink-0">
+          <span className="size-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_#f43f5e]" />
+          <span>Chiến tích Đối thủ</span>
         </div>
 
         {/* Quân cờ địch ăn được xếp đổ từ trung tâm lên phía địch */}
@@ -70,29 +81,37 @@ export function GameCapturedTray({
             )}
           </div>
         ) : (
-          <div className="flex-1" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-2 text-text-tertiary/60">
+            <span className="text-[11px] font-medium">Chưa bắt được quân</span>
+          </div>
         )}
       </div>
 
-      {/* VÙNG 2: ĐƯỜNG PHÂN CÁCH CỐ ĐỊNH CHÍNH GIỮA 50% CHIỀU CAO (NGĂN CÁCH 2 PHE KHÔNG BAO GIỜ BỊ LỆCH) */}
-      <div className="w-full flex flex-col items-center justify-center shrink-0 my-0 py-1">
+      {/* VÙNG 2: ĐƯỜNG PHÂN CÁCH TRUNG TÂM CỐ ĐỊNH CHÍNH GIỮA */}
+      <div className="w-full flex items-center justify-center gap-2 py-1 shrink-0 my-0">
         <div
           className={cn(
-            'w-full transition-all duration-300',
+            'h-px flex-1 transition-all duration-300',
             hasCaptured
-              ? 'h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent shadow-[0_0_6px_rgba(251,191,36,0.25)] opacity-60'
-              : 'h-[1px] bg-gradient-to-r from-transparent via-slate-500/20 to-transparent opacity-20'
+              ? 'bg-gradient-to-r from-transparent via-amber-400/50 to-transparent shadow-[0_0_6px_rgba(251,191,36,0.3)]'
+              : 'bg-gradient-to-r from-transparent via-border-default/50 to-transparent'
           )}
         />
-        {!hasCaptured && (
-          <span className="text-[9px] font-bold uppercase tracking-widest text-text-tertiary/60 mt-1">
-            Quân ăn được
-          </span>
-        )}
+        <span className="text-[9px] font-black uppercase tracking-widest text-warning/90 px-1">
+          Chiến Lợi Phẩm
+        </span>
+        <div
+          className={cn(
+            'h-px flex-1 transition-all duration-300',
+            hasCaptured
+              ? 'bg-gradient-to-r from-transparent via-amber-400/50 to-transparent shadow-[0_0_6px_rgba(251,191,36,0.3)]'
+              : 'bg-gradient-to-r from-transparent via-border-default/50 to-transparent'
+          )}
+        />
       </div>
 
       {/* NỬA DƯỚI (50% CHIỀU CAO): Quân ta ăn được đổ từ trung tâm xuống + VÙNG 1 (Nút icon & tin nhắn của ta) */}
-      <div className="flex flex-col justify-between h-1/2 w-full pt-2 overflow-visible">
+      <div className="flex flex-col justify-between h-1/2 w-full pt-1 overflow-visible">
         {/* Quân cờ ta ăn được đổ từ trung tâm xuống */}
         {safeFriendly.length > 0 ? (
           <div className="flex flex-col gap-2 w-full mb-auto overflow-y-auto max-h-[140px] xl:max-h-[160px] p-0.5">
@@ -118,8 +137,16 @@ export function GameCapturedTray({
             )}
           </div>
         ) : (
-          <div className="flex-1" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-2 text-text-tertiary/60">
+            <span className="text-[11px] font-medium">Sẵn sàng xuất trận ⚔️</span>
+          </div>
         )}
+
+        {/* Tiêu đề góc của ta */}
+        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400/90 mt-1 shrink-0">
+          <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+          <span>Chiến tích của Bạn</span>
+        </div>
 
         {/* VÙNG 1: Nút cảm xúc chọn nhanh & bong bóng thoại của ta ở đáy */}
         <div className="w-full flex justify-center shrink-0 pt-1">
