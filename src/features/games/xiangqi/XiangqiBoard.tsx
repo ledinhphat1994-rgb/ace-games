@@ -609,7 +609,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
     : inCheck
       ? '#ef4444'
       : isAiThinking
-        ? '#06b6d4'
+        ? '#c6a15a'
         : '#ef4444'
 
   const emojiTrangThai = isOver
@@ -753,7 +753,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
 
                     {/* Ô đang được chọn - viền hào quang cyan nổi bật */}
                     {isSelected && (
-                      <span className="absolute size-[92%] rounded-full ring-4 ring-cyan-400 shadow-[0_0_12px_#22d3ee] bg-cyan-400/20 pointer-events-none z-20 animate-pulse" />
+                      <span className="absolute size-[92%] rounded-full ring-4 ring-brand shadow-[0_0_12px_#c6a15a] bg-brand/15 pointer-events-none z-20 animate-pulse" />
                     )}
 
                     {/* Quân cờ to rõ, chạm khắc tinh xảo */}

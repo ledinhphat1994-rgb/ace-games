@@ -45,7 +45,7 @@ export function QuanCo({ gameType, side, className }: QuanCoProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={cn('block aspect-square', className)}>
       {side === 'X' ? (
-        <path d="M6 6L18 18M18 6L6 18" stroke="#22d3ee" strokeWidth="3.2" strokeLinecap="round" fill="none" />
+        <path d="M6 6L18 18M18 6L6 18" stroke="#c6a15a" strokeWidth="3.2" strokeLinecap="round" fill="none" />
       ) : (
         <circle cx="12" cy="12" r="6.6" stroke="#e879f9" strokeWidth="3.2" fill="none" />
       )}

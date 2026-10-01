@@ -75,15 +75,15 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
     return (
       <div
         style={{ left: position.x, top: position.y, zIndex }}
-        className="absolute flex items-center gap-2 rounded-full border border-cyan-500/30 bg-[#0d1424]/95 px-3 py-1.5 shadow-xl backdrop-blur-xl ring-1 ring-cyan-500/20 cursor-move"
+        className="absolute flex items-center gap-2 rounded-full border border-brand/30 bg-[#1c1a14]/95 px-3 py-1.5 shadow-xl backdrop-blur-xl ring-1 ring-brand/20 cursor-move"
         onMouseDown={handleMouseDown}
         onClick={onFocus}
       >
         <GripHorizontal className="h-3.5 w-3.5 text-slate-500" />
-        <CalcIcon className="h-4 w-4 text-cyan-400" />
+        <CalcIcon className="h-4 w-4 text-brand" />
         <span className="text-xs font-semibold text-slate-200">Máy tính FX</span>
         {ketQua !== null && (
-          <span className="text-[10px] font-mono text-cyan-300 max-w-[80px] truncate">= {ketQua}</span>
+          <span className="text-[10px] font-mono text-brand max-w-[80px] truncate">= {ketQua}</span>
         )}
         <button onClick={(e) => { e.stopPropagation(); setIsMinimized(false) }} className="rounded p-0.5 text-slate-400 hover:text-white">
           <CalcIcon className="h-3 w-3" />
@@ -98,7 +98,7 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
   return (
     <div
       style={{ left: position.x, top: position.y, width: 320, zIndex }}
-      className="absolute flex flex-col overflow-hidden rounded-2xl border border-cyan-500/25 bg-[#090e18]/97 shadow-2xl backdrop-blur-2xl ring-1 ring-cyan-500/15"
+      className="absolute flex flex-col overflow-hidden rounded-2xl border border-brand/25 bg-[#14140f]/97 shadow-2xl backdrop-blur-2xl ring-1 ring-brand/15"
       onClick={onFocus}
     >
       {/* Title bar */}
@@ -108,7 +108,7 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
       >
         <div className="flex items-center gap-2">
           <GripHorizontal className="h-3.5 w-3.5 text-slate-500" />
-          <CalcIcon className="h-4 w-4 text-cyan-400" />
+          <CalcIcon className="h-4 w-4 text-brand" />
           <span className="text-xs font-bold text-slate-200">Máy tính Khoa học FX</span>
         </div>
         <div className="flex items-center gap-1">
@@ -150,7 +150,7 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
             {/* Display */}
             <div className="flex min-h-16 flex-col justify-end rounded-xl border border-white/10 bg-black/50 p-3 text-right">
               <div className="overflow-x-auto font-mono text-xs text-slate-500">{bieuThuc || '0'}</div>
-              <div className="truncate font-mono text-lg font-bold text-cyan-400">
+              <div className="truncate font-mono text-lg font-bold text-brand">
                 {ketQua !== null ? `= ${ketQua}` : ''}
               </div>
             </div>
@@ -171,17 +171,17 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
                 { label: '7', action: () => nhapKyTu('7'), cls: 'bg-white/8 text-white hover:bg-white/15' },
                 { label: '8', action: () => nhapKyTu('8'), cls: 'bg-white/8 text-white hover:bg-white/15' },
                 { label: '9', action: () => nhapKyTu('9'), cls: 'bg-white/8 text-white hover:bg-white/15' },
-                { label: '÷', action: () => nhapKyTu('÷'), cls: 'bg-cyan-900/60 text-cyan-300 hover:bg-cyan-800/60' },
+                { label: '÷', action: () => nhapKyTu('÷'), cls: 'bg-brand/15 text-brand hover:bg-brand/25' },
                 { label: 'log', action: () => nhapKyTu('log('), cls: 'bg-white/5 text-slate-300 hover:bg-white/10' },
                 { label: '4', action: () => nhapKyTu('4'), cls: 'bg-white/8 text-white hover:bg-white/15' },
                 { label: '5', action: () => nhapKyTu('5'), cls: 'bg-white/8 text-white hover:bg-white/15' },
                 { label: '6', action: () => nhapKyTu('6'), cls: 'bg-white/8 text-white hover:bg-white/15' },
-                { label: '×', action: () => nhapKyTu('×'), cls: 'bg-cyan-900/60 text-cyan-300 hover:bg-cyan-800/60' },
+                { label: '×', action: () => nhapKyTu('×'), cls: 'bg-brand/15 text-brand hover:bg-brand/25' },
                 { label: 'ln', action: () => nhapKyTu('ln('), cls: 'bg-white/5 text-slate-300 hover:bg-white/10' },
                 { label: '1', action: () => nhapKyTu('1'), cls: 'bg-white/8 text-white hover:bg-white/15' },
                 { label: '2', action: () => nhapKyTu('2'), cls: 'bg-white/8 text-white hover:bg-white/15' },
                 { label: '3', action: () => nhapKyTu('3'), cls: 'bg-white/8 text-white hover:bg-white/15' },
-                { label: '-', action: () => nhapKyTu('-'), cls: 'bg-cyan-900/60 text-cyan-300 hover:bg-cyan-800/60' },
+                { label: '-', action: () => nhapKyTu('-'), cls: 'bg-brand/15 text-brand hover:bg-brand/25' },
                 { label: 'e', action: () => nhapKyTu('e'), cls: 'bg-white/5 text-slate-300 hover:bg-white/10' },
               ].map((btn, i) => (
                 <button
@@ -195,8 +195,8 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
 
               <button onClick={() => nhapKyTu('0')} className="h-9 rounded-lg bg-white/8 text-xs font-semibold text-white hover:bg-white/15 transition-colors">0</button>
               <button onClick={() => nhapKyTu('.')} className="h-9 rounded-lg bg-white/8 text-xs font-semibold text-white hover:bg-white/15 transition-colors">.</button>
-              <button onClick={tinhToan} className="col-span-2 h-9 rounded-lg bg-cyan-600 text-sm font-bold text-white hover:bg-cyan-500 transition-colors">=</button>
-              <button onClick={() => nhapKyTu('+')} className="h-9 rounded-lg bg-cyan-900/60 text-xs font-semibold text-cyan-300 hover:bg-cyan-800/60 transition-colors">+</button>
+              <button onClick={tinhToan} className="col-span-2 h-9 rounded-lg bg-brand text-sm font-bold text-white hover:bg-brand-hover transition-colors">=</button>
+              <button onClick={() => nhapKyTu('+')} className="h-9 rounded-lg bg-brand/15 text-xs font-semibold text-brand hover:bg-brand/25 transition-colors">+</button>
             </div>
           </div>
         )}

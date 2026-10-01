@@ -163,7 +163,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                 className={cn(
                   'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-text-primary shadow-md transition-all duration-150 group-hover:scale-105',
                   mauCho(m.key),
-                  laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-border-default',
+                  laToi ? 'border-brand ring-2 ring-brand/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-brand ring-2 ring-brand/30 shadow-[0_0_10px_rgba(198,161,90,0.3)]' : 'border-border-default',
                   m.soKetNoi > 0 ? '' : 'opacity-40',
                 )}
               >
@@ -202,7 +202,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
             {canGrant && !laToi && !laTrinhChieu ? (
               <Popover open={moCua === m.key} onOpenChange={(mo) => setMoCua(mo ? m.key : null)}>
                 <PopoverTrigger
-                  className="flex cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                  className="flex cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   aria-label={`Quyền của ${m.ten}`}
                   data-testid={`member-strip-${m.key}`}
                 >
@@ -226,7 +226,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                           className={cn(
                             'flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-xs font-medium transition-colors',
                             co
-                              ? 'border-cyan-400/50 bg-cyan-500/15 text-brand'
+                              ? 'border-brand/40 bg-brand/12 text-brand'
                               : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                           )}
                           data-testid={`grant-${quyen}`}

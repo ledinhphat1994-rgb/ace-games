@@ -513,7 +513,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
     : inCheck
       ? '#ef4444'
       : isAiThinking
-        ? '#06b6d4'
+        ? '#c6a15a'
         : '#f59e0b'
 
   const emojiTrangThai = isOver
@@ -655,7 +655,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
                     'relative flex items-center justify-center cursor-pointer transition-all duration-100',
                     isDark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
                     isLastMoveSq && 'bg-amber-400/40',
-                    isSelected && 'ring-4 ring-inset ring-cyan-400 bg-cyan-400/20 z-10',
+                    isSelected && 'ring-4 ring-inset ring-brand bg-brand/15 z-10',
                     isKingInCheck && 'bg-destructive/40 ring-4 ring-inset ring-destructive'
                   )}
                 >

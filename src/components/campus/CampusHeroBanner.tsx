@@ -27,7 +27,7 @@ export interface CampusHeroBannerProps {
 export function CampusHeroBanner({
   image = '/assets/campus/hero_illustration.webp',
   badgeText,
-  badgeIcon = <Sparkles className="h-3 w-3 text-cyan-400" />,
+  badgeIcon = <Sparkles className="h-3 w-3 text-brand" />,
   title,
   subtitle,
   motto,
@@ -41,7 +41,7 @@ export function CampusHeroBanner({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#080d19] shadow-2xl transition-all ${className}`}
+      className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#14140f] shadow-2xl transition-all ${className}`}
       data-testid="campus-hero-banner"
     >
       {/* Background artwork layer */}
@@ -54,7 +54,7 @@ export function CampusHeroBanner({
       />
 
       {/* Directional gradient mask to ensure text punch & legibility */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#080d19] via-[#080d19]/80 to-transparent sm:bg-gradient-to-r sm:from-[#080d19] sm:via-[#080d19]/85 sm:to-transparent pointer-events-none" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#14140f] via-[#14140f]/80 to-transparent sm:bg-gradient-to-r sm:from-[#14140f] sm:via-[#14140f]/85 sm:to-transparent pointer-events-none" />
 
 
       {/* Hero Content */}
@@ -62,7 +62,7 @@ export function CampusHeroBanner({
         <div className="max-w-xl space-y-1.5 sm:space-y-2">
           {/* Subtle minimal badge if provided */}
           {badgeText && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] font-semibold tracking-wide backdrop-blur-md">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand/12 border border-brand/30 text-brand text-[11px] font-semibold tracking-wide backdrop-blur-md">
               {badgeIcon}
               <span>{badgeText}</span>
             </div>
@@ -87,7 +87,7 @@ export function CampusHeroBanner({
             <Button
               size="default"
               onClick={primaryAction.onClick}
-              className="h-8 sm:h-10 px-3.5 sm:px-5 rounded-lg sm:rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] gap-1.5 text-xs sm:text-sm"
+              className="h-8 sm:h-10 px-3.5 sm:px-5 rounded-lg sm:rounded-xl bg-brand hover:bg-brand-hover text-primary-foreground font-bold shadow-lg shadow-brand/20 transition-all hover:scale-[1.02] active:scale-[0.98] gap-1.5 text-xs sm:text-sm"
             >
               {primaryAction.icon || <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
               <span>{primaryAction.label}</span>

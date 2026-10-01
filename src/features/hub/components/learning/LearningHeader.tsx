@@ -54,13 +54,13 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
           backgroundPosition: 'right 10% center',
         }}
       />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#080d19] via-[#080d19]/80 to-transparent sm:bg-gradient-to-r sm:from-[#080d19] sm:via-[#080d19]/85 sm:to-transparent pointer-events-none" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#14140f] via-[#14140f]/80 to-transparent sm:bg-gradient-to-r sm:from-[#14140f] sm:via-[#14140f]/85 sm:to-transparent pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Left: Salutation & Personal Metric Badges */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-brand border border-cyan-500/30">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/12 text-brand border border-brand/30">
               <BookOpen className="h-4 w-4" />
             </span>
             <span className="text-xs font-bold text-brand uppercase tracking-wider">
@@ -105,7 +105,7 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
                 <span>Chuỗi {progressState.currentStreak} ngày</span>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-brand">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand/10 border border-brand/30 text-xs font-bold text-brand">
                 <Sparkles className="h-3.5 w-3.5 text-brand" />
                 <span>+{progressState.todayXp} XP hôm nay</span>
               </div>
@@ -118,7 +118,7 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
           <Button
             size="sm"
             onClick={onOpenQuickStart}
-            className="h-10 px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/25 gap-2 transition-all active:scale-[0.98]"
+            className="h-10 px-4 rounded-xl text-xs font-extrabold bg-brand hover:bg-brand-hover text-primary-foreground shadow-lg shadow-brand/20 gap-2 transition-all active:scale-[0.98]"
           >
             <Sparkles className="h-4 w-4" />
             <span>Học nhanh</span>

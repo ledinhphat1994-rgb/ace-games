@@ -114,7 +114,7 @@ describe('Giao diện', () => {
     expect(headerRaw).toContain('md:grid md:grid-cols-[1fr_auto_1fr]')
     expect(headerRaw).toContain('justify-self-center')
     expect(headerRaw).toContain('data-testid="nav-hoat-dong"')
-    expect(headerRaw).toContain('[text-shadow:0_0_14px_rgb(34_211_238/0.8)]')
+    expect(headerRaw).toContain('bg-brand text-primary-foreground shadow-sm')
   })
 
   it('bảng xếp hạng chỉ còn hạng · tên · level · điểm: bỏ thẻ nhà vô địch, ảnh chữ cái, huy chương, chip Top 50', () => {

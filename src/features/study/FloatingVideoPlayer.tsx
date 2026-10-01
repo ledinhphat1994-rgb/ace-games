@@ -340,7 +340,7 @@ export function FloatingVideoPlayer({
             <button
               onClick={() => applyPreset('pip')}
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                sizePreset === 'pip' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
+                sizePreset === 'pip' ? 'bg-brand text-primary-foreground font-bold' : 'text-slate-400 hover:text-white'
               }`}
               title="Kích thước nhỏ (PiP 360px)"
             >
@@ -349,7 +349,7 @@ export function FloatingVideoPlayer({
             <button
               onClick={() => applyPreset('medium')}
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                sizePreset === 'medium' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
+                sizePreset === 'medium' ? 'bg-brand text-primary-foreground font-bold' : 'text-slate-400 hover:text-white'
               }`}
               title="Kích thước vừa (540px)"
             >
@@ -358,7 +358,7 @@ export function FloatingVideoPlayer({
             <button
               onClick={() => applyPreset('large')}
               className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                sizePreset === 'large' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
+                sizePreset === 'large' ? 'bg-brand text-primary-foreground font-bold' : 'text-slate-400 hover:text-white'
               }`}
               title="Kích thước lớn (760px)"
             >
@@ -367,7 +367,7 @@ export function FloatingVideoPlayer({
             <button
               onClick={toggleMaximize}
               className={`rounded p-1 text-slate-400 hover:text-white transition-colors ${
-                isMaximized ? 'text-cyan-400' : ''
+                isMaximized ? 'text-brand' : ''
               }`}
               title={isMaximized ? 'Thu về kích thước ban đầu' : 'Phóng to toàn màn hình'}
             >
@@ -448,7 +448,7 @@ export function FloatingVideoPlayer({
         {/* Loading state before YT.Player is ready */}
         {!isReady && !errorMessage ? (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070b12]/90 backdrop-blur-sm gap-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
             <span className="text-xs text-slate-400 font-mono">Đang khởi tạo YouTube Player...</span>
           </div>
         ) : null}
@@ -462,7 +462,7 @@ export function FloatingVideoPlayer({
               variant="outline"
               size="sm"
               onClick={onOpenSearchQueue}
-              className="border-white/20 bg-white/5 text-cyan-300 hover:bg-white/10"
+              className="border-white/20 bg-white/5 text-brand hover:bg-white/10"
             >
               Chọn video khác từ hàng đợi
             </Button>
@@ -472,7 +472,7 @@ export function FloatingVideoPlayer({
         {/* Autoplay Blocked Overlay */}
         {isAutoplayBlocked ? (
           <div className="absolute inset-0 z-25 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm p-4 text-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 ring-1 ring-cyan-500/40">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/15 text-brand ring-1 ring-brand/40">
               <Sparkles className="h-6 w-6" />
             </div>
             <div>
@@ -482,7 +482,7 @@ export function FloatingVideoPlayer({
             <Button
               size="sm"
               onClick={handleDismissAutoplayBlock}
-              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-lg"
+              className="bg-brand hover:bg-brand-hover text-primary-foreground font-semibold shadow-lg"
             >
               <Play className="h-4 w-4 fill-current mr-1.5" />
               Đồng bộ & Phát ngay
@@ -492,14 +492,14 @@ export function FloatingVideoPlayer({
       </div>
 
       {/* 3. Bottom Control Bar */}
-      <div className="flex h-10 shrink-0 items-center justify-between border-t border-white/10 bg-[#0d1424]/90 px-3 gap-2">
+      <div className="flex h-10 shrink-0 items-center justify-between border-t border-white/10 bg-[#1c1a14]/90 px-3 gap-2">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             disabled={!effectiveCanControl}
             onClick={mediaState.status === 'playing' ? handleUserPause : handleUserPlay}
-            className="h-7 w-7 p-0 text-cyan-400 hover:bg-white/10 disabled:opacity-40"
+            className="h-7 w-7 p-0 text-brand hover:bg-white/10 disabled:opacity-40"
             title={effectiveCanControl ? (mediaState.status === 'playing' ? 'Tạm dừng' : 'Phát') : 'Chỉ chủ phòng hoặc điều hành mới có quyền phát/dừng'}
           >
             {mediaState.status === 'playing' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -519,7 +519,7 @@ export function FloatingVideoPlayer({
           value={Math.min(currentTime, duration > 0 ? duration : 100)}
           disabled={!effectiveCanControl || duration <= 0}
           onChange={(e) => handleUserSeek(Number(e.target.value))}
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-brand disabled:opacity-40 disabled:cursor-not-allowed"
           title={effectiveCanControl ? 'Tua đến vị trí' : 'Bạn không có quyền tua video'}
         />
 
@@ -528,7 +528,7 @@ export function FloatingVideoPlayer({
           <select
             value={playbackRate}
             onChange={(e) => handleUserRate(Number(e.target.value))}
-            className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono text-cyan-300 border border-white/10 focus:outline-none"
+            className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono text-brand border border-white/10 focus:outline-none"
             title="Tốc độ phát chung"
           >
             {selectableRates.map((r: number) => (
@@ -562,7 +562,7 @@ export function FloatingVideoPlayer({
             max={100}
             value={volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
-            className="h-1.5 w-14 cursor-pointer appearance-none rounded-full bg-white/20 accent-cyan-400"
+            className="h-1.5 w-14 cursor-pointer appearance-none rounded-full bg-white/20 accent-brand"
             title={`Âm lượng cá nhân: ${volume}%`}
           />
 
@@ -570,7 +570,7 @@ export function FloatingVideoPlayer({
             variant="ghost"
             size="sm"
             onClick={onOpenSearchQueue}
-            className="h-6 px-2 text-[10px] text-cyan-300 hover:bg-cyan-500/20 font-medium"
+            className="h-6 px-2 text-[10px] text-brand hover:bg-brand/20 font-medium"
           >
             Hàng đợi
           </Button>
@@ -582,7 +582,7 @@ export function FloatingVideoPlayer({
     {isMinimized && (
       <div
         style={{ left: `${position.x}px`, top: `${position.y}px` }}
-        className="absolute z-40 flex items-center gap-3 rounded-full border border-white/20 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-xl ring-1 ring-cyan-500/30"
+        className="absolute z-40 flex items-center gap-3 rounded-full border border-white/20 bg-[#1c1a14]/95 px-4 py-2 shadow-2xl backdrop-blur-xl ring-1 ring-brand/30"
       >
         <div
           onMouseDown={startDrag}
@@ -600,7 +600,7 @@ export function FloatingVideoPlayer({
           size="sm"
           disabled={!effectiveCanControl}
           onClick={mediaState.status === 'playing' ? handleUserPause : handleUserPlay}
-          className="h-7 w-7 rounded-full p-0 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-40"
+          className="h-7 w-7 rounded-full p-0 text-brand hover:bg-brand/20 disabled:opacity-40"
         >
           {mediaState.status === 'playing' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </Button>

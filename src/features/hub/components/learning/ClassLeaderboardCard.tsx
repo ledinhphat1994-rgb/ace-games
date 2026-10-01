@@ -106,7 +106,7 @@ export function ClassLeaderboardCard() {
                 key={member.accountId}
                 className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
                   member.isCurrentUser
-                    ? 'bg-cyan-500/10 border-cyan-500/30 ring-1 ring-cyan-500/20'
+                    ? 'bg-brand/10 border-brand/30 ring-1 ring-brand/20'
                     : 'bg-surface/40 border-border-default hover:bg-surface-overlay'
                 }`}
               >

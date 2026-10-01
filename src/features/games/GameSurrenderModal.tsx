@@ -176,7 +176,7 @@ export function GameSurrenderModal({
             <div className="space-y-3 pt-1 text-left">
               <p className="text-xs text-slate-300 leading-relaxed">
                 <span className="font-bold text-amber-400">{surrenderSideName}</span> đã xác nhận xin thua. Đang chờ{' '}
-                <span className="font-bold text-cyan-300">{opponentSideName}</span> xác nhận…
+                <span className="font-bold text-brand">{opponentSideName}</span> xác nhận…
               </p>
 
               {/* Thanh progress thời gian 5s đang đếm ngược */}

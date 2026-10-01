@@ -196,7 +196,7 @@ export function GamePlayToolbar({
       title={isFs ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
       aria-label="Toàn màn hình"
     >
-      {isFs ? <Minimize2 className="size-3.5 text-cyan-300" /> : <Maximize2 className="size-3.5 text-cyan-300" />}
+      {isFs ? <Minimize2 className="size-3.5 text-brand" /> : <Maximize2 className="size-3.5 text-brand" />}
       <span className="game-control-label">{isFs ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
     </Button>
   )
@@ -236,7 +236,7 @@ export function GamePlayToolbar({
       className={cn(
         'gap-2 text-xs font-black transition-all hover:scale-105 active:scale-95 shrink-0 cursor-pointer',
         laBatDau
-          ? 'h-9 px-3.5 sm:px-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/30 uppercase tracking-wider'
+          ? 'h-9 px-3.5 sm:px-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/30 uppercase tracking-wider'
           : resetLabel === 'Ván mới'
             ? 'h-8 px-2.5 bg-brand text-brand-foreground hover:bg-brand/90 font-bold'
             : 'h-8 px-2 border-white/15 bg-white/10 text-white hover:bg-white/20 hover:border-white/30 font-bold',
@@ -340,7 +340,7 @@ export function GamePlayToolbar({
             title="Mở trò chuyện phòng"
             aria-label="Trò chuyện phòng"
           >
-            <MessageCircle className="size-3.5 text-cyan-300" />
+            <MessageCircle className="size-3.5 text-brand" />
             <span className="game-control-label">Chat</span>
           </Button>
           <Button
@@ -367,7 +367,7 @@ export function GamePlayToolbar({
                     isRed
                       ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
                       : isAiThinking
-                        ? 'bg-cyan-950/70 border border-cyan-500/40 text-cyan-300'
+                        ? 'bg-brand/10 border border-brand/35 text-brand'
                         : 'bg-slate-900/80 border border-white/10 text-slate-200',
                   )}
                 >
@@ -377,7 +377,7 @@ export function GamePlayToolbar({
                       <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
                     </span>
                   ) : isAiThinking ? (
-                    <Zap className="size-3.5 text-cyan-400 animate-spin" />
+                    <Zap className="size-3.5 text-brand animate-spin" />
                   ) : (
                     (turnIndicator ?? <span className="size-2.5 rounded-full bg-slate-500 ring-2 ring-slate-400/50 animate-pulse" />)
                   )}

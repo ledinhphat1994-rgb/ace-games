@@ -115,7 +115,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
       >
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-brand border border-cyan-500/30">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/12 text-brand border border-brand/30">
               <Sparkles className="h-4 w-4" />
             </span>
             <DialogTitle className="text-base sm:text-lg font-black text-text-primary">
@@ -141,14 +141,14 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
                 onClick={() => setSelectedTemplate(tmpl.id)}
                 className={`w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                   isSelected
-                    ? 'bg-cyan-500/10 border-cyan-500/40 ring-1 ring-cyan-500/25'
+                    ? 'bg-brand/10 border-brand/35 ring-1 ring-brand/25'
                     : 'bg-surface/50 border-border-default hover:bg-surface-overlay'
                 }`}
               >
                 <div
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
                     isSelected
-                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                      ? 'bg-brand text-primary-foreground border-brand shadow-md shadow-brand/15'
                       : 'bg-surface text-text-secondary border-border-default'
                   }`}
                 >
@@ -191,7 +191,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
             size="sm"
             onClick={handleStart}
             disabled={isInFlight}
-            className="h-9 px-4 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20 gap-2"
+            className="h-9 px-4 rounded-xl text-xs font-bold bg-brand hover:bg-brand-hover text-primary-foreground shadow-md shadow-brand/15 gap-2"
           >
             {isInFlight ? (
               <>

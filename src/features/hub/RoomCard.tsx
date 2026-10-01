@@ -34,14 +34,14 @@ const MON: Record<MonHoc, { icon: LucideIcon; nen: string }> = {
   toan: { icon: Calculator, nen: 'from-sky-500 to-blue-600' },
   'ngu-van': { icon: BookOpen, nen: 'from-rose-500 to-pink-600' },
   'tieng-anh': { icon: Languages, nen: 'from-violet-500 to-indigo-600' },
-  'vat-li': { icon: Atom, nen: 'from-cyan-500 to-teal-600' },
+  'vat-li': { icon: Atom, nen: 'from-brand to-teal-600' },
   'hoa-hoc': { icon: FlaskConical, nen: 'from-fuchsia-500 to-purple-600' },
   'sinh-hoc': { icon: Leaf, nen: 'from-emerald-500 to-green-600' },
   'lich-su': { icon: Landmark, nen: 'from-amber-500 to-orange-600' },
   'dia-li': { icon: Globe2, nen: 'from-lime-500 to-emerald-600' },
   'tin-hoc': { icon: Code2, nen: 'from-slate-500 to-slate-700' },
   gdcd: { icon: Scale, nen: 'from-yellow-500 to-amber-600' },
-  khac: { icon: GraduationCap, nen: 'from-cyan-500 to-indigo-600' },
+  khac: { icon: GraduationCap, nen: 'from-brand to-indigo-600' },
 }
 
 export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {

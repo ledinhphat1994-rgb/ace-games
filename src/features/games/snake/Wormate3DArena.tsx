@@ -1115,7 +1115,7 @@ export function Wormate3DArena({
                 className={cn(
                   'flex items-center justify-between px-2 py-1 rounded-lg text-[11px] transition-colors',
                   entry.isPlayer
-                    ? 'bg-cyan-500/25 border border-cyan-400/40 text-cyan-200 font-bold shadow-sm'
+                    ? 'bg-brand/20 border border-brand/35 text-brand font-bold shadow-sm'
                     : 'text-slate-300 font-medium',
                   !entry.isAlive && 'opacity-40 line-through',
                 )}
@@ -1126,7 +1126,7 @@ export function Wormate3DArena({
                   </span>
                   <span className="truncate">{entry.name}</span>
                 </div>
-                <span className={cn('font-mono font-bold text-[10px] tabular-nums', entry.isPlayer ? 'text-cyan-300' : 'text-slate-300')}>
+                <span className={cn('font-mono font-bold text-[10px] tabular-nums', entry.isPlayer ? 'text-brand' : 'text-slate-300')}>
                   {entry.score}đ
                 </span>
               </div>
@@ -1136,7 +1136,7 @@ export function Wormate3DArena({
 
         {/* Vị trí của bạn nếu không nằm trong top 6 */}
         {playerRank > 6 && (
-          <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-200 text-[10px] font-bold">
+          <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-2 py-0.5 rounded-lg bg-brand/15 text-brand text-[10px] font-bold">
             <span>#{playerRank} Bạn (Sâu 3D)</span>
             <span className="font-mono">{playerStats.score}đ</span>
           </div>
@@ -1146,8 +1146,8 @@ export function Wormate3DArena({
       {/* HUD thông số người chơi ở góc dưới bên trái */}
       {isRunning && !isGameOver && (
         <div className="snake-hud absolute bottom-3.5 left-3.5 z-10 flex items-center pointer-coarse:bottom-40 gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
-          <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
-            <span className="size-2 rounded-full bg-cyan-400" />
+          <div className="flex items-center gap-1.5 text-brand font-bold">
+            <span className="size-2 rounded-full bg-brand" />
             <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {playerStats.score}đ</span>
           </div>
           {mode === 'pass_and_play' && (
@@ -1196,8 +1196,8 @@ export function Wormate3DArena({
           <span className="hidden sm:flex items-center gap-2 text-xs font-medium text-text-secondary flex-wrap justify-center">
             {mode === 'pass_and_play' ? (
               <>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-cyan-300">
-                  <MousePointer2 className="size-3 text-cyan-400" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-brand">
+                  <MousePointer2 className="size-3 text-brand" />
                   P1: Chuột + Space
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-rose-300">
@@ -1208,7 +1208,7 @@ export function Wormate3DArena({
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
-                  <MousePointer2 className="size-3 text-cyan-400" />
+                  <MousePointer2 className="size-3 text-brand" />
                   Lái
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
@@ -1224,7 +1224,7 @@ export function Wormate3DArena({
           {/* Nút BẮT ĐẦU to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
           <div className="pt-2">
             <span
-              className="inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <Play className="size-5 fill-white text-white drop-shadow animate-pulse" />
               <span>BẮT ĐẦU NGAY</span>
@@ -1256,7 +1256,7 @@ export function Wormate3DArena({
           {/* Thống kê ván */}
           <div className="grid grid-cols-2 gap-3 my-4 w-full max-w-64 p-3 rounded-xl bg-white/5 border border-white/10">
             <div className="flex flex-col items-center">
-              <span className="text-lg font-black font-mono text-cyan-300">
+              <span className="text-lg font-black font-mono text-brand">
                 {playerStats.score}đ
               </span>
               <span className="text-[10px] text-text-tertiary">Điểm ngọt ngào</span>
@@ -1272,7 +1272,7 @@ export function Wormate3DArena({
           {/* Nút CHƠI LẠI to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
           <div className="pt-1">
             <span
-              className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <RotateCcw className="size-5 text-white drop-shadow" />
               <span>CHƠI LẠI NGAY</span>

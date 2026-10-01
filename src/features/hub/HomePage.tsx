@@ -120,7 +120,7 @@ export function HomePage() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-canvas via-canvas/90 to-transparent dark:from-canvas dark:via-canvas/80" />
           {/* Subtle ambient light spots */}
-          <div className="absolute -top-24 -left-24 size-80 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute -top-24 -left-24 size-80 rounded-full bg-brand/12 blur-3xl pointer-events-none" />
           <div className="absolute top-1/2 -right-24 size-80 rounded-full bg-purple-500/15 blur-3xl pointer-events-none" />
         </div>
 
@@ -157,7 +157,7 @@ export function HomePage() {
             <Button
               size="lg"
               onClick={() => navigate('/learn')}
-              className="h-11 px-7 rounded-xl bg-gradient-to-r from-brand to-cyan-500 hover:from-brand-hover hover:to-cyan-600 text-brand-foreground font-bold text-sm shadow-md shadow-brand/25 hover:shadow-brand/40 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              className="h-11 px-7 rounded-xl bg-gradient-to-r from-brand to-brand hover:from-brand-hover hover:to-brand text-brand-foreground font-bold text-sm shadow-md shadow-brand/25 hover:shadow-brand/40 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
             >
               <BookOpen className="h-4 w-4 mr-2" />
               <span>Bắt đầu ngay</span>

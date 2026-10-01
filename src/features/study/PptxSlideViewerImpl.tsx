@@ -212,7 +212,7 @@ export function PptxSlideViewerImpl({ docUrl, trang, buoc = 0, onSoTrang, onSoBu
       </div>
       {dangTai && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#0a0f18]/60">
-          <Loader2 className="h-5 w-5 animate-spin text-cyan-400" aria-label="Đang tải trình chiếu" />
+          <Loader2 className="h-5 w-5 animate-spin text-brand" aria-label="Đang tải trình chiếu" />
         </div>
       )}
     </div>

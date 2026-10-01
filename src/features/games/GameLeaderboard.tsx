@@ -218,7 +218,7 @@ export function GameLeaderboard({ gameType, verifiedOnly = false, limit = 50 }: 
                         capDo >= 20
                           ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-200 border border-purple-400/40'
                           : capDo >= 10
-                            ? 'bg-gradient-to-r from-cyan-500/25 to-blue-500/25 text-cyan-200 border border-cyan-400/40'
+                            ? 'bg-gradient-to-r from-brand/20 to-brand/10 text-brand border border-brand/35'
                             : capDo >= 5
                               ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                               : 'bg-white/10 text-slate-300 border border-white/10'

@@ -41,7 +41,7 @@ export function GameSelectorColumn({ selectedGame, onSelect, waitingCounts }: Ga
             onClick={() => setCategory(tab.id)}
             className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all cursor-pointer ${
               category === tab.id
-                ? 'bg-gradient-to-r from-brand to-cyan-600 text-slate-950 font-black shadow-md'
+                ? 'bg-brand text-primary-foreground font-black shadow-md'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -80,7 +80,7 @@ export function GameSelectorColumn({ selectedGame, onSelect, waitingCounts }: Ga
                 onClick={() => onSelect(g.id)}
                 className={`flex w-44 shrink-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all cursor-pointer xl:w-full xl:shrink ${
                   active
-                    ? 'border-brand/60 bg-brand/10 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]'
+                    ? 'border-brand/60 bg-brand/10 shadow-[0_0_0_1px_rgba(198,161,90,0.25)]'
                     : 'border-border-default bg-surface/60 hover:border-border-strong hover:bg-surface-raised'
                 }`}
               >

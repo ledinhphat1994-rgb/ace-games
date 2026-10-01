@@ -174,7 +174,7 @@ function KhungNen({ children }: { children: ReactNode }) {
     <div className="relative flex min-h-svh flex-col overflow-hidden bg-background text-text-primary">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_36rem_at_12%_-8%,rgba(34,211,238,0.13),transparent_62%),radial-gradient(48rem_36rem_at_108%_108%,rgba(167,139,250,0.10),transparent_60%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_36rem_at_12%_-8%,rgba(198,161,90,0.13),transparent_62%),radial-gradient(48rem_36rem_at_108%_108%,rgba(167,139,250,0.10),transparent_60%)]"
       />
       <div
         aria-hidden

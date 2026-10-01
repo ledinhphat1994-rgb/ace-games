@@ -29,8 +29,8 @@ export function GameOpponentBubble({
 }) {
   if (!bubble) return null
 
-  let borderClass = 'border-cyan-500/50 shadow-cyan-500/25'
-  let labelClass = 'text-cyan-400'
+  let borderClass = 'border-brand/40 shadow-brand/20'
+  let labelClass = 'text-brand'
   if (theme === 'red') {
     borderClass = 'border-red-500/50 shadow-red-500/25'
     labelClass = 'text-red-400'
@@ -76,8 +76,8 @@ export function GamePlayerBubble({
 }) {
   if (!bubble) return null
 
-  let borderClass = 'border-cyan-500/50 shadow-cyan-500/25'
-  let labelClass = 'text-cyan-400'
+  let borderClass = 'border-brand/40 shadow-brand/20'
+  let labelClass = 'text-brand'
   let bgClass = 'bg-[#091322]/95'
   if (theme === 'red') {
     borderClass = 'border-red-500/50 shadow-red-500/25'
@@ -144,10 +144,10 @@ export function GameQuickEmote({
 }: GameQuickEmoteProps) {
   const [isOpen, setIsOpen] = useState(false)
 
-  let themeBorder = 'border-cyan-500/35 hover:border-cyan-400'
-  let themeBg = 'bg-cyan-950/40 hover:bg-cyan-900/40'
-  let themeText = 'text-cyan-300'
-  let themeGlow = 'rgba(6,182,212,0.3)'
+  let themeBorder = 'border-brand/30 hover:border-brand'
+  let themeBg = 'bg-brand/10 hover:bg-brand/20'
+  let themeText = 'text-brand'
+  let themeGlow = 'rgba(198,161,90,0.3)'
 
   if (theme === 'amber') {
     themeBorder = 'border-amber-500/35 hover:border-amber-400'
@@ -261,7 +261,7 @@ export function GameQuickEmote({
                   {em.emoji}
                 </span>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-bold text-white group-hover:text-cyan-300 leading-tight truncate">
+                  <span className="text-[11px] font-bold text-white group-hover:text-brand leading-tight truncate">
                     {em.quote}
                   </span>
                   <span className="text-[9px] text-slate-400 group-hover:text-slate-200 leading-tight mt-0.5">

@@ -74,7 +74,7 @@ export function AppHeader({
                 [
                   'relative flex min-h-10 items-center whitespace-nowrap rounded-full px-4 xl:px-6 text-sm font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand',
                   isActive
-                    ? 'bg-brand/12 text-brand [text-shadow:0_0_14px_rgb(34_211_238/0.8)]'
+                    ? 'bg-brand text-primary-foreground shadow-sm'
                     : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                 ].join(' ')
               }

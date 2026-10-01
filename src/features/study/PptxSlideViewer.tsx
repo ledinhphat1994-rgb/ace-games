@@ -29,7 +29,7 @@ export function PptxSlideViewer(props: PptxSlideViewerProps) {
     <Suspense
       fallback={
         <div className="flex h-full w-full items-center justify-center bg-[#0a0f18]">
-          <Loader2 className="h-5 w-5 animate-spin text-cyan-400" aria-label="Đang tải trình chiếu" />
+          <Loader2 className="h-5 w-5 animate-spin text-brand" aria-label="Đang tải trình chiếu" />
         </div>
       }
     >

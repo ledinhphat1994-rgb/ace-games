@@ -484,7 +484,7 @@ export function ClassroomToolDock({
                     aria-pressed={congCu === id}
                     title={ten}
                     data-testid={testId}
-                    className={`${nutKhay} ${congCu === id ? 'bg-cyan-500/20 text-brand ring-1 ring-cyan-400/40' : 'text-text-secondary hover:bg-surface-overlay'}`}
+                    className={`${nutKhay} ${congCu === id ? 'bg-brand/15 text-brand ring-1 ring-brand/35' : 'text-text-secondary hover:bg-surface-overlay'}`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{ten}</span>

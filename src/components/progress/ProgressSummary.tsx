@@ -149,10 +149,10 @@ export function ProgressSummary({
 
             {/* Total XP pill */}
             <div
-              className="flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-cyan-500/15 border border-cyan-500/30 px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-brand/12 border border-brand/30 px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm"
               title={`Tổng điểm kinh nghiệm: ${totalXp} XP (+${todayXp} hôm nay)`}
             >
-              <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-brand fill-cyan-400/20" />
+              <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-brand fill-brand/20" />
               <div className="flex items-baseline gap-1">
                 <span className="text-xs sm:text-sm font-black text-brand">{totalXp}</span>
                 <span className="text-[11px] sm:text-xs font-semibold text-brand/80">XP</span>

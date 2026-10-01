@@ -28,7 +28,7 @@ interface CardItem {
 }
 
 const THEME_CARDS: { symbol: string; label: string; color: string }[] = [
-  { symbol: '💎', label: 'Kim cương', color: 'from-cyan-400 to-blue-500' },
+  { symbol: '💎', label: 'Kim cương', color: 'from-brand to-brand' },
   { symbol: '🚀', label: 'Tên lửa', color: 'from-violet-500 to-indigo-600' },
   { symbol: '⚡', label: 'Sấm sét', color: 'from-amber-400 to-orange-500' },
   { symbol: '🔮', label: 'Pha lê', color: 'from-fuchsia-500 to-pink-600' },

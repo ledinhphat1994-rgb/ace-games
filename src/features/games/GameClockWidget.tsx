@@ -90,7 +90,7 @@ export function GameClockWidget({
           isEmergency
             ? 'border-rose-500 bg-rose-950/30 shadow-[0_0_20px_rgba(244,63,94,0.35)] animate-pulse'
             : isMyTurn
-              ? 'border-cyan-500/40 shadow-[0_0_18px_rgba(6,182,212,0.2)]'
+              ? 'border-brand/35 shadow-[0_0_18px_rgba(198,161,90,0.2)]'
               : 'border-rose-500/40 shadow-[0_0_18px_rgba(244,63,94,0.2)]',
         )}
       >
@@ -100,7 +100,7 @@ export function GameClockWidget({
             className={cn(
               'size-2 rounded-full shrink-0',
               isMyTurn
-                ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]'
+                ? 'bg-brand shadow-[0_0_8px_#c6a15a]'
                 : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]',
               isPlaying && 'animate-ping',
             )}
@@ -108,7 +108,7 @@ export function GameClockWidget({
           <span
             className={cn(
               'truncate max-w-[150px] font-black',
-              isMyTurn ? 'text-cyan-400' : 'text-rose-400',
+              isMyTurn ? 'text-brand' : 'text-rose-400',
             )}
           >
             {currentLabel}
@@ -122,7 +122,7 @@ export function GameClockWidget({
             isEmergency
               ? 'text-rose-400 animate-pulse'
               : isMyTurn
-                ? 'text-cyan-300'
+                ? 'text-brand'
                 : 'text-rose-300',
           )}
         >
@@ -139,7 +139,7 @@ export function GameClockWidget({
                 isEmergency
                   ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
                   : isMyTurn
-                    ? 'bg-cyan-400 shadow-[0_0_6px_#22d3ee]'
+                    ? 'bg-brand shadow-[0_0_6px_#c6a15a]'
                     : 'bg-rose-500 shadow-[0_0_6px_#f43f5e]',
               )}
             />
@@ -202,7 +202,7 @@ export function GameClockWidget({
                       className={cn(
                         'py-1 rounded-lg text-[10px] sm:text-[11px] font-mono font-black transition-all cursor-pointer border text-center',
                         isSelected
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-sm'
+                          ? 'bg-brand text-primary-foreground border-brand shadow-sm'
                           : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white',
                       )}
                     >

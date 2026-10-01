@@ -17,7 +17,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           </div>
         ),
         info: (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.25)]">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand/12 border border-brand/30 text-brand shadow-[0_0_10px_rgba(198,161,90,0.25)]">
             <InfoIcon className="size-4.5" />
           </div>
         ),
@@ -32,7 +32,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           </div>
         ),
         loading: (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.25)]">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand/12 border border-brand/30 text-brand shadow-[0_0_10px_rgba(198,161,90,0.25)]">
             <Loader2Icon className="size-4.5 animate-spin" />
           </div>
         ),

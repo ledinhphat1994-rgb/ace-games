@@ -127,7 +127,7 @@ export function ClassChallengeCard() {
             className={`h-full transition-all duration-500 rounded-full ${
               progress.isCompleted
                 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                : 'bg-gradient-to-r from-indigo-500 to-cyan-400'
+                : 'bg-gradient-to-r from-indigo-500 to-brand'
             }`}
             style={{ width: `${progress.percent}%` }}
           />

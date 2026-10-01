@@ -619,7 +619,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
       {/* ══ Autoplay unblock notification banner ══ */}
       {voiceState.isAudioAutoplayBlocked && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-md">
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-[#1c1a14]/95 px-4 py-2 shadow-2xl backdrop-blur-md">
           <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
           <span className="text-xs font-medium text-amber-200">
             Trình duyệt đang chặn âm thanh tự động của phòng học.

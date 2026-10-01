@@ -298,7 +298,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   // Ô bàn cờ không bấm được: ván online chưa tới lượt mình (hoặc đang xem), ván tại chỗ đã xong / máy đang tính.
   const khoaBan = banOnline ? !banOnline.isMyTurn : !!winner || isAiThinking
   const benToiOnline = banOnline?.mySide ?? null
-  const turnColor = isMyTurn ? '#06b6d4' : '#f43f5e'
+  const turnColor = isMyTurn ? '#c6a15a' : '#f43f5e'
 
 
 
@@ -314,7 +314,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         ? '#10b981'
         : '#f43f5e'
     : isAiThinking
-      ? '#06b6d4'
+      ? '#c6a15a'
       : turnColor
   const nhanTrangThai = isOver
     ? winner === 'draw'
@@ -391,7 +391,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
       <GamePlayToolbar
         onBack={onBack}
         title="Cờ Caro"
-        icon={<Swords className="size-4 text-cyan-400" />}
+        icon={<Swords className="size-4 text-brand" />}
         mode={mode}
         onModeChange={handleModeChange}
         onlineAvailable={Boolean(online)}
@@ -447,7 +447,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                 {[0, 150, 300].map((delay, i) => (
                   <span
                     key={i}
-                    className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                    className="size-1.5 rounded-full bg-brand animate-bounce"
                     style={{ animationDelay: `${delay}ms` }}
                   />
                 ))}
@@ -463,7 +463,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                 '0 18px 40px rgba(0,0,0,0.7)',
                 '0 0 0 1px rgba(255,255,255,0.06)',
                 'inset 0 1px 0 rgba(255,255,255,0.08)',
-                '0 0 24px rgba(6,182,212,0.12)',
+                '0 0 24px rgba(198,161,90,0.12)',
               ].join(', '),
             }}
           >
@@ -478,8 +478,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               <div
                 className="absolute top-0 left-0 right-0 h-px pointer-events-none"
                 style={{
-                  background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.6) 30%, rgba(99,102,241,0.6) 70%, transparent)',
-                  boxShadow: '0 0 12px rgba(6,182,212,0.5)',
+                  background: 'linear-gradient(90deg, transparent, rgba(198,161,90,0.6) 30%, rgba(99,102,241,0.6) 70%, transparent)',
+                  boxShadow: '0 0 12px rgba(198,161,90,0.5)',
                 }}
               />
 
@@ -507,11 +507,11 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                 aria-label="Bàn cờ Caro 15 nhân 15"
                 aria-rowcount={SIZE}
                 aria-colcount={SIZE}
-                className="grid border border-cyan-500/20 rounded-lg overflow-hidden w-full aspect-square"
+                className="grid border border-brand/20 rounded-lg overflow-hidden w-full aspect-square"
                 style={{
                   gridTemplateColumns: `repeat(${SIZE}, minmax(0, 1fr))`,
                   gridTemplateRows: `repeat(${SIZE}, minmax(0, 1fr))`,
-                  background: 'linear-gradient(135deg, rgba(6,182,212,0.03) 0%, transparent 50%, rgba(99,102,241,0.03) 100%)',
+                  background: 'linear-gradient(135deg, rgba(198,161,90,0.03) 0%, transparent 50%, rgba(99,102,241,0.03) 100%)',
                   boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)',
                 }}
               >
@@ -545,13 +545,13 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                       className={cn(
                         'relative flex items-center justify-center group',
                         'transition-colors duration-100 ease-out select-none',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/70',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/70',
                         !isRightEdge && 'border-r',
                         !isBottomEdge && 'border-b',
                         isWin
                           ? 'border-emerald-500/40'
                           : isLast
-                            ? 'border-cyan-500/25'
+                            ? 'border-brand/25'
                             : 'border-white/[0.07]',
                         !val && !khoaBan && 'cursor-pointer hover:z-10',
                         val && 'cursor-default',
@@ -561,7 +561,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                         backgroundColor: isWin
                           ? 'rgba(16,185,129,0.18)'
                           : isLast
-                            ? 'rgba(6,182,212,0.12)'
+                            ? 'rgba(198,161,90,0.12)'
                             : undefined,
                         boxShadow: isWin
                           ? 'inset 0 0 12px rgba(16,185,129,0.25)'
@@ -574,7 +574,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
                           style={{
                             background: currentTurn === 'X'
-                              ? 'radial-gradient(circle, rgba(6,182,212,0.22) 0%, transparent 70%)'
+                              ? 'radial-gradient(circle, rgba(198,161,90,0.22) 0%, transparent 70%)'
                               : 'radial-gradient(circle, rgba(244,63,94,0.22) 0%, transparent 70%)',
                           }}
                         />
@@ -634,7 +634,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               <div
                 className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
                 style={{
-                  background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.4) 30%, rgba(6,182,212,0.4) 70%, transparent)',
+                  background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.4) 30%, rgba(198,161,90,0.4) 70%, transparent)',
                 }}
               />
             </div>
@@ -644,7 +644,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               className="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-2xl"
               style={{
                 background: 'linear-gradient(to bottom, #030610, #020409)',
-                borderTop: '1px solid rgba(6,182,212,0.15)',
+                borderTop: '1px solid rgba(198,161,90,0.15)',
               }}
             />
           </div>

@@ -37,7 +37,7 @@ export function ThongKeGame({ gameType, ban, sanSang }: ThongKeGameProps) {
             chiSo: [
               { icon: LayoutGrid, nhan: 'Bàn mở', giaTri: sanSang ? ban.length : null, mau: 'text-brand' },
               { icon: Users, nhan: 'Đang chơi', giaTri: sanSang ? ban.reduce((t, b) => t + soNguoiNgoi(b), 0) : null, mau: 'text-emerald-400' },
-              { icon: Eye, nhan: 'Đang xem', giaTri: sanSang ? ban.reduce((t, b) => t + (b.soNguoiXem ?? 0), 0) : null, mau: 'text-cyan-400' },
+              { icon: Eye, nhan: 'Đang xem', giaTri: sanSang ? ban.reduce((t, b) => t + (b.soNguoiXem ?? 0), 0) : null, mau: 'text-brand' },
             ],
           },
         ]

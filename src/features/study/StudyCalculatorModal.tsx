@@ -73,7 +73,7 @@ export function StudyCalculatorModal({ open, onOpenChange }: StudyCalculatorModa
       <DialogContent className="max-w-md border-border/80 bg-card p-5 text-foreground shadow-2xl">
         <DialogHeader className="flex flex-row items-center justify-between border-b border-border/50 pb-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <CalcIcon className="h-4 w-4 text-cyan-400" />
+            <CalcIcon className="h-4 w-4 text-brand" />
             Máy tính Khoa học FX
           </DialogTitle>
           <Button
@@ -108,7 +108,7 @@ export function StudyCalculatorModal({ open, onOpenChange }: StudyCalculatorModa
               <div className="overflow-x-auto font-mono text-xs text-muted-foreground">
                 {bieuThuc || '0'}
               </div>
-              <div className="truncate font-mono text-xl font-bold text-cyan-400">
+              <div className="truncate font-mono text-xl font-bold text-brand">
                 {ketQua !== null ? `= ${ketQua}` : ''}
               </div>
             </div>
@@ -130,25 +130,25 @@ export function StudyCalculatorModal({ open, onOpenChange }: StudyCalculatorModa
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('7')}>7</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('8')}>8</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('9')}>9</Button>
-              <Button variant="secondary" size="sm" className="h-9 text-xs text-cyan-400" onClick={() => nhapKyTu('÷')}>÷</Button>
+              <Button variant="secondary" size="sm" className="h-9 text-xs text-brand" onClick={() => nhapKyTu('÷')}>÷</Button>
               <Button variant="secondary" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('log(')}>log</Button>
 
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('4')}>4</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('5')}>5</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('6')}>6</Button>
-              <Button variant="secondary" size="sm" className="h-9 text-xs text-cyan-400" onClick={() => nhapKyTu('×')}>×</Button>
+              <Button variant="secondary" size="sm" className="h-9 text-xs text-brand" onClick={() => nhapKyTu('×')}>×</Button>
               <Button variant="secondary" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('ln(')}>ln</Button>
 
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('1')}>1</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('2')}>2</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('3')}>3</Button>
-              <Button variant="secondary" size="sm" className="h-9 text-xs text-cyan-400" onClick={() => nhapKyTu('-')}>-</Button>
+              <Button variant="secondary" size="sm" className="h-9 text-xs text-brand" onClick={() => nhapKyTu('-')}>-</Button>
               <Button variant="secondary" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('e')}>e</Button>
 
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('0')}>0</Button>
               <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => nhapKyTu('.')}>.</Button>
-              <Button variant="default" size="sm" className="col-span-2 h-9 bg-cyan-600 font-bold hover:bg-cyan-500" onClick={tinhToan}>=</Button>
-              <Button variant="secondary" size="sm" className="h-9 text-xs text-cyan-400" onClick={() => nhapKyTu('+')}>+</Button>
+              <Button variant="default" size="sm" className="col-span-2 h-9 bg-brand font-bold hover:bg-brand-hover" onClick={tinhToan}>=</Button>
+              <Button variant="secondary" size="sm" className="h-9 text-xs text-brand" onClick={() => nhapKyTu('+')}>+</Button>
             </div>
           </div>
         )}

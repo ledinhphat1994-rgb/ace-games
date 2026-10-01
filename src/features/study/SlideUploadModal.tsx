@@ -214,8 +214,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border-white/15 bg-[#0d1422] text-slate-100 sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold text-cyan-300">
-            <FileSpreadsheet className="h-5 w-5 text-cyan-400" />
+          <DialogTitle className="flex items-center gap-2 text-base font-bold text-brand">
+            <FileSpreadsheet className="h-5 w-5 text-brand" />
             Chèn Tài Liệu
           </DialogTitle>
           <DialogDescription className="sr-only">Chèn tài liệu vào phòng học</DialogDescription>
@@ -226,8 +226,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
           <div
             className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors cursor-pointer ${
               isDragOver
-                ? 'border-cyan-400 bg-cyan-500/10'
-                : 'border-white/20 bg-white/5 hover:border-cyan-500/50'
+                ? 'border-brand bg-brand/10'
+                : 'border-white/20 bg-white/5 hover:border-brand/40'
             }`}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
             onDragLeave={() => setIsDragOver(false)}
@@ -243,7 +243,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             />
             <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
               <div className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-                isDragOver ? 'bg-cyan-500/30 text-cyan-300' : 'bg-cyan-500/20 text-cyan-400'
+                isDragOver ? 'bg-brand/25 text-brand' : 'bg-brand/15 text-brand'
               }`}>
                 <Upload className="h-5 w-5" />
               </div>
@@ -262,7 +262,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
               </span>
               {isUploading ? (
                 <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/10" data-testid="slide-upload-progress">
-                  <div className="h-full rounded-full bg-cyan-400 transition-[width] duration-200" style={{ width: `${tienDo}%` }} />
+                  <div className="h-full rounded-full bg-brand transition-[width] duration-200" style={{ width: `${tienDo}%` }} />
                 </div>
               ) : (
                 <span className="text-[11px] text-slate-400" data-testid="slide-upload-types">
@@ -303,7 +303,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
               onClick={handleConfirm}
               disabled={isDetecting || isUploading || (!glUrl.trim() && !docUrl)}
               data-testid="slide-btn-insert"
-              className="bg-cyan-600 hover:bg-cyan-500 text-xs font-bold px-4"
+              className="bg-brand hover:bg-brand-hover text-xs font-bold px-4"
             >
               Chèn Lên Bảng
             </Button>

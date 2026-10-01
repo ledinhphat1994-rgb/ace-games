@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('light', resolved === 'light')
     document.documentElement.dataset.theme = resolved
     document.documentElement.style.colorScheme = resolved
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#0b1220' : '#f3f6fb')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#10120f' : '#f4f0e6')
   }, [resolved])
   const setPreference = (value: ThemePreference) => { setTheme(value); try { localStorage.setItem(KEY, value) } catch { /* Optional storage. */ } }
   return <ThemeContext.Provider value={{ preference, resolved, setPreference }}>{children}</ThemeContext.Provider>

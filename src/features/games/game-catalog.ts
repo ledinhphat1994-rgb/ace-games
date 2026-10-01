@@ -53,7 +53,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     subtitle: '5 quân liên tiếp chiến thắng',
     category: '1v1',
     badge: '1v1 & Đấu AI',
-    badgeColor: 'from-cyan-500 to-blue-600',
+    badgeColor: 'from-brand to-brand',
     icon: '⚔️',
     description: 'Bàn cờ 15×15 chuẩn thi đấu. 5 quân liên hoàn giành thắng lợi, thi đấu online hoặc đấu AI.',
     boardLabel: '15×15',
