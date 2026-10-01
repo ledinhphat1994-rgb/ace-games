@@ -122,7 +122,8 @@ export function HomePage() {
             className="h-full w-full object-cover object-center opacity-30 dark:opacity-35 img-crisp transition-opacity duration-300"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-canvas via-canvas/90 to-transparent dark:from-canvas dark:via-canvas/85" />
-          <div className="absolute -top-24 -left-24 size-80 rounded-full bg-brand/10 blur-3xl pointer-events-none" />
+          <div className="absolute -top-24 -left-24 size-80 rounded-full bg-brand/15 blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 -right-24 size-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
         </div>
 
         {/* Content */}

@@ -13,7 +13,7 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #1f4d3a;
+  --primary: #0284c7;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
@@ -24,8 +24,8 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: rgba(0, 0, 0, 0.08);
   --input: rgba(0, 0, 0, 0.12);
-  --ring: #1f4d3a;
-  --chart-1: #1f4d3a;
+  --ring: #0284c7;
+  --chart-1: #0284c7;
   --chart-2: #8b5cf6;
   --chart-3: #10b981;
   --chart-4: #f59e0b;
@@ -33,12 +33,12 @@
   --radius: 0.625rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #1f4d3a;
+  --sidebar-primary: #0284c7;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f1f5f9;
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: rgba(0, 0, 0, 0.08);
-  --sidebar-ring: #1f4d3a;
+  --sidebar-ring: #0284c7;
 
   /* ─── Surface hierarchy (Light) ────────────────────────── */
   --canvas: #f8fafc;
@@ -63,8 +63,9 @@
   --text-on-brand: #ffffff;
 
   /* ─── Brand (Light) ────────────────────────────────────── */
-  --brand: #1f4d3a;
-  --brand-hover: #17392b;
+  --brand: #0284c7;
+  --brand-hover: #0369a1;
+  --brand-foreground: #ffffff;
 
   /* ─── Semantic color roles (Light) ─────────────────────── */
   --success: #10b981;
@@ -180,56 +181,56 @@ body {
 }
 
 /* ============================================================
-   DARK THEME — Modern Charcoal & Warm Amber (Sâu êm dịu, viền mờ tinh tế)
+   DARK THEME — Midnight Sapphire & Electric Cyan (Xanh biển sâu, Cyan neon công nghệ)
    ============================================================ */
 .dark {
   /* ─── Core shadcn tokens (used by all primitives) ─────── */
-  --background: #0d1117;
-  --foreground: #f1f5f9;
-  --card: #121722;
-  --card-foreground: #f1f5f9;
-  --popover: #161c28;
-  --popover-foreground: #f1f5f9;
-  --primary: #c6a15a;
-  --primary-foreground: #080c14;
-  --secondary: #1a2233;
-  --secondary-foreground: #f1f5f9;
-  --muted: #1a2233;
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+  --card: #111827;
+  --card-foreground: #f8fafc;
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+  --primary: #06b6d4;
+  --primary-foreground: #021526;
+  --secondary: #1e293b;
+  --secondary-foreground: #f8fafc;
+  --muted: #1e293b;
   --muted-foreground: #94a3b8;
-  --accent: #1a2233;
-  --accent-foreground: #f1f5f9;
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
   --destructive: oklch(0.704 0.191 22.216);
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #c6a15a;
+  --ring: #06b6d4;
 
   /* ─── Surface hierarchy ─────────────────────────────────── */
-  --canvas: #0d1117;           /* Deepest charcoal — page canvas */
-  --surface: #121722;          /* Primary surface — cards, panels */
-  --surface-raised: #161c28;   /* Elevated surface — dropdowns, popovers */
-  --surface-overlay: #1c2638;  /* Hover / overlay state */
-  --surface-interactive: #222f44; /* Interactive hover tint */
+  --canvas: #0b0f19;           /* Midnight sapphire deepest canvas */
+  --surface: #111827;          /* Primary dark surface */
+  --surface-raised: #1e293b;   /* Elevated surface — dropdowns, popovers */
+  --surface-overlay: #1e293b;  /* Hover / overlay state */
+  --surface-interactive: #24344d; /* Interactive hover tint */
   /* Legacy keys (used by existing components) */
-  --surface-1: #121722;
-  --surface-2: #1c2638;
-  --surface-elevated: #161c28;
+  --surface-1: #111827;
+  --surface-2: #1e293b;
+  --surface-elevated: #1e293b;
 
   /* ─── Semantic borders ──────────────────────────────────── */
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --border-active: rgba(198, 161, 90, 0.45);  /* Warm amber active accent */
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(56, 189, 248, 0.25);
+  --border-active: rgba(6, 182, 212, 0.6);  /* Electric cyan active accent */
 
   /* ─── Text hierarchy ────────────────────────────────────── */
-  --text-primary: #f1f5f9;
+  --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-tertiary: #64748b;
-  --text-on-brand: #080c14;    /* Dark crisp text on amber buttons */
+  --text-on-brand: #021526;    /* Dark crisp text on electric cyan */
 
   /* ─── Brand ─────────────────────────────────────────────── */
-  --brand: #c6a15a;
-  --brand-hover: #d4b26f;
-  --brand-foreground: #080c14;
+  --brand: #06b6d4;
+  --brand-hover: #22d3ee;
+  --brand-foreground: #021526;
 
   /* ─── Semantic color roles ──────────────────────────────── */
   --success: #10b981;                  /* Emerald — active/online/game */
@@ -238,26 +239,26 @@ body {
   --warning-muted: rgba(245, 158, 11, 0.15);
   --social: #a78bfa;                   /* Violet — community/social */
   --social-muted: rgba(167, 139, 250, 0.15);
-  --achievement: #d97706;              /* Warm gold — badges/rewards */
-  --achievement-muted: rgba(217, 119, 6, 0.15);
+  --achievement: #fbbf24;              /* Gold — badges/rewards */
+  --achievement-muted: rgba(251, 191, 36, 0.15);
   --danger: oklch(0.704 0.191 22.216);
 
   /* ─── Charts (inherit from root) ────────────────────────── */
-  --chart-1: #c6a15a;
-  --chart-2: #a78bfa;
+  --chart-1: #06b6d4;
+  --chart-2: #38bdf8;
   --chart-3: #10b981;
   --chart-4: #f59e0b;
   --chart-5: #f87171;
 
   /* ─── Sidebar (matches surface) ─────────────────────────── */
-  --sidebar: #121722;
-  --sidebar-foreground: #f1f5f9;
-  --sidebar-primary: #c6a15a;
-  --sidebar-primary-foreground: #080c14;
-  --sidebar-accent: #1a2233;
-  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar: #111827;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #06b6d4;
+  --sidebar-primary-foreground: #021526;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f8fafc;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #c6a15a;
+  --sidebar-ring: #06b6d4;
 }
 
 /* ============================================================
@@ -857,63 +858,20 @@ body { min-width: 280px; }
   flex-shrink: 0;
 }
 
-/* Product theme foundation — Sảnh mực & đồng.
-   Nguồn màu cuối cùng (ghi đè khối phía trên). Sáng: giấy ấm + mực rừng.
-   Tối: mực than + đồng cổ. Mọi nút đặc dùng primary-foreground. */
+/* Layout spacing, shadows and motion tokens */
 :root {
   --space-page: clamp(16px, 2.2vw, 32px);
-  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.04), 0 10px 28px rgb(28 22 12 / 0.06);
-  --shadow-panel: 0 24px 60px rgb(20 16 10 / 0.18);
   --motion-fast: 160ms;
-  --z-header: 30; --z-panel: 50;
+  --z-header: 30;
+  --z-panel: 50;
   --brand-foreground: var(--primary-foreground);
+  --shadow-soft: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  --shadow-panel: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
-:root:not(.dark) {
-  color-scheme: light;
-  --background: #f4f0e6; --foreground: #1c1914;
-  --canvas: #f4f0e6; --surface: #fbf8f2; --surface-raised: #fffdf8;
-  --surface-overlay: #ebe4d4; --surface-interactive: #e3d9c6;
-  --surface-1: #fbf8f2; --surface-2: #ebe4d4; --surface-elevated: #fffdf8;
-  --text-primary: #1c1914; --text-secondary: #5c564c; --text-tertiary: #8a8173; --text-on-brand: #f7f3ea;
-  --brand: #1f4d3a; --brand-hover: #17392b;
-  --border-subtle: rgb(48 38 22 / 0.08); --border-default: rgb(48 38 22 / 0.13); --border-strong: rgb(48 38 22 / 0.22); --border-active: rgb(31 77 58 / 0.45);
-  --primary: var(--brand); --primary-foreground: #f7f3ea; --brand-foreground: var(--primary-foreground);
-  --card: var(--surface); --card-foreground: var(--text-primary); --popover: var(--surface-raised); --popover-foreground: var(--text-primary);
-  --secondary: var(--surface-overlay); --secondary-foreground: var(--text-primary); --muted: var(--surface-overlay); --muted-foreground: var(--text-secondary);
-  --accent: var(--surface-overlay); --accent-foreground: var(--text-primary); --border: var(--border-default); --input: var(--border-strong); --ring: var(--brand);
-  --success: #1f7a4d; --success-muted: rgb(31 122 77 / 0.12); --warning: #9a6416; --warning-muted: rgb(154 100 22 / 0.12);
-  --social: #6d527f; --social-muted: rgb(109 82 127 / 0.12); --achievement: #9a6416; --achievement-muted: rgb(154 100 22 / 0.14); --danger: #a33b45; --destructive: #a33b45;
-  --sidebar: #f7f3ea; --sidebar-foreground: var(--text-primary); --sidebar-primary: var(--brand); --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--surface-overlay); --sidebar-accent-foreground: var(--text-primary); --sidebar-border: var(--border-default); --sidebar-ring: var(--brand);
-  --chart-1: var(--brand); --chart-2: var(--social); --chart-3: var(--success); --chart-4: var(--warning); --chart-5: var(--destructive);
-  --shadow-soft: 0 1px 0 rgb(255 252 246 / 0.8), 0 12px 32px rgb(48 38 22 / 0.06);
-  --shadow-panel: 0 24px 60px rgb(48 38 22 / 0.12);
-}
+
 .dark {
-  color-scheme: dark;
-  --background: #10120f; --foreground: #f3ecdf; --canvas: #10120f;
-  --surface: #171a15; --surface-raised: #20241d; --surface-overlay: #2a2f27; --surface-interactive: #34392f;
-  --surface-1: var(--surface); --surface-2: var(--surface-overlay); --surface-elevated: var(--surface-raised);
-  --text-primary: #f4eee4; --text-secondary: #c4baa8; --text-tertiary: #8f8678; --text-on-brand: #1a140c;
-  --brand: #e4c98a; --brand-hover: #f1dfb0;
-  --primary: var(--brand); --primary-foreground: #1a140c; --brand-foreground: #1a140c; --ring: var(--brand);
-  --card: var(--surface); --card-foreground: var(--text-primary);
-  --popover: var(--surface-raised); --popover-foreground: var(--text-primary);
-  --secondary: var(--surface-overlay); --secondary-foreground: var(--text-primary);
-  --muted: var(--surface-overlay); --muted-foreground: var(--text-secondary);
-  --accent: var(--surface-overlay); --accent-foreground: var(--text-primary);
-  --border: rgb(243 236 223 / 0.10); --input: rgb(243 236 223 / 0.16);
-  --border-subtle: rgb(243 236 223 / 0.07); --border-default: rgb(243 236 223 / 0.11); --border-strong: rgb(243 236 223 / 0.20); --border-active: rgb(228 201 138 / 0.55);
-  --destructive: #e08b93; --danger: #e08b93;
-  --success: #8fbf9b; --success-muted: rgb(143 191 155 / 0.14);
-  --warning: #e0a15a; --warning-muted: rgb(224 161 90 / 0.14);
-  --social: #c3b0d6; --social-muted: rgb(195 176 214 / 0.14);
-  --achievement: #e4c98a; --achievement-muted: rgb(228 201 138 / 0.14);
-  --sidebar: #141712; --sidebar-foreground: var(--text-primary); --sidebar-primary: var(--brand); --sidebar-primary-foreground: #1a140c;
-  --sidebar-accent: #2a2f27; --sidebar-accent-foreground: var(--text-primary); --sidebar-border: var(--border-default); --sidebar-ring: var(--brand);
-  --chart-1: #e4c98a; --chart-2: #c3b0d6; --chart-3: #8fbf9b; --chart-4: #e0a15a; --chart-5: #e08b93;
-  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.04), 0 14px 36px rgb(0 0 0 / 0.28);
-  --shadow-panel: 0 28px 70px rgb(0 0 0 / 0.45);
+  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.05), 0 12px 30px rgb(0 0 0 / 0.35);
+  --shadow-panel: 0 24px 60px rgb(0 0 0 / 0.55);
 }
 .campus-hero { min-height: 220px; border: 1px solid var(--border-subtle); }
 .campus-hero-art { opacity: 0.8; }

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 export type ThemePreference = 'light' | 'dark' | 'system'
 const KEY = 'campus:theme'
-export function readTheme(): ThemePreference {
+function readTheme(): ThemePreference {
   try { const value = localStorage.getItem(KEY); if (value === 'light' || value === 'dark' || value === 'system') return value } catch { /* Optional storage. */ }
   return 'dark'
 }
@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('light', resolved === 'light')
     document.documentElement.dataset.theme = resolved
     document.documentElement.style.colorScheme = resolved
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#0d1117' : '#f4f0e6')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#0b0f19' : '#f8fafc')
   }, [resolved])
   const setPreference = (value: ThemePreference) => { setTheme(value); try { localStorage.setItem(KEY, value) } catch { /* Optional storage. */ } }
   return <ThemeContext.Provider value={{ preference, resolved, setPreference }}>{children}</ThemeContext.Provider>
