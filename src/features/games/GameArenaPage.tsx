@@ -7,9 +7,6 @@ export function GameArenaPage() {
 
   return (
     <GameLobbyView
-      onCreateRoom={(roomId: string, gameType: GameType, turnSeconds: number) =>
-        navigate(`/game/${encodeURIComponent(roomId)}?gameType=${gameType}&turn=${turnSeconds}`)
-      }
       onMoSanh={(gameType: GameType) => navigate(`/arena/${gameType}`)}
     />
   )

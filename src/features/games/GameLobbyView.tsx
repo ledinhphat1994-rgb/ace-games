@@ -11,7 +11,6 @@ import { usePhien } from '@/app/phien'
 import { cn } from '@/lib/utils'
 
 interface GameLobbyViewProps {
-  onCreateRoom?: (roomId: string, gameType: GameType, turnSeconds: number) => void
   /** Bấm vào một trò chơi: mở sảnh của trò đó (mọi bàn đang mở + Chơi ngay · Tạo phòng · Vào phòng · Tìm phòng). */
   onMoSanh: (gameType: GameType) => void
 }
@@ -57,7 +56,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         {/* Bộ lọc thể loại & Lối tắt bảng xếp hạng */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div
-            className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface-muted/60 p-1"
+            className="flex items-center gap-1 rounded-xl border border-border-subtle bg-surface-raised/60 p-1"
             role="group"
             aria-label="Lọc thể loại trò chơi"
           >

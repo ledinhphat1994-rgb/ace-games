@@ -27,7 +27,7 @@ export function GameCard({ game, waiting = 0, onMoSanh }: GameCardProps) {
       className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border-default bg-surface transition-all duration-200 hover:border-brand/40 hover:shadow-lg"
     >
       {/* Artwork container — chiếm ~55-60% trọng lượng thị giác của thẻ */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-muted border-b border-border-subtle">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-raised border-b border-border-subtle">
         <img
           src={game.cover}
           alt=""
@@ -50,7 +50,7 @@ export function GameCard({ game, waiting = 0, onMoSanh }: GameCardProps) {
           <h3 className="text-base sm:text-lg font-bold tracking-tight text-text-primary group-hover:text-brand transition-colors">
             {game.shortTitle}
           </h3>
-          <span className="rounded-md border border-border-subtle bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
+          <span className="rounded-md border border-border-subtle bg-surface-raised px-2 py-0.5 text-xs font-medium text-text-secondary">
             {nhanKichThuoc}
           </span>
         </div>
