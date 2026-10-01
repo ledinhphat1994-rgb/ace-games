@@ -4,17 +4,17 @@
       "command": "cmd.exe",
       "args": ["/c", "npx", "-y", "chrome-devtools-mcp@latest"]
     },
+    "cloudflare": {
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "@cloudflare/mcp-server-cloudflare", "run", "bfc647e65d847f61ca386b7f11c27173"]
+    },
     "context7": {
       "command": "cmd.exe",
       "args": ["/c", "npx", "-y", "@upstash/context7-mcp"]
     },
-    "cloudflare": {
+    "git": {
       "command": "cmd.exe",
-      "args": ["/c", "npx", "-y", "@cloudflare/mcp-server-cloudflare", "run"]
-    },
-    "github": {
-      "command": "cmd.exe",
-      "args": ["/c", "npx", "-y", "github-mcp-server"]
+      "args": ["/c", "npx", "-y", "@infoinlet/mcp-git"]
     }
   }
 }
