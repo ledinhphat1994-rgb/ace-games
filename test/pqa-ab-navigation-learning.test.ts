@@ -2,7 +2,6 @@
 // Digital Campus v2: Milestone PQA-A + PQA-B Verification Suite
 // Primary Navigation Simplification & Learning Room Lobby Quality Contracts
 
-import responsiveLayoutRaw from '../src/components/layout/ResponsiveActivityLayout.tsx?raw'
 import { describe, expect, it } from 'vitest'
 import {
   DESKTOP_NAV_LINKS,
@@ -27,9 +26,6 @@ import createStudyRoomDialogRaw from '../src/features/hub/CreateStudyRoomDialog.
 import roomCardRaw from '../src/features/hub/RoomCard.tsx?raw'
 import arenaLeaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
 import pageHeaderRaw from '../src/components/layout/PageHeader.tsx?raw'
-import sanhRaw from '../src/components/lobby/SanhHoatDong.tsx?raw'
-import socialSidebarRaw from '../src/features/games/GameSocialSidebar.tsx?raw'
-import appShellRaw from '../src/components/layout/AppShell.tsx?raw'
 import mainRaw from '../src/main.tsx?raw'
 
 describe('PQA-A: Primary Navigation Simplification Contracts', () => {
@@ -149,23 +145,12 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(learningPageRaw).not.toContain('import { ClassLeaderboardCard')
     })
 
-    it('C2. Bố cục 3 cột như trang Game: bảng xếp hạng chung (tab Học tập) | phòng đang mở | chat chung & bạn bè', () => {
-      // Bố cục 3 cột nằm trong mẫu sảnh chung (dùng cho Học tập và từng trò chơi).
-      expect(learningPageRaw).toContain('<SanhHoatDong')
-      expect(learningPageRaw).toContain('testId="learning"')
-      expect(sanhRaw).toContain('<ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai}')
-      expect(responsiveLayoutRaw).toContain('xl:grid-cols-[260px_minmax(0,1fr)_300px]')
-      // Dùng đúng bảng xếp hạng chung của trang Game, mở sẵn tab Học tập.
-      expect(learningPageRaw).toContain('cotTrai={<GameArenaLeaderboard defaultGame="hoc_tap" />}')
-      // Khung rộng như trang Game để ba cột đủ chỗ.
-      expect(appShellRaw).toContain("location.pathname.startsWith('/learn')")
-      // Dùng lại cột xã hội của nền tảng (không chép riêng); trang Học tập không có bàn đấu nên ẩn tab Chat phòng.
-      expect(learningPageRaw).toContain('cotPhai={<GameSocialSidebar coChatPhong={false} />}')
-      expect(socialSidebarRaw).toContain("coChatPhong ? 'grid-cols-3' : 'grid-cols-2'")
-      expect(socialSidebarRaw).toContain("{coChatPhong && activeTab === 'chat_phong' && (")
-      // Tab Học tập của bảng xếp hạng chung: Top 50 toàn trường theo tổng XP học tập thật.
-      expect(arenaLeaderboardRaw).toContain("{ id: 'hoc_tap', label: 'Học tập'")
-      expect(arenaLeaderboardRaw).toContain("fetch('/api/engagement/leaderboard/school'")
+    it('C2. Phòng học tập chuyển sang bố cục sảnh chuyên dụng: không lặp bảng xếp hạng và thanh xã hội', () => {
+      // Học tập không còn dùng bố cục 3 cột của Game; tách khỏi SanhHoatDong để tập trung vào khám phá phòng.
+      expect(learningPageRaw).not.toContain('<GameArenaLeaderboard')
+      expect(learningPageRaw).not.toContain('<GameSocialSidebar')
+      expect(learningPageRaw).toContain('CreateStudyRoomDialog')
+      expect(learningPageRaw).toContain('JoinRoomModal')
     })
 
     it('C3. Tiêu đề giữ phân cấp dùng chung cho trang và khu vực', () => {
@@ -293,9 +278,9 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(joinRoomModalRaw).not.toContain('Mã hoặc số phòng')
       expect(joinRoomModalRaw).not.toContain('mã số phòng')
       expect(joinRoomModalRaw).toContain('ID hoặc liên kết phòng')
-      // Sảnh Học tập theo mẫu chung: Học ngay (tự chọn phòng) · Tạo phòng. Vào phòng của bạn bè: bấm link chia sẻ.
-      expect(learningPageRaw).toContain("nhan: 'Học ngay'")
-      expect(learningPageRaw).toContain("nhan: 'Tạo phòng'")
+      // Sảnh Học tập: Học ngay (tự chọn phòng) · Tạo phòng. Vào phòng của bạn bè: bấm link chia sẻ.
+      expect(learningPageRaw).toContain('Học ngay')
+      expect(learningPageRaw).toContain('Tạo phòng')
       expect(learningPageRaw).toContain('<JoinRoomModal')
     })
   })
