@@ -46,10 +46,10 @@ export function AppHeader({
       {/* Ba cột: thương hiệu | nhóm tab căn giữa đúng tâm thanh | tài khoản */}
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-2 md:grid md:grid-cols-[1fr_auto_1fr] px-2.5 sm:px-4">
 
-        {/* ── Left: Brand ── */}
+        {/* ── Left: Brand (hiển thị trên mobile/tablet khi sidebar đóng) ── */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-self-start">
           {/* Brand mark pointing to canonical /learn */}
-          <NavLink to="/learn" className="flex items-center gap-2 group shrink-0 select-none">
+          <NavLink to="/learn" className="flex items-center gap-2 group shrink-0 select-none lg:hidden">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand shadow-sm group-hover:bg-brand/20 transition-all duration-150">
               <GraduationCap className="h-4 w-4" />
             </div>
@@ -58,6 +58,7 @@ export function AppHeader({
             </span>
           </NavLink>
         </div>
+
 
         {/* ── Center: nhóm tab hoạt động (Học tập · Game) ── */}
         <nav
