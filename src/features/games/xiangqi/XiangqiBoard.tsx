@@ -80,6 +80,156 @@ const DANH_SACH_THAI_DO_XIANGQI: QuickEmoteItem[] = [
   { id: 'shh', emoji: '🤫', label: 'Bình tĩnh', quote: 'Đừng vội mừng, ván cờ còn dài!' },
 ]
 
+function CornerTicks({ cx, cy, left = true, right = true }: { cx: number; cy: number; left?: boolean; right?: boolean }) {
+  const d = 6
+  const len = 11
+  return (
+    <g stroke="#6d441f" strokeWidth="1.5" strokeLinecap="square" fill="none" opacity="0.8">
+      {left && (
+        <>
+          <path d={`M ${cx - d - len} ${cy - d} H ${cx - d} V ${cy - d - len}`} />
+          <path d={`M ${cx - d - len} ${cy + d} H ${cx - d} V ${cy + d + len}`} />
+        </>
+      )}
+      {right && (
+        <>
+          <path d={`M ${cx + d + len} ${cy - d} H ${cx + d} V ${cy - d - len}`} />
+          <path d={`M ${cx + d + len} ${cy + d} H ${cx + d} V ${cy + d + len}`} />
+        </>
+      )}
+    </g>
+  )
+}
+
+function XiangqiSvgBoard() {
+  return (
+    <svg
+      viewBox="0 0 900 1000"
+      className="absolute inset-0 size-full pointer-events-none select-none"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <linearGradient id="xqRiverGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#e5ca9c" stopOpacity="0.4" />
+          <stop offset="50%" stopColor="#faebd0" stopOpacity="0.75" />
+          <stop offset="100%" stopColor="#e5ca9c" stopOpacity="0.4" />
+        </linearGradient>
+      </defs>
+
+      {/* Dải sông Sở Hà Hán Giới (Giữa hàng 4 y=450 và hàng 5 y=550) */}
+      <rect x="50" y="450" width="800" height="100" fill="url(#xqRiverGrad)" />
+      <line x1="50" y1="450" x2="850" y2="450" stroke="#6d441f" strokeWidth="1.8" opacity="0.9" />
+      <line x1="50" y1="550" x2="850" y2="550" stroke="#6d441f" strokeWidth="1.8" opacity="0.9" />
+
+      {/* Chữ thư pháp trên sông - hoàn toàn không bị đường dọc nào cắt qua */}
+      <g className="font-serif">
+        <text
+          x="250"
+          y="492"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="#5a3314"
+          fontSize="36"
+          fontWeight="900"
+          letterSpacing="8"
+        >
+          楚河
+        </text>
+        <text
+          x="250"
+          y="524"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="#7c4d24"
+          fontSize="14"
+          fontWeight="700"
+        >
+          (Sở Hà)
+        </text>
+
+        {/* Nút chỉ phân cách giữa sông */}
+        <line x1="410" y1="500" x2="490" y2="500" stroke="#7c4d24" strokeWidth="1.5" strokeDasharray="6 4" opacity="0.6" />
+
+        <text
+          x="650"
+          y="492"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="#5a3314"
+          fontSize="36"
+          fontWeight="900"
+          letterSpacing="8"
+        >
+          漢界
+        </text>
+        <text
+          x="650"
+          y="524"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="#7c4d24"
+          fontSize="14"
+          fontWeight="700"
+        >
+          (Hán Giới)
+        </text>
+      </g>
+
+      {/* 10 đường ngang chuẩn (50, 150, 250, 350, 450, 550, 650, 750, 850, 950) */}
+      {[50, 150, 250, 350, 450, 550, 650, 750, 850, 950].map((y) => (
+        <line key={y} x1="50" y1={y} x2="850" y2={y} stroke="#6d441f" strokeWidth="1.5" opacity="0.8" />
+      ))}
+
+      {/* 2 đường biên dọc chạy suốt từ hàng 0 đến hàng 9 */}
+      <line x1="50" y1="50" x2="50" y2="950" stroke="#6d441f" strokeWidth="1.8" opacity="0.9" />
+      <line x1="850" y1="50" x2="850" y2="950" stroke="#6d441f" strokeWidth="1.8" opacity="0.9" />
+
+      {/* 7 đường dọc phía trong dừng ở bờ sông (không cắt qua sông) */}
+      {[150, 250, 350, 450, 550, 650, 750].map((x) => (
+        <g key={x} stroke="#6d441f" strokeWidth="1.5" opacity="0.8">
+          <line x1={x} y1="50" x2={x} y2="450" />
+          <line x1={x} y1="550" x2={x} y2="950" />
+        </g>
+      ))}
+
+      {/* Đường chéo Cửu Cung kinh điển kết nối chuẩn các góc */}
+      <g stroke="#6d441f" strokeWidth="1.5" opacity="0.85">
+        {/* Cung trên (Cung Đen) */}
+        <line x1="350" y1="50" x2="550" y2="250" />
+        <line x1="550" y1="50" x2="350" y2="250" />
+        {/* Cung dưới (Cung Đỏ) */}
+        <line x1="350" y1="750" x2="550" y2="950" />
+        <line x1="550" y1="750" x2="350" y2="950" />
+      </g>
+
+      {/* Dấu hoa thị (Corner Ticks) tại các vị trí Pháo và Tốt truyền thống */}
+      {/* Pháo trên hàng 2 (y=250) */}
+      <CornerTicks cx={150} cy={250} />
+      <CornerTicks cx={750} cy={250} />
+      {/* Pháo dưới hàng 7 (y=750) */}
+      <CornerTicks cx={150} cy={750} />
+      <CornerTicks cx={750} cy={750} />
+
+      {/* Tốt trên hàng 3 (y=350) */}
+      <CornerTicks cx={50} cy={350} left={false} />
+      <CornerTicks cx={250} cy={350} />
+      <CornerTicks cx={450} cy={350} />
+      <CornerTicks cx={650} cy={350} />
+      <CornerTicks cx={850} cy={350} right={false} />
+
+      {/* Tốt dưới hàng 6 (y=650) */}
+      <CornerTicks cx={50} cy={650} left={false} />
+      <CornerTicks cx={250} cy={650} />
+      <CornerTicks cx={450} cy={650} />
+      <CornerTicks cx={650} cy={650} />
+      <CornerTicks cx={850} cy={650} right={false} />
+
+      {/* Khung viền chỉ đôi ngoài cùng của bàn cờ */}
+      <rect x="36" y="36" width="828" height="928" rx="6" fill="none" stroke="#6d441f" strokeWidth="2.2" opacity="0.85" />
+    </svg>
+  )
+}
+
 function XiangqiPieceToken({ piece }: { piece: number }) {
   const side = sideOf(piece)
   const type = typeOf(piece)
@@ -89,19 +239,19 @@ function XiangqiPieceToken({ piece }: { piece: number }) {
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center rounded-full size-[93%] select-none transition-transform duration-150 hover:scale-95 active:scale-90 cursor-pointer z-10',
+        'relative flex items-center justify-center rounded-full size-[92%] select-none transition-transform duration-150 hover:scale-95 active:scale-90 cursor-pointer z-10',
         isRed
-          ? 'bg-gradient-to-br from-[#fffdf8] via-[#f7e8ce] to-[#dfbf92] border-[2px] border-[#9c5928]/60 ring-1 ring-[#6e350c]/80 shadow-[0_5px_12px_rgba(0,0,0,0.55),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(130,60,15,0.35)]'
-          : 'bg-gradient-to-br from-[#fcfbf7] via-[#eee5d4] to-[#cebea9] border-[2px] border-[#483e34]/60 ring-1 ring-[#1f1812]/80 shadow-[0_5px_12px_rgba(0,0,0,0.55),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(40,30,20,0.35)]'
+          ? 'bg-gradient-to-br from-[#fffefb] via-[#f7e8ce] to-[#dfbf92] border-[2.5px] border-[#9c5928] ring-1 ring-[#6e350c]/80 shadow-[0_6px_14px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(130,60,15,0.35)]'
+          : 'bg-gradient-to-br from-[#fcfbf7] via-[#eee5d4] to-[#cebea9] border-[2.5px] border-[#483e34] ring-1 ring-[#1f1812]/80 shadow-[0_6px_14px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(40,30,20,0.35)]'
       )}
     >
-      {/* Vòng tròn hoa văn khắc chìm tinh xảo (Solid concentric groove) */}
+      {/* Vòng tròn hoa văn khắc chìm đôi tinh xảo (Dual concentric engraved grooves) */}
       <div
         className={cn(
-          'size-[82%] rounded-full border-[1.5px] flex items-center justify-center text-[clamp(12px,6.2cqi,36px)] leading-none font-serif font-black',
+          'size-[82%] rounded-full border-[1.5px] flex items-center justify-center text-[clamp(13px,6.5cqi,38px)] leading-none font-serif font-black',
           isRed
-            ? 'border-[#b91c1c]/45 text-[#b91c1c] drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]'
-            : 'border-[#18181b]/40 text-[#18181b] drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]'
+            ? 'border-[#dc2626]/40 text-[#dc2626] drop-shadow-[0_1px_0_rgba(255,255,255,0.85)]'
+            : 'border-[#09090b]/35 text-[#09090b] drop-shadow-[0_1px_0_rgba(255,255,255,0.75)]'
         )}
       >
         {text}
@@ -546,99 +696,58 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
 
         {/* Bàn cờ Cờ Tướng truyền thống Á Đông (9 cột × 10 hàng) - 100% hiển thị đầy đủ, không bị che */}
         <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] min-w-0 relative p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-[#e8cf9f] via-[#dcb581] to-[#c79b63] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] select-none shrink flex flex-col items-center">
-          {/* Lưới và Sông */}
-          <div className="relative grid grid-cols-9 grid-rows-10 w-full min-h-0 shrink-0 aspect-[9/10]">
-            {/* Đường vẽ sông Sở Hà Hán Giới ở giữa hàng 4 và 5 */}
-            <div className="absolute inset-x-0 top-[40%] h-[20%] flex items-center justify-between px-6 sm:px-10 pointer-events-none z-0 border-y-2 border-[#6d441f]/70 bg-gradient-to-r from-[#e5ca9c]/50 via-[#f0dbb5]/70 to-[#e5ca9c]/50">
-              <div className="flex items-baseline gap-1.5 select-none drop-shadow-xs">
-                <span className="font-serif font-black text-base sm:text-lg text-[#5a3314] tracking-widest">楚 河</span>
-                <span className="text-[10px] sm:text-xs font-semibold text-[#7c4d24]/90 tracking-wide">(Sở Hà)</span>
-              </div>
-              <div className="h-0.5 w-12 sm:w-16 bg-gradient-to-r from-transparent via-[#6d441f]/40 to-transparent" />
-              <div className="flex items-baseline gap-1.5 select-none drop-shadow-xs">
-                <span className="text-[10px] sm:text-xs font-semibold text-[#7c4d24]/90 tracking-wide">(Hán Giới)</span>
-                <span className="font-serif font-black text-base sm:text-lg text-[#5a3314] tracking-widest">漢 界</span>
-              </div>
+          {/* Khung chứa tỉ lệ chuẩn 9:10 của bàn cờ */}
+          <div className="relative w-full min-h-0 shrink-0 aspect-[9/10]">
+            {/* Lớp vẽ vector bàn cờ thuần tuý (10 đường ngang, 9 đường dọc, Cửu Cung, hoa thị & thư pháp sông) */}
+            <XiangqiSvgBoard />
+
+            {/* Lớp tương tác 90 điểm giao cắt và đặt quân cờ chuẩn xác */}
+            <div className="absolute inset-0 grid grid-cols-9 grid-rows-10 size-full z-10">
+              {Array.from({ length: 90 }, (_, idx) => {
+                // Hàng 9 xuống 0 (Đỏ ở dưới: hàng 0..4, Đen ở trên: hàng 5..9); cầm quân Đen thì xoay bàn cho quân mình ở dưới
+                const r = latBan ? Math.floor(idx / 9) : 9 - Math.floor(idx / 9)
+                const f = latBan ? 8 - (idx % 9) : idx % 9
+                const sq = r * 9 + f
+
+                const piece = pos.board[sq]
+                const isSelected = selectedSq === sq
+                const isValidTarget = validTargets.includes(sq)
+                const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
+
+                return (
+                  <div
+                    key={sq}
+                    onClick={() => handleSquareClick(sq)}
+                    className="relative flex items-center justify-center cursor-pointer select-none"
+                  >
+                    {/* Nước đi vừa thực hiện - quầng sáng vàng dịu mắt */}
+                    {isLastMoveSq && !isSelected && (
+                      <span className="absolute size-[86%] rounded-full bg-amber-400/25 ring-2 ring-amber-400/50 pointer-events-none z-0" />
+                    )}
+
+                    {/* Ô đang được chọn - viền hào quang cyan nổi bật */}
+                    {isSelected && (
+                      <span className="absolute size-[92%] rounded-full ring-4 ring-cyan-400 shadow-[0_0_12px_#22d3ee] bg-cyan-400/20 pointer-events-none z-20 animate-pulse" />
+                    )}
+
+                    {/* Quân cờ to rõ, chạm khắc tinh xảo */}
+                    {piece > 0 && <XiangqiPieceToken piece={piece} />}
+
+                    {/* Điểm gợi ý nước đi hợp lệ */}
+                    {isValidTarget && (
+                      <span
+                        className={cn(
+                          'absolute rounded-full pointer-events-none z-20 transition-all',
+                          piece > 0
+                            ? 'size-[90%] ring-4 ring-inset ring-emerald-500/90 shadow-[0_0_10px_#10b981]'
+                            : 'size-3.5 sm:size-4 bg-emerald-500 shadow-[0_0_10px_#10b981] ring-2 ring-emerald-300'
+                        )}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
-
-            {Array.from({ length: 90 }, (_, idx) => {
-              const screenRow = Math.floor(idx / 9)
-              const screenCol = idx % 9
-
-              // Hàng 9 xuống 0 (Đỏ ở dưới: hàng 0..4, Đen ở trên: hàng 5..9); cầm quân Đen thì xoay bàn cho quân mình ở dưới
-              const r = latBan ? Math.floor(idx / 9) : 9 - Math.floor(idx / 9)
-              const f = latBan ? 8 - (idx % 9) : idx % 9
-              const sq = r * 9 + f
-
-              const piece = pos.board[sq]
-              const isSelected = selectedSq === sq
-              const isValidTarget = validTargets.includes(sq)
-              const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
-
-              // Đường chéo Cửu Cung kinh điển (Cung trên: hàng 0..2 cột 3..5 | Cung dưới: hàng 7..9 cột 3..5)
-              const isPalaceDiagMain =
-                (screenRow === 0 && screenCol === 3) ||
-                (screenRow === 2 && screenCol === 5) ||
-                (screenRow === 7 && screenCol === 3) ||
-                (screenRow === 9 && screenCol === 5) ||
-                (screenRow === 1 && screenCol === 4) ||
-                (screenRow === 8 && screenCol === 4)
-
-              const isPalaceDiagAnti =
-                (screenRow === 0 && screenCol === 5) ||
-                (screenRow === 2 && screenCol === 3) ||
-                (screenRow === 7 && screenCol === 5) ||
-                (screenRow === 9 && screenCol === 3) ||
-                (screenRow === 1 && screenCol === 4) ||
-                (screenRow === 8 && screenCol === 4)
-
-              return (
-                <div
-                  key={sq}
-                  onClick={() => handleSquareClick(sq)}
-                  className={cn(
-                    'relative flex items-center justify-center cursor-pointer',
-                    // Đường kẻ bàn cờ cờ tướng
-                    'border-r border-b border-[#6d441f]/60',
-                    screenCol === 0 && 'border-l border-[#6d441f]/60',
-                    screenRow === 0 && 'border-t border-[#6d441f]/60'
-                  )}
-                >
-                  {/* Đường chéo Cửu Cung */}
-                  {(isPalaceDiagMain || isPalaceDiagAnti) && (
-                    <svg className="absolute inset-0 size-full pointer-events-none stroke-[#6d441f]/50 stroke-[1.5]" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      {isPalaceDiagMain && <line x1="0" y1="0" x2="100" y2="100" />}
-                      {isPalaceDiagAnti && <line x1="100" y1="0" x2="0" y2="100" />}
-                    </svg>
-                  )}
-
-                  {/* Quân cờ */}
-                  {piece > 0 && <XiangqiPieceToken piece={piece} />}
-
-                  {/* Điểm gợi ý nước đi */}
-                  {isValidTarget && (
-                    <span
-                      className={cn(
-                        'absolute rounded-full pointer-events-none z-20',
-                        piece > 0
-                          ? 'size-full ring-4 ring-inset ring-emerald-500/80'
-                          : 'size-3.5 bg-emerald-500/80 shadow-md ring-2 ring-emerald-300'
-                      )}
-                    />
-                  )}
-
-                  {/* Ô được chọn */}
-                  {isSelected && (
-                    <span className="absolute inset-0 ring-4 ring-inset ring-cyan-400 rounded-lg pointer-events-none z-20" />
-                  )}
-
-                  {/* Nước đi vừa thực hiện */}
-                  {isLastMoveSq && !isSelected && (
-                    <span className="absolute inset-0 bg-amber-400/30 pointer-events-none z-10" />
-                  )}
-                </div>
-              )
-            })}
           </div>
 
           {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}

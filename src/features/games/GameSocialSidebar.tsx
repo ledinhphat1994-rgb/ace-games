@@ -131,7 +131,10 @@ function QuickChipsScroll({ chips, onSelectChip }: QuickChipsScrollProps) {
   }
 
   return (
-    <div className="relative px-2 py-1.5 border-t border-border-default bg-surface-overlay shrink-0 select-none">
+    <div className="relative px-2 py-1.5 border-t border-border-default bg-surface-overlay shrink-0 select-none overflow-hidden">
+      {/* Vệt mờ viền phải để chỉ dẫn danh sách còn tiếp tục cuộn ngang */}
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface-overlay via-surface-overlay/80 to-transparent z-10" />
+
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
@@ -145,7 +148,7 @@ function QuickChipsScroll({ chips, onSelectChip }: QuickChipsScrollProps) {
             key={chip}
             type="button"
             onClick={() => handleChipClick(chip)}
-            className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full bg-surface-overlay hover:bg-amber-500/20 hover:text-warning border border-border-default hover:border-amber-500/40 text-text-secondary active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-xs"
+            className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full bg-surface hover:bg-amber-500/20 hover:text-warning border border-border-default hover:border-amber-500/40 text-text-secondary active:scale-95 transition-all cursor-pointer whitespace-nowrap shadow-xs"
           >
             {chip}
           </button>
