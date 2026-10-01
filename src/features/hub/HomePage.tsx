@@ -108,51 +108,75 @@ export function HomePage() {
       {/* ── 1. Hero Banner (Design Reference 1, 2, 3, 4) ── */}
       <section
         aria-label="Lời chào và giới thiệu"
-        className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border-subtle bg-surface shadow-md"
+        className="relative overflow-hidden rounded-3xl border border-border-default/80 bg-surface shadow-xl"
       >
         {/* Background Image with Ambient Gradient */}
         <div className="absolute inset-0 z-0">
           <img
             src="/assets/campus/hero_banner.webp"
             alt="Digital Campus"
-            className="h-full w-full object-cover object-center opacity-35 dark:opacity-40 transition-opacity duration-300"
+            className="h-full w-full object-cover object-center opacity-30 dark:opacity-35 transition-opacity duration-300"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-canvas via-canvas/90 to-transparent dark:from-canvas dark:via-canvas/80" />
+          {/* Subtle ambient light spots */}
+          <div className="absolute -top-24 -left-24 size-80 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 -right-24 size-80 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
         </div>
 
         {/* Content */}
-        <div className="relative z-10 p-6 sm:p-10 lg:p-12 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand mb-3 shadow-xs">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Digital Campus v2 · Chào {displayName}</span>
+        <div className="relative z-10 p-6 sm:p-10 lg:p-12 max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/35 bg-brand/10 px-3.5 py-1 text-xs font-bold text-brand mb-3.5 shadow-xs backdrop-blur-md">
+            <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+            <span>Digital Campus v2.4 · Xin chào, {displayName}! 👋</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-text-primary tracking-tight leading-tight">
-            Học tập. Chơi game. Kết nối bạn bè.
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-[2.6rem] font-black text-text-primary tracking-tight leading-[1.18]">
+            Học tập thông minh. Đấu trường sôi động. Kết nối bạn bè.
           </h1>
 
-          <p className="mt-3 text-xs sm:text-sm lg:text-base text-text-secondary leading-relaxed">
-            Một không gian dành riêng cho học sinh, để học tốt hơn, chơi vui hơn và cùng nhau trưởng thành.
+          <p className="mt-3.5 text-xs sm:text-sm lg:text-base text-text-secondary leading-relaxed max-w-2xl">
+            Không gian số dành riêng cho học sinh — nơi bạn cùng bạn bè khám phá bài giảng, trao đổi học tập, so tài mini-games và gắn kết mỗi ngày.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          {/* Quick Metrics Chips Row */}
+          <div className="mt-5 flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface/70 px-2.5 py-1 text-xs font-semibold text-text-secondary backdrop-blur-sm">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              100% Realtime
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface/70 px-2.5 py-1 text-xs font-semibold text-text-secondary backdrop-blur-sm">
+              <BookOpen className="size-3.5 text-sky-400" />
+              Phòng học tương tác & PDF
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface/70 px-2.5 py-1 text-xs font-semibold text-text-secondary backdrop-blur-sm">
+              <Gamepad2 className="size-3.5 text-purple-400" />
+              4 Mini-games trí tuệ
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface/70 px-2.5 py-1 text-xs font-semibold text-text-secondary backdrop-blur-sm">
+              <Users className="size-3.5 text-pink-400" />
+              Lớp 10A7 2026-2027
+            </span>
+          </div>
+
+          <div className="mt-7 flex flex-wrap items-center gap-3">
             <Button
               size="lg"
               onClick={() => navigate('/learn')}
-              className="h-11 px-5 rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 font-bold text-sm shadow-md shadow-brand/20 transition-all cursor-pointer"
+              className="h-11 px-6 rounded-xl bg-gradient-to-r from-brand to-cyan-500 hover:from-brand-hover hover:to-cyan-600 text-brand-foreground font-bold text-sm shadow-md shadow-brand/20 transition-all cursor-pointer"
             >
-              <span>Bắt đầu khám phá</span>
-              <ArrowRight className="h-4 w-4 ml-1.5" />
+              <BookOpen className="h-4 w-4 mr-2" />
+              <span>Khám phá phòng học</span>
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
 
             <Button
               variant="outline"
               size="lg"
               onClick={() => navigate('/arena')}
-              className="h-11 px-5 rounded-xl border-border-default bg-surface/80 hover:bg-surface-overlay text-text-primary font-semibold text-sm backdrop-blur-sm cursor-pointer"
+              className="h-11 px-5 rounded-xl border-border-default bg-surface/80 hover:bg-surface-overlay text-text-primary font-semibold text-sm backdrop-blur-sm cursor-pointer shadow-xs"
             >
-              <Gamepad2 className="h-4 w-4 mr-2 text-brand" />
-              <span>Chơi game ngay</span>
+              <Gamepad2 className="h-4 w-4 mr-2 text-purple-400" />
+              <span>Đấu trường Game</span>
             </Button>
           </div>
         </div>
@@ -188,76 +212,105 @@ export function HomePage() {
 
       {/* ── 3. 4 Quick Access Feature Cards (Image 1, 2, 3, 4) ── */}
       <section aria-label="Lối tắt chính">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4.5">
           {/* Card 1: Học tập */}
           <div
             onClick={() => navigate('/learn')}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-surface to-surface hover:border-sky-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-sky-500/25 bg-gradient-to-br from-sky-500/10 via-surface to-surface hover:border-sky-400/60 hover:shadow-lg hover:shadow-sky-500/10 transition-all duration-300 cursor-pointer"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30 group-hover:scale-105 transition-transform">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400 border border-sky-500/30 group-hover:scale-105 group-hover:bg-sky-500/25 transition-all">
                 <BookOpen className="h-5 w-5" />
               </div>
-              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
+              <span className="rounded-md bg-sky-500/15 border border-sky-500/25 px-1.5 py-0.5 text-[10px] font-bold text-sky-400">
+                Trực tuyến
+              </span>
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-text-primary">Học tập</h2>
-              <p className="mt-0.5 text-xs text-text-secondary">Lớp học, tài liệu, bài tập</p>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm sm:text-base font-bold text-text-primary group-hover:text-sky-400 transition-colors">
+                  Học tập
+                </h2>
+                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Phòng học, slide PDF & bảng phấn</p>
             </div>
           </div>
 
           {/* Card 2: Game */}
           <div
             onClick={() => navigate('/arena')}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-surface to-surface hover:border-purple-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-500/10 via-surface to-surface hover:border-purple-400/60 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 cursor-pointer"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 group-hover:scale-105 transition-transform">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30 group-hover:scale-105 group-hover:bg-purple-500/25 transition-all">
                 <Gamepad2 className="h-5 w-5" />
               </div>
-              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+              <span className="rounded-md bg-purple-500/15 border border-purple-500/25 px-1.5 py-0.5 text-[10px] font-bold text-purple-400">
+                1v1 & Solo
+              </span>
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-text-primary">Game</h2>
-              <p className="mt-0.5 text-xs text-text-secondary">Chơi game cùng bạn bè</p>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm sm:text-base font-bold text-text-primary group-hover:text-purple-400 transition-colors">
+                  Đấu trường Game
+                </h2>
+                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Cờ vua, cờ ca-rô & đố trí tuệ</p>
             </div>
           </div>
 
           {/* Card 3: Cộng đồng */}
           <div
             onClick={() => navigate('/community')}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-500/10 via-surface to-surface hover:border-pink-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-pink-500/25 bg-gradient-to-br from-pink-500/10 via-surface to-surface hover:border-pink-400/60 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 cursor-pointer"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30 group-hover:scale-105 transition-transform">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-pink-500/15 text-pink-400 border border-pink-500/30 group-hover:scale-105 group-hover:bg-pink-500/25 transition-all">
                 <Users className="h-5 w-5" />
               </div>
-              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-pink-400 group-hover:translate-x-1 transition-all" />
+              <span className="rounded-md bg-pink-500/15 border border-pink-500/25 px-1.5 py-0.5 text-[10px] font-bold text-pink-400">
+                Mạng xã hội
+              </span>
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-text-primary">Cộng đồng</h2>
-              <p className="mt-0.5 text-xs text-text-secondary">Bài viết, sự kiện, kết bạn</p>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm sm:text-base font-bold text-text-primary group-hover:text-pink-400 transition-colors">
+                  Cộng đồng
+                </h2>
+                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-pink-400 group-hover:translate-x-1 transition-all" />
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Bảng tin, sự kiện & kết nối bạn bè</p>
             </div>
           </div>
 
           {/* Card 4: Bảng xếp hạng */}
           <div
             onClick={() => navigate('/rankings')}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-surface to-surface hover:border-amber-500/40 hover:shadow-md transition-all duration-200 cursor-pointer"
+            className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-surface to-surface hover:border-amber-400/60 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:scale-105 transition-transform">
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 group-hover:scale-105 group-hover:bg-amber-500/25 transition-all">
                 <Trophy className="h-5 w-5" />
               </div>
-              <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+              <span className="rounded-md bg-amber-500/15 border border-amber-500/25 px-1.5 py-0.5 text-[10px] font-bold text-amber-400">
+                Top học sinh
+              </span>
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-text-primary">Bảng xếp hạng</h2>
-              <p className="mt-0.5 text-xs text-text-secondary">Vinh danh thành tích</p>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm sm:text-base font-bold text-text-primary group-hover:text-amber-400 transition-colors">
+                  Bảng xếp hạng
+                </h2>
+                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Vinh danh thành tích học & chơi</p>
             </div>
           </div>
         </div>
       </section>
+
 
       {/* ── 4. Section: Game nổi bật (Featured Games row with cards & covers) ── */}
       <section aria-label="Game nổi bật" className="space-y-4">

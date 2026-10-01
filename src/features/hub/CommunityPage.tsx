@@ -17,13 +17,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import {
   AlertCircle,
   AlertTriangle,
+  Calendar,
   DoorOpen,
   MessageSquare,
   RefreshCw,
   Search,
+  TrendingUp,
   Trophy,
   UserPlus,
 } from 'lucide-react'
+
 
 type TrangThaiBan = 'online' | 'away' | 'room' | 'offline' | 'unknown'
 
@@ -376,7 +379,59 @@ export function CommunityPage() {
               </Button>
             </div>
           </div>
+
+          {/* Sự kiện trường học (Design Reference 1, 2) */}
+          <div className="rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-500/10 via-surface to-surface p-4 space-y-3 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="size-4 text-purple-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                  Sự kiện trường học
+                </span>
+              </div>
+              <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold text-purple-300">
+                Sắp diễn ra
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-text-primary">Giải Cờ Vua Mùa Thu 10A7</p>
+              <p className="text-xs text-text-secondary mt-0.5">Thứ Bảy này · 19:30 tại Đấu trường Game</p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => navigate('/arena/chess')}
+              className="w-full h-8 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-xs cursor-pointer"
+            >
+              Xem chi tiết giải đấu
+            </Button>
+          </div>
+
+          {/* Xu hướng thảo luận (Design Reference 1, 2) */}
+          <div className="rounded-2xl border border-border-default bg-surface p-4 space-y-3 shadow-xs">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="size-4 text-brand" />
+              <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
+                Chủ đề sôi nổi
+              </span>
+            </div>
+            <div className="space-y-2">
+              {[
+                { tag: '#Lop10A7', count: '142 bài thảo luận' },
+                { tag: '#HocTapThongMinh', count: '89 bài thảo luận' },
+                { tag: '#DauTruongCaro', count: '56 bài thảo luận' },
+                { tag: '#KhoTaiLieuPDF', count: '38 bài thảo luận' },
+              ].map((item) => (
+                <div key={item.tag} className="flex items-center justify-between py-1 group cursor-pointer">
+                  <span className="text-xs font-bold text-brand group-hover:underline">
+                    {item.tag}
+                  </span>
+                  <span className="text-[11px] text-text-tertiary">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+
 
       </div>
 
