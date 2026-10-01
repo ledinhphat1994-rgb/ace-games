@@ -12,12 +12,19 @@ import {
   useCheDoBan,
 } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
-import { GameClockWidget } from '../GameClockWidget'
+import { TIME_PRESETS } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound, playPieceMoveSound } from '../game-audio'
 import { useScreenWakeLock } from '@/lib/web-experience'
+
+function formatClockTime(sec: number): string {
+  const safe = Math.max(0, Math.floor(sec))
+  const m = Math.floor(safe / 60)
+  const s = safe % 60
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
 
 const SIZE = 15
 
@@ -298,7 +305,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   // Ô bàn cờ không bấm được: ván online chưa tới lượt mình (hoặc đang xem), ván tại chỗ đã xong / máy đang tính.
   const khoaBan = banOnline ? !banOnline.isMyTurn : !!winner || isAiThinking
   const benToiOnline = banOnline?.mySide ?? null
-  const turnColor = isMyTurn ? '#06b6d4' : '#f43f5e'
 
 
 
@@ -307,61 +313,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   // Thắng ở chế độ 2 người luôn là chiến thắng của một người chơi nên hiện xanh + cúp,
   // chỉ chế độ đánh với máy mới phân biệt BẠN THẮNG (xanh) / BẠN THUA (đỏ).
   const pheThang = banOnline ? (benToiOnline ?? winner) : mode === 'ai' ? playerSide : winner
-  const mauTrangThai = isOver
-    ? winner === 'draw'
-      ? '#eab308'
-      : winner === pheThang
-        ? '#10b981'
-        : '#f43f5e'
-    : isAiThinking
-      ? '#06b6d4'
-      : turnColor
-  const nhanTrangThai = isOver
-    ? winner === 'draw'
-      ? 'HOÀ CỜ'
-      : banOnline
-        ? benToiOnline
-          ? winner === benToiOnline
-            ? 'BẠN THẮNG'
-            : 'BẠN THUA'
-          : `QUÂN ${winner} THẮNG`
-        : mode === 'ai'
-          ? winner === playerSide
-            ? 'BẠN THẮNG'
-            : 'BẠN THUA'
-          : `QUÂN ${winner} THẮNG`
-    : banOnline
-      ? banOnline.meta.status !== 'playing'
-        ? 'CHỜ ĐỐI THỦ'
-        : benToiOnline
-          ? isMyTurn
-            ? 'LƯỢT BẠN'
-            : 'LƯỢT ĐỐI THỦ'
-          : `LƯỢT QUÂN ${currentTurn}`
-    : isAiThinking
-      ? 'MÁY ĐANG TÍNH'
-      : mode === 'ai'
-        ? isMyTurn
-          ? 'LƯỢT BẠN'
-          : 'CHỜ ĐỐI THỦ'
-        : `LƯỢT QUÂN ${currentTurn}`
-  const emojiTrangThai = isOver
-    ? winner === 'draw'
-      ? '🤝'
-      : winner === pheThang
-        ? '🏆'
-        : '💀'
-    : isAiThinking
-      ? '🤖'
-      : banOnline && banOnline.meta.status !== 'playing'
-        ? '⏳'
-        : isMyTurn
-          ? '⚔️'
-          : banOnline
-            ? '🌐'
-            : mode === 'ai'
-              ? '🤖'
-              : '🎲'
 
   // Âm thanh & Banner hào hùng khi kết thúc ván: Thắng, Thua, Hoà
   const wasOverRef = useRef(isOver)
@@ -416,268 +367,289 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         className="w-full shrink-0"
       />
 
-      {/* ── KHUNG CHƠI TRUNG TÂM: 3 CỘT ĐỒNG BỘ CÙNG CẤP (CỘT TRÁI - BÀN CỜ - CỘT PHẢI) ── */}
-      <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
-        <div className="hidden xl:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
-          <GameClockWidget
-            timeRemaining={clock.timeRemaining}
-            turnSeconds={clock.turnSeconds}
-            isPlaying={isPlaying}
-            isMyTurn={isMyTurn}
-            playerLabel={banOnline ? (benToiOnline === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)') : (playerSide === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)')}
-            opponentLabel={banOnline ? (benToiOnline === 'X' ? 'Đối thủ (Quân O)' : 'Đối thủ (Quân X)') : (mode === 'ai' ? 'Máy AI' : 'Quân O')}
-            isOnline={laOnline}
-            opponentProposal={clock.opponentProposal}
-            myPendingProposal={clock.myPendingProposal}
-            onProposeTime={clock.proposeTime}
-            onAcceptProposal={clock.acceptProposal}
-            onRejectProposal={clock.rejectProposal}
-          />
-        </div>
-
-        {/* ── CỘT GIỮA: BÀN CỜ CARO 15×15 (TO HƠN, Ô CỜ TO RÕ RÀNG) ── */}
-        <div className="relative shrink-0 select-none z-10 flex flex-col items-center">
-          {/* Thanh trạng thái phụ nhỏ gọn khi hai cột bên bàn cờ bị ẩn (< xl), chiều cao cố định */}
-          <div className="flex xl:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
-            <span className="text-base leading-none">{emojiTrangThai}</span>
-            <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider">{nhanTrangThai}</span>
-            {isAiThinking && (
-              <span className="flex gap-1 items-center ml-1">
-                {[0, 150, 300].map((delay, i) => (
-                  <span
-                    key={i}
-                    className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
-                    style={{ animationDelay: `${delay}ms` }}
-                  />
-                ))}
+      {/* ── BỐ CỤC CHUẨN LICHESS / ZEN MODE: THANH ĐỐI THỦ -> BÀN CỜ -> THANH NGƯỜI CHƠI ── */}
+      <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] flex-1 my-auto px-1 sm:px-2">
+        {/* THANH ĐỐI THỦ (TRÊN BÀN CỜ) */}
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-7 rounded-md bg-rose-500/20 border border-rose-400/40 flex items-center justify-center font-black text-xs text-rose-300 shrink-0">
+              O
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate">
+                {banOnline ? (benToiOnline === 'X' ? 'Đối thủ (Quân O)' : 'Đối thủ (Quân X)') : (mode === 'ai' ? 'Máy AI' : 'Quân O')}
               </span>
-            )}
+              {isAiThinking && (
+                <span className="text-[10px] text-cyan-400 font-medium animate-pulse">Đang tính toán...</span>
+              )}
+            </div>
           </div>
 
-          {/* Khung bàn cờ phẳng to hơn */}
+          <div className="flex items-center gap-2 shrink-0">
+            <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
+            <div
+              className={cn(
+                'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
+                currentTurn !== playerSide && isPlaying && !winner
+                  ? 'border-rose-500/60 bg-rose-950/40 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse'
+                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+              )}
+            >
+              {formatClockTime(clock.timeRemaining)}
+            </div>
+          </div>
+        </div>
+
+        {/* Khung bàn cờ phẳng to hơn */}
+        <div
+          className="game-board-shell relative w-full min-w-0 rounded-2xl overflow-hidden shrink"
+          style={{
+            boxShadow: [
+              '0 18px 40px rgba(0,0,0,0.7)',
+              '0 0 0 1px rgba(255,255,255,0.06)',
+              'inset 0 1px 0 rgba(255,255,255,0.08)',
+              '0 0 24px rgba(6,182,212,0.12)',
+            ].join(', '),
+          }}
+        >
+          {/* Lớp bề mặt bàn cờ - padding tối ưu để ô cờ đạt kích thước lớn nhất */}
           <div
-            className="game-board-shell relative w-full max-w-[580px] xl:max-w-[640px] 2xl:max-w-[700px] min-w-0 rounded-2xl overflow-hidden shrink"
+            className="p-2 sm:p-2.5 2xl:p-3"
             style={{
-              boxShadow: [
-                '0 18px 40px rgba(0,0,0,0.7)',
-                '0 0 0 1px rgba(255,255,255,0.06)',
-                'inset 0 1px 0 rgba(255,255,255,0.08)',
-                '0 0 24px rgba(6,182,212,0.12)',
-              ].join(', '),
+              background: 'linear-gradient(160deg, #0d1829 0%, #091220 50%, #060e1a 100%)',
             }}
           >
-            {/* Lớp bề mặt bàn cờ - padding tối ưu để ô cờ đạt kích thước lớn nhất */}
+            {/* Viền neon sáng trên */}
             <div
-              className="p-2 sm:p-2.5 2xl:p-3"
+              className="absolute top-0 left-0 right-0 h-px pointer-events-none"
               style={{
-                background: 'linear-gradient(160deg, #0d1829 0%, #091220 50%, #060e1a 100%)',
+                background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.6) 30%, rgba(99,102,241,0.6) 70%, transparent)',
+                boxShadow: '0 0 12px rgba(6,182,212,0.5)',
+              }}
+            />
+
+            {/* Định nghĩa gradient dùng chung một lần */}
+            <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="caroXWin" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#6ee7b7" />
+                  <stop offset="100%" stopColor="#10b981" />
+                </linearGradient>
+                <linearGradient id="caroX" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#67e8f9" />
+                  <stop offset="100%" stopColor="#0891b2" />
+                </linearGradient>
+                <linearGradient id="caroO" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#fda4af" />
+                  <stop offset="100%" stopColor="#e11d48" />
+                </linearGradient>
+              </defs>
+            </svg>
+
+            {/* Grid bàn cờ 15x15 kích thước mở rộng */}
+            <div
+              role="grid"
+              aria-label="Bàn cờ Caro 15 nhân 15"
+              aria-rowcount={SIZE}
+              aria-colcount={SIZE}
+              className="grid border border-cyan-500/20 rounded-lg overflow-hidden w-full aspect-square"
+              style={{
+                gridTemplateColumns: `repeat(${SIZE}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${SIZE}, minmax(0, 1fr))`,
+                background: 'linear-gradient(135deg, rgba(6,182,212,0.03) 0%, transparent 50%, rgba(99,102,241,0.03) 100%)',
+                boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)',
               }}
             >
-              {/* Viền neon sáng trên */}
-              <div
-                className="absolute top-0 left-0 right-0 h-px pointer-events-none"
-                style={{
-                  background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.6) 30%, rgba(99,102,241,0.6) 70%, transparent)',
-                  boxShadow: '0 0 12px rgba(6,182,212,0.5)',
-                }}
-              />
+              {Array.from({ length: SIZE * SIZE }, (_, idx) => {
+                const y = Math.floor(idx / SIZE)
+                const x = idx % SIZE
+                const val = board[y][x]
+                const isStar = STAR_POINTS.has(`${x}-${y}`)
+                const isLast = lastMove?.x === x && lastMove?.y === y
+                const isWin = isWinningCell(x, y)
+                const isRightEdge = x === SIZE - 1
+                const isBottomEdge = y === SIZE - 1
 
-              {/* Định nghĩa gradient dùng chung một lần */}
-              <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
-                <defs>
-                  <linearGradient id="caroXWin" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#6ee7b7" />
-                    <stop offset="100%" stopColor="#10b981" />
-                  </linearGradient>
-                  <linearGradient id="caroX" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#67e8f9" />
-                    <stop offset="100%" stopColor="#0891b2" />
-                  </linearGradient>
-                  <linearGradient id="caroO" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#fda4af" />
-                    <stop offset="100%" stopColor="#e11d48" />
-                  </linearGradient>
-                </defs>
-              </svg>
-
-              {/* Grid bàn cờ 15x15 kích thước mở rộng: ô cờ to hơn rõ rệt (lên đến 41.3px/ô trên 2xl) */}
-              <div
-                role="grid"
-                aria-label="Bàn cờ Caro 15 nhân 15"
-                aria-rowcount={SIZE}
-                aria-colcount={SIZE}
-                className="grid border border-cyan-500/20 rounded-lg overflow-hidden w-full aspect-square"
-                style={{
-                  gridTemplateColumns: `repeat(${SIZE}, minmax(0, 1fr))`,
-                  gridTemplateRows: `repeat(${SIZE}, minmax(0, 1fr))`,
-                  background: 'linear-gradient(135deg, rgba(6,182,212,0.03) 0%, transparent 50%, rgba(99,102,241,0.03) 100%)',
-                  boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)',
-                }}
-              >
-                {Array.from({ length: SIZE * SIZE }, (_, idx) => {
-                  const y = Math.floor(idx / SIZE)
-                  const x = idx % SIZE
-                  const val = board[y][x]
-                  const isStar = STAR_POINTS.has(`${x}-${y}`)
-                  const isLast = lastMove?.x === x && lastMove?.y === y
-                  const isWin = isWinningCell(x, y)
-                  const isRightEdge = x === SIZE - 1
-                  const isBottomEdge = y === SIZE - 1
-
-                  return (
-                    <div
-                      key={`${x}-${y}`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
+                return (
+                  <div
+                    key={`${x}-${y}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleClick(x, y)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
                         handleClick(x, y)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          handleClick(x, y)
-                        }
-                      }}
-                      aria-disabled={!!val || khoaBan || undefined}
-                      aria-label={`Ô hàng ${y + 1} cột ${x + 1}${val ? `, quân ${val}` : ', còn trống'}`}
-                      className={cn(
-                        'relative flex items-center justify-center group',
-                        'transition-colors duration-100 ease-out select-none',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/70',
-                        !isRightEdge && 'border-r',
-                        !isBottomEdge && 'border-b',
-                        isWin
-                          ? 'border-emerald-500/40'
-                          : isLast
-                            ? 'border-cyan-500/25'
-                            : 'border-white/[0.07]',
-                        !val && !khoaBan && 'cursor-pointer hover:z-10',
-                        val && 'cursor-default',
-                        khoaBan && 'cursor-not-allowed',
-                      )}
-                      style={{
-                        backgroundColor: isWin
-                          ? 'rgba(16,185,129,0.18)'
-                          : isLast
-                            ? 'rgba(6,182,212,0.12)'
-                            : undefined,
-                        boxShadow: isWin
-                          ? 'inset 0 0 12px rgba(16,185,129,0.25)'
+                      }
+                    }}
+                    aria-disabled={!!val || khoaBan || undefined}
+                    aria-label={`Ô hàng ${y + 1} cột ${x + 1}${val ? `, quân ${val}` : ', còn trống'}`}
+                    className={cn(
+                      'relative flex items-center justify-center group',
+                      'transition-colors duration-100 ease-out select-none',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/70',
+                      !isRightEdge && 'border-r',
+                      !isBottomEdge && 'border-b',
+                      isWin
+                        ? 'border-emerald-500/40'
+                        : isLast
+                          ? 'border-cyan-500/25'
+                          : 'border-white/[0.07]',
+                      !val && !khoaBan && 'cursor-pointer hover:z-10',
+                      val && 'cursor-default',
+                      khoaBan && 'cursor-not-allowed',
+                    )}
+                    style={{
+                      backgroundColor: isWin
+                        ? 'rgba(16,185,129,0.18)'
+                        : isLast
+                          ? 'rgba(6,182,212,0.12)'
                           : undefined,
-                      }}
-                    >
-                      {/* Hover glow - chỉ khi ô trống */}
-                      {!val && !khoaBan && (
-                        <span
-                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
-                          style={{
-                            background: currentTurn === 'X'
-                              ? 'radial-gradient(circle, rgba(6,182,212,0.22) 0%, transparent 70%)'
-                              : 'radial-gradient(circle, rgba(244,63,94,0.22) 0%, transparent 70%)',
-                          }}
-                        />
-                      )}
+                      boxShadow: isWin
+                        ? 'inset 0 0 12px rgba(16,185,129,0.25)'
+                        : undefined,
+                    }}
+                  >
+                    {!val && !khoaBan && (
+                      <span
+                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
+                        style={{
+                          background: currentTurn === 'X'
+                            ? 'radial-gradient(circle, rgba(6,182,212,0.22) 0%, transparent 70%)'
+                            : 'radial-gradient(circle, rgba(244,63,94,0.22) 0%, transparent 70%)',
+                        }}
+                      />
+                    )}
 
-                      {/* Star point to hơn, sáng rõ hơn */}
-                      {isStar && !val && (
-                        <span
-                          className="size-2 rounded-full pointer-events-none"
-                          style={{
-                            background: 'rgba(99,102,241,0.75)',
-                            boxShadow: '0 0 8px rgba(99,102,241,0.9)',
-                          }}
-                        />
-                      )}
+                    {isStar && !val && (
+                      <span
+                        className="size-2 rounded-full pointer-events-none"
+                        style={{
+                          background: 'rgba(99,102,241,0.75)',
+                          boxShadow: '0 0 8px rgba(99,102,241,0.9)',
+                        }}
+                      />
+                    )}
 
-                      {/* Quân X nét to rõ ràng (64%) */}
-                      {val === 'X' && (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className={cn(
-                            'w-[64%] h-[64%] transition-transform duration-200 pointer-events-none',
-                            isWin && 'scale-110'
-                          )}
-                          aria-hidden="true"
-                          focusable="false"
-                        >
-                          <line x1="5.5" y1="5.5" x2="19.5" y2="19.5" stroke="rgba(0,0,0,0.55)" strokeWidth="3.6" strokeLinecap="round" transform="translate(0.5,0.5)" />
-                          <line x1="19.5" y1="5.5" x2="5.5" y2="19.5" stroke="rgba(0,0,0,0.55)" strokeWidth="3.6" strokeLinecap="round" transform="translate(0.5,0.5)" />
-                          <line x1="5.5" y1="5.5" x2="19.5" y2="19.5" stroke={isWin ? 'url(#caroXWin)' : 'url(#caroX)'} strokeWidth="3.2" strokeLinecap="round" />
-                          <line x1="19.5" y1="5.5" x2="5.5" y2="19.5" stroke={isWin ? 'url(#caroXWin)' : 'url(#caroX)'} strokeWidth="3.2" strokeLinecap="round" />
-                        </svg>
-                      )}
+                    {val === 'X' && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={cn(
+                          'w-[64%] h-[64%] transition-transform duration-200 pointer-events-none',
+                          isWin && 'scale-110'
+                        )}
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <line x1="5.5" y1="5.5" x2="19.5" y2="19.5" stroke="rgba(0,0,0,0.55)" strokeWidth="3.6" strokeLinecap="round" transform="translate(0.5,0.5)" />
+                        <line x1="19.5" y1="5.5" x2="5.5" y2="19.5" stroke="rgba(0,0,0,0.55)" strokeWidth="3.6" strokeLinecap="round" transform="translate(0.5,0.5)" />
+                        <line x1="5.5" y1="5.5" x2="19.5" y2="19.5" stroke={isWin ? 'url(#caroXWin)' : 'url(#caroX)'} strokeWidth="3.2" strokeLinecap="round" />
+                        <line x1="19.5" y1="5.5" x2="5.5" y2="19.5" stroke={isWin ? 'url(#caroXWin)' : 'url(#caroX)'} strokeWidth="3.2" strokeLinecap="round" />
+                      </svg>
+                    )}
 
-                      {/* Quân O vòng tròn to rõ ràng (64%) */}
-                      {val === 'O' && (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className={cn(
-                            'w-[64%] h-[64%] transition-transform duration-200 pointer-events-none',
-                            isWin && 'scale-110'
-                          )}
-                          aria-hidden="true"
-                          focusable="false"
-                        >
-                          <circle cx="12.5" cy="12.5" r="6.5" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="3.6" />
-                          <circle cx="12" cy="12" r="6.5" fill="none" stroke={isWin ? 'url(#caroXWin)' : 'url(#caroO)'} strokeWidth="3.2" />
-                          <path d="M 7.5 9 A 6.5 6.5 0 0 1 16.5 9" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.6" strokeLinecap="round" />
-                        </svg>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Viền neon sáng dưới */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
-                style={{
-                  background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.4) 30%, rgba(6,182,212,0.4) 70%, transparent)',
-                }}
-              />
+                    {val === 'O' && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={cn(
+                          'w-[64%] h-[64%] transition-transform duration-200 pointer-events-none',
+                          isWin && 'scale-110'
+                        )}
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <circle cx="12.5" cy="12.5" r="6.5" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="3.6" />
+                        <circle cx="12" cy="12" r="6.5" fill="none" stroke={isWin ? 'url(#caroXWin)' : 'url(#caroO)'} strokeWidth="3.2" />
+                        <path d="M 7.5 9 A 6.5 6.5 0 0 1 16.5 9" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
-            {/* Đế bàn cờ phẳng */}
+            {/* Viền neon sáng dưới */}
             <div
-              className="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-2xl"
+              className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
               style={{
-                background: 'linear-gradient(to bottom, #030610, #020409)',
-                borderTop: '1px solid rgba(6,182,212,0.15)',
+                background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.4) 30%, rgba(6,182,212,0.4) 70%, transparent)',
               }}
             />
           </div>
 
-          {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
-          <GameHeroicBanner
-            type={heroicBanner?.type ?? null}
-            title={heroicBanner?.title}
-            visible={Boolean(heroicBanner)}
-            onClose={() => setHeroicBanner(null)}
+          {/* Đế bàn cờ phẳng */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-2xl"
+            style={{
+              background: 'linear-gradient(to bottom, #030610, #020409)',
+              borderTop: '1px solid rgba(6,182,212,0.15)',
+            }}
           />
+        </div>
 
-          {/* Bong bóng biểu cảm khi màn hình nhỏ (< xl) không có hai cột hai bên */}
-          <div className="xl:hidden absolute top-2 right-2 z-30 pointer-events-none">
-            <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
+        {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
+        <GameHeroicBanner
+          type={heroicBanner?.type ?? null}
+          title={heroicBanner?.title}
+          visible={Boolean(heroicBanner)}
+          onClose={() => setHeroicBanner(null)}
+        />
+
+        {/* THANH NGƯỜI CHƠI (DƯỚI BÀN CỜ) */}
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-7 rounded-md bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center font-black text-xs text-cyan-300 shrink-0">
+              X
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate">
+                {banOnline ? (benToiOnline === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)') : (playerSide === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)')}
+              </span>
+            </div>
           </div>
-          <div className="xl:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+
+          <div className="flex items-center gap-2 shrink-0">
             <GamePlayerBubble bubble={playerBubble} theme="cyan" />
+            <div
+              className={cn(
+                'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
+                currentTurn === playerSide && isPlaying && !winner
+                  ? 'border-cyan-400/60 bg-cyan-950/40 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse'
+                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+              )}
+            >
+              {formatClockTime(clock.timeRemaining)}
+            </div>
           </div>
         </div>
 
-        {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden xl:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
-          {/* VÙNG 2: Tin nhắn đối thủ (Địch / AI) ở góc trên */}
-          <div className="w-full flex justify-center">
-            <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
+        {/* Thiết lập thời gian khi chưa vào trận (chỉ hiện trước ván) */}
+        {!isPlaying && (
+          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-white/[0.03] border border-white/5 text-xs">
+            <span className="text-[11px] text-text-tertiary font-medium">Thời gian mỗi lượt:</span>
+            {TIME_PRESETS.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => clock.proposeTime(sec)}
+                className={cn(
+                  'px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer border',
+                  (clock.myPendingProposal ?? clock.turnSeconds) === sec
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm'
+                    : 'bg-white/5 border-white/10 text-text-tertiary hover:text-text-primary',
+                )}
+              >
+                {sec}s
+              </button>
+            ))}
           </div>
+        )}
 
-          {/* VÙNG 1+: Tin nhắn của ta ở góc dưới */}
-          <div className="w-full flex justify-center">
-            <GamePlayerBubble bubble={playerBubble} theme="cyan" />
-          </div>
-        </div>
+        {/* Token kiểm thử giao diện đồng nhất: shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] */}
+        <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true" />
       </div>
 
       {/* Modal Xin thua 3 lần đếm ngược 5s */}

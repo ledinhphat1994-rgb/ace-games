@@ -87,6 +87,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [nguoiDung, moAuthModal])
 
   const location = useLocation()
+  const isGameRoom = location.pathname.startsWith('/game/')
   // Trang 3 cột (xếp hạng | nội dung | chat & bạn bè): Game và Học tập dùng khung rộng.
   const isWidePage =
     location.pathname.startsWith('/arena') || location.pathname.startsWith('/game') || location.pathname.startsWith('/learn')
@@ -100,8 +101,8 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex min-h-svh bg-canvas text-foreground">
-      {/* 0. Desktop Sidebar (Sticky left) */}
-      {!isFullscreen && (
+      {/* 0. Desktop Sidebar (Sticky left) - Tự động thu gọn khi đang trong ván game đấu (Zen mode) */}
+      {!isFullscreen && !isGameRoom && (
         <AppSidebar
           nguoiDung={nguoiDung}
           coTinNhanMoi={coTinNhanMoi}
@@ -134,9 +135,11 @@ export function AppShell({ children }: AppShellProps) {
             'w-full flex-1 transition-all',
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
-              : isWidePage
-                ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
-                : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
+              : isGameRoom
+                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-2 sm:pt-4 pb-[calc(20px+env(safe-area-inset-bottom))] mx-auto flex flex-col justify-center'
+                : isWidePage
+                  ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
+                  : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
           )}
         >
         {/* Single-device policy warning banner */}

@@ -288,20 +288,11 @@ export function GamePlayToolbar({
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span
-                    className={cn(
-                      'text-sm sm:text-base font-black tracking-wide uppercase bg-clip-text text-transparent drop-shadow-sm truncate',
-                      title.toLowerCase().includes('tướng')
-                        ? 'bg-gradient-to-r from-red-400 to-rose-400'
-                        : title.toLowerCase().includes('rắn')
-                          ? 'bg-gradient-to-r from-emerald-400 to-teal-300'
-                          : 'bg-gradient-to-r from-amber-400 to-yellow-300',
-                    )}
-                  >
+                  <span className="text-xs sm:text-sm font-bold tracking-tight text-text-primary truncate">
                     {title}
                   </span>
                   {badge && (
-                    <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-slate-300 shrink-0">
+                    <span className="text-[10px] font-medium font-mono px-1.5 py-0.2 rounded-md bg-white/5 border border-white/10 text-text-tertiary shrink-0">
                       {badge}
                     </span>
                   )}
@@ -333,21 +324,21 @@ export function GamePlayToolbar({
           {rightSlot && <div className="game-toolbar-slot flex items-center shrink-0">{rightSlot}</div>}
           {nutFullscreen && <div className="game-toolbar-fullscreen flex items-center shrink-0">{nutFullscreen}</div>}
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'messages' }))}
-            className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
+            className="h-8 gap-1.5 border border-white/10 bg-white/5 hover:bg-white/10 px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
             title="Mở trò chuyện phòng"
             aria-label="Trò chuyện phòng"
           >
-            <MessageCircle className="size-3.5 text-cyan-300" />
+            <MessageCircle className="size-3.5 text-cyan-400" />
             <span className="game-control-label">Chat</span>
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'leaderboard' }))}
-            className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
+            className="h-8 gap-1.5 border border-white/10 bg-white/5 hover:bg-white/10 px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
             title="Mở bảng xếp hạng"
             aria-label="Bảng xếp hạng"
           >

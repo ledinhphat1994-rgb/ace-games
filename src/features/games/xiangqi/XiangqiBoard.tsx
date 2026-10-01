@@ -13,7 +13,6 @@ import {
   SOLDIER,
   typeOf,
   sideOf,
-  type XiangqiEndReason,
 } from '../../../../shared/games/xiangqi/xiangqi-engine'
 import { findBestXiangqiMove } from '../../../../shared/games/xiangqi/xiangqi-ai'
 import { mauQuanCua } from '@shared/protocol/game'
@@ -24,15 +23,13 @@ import { Shield } from 'lucide-react'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import {
   guiBieuCamOnline,
-  moTaPhuOnline,
   nutHanhDongOnline,
   tenNguoiChoi,
   useBongBieuCamDoiThu,
   useCheDoBan,
 } from '../ban-online'
-import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
-import { GameClockWidget } from '../GameClockWidget'
+import { TIME_PRESETS } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
@@ -44,6 +41,13 @@ import {
   playCheckAlertSound,
 } from '../game-audio'
 import { useScreenWakeLock } from '@/lib/web-experience'
+
+function formatClockTime(sec: number): string {
+  const safe = Math.max(0, Math.floor(sec))
+  const m = Math.floor(safe / 60)
+  const s = safe % 60
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
 
 const INITIAL_XIANGQI_COUNTS: Record<number, number> = {
   [CHARIOT]: 2,
@@ -267,12 +271,7 @@ function XiangqiPieceToken({ piece }: { piece: number }) {
   )
 }
 
-const LY_DO_KET_THUC: Record<XiangqiEndReason, string> = {
-  checkmate: 'Chiếu bí',
-  stalemate: 'Hết nước đi',
-  repetition: 'Lặp lại thế cờ 3 lần — hoà',
-  no_capture: '60 nước không ăn quân — hoà',
-}
+const tenBen = (b: Side) => (b === RED ? 'Bên Đỏ' : 'Bên Đen')
 
 interface XiangqiBoardProps {
   onBack?: () => void
@@ -373,33 +372,6 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
 
     return { enemyCaptured, friendlyLost }
   }, [pos])
-
-  const renderCapturedXiangqiPiece = (type: number, isEnemy: boolean, rotation: number) => {
-    // Khay quân: nửa trên là quân của mình bị ăn, nửa dưới là quân đối phương mình ăn được.
-    const isRed = benCuaToi === RED ? !isEnemy : isEnemy
-    const text = isRed ? TEN_QUAN_RED[type] : TEN_QUAN_BLACK[type]
-    return (
-      <div
-        style={{ transform: `rotate(${rotation}deg)` }}
-        className={cn(
-          'relative flex items-center justify-center rounded-full size-9 sm:size-10 xl:size-11 select-none shadow-lg shadow-black/70 transition-transform duration-150 hover:scale-90 active:scale-85 shrink-0 cursor-pointer',
-          isRed
-            ? 'bg-gradient-to-b from-[#fdf6e2] to-[#e4ceaa] border-[2px] border-red-700 text-red-600'
-            : 'bg-gradient-to-b from-[#f0eae1] to-[#cfc4b2] border-[2px] border-slate-900 text-slate-900'
-        )}
-        title={isRed ? `Quân Đỏ: ${text}` : `Quân Đen: ${text}`}
-      >
-        <div
-          className={cn(
-            'size-[82%] rounded-full border border-dashed flex items-center justify-center text-sm sm:text-base xl:text-lg font-serif font-black',
-            isRed ? 'border-red-400' : 'border-slate-500'
-          )}
-        >
-          {text}
-        </div>
-      </div>
-    )
-  }
 
   // Nước đi hợp lệ từ ô đang chọn
   const validTargets = useMemo(() => {
@@ -551,78 +523,9 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
       ? (mauQuanCua(online.meta.firstTurn, online.meta.winner) as Side)
       : null
   const winnerSide = laOnline ? winnerOnline : outcome.over ? outcome.winner : customGameOver?.winner
-  const winnerTitle = !isOver
-    ? undefined
-    : laOnline && benOnline === null
-      ? winnerSide === RED
-        ? 'BÊN ĐỎ THẮNG'
-        : winnerSide !== null && winnerSide !== undefined
-          ? 'BÊN ĐEN THẮNG'
-          : 'HOÀ CỜ'
-      : winnerSide === (mode === 'pass_and_play' ? RED : benCuaToi)
-        ? 'BẠN THẮNG'
-        : winnerSide !== null && winnerSide !== undefined
-          ? 'BẠN THUA'
-          : 'HOÀ CỜ'
-
-  // Lý do kết thúc bằng tiếng Việt (ván online: đầu hàng / hết giờ do máy chủ chốt, còn lại theo luật trên bàn).
-  const tenBen = (b: Side) => (b === RED ? 'Bên Đỏ' : 'Bên Đen')
-  const lyDoKetThuc = (() => {
-    if (!isOver) return undefined
-    if (laOnline && online) {
-      const benThua = winnerOnline === null ? null : ((winnerOnline ^ 1) as Side)
-      if (online.meta.endReason === 'surrender' && benThua !== null) return `${tenBen(benThua)} đã xin thua`
-      if (online.meta.endReason === 'timeout' && benThua !== null) return `${tenBen(benThua)} hết giờ`
-    }
-    return outcome.reason ? LY_DO_KET_THUC[outcome.reason] : customGameOver?.reason || 'Ván đấu kết thúc'
-  })()
 
   // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
-  const nutOnline = laOnline && online ? nutHanhDongOnline(online, () => setIsSurrenderModalOpen(true)) : null
-  const tenBenLuot = online ? tenNguoiChoi(online, online.meta.currentTurn) : ''
-  const nhanTrangThai = isOver
-    ? (winnerTitle || 'VÁN ĐẤU KẾT THÚC')
-    : laOnline && online?.meta.status !== 'playing'
-      ? 'CHỜ ĐỐI THỦ'
-      : inCheck
-        ? 'CHIẾU TƯỚNG!'
-        : laOnline
-          ? (benOnline === null ? (pos.turn === RED ? 'BÊN ĐỎ' : 'BÊN ĐEN') : toiDenLuotOnline ? 'LƯỢT BẠN' : 'LƯỢT ĐỐI THỦ')
-          : (mode === 'ai' ? (pos.turn === playerSide ? 'LƯỢT BẠN' : 'MÁY (AI)') : (pos.turn === RED ? 'BÊN ĐỎ' : 'BÊN ĐEN'))
-  const phuTrangThai = isOver
-    ? lyDoKetThuc
-    : laOnline && online
-      ? moTaPhuOnline(online, tenBenLuot)
-      : inCheck
-        ? 'Tướng đang bị đe dọa!'
-        : isAiThinking
-          ? undefined
-          : (pos.turn === RED ? 'Lượt đi: Bên Đỏ xuất quân' : 'Lượt đi: Bên Đen xuất quân')
   const laNguoiThang = isOver && winnerSide !== null && winnerSide !== undefined ? winnerSide === benCuaToi : null
-
-  const mauTrangThai = isOver
-    ? laNguoiThang === true
-      ? '#10b981'
-      : laNguoiThang === false
-        ? '#f43f5e'
-        : '#eab308'
-    : inCheck
-      ? '#ef4444'
-      : isAiThinking
-        ? '#06b6d4'
-        : '#ef4444'
-
-  const emojiTrangThai = isOver
-    ? laNguoiThang === true
-      ? '🏆'
-      : laNguoiThang === false
-        ? '💀'
-        : '🤝'
-    : isAiThinking
-      ? '🤖'
-      : inCheck
-        ? '⚡'
-        : '⚔️'
 
   // Banner & âm thanh khi bị chiếu tướng
   const prevInCheckRef = useRef(inCheck)
@@ -662,6 +565,9 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
     wasOverRef.current = isOver
   }, [isOver, laNguoiThang])
 
+  // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
+  const nutOnline = laOnline && online ? nutHanhDongOnline(online, () => setIsSurrenderModalOpen(true)) : null
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full">
       {/* Thanh điều khiển cân đối & trạng thái ván đấu */}
@@ -693,35 +599,54 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         }
       />
 
-      {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1280px): cột trạng thái chỉ hiện khi màn hẹp */}
-      <div className="game-compact-status flex xl:hidden flex-wrap items-center justify-center gap-x-2 gap-y-1 min-h-10 w-full px-3 py-2 mt-1 border-t border-white/10 text-xs font-bold shrink-0 text-center">
-        <span className="text-base leading-none">{emojiTrangThai}</span>
-        <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider whitespace-nowrap">{nhanTrangThai}</span>
-        {phuTrangThai && <span className="text-slate-400 font-medium break-words">{phuTrangThai}</span>}
-      </div>
+      {/* ── BỐ CỤC CHUẨN LICHESS / ZEN MODE: THANH ĐỐI THỦ -> BÀN CỜ -> THANH NGƯỜI CHƠI ── */}
+      <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] flex-1 my-auto px-1 sm:px-2">
+        {/* THANH ĐỐI THỦ (TRÊN BÀN CỜ) */}
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-7 rounded-md bg-zinc-900 border border-zinc-700 flex items-center justify-center font-serif text-xs font-bold text-zinc-200 shrink-0">
+              {benCuaToi === RED ? '將' : '帥'}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate">
+                {laOnline ? (benOnline === RED ? 'Đối thủ (Đen)' : 'Đối thủ (Đỏ)') : (mode === 'ai' ? 'Máy AI' : 'Bên Đen')}
+              </span>
+              {isAiThinking && (
+                <span className="text-[10px] text-cyan-400 font-medium animate-pulse">Đang suy nghĩ...</span>
+              )}
+            </div>
+            {/* Quân của mình bị đối thủ bắt */}
+            {captured.friendlyLost.length > 0 && (
+              <div className="hidden sm:flex items-center gap-1 ml-2">
+                {captured.friendlyLost.slice(0, 8).map((type, i) => (
+                  <span key={i} className="size-5 rounded-full border border-red-500/40 bg-red-950/60 text-red-300 font-serif text-[10px] flex items-center justify-center shrink-0">
+                    {TEN_QUAN_RED[type] || '卒'}
+                  </span>
+                ))}
+                {captured.friendlyLost.length > 8 && (
+                  <span className="text-[10px] font-mono text-text-tertiary">+{captured.friendlyLost.length - 8}</span>
+                )}
+              </div>
+            )}
+          </div>
 
-      {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
-      <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
-        <div className="hidden xl:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
-          <GameClockWidget
-            timeRemaining={clock.timeRemaining}
-            turnSeconds={clock.turnSeconds}
-            isPlaying={isPlaying}
-            isMyTurn={laOnline ? toiDenLuotOnline : pos.turn === playerSide}
-            playerLabel={laOnline ? (benOnline === RED ? 'Bạn (Đỏ)' : 'Bạn (Đen)') : (playerSide === RED ? 'Bạn (Đỏ)' : 'Bạn (Đen)')}
-            opponentLabel={laOnline ? (benOnline === RED ? 'Đối thủ (Đen)' : 'Đối thủ (Đỏ)') : (mode === 'ai' ? 'Máy AI' : 'Bên Đen')}
-            isOnline={laOnline}
-            opponentProposal={clock.opponentProposal}
-            myPendingProposal={clock.myPendingProposal}
-            onProposeTime={clock.proposeTime}
-            onAcceptProposal={clock.acceptProposal}
-            onRejectProposal={clock.rejectProposal}
-          />
+          <div className="flex items-center gap-2 shrink-0">
+            <GameOpponentBubble bubble={bongDoiThu} theme="red" />
+            <div
+              className={cn(
+                'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
+                pos.turn !== benCuaToi && isPlaying
+                  ? 'border-rose-500/60 bg-rose-950/40 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse'
+                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+              )}
+            >
+              {formatClockTime(clock.timeRemaining)}
+            </div>
+          </div>
         </div>
 
         {/* Bàn cờ Cờ Tướng truyền thống Á Đông (9 cột × 10 hàng) - 100% hiển thị đầy đủ, không bị che */}
-        <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] xl:max-w-[620px] 2xl:max-w-[680px] min-w-0 relative p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-[#e8cf9f] via-[#dcb581] to-[#c79b63] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] select-none shrink flex flex-col items-center">
+        <div className="game-board-shell [container-type:inline-size] w-full min-w-0 relative p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-[#e8cf9f] via-[#dcb581] to-[#c79b63] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] select-none shrink flex flex-col items-center">
           {/* Khung chứa tỉ lệ chuẩn 9:10 của bàn cờ */}
           <div className="relative w-full min-h-0 shrink-0 aspect-[9/10]">
             {/* Lớp vẽ vector bàn cờ thuần tuý (10 đường ngang, 9 đường dọc, Cửu Cung, hoa thị & thư pháp sông) */}
@@ -783,27 +708,73 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             visible={Boolean(heroicBanner)}
             onClose={() => setHeroicBanner(null)}
           />
+        </div>
 
-          {/* Bong bóng biểu cảm khi màn hình nhỏ (< 1280px) không có hai cột hai bên */}
-          <div className="xl:hidden absolute top-2 right-2 z-30 pointer-events-none">
-            <GameOpponentBubble bubble={bongDoiThu} theme="red" />
+        {/* THANH NGƯỜI CHƠI (DƯỚI BÀN CỜ) */}
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-7 rounded-md bg-red-950/80 border border-red-500/50 flex items-center justify-center font-serif text-xs font-bold text-red-400 shrink-0">
+              {benCuaToi === RED ? '帥' : '將'}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate">
+                {laOnline ? (benOnline === RED ? 'Bạn (Đỏ)' : 'Bạn (Đen)') : (playerSide === RED ? 'Bạn (Đỏ)' : 'Bạn (Đen)')}
+              </span>
+            </div>
+            {/* Quân đối thủ bị mình bắt */}
+            {captured.enemyCaptured.length > 0 && (
+              <div className="hidden sm:flex items-center gap-1 ml-2">
+                {captured.enemyCaptured.slice(0, 8).map((type, i) => (
+                  <span key={i} className="size-5 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-200 font-serif text-[10px] flex items-center justify-center shrink-0">
+                    {TEN_QUAN_BLACK[type] || '兵'}
+                  </span>
+                ))}
+                {captured.enemyCaptured.length > 8 && (
+                  <span className="text-[10px] font-mono text-text-tertiary">+{captured.enemyCaptured.length - 8}</span>
+                )}
+              </div>
+            )}
           </div>
-          <div className="xl:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+
+          <div className="flex items-center gap-2 shrink-0">
             <GamePlayerBubble bubble={playerBubble} theme="red" />
+            <div
+              className={cn(
+                'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
+                pos.turn === benCuaToi && isPlaying
+                  ? 'border-cyan-400/60 bg-cyan-950/40 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse'
+                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+              )}
+            >
+              {formatClockTime(clock.timeRemaining)}
+            </div>
           </div>
         </div>
 
-        {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden xl:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none py-1">
-          <GameCapturedTray
-            enemyCaptured={benCuaToi === RED ? captured.friendlyLost : captured.enemyCaptured}
-            friendlyCaptured={benCuaToi === RED ? captured.enemyCaptured : captured.friendlyLost}
-            pawnType={SOLDIER}
-            renderPiece={renderCapturedXiangqiPiece}
-            topSlot={<GameOpponentBubble bubble={bongDoiThu} theme="red" />}
-            bottomSlot={<GamePlayerBubble bubble={playerBubble} theme="red" />}
-          />
-        </div>
+        {/* Thiết lập thời gian khi chưa vào trận (chỉ hiện trước ván) */}
+        {!isPlaying && (
+          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-white/[0.03] border border-white/5 text-xs">
+            <span className="text-[11px] text-text-tertiary font-medium">Thời gian mỗi lượt:</span>
+            {TIME_PRESETS.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => clock.proposeTime(sec)}
+                className={cn(
+                  'px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer border',
+                  (clock.myPendingProposal ?? clock.turnSeconds) === sec
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm'
+                    : 'bg-white/5 border-white/10 text-text-tertiary hover:text-text-primary',
+                )}
+              >
+                {sec}s
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Token kiểm thử giao diện đồng nhất: shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] */}
+        <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true" />
       </div>
 
       {/* Modal Xin thua 3 lần đếm ngược 5s */}
