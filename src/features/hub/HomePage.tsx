@@ -290,15 +290,17 @@ export function HomePage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setMoTaoPhong(true)}
-                  className="h-8 gap-1.5 text-xs font-semibold border-border-default bg-surface text-text-primary hover:bg-surface-overlay cursor-pointer"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Tạo phòng</span>
-                </Button>
+                {activeRoomsPreview.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMoTaoPhong(true)}
+                    className="h-8 gap-1.5 text-xs font-semibold border-border-default bg-surface text-text-primary hover:bg-surface-overlay cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Tạo phòng</span>
+                  </Button>
+                )}
 
                 <Button
                   variant="ghost"
