@@ -16,7 +16,6 @@ import {
   DoorOpen,
   Gamepad2,
   Plus,
-  Sparkles,
   Users,
   MessageSquare,
 } from 'lucide-react'
@@ -108,50 +107,37 @@ export function HomePage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12">
-      {/* ── 1. Hero Grand Hall (Thoáng đãng, sang trọng, êm mắt) ── */}
+      {/* ── 1. Hero Grand Hall (Bento Grid: Hiện đại, thanh lịch, êm mắt) ── */}
       <section
         aria-label="Lời chào và giới thiệu"
-        className="relative overflow-hidden rounded-3xl border border-border-default/80 bg-surface shadow-md"
+        className="relative overflow-hidden rounded-2xl border border-border-default bg-surface shadow-xs"
       >
         {/* Background Image with Ambient Gradient */}
         <div className="absolute inset-0 z-0">
           <img
             src="/assets/campus/hero_banner.webp"
             alt="Digital Campus"
-            className="h-full w-full object-cover object-center opacity-30 dark:opacity-35 img-crisp transition-opacity duration-300"
+            className="h-full w-full object-cover object-right opacity-25 dark:opacity-30 img-crisp transition-opacity duration-300"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-canvas via-canvas/90 to-transparent dark:from-canvas dark:via-canvas/85" />
-          <div className="absolute -top-24 -left-24 size-80 rounded-full bg-brand/15 blur-3xl pointer-events-none" />
-          <div className="absolute top-1/2 -right-24 size-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/92 to-transparent dark:from-surface dark:via-surface/90" />
         </div>
 
         {/* Content */}
-        <div className="relative z-10 p-6 sm:p-10 lg:p-12 max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3.5 py-1 text-xs font-bold text-brand mb-3.5 shadow-xs backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-brand animate-pulse" />
-            <span>Digital Campus · Xin chào, {displayName}! 👋</span>
+        <div className="relative z-10 p-6 sm:p-9 lg:p-10 max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 py-1 text-xs font-semibold text-text-secondary mb-3 shadow-xs">
+            <span className="size-2 rounded-full bg-brand animate-pulse" />
+            <span>Digital Campus · Lớp 10A7 · Xin chào, {displayName}!</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-text-primary tracking-tight leading-[1.2]">
-            Học tập thông minh. Đấu trường sôi động. Gắn kết mỗi ngày.
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary tracking-tight leading-[1.2]">
+            Không gian học tập & đấu trường số
           </h1>
 
           <p className="mt-3 text-xs sm:text-sm lg:text-base text-text-secondary leading-relaxed max-w-2xl">
-            Không gian kết nối trường học số — cùng bạn bè khám phá bài giảng, trao đổi học nhóm và so tài các bộ môn cờ trí tuệ thời gian thực.
+            Kết nối phòng học trực tuyến, bài giảng tương tác và thi đấu các bộ môn cờ trí tuệ thời gian thực cùng bạn học.
           </p>
 
-          {/* Status Chips */}
-          <div className="mt-5 flex flex-wrap items-center gap-2 sm:gap-2.5">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 backdrop-blur-sm">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              100% Realtime
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand/25 bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand backdrop-blur-sm">
-              🎓 Lớp 10A7 · 2026-2027
-            </span>
-          </div>
-
-          {/* Canonical Action */}
+          {/* Canonical Actions */}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button
               size="lg"
@@ -160,6 +146,15 @@ export function HomePage() {
             >
               <Plus className="h-4 w-4 mr-2" />
               <span>Tạo phòng học mới</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate('/learn')}
+              className="h-11 px-5 rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary font-semibold text-sm transition-all cursor-pointer"
+            >
+              <span>Khám phá các phòng</span>
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
         </div>
@@ -280,9 +275,9 @@ export function HomePage() {
                 <div
                   key={game.id}
                   onClick={() => navigate(`/arena/${game.id}`)}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 bg-surface hover:border-brand/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default bg-surface hover:border-brand/40 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs"
                 >
-                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-900">
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-canvas">
                     <img
                       src={game.cover}
                       alt={game.title}
@@ -290,8 +285,8 @@ export function HomePage() {
                       decoding="async"
                       className="h-full w-full object-cover img-crisp group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <span className="absolute bottom-2.5 left-3 text-xs sm:text-sm font-bold text-white drop-shadow-sm">
+                    <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent" />
+                    <span className="absolute bottom-2.5 left-3 text-xs sm:text-sm font-bold text-text-primary drop-shadow-xs">
                       {game.shortTitle}
                     </span>
                   </div>
@@ -301,7 +296,7 @@ export function HomePage() {
                     </span>
                     <Button
                       size="sm"
-                      className="h-6 px-2.5 text-[11px] font-bold rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 cursor-pointer shadow-xs"
+                      className="h-7 px-3 text-xs font-semibold rounded-lg bg-brand text-brand-foreground hover:bg-brand-hover cursor-pointer shadow-xs"
                       onClick={(e) => {
                         e.stopPropagation()
                         navigate(`/arena/${game.id}`)
@@ -316,7 +311,7 @@ export function HomePage() {
           </section>
         </div>
 
-        {/* Right 1 column: Live Online Friends + Campus Shortcuts */}
+        {/* Right 1 column: Live Online Friends */}
         <div className="space-y-6">
           {/* Friends Online Widget */}
           <section aria-label="Bạn bè online" className="space-y-3">
@@ -345,7 +340,7 @@ export function HomePage() {
                     variant="outline"
                     size="sm"
                     onClick={() => navigate('/community')}
-                    className="h-8 px-3 text-xs border-border-default bg-surface hover:bg-surface-overlay text-text-primary cursor-pointer"
+                    className="h-8 px-3 text-xs border-border-default bg-surface hover:bg-surface-raised text-text-primary cursor-pointer"
                   >
                     Khám phá bạn học
                   </Button>
@@ -355,11 +350,11 @@ export function HomePage() {
                   {onlineFriends.slice(0, 6).map((friend) => (
                     <div
                       key={friend.id}
-                      className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-surface-overlay transition-colors"
+                      className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-surface-raised transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="relative shrink-0">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-brand font-bold text-xs border border-brand/30">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-raised text-text-primary font-bold text-xs border border-border-subtle">
                             {friend.displayName.slice(0, 2).toUpperCase()}
                           </div>
                           <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-surface" />
@@ -375,7 +370,7 @@ export function HomePage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-text-secondary hover:text-brand"
+                        className="h-7 w-7 text-text-secondary hover:text-text-primary"
                         onClick={() => handleOpenChatWith(friend.id, friend.displayName)}
                         title={`Nhắn tin cho ${friend.displayName}`}
                       >

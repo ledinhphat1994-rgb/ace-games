@@ -30,18 +30,18 @@ interface RoomCardProps {
   onVaoPhong?: (room: PhongSanh) => void
 }
 
-const MON: Record<MonHoc, { icon: LucideIcon; nen: string }> = {
-  toan: { icon: Calculator, nen: 'from-sky-500 to-blue-600' },
-  'ngu-van': { icon: BookOpen, nen: 'from-rose-500 to-pink-600' },
-  'tieng-anh': { icon: Languages, nen: 'from-violet-500 to-indigo-600' },
-  'vat-li': { icon: Atom, nen: 'from-brand to-teal-600' },
-  'hoa-hoc': { icon: FlaskConical, nen: 'from-fuchsia-500 to-purple-600' },
-  'sinh-hoc': { icon: Leaf, nen: 'from-emerald-500 to-green-600' },
-  'lich-su': { icon: Landmark, nen: 'from-amber-500 to-orange-600' },
-  'dia-li': { icon: Globe2, nen: 'from-lime-500 to-emerald-600' },
-  'tin-hoc': { icon: Code2, nen: 'from-slate-500 to-slate-700' },
-  gdcd: { icon: Scale, nen: 'from-yellow-500 to-amber-600' },
-  khac: { icon: GraduationCap, nen: 'from-brand to-indigo-600' },
+const MON: Record<MonHoc, { icon: LucideIcon; style: string }> = {
+  toan: { icon: Calculator, style: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
+  'ngu-van': { icon: BookOpen, style: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+  'tieng-anh': { icon: Languages, style: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
+  'vat-li': { icon: Atom, style: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+  'hoa-hoc': { icon: FlaskConical, style: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20' },
+  'sinh-hoc': { icon: Leaf, style: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  'lich-su': { icon: Landmark, style: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  'dia-li': { icon: Globe2, style: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
+  'tin-hoc': { icon: Code2, style: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  gdcd: { icon: Scale, style: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+  khac: { icon: GraduationCap, style: 'bg-brand/10 text-brand border-brand/20' },
 }
 
 export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
@@ -55,13 +55,13 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
     <div
       data-testid={`room-card-${room.id}`}
       onClick={() => onVaoPhong?.(room)}
-      className="group flex cursor-pointer flex-col gap-4 rounded-2xl border border-border-subtle bg-canvas/60 p-4 transition-all duration-150  hover:border-brand/40 hover:bg-surface-overlay"
+      className="group flex cursor-pointer flex-col gap-3.5 rounded-2xl border border-border-default bg-surface p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised shadow-xs"
     >
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            'flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-text-primary shadow-lg ring-1 ring-white/15',
-            mon.nen,
+            'flex size-10 shrink-0 items-center justify-center rounded-xl border shadow-xs',
+            mon.style,
           )}
         >
           <Icon className="size-5" />
