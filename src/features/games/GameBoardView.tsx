@@ -43,10 +43,11 @@ export function GameBoardView({
   const roomName = meta.gameType === 'chess' ? 'Phòng Cờ Vua' : meta.gameType === 'xiangqi' ? 'Phòng Cờ Tướng' : 'Phòng Cờ Caro'
   return (
     <ResponsiveActivityLayout
+      utilityMode="floating"
       leaderboard={<GameArenaLeaderboard defaultGame={meta.gameType} />}
       social={<GameSocialSidebar roomId={gameId} roomName={roomName} userRole={userRole} chatBan={chatBan} />}
     >
-      <div className="game-stage flex min-w-0 w-full flex-col rounded-2xl border border-border-default bg-surface p-2 sm:p-3.5">
+      <div className="game-stage flex min-w-0 w-full flex-col rounded-3xl border border-white/[0.08] bg-surface/95 backdrop-blur-2xl p-2.5 sm:p-4 shadow-2xl">
         {meta.gameType === 'chess' ? <ChessBoard onBack={onLeave} online={online} /> : meta.gameType === 'xiangqi' ? <XiangqiBoard onBack={onLeave} online={online} /> : <CaroBoard onBack={onLeave} online={online} />}
       </div>
     </ResponsiveActivityLayout>

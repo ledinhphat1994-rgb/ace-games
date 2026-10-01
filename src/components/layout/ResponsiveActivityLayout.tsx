@@ -32,6 +32,17 @@ export function ResponsiveActivityLayout({ leaderboard, social, children, testId
     return () => document.removeEventListener('fullscreenchange', handleFs)
   }, [])
 
+  useEffect(() => {
+    const handleOpenPanel = (e: Event) => {
+      const custom = e as CustomEvent<'leaderboard' | 'messages'>
+      if (custom.detail === 'leaderboard' || custom.detail === 'messages') {
+        setPanel(custom.detail)
+      }
+    }
+    window.addEventListener('activity:open-panel', handleOpenPanel)
+    return () => window.removeEventListener('activity:open-panel', handleOpenPanel)
+  }, [])
+
   const inlinePanels = desktop && utilityMode === 'inline'
   const panels = [
     { id: 'leaderboard' as const, label: 'Bảng xếp hạng', content: leaderboard, icon: <Trophy className="size-5" /> },

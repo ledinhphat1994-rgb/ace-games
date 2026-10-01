@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, Flag, Maximize2, Minimize2, Play, RotateCcw, Zap } from 'lucide-react'
+import { ArrowLeft, Flag, Maximize2, Minimize2, Play, RotateCcw, Zap, MessageCircle, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CumPvePvp } from './CumPvePvp'
@@ -332,6 +332,28 @@ export function GamePlayToolbar({
           <div className="game-toolbar-modes min-w-0 flex items-center justify-center shrink-0">{cumChedo}</div>
           {rightSlot && <div className="game-toolbar-slot flex items-center shrink-0">{rightSlot}</div>}
           {nutFullscreen && <div className="game-toolbar-fullscreen flex items-center shrink-0">{nutFullscreen}</div>}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'messages' }))}
+            className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
+            title="Mở trò chuyện phòng"
+            aria-label="Trò chuyện phòng"
+          >
+            <MessageCircle className="size-3.5 text-cyan-300" />
+            <span className="game-control-label">Chat</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'leaderboard' }))}
+            className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
+            title="Mở bảng xếp hạng"
+            aria-label="Bảng xếp hạng"
+          >
+            <Trophy className="size-3.5 text-amber-400" />
+            <span className="game-control-label">Xếp hạng</span>
+          </Button>
           {!hideCenterTurn && (
             <div className="game-toolbar-turn flex min-w-0 items-center justify-center px-1 shrink-0">
               {outcomeNotice ? (

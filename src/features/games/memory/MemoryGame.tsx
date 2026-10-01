@@ -438,8 +438,8 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         }
       />
 
-      {/* Trạng thái ván gọn khi màn nhỏ (< lg) */}
-      <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
+      {/* Trạng thái ván gọn khi màn nhỏ (< xl) */}
+      <div className="flex xl:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
         <span className="text-base leading-none">
           {isGameOver ? (isWinner === true ? '🏆' : isWinner === false ? '💀' : '🤝') : (turn === 1 ? '🧠' : '🤖')}
         </span>
@@ -467,7 +467,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
       {/* ── 2. Bố cục 3 khối cân xứng tối giản như Caro: Cột trái (Vùng 1) | Bàn chơi | Cột phải (Vùng 1+/Vùng 1) ── */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu phát quang ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[480px] xl:h-[540px] 2xl:h-[580px] select-none text-center">
+        <div className="hidden xl:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[480px] xl:h-[540px] 2xl:h-[580px] select-none text-center">
           <GameStatusWidget
             icon={isGameOver ? (isWinner ? '🏆' : '💀') : (turn === 1 ? '🧠' : '🤖')}
             label={
@@ -491,7 +491,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         </div>
 
         {/* ── BÀN CHƠI TRUNG TÂM: LƯỚI THẺ 4x4 (VÙNG 4 ĐÃ FIX LOGIC) ── */}
-        <div className="game-board-shell relative flex w-full max-w-[464px] min-w-0 flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border border-white/10 bg-slate-950/80 shadow-2xl backdrop-blur-xl shrink">
+        <div className="game-board-shell relative flex w-full max-w-[480px] xl:max-w-[540px] 2xl:max-w-[580px] min-w-0 flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border border-white/10 bg-slate-950/80 shadow-2xl backdrop-blur-xl shrink">
           <div className="grid w-full grid-cols-4 gap-1.5 sm:gap-3 p-1">
             {cards.map((card, idx) => {
               const isFlipped = flipped.includes(idx) || matched.includes(idx)
@@ -541,17 +541,17 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
             })}
           </div>
 
-          {/* Bong bóng biểu cảm khi màn hình nhỏ (< lg) không có hai cột hai bên */}
-          <div className="lg:hidden absolute top-2 right-2 z-30 pointer-events-none">
+          {/* Bong bóng biểu cảm khi màn hình nhỏ (< xl) không có hai cột hai bên */}
+          <div className="xl:hidden absolute top-2 right-2 z-30 pointer-events-none">
             <GameOpponentBubble bubble={opponentBubble} theme="violet" />
           </div>
-          <div className="lg:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+          <div className="xl:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
             <GamePlayerBubble bubble={playerBubble} theme="violet" />
           </div>
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[480px] xl:h-[540px] 2xl:h-[580px] select-none py-2">
+        <div className="hidden xl:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[480px] xl:h-[540px] 2xl:h-[580px] select-none py-2">
           {/* VÙNG 2: Tin nhắn đối thủ (Địch / AI) ở góc trên */}
           <div className="w-full flex justify-center">
             <GameOpponentBubble bubble={opponentBubble} theme="violet" />

@@ -693,8 +693,8 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         }
       />
 
-      {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
-      <div className="game-compact-status flex min-[1920px]:hidden flex-wrap items-center justify-center gap-x-2 gap-y-1 min-h-10 w-full px-3 py-2 mt-1 border-t border-white/10 text-xs font-bold shrink-0 text-center">
+      {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1280px): cột trạng thái chỉ hiện khi màn hẹp */}
+      <div className="game-compact-status flex xl:hidden flex-wrap items-center justify-center gap-x-2 gap-y-1 min-h-10 w-full px-3 py-2 mt-1 border-t border-white/10 text-xs font-bold shrink-0 text-center">
         <span className="text-base leading-none">{emojiTrangThai}</span>
         <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider whitespace-nowrap">{nhanTrangThai}</span>
         {phuTrangThai && <span className="text-slate-400 font-medium break-words">{phuTrangThai}</span>}
@@ -703,7 +703,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
+        <div className="hidden xl:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
           <GameClockWidget
             timeRemaining={clock.timeRemaining}
             turnSeconds={clock.turnSeconds}
@@ -721,7 +721,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         </div>
 
         {/* Bàn cờ Cờ Tướng truyền thống Á Đông (9 cột × 10 hàng) - 100% hiển thị đầy đủ, không bị che */}
-        <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] min-w-0 relative p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-[#e8cf9f] via-[#dcb581] to-[#c79b63] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] select-none shrink flex flex-col items-center">
+        <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] xl:max-w-[620px] 2xl:max-w-[680px] min-w-0 relative p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-[#e8cf9f] via-[#dcb581] to-[#c79b63] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] select-none shrink flex flex-col items-center">
           {/* Khung chứa tỉ lệ chuẩn 9:10 của bàn cờ */}
           <div className="relative w-full min-h-0 shrink-0 aspect-[9/10]">
             {/* Lớp vẽ vector bàn cờ thuần tuý (10 đường ngang, 9 đường dọc, Cửu Cung, hoa thị & thư pháp sông) */}
@@ -784,17 +784,17 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             onClose={() => setHeroicBanner(null)}
           />
 
-          {/* Bong bóng biểu cảm khi màn hình nhỏ (< 1920px) không có hai cột hai bên */}
-          <div className="min-[1920px]:hidden absolute top-2 right-2 z-30 pointer-events-none">
+          {/* Bong bóng biểu cảm khi màn hình nhỏ (< 1280px) không có hai cột hai bên */}
+          <div className="xl:hidden absolute top-2 right-2 z-30 pointer-events-none">
             <GameOpponentBubble bubble={bongDoiThu} theme="red" />
           </div>
-          <div className="min-[1920px]:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+          <div className="xl:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
             <GamePlayerBubble bubble={playerBubble} theme="red" />
           </div>
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none py-1">
+        <div className="hidden xl:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none py-1">
           <GameCapturedTray
             enemyCaptured={benCuaToi === RED ? captured.friendlyLost : captured.enemyCaptured}
             friendlyCaptured={benCuaToi === RED ? captured.enemyCaptured : captured.friendlyLost}

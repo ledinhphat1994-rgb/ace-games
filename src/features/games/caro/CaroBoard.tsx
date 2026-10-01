@@ -419,7 +419,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
       {/* ── KHUNG CHƠI TRUNG TÂM: 3 CỘT ĐỒNG BỘ CÙNG CẤP (CỘT TRÁI - BÀN CỜ - CỘT PHẢI) ── */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
+        <div className="hidden xl:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
           <GameClockWidget
             timeRemaining={clock.timeRemaining}
             turnSeconds={clock.turnSeconds}
@@ -438,8 +438,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
 
         {/* ── CỘT GIỮA: BÀN CỜ CARO 15×15 (TO HƠN, Ô CỜ TO RÕ RÀNG) ── */}
         <div className="relative shrink-0 select-none z-10 flex flex-col items-center">
-          {/* Thanh trạng thái phụ nhỏ gọn khi hai cột bên bàn cờ bị ẩn (< 1920px), chiều cao cố định */}
-          <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
+          {/* Thanh trạng thái phụ nhỏ gọn khi hai cột bên bàn cờ bị ẩn (< xl), chiều cao cố định */}
+          <div className="flex xl:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
             <span className="text-base leading-none">{emojiTrangThai}</span>
             <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider">{nhanTrangThai}</span>
             {isAiThinking && (
@@ -457,7 +457,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
 
           {/* Khung bàn cờ phẳng to hơn */}
           <div
-            className="game-board-shell relative w-full max-w-[644px] min-w-0 rounded-2xl overflow-hidden shrink"
+            className="game-board-shell relative w-full max-w-[580px] xl:max-w-[640px] 2xl:max-w-[700px] min-w-0 rounded-2xl overflow-hidden shrink"
             style={{
               boxShadow: [
                 '0 18px 40px rgba(0,0,0,0.7)',
@@ -657,17 +657,17 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
             onClose={() => setHeroicBanner(null)}
           />
 
-          {/* Bong bóng biểu cảm khi màn hình nhỏ (< 1920px) không có hai cột hai bên */}
-          <div className="min-[1920px]:hidden absolute top-2 right-2 z-30 pointer-events-none">
+          {/* Bong bóng biểu cảm khi màn hình nhỏ (< xl) không có hai cột hai bên */}
+          <div className="xl:hidden absolute top-2 right-2 z-30 pointer-events-none">
             <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
           </div>
-          <div className="min-[1920px]:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+          <div className="xl:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
             <GamePlayerBubble bubble={playerBubble} theme="cyan" />
           </div>
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
+        <div className="hidden xl:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
           {/* VÙNG 2: Tin nhắn đối thủ (Địch / AI) ở góc trên */}
           <div className="w-full flex justify-center">
             <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
