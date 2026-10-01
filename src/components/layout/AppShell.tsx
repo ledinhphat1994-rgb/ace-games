@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppHeader } from './AppHeader'
+import { AppSidebar } from './AppSidebar'
 import { MobileNav } from './MobileNav'
 import { CampusChatSheet } from './CampusChatSheet'
 
@@ -99,7 +100,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="flex min-h-svh flex-col bg-canvas text-foreground">
+    <div className="flex min-h-svh bg-canvas text-foreground">
+      {/* Desktop Left Sidebar (Approved Reference Design) */}
+      {!isFullscreen && <AppSidebar className="hidden lg:flex" />}
 
       {/* Main Content Column */}
       <div className="flex flex-1 flex-col min-w-0">
