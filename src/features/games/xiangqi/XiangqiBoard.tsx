@@ -89,17 +89,19 @@ function XiangqiPieceToken({ piece }: { piece: number }) {
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center rounded-full size-[96%] select-none transition-transform duration-150 hover:scale-92 active:scale-85 shadow-xl cursor-pointer',
+        'relative flex items-center justify-center rounded-full size-[93%] select-none transition-transform duration-150 hover:scale-95 active:scale-90 cursor-pointer z-10',
         isRed
-          ? 'bg-gradient-to-b from-[#fdf6e2] to-[#e4ceaa] border-[2.5px] border-red-700 shadow-red-950/50 text-red-600 font-bold'
-          : 'bg-gradient-to-b from-[#f0eae1] to-[#cfc4b2] border-[2.5px] border-slate-900 shadow-black/60 text-slate-900 font-bold'
+          ? 'bg-gradient-to-br from-[#fffdf8] via-[#f7e8ce] to-[#dfbf92] border-[2px] border-[#9c5928]/60 ring-1 ring-[#6e350c]/80 shadow-[0_5px_12px_rgba(0,0,0,0.55),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(130,60,15,0.35)]'
+          : 'bg-gradient-to-br from-[#fcfbf7] via-[#eee5d4] to-[#cebea9] border-[2px] border-[#483e34]/60 ring-1 ring-[#1f1812]/80 shadow-[0_5px_12px_rgba(0,0,0,0.55),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(40,30,20,0.35)]'
       )}
     >
-      {/* Vòng tròn hoa văn bên trong */}
+      {/* Vòng tròn hoa văn khắc chìm tinh xảo (Solid concentric groove) */}
       <div
         className={cn(
-          'size-[85%] rounded-full border border-dashed flex items-center justify-center text-[clamp(10px,6cqi,36px)] leading-none font-serif font-black',
-          isRed ? 'border-red-400' : 'border-slate-500'
+          'size-[82%] rounded-full border-[1.5px] flex items-center justify-center text-[clamp(12px,6.2cqi,36px)] leading-none font-serif font-black',
+          isRed
+            ? 'border-[#b91c1c]/45 text-[#b91c1c] drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]'
+            : 'border-[#18181b]/40 text-[#18181b] drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]'
         )}
       >
         {text}
@@ -543,16 +545,26 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         </div>
 
         {/* Bàn cờ Cờ Tướng truyền thống Á Đông (9 cột × 10 hàng) - 100% hiển thị đầy đủ, không bị che */}
-        <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] min-w-0 relative p-2.5 sm:p-3 rounded-2xl bg-[#caa472] border-4 border-[#82542a] shadow-2xl shadow-black/60 select-none shrink flex flex-col items-center">
+        <div className="game-board-shell [container-type:inline-size] w-full max-w-[572px] min-w-0 relative p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-[#e8cf9f] via-[#dcb581] to-[#c79b63] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_-2px_6px_rgba(0,0,0,0.4)] select-none shrink flex flex-col items-center">
           {/* Lưới và Sông */}
           <div className="relative grid grid-cols-9 grid-rows-10 w-full min-h-0 shrink-0 aspect-[9/10]">
             {/* Đường vẽ sông Sở Hà Hán Giới ở giữa hàng 4 và 5 */}
-            <div className="absolute inset-x-2 top-[45%] h-[10%] flex items-center justify-around pointer-events-none text-[clamp(7px,2.2cqi,14px)] whitespace-nowrap font-serif font-black text-[#6d441f]/75 tracking-widest border-y border-[#6d441f]/60 bg-[#d8b586]/40">
-              <span>楚 河 (Sở Hà)</span>
-              <span>漢 界 (Hán Giới)</span>
+            <div className="absolute inset-x-0 top-[40%] h-[20%] flex items-center justify-between px-6 sm:px-10 pointer-events-none z-0 border-y-2 border-[#6d441f]/70 bg-gradient-to-r from-[#e5ca9c]/50 via-[#f0dbb5]/70 to-[#e5ca9c]/50">
+              <div className="flex items-baseline gap-1.5 select-none drop-shadow-xs">
+                <span className="font-serif font-black text-base sm:text-lg text-[#5a3314] tracking-widest">楚 河</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-[#7c4d24]/90 tracking-wide">(Sở Hà)</span>
+              </div>
+              <div className="h-0.5 w-12 sm:w-16 bg-gradient-to-r from-transparent via-[#6d441f]/40 to-transparent" />
+              <div className="flex items-baseline gap-1.5 select-none drop-shadow-xs">
+                <span className="text-[10px] sm:text-xs font-semibold text-[#7c4d24]/90 tracking-wide">(Hán Giới)</span>
+                <span className="font-serif font-black text-base sm:text-lg text-[#5a3314] tracking-widest">漢 界</span>
+              </div>
             </div>
 
             {Array.from({ length: 90 }, (_, idx) => {
+              const screenRow = Math.floor(idx / 9)
+              const screenCol = idx % 9
+
               // Hàng 9 xuống 0 (Đỏ ở dưới: hàng 0..4, Đen ở trên: hàng 5..9); cầm quân Đen thì xoay bàn cho quân mình ở dưới
               const r = latBan ? Math.floor(idx / 9) : 9 - Math.floor(idx / 9)
               const f = latBan ? 8 - (idx % 9) : idx % 9
@@ -563,6 +575,23 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
               const isValidTarget = validTargets.includes(sq)
               const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
 
+              // Đường chéo Cửu Cung kinh điển (Cung trên: hàng 0..2 cột 3..5 | Cung dưới: hàng 7..9 cột 3..5)
+              const isPalaceDiagMain =
+                (screenRow === 0 && screenCol === 3) ||
+                (screenRow === 2 && screenCol === 5) ||
+                (screenRow === 7 && screenCol === 3) ||
+                (screenRow === 9 && screenCol === 5) ||
+                (screenRow === 1 && screenCol === 4) ||
+                (screenRow === 8 && screenCol === 4)
+
+              const isPalaceDiagAnti =
+                (screenRow === 0 && screenCol === 5) ||
+                (screenRow === 2 && screenCol === 3) ||
+                (screenRow === 7 && screenCol === 5) ||
+                (screenRow === 9 && screenCol === 3) ||
+                (screenRow === 1 && screenCol === 4) ||
+                (screenRow === 8 && screenCol === 4)
+
               return (
                 <div
                   key={sq}
@@ -570,11 +599,19 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
                   className={cn(
                     'relative flex items-center justify-center cursor-pointer',
                     // Đường kẻ bàn cờ cờ tướng
-                    'border-r border-b border-[#6d441f]/50',
-                    f === (latBan ? 8 : 0) && 'border-l',
-                    r === (latBan ? 0 : 9) && 'border-t'
+                    'border-r border-b border-[#6d441f]/60',
+                    screenCol === 0 && 'border-l border-[#6d441f]/60',
+                    screenRow === 0 && 'border-t border-[#6d441f]/60'
                   )}
                 >
+                  {/* Đường chéo Cửu Cung */}
+                  {(isPalaceDiagMain || isPalaceDiagAnti) && (
+                    <svg className="absolute inset-0 size-full pointer-events-none stroke-[#6d441f]/50 stroke-[1.5]" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {isPalaceDiagMain && <line x1="0" y1="0" x2="100" y2="100" />}
+                      {isPalaceDiagAnti && <line x1="100" y1="0" x2="0" y2="100" />}
+                    </svg>
+                  )}
+
                   {/* Quân cờ */}
                   {piece > 0 && <XiangqiPieceToken piece={piece} />}
 
@@ -592,12 +629,12 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
 
                   {/* Ô được chọn */}
                   {isSelected && (
-                    <span className="absolute inset-0 ring-4 ring-inset ring-cyan-400 rounded-lg pointer-events-none z-10" />
+                    <span className="absolute inset-0 ring-4 ring-inset ring-cyan-400 rounded-lg pointer-events-none z-20" />
                   )}
 
                   {/* Nước đi vừa thực hiện */}
                   {isLastMoveSq && !isSelected && (
-                    <span className="absolute inset-0 bg-amber-400/25 pointer-events-none" />
+                    <span className="absolute inset-0 bg-amber-400/30 pointer-events-none z-10" />
                   )}
                 </div>
               )

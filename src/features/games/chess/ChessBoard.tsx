@@ -606,8 +606,8 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         </div>
 
         {/* Bàn cờ 8×8 thiết kế gỗ sang trọng - 100% hiển thị đầy đủ, không bị che */}
-        <div className="game-board-shell w-full max-w-[600px] min-w-0 relative p-2 sm:p-3 rounded-2xl bg-amber-950/80 border-4 border-amber-900 shadow-2xl shadow-black/60 shrink flex flex-col items-center">
-          <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-amber-900/60 rounded-lg overflow-hidden select-none">
+        <div className="game-board-shell w-full max-w-[600px] min-w-0 relative p-2.5 sm:p-3.5 rounded-2xl bg-gradient-to-br from-[#3d2314] via-[#2a170c] to-[#1c0f08] border-[5px] border-[#5a3314] shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_2px_4px_rgba(255,255,255,0.2),inset_0_-2px_6px_rgba(0,0,0,0.5)] shrink flex flex-col items-center">
+          <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-[#5a3314]/80 rounded-lg overflow-hidden select-none shadow-inner">
             {Array.from({ length: 64 }, (_, idx) => {
               // Hiển thị từ hàng 8 xuống hàng 1 (Trắng ở dưới); cầm quân Đen thì xoay bàn cho quân mình ở dưới
               const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)
@@ -627,7 +627,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
                   onClick={() => handleSquareClick(sq)}
                   className={cn(
                     'relative flex items-center justify-center cursor-pointer transition-all duration-100',
-                    isDark ? 'bg-[#b88b4a]' : 'bg-[#e3c28c]',
+                    isDark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]',
                     isLastMoveSq && 'bg-amber-400/40',
                     isSelected && 'ring-4 ring-inset ring-cyan-400 bg-cyan-400/20 z-10',
                     isKingInCheck && 'bg-destructive/40 ring-4 ring-inset ring-destructive'
