@@ -79,38 +79,36 @@ export function GameClockWidget({
   return (
     <div
       className={cn(
-        'w-full rounded-2xl bg-gradient-to-b from-[#0b1329]/95 to-[#070c1a]/95 border border-white/10 shadow-xl backdrop-blur-md p-3 flex flex-col justify-between gap-2 select-none transition-all duration-300 min-h-[175px]',
+        'w-full rounded-2xl border border-border-default/80 bg-surface/90 shadow-xl backdrop-blur-md p-3 flex flex-col justify-between gap-2.5 select-none transition-all duration-300 min-h-[175px]',
         className,
       )}
     >
-      {/* ── 1 Ô ĐỒNG HỒ ĐẾM NGƯỢC DUY NHẤT: Mình = Xanh | Đối thủ = Đỏ ── */}
+      {/* ── Ô ĐỒNG HỒ ĐẾM NGƯỢC CHUẨN ĐẤU THỦ: Mình = Cyan | Đối thủ = Rose ── */}
       <div
         className={cn(
-          'relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 overflow-hidden flex-1 justify-center',
-          isMyTurn
-            ? isEmergency
-              ? 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse'
-              : 'bg-cyan-950/40 border-cyan-500/80 shadow-[0_0_15px_rgba(6,182,212,0.35)]'
-            : isEmergency
-              ? 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse'
-              : 'bg-rose-950/40 border-rose-500/80 shadow-[0_0_15px_rgba(244,63,94,0.35)]',
+          'relative flex flex-col items-center justify-center p-3.5 rounded-xl border bg-canvas/85 transition-all duration-300 overflow-hidden flex-1',
+          isEmergency
+            ? 'border-rose-500 bg-rose-950/30 shadow-[0_0_20px_rgba(244,63,94,0.35)] animate-pulse'
+            : isMyTurn
+              ? 'border-cyan-500/40 shadow-[0_0_18px_rgba(6,182,212,0.2)]'
+              : 'border-rose-500/40 shadow-[0_0_18px_rgba(244,63,94,0.2)]',
         )}
       >
-        {/* Tên bên đang đến lượt: Mình xanh, Địch đỏ */}
-        <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider mb-1">
+        {/* Tên bên đang đến lượt */}
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider mb-1">
           <span
             className={cn(
               'size-2 rounded-full shrink-0',
               isMyTurn
-                ? 'bg-cyan-400 shadow-[0_0_6px_#22d3ee]'
-                : 'bg-rose-500 shadow-[0_0_6px_#f43f5e]',
+                ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]'
+                : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]',
               isPlaying && 'animate-ping',
             )}
           />
           <span
             className={cn(
-              'truncate max-w-[150px]',
-              isMyTurn ? 'text-cyan-300' : 'text-rose-300',
+              'truncate max-w-[150px] font-black',
+              isMyTurn ? 'text-cyan-400' : 'text-rose-400',
             )}
           >
             {currentLabel}
@@ -124,8 +122,8 @@ export function GameClockWidget({
             isEmergency
               ? 'text-rose-400 animate-pulse'
               : isMyTurn
-                ? 'text-cyan-200'
-                : 'text-rose-200',
+                ? 'text-cyan-300'
+                : 'text-rose-300',
           )}
         >
           {formatClockTime(isPlaying ? timeRemaining : safeTurnSeconds)}
@@ -133,16 +131,16 @@ export function GameClockWidget({
 
         {/* Thanh progress bar rút dần theo thời gian */}
         {isPlaying && (
-          <div className="w-full h-1.5 bg-black/40 rounded-full mt-2 overflow-hidden border border-white/5">
+          <div className="w-full h-1.5 bg-surface-overlay rounded-full mt-2 overflow-hidden border border-border-subtle">
             <div
               style={{ width: `${progressRatio * 100}%` }}
               className={cn(
                 'h-full transition-all duration-200 rounded-full',
                 isEmergency
-                  ? 'bg-rose-500'
+                  ? 'bg-rose-500 shadow-[0_0_6px_#f43f5e]'
                   : isMyTurn
-                    ? 'bg-cyan-400'
-                    : 'bg-rose-500',
+                    ? 'bg-cyan-400 shadow-[0_0_6px_#22d3ee]'
+                    : 'bg-rose-500 shadow-[0_0_6px_#f43f5e]',
               )}
             />
           </div>

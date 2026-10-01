@@ -58,19 +58,13 @@ export function CampusFeed() {
 
   // Local likes tracking
   const [likedPosts, setLikedPosts] = useState<Record<number, boolean>>({})
-  const [likeCounts, setLikeCounts] = useState<Record<number, number>>({})
 
   const toggleLike = (id: number) => {
     if (!nguoiDung) {
       moAuthModal('dang_nhap')
       return
     }
-    const isLiked = Boolean(likedPosts[id])
-    setLikedPosts((prev) => ({ ...prev, [id]: !isLiked }))
-    setLikeCounts((prev) => {
-      const current = prev[id] ?? 24
-      return { ...prev, [id]: isLiked ? Math.max(0, current - 1) : current + 1 }
-    })
+    setLikedPosts((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
   const handleShare = () => {
@@ -263,10 +257,8 @@ export function CampusFeed() {
 
       {/* ── 3. Post Feed List ── */}
       <div className="space-y-4">
-        {[...messages].reverse().map((message, idx) => {
+        {[...messages].reverse().map((message) => {
           const isLiked = Boolean(likedPosts[message.id])
-          const likeCount = likeCounts[message.id] ?? 24 + (message.id % 15)
-          const commentCount = (message.id % 8) + 2
 
           return (
             <article
@@ -342,44 +334,19 @@ export function CampusFeed() {
                 {message.noiDung}
               </p>
 
-              {/* Optional Post Media Preview (Reference Panel 6 in Image 1 & Panel 4 in Image 2) */}
-              {idx === 0 && (
-                <div className="mb-3.5 overflow-hidden rounded-xl border border-border-default/50 bg-canvas/40 aspect-[21/9] sm:aspect-[24/9]">
-                  <img
-                    src="/assets/campus/campus_building.webp"
-                    alt="Khuôn viên Digital Campus"
-                    className="h-full w-full object-cover hover:scale-102 transition-transform duration-500"
-                  />
-                </div>
-              )}
-
-              {/* Engagement Counters */}
-              <div className="flex items-center justify-between text-xs text-text-tertiary py-2 border-y border-border-subtle mb-1">
-                <span className="flex items-center gap-1">
-                  <span className="flex size-4.5 items-center justify-center rounded-full bg-rose-500 text-white text-[9px]">
-                    ❤️
-                  </span>
-                  <span className="font-semibold tabular-nums text-text-secondary">{likeCount}</span>
-                </span>
-                <div className="flex items-center gap-3">
-                  <span>{commentCount} bình luận</span>
-                  <span>12 chia sẻ</span>
-                </div>
-              </div>
-
               {/* Action Buttons Row */}
-              <div className="grid grid-cols-3 gap-1 pt-1">
+              <div className="grid grid-cols-3 gap-1 pt-2 border-t border-border-subtle/80">
                 <button
                   type="button"
                   onClick={() => toggleLike(message.id)}
                   className={cn(
-                    'flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer',
+                    'flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer',
                     isLiked
-                      ? 'text-rose-500 bg-rose-500/10 font-bold'
+                      ? 'text-rose-500 bg-rose-500/10 font-bold scale-102'
                       : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
                   )}
                 >
-                  <Heart className={cn('size-4', isLiked && 'fill-current')} />
+                  <Heart className={cn('size-4 transition-transform active:scale-125', isLiked && 'fill-current text-rose-500')} />
                   <span>{isLiked ? 'Đã thích' : 'Thích'}</span>
                 </button>
 

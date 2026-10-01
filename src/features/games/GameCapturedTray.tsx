@@ -75,7 +75,7 @@ export function GameCapturedTray({
       </div>
 
       {/* VÙNG 2: ĐƯỜNG PHÂN CÁCH CỐ ĐỊNH CHÍNH GIỮA 50% CHIỀU CAO (NGĂN CÁCH 2 PHE KHÔNG BAO GIỜ BỊ LỆCH) */}
-      <div className="w-full flex items-center justify-center shrink-0 my-0 py-1">
+      <div className="w-full flex flex-col items-center justify-center shrink-0 my-0 py-1">
         <div
           className={cn(
             'w-full transition-all duration-300',
@@ -84,6 +84,11 @@ export function GameCapturedTray({
               : 'h-[1px] bg-gradient-to-r from-transparent via-slate-500/20 to-transparent opacity-20'
           )}
         />
+        {!hasCaptured && (
+          <span className="text-[9px] font-bold uppercase tracking-widest text-text-tertiary/60 mt-1">
+            Quân ăn được
+          </span>
+        )}
       </div>
 
       {/* NỬA DƯỚI (50% CHIỀU CAO): Quân ta ăn được đổ từ trung tâm xuống + VÙNG 1 (Nút icon & tin nhắn của ta) */}

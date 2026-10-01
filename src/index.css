@@ -445,26 +445,48 @@ body {
 
 @utility glass-card {
   background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-default);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.16);
 }
 
 @utility glass-card-interactive {
   background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-default);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@utility glow-cyan {
+  box-shadow: 0 0 28px -4px rgba(34, 211, 238, 0.28);
+}
+
+@utility glow-purple {
+  box-shadow: 0 0 28px -4px rgba(168, 85, 247, 0.28);
+}
+
+@utility glow-emerald {
+  box-shadow: 0 0 28px -4px rgba(16, 185, 129, 0.28);
+}
+
+@utility glow-amber {
+  box-shadow: 0 0 28px -4px rgba(245, 158, 11, 0.28);
+}
+
+@utility img-crisp {
+  filter: contrast(1.04) saturate(1.1);
+}
+
 .dark body {
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.04), transparent),
-    radial-gradient(ellipse 60% 40% at 85% 20%, rgba(139, 92, 246, 0.03), transparent);
+    radial-gradient(ellipse 75% 50% at 50% -8%, rgba(34, 211, 238, 0.06), transparent),
+    radial-gradient(ellipse 55% 40% at 88% 18%, rgba(139, 92, 246, 0.05), transparent),
+    radial-gradient(ellipse 45% 35% at 10% 45%, rgba(16, 185, 129, 0.04), transparent);
   background-attachment: fixed;
 }
+
 
 
 /* Hoạt hình khung trống của sảnh (KhungTrongSanh hoatHinh): trôi lơ lửng + hào quang thở + bóng co giãn, cùng nhịp. */
@@ -792,15 +814,13 @@ body { min-width: 280px; }
 }
 @container game-toolbar (min-width: 36rem) {
   .game-toolbar-frame .game-toolbar-title { display: flex; }
-}
-@container game-toolbar (min-width: 64rem) {
   .game-toolbar-frame .game-control-label { display: inline; }
   .game-toolbar-frame .game-control-detail { display: flex; }
   .game-toolbar-frame .game-toolbar-modes,
   .game-toolbar-frame .game-toolbar-slot,
   .game-toolbar-frame .game-toolbar-fullscreen { display: flex; align-items: center; }
-  .game-toolbar-frame [data-testid="cum-pve-pvp"] { display: grid; width: 240px; height: 44px; }
-  .game-toolbar-frame .game-play-toolbar button { width: auto; min-width: 44px; padding-inline: 12px; gap: 6px; }
+  .game-toolbar-frame [data-testid="cum-pve-pvp"] { display: grid; width: 220px; height: 40px; }
+  .game-toolbar-frame .game-play-toolbar button { width: auto; min-width: 40px; padding-inline: 10px; gap: 6px; }
   .game-toolbar-frame [data-testid="cum-pve-pvp"] button { width: 100%; height: 100%; min-width: 0; }
 }
 
