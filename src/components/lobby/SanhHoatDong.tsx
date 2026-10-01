@@ -84,7 +84,7 @@ export function SanhHoatDong({
       {thongKe}
 
       {/* Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
-      <ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai} utilityMode="floating">
+      <ResponsiveActivityLayout testId={`${testId}-layout`} leaderboard={cotTrai} social={cotPhai} utilityMode="inline">
 
         <section
           aria-label={tieuDe}

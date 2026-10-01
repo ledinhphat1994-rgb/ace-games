@@ -13,7 +13,7 @@ import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap, chonPhongVaoNhanh, sortDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
-import { LogIn, Search } from 'lucide-react'
+import { LogIn, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
@@ -117,7 +117,7 @@ export function LearningPage() {
         hero={<CampusHero eyebrow="Digital Campus" title="Học tập" description="Cùng nhau học tốt hơn mỗi ngày." art="/assets/learning/learning_hero.webp" />}
         vaoBangMa={{ nhan: 'Vào bằng mã', onClick: canDangNhap(() => setMoVaoBangMa(true)), testId: 'join-by-code-btn' }}
         thongKe={<ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />}
-        choiNgay={{ nhan: 'Học ngay', onClick: canDangNhap(vaoPhongNhanh), testId: 'quick-join-btn' }}
+        choiNgay={rooms.length > 0 ? { nhan: 'Học ngay', onClick: canDangNhap(vaoPhongNhanh), testId: 'quick-join-btn' } : undefined}
         taoPhong={{ nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'create-room-btn' }}
         timKiem={nguoiDung ? { giaTri: tuKhoa, onDoi: datTuKhoa, goiY: 'Tìm phòng…' } : undefined}
         danhSach={{
@@ -143,7 +143,13 @@ export function LearningPage() {
               nut={{ nhan: 'Xóa tìm kiếm', onClick: () => datTuKhoa(''), phu: true }}
             />
           ) : (
-            <KhungTrongSanh testId="learning-empty-rooms" hinh={<HinhPhongTrong />} hoatHinh tieuDe="Chưa có phòng nào đang mở" />
+            <KhungTrongSanh
+              testId="learning-empty-rooms"
+              hinh={<HinhPhongTrong />}
+              hoatHinh
+              tieuDe="Chưa có phòng nào đang mở"
+              nut={{ nhan: 'Tạo phòng học', icon: <Plus className="size-4" />, onClick: canDangNhap(() => setMoTaoPhong(true)) }}
+            />
           ),
           children: danhSachPhongLoc.map((room) => (
             <RoomCard key={room.id} room={room} friends={roomFriendsMap.get(room.id)} onVaoPhong={xuLyVaoPhong} />

@@ -54,46 +54,55 @@ export interface ThongKeNhanhProps {
 
 export function ThongKeNhanh({ testId, tieuDe, nhom, bieuDo, bang, dangTai, loi, onThuLai, homNay }: ThongKeNhanhProps) {
   const [mo, setMo] = useState(false)
+  const trucTiepNhom = nhom.find((n) => n.trucTiep)
+  const coHoatDongTrucTiep = Boolean(
+    trucTiepNhom && trucTiepNhom.chiSo.some((c) => (c.giaTri ?? 0) > 0),
+  )
 
   return (
     <>
       <section
         aria-label={`Thống kê ${tieuDe}`}
         data-testid={testId}
-        className="flex flex-wrap items-center gap-x-5 gap-y-2.5 rounded-2xl border border-white/[0.08] bg-gradient-to-r from-white/[0.045] to-white/[0.015] px-4 py-3"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-surface-overlay/50 backdrop-blur-xs px-4 py-2 text-xs transition-colors hover:border-white/[0.12]"
       >
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-text-secondary">
-          <BarChart3 className="size-4 text-brand" />
-          Thống kê
-        </span>
-
-        {nhom.map((n) => (
-          <div key={n.tieuDe} className="flex min-w-0 items-center gap-3" data-testid={`${testId}-nhom`}>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-text-tertiary uppercase">
-              {n.trucTiep && <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />}
-              {n.tieuDe}
-            </span>
-            <ul className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-              {n.chiSo.map((c) => (
-                <li key={c.nhan} className="inline-flex items-center gap-1.5" title={c.nhan}>
-                  <c.icon className={cn('size-3.5', c.mau ?? 'text-text-tertiary')} />
-                  <GiaTri giaTri={c.giaTri} />
-                  <span className="text-[11px] text-text-tertiary">{c.nhan}</span>
-                </li>
-              ))}
-            </ul>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+            <BarChart3 className="size-4" />
           </div>
-        ))}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="font-semibold text-text-primary text-xs">Thống kê {tieuDe}</span>
+            {coHoatDongTrucTiep ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-400">
+                <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+                {trucTiepNhom?.chiSo
+                  .filter((c) => (c.giaTri ?? 0) > 0)
+                  .map((c) => `${c.giaTri} ${c.nhan.toLowerCase()}`)
+                  .join(' · ')}
+              </span>
+            ) : (
+              <span className="text-[11px] text-text-tertiary hidden sm:inline">
+                Quản trị viên
+              </span>
+            )}
+          </div>
+        </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {loi && (
             <Button size="icon-sm" variant="ghost" onClick={onThuLai} aria-label="Tải lại thống kê" title="Tải lại thống kê">
-              <RefreshCw className="text-warning" />
+              <RefreshCw className="size-3.5 text-warning" />
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => setMo(true)} className="rounded-xl" data-testid={`${testId}-mo-chi-tiet`}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setMo(true)}
+            className="h-8 rounded-xl px-3 text-xs font-medium text-text-secondary hover:text-text-primary gap-1"
+            data-testid={`${testId}-mo-chi-tiet`}
+          >
             Chi tiết
-            <ChevronRight />
+            <ChevronRight className="size-3.5" />
           </Button>
         </div>
       </section>
@@ -108,7 +117,7 @@ export function ThongKeNhanh({ testId, tieuDe, nhom, bieuDo, bang, dangTai, loi,
             <DialogDescription className="sr-only">Tổng quan và chi tiết số liệu 7 ngày gần nhất</DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid={`${testId}-nhom`}>
             {nhom.flatMap((n) =>
               n.chiSo.map((c) => (
                 <div key={`${n.tieuDe}-${c.nhan}`} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
