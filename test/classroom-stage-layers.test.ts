@@ -278,8 +278,8 @@ describe('Công cụ vẽ chung', () => {
     expect(netDuocCham([120, 175], cacNetNhieuDong, 5)?.id).toBe('chu-nhieu-dong')
   })
 
-  it('thanh tiêu đề: xóa nút Thành viên góc phải, giữ dải thành viên trung tâm', () => {
-    expect(topBarRaw).not.toContain('topbar-btn-members')
+  it('thanh tiêu đề: có nút Thành viên và ghi chú cạnh Chat, giữ dải thành viên trung tâm', () => {
+    expect(topBarRaw).toContain('topbar-btn-members')
     expect(topBarRaw).toContain('memberStrip')
   })
 

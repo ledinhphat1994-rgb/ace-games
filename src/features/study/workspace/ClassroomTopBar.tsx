@@ -18,6 +18,7 @@ import {
   Crown,
   Loader2,
   MessageSquare,
+  Users,
   Wifi,
   WifiOff,
   X,
@@ -90,12 +91,12 @@ export function ClassroomTopBar({
           <span className="hidden sm:inline">Rời phòng</span>
         </button>
 
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold tracking-tight text-text-primary truncate">
+        <div className="min-w-0 flex-1">
+          <h1 className="flex items-start gap-1.5 text-xs sm:text-sm font-bold tracking-tight text-text-primary break-words">
             {isHost && (
-              <Crown className="size-3.5 sm:size-4 shrink-0 text-achievement drop-shadow-xs" aria-label="Bạn là chủ phòng" />
+              <Crown className="mt-0.5 size-3.5 sm:size-4 shrink-0 text-achievement drop-shadow-xs" aria-label="Bạn là chủ phòng" />
             )}
-            <span className="truncate max-w-[140px] sm:max-w-[220px] lg:max-w-[320px]">{roomTitle}</span>
+            <span className="min-w-0 break-words">{roomTitle}</span>
           </h1>
 
           {/* Connection status */}
@@ -147,6 +148,19 @@ export function ClassroomTopBar({
               {Math.min(unreadChatCount, 99)}
             </span>
           )}
+        </button>
+
+        {/* Members & Shared Notes Drawer Toggle */}
+        <button
+          type="button"
+          onClick={() => onTogglePanel('members')}
+          className={nutPanel(activePanel === 'members')}
+          data-testid="topbar-btn-members"
+          title="Thành viên và ghi chú"
+          aria-label="Thành viên và ghi chú"
+        >
+          <Users className="size-4" />
+          <span className="hidden sm:inline">Thành viên</span>
         </button>
 
         {/* Nút hủy phòng (chỉ dành cho chủ phòng) */}

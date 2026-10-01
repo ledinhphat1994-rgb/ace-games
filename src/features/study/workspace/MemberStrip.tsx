@@ -179,7 +179,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
               {/* Chủ phòng: Icon vương miện tinh tế */}
               {laTrinhChieu && (
                 <span
-                  className="absolute -top-1 -right-1 flex size-4 sm:size-4.5 items-center justify-center rounded-full bg-achievement text-achievement-foreground shadow-2xs ring-1 ring-canvas"
+                  className="absolute -top-1 -right-1 flex size-4 sm:size-4.5 items-center justify-center rounded-full bg-achievement text-amber-950 shadow-2xs ring-1 ring-canvas"
                 >
                   <Crown className="size-2.5 sm:size-3 fill-current" />
                 </span>

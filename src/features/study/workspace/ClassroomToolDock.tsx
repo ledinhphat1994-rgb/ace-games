@@ -406,7 +406,7 @@ export function ClassroomToolDock({
                 title="Xoá hết"
                 aria-label="Xoá hết"
                 data-testid="tool-btn-clear-all"
-                className={`${nutDock} text-text-muted hover:bg-danger/10 hover:text-danger`}
+                className={`${nutDock} text-text-tertiary hover:bg-danger/10 hover:text-danger`}
               >
                 <Trash2 className="h-4.5 w-4.5" />
                 <span className={nhanDock}>Xoá hết</span>
