@@ -143,7 +143,7 @@ export function HomePage() {
       iconContainerStyle: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
     },
     {
-      to: '/rankings',
+      to: '/leaderboard',
       title: 'Bảng xếp hạng',
       description: 'Tôn vinh nỗ lực, lan tỏa cảm hứng',
       icon: Trophy,

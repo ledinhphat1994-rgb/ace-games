@@ -83,7 +83,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           </div>
 
           <Link
-            to="/rankings"
+            to="/leaderboard"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3.5 text-xs font-semibold text-text-secondary transition-colors hover:border-brand/40 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <Trophy className="size-4 text-amber-500" />

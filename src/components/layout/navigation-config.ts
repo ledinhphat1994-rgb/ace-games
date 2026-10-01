@@ -39,7 +39,7 @@ export const MAIN_NAV_ITEMS: SidebarNavItem[] = [
   { to: '/learn', label: 'Học tập', shortLabel: 'Học tập', icon: BookOpen },
   { to: '/arena', label: 'Game', shortLabel: 'Game', icon: Gamepad2 },
   { to: '/community', label: 'Cộng đồng', shortLabel: 'Cộng đồng', icon: Users },
-  { to: '/rankings', label: 'Bảng xếp hạng', shortLabel: 'Xếp hạng', icon: Trophy },
+  { to: '/leaderboard', label: 'Bảng xếp hạng', shortLabel: 'Xếp hạng', icon: Trophy },
 ]
 
 export const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
@@ -50,7 +50,7 @@ export const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
 ]
 
 export const SIDEBAR_SECONDARY_NAV: SidebarNavItem[] = [
-  { to: '/rankings', label: 'Bảng xếp hạng', icon: Trophy },
+  { to: '/leaderboard', label: 'Bảng xếp hạng', icon: Trophy },
 ]
 
 /**
