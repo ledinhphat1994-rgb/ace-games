@@ -108,6 +108,8 @@ function playSound(type: 'flip' | 'match' | 'miss' | 'win' | 'lose', muted: bool
   } catch {}
 }
 
+import { tinhDiemKetThucMemory } from './memoryScore'
+
 interface MemoryGameProps {
   onSaveScore?: (score: number) => void
   onBack?: () => void
@@ -212,6 +214,10 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
       const isMatch = cards[c1].symbol === cards[c2].symbol
 
       if (isMatch) {
+        // Ghi lại điểm số trước khi thay đổi trạng thái để tính toán chính xác khi kết thúc ván
+        const score1BeforeTurn = score1Ref.current
+        const score2BeforeTurn = score2Ref.current
+
         // GHÉP TRÚNG CẶP
         playSound('match', muted)
         aiMemoryRef.current.delete(c1)
@@ -229,8 +235,11 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         tEvalRef.current = setTimeout(() => {
           setFlipped([])
           if (newMatched.length === cards.length) {
-            const finalScore1 = score1Ref.current + (activeTurn === 1 ? 1 : 0)
-            const finalScore2 = score2Ref.current + (activeTurn === 2 ? 1 : 0)
+            const { finalScore1, finalScore2 } = tinhDiemKetThucMemory(
+              score1BeforeTurn,
+              score2BeforeTurn,
+              activeTurn,
+            )
             if (mode === 'pve') {
               if (finalScore1 > finalScore2) {
                 playSound('win', muted)

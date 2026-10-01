@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { tinhDiemKetThucMemory } from '../src/features/games/memory/memoryScore'
 import memoryRaw from '../src/features/games/memory/MemoryGame.tsx?raw'
 import soloPageRaw from '../src/features/games/SoloGamePage.tsx?raw'
 import soloStageRaw from '../src/features/games/SoloGameStage.tsx?raw'
@@ -75,6 +76,52 @@ describe('UI-6C: Memory Game Experience', () => {
     expect(memoryRaw).not.toContain('GameStatusWidget')
     expect(memoryRaw).toContain('aspect-square')
     expect(memoryRaw).toContain('grid-cols-4')
+  })
+
+  describe('deterministic final pair completion score calculation', () => {
+    it('Case A: 3-4 + final pair by Player 1 => 4-4 DRAW', () => {
+      const result = tinhDiemKetThucMemory(3, 4, 1)
+      expect(result.finalScore1).toBe(4)
+      expect(result.finalScore2).toBe(4)
+      expect(result.finalScore1 === result.finalScore2).toBe(true)
+    })
+
+    it('Case B: 4-3 + final pair by Player 1 => 5-3 Player 1 win', () => {
+      const result = tinhDiemKetThucMemory(4, 3, 1)
+      expect(result.finalScore1).toBe(5)
+      expect(result.finalScore2).toBe(3)
+      expect(result.finalScore1 > result.finalScore2).toBe(true)
+    })
+
+    it('Case C: 3-4 + final pair by Player 2 => 3-5 Player 2 win', () => {
+      const result = tinhDiemKetThucMemory(3, 4, 2)
+      expect(result.finalScore1).toBe(3)
+      expect(result.finalScore2).toBe(5)
+      expect(result.finalScore2 > result.finalScore1).toBe(true)
+    })
+
+    it('Case D: Exactly ONE point is added for the final matched pair', () => {
+      // For Player 1 turn
+      const res1 = tinhDiemKetThucMemory(2, 5, 1)
+      expect(res1.finalScore1).toBe(3)
+      expect(res1.finalScore2).toBe(5)
+      expect((res1.finalScore1 + res1.finalScore2) - (2 + 5)).toBe(1)
+
+      // For Player 2 turn
+      const res2 = tinhDiemKetThucMemory(2, 5, 2)
+      expect(res2.finalScore1).toBe(2)
+      expect(res2.finalScore2).toBe(6)
+      expect((res2.finalScore1 + res2.finalScore2) - (2 + 5)).toBe(1)
+    })
+
+    it('Case E: onSaveScore remains called once at completion with move-based formula', () => {
+      expect(memoryRaw).toContain('if (newMatched.length === cards.length)')
+      expect(memoryRaw).toContain('if (onSaveScore)')
+      expect(memoryRaw).toContain('const finalScore = Math.max(10, 1000 - (totalMoves + 1) * 25)')
+      expect(memoryRaw).toContain('onSaveScore(finalScore)')
+      const onSaveMatches = memoryRaw.match(/onSaveScore\(/g)
+      expect(onSaveMatches?.length).toBe(1)
+    })
   })
 })
 
