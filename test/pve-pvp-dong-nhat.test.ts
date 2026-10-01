@@ -26,7 +26,7 @@ describe('PvE · PvP thống nhất', () => {
     for (const cu of ['<span>PvE</span>', '<span>PvP</span>', 'Cấp độ Máy AI', 'PopoverContent']) expect(toolbarRaw).not.toContain(cu)
     expect(cumRaw).toContain('<span className="game-control-label">PvE</span>')
     expect(cumRaw).toContain('<span className="game-control-label">PvP</span>')
-    expect(cumRaw).toContain('from-cyan-500 to-blue-600')
+    expect(cumRaw).toContain('bg-brand text-primary-foreground')
     expect(cumRaw).toContain('from-amber-500 to-rose-600')
     for (const raw of [chessRaw, xiangqiRaw, caroRaw, memoryRaw, snakeRaw]) expect(raw).toContain('<GamePlayToolbar')
   })

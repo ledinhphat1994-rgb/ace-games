@@ -18,9 +18,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /** Cyan solid — primary CTA */
+        /** Solid brand — primary CTA. Foreground flips with the theme. */
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-brand-hover active:bg-brand-hover",
+          "bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_10px_22px_-16px_var(--brand)] hover:bg-brand-hover active:bg-brand-hover",
         /** Transparent with border — secondary action */
         outline:
           "border-border-default bg-transparent text-foreground hover:bg-surface-overlay hover:border-border-strong aria-expanded:bg-surface-overlay dark:border-border-default dark:hover:bg-surface-interactive",

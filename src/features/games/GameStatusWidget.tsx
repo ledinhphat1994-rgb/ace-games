@@ -36,10 +36,10 @@ export function GameStatusWidget({
   className,
 }: GameStatusWidgetProps) {
   // Xác định màu sắc động theo trạng thái
-  let mainColor = '#06b6d4'
-  let glowColor = 'rgba(6,182,212,0.35)'
-  let bgColor = 'rgba(6,182,212,0.12)'
-  let borderColor = 'rgba(6,182,212,0.45)'
+  let mainColor = '#c6a15a'
+  let glowColor = 'rgba(198,161,90,0.35)'
+  let bgColor = 'rgba(198,161,90,0.12)'
+  let borderColor = 'rgba(198,161,90,0.45)'
 
   if (isGameOver) {
     if (isWinner === true) {
@@ -108,11 +108,11 @@ export function GameStatusWidget({
         {isAiThinking && (
           <>
             <div
-              className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-400/50 animate-spin"
+              className="absolute inset-0 rounded-full border-2 border-dashed border-brand/40 animate-spin"
               style={{ animationDuration: '3s' }}
             />
             <div
-              className="absolute inset-1.5 rounded-full border border-cyan-400/30 animate-ping"
+              className="absolute inset-1.5 rounded-full border border-brand/30 animate-ping"
               style={{ animationDuration: '2s' }}
             />
           </>

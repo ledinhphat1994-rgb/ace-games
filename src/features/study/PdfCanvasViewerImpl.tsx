@@ -242,10 +242,10 @@ export function PdfCanvasViewerImpl({
       {/* Subtle non-blocking page-flip loading indicator */}
       {loading && renderedPage !== null && (
         <div
-          className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-slate-950/80 px-2.5 py-1 text-[11px] font-medium text-cyan-300 shadow-xl backdrop-blur-md border border-white/10 z-20 pointer-events-none transition-opacity animate-in fade-in"
+          className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-slate-950/80 px-2.5 py-1 text-[11px] font-medium text-brand shadow-xl backdrop-blur-md border border-white/10 z-20 pointer-events-none transition-opacity animate-in fade-in"
           data-testid="pdf-loading-indicator"
         >
-          <Loader2 className="h-3 w-3 animate-spin text-cyan-400" />
+          <Loader2 className="h-3 w-3 animate-spin text-brand" />
           <span>Đang tải trang {pageNumber}...</span>
         </div>
       )}
@@ -256,7 +256,7 @@ export function PdfCanvasViewerImpl({
           className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f18] text-xs text-slate-300 z-10"
           data-testid="pdf-initial-loading"
         >
-          <Loader2 className="h-6 w-6 animate-spin text-cyan-400 mb-2" />
+          <Loader2 className="h-6 w-6 animate-spin text-brand mb-2" />
           <span>Đang tải trang {pageNumber}...</span>
         </div>
       )}

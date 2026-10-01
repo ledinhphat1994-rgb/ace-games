@@ -7,7 +7,7 @@ import { mauNhanTroChoi } from './mau-tro-choi'
 const MAU = {
   nen: '#020617',
   luoi: '#1e293b',
-  quanX: '#06b6d4',
+  quanX: '#c6a15a',
   quanO: '#e879f9',
   thang: '#fbbf24',
 } as const

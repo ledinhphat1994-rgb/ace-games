@@ -109,7 +109,7 @@ export function AppSidebar({
                   {({ isActive }) => (
                     <>
                       {isActive && (
-                        <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-brand shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                        <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-brand shadow-none" />
                       )}
                       <Icon className={cn('h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-110', isActive ? 'text-brand' : 'text-text-secondary')} />
                       <span className="truncate">{item.label}</span>

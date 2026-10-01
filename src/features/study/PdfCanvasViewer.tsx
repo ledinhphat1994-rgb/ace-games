@@ -24,7 +24,7 @@ export function PdfCanvasViewer(props: PdfCanvasViewerProps) {
     <Suspense
       fallback={
         <div className="flex items-center justify-center h-full w-full bg-[#0a0f18] text-xs text-slate-400">
-          <Loader2 className="h-5 w-5 animate-spin mr-2 text-cyan-400" />
+          <Loader2 className="h-5 w-5 animate-spin mr-2 text-brand" />
           Đang tải trình chiếu...
         </div>
       }

@@ -22,7 +22,7 @@ const LEADERBOARD_TABS: TabGameConfig[] = [
   { id: 'hoc_tap', label: 'Học tập', icon: '📚', accentGradient: 'from-sky-500/30 to-indigo-600/10' },
   { id: 'chess', label: 'Cờ Vua', icon: '♟️', accentGradient: 'from-amber-500/30 to-yellow-600/10' },
   { id: 'xiangqi', label: 'Cờ Tướng', icon: '🏮', accentGradient: 'from-rose-500/30 to-red-600/10' },
-  { id: 'caro_15', label: 'Caro', icon: '⚔️', accentGradient: 'from-cyan-500/30 to-blue-600/10' },
+  { id: 'caro_15', label: 'Caro', icon: '⚔️', accentGradient: 'from-brand/25 to-brand/5' },
   { id: 'solo_memory', label: 'Trí Nhớ', icon: '🧠', accentGradient: 'from-purple-500/30 to-pink-600/10' },
   { id: 'solo_snake', label: 'Rắn Săn Mồi', icon: '🐍', accentGradient: 'from-emerald-500/30 to-teal-600/10' },
 ]

@@ -551,7 +551,7 @@ function HinhBanBe() {
       </defs>
       <ellipse cx="100" cy="55" rx="96" ry="54" fill="url(#ban-be-hao-quang)" />
       {[
-        { cx: 62, cy: 62, r: 22, mau: '#22d3ee' },
+        { cx: 62, cy: 62, r: 22, mau: '#c6a15a' },
         { cx: 138, cy: 62, r: 22, mau: '#34d399' },
         { cx: 100, cy: 50, r: 28, mau: '#a78bfa' },
       ].map(({ cx, cy, r, mau }) => (

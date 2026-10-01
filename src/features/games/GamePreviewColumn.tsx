@@ -8,7 +8,7 @@ import { SoloGameModal, type SoloGameType } from './SoloGameModal'
 import { GameArt } from './GameArt'
 
 const MAU_QUAN: Record<PlayerSide, string> = {
-  X: 'bg-cyan-950 text-cyan-400 shadow-[0_0_5px_rgba(6,182,212,0.85)]',
+  X: 'bg-brand/10 text-brand shadow-[0_0_5px_rgba(198,161,90,0.85)]',
   O: 'bg-fuchsia-950 text-fuchsia-400 shadow-[0_0_5px_rgba(217,70,239,0.85)]',
 }
 
@@ -74,7 +74,7 @@ function XemTruocSolo({ gameType }: { gameType: SoloGameType }) {
       <Button
         type="button"
         onClick={() => setDangChoi(true)}
-        className="h-11 w-full gap-1.5 bg-gradient-to-r from-brand to-cyan-600 font-extrabold text-slate-950 shadow-lg shadow-brand/25 hover:from-cyan-400 hover:to-cyan-500 cursor-pointer"
+        className="h-11 w-full gap-1.5 bg-brand font-extrabold text-primary-foreground shadow-lg shadow-brand/25 hover:bg-brand-hover cursor-pointer"
       >
         <Play className="size-4 fill-slate-950" /> Chơi Ngay
       </Button>
@@ -92,14 +92,14 @@ function XemTruocCoChien({ gameType, onEnterRoom }: { gameType: GameType; onEnte
           <GameArt gameType={gameType} />
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-          <Bot className="size-4 text-cyan-400" />
+          <Bot className="size-4 text-brand" />
           <span>Hỗ trợ Đấu với Máy AI & Đấu 1v1</span>
         </div>
       </div>
       <Button
         type="button"
         onClick={onEnterRoom}
-        className="h-11 w-full gap-1.5 bg-gradient-to-r from-brand to-cyan-600 font-extrabold text-slate-950 shadow-lg shadow-brand/25 hover:from-cyan-400 hover:to-cyan-500 cursor-pointer"
+        className="h-11 w-full gap-1.5 bg-brand font-extrabold text-primary-foreground shadow-lg shadow-brand/25 hover:bg-brand-hover cursor-pointer"
       >
         <Swords className="size-4" /> Vào Bàn Đấu Ngay
       </Button>
@@ -232,7 +232,7 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
       <Button
         type="button"
         onClick={onEnterRoom}
-        className="h-11 w-full gap-1.5 bg-gradient-to-r from-brand to-cyan-600 font-extrabold text-slate-950 shadow-lg shadow-brand/25 hover:from-cyan-400 hover:to-cyan-500 cursor-pointer"
+        className="h-11 w-full gap-1.5 bg-brand font-extrabold text-primary-foreground shadow-lg shadow-brand/25 hover:bg-brand-hover cursor-pointer"
       >
         <Swords className="size-4" /> Vào Đấu Ngay
       </Button>

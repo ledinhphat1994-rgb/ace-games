@@ -183,12 +183,12 @@ function HinhPhongTrong() {
     <svg viewBox="0 0 200 120" className="h-[108px] w-[180px]" aria-hidden>
       <rect x="46" y="14" width="108" height="70" rx="12" fill="#0f172a" />
       <rect x="55" y="23" width="90" height="44" rx="6" fill="#131e30" />
-      <path d="M95 37.5 L108 45 L95 52.5 Z" fill="#22d3ee" />
+      <path d="M95 37.5 L108 45 L95 52.5 Z" fill="#c6a15a" />
       <rect x="55" y="74" width="90" height="3" rx="1.5" fill="#1e293b" />
-      <rect x="55" y="74" width="38" height="3" rx="1.5" fill="#22d3ee" />
+      <rect x="55" y="74" width="38" height="3" rx="1.5" fill="#c6a15a" />
       {[
         { cx: 78, mau: '#a78bfa' },
-        { cx: 100, mau: '#22d3ee' },
+        { cx: 100, mau: '#c6a15a' },
         { cx: 122, mau: '#34d399' },
       ].map(({ cx, mau }) => (
         <g key={cx}>

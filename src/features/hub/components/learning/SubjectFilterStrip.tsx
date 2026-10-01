@@ -18,7 +18,7 @@ export function SubjectFilterStrip({ selectedSubject, onSelectSubject }: Subject
             onClick={() => onSelectSubject(subject.id)}
             className={`whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-200 border shrink-0 ${
               isSelected
-                ? 'bg-cyan-500 border-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20'
+                ? 'bg-brand border-brand text-primary-foreground shadow-md shadow-brand/15'
                 : 'bg-surface/60 border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
             }`}
           >

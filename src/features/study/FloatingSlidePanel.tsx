@@ -254,7 +254,7 @@ export function FloatingSlidePanel({
     return (
       <div
         style={{ left: position.x, top: position.y, zIndex }}
-        className="absolute flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#0d1424]/95 px-3 py-1.5 shadow-xl backdrop-blur-xl ring-1 ring-orange-500/20 cursor-move select-none"
+        className="absolute flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#1c1a14]/95 px-3 py-1.5 shadow-xl backdrop-blur-xl ring-1 ring-orange-500/20 cursor-move select-none"
         onMouseDown={startDrag}
         onClick={onFocus}
       >
@@ -344,7 +344,7 @@ export function FloatingSlidePanel({
               {slideState.fileType === 'pptx' && isGoogleSlidesUrl(slideState.docUrl) && (
                 <button
                   onClick={() => setUseGoogleViewer((v) => !v)}
-                  className="rounded p-1 text-slate-400 hover:text-cyan-300 transition-colors"
+                  className="rounded p-1 text-slate-400 hover:text-brand transition-colors"
                   title={useGoogleViewer ? 'Đang dùng Google Docs Viewer (bấm đổi Office Live)' : 'Đang dùng Office Live (bấm đổi Google Docs Viewer)'}
                 >
                   <RefreshCw className="h-3 w-3" />
@@ -684,7 +684,7 @@ export function PinnedSlideView({
         {slideState.fileType === 'pptx' && isGoogleSlidesUrl(slideState.docUrl) && (
           <button
             onClick={() => setUseGoogleViewer((v) => !v)}
-            className="rounded p-1 text-slate-400 hover:text-cyan-300 transition-colors"
+            className="rounded p-1 text-slate-400 hover:text-brand transition-colors"
             title={useGoogleViewer ? 'Đang dùng Google Docs Viewer (bấm đổi Office Live)' : 'Đang dùng Office Live (bấm đổi Google Docs Viewer)'}
           >
             <RefreshCw className="h-3 w-3" />

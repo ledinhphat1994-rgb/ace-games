@@ -47,7 +47,7 @@ export function GameAncientSeal({
             ? 'bg-gradient-to-b from-[#78350f] via-[#451a03] to-[#1c0a00] border-2 border-yellow-300 shadow-[0_0_40px_rgba(250,204,21,0.7),inset_0_0_25px_rgba(253,224,71,0.35)] ring-2 ring-yellow-400/50'
             : isLoss
               ? 'bg-gradient-to-b from-[#1e2330] via-[#121622] to-[#0a0c14] border-2 border-slate-600/80 shadow-[0_0_24px_rgba(30,41,59,0.7),inset_0_0_15px_rgba(148,163,184,0.08)] ring-1 ring-slate-500/30'
-              : 'bg-gradient-to-b from-[#0e1d2f] via-[#08121f] to-[#040910] border-2 border-cyan-400/80 shadow-[0_0_28px_rgba(6,182,212,0.4),inset_0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-300/30',
+              : 'bg-gradient-to-b from-[#0e1d2f] via-[#08121f] to-[#040910] border-2 border-brand/80 shadow-[0_0_28px_rgba(198,161,90,0.4),inset_0_0_15px_rgba(198,161,90,0.15)] ring-1 ring-brand/30',
           className
         )}
       >
@@ -64,10 +64,10 @@ export function GameAncientSeal({
         />
 
         {/* 4 góc điểm nhấn kim loại esports */}
-        <div className={cn('absolute top-2 left-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-cyan-400/60')}>◤</div>
-        <div className={cn('absolute top-2 right-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-cyan-400/60')}>◥</div>
-        <div className={cn('absolute bottom-2 left-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-cyan-400/60')}>◣</div>
-        <div className={cn('absolute bottom-2 right-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-cyan-400/60')}>◢</div>
+        <div className={cn('absolute top-2 left-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-brand/60')}>◤</div>
+        <div className={cn('absolute top-2 right-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-brand/60')}>◥</div>
+        <div className={cn('absolute bottom-2 left-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-brand/60')}>◣</div>
+        <div className={cn('absolute bottom-2 right-2 text-[10px] font-mono leading-none', isWin ? 'text-yellow-300/80' : isLoss ? 'text-slate-500/40' : 'text-brand/60')}>◢</div>
 
         {/* Khung nội dung trung tâm */}
         <div className="relative z-10 flex flex-col items-center justify-center text-center w-full">
@@ -87,9 +87,9 @@ export function GameAncientSeal({
               </>
             ) : (
               <>
-                <span className="text-[11px] text-cyan-400/80">◆</span>
-                <Award className="size-6 text-cyan-300 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
-                <span className="text-[11px] text-cyan-400/80">◆</span>
+                <span className="text-[11px] text-brand/80">◆</span>
+                <Award className="size-6 text-brand drop-shadow-[0_0_10px_rgba(198,161,90,0.8)]" />
+                <span className="text-[11px] text-brand/80">◆</span>
               </>
             )}
           </div>
@@ -103,7 +103,7 @@ export function GameAncientSeal({
                 ? 'bg-gradient-to-b from-white via-yellow-100 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(250,204,21,0.95)]'
                 : isLoss
                   ? 'bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]'
-                  : 'bg-gradient-to-b from-cyan-100 via-cyan-300 to-blue-600 bg-clip-text text-transparent'
+                  : 'bg-gradient-to-b from-brand via-brand to-brand bg-clip-text text-transparent'
             )}
           >
             {displayText}
@@ -117,7 +117,7 @@ export function GameAncientSeal({
                 ? 'bg-gradient-to-r from-transparent via-yellow-300 to-transparent shadow-[0_0_14px_rgba(250,204,21,1)]'
                 : isLoss
                   ? 'bg-gradient-to-r from-transparent via-slate-500/70 to-transparent shadow-[0_0_6px_rgba(148,163,184,0.4)]'
-                  : 'bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_8px_rgba(6,182,212,0.9)]'
+                  : 'bg-gradient-to-r from-transparent via-brand to-transparent shadow-[0_0_8px_rgba(198,161,90,0.9)]'
             )}
           />
         </div>
@@ -160,7 +160,7 @@ export function GameAncientSeal({
               isPlayerTurn
                 ? 'text-amber-300 drop-shadow-[0_2px_8px_rgba(245,158,11,0.6)]'
                 : isAiThinking
-                  ? 'text-cyan-300 animate-pulse'
+                  ? 'text-brand animate-pulse'
                   : 'text-slate-200'
             )}
           >
@@ -182,8 +182,8 @@ export function GameAncientSeal({
 
         {/* Icon phụ xoay tính toán khi AI đang nghĩ */}
         {!isPlayerTurn && isAiThinking && !isCheck && (
-          <div className="mt-0.5 flex items-center gap-1 text-[9px] font-semibold text-cyan-300">
-            <Zap className="size-3 animate-spin text-cyan-400" />
+          <div className="mt-0.5 flex items-center gap-1 text-[9px] font-semibold text-brand">
+            <Zap className="size-3 animate-spin text-brand" />
             <span>Đang suy tính…</span>
           </div>
         )}

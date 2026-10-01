@@ -34,11 +34,11 @@ export function SnakeTouchControls({ player, onSteer, onBoost }: SnakeTouchContr
         onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setBoosting(true); onBoost(true) } }} onKeyUp={stopBoost} onBlur={stopBoost}>
         <Zap className="size-5" />
       </button>
-      <div role="group" tabIndex={0} onKeyDown={event => { const angle = snakeKeyAngle(event.code); if (angle !== null) { event.preventDefault(); event.stopPropagation(); onSteer(angle) } }} aria-label={'Lái rắn P' + player} data-testid={'snake-joystick-p' + player} className={cn('relative flex size-20 touch-none select-none items-center justify-center rounded-full border bg-slate-950/55 shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-brand', player === 1 ? 'border-cyan-300/35' : 'border-rose-300/35')}
+      <div role="group" tabIndex={0} onKeyDown={event => { const angle = snakeKeyAngle(event.code); if (angle !== null) { event.preventDefault(); event.stopPropagation(); onSteer(angle) } }} aria-label={'Lái rắn P' + player} data-testid={'snake-joystick-p' + player} className={cn('relative flex size-20 touch-none select-none items-center justify-center rounded-full border bg-slate-950/55 shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-brand', player === 1 ? 'border-brand/35' : 'border-rose-300/35')}
         onPointerDown={e => { if (pointer.current !== null) return; pointer.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); move(e) }}
         onPointerMove={move} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}>
         <span className="absolute text-[10px] font-bold text-white/50">P{player}</span>
-        <span className={cn('pointer-events-none size-9 rounded-full border border-white/30 shadow-lg', player === 1 ? 'bg-cyan-400/45' : 'bg-rose-400/45')} style={{ transform: 'translate(' + thumb.x + 'px,' + thumb.y + 'px)' }} />
+        <span className={cn('pointer-events-none size-9 rounded-full border border-white/30 shadow-lg', player === 1 ? 'bg-brand/45' : 'bg-rose-400/45')} style={{ transform: 'translate(' + thumb.x + 'px,' + thumb.y + 'px)' }} />
       </div>
     </div>
   )

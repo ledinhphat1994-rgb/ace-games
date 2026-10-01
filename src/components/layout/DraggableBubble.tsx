@@ -127,7 +127,7 @@ export function DraggableBubble({ id, label, icon, actions, suspended = false, b
       <button ref={buttonRef} type="button" data-testid={'bubble-' + id} aria-label={label}
         aria-haspopup="menu" aria-expanded={open} aria-controls={open ? 'activity-bubble-menu' : undefined}
         title={label + ' · Kéo hoặc Shift + phím mũi tên để di chuyển'}
-        className={cn('flex size-12 touch-none select-none items-center justify-center rounded-full border border-cyan-300/30 bg-surface-raised text-brand shadow-[0_6px_24px_rgb(0_0_0/0.4)] outline-none transition-[background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-brand', dragging ? 'cursor-grabbing' : 'cursor-grab')}
+        className={cn('flex size-12 touch-none select-none items-center justify-center rounded-full border border-brand/30 bg-surface-raised text-brand shadow-[0_6px_24px_rgb(0_0_0/0.4)] outline-none transition-[background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-brand', dragging ? 'cursor-grabbing' : 'cursor-grab')}
         onPointerDown={event => {
           if (event.button !== 0 || !event.isPrimary) return
           setIdle(false)

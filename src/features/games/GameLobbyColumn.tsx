@@ -54,7 +54,7 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
               type="button"
               onClick={() => setFilter(f.id)}
               className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
-                filter === f.id ? 'bg-brand text-slate-950 font-black shadow-sm' : 'bg-surface-raised text-muted-foreground hover:text-foreground'
+                filter === f.id ? 'bg-brand text-primary-foreground font-black shadow-sm' : 'bg-surface-raised text-muted-foreground hover:text-foreground'
               }`}
             >
               {f.label}
@@ -71,7 +71,7 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
               type="button"
               onClick={() => setTurnSeconds(s)}
               className={`flex-1 rounded-lg py-1 text-[10px] font-bold transition-colors cursor-pointer ${
-                turnSeconds === s ? 'bg-brand text-slate-950 font-black' : 'bg-surface-raised text-muted-foreground hover:text-foreground'
+                turnSeconds === s ? 'bg-brand text-primary-foreground font-black' : 'bg-surface-raised text-muted-foreground hover:text-foreground'
               }`}
             >
               {s}s
@@ -82,7 +82,7 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
           type="button"
           size="sm"
           onClick={() => onCreate(turnSeconds)}
-          className="h-7 shrink-0 gap-1 bg-brand text-slate-950 font-bold hover:bg-brand-hover cursor-pointer"
+          className="h-7 shrink-0 gap-1 bg-brand text-primary-foreground font-bold hover:bg-brand-hover cursor-pointer"
         >
           <Plus className="size-3" /> Tạo bàn
         </Button>

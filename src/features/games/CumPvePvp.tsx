@@ -62,7 +62,7 @@ export function CumPvePvp({
               className={cn(
                 'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-full w-full font-black tracking-wide',
                 mode === 'ai'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm ring-1 ring-white/20'
+                  ? 'bg-brand text-primary-foreground shadow-sm ring-1 ring-white/20'
                   : 'text-slate-200 hover:text-white hover:bg-white/10',
               )}
               title="Nhấn để chơi PvE (Đấu máy) hoặc chọn độ khó"

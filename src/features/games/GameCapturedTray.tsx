@@ -143,8 +143,8 @@ export function GameCapturedTray({
         )}
 
         {/* Tiêu đề góc của ta */}
-        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400/90 mt-1 shrink-0">
-          <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-brand/90 mt-1 shrink-0">
+          <span className="size-1.5 rounded-full bg-brand shadow-[0_0_6px_#c6a15a]" />
           <span>Chiến tích của Bạn</span>
         </div>
 

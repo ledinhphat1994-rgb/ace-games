@@ -27,7 +27,7 @@ export function HomeDestinationCard({
           onClick()
         }
       }}
-      className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-border-default bg-[#0b101d] p-2.5 sm:p-4 cursor-pointer shadow-md sm:shadow-lg transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-500/10 flex flex-col justify-between min-h-[76px] sm:min-h-[116px]"
+      className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-border-default bg-[#17160f] p-2.5 sm:p-4 cursor-pointer shadow-md sm:shadow-lg transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1 hover:border-brand/35 hover:shadow-xl hover:shadow-brand/10 flex flex-col justify-between min-h-[76px] sm:min-h-[116px]"
     >
       {/* Background artwork */}
       <div
@@ -35,11 +35,11 @@ export function HomeDestinationCard({
         style={{ backgroundImage: `url(${item.artwork})` }}
       />
       {/* Smooth directional fade */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0b101d] via-[#0b101d]/90 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#17160f] via-[#17160f]/90 to-transparent pointer-events-none" />
 
       {/* Top Header: Icon + Arrow */}
       <div className="relative z-10 flex items-start justify-between gap-1.5 sm:gap-2">
-        <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl border border-border-default bg-surface-overlay text-brand group-hover:bg-cyan-500/15 group-hover:border-cyan-500/30 shadow-inner transition-all duration-300 group-hover:scale-105">
+        <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl border border-border-default bg-surface-overlay text-brand group-hover:bg-brand-hover/15 group-hover:border-brand/30 shadow-inner transition-all duration-300 group-hover:scale-105">
           {item.icon}
         </div>
 

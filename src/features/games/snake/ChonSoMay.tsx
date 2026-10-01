@@ -14,7 +14,7 @@ export function ChonSoMay({ soMay, onChon, className }: { soMay: number; onChon:
           className={cn(
             'flex items-center justify-center rounded-lg border py-1.5 font-mono text-xs font-bold tabular-nums transition-all cursor-pointer',
             soMay === n
-              ? 'border-cyan-500/50 bg-cyan-500/20 font-black text-cyan-300 shadow-sm'
+              ? 'border-brand/40 bg-brand/15 font-black text-brand shadow-sm'
               : 'border-white/5 text-slate-400 hover:bg-white/10 hover:text-white',
           )}
         >

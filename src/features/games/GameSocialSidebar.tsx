@@ -459,7 +459,7 @@ export function GameSocialSidebar({
                           {tenNguoiGui}
                         </span>
                         {m.role === 'player' ? (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-cyan-500/15 text-brand border border-cyan-500/30">
+                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-brand/12 text-brand border border-brand/30">
                             {m.playerSide ? `Đấu thủ ${m.playerSide}` : 'Đấu thủ'}
                           </span>
                         ) : (
@@ -636,12 +636,12 @@ export function GameSocialSidebar({
               value={campusText}
               onChange={(e) => setCampusText(e.target.value)}
               placeholder="Nhắn tới cả trường…"
-              className="h-8 text-xs bg-surface-overlay border-border-default focus-visible:ring-cyan-500/40"
+              className="h-8 text-xs bg-surface-overlay border-border-default focus-visible:ring-brand/40"
             />
             <Button
               type="submit"
               size="sm"
-              className="h-8 px-2.5 shrink-0 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold cursor-pointer"
+              className="h-8 px-2.5 shrink-0 bg-brand hover:bg-brand-hover text-primary-foreground font-bold cursor-pointer"
               disabled={!campusText.trim() || isSendingCampus}
             >
               <Send className="size-3.5" />
@@ -1102,7 +1102,7 @@ function HopChatRieng11({
                   className={cn(
                     'px-3 py-1.5 text-xs max-w-[85%] break-words shadow-sm',
                     isMe
-                      ? 'bg-cyan-500/25 border border-cyan-400/40 text-cyan-100 rounded-2xl rounded-tr-xs'
+                      ? 'bg-brand/20 border border-brand/35 text-brand rounded-2xl rounded-tr-xs'
                       : 'bg-surface-overlay border border-border-default text-text-primary rounded-2xl rounded-tl-xs',
                   )}
                 >
