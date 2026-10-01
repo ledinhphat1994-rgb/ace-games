@@ -681,11 +681,19 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
                   ? `${pieceName} tại hàng ${r + 1} cột ${f + 1}${isSelected ? ', đang chọn' : ''}`
                   : `Điểm hàng ${r + 1} cột ${f + 1}${isValidTarget ? ', nước đi hợp lệ' : ''}`
 
+                const canAct = !isOver && !isAiThinking && (laOnline ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerSide : true)
+                const isActionable = canAct && (
+                  selectedSq === null
+                    ? (piece > 0 && sideOf(piece) === pos.turn)
+                    : (isValidTarget || (piece > 0 && sideOf(piece) === pos.turn))
+                )
+
                 return (
                   <div
                     key={sq}
                     role="button"
-                    tabIndex={0}
+                    tabIndex={isActionable ? 0 : -1}
+                    aria-disabled={isActionable ? undefined : true}
                     aria-label={squareLabel}
                     onClick={() => handleSquareClick(sq)}
                     onKeyDown={(e) => {

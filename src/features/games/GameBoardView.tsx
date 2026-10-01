@@ -45,6 +45,7 @@ export function GameBoardView({
       utilityMode="floating"
       showFloatingTrigger={false}
       socialLabel="Chat phòng"
+      finalFocusSelector='[data-testid="game-room-chat-trigger"]'
       social={
         chatBan ? (
           <GameSocialSidebar

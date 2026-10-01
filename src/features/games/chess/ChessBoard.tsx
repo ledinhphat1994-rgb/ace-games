@@ -601,11 +601,19 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
               const toanDo = `${'abcdefgh'[f]}${r + 1}`
               const tenQuan = piece > 0 ? `${colorOf(piece) === WHITE ? 'Trắng' : 'Đen'} ${tenLoaiQuanVua(typeOf(piece))}` : 'ô trống'
 
+              const canAct = !isOver && !isAiThinking && (laOnline ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerColor : true)
+              const isActionable = canAct && (
+                selectedSq === null
+                  ? (piece > 0 && colorOf(piece) === pos.turn)
+                  : (isValidTarget || (piece > 0 && colorOf(piece) === pos.turn))
+              )
+
               return (
                 <div
                   key={sq}
                   role="button"
-                  tabIndex={0}
+                  tabIndex={isActionable ? 0 : -1}
+                  aria-disabled={isActionable ? undefined : true}
                   onClick={() => handleSquareClick(sq)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {

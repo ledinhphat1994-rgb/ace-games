@@ -13,6 +13,7 @@ interface ResponsiveActivityLayoutProps {
   bubbleBottomOffset?: number
   showFloatingTrigger?: boolean
   socialLabel?: string
+  finalFocusSelector?: string
 }
 
 // Discovery, chat and rankings remain shared Platform capabilities on every activity.
@@ -25,6 +26,7 @@ export function ResponsiveActivityLayout({
   utilityMode = 'inline',
   showFloatingTrigger = true,
   socialLabel,
+  finalFocusSelector,
 }: ResponsiveActivityLayoutProps) {
   const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1280px)').matches)
   const [panel, setPanel] = useState<'leaderboard' | 'messages' | null>(null)
@@ -74,7 +76,19 @@ export function ResponsiveActivityLayout({
         </aside>
       ) : (
         <Sheet key={item.id} open={!isFullscreen && panel === item.id} onOpenChange={open => setPanel(open ? item.id : null)}>
-          <SheetContent keepMounted finalFocus={() => document.querySelector<HTMLButtonElement>('[data-testid="bubble-activity"]')} side="right" className="activity-sheet gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md" data-testid={'activity-panel-' + item.id}>
+          <SheetContent
+            keepMounted
+            finalFocus={() => {
+              if (finalFocusSelector) {
+                const el = document.querySelector<HTMLButtonElement>(finalFocusSelector)
+                if (el) return el
+              }
+              return document.querySelector<HTMLButtonElement>('[data-testid="bubble-activity"]')
+            }}
+            side="right"
+            className="activity-sheet gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
+            data-testid={'activity-panel-' + item.id}
+          >
             <SheetHeader className="shrink-0 border-b border-border-subtle py-3 pr-14">
               <SheetTitle>{item.label}</SheetTitle>
               <SheetDescription className="sr-only">{item.label}</SheetDescription>

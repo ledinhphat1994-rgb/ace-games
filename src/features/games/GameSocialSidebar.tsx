@@ -215,7 +215,12 @@ export function GameSocialSidebar({
     presenceMap,
   } = useCampus()
 
-  const [activeTab, setActiveTab] = useState<SocialTab>(() => (roomOnly ? 'chat_phong' : (defaultTab ?? (chatBan && coChatPhong ? 'chat_phong' : 'chat_chung'))))
+  const [activeTabRaw, setActiveTabRaw] = useState<SocialTab>(() => (roomOnly ? 'chat_phong' : (defaultTab ?? (chatBan && coChatPhong ? 'chat_phong' : 'chat_chung'))))
+  const activeTab: SocialTab = roomOnly ? 'chat_phong' : activeTabRaw
+  const setActiveTab = useCallback((tab: SocialTab) => {
+    if (roomOnly) return
+    setActiveTabRaw(tab)
+  }, [roomOnly])
   const [selectedFriend, setSelectedFriend] = useState<FriendItem | null>(null)
   const [friendSearch, setFriendSearch] = useState('')
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
@@ -316,11 +321,13 @@ export function GameSocialSidebar({
   }
 
   const handleStartChatWithFriend = (friend: FriendItem) => {
+    if (roomOnly) return
     setSelectedFriend(friend)
     setActiveTab('ban_be')
   }
 
   useEffect(() => {
+    if (roomOnly) return
     const handleOpenDM = (e: Event) => {
       const ce = e as CustomEvent<{ id: number; displayName: string; avatar?: string | null; lopTen?: string | null }>
       if (!ce.detail) return
@@ -338,7 +345,7 @@ export function GameSocialSidebar({
     }
     window.addEventListener('campus:open-dm', handleOpenDM)
     return () => window.removeEventListener('campus:open-dm', handleOpenDM)
-  }, [])
+  }, [roomOnly, setActiveTab])
 
   const insertRoomEmoji = (emoji: string) => {
     setRoomText((prev) => prev + emoji)
@@ -404,15 +411,17 @@ export function GameSocialSidebar({
                   <Gamepad2 className="size-5" />
                 </div>
                 <p className="text-xs font-semibold text-text-primary">Chat phòng chỉ có ở bàn đấu</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveTab('chat_chung')}
-                  className="mt-3 gap-1.5 border-border-default cursor-pointer"
-                >
-                  <MessageSquare className="size-3.5" />
-                  Mở Chat chung
-                </Button>
+                {!roomOnly && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab('chat_chung')}
+                    className="mt-3 gap-1.5 border-border-default cursor-pointer"
+                  >
+                    <MessageSquare className="size-3.5" />
+                    Mở Chat chung
+                  </Button>
+                )}
               </div>
             ) : roomMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-6 px-3">

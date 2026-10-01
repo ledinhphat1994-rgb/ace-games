@@ -331,6 +331,7 @@ export function GamePlayToolbar({
             <Button
               variant="ghost"
               size="sm"
+              data-testid="game-room-chat-trigger"
               onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'messages' }))}
               className="h-8 gap-1.5 border border-border-default bg-surface hover:bg-surface-raised px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
               title="Mở trò chuyện phòng"
