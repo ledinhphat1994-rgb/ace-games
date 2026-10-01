@@ -111,6 +111,16 @@ NEED: <thứ cần quyết định>
 - **Nút thành tựu:** Hồ sơ và bảng thông tin người dùng phải có nút/mục "Thành tựu" (Achievements) rõ ràng, trực quan để người dùng theo dõi huy hiệu và tiến độ học tập / hoạt động.
 - **Tối ưu không gian hẹp / Mobile (Icon-Only Compact Mode):** Khi màn hình hoặc container có không gian hẹp (mobile, popover hẹp, thanh điều khiển thu nhỏ), chuyển sang sử dụng icon đại diện thay vì chèn chữ dài dòng gây vỡ giao diện hoặc tràn đè lên nhau. Luôn kèm `title` và `aria-label` để đảm bảo trải nghiệm và khả năng tiếp cận.
 
+## 8. Quy tắc tinh gọn giao diện & Chống trùng lặp (Streamlined Layout & Anti-Redundancy Rules)
+- **Hệ thống điều hướng chuẩn duy nhất (Single Canonical Navigation):**
+  * Thanh điều hướng trên đỉnh (`AppHeader`) là nơi điều hướng chuẩn duy nhất trên máy tính cho 3 trục chính: `Học tập` (`/learn`), `Game` (`/arena`), `Cộng đồng` (`/community`), kèm tìm kiếm, thông báo và menu tài khoản.
+  * Tuyệt đối không dựng thêm thanh sidebar cố định trên desktop lặp lại các đích đến này, gây lãng phí 240px chiều ngang và phân tán sự chú ý của người dùng.
+- **Cấm thẻ lối tắt lấp chỗ trống (Zero Redundant Filler Cards):**
+  * Không tạo các card lối tắt phụ (như "Cộng đồng & Bảng tin", "Bảng vinh danh", "Vào phòng học") trỏ về các trang đã có sẵn trên menu chính chỉ nhằm lấp đầy khoảng trống chiều cao cột.
+  * Khoảng trống tự nhiên (whitespace) là yếu tố thẩm mỹ hợp lệ và bắt buộc để mắt người dùng được thư giãn ("thoáng con mắt"), tạo cảm giác cao cấp và hiện đại.
+- **Không tạo CTA cạnh tranh trong Hero (Zero Competing Hero CTAs):**
+  * Banner Hero tập trung vào lời chào và trạng thái lớp học, không đặt hàng loạt nút bấm chuyển trang trùng lặp với các phần nội dung thực tế (phòng học, trò chơi) ngay bên dưới.
+
 ## Mandatory UI/UX constitution
 
 Before modifying any UI/UX, frontend layout, responsive behavior,

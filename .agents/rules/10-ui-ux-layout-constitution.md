@@ -2362,3 +2362,21 @@ perform a broader visual audit.
 
 Do not reinterpret "permanent rule" as permission
 to redesign unrelated components.
+
+============================================================
+# 119. STREAMLINED CAMPUS & ANTI-REDUNDANCY INVARIANTS
+
+1. ONE CANONICAL NAVIGATION SURFACE:
+Top Header (AppHeader) is the sole canonical navigation surface for the primary destinations:
+Học tập (/learn), Game (/arena), Cộng đồng (/community).
+Never display a parallel desktop sidebar repeating these destinations.
+Desktop layout must remain a spacious, uncluttered single-canvas experience.
+
+2. ZERO REDUNDANT FILLER CARDS:
+Never add shortcut cards (such as "Cộng đồng & Bảng tin", "Bảng vinh danh", "Vào phòng học")
+into content columns merely to equalize column heights or fill empty space.
+Whitespace is valid UI and creates visual calm ("thoáng con mắt").
+
+3. ZERO COMPETING HERO CTAs:
+Hero banners must not duplicate the core actions of the content sections immediately below them.
+A single primary action (e.g. "+ Tạo phòng học") or pure welcoming status is preferred.

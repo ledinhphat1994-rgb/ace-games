@@ -17,7 +17,6 @@ import {
   Gamepad2,
   Plus,
   Sparkles,
-  Trophy,
   Users,
   MessageSquare,
 } from 'lucide-react'
@@ -152,26 +151,15 @@ export function HomePage() {
             </span>
           </div>
 
-          {/* Canonical CTAs */}
+          {/* Canonical Action */}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button
               size="lg"
-              onClick={() => navigate('/learn')}
+              onClick={() => setMoTaoPhong(true)}
               className="h-11 px-6 rounded-xl bg-brand hover:bg-brand-hover text-brand-foreground font-bold text-sm shadow-sm transition-all cursor-pointer"
             >
-              <BookOpen className="h-4 w-4 mr-2" />
-              <span>Vào phòng học</span>
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => navigate('/arena')}
-              className="h-11 px-6 rounded-xl border-border-default bg-surface/80 hover:bg-surface-overlay text-text-primary font-semibold text-sm transition-all cursor-pointer"
-            >
-              <Gamepad2 className="h-4 w-4 mr-2 text-text-secondary" />
-              <span>Đấu trường Game</span>
+              <Plus className="h-4 w-4 mr-2" />
+              <span>Tạo phòng học mới</span>
             </Button>
           </div>
         </div>
@@ -397,47 +385,6 @@ export function HomePage() {
                   ))}
                 </div>
               )}
-            </div>
-          </section>
-
-          {/* Quick Campus Destinations */}
-          <section aria-label="Lối tắt trường học" className="space-y-3">
-            <div className="rounded-2xl border border-border-default bg-surface p-3.5 shadow-xs space-y-2">
-              <div
-                onClick={() => navigate('/community')}
-                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-overlay cursor-pointer transition-colors group"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20 group-hover:scale-105 transition-transform">
-                    <Users className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-text-primary group-hover:text-pink-400 transition-colors">
-                      Cộng đồng & Bảng tin
-                    </p>
-                    <p className="text-[11px] text-text-secondary truncate">Chia sẻ và thảo luận học tập</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-pink-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-
-              <div
-                onClick={() => navigate('/rankings')}
-                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-overlay cursor-pointer transition-colors group"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                    <Trophy className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-text-primary group-hover:text-amber-400 transition-colors">
-                      Bảng vinh danh
-                    </p>
-                    <p className="text-[11px] text-text-secondary truncate">Top thành tích học & cờ</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
             </div>
           </section>
         </div>

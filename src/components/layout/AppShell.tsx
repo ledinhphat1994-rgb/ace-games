@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppHeader } from './AppHeader'
-import { AppSidebar } from './AppSidebar'
 import { MobileNav } from './MobileNav'
 import { CampusChatSheet } from './CampusChatSheet'
 
@@ -100,15 +99,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="flex min-h-svh bg-canvas text-foreground">
-      {/* 0. Desktop Sidebar (Sticky left) - Tự động thu gọn khi đang trong ván game đấu (Zen mode) */}
-      {!isFullscreen && !isGameRoom && (
-        <AppSidebar
-          nguoiDung={nguoiDung}
-          coTinNhanMoi={coTinNhanMoi}
-          onToggleChat={() => datMoChat(!isChatOpen)}
-        />
-      )}
+    <div className="flex min-h-svh flex-col bg-canvas text-foreground">
 
       {/* Main Content Column */}
       <div className="flex flex-1 flex-col min-w-0">

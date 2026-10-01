@@ -46,16 +46,21 @@ export function AppHeader({
       {/* Ba cột: thương hiệu | nhóm tab căn giữa đúng tâm thanh | tài khoản */}
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-2 md:grid md:grid-cols-[1fr_auto_1fr] px-2.5 sm:px-4">
 
-        {/* ── Left: Brand (hiển thị trên mobile/tablet khi sidebar đóng) ── */}
+        {/* ── Left: Brand (hiển thị trên mọi thiết bị) ── */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-self-start">
           {/* Brand mark pointing to canonical /learn */}
-          <NavLink to="/learn" className="flex items-center gap-2 group shrink-0 select-none lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand shadow-sm group-hover:bg-brand/20 transition-all duration-150">
-              <GraduationCap className="h-4 w-4" />
+          <NavLink to="/learn" className="flex items-center gap-2.5 group shrink-0 select-none">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand shadow-sm group-hover:bg-brand/20 transition-all duration-150">
+              <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="hidden min-[480px]:block text-xs sm:text-sm font-bold tracking-tight text-text-primary">
-              Digital Campus
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xs sm:text-sm font-bold tracking-tight text-text-primary leading-tight">
+                Digital Campus
+              </span>
+              <span className="hidden min-[480px]:block text-[10px] text-text-tertiary font-medium">
+                Lớp 10A7 · 2026-2027
+              </span>
+            </div>
           </NavLink>
         </div>
 
