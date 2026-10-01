@@ -443,6 +443,30 @@ body {
   text-shadow: none;
 }
 
+@utility glass-card {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12);
+}
+
+@utility glass-card-interactive {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.04), transparent),
+    radial-gradient(ellipse 60% 40% at 85% 20%, rgba(139, 92, 246, 0.03), transparent);
+  background-attachment: fixed;
+}
+
+
 /* Hoạt hình khung trống của sảnh (KhungTrongSanh hoatHinh): trôi lơ lửng + hào quang thở + bóng co giãn, cùng nhịp. */
 @theme {
   --animate-troi-lo-lung: troi-lo-lung 3.6s ease-in-out infinite;
