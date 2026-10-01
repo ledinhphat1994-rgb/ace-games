@@ -16,7 +16,8 @@ import { GameClockWidget } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
-import { playGameOverSound, playGameStartSound } from '../game-audio'
+import { playGameOverSound, playGameStartSound, playPieceMoveSound } from '../game-audio'
+import { useScreenWakeLock } from '@/lib/web-experience'
 
 const SIZE = 15
 
@@ -159,9 +160,10 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   )
 
   const makeMove = useCallback(
-(x: number, y: number, side: 'X' | 'O') => {
+    (x: number, y: number, side: 'X' | 'O') => {
       if (board[y][x] !== null || winner) return
 
+      playPieceMoveSound()
       const next = board.map((row, r) =>
         row.map((cell, c) => (r === y && c === x ? side : cell))
       )
@@ -207,6 +209,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
     if (banOnline) {
       // Máy chủ xét nước đi và phát lại cho cả bàn; chỉ gửi khi tới lượt mình và ô còn trống.
       if (!banOnline.isMyTurn || board[y][x] !== null) return
+      playPieceMoveSound()
       banOnline.makeMove(x, y)
       return
     }
@@ -279,6 +282,18 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
       setSurrenderReason(`Quân ${benThua} hết giờ suy nghĩ`)
     }, [isOver, currentTurn]),
   })
+
+  useScreenWakeLock(isPlaying)
+
+  // Âm thanh khi đối thủ đi cờ trên bàn online
+  const prevNuocOnlineRef = useRef(nuocOnline ? `${nuocOnline.x}-${nuocOnline.y}` : '')
+  useEffect(() => {
+    const curKey = nuocOnline ? `${nuocOnline.x}-${nuocOnline.y}` : ''
+    if (curKey && curKey !== prevNuocOnlineRef.current) {
+      playPieceMoveSound()
+    }
+    prevNuocOnlineRef.current = curKey
+  }, [nuocOnline])
 
   // Ô bàn cờ không bấm được: ván online chưa tới lượt mình (hoặc đang xem), ván tại chỗ đã xong / máy đang tính.
   const khoaBan = banOnline ? !banOnline.isMyTurn : !!winner || isAiThinking

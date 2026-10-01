@@ -37,7 +37,14 @@ import { GameClockWidget } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
-import { playGameOverSound, playGameStartSound } from '../game-audio'
+import {
+  playGameOverSound,
+  playGameStartSound,
+  playPieceMoveSound,
+  playPieceCaptureSound,
+  playCheckAlertSound,
+} from '../game-audio'
+import { useScreenWakeLock } from '@/lib/web-experience'
 
 const INITIAL_CHESS_COUNTS: Record<number, number> = {
   [QUEEN]: 1,
@@ -224,6 +231,8 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
     }, [isOver, pos.turn]),
   })
 
+  useScreenWakeLock(isPlaying)
+
   // Tính toán số quân ăn được của 2 bên
   const captured = useMemo(() => {
     const whiteCounts: Record<number, number> = {
@@ -290,6 +299,12 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
   // Thực hiện nước đi (bàn online: gửi máy chủ xét, thế cờ chỉ đổi khi máy chủ phát lại)
   const executeMove = useCallback(
     (move: ChessMove) => {
+      const isCapture = pos.board[move.to] > 0
+      if (isCapture) {
+        playPieceCaptureSound()
+      } else {
+        playPieceMoveSound()
+      }
       if (laOnline) {
         online?.diCo(move)
         setSelectedSq(null)
@@ -300,7 +315,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
       setLastMove(move)
       setSelectedSq(null)
     },
-    [laOnline, online, posTaiCho]
+    [laOnline, online, pos.board, posTaiCho]
   )
 
   // AI phản hồi lượt đi
@@ -513,14 +528,25 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         ? '⚡'
         : '⚔️'
 
-  // Banner khi bị chiếu tướng
+  // Banner & âm thanh khi bị chiếu tướng
   const prevInCheckRef = useRef(inCheck)
   useEffect(() => {
     if (!prevInCheckRef.current && inCheck && !isOver) {
       setHeroicBanner({ type: 'check', title: 'CHIẾU TƯỚNG' })
+      playCheckAlertSound()
     }
     prevInCheckRef.current = inCheck
   }, [inCheck, isOver])
+
+  // Âm thanh khi đối thủ đi cờ trên bàn online
+  const prevNuocOnlineLenRef = useRef(nuocOnline?.length ?? 0)
+  useEffect(() => {
+    const curLen = nuocOnline?.length ?? 0
+    if (curLen > prevNuocOnlineLenRef.current && curLen > 0) {
+      playPieceMoveSound()
+    }
+    prevNuocOnlineLenRef.current = curLen
+  }, [nuocOnline?.length])
 
   // Âm thanh & Banner hào hùng khi kết thúc ván: Thắng, Thua, Hoà
   const wasOverRef = useRef(isOver)

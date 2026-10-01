@@ -34,6 +34,7 @@ import {
 } from './LearningSession'
 import { StudyInviteDialog } from '@/features/engagement/StudyInviteDialog'
 import { ClassroomWorkspace } from './workspace/ClassroomWorkspace'
+import { useScreenWakeLock } from '@/lib/web-experience'
 
 function YoutubeIcon({ className }: { className?: string }) {
   return (
@@ -202,6 +203,9 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     startSession,
     endSession,
   } = useRoom(roomId, nguoiDung.actorKey)
+
+  // Giữ màn hình sáng trong suốt buổi học tập / thuyết trình / xem video
+  useScreenWakeLock(trangThai === 'da_ket_noi' && !roomClosedInfo)
 
   // ── Learning Session v1 local UI state ──────────────────────────────────
   const [sessionPanelOpen, setSessionPanelOpen] = useState(false)

@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { shareCampusLink } from '@/lib/web-experience'
 
 const timeFormatter = new Intl.DateTimeFormat('vi-VN', {
   day: 'numeric',
@@ -67,9 +68,13 @@ export function CampusFeed() {
     setLikedPosts((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const handleShare = () => {
-    navigator.clipboard?.writeText(window.location.href)
-    toast.success('Đã sao chép liên kết bài viết!')
+  const handleShare = (noiDung?: string) => {
+    void shareCampusLink({
+      title: 'Digital Campus',
+      text: noiDung ? `"${noiDung.slice(0, 120)}..." trên Digital Campus` : 'Xem bài viết trên Digital Campus',
+      url: window.location.href,
+      successMessage: 'Đã sao chép liên kết bài viết!',
+    })
   }
 
   const online = trangThai === 'da_ket_noi'
@@ -361,7 +366,7 @@ export function CampusFeed() {
 
                 <button
                   type="button"
-                  onClick={handleShare}
+                  onClick={() => handleShare(message.noiDung)}
                   className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-text-secondary hover:bg-surface-overlay hover:text-text-primary transition-colors cursor-pointer"
                 >
                   <Share2 className="size-4" />
