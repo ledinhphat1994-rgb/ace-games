@@ -180,55 +180,56 @@ body {
 }
 
 /* ============================================================
-   DARK THEME — Digital Campus: navy canvas, slate surfaces, cyan accent
+   DARK THEME — Modern Charcoal & Warm Amber (Sâu êm dịu, viền mờ tinh tế)
    ============================================================ */
 .dark {
   /* ─── Core shadcn tokens (used by all primitives) ─────── */
-  --background: #060a12;
-  --foreground: #e2e8f0;
-  --card: #0d1525;
-  --card-foreground: #e2e8f0;
-  --popover: #0d1525;
-  --popover-foreground: #e2e8f0;
-  --primary: #e4c98a;
-  --primary-foreground: #04121a;
-  --secondary: #1a2640;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1a2640;
+  --background: #0d1117;
+  --foreground: #f1f5f9;
+  --card: #121722;
+  --card-foreground: #f1f5f9;
+  --popover: #161c28;
+  --popover-foreground: #f1f5f9;
+  --primary: #c6a15a;
+  --primary-foreground: #080c14;
+  --secondary: #1a2233;
+  --secondary-foreground: #f1f5f9;
+  --muted: #1a2233;
   --muted-foreground: #94a3b8;
-  --accent: #1a2640;
-  --accent-foreground: #e2e8f0;
+  --accent: #1a2233;
+  --accent-foreground: #f1f5f9;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: rgba(255, 255, 255, 0.09);
+  --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #e4c98a;
+  --ring: #c6a15a;
 
   /* ─── Surface hierarchy ─────────────────────────────────── */
-  --canvas: #060a12;           /* Deepest canvas — page background */
-  --surface: #0d1525;          /* Primary surface — cards, panels */
-  --surface-raised: #131e30;   /* Elevated surface — dropdowns, popovers */
-  --surface-overlay: #1a2640;  /* Hover / overlay state */
-  --surface-interactive: #1f2d47; /* Interactive hover tint */
+  --canvas: #0d1117;           /* Deepest charcoal — page canvas */
+  --surface: #121722;          /* Primary surface — cards, panels */
+  --surface-raised: #161c28;   /* Elevated surface — dropdowns, popovers */
+  --surface-overlay: #1c2638;  /* Hover / overlay state */
+  --surface-interactive: #222f44; /* Interactive hover tint */
   /* Legacy keys (used by existing components) */
-  --surface-1: #0d1525;
-  --surface-2: #1a2640;
-  --surface-elevated: #131e30;
+  --surface-1: #121722;
+  --surface-2: #1c2638;
+  --surface-elevated: #161c28;
 
   /* ─── Semantic borders ──────────────────────────────────── */
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --border-active: rgba(34, 211, 238, 0.45);  /* Cyan tint for active/focus */
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-active: rgba(198, 161, 90, 0.45);  /* Warm amber active accent */
 
   /* ─── Text hierarchy ────────────────────────────────────── */
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-tertiary: #64748b;
-  --text-on-brand: #04121a;    /* Dark text on cyan buttons */
+  --text-on-brand: #080c14;    /* Dark crisp text on amber buttons */
 
   /* ─── Brand ─────────────────────────────────────────────── */
-  --brand: #e4c98a;
-  --brand-hover: #f1dfb0;
+  --brand: #c6a15a;
+  --brand-hover: #d4b26f;
+  --brand-foreground: #080c14;
 
   /* ─── Semantic color roles ──────────────────────────────── */
   --success: #10b981;                  /* Emerald — active/online/game */
@@ -237,26 +238,26 @@ body {
   --warning-muted: rgba(245, 158, 11, 0.15);
   --social: #a78bfa;                   /* Violet — community/social */
   --social-muted: rgba(167, 139, 250, 0.15);
-  --achievement: #fbbf24;              /* Gold — badges/rewards */
-  --achievement-muted: rgba(251, 191, 36, 0.15);
+  --achievement: #d97706;              /* Warm gold — badges/rewards */
+  --achievement-muted: rgba(217, 119, 6, 0.15);
   --danger: oklch(0.704 0.191 22.216);
 
   /* ─── Charts (inherit from root) ────────────────────────── */
-  --chart-1: #e4c98a;
+  --chart-1: #c6a15a;
   --chart-2: #a78bfa;
   --chart-3: #10b981;
   --chart-4: #f59e0b;
   --chart-5: #f87171;
 
   /* ─── Sidebar (matches surface) ─────────────────────────── */
-  --sidebar: #0d1525;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #e4c98a;
-  --sidebar-primary-foreground: #04121a;
-  --sidebar-accent: #1a2640;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: rgba(255, 255, 255, 0.09);
-  --sidebar-ring: #e4c98a;
+  --sidebar: #121722;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #c6a15a;
+  --sidebar-primary-foreground: #080c14;
+  --sidebar-accent: #1a2233;
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #c6a15a;
 }
 
 /* ============================================================

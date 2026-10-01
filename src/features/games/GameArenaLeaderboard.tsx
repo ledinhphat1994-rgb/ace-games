@@ -76,7 +76,7 @@ function LeaderboardRow({ record, rank, laToi }: { record: HighScoreRecord; rank
     >
       <span className={cn('text-center text-sm font-black tabular-nums', MAU_HANG[rank] ?? 'text-text-tertiary')}>{rank}</span>
       <span
-        className={cn('min-w-0 break-words text-sm', rank <= 3 || laToi ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary')}
+        className={cn('min-w-0 truncate text-sm', rank <= 3 || laToi ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary')}
         title={record.playerName}
       >
         {record.playerName}
