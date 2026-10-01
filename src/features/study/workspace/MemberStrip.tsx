@@ -161,33 +161,39 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
             <TooltipTrigger render={<span className="relative flex shrink-0" />}>
               <span
                 className={cn(
-                  'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-text-primary shadow-md transition-all duration-150 group-hover:scale-105',
+                  'flex size-9 sm:size-9.5 items-center justify-center overflow-hidden rounded-full border text-xs font-bold text-white shadow-2xs transition-transform duration-150 group-hover:scale-105',
                   mauCho(m.key),
-                  laToi ? 'border-brand ring-2 ring-brand/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-brand ring-2 ring-brand/30 shadow-[0_0_10px_rgba(198,161,90,0.3)]' : 'border-border-default',
+                  laToi
+                    ? 'border-brand ring-2 ring-brand/35'
+                    : laTrinhChieu
+                      ? 'border-achievement ring-2 ring-achievement/35'
+                      : cap.length > 0
+                        ? 'border-brand/60'
+                        : 'border-border-default/80',
                   m.soKetNoi > 0 ? '' : 'opacity-40',
                 )}
               >
                 <AnhDaiDien key={m.avatar ?? ''} ten={m.ten} avatar={m.avatar} />
               </span>
 
-              {/* Chủ phòng: Icon vương miện hoàng gia to rõ nổi bật */}
+              {/* Chủ phòng: Icon vương miện tinh tế */}
               {laTrinhChieu && (
                 <span
-                  className="absolute -top-1.5 -right-1.5 flex size-5 sm:size-5.5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-amber-950 shadow-md ring-2 ring-canvas"
+                  className="absolute -top-1 -right-1 flex size-4 sm:size-4.5 items-center justify-center rounded-full bg-achievement text-achievement-foreground shadow-2xs ring-1 ring-canvas"
                 >
-                  <Crown className="size-3 sm:size-3.5 fill-current" />
+                  <Crown className="size-2.5 sm:size-3 fill-current" />
                 </span>
               )}
 
-              {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp to rõ nét */}
+              {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp */}
               {!laTrinhChieu && (hasMic || hasVe || hasLaser || cap.length > 0) && (
                 <span
-                  className="absolute -right-2 -bottom-1 flex items-center gap-1 rounded-full bg-surface px-1.5 py-0.5 border border-brand/50 shadow-lg ring-1 ring-canvas"
+                  className="absolute -right-1.5 -bottom-1 flex items-center gap-0.5 rounded-full bg-surface-raised px-1 py-0.5 border border-border-default shadow-xs ring-1 ring-canvas"
                   data-testid={`member-strip-co-quyen-${m.key}`}
                 >
-                  {hasMic && <Mic className="size-3 text-success drop-shadow-sm" />}
-                  {hasVe && <Pen className="size-3 text-brand drop-shadow-sm" />}
-                  {hasLaser && <MousePointer2 className="size-3 text-warning drop-shadow-sm" />}
+                  {hasMic && <Mic className="size-2.5 text-success" />}
+                  {hasVe && <Pen className="size-2.5 text-brand" />}
+                  {hasLaser && <MousePointer2 className="size-2.5 text-warning" />}
                 </span>
               )}
             </TooltipTrigger>

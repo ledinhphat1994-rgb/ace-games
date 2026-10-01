@@ -42,7 +42,7 @@ export interface ClassroomTopBarProps {
 }
 
 const NUT_KHUNG =
-  'relative flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'relative flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shadow-2xs'
 
 export function ClassroomTopBar({
   roomTitle,
@@ -65,12 +65,12 @@ export function ClassroomTopBar({
       NUT_KHUNG,
       dangMo
         ? 'border-brand/40 bg-brand/12 text-brand'
-        : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+        : 'border-border-default/80 bg-surface/60 text-text-secondary hover:bg-surface-raised hover:text-text-primary',
     )
 
   return (
     <header
-      className="z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 bg-canvas px-2 py-1 select-none sm:px-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+      className="z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 border-b border-border-subtle/80 bg-canvas px-2 py-1 select-none sm:px-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
@@ -78,7 +78,10 @@ export function ClassroomTopBar({
         <button
           type="button"
           onClick={onLeaveRoom}
-          className={cn(NUT_KHUNG, 'w-11 shrink-0 border-border-default px-0 text-text-secondary hover:bg-surface-overlay hover:text-text-primary sm:w-auto sm:px-3.5')}
+          className={cn(
+            NUT_KHUNG,
+            'w-9 shrink-0 border-border-default/80 bg-surface/60 px-0 text-text-secondary hover:bg-surface-raised hover:text-text-primary sm:w-auto sm:px-3',
+          )}
           data-testid="topbar-btn-leave"
           title="Rời phòng học"
           aria-label="Rời phòng học"
@@ -88,30 +91,29 @@ export function ClassroomTopBar({
         </button>
 
         <div className="min-w-0">
-          <h1 className="flex items-start gap-1.5 text-sm sm:text-base leading-snug font-bold break-words text-text-primary">
+          <h1 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold tracking-tight text-text-primary truncate">
             {isHost && (
-              <Crown className="mt-0.5 size-4 shrink-0 text-achievement" aria-label="Bạn là chủ phòng" />
+              <Crown className="size-3.5 sm:size-4 shrink-0 text-achievement drop-shadow-xs" aria-label="Bạn là chủ phòng" />
             )}
-            <span className="min-w-0">{roomTitle}</span>
+            <span className="truncate max-w-[140px] sm:max-w-[220px] lg:max-w-[320px]">{roomTitle}</span>
           </h1>
 
           {/* Connection status */}
           {isReconnecting ? (
-            <p className="flex items-center gap-1 text-[11px] font-medium text-warning">
-              <Loader2 className="size-3 animate-spin" />
-              Đang kết nối lại…
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-warning">
+              <Loader2 className="size-3 animate-spin shrink-0" />
+              <span>Đang kết nối lại…</span>
             </p>
           ) : isOnline ? (
-            // Biểu tượng wifi xanh (text-success) là tín hiệu "đã vào phòng" mà các bài e2e dựa vào
-            <p className="flex items-center gap-1.5 text-[11px] text-text-tertiary" title="Kết nối trực tuyến">
-              <Wifi className="size-3 text-success" />
-              Trực tuyến
-              {latencyMs !== null && latencyMs > 0 && <span className="tabular-nums">· {latencyMs} ms</span>}
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-text-tertiary" title="Kết nối trực tuyến">
+              <Wifi className="size-3 text-success shrink-0" />
+              <span>Trực tuyến</span>
+              {latencyMs !== null && latencyMs > 0 && <span className="tabular-nums opacity-75">· {latencyMs} ms</span>}
             </p>
           ) : (
-            <p className="flex items-center gap-1.5 text-[11px] font-medium text-destructive" title="Mất kết nối">
-              <WifiOff className="size-3" />
-              Mất kết nối
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-destructive" title="Mất kết nối">
+              <WifiOff className="size-3 shrink-0" />
+              <span>Mất kết nối</span>
             </p>
           )}
         </div>
@@ -139,7 +141,7 @@ export function ClassroomTopBar({
           <span className="hidden sm:inline">Chat</span>
           {unreadChatCount > 0 && activePanel !== 'chat' && (
             <span
-              className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-primary-foreground tabular-nums"
+              className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-foreground tabular-nums shadow-xs"
               data-testid="chat-unread-badge"
             >
               {Math.min(unreadChatCount, 99)}
@@ -152,7 +154,7 @@ export function ClassroomTopBar({
           <button
             type="button"
             onClick={() => setShowConfirmClose(true)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-text-primary transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive cursor-pointer shadow-2xs"
             data-testid="topbar-btn-close-room"
             title="Hủy phòng"
             aria-label="Hủy phòng"
