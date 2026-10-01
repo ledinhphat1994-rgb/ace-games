@@ -14,20 +14,22 @@ interface GamePlayToolbarProps {
   title?: string
   badge?: string
   icon?: React.ReactNode
-  mode: PlayMode
-  onModeChange: (mode: PlayMode) => void
-  aiLevel: AiDifficulty
-  onAiLevelChange: (level: AiDifficulty) => void
+  mode?: PlayMode
+  onModeChange?: (mode: PlayMode) => void
+  aiLevel?: AiDifficulty
+  onAiLevelChange?: (level: AiDifficulty) => void
   onReset: () => void
   resetLabel?: string
   resetIcon?: React.ReactNode
   resetDisabled?: boolean
   hideReset?: boolean
+  /** Ẩn cụm chọn chế độ (PvE/PvP) nếu trò chơi không dùng (ví dụ: Rắn Cổ Điển) */
+  hideModeSelector?: boolean
   /** PvP chuyển sang Online (bàn mở từ sảnh, đối thủ là người thật) thay vì hai người cùng máy (chỉ với `hideCenterTurn`). */
   onlineAvailable?: boolean
   surrenderAttempts?: number
   activeSide?: 'red' | 'black'
-  turnLabel: string
+  turnLabel?: string
   turnIndicator?: React.ReactNode
   isAiThinking?: boolean
   statusAlert?: React.ReactNode
@@ -62,19 +64,20 @@ export function GamePlayToolbar({
   title,
   badge,
   icon,
-  mode,
-  onModeChange,
-  aiLevel,
-  onAiLevelChange,
+  mode = 'ai',
+  onModeChange = () => {},
+  aiLevel = 'medium',
+  onAiLevelChange = () => {},
   onReset,
   resetLabel,
   resetIcon,
   resetDisabled = false,
   hideReset = false,
+  hideModeSelector = false,
   onlineAvailable = false,
   surrenderAttempts,
   activeSide,
-  turnLabel,
+  turnLabel = '',
   turnIndicator,
   isAiThinking = false,
   statusAlert,
@@ -324,7 +327,7 @@ export function GamePlayToolbar({
             WebkitOverflowScrolling: 'touch',
           }}
         >
-          <div className="game-toolbar-modes min-w-0 flex items-center justify-center shrink-0">{cumChedo}</div>
+          {!hideModeSelector && <div className="game-toolbar-modes min-w-0 flex items-center justify-center shrink-0">{cumChedo}</div>}
           {rightSlot && <div className="game-toolbar-slot flex items-center shrink-0">{rightSlot}</div>}
           {nutFullscreen && <div className="game-toolbar-fullscreen flex items-center shrink-0">{nutFullscreen}</div>}
           {showRoomChat && (

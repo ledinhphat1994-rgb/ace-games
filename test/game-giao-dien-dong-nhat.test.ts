@@ -24,7 +24,7 @@ describe('Sảnh: nút quay lại to, dễ bấm', () => {
 
 describe('Thẻ đồng hồ không bị cắt khi khung hẹp', () => {
   it('cột hai bên bàn cờ co lại (shrink + min-w) thay vì tràn và bị cắt ở mép', () => {
-    for (const [ten, raw] of Object.entries({ caroRaw, chessRaw, xiangqiRaw, memoryRaw })) {
+    for (const [ten, raw] of Object.entries({ caroRaw, chessRaw, xiangqiRaw })) {
       expect(raw, ten).toContain('shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]')
       expect(raw, ten).not.toContain('shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px]')
     }

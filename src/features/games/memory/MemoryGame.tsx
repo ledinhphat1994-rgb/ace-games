@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Brain, Sparkles } from 'lucide-react'
+import { Bot, Brain, Sparkles, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
-import { GameStatusWidget } from '../GameStatusWidget'
-import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import {
+  GameQuickEmote,
+  GameOpponentBubble,
+  GamePlayerBubble,
+  type QuickEmoteItem,
+  type ActiveEmoteBubble,
+} from '../GameQuickEmote'
 
 const DANH_SACH_THAI_DO_MEMORY: QuickEmoteItem[] = [
   { id: 'smart', emoji: '🧠', label: 'Siêu trí nhớ', quote: 'Nhớ hết vị trí rồi!' },
@@ -114,7 +119,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
   const [cards, setCards] = useState<CardItem[]>(() => xaoBai())
   const [flipped, setFlipped] = useState<number[]>([])
   const [matched, setMatched] = useState<number[]>([])
-  const [turn, setTurn] = useState<1 | 2>(1) // 1: Bạn (Quân 1), 2: Đối thủ (Máy AI hoặc Người 2)
+  const [turn, setTurn] = useState<1 | 2>(1) // 1: Bạn (Quân 1), 2: Đối thủ (Máy AI hoặc Người chơi 2)
   const [score1, setScore1] = useState(0)
   const [score2, setScore2] = useState(0)
   const [totalMoves, setTotalMoves] = useState(0)
@@ -125,7 +130,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
   const [surrenderAttempts, setSurrenderAttempts] = useState(0)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
 
-  // ─ Biểu cảm & tin nhắn (Vùng 1: Ta ở dưới | Vùng 1+: Địch ở trên) ─
+  // Biểu cảm thoại người chơi và đối thủ
   const [playerBubble, setPlayerBubble] = useState<ActiveEmoteBubble | null>(null)
   const [opponentBubble, setOpponentBubble] = useState<ActiveEmoteBubble | null>(null)
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -192,6 +197,14 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
     aiMemoryRef.current.clear()
   }, [])
 
+  const score1Ref = useRef(score1)
+  const score2Ref = useRef(score2)
+  useEffect(() => { score1Ref.current = score1 }, [score1])
+  useEffect(() => { score2Ref.current = score2 }, [score2])
+
+  const scheduleAiTurnRef = useRef<(matched: number[]) => void>(() => {})
+  const evaluateTurnRef = useRef<(c1: number, c2: number, activeTurn: 1 | 2, currentMatched: number[]) => void>(() => {})
+
   // Đánh giá nước đi (Trúng -> Cộng điểm & tiếp tục; Trật -> Chuyển lượt sang phe kia)
   const evaluateTurn = useCallback(
     (c1: number, c2: number, activeTurn: 1 | 2, currentMatched: number[]) => {
@@ -199,7 +212,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
       const isMatch = cards[c1].symbol === cards[c2].symbol
 
       if (isMatch) {
-        // ── GHÉP TRÚNG CẶP! ──
+        // GHÉP TRÚNG CẶP
         playSound('match', muted)
         aiMemoryRef.current.delete(c1)
         aiMemoryRef.current.delete(c2)
@@ -216,8 +229,8 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         tEvalRef.current = setTimeout(() => {
           setFlipped([])
           if (newMatched.length === cards.length) {
-            const finalScore1 = score1 + (activeTurn === 1 ? 1 : 0)
-            const finalScore2 = score2 + (activeTurn === 2 ? 1 : 0)
+            const finalScore1 = score1Ref.current + (activeTurn === 1 ? 1 : 0)
+            const finalScore2 = score2Ref.current + (activeTurn === 2 ? 1 : 0)
             if (mode === 'pve') {
               if (finalScore1 > finalScore2) {
                 playSound('win', muted)
@@ -239,28 +252,27 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
               setIsLocked(false)
             } else if (mode === 'pve') {
               // Máy trúng -> máy lật tiếp
-              scheduleAiTurn(newMatched)
+              scheduleAiTurnRef.current(newMatched)
             } else {
               setIsLocked(false)
             }
           }
         }, 800)
       } else {
-        // ── LẬT TRẬT (KHÔNG TRÙNG)! ──
+        // LẬT TRẬT (KHÔNG TRÙNG)
         playSound('miss', muted)
-        // Dừng 1 giây để người chơi nhìn rõ 2 thẻ vừa lật
         tEvalRef.current = setTimeout(() => {
           setFlipped([])
           // CHUYỂN LƯỢT CHO PHE ĐỐI PHƯƠNG
           if (activeTurn === 1) {
             setTurn(2)
             if (mode === 'pve') {
-              scheduleAiTurn(currentMatched)
+              scheduleAiTurnRef.current(currentMatched)
             } else {
               setIsLocked(false)
             }
           } else {
-            // Máy lật trật -> Chuyển lượt ngay về cho người chơi (BẠN), MÁY DỪNG HẲN!
+            // Máy lật trật -> Chuyển lượt về cho người chơi
             setTurn(1)
             setIsAiThinking(false)
             setIsLocked(false)
@@ -270,6 +282,9 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
     },
     [cards, mode, muted, onSaveScore, totalMoves],
   )
+  useEffect(() => {
+    evaluateTurnRef.current = evaluateTurn
+  }, [evaluateTurn])
 
   // AI Lên lịch lật thẻ
   const scheduleAiTurn = useCallback(
@@ -315,7 +330,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         aiMemoryRef.current.set(choice1, cards[choice1].symbol)
         setFlipped([choice1])
 
-        // Chờ 800ms để lật tiếp thẻ 2
+        // Chờ để lật tiếp thẻ 2
         t2Ref.current = setTimeout(() => {
           const availForC2 = cards
             .map((_, i) => i)
@@ -323,7 +338,6 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
 
           let c2 = choice2
           if (c2 === null || !availForC2.includes(c2)) {
-            // Kiểm tra xem thẻ 1 vừa lật có khớp với thẻ nào trong trí nhớ không
             const sym1 = cards[choice1!].symbol
             for (const [idx, sym] of memory.entries()) {
               if (idx !== choice1 && sym === sym1 && availForC2.includes(idx)) {
@@ -343,36 +357,42 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
           setFlipped([choice1!, c2])
 
           // Đánh giá nước đi của AI
-          evaluateTurn(choice1!, c2, 2, currentMatched)
+          evaluateTurnRef.current(choice1!, c2, 2, currentMatched)
         }, 850)
       }, 700)
     },
-    [cards, evaluateTurn, muted],
+    [cards, muted],
   )
+  useEffect(() => {
+    scheduleAiTurnRef.current = scheduleAiTurn
+  }, [scheduleAiTurn])
 
   // Xử lý khi người chơi bấm lật thẻ
-  const handleCardClick = (idx: number) => {
-    if (isLocked || isAiThinking) return
-    if (mode === 'pve' && turn === 2) return
-    if (flipped.length >= 2 || flipped.includes(idx) || matched.includes(idx)) return
+  const handleCardClick = useCallback(
+    (idx: number) => {
+      if (isLocked || isAiThinking) return
+      if (mode === 'pve' && turn === 2) return
+      if (flipped.length >= 2 || flipped.includes(idx) || matched.includes(idx)) return
 
-    playSound('flip', muted)
+      playSound('flip', muted)
 
-    // Khả năng AI ghi nhớ thẻ người chơi lật theo độ khó
-    const retentionChance = difficulty === 'hard' ? 0.95 : difficulty === 'medium' ? 0.7 : 0.4
-    if (Math.random() <= retentionChance || mode !== 'pve') {
-      aiMemoryRef.current.set(idx, cards[idx].symbol)
-    }
+      // Khả năng AI ghi nhớ thẻ người chơi lật theo độ khó
+      const retentionChance = difficulty === 'hard' ? 0.95 : difficulty === 'medium' ? 0.7 : 0.4
+      if (Math.random() <= retentionChance || mode !== 'pve') {
+        aiMemoryRef.current.set(idx, cards[idx].symbol)
+      }
 
-    if (flipped.length === 0) {
-      setFlipped([idx])
-    } else if (flipped.length === 1) {
-      const firstIdx = flipped[0]
-      setFlipped([firstIdx, idx])
-      setIsLocked(true)
-      evaluateTurn(firstIdx, idx, turn, matched)
-    }
-  }
+      if (flipped.length === 0) {
+        setFlipped([idx])
+      } else if (flipped.length === 1) {
+        const firstIdx = flipped[0]
+        setFlipped([firstIdx, idx])
+        setIsLocked(true)
+        evaluateTurn(firstIdx, idx, turn, matched)
+      }
+    },
+    [cards, difficulty, evaluateTurn, flipped, isAiThinking, isLocked, matched, mode, muted, turn],
+  )
 
   const isGameOver = matched.length === cards.length || surrenderWinner !== null
 
@@ -404,12 +424,13 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-between w-full h-full">
-      {/* ── 1. Thanh điều khiển GamePlayToolbar chuẩn hoá (Đã xoá badge Vùng 3) ── */}
+    <div className="flex flex-col items-center justify-between w-full h-full min-h-0 select-none">
+      {/* ── 1. THANH ĐIỀU KHIỂN CHUẨN HOÁ (Không chat/rankings nhúng) ── */}
       <GamePlayToolbar
         onBack={onBack}
         title="Lật Thẻ Trí Nhớ"
         icon={<Brain className="size-4 text-violet-400" />}
+        badge="4×4"
         mode={mode === 'pve' ? 'ai' : 'pass_and_play'}
         onModeChange={(m) => {
           setMode(m === 'ai' ? 'pve' : 'pvp')
@@ -425,9 +446,10 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         resetDisabled={!isGameOver && surrenderAttempts >= 3}
         surrenderAttempts={surrenderAttempts}
         activeSide={turn === 1 ? 'red' : 'black'}
-        turnLabel={turn === 1 ? 'Lượt: Bạn' : (mode === 'pve' ? 'Lượt: Máy AI' : 'Lượt: Người chơi 2')}
-        isAiThinking={isAiThinking}
+        turnLabel=""
         hideCenterTurn={true}
+        showRoomChat={false}
+        showRankings={false}
         rightSlot={
           <GameQuickEmote
             emotes={DANH_SACH_THAI_DO_MEMORY}
@@ -438,133 +460,177 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         }
       />
 
-      {/* Trạng thái ván gọn khi màn nhỏ (< xl) */}
-      <div className="flex xl:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
-        <span className="text-base leading-none">
-          {isGameOver ? (isWinner === true ? '🏆' : isWinner === false ? '💀' : '🤝') : (turn === 1 ? '🧠' : '🤖')}
-        </span>
-        <span
-          style={{
-            color: isGameOver
-              ? isWinner === true
-                ? '#10b981'
-                : isWinner === false
-                  ? '#f43f5e'
-                  : '#eab308'
-              : '#a855f7',
-          }}
-          className="font-black uppercase tracking-wider whitespace-nowrap"
-        >
-          {isGameOver ? (winnerTitle || (isWinner ? 'BẠN THẮNG' : 'BẠN THUA')) : (turn === 1 ? 'LƯỢT BẠN' : (mode === 'pve' ? 'MÁY AI' : 'NGƯỜI CHƠI 2'))}
-        </span>
-        {isGameOver && (
-          <span className="text-slate-400 font-medium truncate">
-            {score1} - {score2}
-          </span>
-        )}
-      </div>
+      {/* ── 2. KHÔNG GIAN BÀN CHƠI TRUNG TÂM (4×4 CHIẾM ƯU THẾ TUYỆT ĐỐI) ── */}
+      <div className="relative flex flex-col items-center justify-center w-full max-w-[520px] flex-1 my-auto px-2 py-2 gap-2">
+        {/* DẢI ĐỐI THỦ (TRÊN BÀN CHƠI) */}
+        <div className="relative flex items-center justify-between w-full px-3 py-2 rounded-xl bg-surface-raised border border-border-default shadow-xs shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={cn(
+              'size-7 rounded-lg flex items-center justify-center text-xs font-bold border transition-colors shrink-0',
+              turn === 2 && !isGameOver
+                ? 'bg-violet-500/20 border-violet-400 text-violet-300 ring-2 ring-violet-400/40'
+                : 'bg-surface border-border-default text-text-secondary'
+            )}>
+              {mode === 'pve' ? <Bot className="size-4" /> : <User className="size-4" />}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate">
+                {mode === 'pve' ? 'Máy (AI)' : 'Người chơi 2'}
+              </span>
+              <span className="text-[10px] text-text-tertiary">
+                {isGameOver
+                  ? (isWinner === false ? 'Chiến thắng' : isWinner === true ? 'Thất bại' : 'Hoà')
+                  : turn === 2
+                    ? (isAiThinking ? 'Đang suy nghĩ…' : 'Đang chọn thẻ…')
+                    : 'Chờ lượt'}
+              </span>
+            </div>
+          </div>
 
-      {/* ── 2. Bố cục 3 khối cân xứng tối giản như Caro: Cột trái (Vùng 1) | Bàn chơi | Cột phải (Vùng 1+/Vùng 1) ── */}
-      <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu phát quang ── */}
-        <div className="hidden xl:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[480px] xl:h-[540px] 2xl:h-[580px] select-none text-center">
-          <GameStatusWidget
-            icon={isGameOver ? (isWinner ? '🏆' : '💀') : (turn === 1 ? '🧠' : '🤖')}
-            label={
-              isGameOver
-                ? (winnerTitle || (isWinner ? 'BẠN THẮNG!' : 'BẠN THUA!'))
-                : (turn === 1 ? 'LƯỢT BẠN' : (mode === 'pve' ? 'MÁY AI' : 'NGƯỜI CHƠI 2'))
-            }
-            subLabel={
-              isGameOver
-                ? `Tỉ số: ${score1} - ${score2}`
-                : isAiThinking
-                  ? undefined
-                  : `Bạn: ${score1} cặp | Máy: ${score2} cặp (${matched.length / 2}/8)`
-            }
-            isPlayerTurn={turn === 1}
-            isAiThinking={isAiThinking}
-            isGameOver={isGameOver}
-            isWinner={isWinner}
-            theme="violet"
-          />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs text-text-tertiary">Điểm:</span>
+            <span className="text-sm font-bold font-mono text-violet-400 tabular-nums">
+              {score2} cặp
+            </span>
+          </div>
+
+          {/* Bong bóng biểu cảm đối thủ (ngay trên dải đối thủ, không che thẻ) */}
+          <div className="absolute -top-12 right-2 z-30 pointer-events-none">
+            <GameOpponentBubble bubble={opponentBubble} theme="violet" />
+          </div>
         </div>
 
-        {/* ── BÀN CHƠI TRUNG TÂM: LƯỚI THẺ 4x4 (VÙNG 4 ĐÃ FIX LOGIC) ── */}
-        <div className="game-board-shell relative flex w-full max-w-[480px] xl:max-w-[540px] 2xl:max-w-[580px] min-w-0 flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border border-white/10 bg-slate-950/80 shadow-2xl backdrop-blur-xl shrink">
-          <div className="grid w-full grid-cols-4 gap-1.5 sm:gap-3 p-1">
+        {/* THÔNG BÁO KẾT THÚC VÁN (NẾU ĐÃ KẾT THÚC) */}
+        {isGameOver && (
+          <div
+            role="status"
+            className={cn(
+              'flex items-center justify-between w-full px-4 py-2 rounded-xl border font-bold text-xs shadow-sm animate-in fade-in duration-200 shrink-0',
+              isWinner === true
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : isWinner === false
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+            )}
+          >
+            <span>{winnerTitle}</span>
+            <span className="font-mono">{score1} - {score2}</span>
+          </div>
+        )}
+
+        {/* LƯỚI THẺ 4×4 THỐNG TRỊ KHÔNG GIAN */}
+        <div className="relative w-full aspect-square p-2 sm:p-3 rounded-2xl bg-surface-raised border border-border-default shadow-xl">
+          <div className="grid w-full h-full grid-cols-4 gap-2 sm:gap-2.5">
             {cards.map((card, idx) => {
               const isFlipped = flipped.includes(idx) || matched.includes(idx)
               const isMatched = matched.includes(idx)
+              const isAiTurn = mode === 'pve' && turn === 2
+              const isDisabled =
+                isLocked ||
+                isAiThinking ||
+                isAiTurn ||
+                isFlipped ||
+                isMatched ||
+                flipped.length >= 2
+
+              // aria-label an toàn: không để lộ biểu tượng thẻ khi chưa lật!
+              const ariaLabel = isMatched
+                ? `Thẻ đã ghép: ${card.label}`
+                : isFlipped
+                  ? `Thẻ đã lật: ${card.label}`
+                  : `Thẻ chưa lật, vị trí ${idx + 1}`
 
               return (
-                <div
+                <button
                   key={card.id}
-                  className="relative aspect-square w-full cursor-pointer [perspective:1000px]"
+                  type="button"
+                  disabled={isDisabled}
                   onClick={() => handleCardClick(idx)}
+                  aria-label={ariaLabel}
+                  className={cn(
+                    'relative size-full rounded-xl sm:rounded-2xl transition-all duration-200 [perspective:1000px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    !isDisabled && 'hover:scale-[1.03] active:scale-95 cursor-pointer',
+                    isDisabled && !isMatched && 'cursor-default',
+                    isMatched && 'cursor-default opacity-85',
+                  )}
                 >
                   <div
                     className={cn(
-                      'relative size-full rounded-2xl transition-all duration-500 [transform-style:preserve-3d]',
+                      'relative size-full rounded-xl sm:rounded-2xl transition-transform duration-500 [transform-style:preserve-3d]',
                       isFlipped && '[transform:rotateY(180deg)]',
-                      isMatched && 'scale-95 opacity-90',
+                      isMatched && 'scale-95',
                     )}
                   >
-                    {/* Mặt sau thẻ */}
-                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-900 p-2 shadow-lg transition-transform duration-200 hover:scale-[1.03] hover:border-violet-400/40 [backface-visibility:hidden]">
-                      <div className="flex size-full items-center justify-center rounded-xl border border-white/5 bg-slate-950/40">
-                        <div className="relative flex size-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-500/20 to-indigo-500/20 text-violet-400">
-                          <Sparkles className="size-4 opacity-75" />
-                        </div>
+                    {/* MẶT SAU THẺ (KHI CHƯA LẬT) */}
+                    <div className="absolute inset-0 flex items-center justify-center rounded-xl sm:rounded-2xl border border-border-default bg-surface hover:border-violet-400/50 hover:bg-surface-overlay transition-colors shadow-xs [backface-visibility:hidden]">
+                      <div className="flex size-7 sm:size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400">
+                        <Sparkles className="size-3.5 sm:size-4 opacity-80" />
                       </div>
                     </div>
 
-                    {/* Mặt trước thẻ (khi lật) */}
+                    {/* MẶT TRƯỚC THẺ (KHI LẬT / KHỚP) */}
                     <div
                       className={cn(
-                        'absolute inset-0 flex flex-col items-center justify-center rounded-2xl border p-2 shadow-2xl [backface-visibility:hidden] [transform:rotateY(180deg)]',
+                        'absolute inset-0 flex flex-col items-center justify-center rounded-xl sm:rounded-2xl border p-1 sm:p-2 shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)]',
                         isMatched
-                          ? 'border-emerald-400/60 bg-gradient-to-br from-emerald-950/80 to-teal-900/80 shadow-emerald-500/20'
-                          : 'border-white/20 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-md',
+                          ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400 shadow-emerald-500/10'
+                          : 'border-violet-500/50 bg-surface-overlay text-text-primary',
                       )}
                     >
-                      <span className="text-3xl sm:text-4xl drop-shadow-md select-none transform transition-transform duration-300 scale-100 hover:scale-110">
+                      <span className="text-2xl sm:text-3xl md:text-4xl select-none leading-none transform transition-transform duration-300">
                         {card.symbol}
                       </span>
-                      <span className="mt-1 text-[10px] font-medium text-slate-300/80 select-none truncate max-w-full px-1">
+                      <span className="mt-1 text-[9px] sm:text-[10px] font-medium text-text-secondary select-none truncate max-w-full px-1">
                         {card.label}
                       </span>
                     </div>
                   </div>
-                </div>
+                </button>
               )
             })}
           </div>
-
-          {/* Bong bóng biểu cảm khi màn hình nhỏ (< xl) không có hai cột hai bên */}
-          <div className="xl:hidden absolute top-2 right-2 z-30 pointer-events-none">
-            <GameOpponentBubble bubble={opponentBubble} theme="violet" />
-          </div>
-          <div className="xl:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
-            <GamePlayerBubble bubble={playerBubble} theme="violet" />
-          </div>
         </div>
 
-        {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden xl:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[480px] xl:h-[540px] 2xl:h-[580px] select-none py-2">
-          {/* VÙNG 2: Tin nhắn đối thủ (Địch / AI) ở góc trên */}
-          <div className="w-full flex justify-center">
-            <GameOpponentBubble bubble={opponentBubble} theme="violet" />
+        {/* DẢI NGƯỜI CHƠI (DƯỚI BÀN CHƠI) */}
+        <div className="relative flex items-center justify-between w-full px-3 py-2 rounded-xl bg-surface-raised border border-border-default shadow-xs shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={cn(
+              'size-7 rounded-lg flex items-center justify-center text-xs font-bold border transition-colors shrink-0',
+              turn === 1 && !isGameOver
+                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 ring-2 ring-emerald-400/40'
+                : 'bg-surface border-border-default text-text-secondary'
+            )}>
+              <Brain className="size-4" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate">
+                {mode === 'pve' ? 'Bạn' : 'Người chơi 1'}
+              </span>
+              <span className="text-[10px] text-text-tertiary">
+                {isGameOver
+                  ? (isWinner === true ? 'Chiến thắng' : isWinner === false ? 'Thất bại' : 'Hoà')
+                  : turn === 1
+                    ? 'Lượt của bạn'
+                    : 'Chờ đối thủ…'}
+              </span>
+            </div>
           </div>
 
-          {/* VÙNG 1+: Tin nhắn của ta ở góc dưới */}
-          <div className="w-full flex justify-center">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs text-text-tertiary">Điểm:</span>
+            <span className="text-sm font-bold font-mono text-emerald-400 tabular-nums">
+              {score1} cặp
+            </span>
+          </div>
+
+          {/* Bong bóng biểu cảm người chơi (ngay dưới dải người chơi, không che thẻ) */}
+          <div className="absolute -bottom-12 right-2 z-30 pointer-events-none">
             <GamePlayerBubble bubble={playerBubble} theme="violet" />
           </div>
         </div>
       </div>
 
-      {/* Modal Xin thua 3 lần đếm ngược 5s */}
+      {/* Modal Xin thua 3 lần */}
       <GameSurrenderModal
         isOpen={isSurrenderModalOpen}
         onClose={() => setIsSurrenderModalOpen(false)}
@@ -573,7 +639,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         opponentSideName={mode === 'pve' ? 'người chơi Máy AI' : 'người chơi 2'}
         attemptNumber={surrenderAttempts + 1}
         onSurrenderSuccess={() => {
-          setSurrenderWinner(false) // Bạn thua
+          setSurrenderWinner(false)
           playSound('lose', muted)
           setIsSurrenderModalOpen(false)
         }}

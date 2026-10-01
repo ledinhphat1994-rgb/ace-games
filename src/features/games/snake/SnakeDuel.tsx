@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Flame, Play, RotateCcw } from 'lucide-react'
+import { Flame, Play, RotateCcw, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
@@ -138,66 +138,86 @@ export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) 
       ref={fullscreenContainerRef}
       className={cn(
         'flex flex-col items-center justify-between w-full h-full max-w-6xl mx-auto transition-all',
-        isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-2 bg-slate-950 justify-center overflow-hidden'
+        isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-2 bg-surface justify-center overflow-hidden'
       )}
     >
-      {/* ── 1. THANH CÔNG CỤ: cùng khung với các bàn cờ (Quay lại · tên game · chế độ · biểu cảm · toàn màn hình · chơi lại) — ẩn khi toàn màn hình ── */}
-      {(
-        <GamePlayToolbar
-          onBack={onBack}
-          title="Rắn Săn Mồi"
-          icon={<Flame className="size-4 text-emerald-400" />}
-          mode={mode}
-          onModeChange={(m) => {
-            setMode(m)
-            handleStartGame()
-          }}
-          aiLevel={difficulty}
-          onAiLevelChange={(capDo) => doiThietLap({ ...thietLap, capDo })}
-          nhanChipPve={`${CAP_DO_MAY[difficulty].nhan} · ${aiCount}`}
-          phuPve={
-            <div className="mt-2.5 border-t border-white/10 pt-2.5">
-              <p className="mb-1.5 px-1 text-[11px] font-bold text-text-tertiary">
-                {mode === 'pass_and_play' ? 'Số rắn bot tham gia' : 'Số rắn máy'}
-              </p>
-              <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
-            </div>
-          }
-          onReset={handleStartGame}
-          hideReset={!isRunning}
-          phuPvp={
-            <div className="space-y-1.5">
-              <p className="px-1 text-[11px] font-bold text-text-tertiary">
-                Số rắn bot tham gia cùng
-              </p>
-              <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
-            </div>
-          }
-          nhanChipPvp={`${aiCount} Bot`}
-          resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}
-          resetIcon={isRunning || isGameOver ? <RotateCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
-          resetNoiBat={!isRunning && !isGameOver}
-          turnLabel=""
-          activeSide="red"
-          hideCenterTurn
-          onToggleFullscreen={handleToggleFullscreen}
-          isFullscreen={isFullscreen}
-          rightSlot={
-            <GameQuickEmote
-              emotes={DANH_SACH_THAI_DO_SNAKE}
-              onSend={handleQuickEmote}
-              theme="cyan"
-              compact={true}
-            />
-          }
-          className="w-full shrink-0 px-1"
-        />
-      )}
+      {/* ── 1. THANH CÔNG CỤ: cùng khung với các bàn cờ — ẩn khi toàn màn hình ── */}
+      <GamePlayToolbar
+        onBack={onBack}
+        title="Rắn Săn Mồi"
+        icon={<Flame className="size-4 text-emerald-400" />}
+        badge="ĐỐI KHÁNG"
+        mode={mode}
+        onModeChange={(m) => {
+          setMode(m)
+          handleStartGame()
+        }}
+        aiLevel={difficulty}
+        onAiLevelChange={(capDo) => doiThietLap({ ...thietLap, capDo })}
+        nhanChipPve={`${CAP_DO_MAY[difficulty].nhan} · ${aiCount}`}
+        phuPve={
+          <div className="mt-2.5 border-t border-border-subtle pt-2.5">
+            <p className="mb-1.5 px-1 text-[11px] font-bold text-text-tertiary">
+              {mode === 'pass_and_play' ? 'Số rắn bot tham gia' : 'Số rắn máy'}
+            </p>
+            <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
+          </div>
+        }
+        onReset={handleStartGame}
+        hideReset={!isRunning}
+        phuPvp={
+          <div className="space-y-1.5">
+            <p className="px-1 text-[11px] font-bold text-text-tertiary">
+              Số rắn bot tham gia cùng
+            </p>
+            <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
+          </div>
+        }
+        nhanChipPvp={`${aiCount} Bot`}
+        resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}
+        resetIcon={isRunning || isGameOver ? <RotateCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
+        resetNoiBat={!isRunning && !isGameOver}
+        turnLabel=""
+        activeSide="red"
+        hideCenterTurn
+        showRoomChat={false}
+        showRankings={false}
+        onToggleFullscreen={handleToggleFullscreen}
+        isFullscreen={isFullscreen}
+        rightSlot={
+          <GameQuickEmote
+            emotes={DANH_SACH_THAI_DO_SNAKE}
+            onSend={handleQuickEmote}
+            theme="cyan"
+            compact={true}
+          />
+        }
+        className="w-full shrink-0 px-1"
+      />
 
+      {/* ── BỘ CHUYỂN CHẾ ĐỘ ĐỐI KHÁNG | CỔ ĐIỂN CHUẨN DUY NHẤT ── */}
       {onTabChange && !isFullscreen && (
-        <div className="mb-2 flex w-full justify-center gap-2" role="group" aria-label="Chế độ Rắn săn mồi">
-          <button type="button" aria-pressed="true" className="min-h-10 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 text-xs font-semibold text-emerald-300">Đối kháng</button>
-          <button type="button" onClick={() => onTabChange('classic')} className="min-h-10 rounded-xl border border-white/10 px-4 text-xs font-semibold text-slate-300">Cổ điển</button>
+        <div className="my-1.5 flex w-full justify-center shrink-0" role="group" aria-label="Chế độ Rắn săn mồi">
+          <div className="flex rounded-xl bg-surface-raised p-0.5 border border-border-default text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => onTabChange('duel')}
+              aria-pressed="true"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-brand text-primary-foreground shadow-xs font-semibold cursor-pointer"
+            >
+              <Flame className="size-3.5" />
+              <span>Đối kháng</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange('classic')}
+              aria-pressed="false"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+            >
+              <ShieldCheck className="size-3.5" />
+              <span>Cổ điển</span>
+            </button>
+          </div>
         </div>
       )}
       {/* ── 2. VÙNG 2: ĐẤU TRƯỜNG RẮN SĂN MỒI MỞ RỘNG 100% KHÔNG GIAN ── */}
