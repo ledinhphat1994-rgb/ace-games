@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
-import { LiveDot, PageHeader } from '@/components/layout/PageHeader'
+import { LiveDot } from '@/components/layout/PageHeader'
 import { cn, getInitials } from '@/lib/utils'
 import {
   derivePresenceView,
@@ -287,48 +287,72 @@ export function CommunityPage() {
 
   return (
     <div data-testid="community-social-hub" className="space-y-6">
-      {/* ── HEADER ── */}
-      <PageHeader
-        title="Cộng đồng"
-        description={moTaTrucTiep}
-        actions={
-          nguoiDung ? (
-            <>
-              <Button
-                variant="outline"
-                data-testid="community-find-friends-cta"
-                onClick={() => openDrawerTab('search')}
-                className="gap-2 border-border-default hover:border-brand/40"
-              >
-                <Search className="size-4 text-social" />
-                <span>Tìm bạn học</span>
-              </Button>
-              <Button
-                data-testid="community-open-chat-cta"
-                onClick={handleOpenChat}
-                className="gap-2 bg-brand text-brand-foreground hover:bg-brand/90"
-              >
-                <MessageSquare className="size-4" />
-                <span>Trò chuyện trường</span>
-              </Button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => moAuthModal('dang_nhap')}>
-                Đăng nhập
-              </Button>
-              <Button onClick={() => moAuthModal('dang_ky')} className="bg-brand text-brand-foreground hover:bg-brand/90">
-                Đăng ký
-              </Button>
-            </div>
-          )
-        }
-      />
+      {/* ── CYBER HERO BANNER (MATCHING MOCKUP 4) ── */}
+      <div className="relative overflow-hidden rounded-3xl border border-violet-500/25 bg-gradient-to-r from-[#0d1424] via-[#151c36] to-[#0b1020] p-6 lg:p-8 shadow-2xl">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(139,92,246,0.18),rgba(255,255,255,0))]" />
+
+        {/* Background graphic from mockups */}
+        <div className="absolute right-0 top-0 bottom-0 w-2/5 opacity-40 lg:opacity-75 pointer-events-none overflow-hidden select-none">
+          <img
+            src="/assets/cyber_mockups/community_hero_bg.webp"
+            alt=""
+            className="w-full h-full object-cover object-left mix-blend-screen"
+          />
+        </div>
+
+        <div className="relative z-10 max-w-xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-400 backdrop-blur-md mb-3">
+            <Users className="size-3.5" />
+            <span>Không gian kết nối & trao đổi trực tuyến</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase drop-shadow-md">
+            Cộng đồng Digital Campus
+          </h1>
+
+          <div className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+            {moTaTrucTiep}
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            {nguoiDung ? (
+              <>
+                <Button
+                  data-testid="community-find-friends-cta"
+                  onClick={() => openDrawerTab('search')}
+                  className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:brightness-110 shadow-lg shadow-cyan-500/20 border-0 h-10 px-4 rounded-xl cursor-pointer"
+                >
+                  <Search className="size-4" />
+                  <span>Tìm bạn học</span>
+                </Button>
+                <Button
+                  data-testid="community-open-chat-cta"
+                  onClick={handleOpenChat}
+                  variant="outline"
+                  className="gap-2 border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:text-white h-10 px-4 rounded-xl cursor-pointer"
+                >
+                  <MessageSquare className="size-4" />
+                  <span>Trò chuyện trường</span>
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => moAuthModal('dang_nhap')}>
+                  Đăng nhập
+                </Button>
+                <Button onClick={() => moAuthModal('dang_ky')} className="bg-brand text-brand-foreground hover:bg-brand/90">
+                  Đăng ký
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ── AREA A: LIGHTWEIGHT SOCIAL OVERVIEW ── */}
       {nguoiDung && (
         <div data-testid="community-social-overview" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface border border-border-default shadow-xs min-w-0">
+          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-violet-500/20 backdrop-blur-sm shadow-xs min-w-0 hover:border-violet-500/40 transition-colors">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400 border border-violet-500/25">
               <Users className="size-5" />
             </div>
@@ -340,7 +364,7 @@ export function CommunityPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface border border-border-default shadow-xs min-w-0">
+          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-emerald-500/20 backdrop-blur-sm shadow-xs min-w-0 hover:border-emerald-500/40 transition-colors">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
               <Radio className="size-5" />
             </div>
@@ -358,7 +382,7 @@ export function CommunityPage() {
               else openDrawerTab('requests')
             }}
             className={cn(
-              'flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface border transition-colors cursor-pointer min-w-0',
+              'flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border transition-colors cursor-pointer min-w-0 backdrop-blur-sm',
               incomingRequests.length > 0
                 ? 'border-social/40 bg-social-muted/30 hover:bg-social-muted/50'
                 : 'border-border-default hover:border-border-subtle shadow-xs',
@@ -385,7 +409,7 @@ export function CommunityPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface border border-border-default shadow-xs min-w-0">
+          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-cyan-500/20 backdrop-blur-sm shadow-xs min-w-0 hover:border-cyan-500/40 transition-colors">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand border border-brand/25">
               <DoorOpen className="size-5" />
             </div>
@@ -428,6 +452,35 @@ export function CommunityPage() {
             AREA B: FRIENDS & CONNECTIONS WORKSPACE
         ══════════════════════════════════════════════════════════ */}
         <div data-testid="community-friends-workspace" className="min-w-0 space-y-4">
+          {/* Quick Interaction / Status Prompt (Mockup 4) */}
+          {nguoiDung && (
+            <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-surface via-surface-raised to-surface shadow-xs">
+              <div className="relative shrink-0">
+                {nguoiDung.avatar ? (
+                  <img src={nguoiDung.avatar} alt="" className="size-9 rounded-full object-cover ring-2 ring-brand/30" />
+                ) : (
+                  <div className="flex size-9 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold">
+                    {getInitials(nguoiDung.ten || nguoiDung.username)}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenChat}
+                className="flex-1 text-left px-4 py-2 rounded-xl bg-surface-overlay/80 hover:bg-surface-overlay text-text-tertiary hover:text-text-secondary text-xs sm:text-sm border border-border-default/60 transition-colors cursor-pointer"
+              >
+                Bạn muốn kết nối hay trò chuyện cùng cả trường? Nhấn để mở chat...
+              </button>
+              <Button
+                size="sm"
+                onClick={handleOpenChat}
+                className="h-9 px-3 gap-1.5 bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 text-xs font-semibold rounded-xl cursor-pointer"
+              >
+                <MessageSquare className="size-3.5" />
+                <span className="hidden sm:inline">Kênh trường</span>
+              </Button>
+            </div>
+          )}
           {/* FILTER TOOLBAR */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-surface border border-border-default shadow-xs">
             {/* Segmented Filter Tabs */}

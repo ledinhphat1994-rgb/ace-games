@@ -4,10 +4,7 @@
 import { NavLink } from 'react-router'
 import { GraduationCap } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-  SIDEBAR_PRIMARY_NAV,
-  SIDEBAR_SECONDARY_NAV,
-} from './navigation-config'
+import { MAIN_NAV_ITEMS } from './navigation-config'
 
 interface AppSidebarProps {
   className?: string
@@ -40,9 +37,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
         </div>
       </NavLink>
 
-      {/* ── Primary Navigation List ── */}
+      {/* ── Primary Navigation List (5 Destinations) ── */}
       <nav aria-label="Khu vực hoạt động" className="space-y-1.5">
-        {SIDEBAR_PRIMARY_NAV.map((item) => {
+        {MAIN_NAV_ITEMS.map((item) => {
           const Icon = item.icon
           return (
             <NavLink
@@ -53,42 +50,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 cn(
                   'group flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-brand',
                   isActive
-                    ? 'bg-brand/15 text-brand border border-brand/25 shadow-[0_0_12px_rgba(56,189,248,0.12)]'
-                    : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary border border-transparent',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    className={cn(
-                      'h-5 w-5 shrink-0 transition-transform group-hover:scale-110',
-                      isActive ? 'text-brand' : 'text-text-tertiary group-hover:text-text-secondary',
-                    )}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </>
-              )}
-            </NavLink>
-          )
-        })}
-
-        {/* ── Visual Separator ── */}
-        <div className="my-3 mx-2 h-px bg-border-subtle" />
-
-        {/* ── Secondary / Rankings Navigation ── */}
-        {SIDEBAR_SECONDARY_NAV.map((item) => {
-          const Icon = item.icon
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.exact}
-              className={({ isActive }) =>
-                cn(
-                  'group flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                  isActive
-                    ? 'bg-brand/15 text-brand border border-brand/25 shadow-[0_0_12px_rgba(56,189,248,0.12)]'
+                    ? 'bg-brand/15 text-brand border border-brand/30 shadow-[0_0_16px_rgba(56,189,248,0.18)]'
                     : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary border border-transparent',
                 )
               }

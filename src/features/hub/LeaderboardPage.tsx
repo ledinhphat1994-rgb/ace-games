@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useSearchParams } from 'react-router'
-import { Trophy, RefreshCw, Crown, Medal, Flame, AlertCircle, GraduationCap, Users } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router'
+import { Trophy, RefreshCw, Crown, Medal, Flame, AlertCircle, GraduationCap, Users, Sparkles, BookOpen, Gamepad2, ArrowRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { usePhien } from '@/app/phien'
@@ -62,6 +62,7 @@ function parseCategoryParam(raw: string | null): LeaderboardCategory {
 }
 
 export function LeaderboardPage() {
+  const navigate = useNavigate()
   const { nguoiDung } = usePhien()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -292,44 +293,55 @@ export function LeaderboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12" data-testid="leaderboard-page">
-      {/* ── 1. Page Header ── */}
-      <section
-        aria-label="Thông tin bảng xếp hạng"
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border-subtle pb-5"
-      >
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-500 border border-amber-500/30 shadow-xs">
-              <Trophy className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-text-primary tracking-tight">
-                Bảng xếp hạng
-              </h1>
-              <p className="text-xs sm:text-sm text-text-secondary">
-                Vinh danh thành tích học tập và kỷ lục trò chơi trên toàn trường.
-              </p>
-            </div>
+      {/* ── 1. Cyber Hero Banner (Matching Mockup 5) ── */}
+      <div className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-r from-[#0d1424] via-[#1c1828] to-[#0b1020] p-6 lg:p-8 shadow-2xl">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.15),rgba(255,255,255,0))]" />
+
+        {/* Background graphic from mockups */}
+        <div className="absolute right-0 top-0 bottom-0 w-2/5 opacity-40 lg:opacity-75 pointer-events-none overflow-hidden select-none">
+          <img
+            src="/assets/cyber_mockups/leaderboard_hero_bg.webp"
+            alt=""
+            className="w-full h-full object-cover object-left mix-blend-screen"
+          />
+        </div>
+
+        <div className="relative z-10 max-w-xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 backdrop-blur-md mb-3">
+            <Trophy className="size-3.5" />
+            <span>Vinh danh thành tích học tập & kỷ lục trò chơi</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase drop-shadow-md">
+            Bảng xếp hạng Digital Campus
+          </h1>
+
+          <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+            Vinh danh thành tích học tập và kỷ lục trò chơi trên toàn trường. Dữ liệu được tính toán và xác thực tự động theo thời gian thực.
+          </p>
+
+          <div className="mt-5 flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading || isRefetching}
+              className="h-10 gap-2 rounded-xl border-amber-500/40 bg-amber-500/15 px-4 text-xs font-bold text-amber-300 hover:bg-amber-500/25 hover:text-white active:scale-95 transition-all cursor-pointer shadow-md"
+              title="Làm mới bảng xếp hạng"
+              aria-label="Làm mới bảng xếp hạng"
+            >
+              <RefreshCw className={cn('size-3.5', (isLoading || isRefetching) && 'animate-spin')} />
+              <span>Làm mới dữ liệu</span>
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading || isRefetching}
-            className="h-9 gap-2 rounded-xl border-border-default bg-surface px-3 text-xs font-semibold text-text-secondary hover:text-text-primary active:scale-95 transition-all"
-            title="Làm mới bảng xếp hạng"
-            aria-label="Làm mới bảng xếp hạng"
-          >
-            <RefreshCw className={cn('size-3.5', (isLoading || isRefetching) && 'animate-spin')} />
-            <span className="hidden sm:inline">Làm mới</span>
-          </Button>
-        </div>
-      </section>
-
-      {/* ── 2. Category Selector (Authoritative Tabs) ── */}
+      {/* ── 2-Column Responsive Layout (Desktop 8+4 cols, Mobile 1-col) ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px] items-start">
+        {/* Main Central Stage */}
+        <div className="min-w-0 space-y-6">
+          {/* ── 2. Category Selector (Authoritative Tabs) ── */}
       <section aria-label="Lựa chọn danh mục xếp hạng" className="space-y-3">
         <div
           role="tablist"
@@ -722,6 +734,106 @@ export function LeaderboardPage() {
           </div>
         </section>
       )}
+        </div>
+
+        {/* ── Right Rail (Widgets) ── */}
+        <aside className="space-y-4">
+          {/* Card: Quy tắc tính điểm */}
+          <div className="rounded-2xl border border-border-default/80 bg-surface/80 backdrop-blur-md p-5 shadow-xs space-y-3">
+            <div className="flex items-center gap-2.5 text-amber-400">
+              <Sparkles className="size-4" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                Quy tắc tính điểm
+              </h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Điểm thi đua học tập và kỷ lục trò chơi được ghi nhận từ hoạt động thực tế trên nền tảng. Hệ thống tự động kiểm tra tính hợp lệ qua cơ chế xác thực máy chủ (Server-Authoritative).
+            </p>
+            <div className="pt-2 text-[11px] text-text-tertiary border-t border-border-subtle flex items-center justify-between">
+              <span>Chu kỳ cập nhật:</span>
+              <span className="font-semibold text-text-secondary">Thời gian thực</span>
+            </div>
+          </div>
+
+          {/* Card: Thành tích của bạn */}
+          {nguoiDung && (
+            <div className="rounded-2xl border border-brand/25 bg-gradient-to-br from-surface to-brand/5 p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2.5 text-brand">
+                <Medal className="size-4" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                  Thành tích của bạn
+                </h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <AnhNguoiDung ten={nguoiDung.ten || nguoiDung.username} avatar={nguoiDung.avatar} className="size-11 ring-2 ring-brand/30" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-text-primary truncate">
+                    {nguoiDung.ten || nguoiDung.username}
+                  </p>
+                  <p className="text-xs text-text-tertiary truncate">
+                    {nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/me')}
+                className="w-full h-8 text-xs font-semibold rounded-xl border-brand/30 text-brand hover:bg-brand/10 gap-1.5 cursor-pointer"
+              >
+                <span>Xem hồ sơ & huy hiệu</span>
+                <ArrowRight className="size-3" />
+              </Button>
+            </div>
+          )}
+
+          {/* Card: Tích lũy thêm điểm */}
+          <div className="rounded-2xl border border-border-default/80 bg-surface/80 backdrop-blur-md p-5 shadow-xs space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
+              Tích lũy thêm điểm
+            </h3>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => navigate('/learn')}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-default/60 hover:border-brand/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
+                    <BookOpen className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-text-primary group-hover:text-brand transition-colors truncate">
+                      Vào phòng học tập
+                    </p>
+                    <p className="text-[11px] text-text-tertiary truncate">+XP khi hoàn thành phiên học</p>
+                  </div>
+                </div>
+                <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-brand transition-colors" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/arena')}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-default/60 hover:border-violet-500/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400">
+                    <Gamepad2 className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-text-primary group-hover:text-violet-400 transition-colors truncate">
+                      Đấu trường trò chơi
+                    </p>
+                    <p className="text-[11px] text-text-tertiary truncate">Ghi điểm kỷ lục Cờ, Caro, Rắn</p>
+                  </div>
+                </div>
+                <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-violet-400 transition-colors" />
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
 
       {/* ── 8. User Profile Modal Integration ── */}
       {nguoiXem && <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />}
