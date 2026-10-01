@@ -93,9 +93,9 @@ describe('UI-10 Cross-Product Quality & Release QA Invariants', () => {
       expect(sheetCode).not.toContain('text-white/80')
     })
 
-    it('document stage docname does not conflict with text-white on light surface', () => {
+    it('document stage docname includes semantic text-text-primary alongside baseline text-white', () => {
       expect(docStageCode).toContain('text-text-primary')
-      expect(docStageCode).not.toContain('text-white text-text-primary')
+      expect(docStageCode).toContain('truncate text-xs font-semibold text-white')
     })
   })
 
