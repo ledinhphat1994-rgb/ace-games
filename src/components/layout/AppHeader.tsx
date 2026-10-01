@@ -11,9 +11,6 @@ import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
 import { GraduationCap, MessageSquare } from 'lucide-react'
 import { ThemeSwitch } from './ThemeSwitch'
 import { CampusSearch } from './CampusSearch'
-import { DESKTOP_NAV_LINKS } from './navigation-config'
-
-export { DESKTOP_NAV_LINKS }
 
 interface AppHeaderProps {
   nguoiDung: NguoiDung | null
