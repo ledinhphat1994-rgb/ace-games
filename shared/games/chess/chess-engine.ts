@@ -150,6 +150,10 @@ export class ChessPosition {
   keys: string[] = []
   private undos: Undo[] = []
 
+  get undoStack(): readonly Undo[] {
+    return this.undos
+  }
+
   static fromFen(fen: string = START_FEN): ChessPosition {
     const pos = new ChessPosition()
     const parts = fen.trim().split(/\s+/)

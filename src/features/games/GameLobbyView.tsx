@@ -3,37 +3,29 @@ import { Link } from 'react-router'
 import {
   ArrowRight,
   Brain,
-  Car,
-  Flame,
+  DoorOpen,
   Gamepad2,
-  MessageSquare,
-  Play,
-  Puzzle,
-  Sparkles,
+  Shield,
   Sword,
-  Target,
   Trophy,
   Users,
-  Zap,
 } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { useGameRooms } from '../../hooks/use-game-rooms'
 import { GameCard } from './GameCard'
 import { ThongKeGame } from './ThongKeGame'
-import { CAC_GAME_1V1, CAC_GAME_SOLO, type GameDefinition } from './game-catalog'
+import { CAC_GAME_1V1, CAC_GAME_SOLO, type GameDefinition, GAME_CATALOG } from './game-catalog'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
 
 interface GameLobbyViewProps {
   onMoSanh: (gameType: GameType) => void
 }
 
 export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
-  const { nguoiDung, moAuthModal } = usePhien()
-  const [selectedFilter, setSelectedFilter] = useState<string>('all')
-  const [leaderboardTab, setLeaderboardTab] = useState<'chess' | 'caro' | 'racing' | 'total'>('chess')
+  const { nguoiDung } = usePhien()
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'pvp' | 'solo'>('all')
 
   const { data: tablesData, isPending, isError } = useGameRooms(undefined, Boolean(nguoiDung))
   const tables = useMemo<BanSanh[]>(
@@ -52,80 +44,24 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
   }, [tables])
 
   const hasAuthoritativeData = Boolean(nguoiDung) && !isPending && !isError
-  const allGames = useMemo<GameDefinition[]>(() => [...CAC_GAME_1V1, ...CAC_GAME_SOLO], [])
 
-  const displayedGames = useMemo(() => {
-    if (selectedFilter === 'strategy') return allGames.filter((g) => g.id === 'chess' || g.id === 'xiangqi')
-    if (selectedFilter === 'puzzle') return allGames.filter((g) => g.id === 'caro_15')
-    if (selectedFilter === 'action') return allGames.filter((g) => g.id === 'solo_snake')
-    if (selectedFilter === 'intel') return allGames.filter((g) => g.id === 'solo_memory')
-    return allGames
-  }, [allGames, selectedFilter])
+  const displayedGames = useMemo<GameDefinition[]>(() => {
+    if (selectedFilter === 'pvp') return CAC_GAME_1V1
+    if (selectedFilter === 'solo') return CAC_GAME_SOLO
+    return GAME_CATALOG
+  }, [selectedFilter])
 
-  const handleOpenChat = () => {
-    if (!nguoiDung) {
-      moAuthModal?.('dang_nhap')
-      return
-    }
-    window.dispatchEvent(new CustomEvent('campus:open-chat'))
-  }
-
-  // Categories matching E:\phát\hình thiết kế web
+  // Danh mục game chuẩn của nền tảng (không fake danh mục)
   const categories = [
-    { id: 'all', label: 'Tất cả', icon: Gamepad2 },
-    { id: 'strategy', label: 'Chiến thuật', icon: Sword },
-    { id: 'intel', label: 'Trí tuệ', icon: Brain },
-    { id: 'puzzle', label: 'Giải đố', icon: Puzzle },
-    { id: 'action', label: 'Hành động', icon: Zap },
-    { id: 'racing', label: 'Đua xe', icon: Car },
-    { id: 'casual', label: 'Casual', icon: Sparkles },
-    { id: 'esports', label: 'Esports', icon: Trophy },
+    { id: 'all' as const, label: 'Tất cả trò chơi (5)', icon: Gamepad2 },
+    { id: 'pvp' as const, label: 'Đối kháng 1v1 (3)', icon: Sword },
+    { id: 'solo' as const, label: 'Chơi đơn & Kỷ lục (2)', icon: Brain },
   ]
-
-  // Daily quests
-  const dailyQuests = [
-    { id: 1, title: 'Chơi 1 ván bất kỳ', xp: '+50 XP', icon: Gamepad2 },
-    { id: 2, title: 'Thắng 1 ván', xp: '+100 XP', icon: Trophy },
-    { id: 3, title: 'Mời 1 người bạn', xp: '+150 XP', icon: Users },
-    { id: 4, title: 'Chơi 3 ngày liên tiếp', xp: 'Huy hiệu đặc biệt', icon: Flame },
-  ]
-
-  // Leaderboard data
-  const gameLeaderboards = {
-    chess: [
-      { rank: 1, name: 'Nguyễn Minh', score: '4.920 XP', avatar: '/assets/avatars/user-1.webp' },
-      { rank: 2, name: 'Trần Mai', score: '4.380 XP', avatar: '/assets/avatars/user-2.webp' },
-      { rank: 3, name: 'Lê Hoàng', score: '4.210 XP', avatar: '/assets/avatars/user-3.webp' },
-      { rank: 4, name: 'Phạm An', score: '3.950 XP', avatar: '/assets/avatars/user-4.webp' },
-      { rank: 5, name: 'Đỗ Linh', score: '3.760 XP', avatar: '/assets/avatars/user-5.webp' },
-    ],
-    caro: [
-      { rank: 1, name: 'Đỗ Linh', score: '4.850 XP', avatar: '/assets/avatars/user-5.webp' },
-      { rank: 2, name: 'Lê Hoàng', score: '4.400 XP', avatar: '/assets/avatars/user-3.webp' },
-      { rank: 3, name: 'Nguyễn Minh', score: '4.150 XP', avatar: '/assets/avatars/user-1.webp' },
-      { rank: 4, name: 'Trần Mai', score: '3.890 XP', avatar: '/assets/avatars/user-2.webp' },
-      { rank: 5, name: 'Phạm An', score: '3.620 XP', avatar: '/assets/avatars/user-4.webp' },
-    ],
-    racing: [
-      { rank: 1, name: 'Phạm An', score: '4.650 XP', avatar: '/assets/avatars/user-4.webp' },
-      { rank: 2, name: 'Nguyễn Minh', score: '4.320 XP', avatar: '/assets/avatars/user-1.webp' },
-      { rank: 3, name: 'Lê Hoàng Duy', score: '4.110 XP', avatar: '/assets/avatars/user-6.webp' },
-      { rank: 4, name: 'Đỗ Linh', score: '3.750 XP', avatar: '/assets/avatars/user-5.webp' },
-      { rank: 5, name: 'Trần Mai', score: '3.500 XP', avatar: '/assets/avatars/user-2.webp' },
-    ],
-    total: [
-      { rank: 1, name: 'Nguyễn Minh', score: '13.890 XP', avatar: '/assets/avatars/user-1.webp' },
-      { rank: 2, name: 'Trần Mai', score: '12.650 XP', avatar: '/assets/avatars/user-2.webp' },
-      { rank: 3, name: 'Lê Hoàng', score: '12.430 XP', avatar: '/assets/avatars/user-3.webp' },
-      { rank: 4, name: 'Đỗ Linh', score: '11.890 XP', avatar: '/assets/avatars/user-5.webp' },
-      { rank: 5, name: 'Phạm An', score: '11.360 XP', avatar: '/assets/avatars/user-4.webp' },
-    ],
-  }
 
   return (
     <div className="pb-12">
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* ── Main Left Area: 8 Columns on XL ── */}
+        {/* ── Khu vực chính giữa: 8 Cột trên XL ── */}
         <div className="xl:col-span-8 space-y-6 min-w-0">
           {/* 1. Hero Grand Hall Banner */}
           <section
@@ -136,84 +72,51 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               <img
                 src="/assets/cyber_mockups/game_hero_bg.webp"
                 alt="Game Arena Banner"
-                className="h-full w-full object-cover object-right opacity-40 dark:opacity-45 scale-100 group-hover:scale-102 transition-transform duration-700"
+                className="h-full w-full object-cover object-right opacity-35 dark:opacity-40 scale-100 group-hover:scale-102 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#090d16] via-[#090d16]/85 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#090d16] via-[#090d16]/90 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-transparent to-transparent" />
             </div>
 
-            <div className="relative z-10 p-6 sm:p-9 lg:p-10 max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-purple-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-purple-400 mb-4 shadow-[0_0_12px_rgba(168,85,247,0.2)]">
+            <div className="relative z-10 p-6 sm:p-9 max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-purple-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-purple-400 mb-3.5 shadow-[0_0_12px_rgba(168,85,247,0.2)]">
                 <span className="size-2 rounded-full bg-purple-400 animate-pulse" />
-                <span>GAME TẠI DIGITAL CAMPUS</span>
+                <span>ĐẤU TRƯỜNG TRÒ CHƠI • DIGITAL CAMPUS</span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-[1.25]">
-                Chơi game
-                <br />
-                Cùng bạn bè
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-sky-300 to-indigo-400">
-                  Nâng tầm kỹ năng
-                </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-[1.25]">
+                Đấu Trí Chiến Thuật & Giải Trí
               </h1>
 
-              <p className="mt-3.5 text-xs sm:text-sm lg:text-base text-slate-300 leading-relaxed">
-                Giải trí lành mạnh, kết nối bạn bè, tham gia giải đấu dành riêng cho học sinh, sinh viên Digital Campus.
+              <p className="mt-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
+                Thi đấu cờ vua, cờ tướng, cờ caro đối kháng trực tuyến hoặc luyện tập trí tuệ và phản xạ cùng Máy.
               </p>
 
-              {/* Action Buttons */}
-              <div className="mt-6 flex flex-wrap items-center gap-3.5">
+              <div className="mt-5 flex flex-wrap items-center gap-3">
                 <Button
-                  size="lg"
+                  size="default"
                   onClick={() => onMoSanh('chess')}
-                  className="h-11 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all cursor-pointer"
+                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all cursor-pointer gap-2"
                 >
-                  <span>Khám phá game ngay</span>
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  <Sword className="size-4" />
+                  <span>Vào sảnh Cờ Vua</span>
+                  <ArrowRight className="size-3.5" />
                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => toast.info('Video giới thiệu Đấu trường Game')}
-                  className="h-11 px-5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer gap-2"
+                <Link
+                  to="/leaderboard"
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all cursor-pointer"
                 >
-                  <Play className="h-4 w-4 fill-white text-white" />
-                  <span>Xem video</span>
-                </Button>
-              </div>
-
-              {/* 4 Stat Badges */}
-              <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-emerald-400" />
-                  <span>24.5K học sinh chơi</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Gamepad2 className="size-4 text-purple-400" />
-                  <span>80+ trò chơi</span>
-                </div>
-                <div className="flex items-center gap-2">
                   <Trophy className="size-4 text-amber-400" />
-                  <span>12+ giải đấu/tháng</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="size-4 text-sky-400" />
-                  <span>Kết nối bạn bè</span>
-                </div>
+                  <span>Bảng xếp hạng game</span>
+                </Link>
               </div>
             </div>
           </section>
 
-          {/* 2. Danh mục Game (Filter Pills) */}
-          <section aria-label="Danh mục game" className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Gamepad2 className="h-4.5 w-4.5 text-purple-400" />
-              <h2 className="text-base font-bold text-text-primary">Danh mục game</h2>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
+          {/* 2. Thanh lọc danh mục (Kéo qua kéo lại - Horizontal Scroll) */}
+          <section aria-label="Danh mục game" className="space-y-2">
+            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-none snap-x touch-pan-x scroll-smooth">
               {categories.map((cat) => {
                 const Icon = cat.icon
                 const isActive = selectedFilter === cat.id
@@ -223,10 +126,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     type="button"
                     onClick={() => setSelectedFilter(cat.id)}
                     className={cn(
-                      'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer',
+                      'snap-start shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer',
                       isActive
-                        ? 'bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-                        : 'border-border-default/70 bg-[#0f172a] text-slate-400 hover:text-white hover:border-slate-700',
+                        ? 'bg-purple-500 text-white border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                        : 'border-border-default/70 bg-[#0f172a] text-slate-300 hover:bg-slate-800 hover:text-white',
                     )}
                   >
                     <Icon className="size-3.5" />
@@ -237,76 +140,95 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             </div>
           </section>
 
-          {/* 3. Game nổi bật Grid */}
-          <section aria-label="Trò chơi trực tuyến" className="space-y-4">
+          {/* 3. Băng chuyền trò chơi (Kéo qua kéo lại - Horizontal Scroll) */}
+          <section aria-label="Trò chơi trực tuyến" className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Flame className="h-5 w-5 text-amber-500 fill-amber-500" />
-                <h2 className="text-lg font-bold text-text-primary tracking-tight">Game nổi bật</h2>
+                <Gamepad2 className="h-5 w-5 text-purple-400" />
+                <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
+                  Danh sách trò chơi ({displayedGames.length})
+                </h2>
               </div>
-              <Link
-                to="/leaderboard"
-                className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
-              >
-                <span>Bảng xếp hạng game</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Thanh cuộn ngang mượt mà cho các thẻ game */}
+            <div className="flex overflow-x-auto gap-4 pb-4 pt-1 scrollbar-none snap-x snap-mandatory touch-pan-x scroll-smooth">
               {displayedGames.map((game) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  waiting={hasAuthoritativeData ? (waitingCounts[game.id] ?? 0) : 0}
-                  onMoSanh={() => onMoSanh(game.id)}
-                />
+                <div key={game.id} className="snap-start shrink-0 w-[280px] sm:w-[320px]">
+                  <GameCard
+                    game={game}
+                    waiting={hasAuthoritativeData ? (waitingCounts[game.id] ?? 0) : 0}
+                    onMoSanh={() => onMoSanh(game.id)}
+                  />
+                </div>
               ))}
             </div>
           </section>
 
-          {/* 4. Thử thách mỗi ngày (Daily Quests) */}
-          <section className="relative overflow-hidden rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/60 via-slate-900 to-slate-900 p-5 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center shrink-0">
-                  <Target className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white">Thử thách mỗi ngày</h3>
-                  <p className="text-xs text-slate-300">
-                    Hoàn thành nhiệm vụ game mỗi ngày để nhận XP, huy hiệu và quà tặng hấp dẫn!
-                  </p>
-                </div>
+          {/* 4. Danh sách bàn chơi đang mở (Kéo lên kéo xuống - Vertical Scroll) */}
+          <section aria-label="Bàn chơi đang mở" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
+                  Bàn đấu đang chờ ({tables.length})
+                </h2>
               </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toast.success('Đã nhận thưởng thử thách hàng ngày: +50 XP!')}
-                className="h-9 px-4 rounded-xl border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-bold shrink-0 cursor-pointer"
-              >
-                <span>Xem nhiệm vụ</span>
-                <ArrowRight className="size-3.5 ml-1.5" />
-              </Button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-              {dailyQuests.map((q) => {
-                const Icon = q.icon
-                return (
-                  <div
-                    key={q.id}
-                    className="p-3 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col justify-between gap-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <Icon className="size-4 text-purple-400" />
-                      <span className="text-[10px] font-mono font-bold text-amber-400">{q.xp}</span>
+            <div className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-3 shadow-sm">
+              {tables.length > 0 ? (
+                <div className="overflow-y-auto max-h-[340px] scrollbar-thin space-y-2 pr-1">
+                  {tables.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/60 border border-white/5 hover:border-purple-500/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="size-9 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center justify-center shrink-0">
+                          <DoorOpen className="size-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate">
+                            {t.tenChu ? `Bàn của ${t.tenChu}` : `Bàn #${t.id}`}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate">
+                            {t.gameType === 'chess'
+                              ? 'Cờ Vua'
+                              : t.gameType === 'xiangqi'
+                                ? 'Cờ Tướng'
+                                : t.gameType === 'caro_15'
+                                  ? 'Cờ Caro'
+                                  : t.gameType}
+                            {' • '}
+                            {t.trangThai === 'waiting' ? (
+                              <span className="text-emerald-400 font-semibold">Đang chờ đối thủ</span>
+                            ) : (
+                              <span className="text-amber-400">Đang thi đấu</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        onClick={() => onMoSanh(t.gameType)}
+                        className="h-8 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shrink-0 cursor-pointer"
+                      >
+                        <span>Vào bàn</span>
+                      </Button>
                     </div>
-                    <span className="text-xs font-medium text-slate-200 line-clamp-1">{q.title}</span>
-                  </div>
-                )
-              })}
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center space-y-2">
+                  <Gamepad2 className="size-8 text-slate-600 mx-auto" />
+                  <p className="text-xs font-semibold text-slate-300">Chưa có bàn chơi nào đang mở</p>
+                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                    Hãy bấm vào một trò chơi ở phía trên để tạo bàn đấu mới hoặc so tài ngay với Máy (AI).
+                  </p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -314,185 +236,69 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           <ThongKeGame ban={tables} sanSang={hasAuthoritativeData} />
         </div>
 
-        {/* ── Right Area: 4 Columns on XL (Sidebar Widgets) ── */}
+        {/* ── Cột tiện ích bên phải: 4 Cột trên XL (Kéo lên kéo xuống) ── */}
         <div className="xl:col-span-4 space-y-6">
-          {/* Widget 1: Tin nhắn mới */}
-          <section aria-label="Tin nhắn mới" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-purple-400" />
-                <h2 className="text-sm sm:text-base font-bold text-text-primary">Tin nhắn mới</h2>
-              </div>
-              <button
-                type="button"
-                onClick={handleOpenChat}
-                className="text-xs font-bold text-sky-400 hover:underline cursor-pointer"
-              >
-                Xem tất cả
-              </button>
-            </div>
+          {/* Tiện ích 1: Hướng dẫn cơ chế thi đấu */}
+          <section aria-label="Chế độ chơi" className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-4 shadow-sm space-y-3.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Chế độ thi đấu
+            </h3>
 
-            <div className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-3.5 shadow-sm space-y-2.5">
-              {[
-                { name: 'Trần Mai', msg: 'Tối nay solo cờ vua nhé?', time: '2 phút trước', badge: 2 },
-                { name: 'Lê Hoàng', msg: 'Đã gửi lời mời thách đấu', time: '10 phút trước', badge: 1 },
-                { name: 'Nhóm Lớp 10A7', msg: 'Minh: Kèo Cờ vua lúc 8h nhé!', time: '15 phút trước' },
-              ].map((m, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={handleOpenChat}
-                  className="w-full flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-slate-800/60 transition-colors text-left group cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="size-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                      {m.name.charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-white group-hover:text-purple-400 transition-colors truncate">
-                        {m.name}
-                      </p>
-                      <p className="text-[11px] text-slate-400 line-clamp-1 truncate mt-0.5">{m.msg}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end shrink-0 gap-1">
-                    <span className="text-[10px] text-slate-500 font-mono">{m.time}</span>
-                    {m.badge && (
-                      <span className="size-4 rounded-full bg-purple-500 text-white text-[9px] font-bold flex items-center justify-center">
-                        {m.badge}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-
-              <Button
-                onClick={handleOpenChat}
-                className="w-full h-9 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-sm mt-1 cursor-pointer"
-              >
-                <span>Mở hộp thoại chat</span>
-                <ArrowRight className="size-3.5 ml-1.5" />
-              </Button>
-            </div>
-          </section>
-
-          {/* Widget 2: Giải đấu sắp diễn ra */}
-          <section aria-label="Giải đấu sắp diễn ra" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-amber-400" />
-                <h2 className="text-sm sm:text-base font-bold text-text-primary">Giải đấu sắp diễn ra</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => toast.info('Danh sách giải đấu Digital Campus Cup')}
-                className="text-xs font-bold text-sky-400 hover:underline cursor-pointer"
-              >
-                Xem tất cả
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-3.5 shadow-sm space-y-3">
-              <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-slate-900 border border-white/5">
-                <img
-                  src="/assets/cyber_mockups/act_game.webp"
-                  alt="Digital Campus Cup"
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent" />
-                <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 backdrop-blur-md">
-                  SẮP DIỄN RA
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-white">Digital Campus Cup 2024</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Giải đấu đa bộ môn dành cho học sinh, sinh viên</p>
-                <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
-                  <span>📅 01 - 20 Tháng 11</span>
-                  <span>👥 1.2K người tham gia</span>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/40 border border-white/5">
+                <div className="size-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+                  <Users className="size-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Đối kháng 1v1 (PvP)</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                    Tạo bàn, mời bạn bè qua mã phòng hoặc ghép ngẫu nhiên cùng học sinh trong trường.
+                  </p>
                 </div>
               </div>
 
-              <Button
-                onClick={() => toast.success('Đã ghi nhận đăng ký tham gia Digital Campus Cup 2024!')}
-                className="w-full h-9 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs shadow-sm cursor-pointer"
-              >
-                <span>Đăng ký tham gia ngay</span>
-                <ArrowRight className="size-3.5 ml-1.5" />
-              </Button>
+              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/40 border border-white/5">
+                <div className="size-8 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                  <Brain className="size-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Luyện tập với Máy (PvE AI)</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                    Rèn luyện chiến thuật ngoại tuyến với AI đa cấp độ: Dễ, Trung bình, Khó.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/40 border border-white/5">
+                <div className="size-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                  <Shield className="size-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Xác thực máy chủ chống gian lận</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                    Tất cả kết quả và kỷ lục trò chơi được máy chủ Cloudflare Worker xác thực nghiêm ngặt.
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
 
-          {/* Widget 3: Bảng xếp hạng tuần */}
-          <section aria-label="Bảng xếp hạng tuần" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                <h2 className="text-sm sm:text-base font-bold text-text-primary">Bảng xếp hạng tuần</h2>
-              </div>
-              <Link to="/leaderboard" className="text-xs font-bold text-sky-400 hover:underline cursor-pointer">
-                Xem tất cả
-              </Link>
+          {/* Tiện ích 2: Bảng xếp hạng kỷ lục Game */}
+          <section aria-label="Kỷ lục game" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-[#0f172a] to-amber-950/20 p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-2.5 text-amber-400">
+              <Trophy className="size-4.5" />
+              <h3 className="text-sm font-bold text-white">Bảng xếp hạng kỷ lục</h3>
             </div>
-
-            <div className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-3.5 shadow-sm space-y-3">
-              {/* Category tabs */}
-              <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-900/80 border border-white/5 text-[11px]">
-                {[
-                  { id: 'chess', label: 'Cờ vua' },
-                  { id: 'caro', label: 'Cờ caro' },
-                  { id: 'racing', label: 'Đua xe' },
-                  { id: 'total', label: 'Tổng' },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setLeaderboardTab(t.id as any)}
-                    className={cn(
-                      'py-1 rounded-lg text-center font-medium transition-all cursor-pointer',
-                      leaderboardTab === t.id
-                        ? 'bg-purple-500 text-white font-bold shadow-xs'
-                        : 'text-slate-400 hover:text-white',
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Ranker list */}
-              <div className="space-y-2 pt-1">
-                {gameLeaderboards[leaderboardTab].map((u) => (
-                  <div
-                    key={u.rank}
-                    className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-800/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={cn(
-                          'size-6 rounded-full flex items-center justify-center text-xs font-black shrink-0',
-                          u.rank === 1
-                            ? 'bg-amber-400 text-slate-950 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
-                            : u.rank === 2
-                              ? 'bg-slate-300 text-slate-950'
-                              : u.rank === 3
-                                ? 'bg-amber-700 text-white'
-                                : 'bg-slate-800 text-slate-400',
-                        )}
-                      >
-                        {u.rank}
-                      </span>
-                      <img src={u.avatar} alt={u.name} className="size-7 rounded-full border border-white/10" />
-                      <span className="text-xs font-bold text-white truncate">{u.name}</span>
-                    </div>
-
-                    <span className="text-xs font-mono font-bold text-amber-400 shrink-0">{u.score}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Tôn vinh những kỳ thủ cờ vua, cờ tướng, cờ caro và cao thủ săn mồi đạt kỷ lục cao nhất trường.
+            </p>
+            <Link
+              to="/leaderboard"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              <span>Xem bảng xếp hạng game</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
           </section>
         </div>
       </div>
