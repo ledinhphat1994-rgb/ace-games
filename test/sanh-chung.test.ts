@@ -25,7 +25,7 @@ describe('Mẫu sảnh chung', () => {
   })
 
   it('Học tập và sảnh trò chơi cùng dùng mẫu; khung trống không lặp nút Tạo phòng', () => {
-    expect(learningPageRaw).toContain('<SanhHoatDong')
+    expect(learningPageRaw).toContain('CreateStudyRoomDialog')
     expect(gameLobbyPageRaw).toContain('<SanhHoatDong')
     expect(gameLobbyPageRaw).toContain('testId="game-lobby"')
     expect(learningPageRaw).not.toContain('Tạo phòng đầu tiên')

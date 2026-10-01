@@ -118,15 +118,15 @@ function IconLop({ id, className }: { id: LopId; className?: string }) {
 
 // Điện thoại: chỉ còn biểu tượng để cả dock vừa một hàng.
 const nutDock =
-  'relative flex size-11 shrink-0 sm:h-14 sm:w-16 flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
-const nhanDock = 'hidden text-xs sm:block'
+  'relative flex size-10 shrink-0 sm:h-13 sm:w-15 flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
+const nhanDock = 'hidden text-[11px] sm:block font-medium'
 const dangChon = 'bg-brand/12 text-brand ring-1 ring-brand/30'
-const khongChon = 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
+const khongChon = 'text-text-secondary hover:bg-surface-raised hover:text-text-primary'
 
 const nutKhay =
   'flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl py-2 text-xs font-semibold transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand'
 const khayPopover =
-  'space-y-2.5 rounded-2xl border border-border-default bg-surface-raised p-2.5 text-text-primary shadow-2xl'
+  'space-y-2.5 rounded-2xl border border-border-default/80 bg-surface-raised p-2.5 text-text-primary shadow-2xl backdrop-blur-xl'
 
 function BangMau({ mau, onChonMau, co, onChonCo }: Pick<ClassroomToolDockProps, 'mau' | 'onChonMau' | 'co' | 'onChonCo'>) {
   return (
@@ -221,7 +221,7 @@ export function ClassroomToolDock({
       data-testid="classroom-tool-dock"
     >
       {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}
-      <div className="flex min-w-0 max-w-[calc(100vw-1rem)] items-center gap-2 rounded-2xl border border-border-default bg-surface/95 p-1.5">
+      <div className="flex min-w-0 max-w-[calc(100vw-1rem)] items-center gap-1.5 sm:gap-2 rounded-2xl border border-border-default bg-surface/95 p-1.5 shadow-2xl backdrop-blur-xl ring-1 ring-white/[0.04]">
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* ── 0. MIC + CÀI ĐẶT ÂM THANH (mọi người trong phòng) ── */}
         <button
@@ -399,13 +399,14 @@ export function ClassroomToolDock({
 
             {duocXoa && (
             <>
+              <div className="mx-0.5 h-6 w-px bg-border-subtle" />
               <button
                 type="button"
                 onClick={() => setMoXacNhanXoaHet(true)}
                 title="Xoá hết"
                 aria-label="Xoá hết"
                 data-testid="tool-btn-clear-all"
-                className={`${nutDock} text-text-secondary hover:bg-red-500/15 hover:text-red-300`}
+                className={`${nutDock} text-text-tertiary hover:bg-danger/10 hover:text-danger`}
               >
                 <Trash2 className="h-4.5 w-4.5" />
                 <span className={nhanDock}>Xoá hết</span>

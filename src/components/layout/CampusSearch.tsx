@@ -31,8 +31,8 @@ export function CampusSearch() {
         aria-label="Tìm kiếm · Ctrl K"
         className="hidden md:flex items-center gap-2.5 h-10 w-56 lg:w-72 xl:w-80 rounded-full border border-border-default/70 bg-surface/80 px-3.5 text-xs text-text-tertiary hover:border-brand/40 hover:bg-surface-overlay hover:text-text-secondary transition-all cursor-pointer shadow-xs select-none"
       >
-        <Search className="size-3.5 text-text-tertiary shrink-0" />
-        <span className="truncate">Tìm kiếm bạn bè, bài viết, game...</span>
+        <Search className="size-3.5 text-text-tertiary shrink-0 pointer-events-none" />
+        <span className="truncate">Tìm kiếm phòng học, trò chơi, bạn học...</span>
         <kbd className="ml-auto shrink-0 font-mono text-[10px] text-text-tertiary/80 border border-border-default rounded px-1.5 py-0.5 bg-canvas/60">
           ⌘K
         </kbd>

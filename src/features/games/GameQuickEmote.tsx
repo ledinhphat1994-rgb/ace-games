@@ -47,7 +47,7 @@ export function GameOpponentBubble({
       role="status"
       aria-live="polite"
       className={cn(
-        'w-[165px] xl:w-[185px] max-w-[calc(100%-8px)] p-2.5 rounded-2xl border shadow-2xl backdrop-blur-xl flex items-start gap-2 animate-in fade-in slide-in-from-top-3 duration-200 z-30 pointer-events-none bg-[#091322]/95 box-border',
+        'w-[165px] xl:w-[185px] max-w-[calc(100%-8px)] p-2.5 rounded-2xl border shadow-xl backdrop-blur-xl flex items-start gap-2 animate-in fade-in slide-in-from-top-3 duration-200 z-30 pointer-events-none bg-surface-overlay/95 box-border',
         borderClass,
         className
       )}
@@ -57,7 +57,7 @@ export function GameOpponentBubble({
         <span className={cn('text-[9px] font-black uppercase tracking-wider leading-none truncate', labelClass)}>
           {bubble.sender === 'ai' ? 'MÁY (AI)' : 'ĐỐI THỦ'}
         </span>
-        <span className="text-[11px] font-bold text-white leading-tight mt-1 line-clamp-2 break-words">
+        <span className="text-[11px] font-bold text-text-primary leading-tight mt-1 line-clamp-2 break-words">
           "{bubble.quote}"
         </span>
       </div>
@@ -78,19 +78,15 @@ export function GamePlayerBubble({
 
   let borderClass = 'border-brand/40 shadow-brand/20'
   let labelClass = 'text-brand'
-  let bgClass = 'bg-[#091322]/95'
   if (theme === 'red') {
     borderClass = 'border-red-500/50 shadow-red-500/25'
     labelClass = 'text-red-400'
-    bgClass = 'bg-[#180909]/95'
   } else if (theme === 'amber') {
     borderClass = 'border-amber-500/50 shadow-amber-500/25'
     labelClass = 'text-amber-400'
-    bgClass = 'bg-[#181106]/95'
   } else if (theme === 'violet') {
     borderClass = 'border-violet-500/50 shadow-violet-500/25'
     labelClass = 'text-violet-400'
-    bgClass = 'bg-[#140b24]/95'
   }
 
   return (
@@ -98,9 +94,8 @@ export function GamePlayerBubble({
       role="status"
       aria-live="polite"
       className={cn(
-        'w-[165px] xl:w-[185px] max-w-[calc(100%-8px)] p-2.5 rounded-2xl border shadow-2xl backdrop-blur-xl flex items-start gap-2 animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 z-30 pointer-events-none box-border',
+        'w-[165px] xl:w-[185px] max-w-[calc(100%-8px)] p-2.5 rounded-2xl border shadow-xl backdrop-blur-xl flex items-start gap-2 animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 z-30 pointer-events-none bg-surface-overlay/95 box-border',
         borderClass,
-        bgClass,
         className
       )}
     >
@@ -109,7 +104,7 @@ export function GamePlayerBubble({
         <span className={cn('text-[9px] font-black uppercase tracking-wider leading-none truncate', labelClass)}>
           BẠN
         </span>
-        <span className="text-[11px] font-bold text-white leading-tight mt-1 line-clamp-2 break-words">
+        <span className="text-[11px] font-bold text-text-primary leading-tight mt-1 line-clamp-2 break-words">
           "{bubble.quote}"
         </span>
       </div>
@@ -185,8 +180,8 @@ export function GameQuickEmote({
                 title="Cảm xúc nhanh"
                 aria-label="Mở danh sách cảm xúc nhanh"
                 className={cn(
-                  'h-8 gap-1.5 border-white/15 bg-white/10 text-xs text-white hover:bg-white/20 hover:border-white/30 font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2.5 cursor-pointer',
-                  isOpen && 'bg-white/20 border-white/30 text-white shadow-md',
+                  'h-8 gap-1.5 border-border-default bg-surface hover:bg-surface-raised text-xs text-text-primary font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2.5 cursor-pointer shadow-xs',
+                  isOpen && 'bg-surface-raised border-border-strong text-text-primary shadow-sm',
                 )}
               >
                 <span className="text-sm leading-none select-none">
@@ -223,21 +218,21 @@ export function GameQuickEmote({
           side={compact ? 'bottom' : 'top'}
           align={align}
           sideOffset={compact ? 6 : 10}
-          className="w-[210px] xl:w-[225px] p-2.5 rounded-2xl border border-white/15 bg-gradient-to-b from-[#0e1628]/98 to-[#090f1e]/98 backdrop-blur-2xl shadow-2xl z-50 text-xs"
+          className="w-[210px] xl:w-[225px] p-2.5 rounded-2xl border border-border-default bg-surface-overlay/98 backdrop-blur-2xl shadow-2xl z-50 text-xs"
           style={{
-            boxShadow: `0 0 24px ${themeGlow}, 0 12px 32px rgba(0,0,0,0.8)`,
+            boxShadow: `0 0 24px ${themeGlow}, 0 12px 32px rgba(0,0,0,0.4)`,
           }}
         >
           {/* Tiêu đề ngắn gọn & nút đóng */}
-          <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-white/10">
-            <span className="text-xs font-black text-white tracking-tight flex items-center gap-1.5">
+          <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-border-subtle">
+            <span className="text-xs font-black text-text-primary tracking-tight flex items-center gap-1.5">
               <span>⚡</span>
               <span>Chọn nhanh cảm xúc</span>
             </span>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="size-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-400 hover:text-white flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+              className="size-5 rounded-full bg-surface-raised hover:bg-surface text-text-tertiary hover:text-text-primary flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
               title="Đóng"
               aria-label="Đóng"
             >
@@ -255,16 +250,16 @@ export function GameQuickEmote({
                   onSend(em)
                   setIsOpen(false)
                 }}
-                className="flex items-center gap-2.5 px-2.5 py-2 min-h-9 rounded-xl border border-white/10 hover:border-white/30 bg-white/[0.03] hover:bg-white/[0.1] text-left transition-all duration-150 hover:scale-[1.02] active:scale-95 cursor-pointer group"
+                className="flex items-center gap-2.5 px-2.5 py-2 min-h-9 rounded-xl border border-border-subtle hover:border-border-default bg-surface-raised/40 hover:bg-surface-raised text-left transition-all duration-150 hover:scale-[1.02] active:scale-95 cursor-pointer group"
               >
                 <span className="text-xl group-hover:scale-125 transition-transform duration-150 shrink-0 select-none">
                   {em.emoji}
                 </span>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-bold text-white group-hover:text-brand leading-tight truncate">
+                  <span className="text-[11px] font-bold text-text-primary group-hover:text-brand leading-tight truncate">
                     {em.quote}
                   </span>
-                  <span className="text-[9px] text-slate-400 group-hover:text-slate-200 leading-tight mt-0.5">
+                  <span className="text-[9px] text-text-tertiary group-hover:text-text-secondary leading-tight mt-0.5">
                     {em.label}
                   </span>
                 </div>

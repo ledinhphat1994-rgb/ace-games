@@ -3,6 +3,8 @@
 
 import type { PhongSanh } from '@shared/protocol/campus'
 import type { ClassChallenge } from '@shared/protocol/engagement'
+import type { RoomFriendInfo } from './room-discovery'
+import { chonPhongVaoNhanh } from './room-discovery'
 
 /**
  * Invariant:
@@ -216,4 +218,54 @@ export function filterLobbyRooms(rooms: PhongSanh[], query: string): PhongSanh[]
     const matchSubject = (room.monHoc || '').toLowerCase().includes(q)
     return matchName || matchHost || matchSubject
   })
+}
+
+export interface ActiveFriendStudyResult {
+  friend: RoomFriendInfo
+  room: PhongSanh
+}
+
+/**
+ * Derive active friend study continuation.
+ * Invariant: Fail-closed.
+ * Only returns a friend-study continuation when:
+ * 1. presenceReady === true
+ * 2. trangThai === 'da_ket_noi'
+ * 3. The friend is present in a room that exists in authoritative `rooms`.
+ */
+export function deriveActiveFriendStudy(params: {
+  rooms: PhongSanh[]
+  roomFriendsMap: Map<number, RoomFriendInfo[]>
+  presenceReady?: boolean
+  trangThai?: string
+}): ActiveFriendStudyResult | null {
+  if (params.presenceReady !== true || params.trangThai !== 'da_ket_noi') {
+    return null
+  }
+  for (const room of params.rooms) {
+    const friendsInRoom = params.roomFriendsMap.get(room.id)
+    if (friendsInRoom && friendsInRoom.length > 0) {
+      return {
+        friend: friendsInRoom[0],
+        room,
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Derive quick-join room target.
+ * Invariant:
+ * Only returns a room when:
+ * 1. lobbyStatus === 'ready'
+ * 2. chonPhongVaoNhanh returns a valid public room with capacity (< sucChua) and no password.
+ */
+export function deriveQuickJoinRoom(params: {
+  lobbyStatus: string
+  rooms: PhongSanh[]
+  roomFriendsMap: Map<number, RoomFriendInfo[]>
+}): PhongSanh | null {
+  if (params.lobbyStatus !== 'ready') return null
+  return chonPhongVaoNhanh(params.rooms, params.roomFriendsMap)
 }

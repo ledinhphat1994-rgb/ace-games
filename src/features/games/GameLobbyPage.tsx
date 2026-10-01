@@ -1,6 +1,6 @@
-// Sảnh của một trò chơi (/arena/:gameType): mọi bàn đang mở + Chơi ngay · Tạo phòng · Tìm phòng.
-// Dùng mẫu sảnh chung (SanhHoatDong) như trang Học tập. Vào bàn của bạn: bấm link bàn được chia sẻ.
-// Trò chơi đơn không có bàn: chỉ Chơi ngay + bảng xếp hạng.
+// Sảnh của một trò chơi (/arena/:gameType): sảnh chơi chuyên biệt cho từng trò.
+// Trò 1v1: Chơi ngay · Tạo phòng · Tìm bàn · Danh sách bàn online đang mở.
+// Trò chơi đơn: Chỉ duy nhất Chơi ngay, không tạo phòng giả, không danh sách bàn rỗng.
 
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
@@ -13,11 +13,9 @@ import { KhungTrongSanh, SanhHoatDong } from '@/components/lobby/SanhHoatDong'
 import { cn } from '@/lib/utils'
 import { useGameRooms } from '../../hooks/use-game-rooms'
 import { toast } from 'sonner'
-import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameArt } from './GameArt'
 import { mauNhanTroChoi } from './mau-tro-choi'
-import { GameSocialSidebar } from './GameSocialSidebar'
-import { GAME_CATALOG_BY_ID } from './game-catalog'
+import { GAME_CATALOG_BY_ID, type GameDefinition } from './game-catalog'
 import { laTroChoiDon, taoMaBan } from './game-ids'
 import { TheBanGame } from './TheBanGame'
 import { ThongKeGame } from './ThongKeGame'
@@ -113,103 +111,166 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         tieuDe={game.shortTitle}
         bieuTuong={<GameArt gameType={gameType} variant="icon" className="size-full" />}
         quayLai={{ nhan: 'Tất cả trò chơi', toi: '/arena' }}
+        hero={<SanhGameHero game={game} gameType={gameType} />}
         thongKe={<ThongKeGame gameType={gameType} ban={tatCaBan} sanSang={coDanhSach && !isPending && !isError} />}
         choiNgay={{ nhan: 'Chơi ngay', onClick: choiNgay, testId: 'game-lobby-play-now' }}
-        taoPhong={{
-          nhan: 'Tạo phòng',
-          onClick: canDangNhap(() => {
-            if (laDon) {
-              taoBan(0)
-            } else {
-              setMoTaoPhong(true)
-            }
-          }),
-          testId: 'game-lobby-create',
-        }}
-        timKiem={coDanhSach ? { giaTri: tuKhoa, onDoi: setTuKhoa, goiY: 'Tìm bàn…' } : undefined}
-        danhSach={{
-          tieuDe: 'Bàn đang mở',
-          soLuong: coDanhSach ? banLoc.length : undefined,
-          trangThai: coDanhSach && isPending ? 'dang_tai' : coDanhSach && isError ? 'dang_ket_noi_lai' : 'san_sang',
-          onKetNoiLai: () => void refetch(),
-          rong: banLoc.length === 0,
-          noiDungRong: !nguoiDung ? (
-            <KhungTrongSanh
-              testId="game-lobby-login"
-              hinh={<AnhTroChoi gameType={gameType} />}
-              hoatHinh
-              mauHaoQuang={mauNhanTroChoi(gameType)}
-              tieuDe="Đăng nhập để xem bàn đang mở"
-              nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
-            />
-          ) : tuKhoa.trim() ? (
-            <KhungTrongSanh
-              testId="game-lobby-search-empty"
-              hinh={<Search className="size-6 text-text-tertiary" />}
-              tieuDe="Không tìm thấy bàn"
-              nut={{ nhan: 'Xóa tìm kiếm', onClick: () => setTuKhoa(''), phu: true }}
-            />
-          ) : (
-            <KhungTrongSanh
-              testId="game-lobby-empty"
-              hinh={<AnhTroChoi gameType={gameType} />}
-              hoatHinh
-              mauHaoQuang={mauNhanTroChoi(gameType)}
-              tieuDe="Chưa có bàn nào đang mở"
-            />
-          ),
-          children: banLoc.map((t) => <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />),
-        }}
-        cotTrai={<GameArenaLeaderboard defaultGame={gameType} />}
-        cotPhai={<GameSocialSidebar coChatPhong={false} />}
+        taoPhong={
+          laDon
+            ? undefined
+            : {
+                nhan: 'Tạo phòng',
+                onClick: canDangNhap(() => setMoTaoPhong(true)),
+                testId: 'game-lobby-create',
+              }
+        }
+        timKiem={!laDon && coDanhSach ? { giaTri: tuKhoa, onDoi: setTuKhoa, goiY: 'Tìm bàn…' } : undefined}
+        noiDungGiua={laDon ? <NoiDungSolo game={game} /> : undefined}
+        danhSach={
+          laDon
+            ? undefined
+            : {
+                tieuDe: 'Bàn đang mở',
+                soLuong: coDanhSach ? banLoc.length : undefined,
+                trangThai: coDanhSach && isPending ? 'dang_tai' : coDanhSach && isError ? 'dang_ket_noi_lai' : 'san_sang',
+                onKetNoiLai: () => void refetch(),
+                rong: banLoc.length === 0,
+                noiDungRong: !nguoiDung ? (
+                  <KhungTrongSanh
+                    testId="game-lobby-login"
+                    hinh={<AnhTroChoi gameType={gameType} />}
+                    hoatHinh
+                    mauHaoQuang={mauNhanTroChoi(gameType)}
+                    tieuDe="Đăng nhập để xem bàn đang mở"
+                    nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
+                  />
+                ) : tuKhoa.trim() ? (
+                  <KhungTrongSanh
+                    testId="game-lobby-search-empty"
+                    hinh={<Search className="size-6 text-text-tertiary" />}
+                    tieuDe="Không tìm thấy bàn"
+                    nut={{ nhan: 'Xóa tìm kiếm', onClick: () => setTuKhoa(''), phu: true }}
+                  />
+                ) : (
+                  <KhungTrongSanh
+                    testId="game-lobby-empty"
+                    hinh={<AnhTroChoi gameType={gameType} />}
+                    hoatHinh
+                    mauHaoQuang={mauNhanTroChoi(gameType)}
+                    tieuDe="Chưa có bàn nào đang mở"
+                  />
+                ),
+                children: banLoc.map((t) => <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />),
+              }
+        }
       />
 
-      {/* Tạo phòng: chọn thời gian mỗi lượt rồi mở bàn mới */}
-      <Dialog open={moTaoPhong} onOpenChange={setMoTaoPhong}>
-        <DialogContent className="max-w-sm" data-testid="game-lobby-create-dialog">
-          <DialogTitle className="flex items-center gap-2">
-            <span className="size-6 overflow-hidden rounded-md">
+      {/* Tạo phòng đối kháng: chọn thời gian mỗi lượt rồi mở bàn mới */}
+      {!laDon && (
+        <Dialog open={moTaoPhong} onOpenChange={setMoTaoPhong}>
+          <DialogContent className="max-w-sm" data-testid="game-lobby-create-dialog">
+            <DialogTitle className="flex items-center gap-2">
+              <span className="size-6 overflow-hidden rounded-md">
+                <GameArt gameType={gameType} variant="icon" className="size-full" />
+              </span>
+              Tạo bàn {game.shortTitle}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Chọn thời gian mỗi lượt rồi mở bàn mới</DialogDescription>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-text-secondary">Thời gian mỗi lượt</p>
+              <div className="grid grid-cols-3 gap-2">
+                {THOI_GIAN_LUOT.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={turnSeconds === s}
+                    onClick={() => setTurnSeconds(s)}
+                    className={cn(
+                      'h-10 rounded-xl border text-sm font-semibold transition-colors',
+                      turnSeconds === s
+                        ? 'border-brand/60 bg-brand/15 text-brand'
+                        : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+                    )}
+                  >
+                    {s}s
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Button
+              className="mt-2 h-10 w-full font-bold"
+              onClick={() => {
+                setMoTaoPhong(false)
+                taoBan(turnSeconds)
+              }}
+              data-testid="game-lobby-create-confirm"
+            >
+              <Plus />
+              Mở bàn
+            </Button>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  )
+}
+
+/** Hero riêng cho từng trò chơi — nhận diện đậm nét theo hình ảnh & thể loại trò chơi. */
+function SanhGameHero({ game, gameType }: { game: GameDefinition; gameType: GameType }) {
+  const laDon = laTroChoiDon(gameType)
+  const nhanLoai = laDon ? 'Chơi đơn' : 'Đối kháng 1v1'
+  const nhanKichThuoc = game.boardLabel ? `${nhanLoai} · Bàn ${game.boardLabel}` : nhanLoai
+
+  return (
+    <div className="relative isolate overflow-hidden rounded-2xl border border-border-default bg-surface p-6 sm:p-8">
+      <div className="pointer-events-none absolute -right-6 -top-6 -bottom-6 w-1/2 opacity-20 dark:opacity-25 overflow-hidden select-none">
+        <img src={game.cover} alt="" className="size-full object-cover object-center" />
+      </div>
+      <div className="relative max-w-xl">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-raised px-2.5 py-1 text-xs font-semibold text-brand">
+            <span className="size-5 overflow-hidden rounded-sm inline-block">
               <GameArt gameType={gameType} variant="icon" className="size-full" />
             </span>
-            Tạo bàn {game.shortTitle}
-          </DialogTitle>
-          <DialogDescription className="sr-only">Chọn thời gian mỗi lượt rồi mở bàn mới</DialogDescription>
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-text-secondary">Thời gian mỗi lượt</p>
-            <div className="grid grid-cols-3 gap-2">
-              {THOI_GIAN_LUOT.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  aria-pressed={turnSeconds === s}
-                  onClick={() => setTurnSeconds(s)}
-                  className={cn(
-                    'h-10 rounded-xl border text-sm font-semibold transition-colors',
-                    turnSeconds === s
-                      ? 'border-brand/60 bg-brand/15 text-brand'
-                      : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
-                  )}
-                >
-                  {s}s
-                </button>
-              ))}
-            </div>
-          </div>
-          <Button
-            className="mt-2 h-10 w-full font-bold"
-            onClick={() => {
-              setMoTaoPhong(false)
-              taoBan(turnSeconds)
-            }}
-            data-testid="game-lobby-create-confirm"
-          >
-            <Plus />
-            Mở bàn
-          </Button>
-        </DialogContent>
-      </Dialog>
+            {game.shortTitle}
+          </span>
+          <span className="rounded-md border border-border-subtle bg-surface-raised px-2 py-1 text-xs font-medium text-text-secondary">
+            {nhanKichThuoc}
+          </span>
+        </div>
 
-    </>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
+          {game.title}
+        </h1>
+
+        <p className="mt-2 text-sm leading-relaxed text-text-secondary sm:text-base">
+          {game.description}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Giao diện trung tâm cho trò chơi đơn: không bàn, không danh sách rỗng, sử dụng thông tin danh mục thật. */
+function NoiDungSolo({ game }: { game: GameDefinition }) {
+  return (
+    <div className="flex h-full min-h-[320px] flex-col items-center justify-center p-6 text-center">
+      <div className="mx-auto max-w-sm space-y-4">
+        <div className="mx-auto size-32 overflow-hidden rounded-2xl border border-border-default bg-surface-raised shadow-sm">
+          <img src={game.cover} alt="" className="size-full object-cover" />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold text-text-primary">{game.shortTitle}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-text-secondary">{game.description}</p>
+        </div>
+
+        {game.boardLabel && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 py-1 text-xs font-medium text-text-secondary">
+            Bàn {game.boardLabel}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 

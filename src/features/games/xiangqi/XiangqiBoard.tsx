@@ -80,6 +80,16 @@ const TEN_QUAN_BLACK: Record<number, string> = {
   [SOLDIER]: '卒',
 }
 
+const TEN_QUAN_TIENG_VIET: Record<number, string> = {
+  [GENERAL]: 'Tướng',
+  [ADVISOR]: 'Sĩ',
+  [ELEPHANT]: 'Tượng',
+  [HORSE]: 'Mã',
+  [CHARIOT]: 'Xe',
+  [CANNON]: 'Pháo',
+  [SOLDIER]: 'Tốt',
+}
+
 const DANH_SACH_THAI_DO_XIANGQI: QuickEmoteItem[] = [
   { id: 'fire', emoji: '⚔️', label: 'Quyết chiến', quote: 'Tới bến luôn nào!' },
   { id: 'tea', emoji: '☕', label: 'Thong thả', quote: 'Cứ bình tĩnh uống trà suy tính.' },
@@ -250,7 +260,7 @@ function XiangqiPieceToken({ piece }: { piece: number }) {
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center rounded-full size-[92%] select-none transition-transform duration-150 hover:scale-95 active:scale-90 cursor-pointer z-10',
+        'relative flex items-center justify-center rounded-full size-[92%] select-none transition-transform duration-150 group-hover:scale-95 group-active:scale-90 pointer-events-none z-10',
         isRed
           ? 'bg-gradient-to-br from-[#fffefb] via-[#f7e8ce] to-[#dfbf92] border-[2.5px] border-[#9c5928] ring-1 ring-[#6e350c]/80 shadow-[0_6px_14px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(130,60,15,0.35)]'
           : 'bg-gradient-to-br from-[#fcfbf7] via-[#eee5d4] to-[#cebea9] border-[2.5px] border-[#483e34] ring-1 ring-[#1f1812]/80 shadow-[0_6px_14px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(40,30,20,0.35)]'
@@ -578,6 +588,8 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         mode={mode}
         onModeChange={handleModeChange}
         onlineAvailable={Boolean(online)}
+        showRankings={false}
+        showRoomChat={Boolean(online)}
         aiLevel={aiLevel}
         onAiLevelChange={setAiLevel}
         onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
@@ -602,9 +614,9 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
       {/* ── BỐ CỤC CHUẨN LICHESS / ZEN MODE: THANH ĐỐI THỦ -> BÀN CỜ -> THANH NGƯỜI CHƠI ── */}
       <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] flex-1 my-auto px-1 sm:px-2">
         {/* THANH ĐỐI THỦ (TRÊN BÀN CỜ) */}
-        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-border-default bg-surface-raised/90 backdrop-blur-md shadow-xs min-h-11">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-md bg-zinc-900 border border-zinc-700 flex items-center justify-center font-serif text-xs font-bold text-zinc-200 shrink-0">
+            <div className="size-7 rounded-md bg-surface-overlay border border-border-default flex items-center justify-center font-serif text-xs font-bold text-text-primary shrink-0">
               {benCuaToi === RED ? '將' : '帥'}
             </div>
             <div className="flex flex-col min-w-0">
@@ -619,7 +631,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             {captured.friendlyLost.length > 0 && (
               <div className="hidden sm:flex items-center gap-1 ml-2">
                 {captured.friendlyLost.slice(0, 8).map((type, i) => (
-                  <span key={i} className="size-5 rounded-full border border-red-500/40 bg-red-950/60 text-red-300 font-serif text-[10px] flex items-center justify-center shrink-0">
+                  <span key={i} className="size-5 rounded-full border border-red-500/40 bg-red-950/40 text-red-400 font-serif text-[10px] flex items-center justify-center shrink-0">
                     {TEN_QUAN_RED[type] || '卒'}
                   </span>
                 ))}
@@ -636,8 +648,8 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
               className={cn(
                 'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
                 pos.turn !== benCuaToi && isPlaying
-                  ? 'border-rose-500/60 bg-rose-950/40 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse'
-                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+                  ? 'border-rose-500/60 bg-rose-500/10 text-rose-500 shadow-sm animate-pulse'
+                  : 'border-border-default bg-surface-overlay/60 text-text-secondary',
               )}
             >
               {formatClockTime(clock.timeRemaining)}
@@ -653,7 +665,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             <XiangqiSvgBoard />
 
             {/* Lớp tương tác 90 điểm giao cắt và đặt quân cờ chuẩn xác */}
-            <div className="absolute inset-0 grid grid-cols-9 grid-rows-10 size-full z-10">
+            <div className="absolute inset-0 grid grid-cols-9 grid-rows-10 size-full z-10" role="grid" aria-label="Bàn cờ tướng 9 cột 10 hàng">
               {Array.from({ length: 90 }, (_, idx) => {
                 // Hàng 9 xuống 0 (Đỏ ở dưới: hàng 0..4, Đen ở trên: hàng 5..9); cầm quân Đen thì xoay bàn cho quân mình ở dưới
                 const r = latBan ? Math.floor(idx / 9) : 9 - Math.floor(idx / 9)
@@ -664,12 +676,33 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
                 const isSelected = selectedSq === sq
                 const isValidTarget = validTargets.includes(sq)
                 const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
+                const pieceName = piece > 0 ? `${tenBen(sideOf(piece))} ${TEN_QUAN_TIENG_VIET[typeOf(piece)] || 'Quân'}` : null
+                const squareLabel = pieceName
+                  ? `${pieceName} tại hàng ${r + 1} cột ${f + 1}${isSelected ? ', đang chọn' : ''}`
+                  : `Điểm hàng ${r + 1} cột ${f + 1}${isValidTarget ? ', nước đi hợp lệ' : ''}`
+
+                const canAct = !isOver && !isAiThinking && (laOnline ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerSide : true)
+                const isActionable = canAct && (
+                  selectedSq === null
+                    ? (piece > 0 && sideOf(piece) === pos.turn)
+                    : (isValidTarget || (piece > 0 && sideOf(piece) === pos.turn))
+                )
 
                 return (
                   <div
                     key={sq}
+                    role="button"
+                    tabIndex={isActionable ? 0 : -1}
+                    aria-disabled={isActionable ? undefined : true}
+                    aria-label={squareLabel}
                     onClick={() => handleSquareClick(sq)}
-                    className="relative flex items-center justify-center cursor-pointer select-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleSquareClick(sq)
+                      }
+                    }}
+                    className="relative flex items-center justify-center cursor-pointer select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 focus-visible:ring-offset-background/80 rounded-full"
                   >
                     {/* Nước đi vừa thực hiện - quầng sáng vàng dịu mắt */}
                     {isLastMoveSq && !isSelected && (
@@ -711,9 +744,9 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         </div>
 
         {/* THANH NGƯỜI CHƠI (DƯỚI BÀN CỜ) */}
-        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-border-default bg-surface-raised/90 backdrop-blur-md shadow-xs min-h-11">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-md bg-red-950/80 border border-red-500/50 flex items-center justify-center font-serif text-xs font-bold text-red-400 shrink-0">
+            <div className="size-7 rounded-md bg-red-950/60 border border-red-500/50 flex items-center justify-center font-serif text-xs font-bold text-red-400 shrink-0">
               {benCuaToi === RED ? '帥' : '將'}
             </div>
             <div className="flex flex-col min-w-0">
@@ -725,7 +758,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             {captured.enemyCaptured.length > 0 && (
               <div className="hidden sm:flex items-center gap-1 ml-2">
                 {captured.enemyCaptured.slice(0, 8).map((type, i) => (
-                  <span key={i} className="size-5 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-200 font-serif text-[10px] flex items-center justify-center shrink-0">
+                  <span key={i} className="size-5 rounded-full border border-border-default bg-surface-overlay text-text-primary font-serif text-[10px] flex items-center justify-center shrink-0">
                     {TEN_QUAN_BLACK[type] || '兵'}
                   </span>
                 ))}
@@ -742,8 +775,8 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
               className={cn(
                 'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
                 pos.turn === benCuaToi && isPlaying
-                  ? 'border-cyan-400/60 bg-cyan-950/40 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse'
-                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+                  ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-400 shadow-sm animate-pulse'
+                  : 'border-border-default bg-surface-overlay/60 text-text-secondary',
               )}
             >
               {formatClockTime(clock.timeRemaining)}
@@ -753,7 +786,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
 
         {/* Thiết lập thời gian khi chưa vào trận (chỉ hiện trước ván) */}
         {!isPlaying && (
-          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-white/[0.03] border border-white/5 text-xs">
+          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-surface-raised/80 border border-border-default text-xs">
             <span className="text-[11px] text-text-tertiary font-medium">Thời gian mỗi lượt:</span>
             {TIME_PRESETS.map((sec) => (
               <button
@@ -763,8 +796,8 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
                 className={cn(
                   'px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer border',
                   (clock.myPendingProposal ?? clock.turnSeconds) === sec
-                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm'
-                    : 'bg-white/5 border-white/10 text-text-tertiary hover:text-text-primary',
+                    ? 'bg-brand/15 text-brand border-brand/40 shadow-xs'
+                    : 'bg-surface-overlay/80 border-border-subtle text-text-tertiary hover:text-text-primary',
                 )}
               >
                 {sec}s

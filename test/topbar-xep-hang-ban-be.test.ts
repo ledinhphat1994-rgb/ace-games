@@ -105,16 +105,14 @@ describe('Quan hệ bạn bè suy từ SocialState', () => {
 })
 
 describe('Giao diện', () => {
-  it('thanh trên: nền đặc, hàng gọn trên mobile; ba cột và tab căn giữa trên desktop', () => {
+  it('thanh trên: chuẩn kiến trúc tham chiếu, tìm kiếm bên trái, tiện ích và tài khoản bên phải', () => {
     expect(headerRaw).toContain('sticky top-0 z-30')
     expect(headerRaw).toContain('pt-[env(safe-area-inset-top)]')
-    expect(headerRaw).toContain('border-b border-border-subtle bg-canvas')
-    expect(headerRaw).not.toContain('glass')
-    expect(headerRaw).toContain('items-center justify-between')
-    expect(headerRaw).toContain('md:grid md:grid-cols-[1fr_auto_1fr]')
-    expect(headerRaw).toContain('justify-self-center')
-    expect(headerRaw).toContain('data-testid="nav-hoat-dong"')
-    expect(headerRaw).toContain('bg-brand text-primary-foreground shadow-sm')
+    expect(headerRaw).toContain('border-b border-border-subtle')
+    expect(headerRaw).toContain('CampusSearch')
+    expect(headerRaw).toContain('ThemeSwitch')
+    expect(headerRaw).toContain('data-testid="header-chat-button"')
+    expect(headerRaw).toContain('UserAvatarMenu')
   })
 
   it('bảng xếp hạng chỉ còn hạng · tên · level · điểm: bỏ thẻ nhà vô địch, ảnh chữ cái, huy chương, chip Top 50', () => {

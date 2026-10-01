@@ -46,7 +46,7 @@ export function CumPvePvp({
     <div
       data-testid="cum-pve-pvp"
       className={cn(
-        'grid gap-1 rounded-xl bg-slate-950/80 p-1 border border-white/10 text-xs font-semibold shadow-md shrink-0 h-10 box-border',
+        'grid gap-1 rounded-xl bg-surface-raised p-1 border border-border-default text-xs font-semibold shadow-xs shrink-0 h-10 box-border',
         chiPve ? 'grid-cols-1 w-[132px] sm:w-[144px]' : 'grid-cols-2 w-[220px] sm:w-[240px]',
         className,
       )}
@@ -63,7 +63,7 @@ export function CumPvePvp({
                 'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-full w-full font-black tracking-wide',
                 mode === 'ai'
                   ? 'bg-brand text-primary-foreground shadow-sm ring-1 ring-white/20'
-                  : 'text-slate-200 hover:text-white hover:bg-white/10',
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
               )}
               title="Nhấn để chơi PvE (Đấu máy) hoặc chọn độ khó"
             >
@@ -109,7 +109,7 @@ export function CumPvePvp({
                     'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-full w-full font-black tracking-wide',
                     laPvp
                       ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
-                      : 'text-slate-200 hover:text-white hover:bg-white/10',
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
                   )}
                   title="Nhấn để chơi PvP (Đối kháng) hoặc thêm bot"
                 >
@@ -145,7 +145,7 @@ export function CumPvePvp({
               'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-full w-full font-black tracking-wide',
               laPvp
                 ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
-                : 'text-slate-200 hover:text-white hover:bg-white/10',
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
             )}
             title="Chế độ PvP (Đối kháng)"
           >

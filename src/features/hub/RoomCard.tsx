@@ -1,4 +1,5 @@
-// Thẻ phòng học trong sảnh: ít chữ — biểu tượng môn, tên phòng, chủ phòng, bạn bè đang ở đó, sĩ số.
+// Thẻ phòng học trong sảnh: cấu trúc ngữ nghĩa <article> với nút hành động "Vào phòng" rõ ràng.
+// src/features/hub/RoomCard.tsx
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -52,10 +53,9 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
   const Icon = mon.icon
 
   return (
-    <div
+    <article
       data-testid={`room-card-${room.id}`}
-      onClick={() => onVaoPhong?.(room)}
-      className="group flex cursor-pointer flex-col gap-3.5 rounded-2xl border border-border-default bg-surface p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised shadow-xs"
+      className="group flex flex-col justify-between gap-3.5 rounded-2xl border border-border-default/80 bg-surface p-4.5 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised/60 shadow-xs"
     >
       <div className="flex items-start gap-3">
         <span
@@ -71,7 +71,12 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
             <span className="min-w-0 break-words" title={room.ten}>
               {room.ten}
             </span>
-            {room.coMatKhau && <Lock className="mt-[5px] size-3.5 shrink-0 text-text-tertiary" aria-label="Phòng có mật khẩu" />}
+            {room.coMatKhau && (
+              <Lock
+                className="mt-[5px] size-3.5 shrink-0 text-text-tertiary"
+                aria-label="Phòng có mật khẩu"
+              />
+            )}
           </h3>
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-text-tertiary">
             <span className="min-w-0 break-words">{room.chuPhongTen}</span>
@@ -91,7 +96,7 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
         </p>
       )}
 
-      <div className="mt-auto flex items-center gap-3">
+      <div className="mt-auto flex items-center gap-3 pt-2 border-t border-border-subtle/60">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-text-secondary">
@@ -107,7 +112,12 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
               >
                 {banBe.slice(0, 3).map((ban) =>
                   ban.avatar ? (
-                    <img key={ban.id} src={ban.avatar} alt="" className="size-5 rounded-full object-cover ring-2 ring-surface" />
+                    <img
+                      key={ban.id}
+                      src={ban.avatar}
+                      alt=""
+                      className="size-5 rounded-full object-cover ring-2 ring-surface"
+                    />
                   ) : (
                     <span
                       key={ban.id}
@@ -127,7 +137,10 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
           </div>
           <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-overlay">
             <div
-              className={cn('h-full rounded-full transition-[width] duration-300', dayPhong ? 'bg-danger' : 'bg-brand')}
+              className={cn(
+                'h-full rounded-full transition-[width] duration-300',
+                dayPhong ? 'bg-danger' : 'bg-brand',
+              )}
               style={{ width: `${tiLeLapDay}%` }}
             />
           </div>
@@ -136,16 +149,13 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
         <Button
           size="sm"
           disabled={dayPhong}
-          onClick={(e) => {
-            e.stopPropagation()
-            onVaoPhong?.(room)
-          }}
-          className="shrink-0 rounded-xl"
+          onClick={() => onVaoPhong?.(room)}
+          className="shrink-0 rounded-xl font-semibold shadow-xs"
         >
           <span>{dayPhong ? 'Đã đầy' : 'Vào phòng'}</span>
-          {!dayPhong && <ArrowRight className="transition-transform duration-150 group-hover:translate-x-0.5" />}
+          {!dayPhong && <ArrowRight className="size-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />}
         </Button>
       </div>
-    </div>
+    </article>
   )
 }

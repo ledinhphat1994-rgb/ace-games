@@ -79,7 +79,7 @@ export function useScreenWakeLock(enabled: boolean = true) {
 
 /**
  * ── 3. Web Share API & Clipboard Fallback ──
- * Chia sẻ liên kết phòng học, bàn cờ, bài viết qua hệ thống chia sẻ gốc của thiết bị
+ * Chia sẻ liên kết phòng học, bàn cờ qua hệ thống chia sẻ gốc của thiết bị
  * (AirDrop, Zalo, Telegram, Tin nhắn...) hoặc tự động sao chép vào bộ nhớ tạm.
  */
 export interface ShareOptions {

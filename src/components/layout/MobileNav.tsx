@@ -46,8 +46,8 @@ export function MobileNav() {
                   >
                     <Icon className="h-[18px] w-[18px]" />
                   </div>
-                  <span className="leading-none tracking-tight">
-                    {item.label}
+                  <span className="text-[11px] leading-tight tracking-tight truncate max-w-full px-0.5">
+                    {item.shortLabel || item.label}
                   </span>
                 </>
               )}

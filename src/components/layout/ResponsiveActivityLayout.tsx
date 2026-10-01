@@ -5,16 +5,29 @@ import { DraggableBubble } from './DraggableBubble'
 import { cn } from '@/lib/utils'
 
 interface ResponsiveActivityLayoutProps {
-  leaderboard: ReactNode
-  social: ReactNode
+  leaderboard?: ReactNode
+  social?: ReactNode
   children: ReactNode
   testId?: string
   utilityMode?: 'inline' | 'floating'
   bubbleBottomOffset?: number
+  showFloatingTrigger?: boolean
+  socialLabel?: string
+  finalFocusSelector?: string
 }
 
 // Discovery, chat and rankings remain shared Platform capabilities on every activity.
-export function ResponsiveActivityLayout({ leaderboard, social, children, testId, bubbleBottomOffset, utilityMode = 'inline' }: ResponsiveActivityLayoutProps) {
+export function ResponsiveActivityLayout({
+  leaderboard,
+  social,
+  children,
+  testId,
+  bubbleBottomOffset,
+  utilityMode = 'inline',
+  showFloatingTrigger = true,
+  socialLabel,
+  finalFocusSelector,
+}: ResponsiveActivityLayoutProps) {
   const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1280px)').matches)
   const [panel, setPanel] = useState<'leaderboard' | 'messages' | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement))
@@ -43,16 +56,17 @@ export function ResponsiveActivityLayout({ leaderboard, social, children, testId
     return () => window.removeEventListener('activity:open-panel', handleOpenPanel)
   }, [])
 
-  const inlinePanels = desktop && utilityMode === 'inline'
   const panels = [
-    { id: 'leaderboard' as const, label: 'Bảng xếp hạng', content: leaderboard, icon: <Trophy className="size-5" /> },
-    { id: 'messages' as const, label: 'Tin nhắn & bạn bè', content: social, icon: <MessageCircle className="size-5" /> },
-  ]
+    leaderboard ? { id: 'leaderboard' as const, label: 'Bảng xếp hạng', content: leaderboard, icon: <Trophy className="size-5" /> } : null,
+    social ? { id: 'messages' as const, label: socialLabel ?? 'Tin nhắn & bạn bè', content: social, icon: <MessageCircle className="size-5" /> } : null,
+  ].filter(Boolean) as { id: 'leaderboard' | 'messages'; label: string; content: ReactNode; icon: ReactNode }[]
+
+  const inlinePanels = desktop && utilityMode === 'inline' && panels.length > 0
 
   return (
     <div data-testid={testId} className={cn('activity-layout grid w-full min-w-0 grid-cols-1 items-start gap-5', inlinePanels && 'xl:grid-cols-[240px_minmax(0,1fr)_280px] 2xl:grid-cols-[260px_minmax(0,1fr)_300px]', isFullscreen && 'activity-layout--fullscreen')}>
       <div className={cn('min-w-0', inlinePanels && 'xl:col-start-2 xl:row-start-1')}>{children}</div>
-      {!inlinePanels && !isFullscreen && (
+      {!inlinePanels && !isFullscreen && panels.length > 0 && showFloatingTrigger && (
         <DraggableBubble id="activity" bottomOffset={bubbleBottomOffset} label="Mở tiện ích" icon={<LayoutGrid className="size-5" />} suspended={panel !== null}
           actions={panels.map(item => ({ id: item.id, label: item.label, icon: item.icon, onSelect: () => setPanel(item.id) }))} />
       )}
@@ -62,7 +76,19 @@ export function ResponsiveActivityLayout({ leaderboard, social, children, testId
         </aside>
       ) : (
         <Sheet key={item.id} open={!isFullscreen && panel === item.id} onOpenChange={open => setPanel(open ? item.id : null)}>
-          <SheetContent keepMounted finalFocus={() => document.querySelector<HTMLButtonElement>('[data-testid="bubble-activity"]')} side="right" className="activity-sheet gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md" data-testid={'activity-panel-' + item.id}>
+          <SheetContent
+            keepMounted
+            finalFocus={() => {
+              if (finalFocusSelector) {
+                const el = document.querySelector<HTMLButtonElement>(finalFocusSelector)
+                if (el) return el
+              }
+              return document.querySelector<HTMLButtonElement>('[data-testid="bubble-activity"]')
+            }}
+            side="right"
+            className="activity-sheet gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
+            data-testid={'activity-panel-' + item.id}
+          >
             <SheetHeader className="shrink-0 border-b border-border-subtle py-3 pr-14">
               <SheetTitle>{item.label}</SheetTitle>
               <SheetDescription className="sr-only">{item.label}</SheetDescription>

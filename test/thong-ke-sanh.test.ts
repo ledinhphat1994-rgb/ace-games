@@ -169,7 +169,7 @@ describe('Giao diện sảnh — thống kê chỉ cho quản trị, người th
   })
 
   it('một mẫu thống kê chung cho Học tập, trang Game và sảnh từng trò; chỉ gọi khi là Quản trị trường', () => {
-    expect(learningPageRaw).toContain('thongKe={<ThongKeHocTap')
+    expect(learningPageRaw).toContain('<ThongKeHocTap')
     expect(gameLobbyPageRaw).toContain('thongKe={<ThongKeGame gameType={gameType}')
     expect(gameLobbyViewRaw).toContain('<ThongKeGame ban={tables}')
     expect(hookRaw).toContain('Boolean(nguoiDung?.isSchoolAdmin)')

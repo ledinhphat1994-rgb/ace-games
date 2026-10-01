@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppHeader } from './AppHeader'
+import { AppSidebar } from './AppSidebar'
 import { MobileNav } from './MobileNav'
 import { CampusChatSheet } from './CampusChatSheet'
 
@@ -61,6 +62,8 @@ export function AppShell({ children }: AppShellProps) {
     tinCuoi.accountId !== nguoiDung.accountId &&
     (idTinDaXem === null || tinCuoi.id > idTinDaXem)
 
+  const [activeDmTarget, setActiveDmTarget] = useState<import('./CampusChatSheet').DmTargetUser | null>(null)
+
   const datMoChat = (mo: boolean) => {
     if (!nguoiDung) {
       moAuthModal('dang_nhap')
@@ -79,10 +82,27 @@ export function AppShell({ children }: AppShellProps) {
         moAuthModal('dang_nhap')
         return
       }
+      setActiveDmTarget(null)
       setIsChatOpen(true)
     }
     window.addEventListener('campus:open-chat', handleOpenChat)
     return () => window.removeEventListener('campus:open-chat', handleOpenChat)
+  }, [nguoiDung, moAuthModal])
+
+  useEffect(() => {
+    const handleOpenDM = (e: Event) => {
+      if (!nguoiDung) {
+        moAuthModal('dang_nhap')
+        return
+      }
+      const ce = e as CustomEvent<import('./CampusChatSheet').DmTargetUser>
+      if (ce.detail) {
+        setActiveDmTarget(ce.detail)
+        setIsChatOpen(true)
+      }
+    }
+    window.addEventListener('campus:open-dm', handleOpenDM)
+    return () => window.removeEventListener('campus:open-dm', handleOpenDM)
   }, [nguoiDung, moAuthModal])
 
   const location = useLocation()
@@ -99,7 +119,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="flex min-h-svh flex-col bg-canvas text-foreground">
+    <div className="flex min-h-svh bg-canvas text-foreground">
+      {/* Desktop Left Sidebar (Approved Reference Design) */}
+      {!isFullscreen && <AppSidebar className="hidden lg:flex" />}
 
       {/* Main Content Column */}
       <div className="flex flex-1 flex-col min-w-0">
@@ -182,6 +204,9 @@ export function AppShell({ children }: AppShellProps) {
         myPermissions={myPermissions}
         onSendMessage={guiChat}
         onDeleteMessage={xoaChat}
+        activeDmTarget={activeDmTarget}
+        onSelectDmTarget={setActiveDmTarget}
+        coTinNhanMoiCampus={coTinNhanMoi}
       />
     </div>
   )
