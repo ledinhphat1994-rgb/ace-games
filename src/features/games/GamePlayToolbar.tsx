@@ -52,6 +52,8 @@ interface GamePlayToolbarProps {
   nhanChipPvp?: string
   /** Nút hành động chính (Bắt đầu…) làm nổi bằng màu nhấn thay cho nút viền. */
   resetNoiBat?: boolean
+  showRoomChat?: boolean
+  showRankings?: boolean
   className?: string
 }
 
@@ -88,6 +90,8 @@ export function GamePlayToolbar({
   phuPvp,
   nhanChipPvp,
   resetNoiBat = false,
+  showRoomChat = true,
+  showRankings = true,
   className,
 }: GamePlayToolbarProps) {
   const [internalFullscreen, setInternalFullscreen] = React.useState(false)
@@ -192,7 +196,7 @@ export function GamePlayToolbar({
       variant="outline"
       size="sm"
       onClick={handleFsToggle}
-      className="h-8 gap-1.5 border-white/15 bg-white/10 px-2 text-xs font-bold text-white transition-all hover:bg-white/20 hover:border-white/30 active:scale-95 cursor-pointer shrink-0"
+      className="h-8 gap-1.5 border-border-default bg-surface text-text-primary hover:bg-surface-raised px-2 text-xs font-bold transition-all active:scale-95 cursor-pointer shrink-0 shadow-xs"
       title={isFs ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
       aria-label="Toàn màn hình"
     >
@@ -239,7 +243,7 @@ export function GamePlayToolbar({
           ? 'h-9 px-3.5 sm:px-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/30 uppercase tracking-wider'
           : resetLabel === 'Ván mới'
             ? 'h-8 px-2.5 bg-brand text-brand-foreground hover:bg-brand/90 font-bold'
-            : 'h-8 px-2 border-white/15 bg-white/10 text-white hover:bg-white/20 hover:border-white/30 font-bold',
+            : 'h-8 px-2 border-border-default bg-surface text-text-primary hover:bg-surface-raised font-bold',
       )}
     >
       {resetIcon ?? (laBatDau ? <Play className="size-4 fill-white text-white drop-shadow" /> : resetLabel === 'Ván mới' ? <RotateCcw className="size-3.5 text-white" /> : <Flag className="size-3.5 text-rose-400" />)}
@@ -272,18 +276,18 @@ export function GamePlayToolbar({
               onClick={handleBack}
               aria-label="Quay lại sảnh"
               title="Quay lại sảnh"
-              className="gap-1.5 font-bold border-white/15 bg-white/10 text-white hover:bg-white/20 hover:border-white/30 text-xs h-8 px-2 shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-sm"
+              className="gap-1.5 font-bold border-border-default bg-surface text-text-primary hover:bg-surface-raised text-xs h-8 px-2 shrink-0 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-xs"
             >
-              <ArrowLeft className="size-3.5 text-white" />
+              <ArrowLeft className="size-3.5 text-text-primary" />
               <span className="game-control-label">Quay lại sảnh</span>
             </Button>
           )}
           {title && (
             <>
-              <div className="game-control-detail h-4 w-px bg-white/10 shrink-0" />
+              <div className="game-control-detail h-4 w-px bg-border-subtle shrink-0" />
               <div className="game-toolbar-title hidden sm:flex items-center gap-2 min-w-0">
                 {icon && (
-                  <div className="size-7 sm:size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="size-7 sm:size-8 rounded-lg bg-surface-raised border border-border-default flex items-center justify-center shadow-xs shrink-0">
                     {icon}
                   </div>
                 )}
@@ -292,7 +296,7 @@ export function GamePlayToolbar({
                     {title}
                   </span>
                   {badge && (
-                    <span className="text-[10px] font-medium font-mono px-1.5 py-0.2 rounded-md bg-white/5 border border-white/10 text-text-tertiary shrink-0">
+                    <span className="text-[10px] font-medium font-mono px-1.5 py-0.2 rounded-md bg-surface-raised border border-border-subtle text-text-secondary shrink-0">
                       {badge}
                     </span>
                   )}
@@ -323,28 +327,32 @@ export function GamePlayToolbar({
           <div className="game-toolbar-modes min-w-0 flex items-center justify-center shrink-0">{cumChedo}</div>
           {rightSlot && <div className="game-toolbar-slot flex items-center shrink-0">{rightSlot}</div>}
           {nutFullscreen && <div className="game-toolbar-fullscreen flex items-center shrink-0">{nutFullscreen}</div>}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'messages' }))}
-            className="h-8 gap-1.5 border border-white/10 bg-white/5 hover:bg-white/10 px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
-            title="Mở trò chuyện phòng"
-            aria-label="Trò chuyện phòng"
-          >
-            <MessageCircle className="size-3.5 text-brand" />
-            <span className="game-control-label">Chat</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'leaderboard' }))}
-            className="h-8 gap-1.5 border border-white/10 bg-white/5 hover:bg-white/10 px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
-            title="Mở bảng xếp hạng"
-            aria-label="Bảng xếp hạng"
-          >
-            <Trophy className="size-3.5 text-amber-400" />
-            <span className="game-control-label">Xếp hạng</span>
-          </Button>
+          {showRoomChat && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'messages' }))}
+              className="h-8 gap-1.5 border border-border-default bg-surface hover:bg-surface-raised px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
+              title="Mở trò chuyện phòng"
+              aria-label="Trò chuyện phòng"
+            >
+              <MessageCircle className="size-3.5 text-brand" />
+              <span className="game-control-label">Chat</span>
+            </Button>
+          )}
+          {showRankings && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.dispatchEvent(new CustomEvent('activity:open-panel', { detail: 'leaderboard' }))}
+              className="h-8 gap-1.5 border border-border-default bg-surface hover:bg-surface-raised px-2.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95 cursor-pointer shrink-0"
+              title="Mở bảng xếp hạng"
+              aria-label="Bảng xếp hạng"
+            >
+              <Trophy className="size-3.5 text-amber-400" />
+              <span className="game-control-label">Xếp hạng</span>
+            </Button>
+          )}
           {!hideCenterTurn && (
             <div className="game-toolbar-turn flex min-w-0 items-center justify-center px-1 shrink-0">
               {outcomeNotice ? (
@@ -359,7 +367,7 @@ export function GamePlayToolbar({
                       ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
                       : isAiThinking
                         ? 'bg-brand/10 border border-brand/35 text-brand'
-                        : 'bg-slate-900/80 border border-white/10 text-slate-200',
+                        : 'bg-surface border border-border-default text-text-secondary',
                   )}
                 >
                   {isRed ? (

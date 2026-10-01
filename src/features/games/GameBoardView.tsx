@@ -4,7 +4,6 @@ import { useGame } from '../../hooks/use-game'
 import { ChessBoard } from './chess/ChessBoard'
 import { XiangqiBoard } from './xiangqi/XiangqiBoard'
 import { CaroBoard } from './caro/CaroBoard'
-import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameSocialSidebar, type ChatBan } from './GameSocialSidebar'
 
 interface GameBoardViewProps {
@@ -44,11 +43,28 @@ export function GameBoardView({
   return (
     <ResponsiveActivityLayout
       utilityMode="floating"
-      leaderboard={<GameArenaLeaderboard defaultGame={meta.gameType} />}
-      social={<GameSocialSidebar roomId={gameId} roomName={roomName} userRole={userRole} chatBan={chatBan} />}
+      showFloatingTrigger={false}
+      socialLabel="Chat phòng"
+      social={
+        chatBan ? (
+          <GameSocialSidebar
+            roomId={gameId}
+            roomName={roomName}
+            userRole={userRole}
+            chatBan={chatBan}
+            roomOnly={true}
+          />
+        ) : undefined
+      }
     >
-      <div className="game-stage flex min-w-0 w-full flex-col rounded-3xl border border-white/[0.08] bg-surface/95 backdrop-blur-2xl p-2.5 sm:p-4 shadow-2xl">
-        {meta.gameType === 'chess' ? <ChessBoard onBack={onLeave} online={online} /> : meta.gameType === 'xiangqi' ? <XiangqiBoard onBack={onLeave} online={online} /> : <CaroBoard onBack={onLeave} online={online} />}
+      <div className="game-stage flex min-w-0 w-full flex-col rounded-2xl border border-border-default bg-surface/85 backdrop-blur-md p-2 sm:p-4 shadow-sm">
+        {meta.gameType === 'chess' ? (
+          <ChessBoard onBack={onLeave} online={online} />
+        ) : meta.gameType === 'xiangqi' ? (
+          <XiangqiBoard onBack={onLeave} online={online} />
+        ) : (
+          <CaroBoard onBack={onLeave} online={online} />
+        )}
       </div>
     </ResponsiveActivityLayout>
   )

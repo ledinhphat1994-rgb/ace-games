@@ -346,6 +346,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         mode={mode}
         onModeChange={handleModeChange}
         onlineAvailable={Boolean(online)}
+        showRankings={false}
+        showRoomChat={Boolean(online)}
         aiLevel={aiLevel}
         onAiLevelChange={setAiLevel}
         onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
@@ -370,9 +372,9 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
       {/* ── BỐ CỤC CHUẨN LICHESS / ZEN MODE: THANH ĐỐI THỦ -> BÀN CỜ -> THANH NGƯỜI CHƠI ── */}
       <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] flex-1 my-auto px-1 sm:px-2">
         {/* THANH ĐỐI THỦ (TRÊN BÀN CỜ) */}
-        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-border-default bg-surface-raised/90 backdrop-blur-md shadow-xs min-h-11">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-md bg-rose-500/20 border border-rose-400/40 flex items-center justify-center font-black text-xs text-rose-300 shrink-0">
+            <div className="size-7 rounded-md bg-rose-500/15 border border-rose-500/30 flex items-center justify-center font-black text-xs text-rose-500 shrink-0">
               O
             </div>
             <div className="flex flex-col min-w-0">
@@ -391,8 +393,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               className={cn(
                 'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
                 currentTurn !== playerSide && isPlaying && !winner
-                  ? 'border-rose-500/60 bg-rose-950/40 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse'
-                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+                  ? 'border-rose-500/60 bg-rose-500/10 text-rose-500 shadow-sm animate-pulse'
+                  : 'border-border-default bg-surface-overlay/60 text-text-secondary',
               )}
             >
               {formatClockTime(clock.timeRemaining)}
@@ -599,9 +601,9 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         />
 
         {/* THANH NGƯỜI CHƠI (DƯỚI BÀN CỜ) */}
-        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-white/10 bg-surface/85 backdrop-blur-md shadow-sm min-h-11">
+        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-border-default bg-surface-raised/90 backdrop-blur-md shadow-xs min-h-11">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-md bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center font-black text-xs text-cyan-300 shrink-0">
+            <div className="size-7 rounded-md bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center font-black text-xs text-cyan-500 shrink-0">
               X
             </div>
             <div className="flex flex-col min-w-0">
@@ -617,8 +619,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               className={cn(
                 'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
                 currentTurn === playerSide && isPlaying && !winner
-                  ? 'border-cyan-400/60 bg-cyan-950/40 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] animate-pulse'
-                  : 'border-white/10 bg-white/[0.04] text-text-secondary',
+                  ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-400 shadow-sm animate-pulse'
+                  : 'border-border-default bg-surface-overlay/60 text-text-secondary',
               )}
             >
               {formatClockTime(clock.timeRemaining)}
@@ -628,7 +630,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
 
         {/* Thiết lập thời gian khi chưa vào trận (chỉ hiện trước ván) */}
         {!isPlaying && (
-          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-white/[0.03] border border-white/5 text-xs">
+          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-surface-raised/80 border border-border-default text-xs">
             <span className="text-[11px] text-text-tertiary font-medium">Thời gian mỗi lượt:</span>
             {TIME_PRESETS.map((sec) => (
               <button
@@ -638,8 +640,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
                 className={cn(
                   'px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer border',
                   (clock.myPendingProposal ?? clock.turnSeconds) === sec
-                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-sm'
-                    : 'bg-white/5 border-white/10 text-text-tertiary hover:text-text-primary',
+                    ? 'bg-brand/15 text-brand border-brand/40 shadow-xs'
+                    : 'bg-surface-overlay/80 border-border-subtle text-text-tertiary hover:text-text-primary',
                 )}
               >
                 {sec}s

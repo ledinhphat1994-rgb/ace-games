@@ -191,6 +191,8 @@ interface GameSocialSidebarProps {
   defaultTab?: SocialTab
   /** Tab "Chat phòng" chỉ có nghĩa ở bàn đấu game; trang khác (Học tập) chỉ cần Chat chung + Bạn bè. */
   coChatPhong?: boolean
+  /** Chế độ chỉ chat phòng của bàn đấu (ẩn Chat chung và Bạn bè) */
+  roomOnly?: boolean
 }
 
 export function GameSocialSidebar({
@@ -201,6 +203,7 @@ export function GameSocialSidebar({
   className,
   defaultTab,
   coChatPhong = true,
+  roomOnly = false,
 }: GameSocialSidebarProps) {
   const { nguoiDung, moAuthModal } = usePhien()
   const {
@@ -212,7 +215,7 @@ export function GameSocialSidebar({
     presenceMap,
   } = useCampus()
 
-  const [activeTab, setActiveTab] = useState<SocialTab>(() => defaultTab ?? (chatBan && coChatPhong ? 'chat_phong' : 'chat_chung'))
+  const [activeTab, setActiveTab] = useState<SocialTab>(() => (roomOnly ? 'chat_phong' : (defaultTab ?? (chatBan && coChatPhong ? 'chat_phong' : 'chat_chung'))))
   const [selectedFriend, setSelectedFriend] = useState<FriendItem | null>(null)
   const [friendSearch, setFriendSearch] = useState('')
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
@@ -365,25 +368,27 @@ export function GameSocialSidebar({
         className
       )}
     >
-      <div className="shrink-0 border-b border-border-subtle p-2" role="group" aria-label="Loại trò chuyện">
-        <div className={cn('grid min-w-0 gap-1', coChatPhong ? 'grid-cols-3' : 'grid-cols-2')}>
-          {coChatPhong && (
-            <button type="button" aria-label="Chat phòng" title="Chat phòng" aria-pressed={activeTab === 'chat_phong'} onClick={() => setActiveTab('chat_phong')}
-              className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_phong' ? 'bg-amber-500/15 text-warning' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
-              <Gamepad2 className="size-4 shrink-0" /><span>Chat phòng</span>
+      {!roomOnly && (
+        <div className="shrink-0 border-b border-border-subtle p-2" role="group" aria-label="Loại trò chuyện">
+          <div className={cn('grid min-w-0 gap-1', coChatPhong ? 'grid-cols-3' : 'grid-cols-2')}>
+            {coChatPhong && (
+              <button type="button" aria-label="Chat phòng" title="Chat phòng" aria-pressed={activeTab === 'chat_phong'} onClick={() => setActiveTab('chat_phong')}
+                className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_phong' ? 'bg-amber-500/15 text-warning' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+                <Gamepad2 className="size-4 shrink-0" /><span>Chat phòng</span>
+              </button>
+            )}
+            <button type="button" aria-label="Chat chung" title="Chat chung" aria-pressed={activeTab === 'chat_chung'} onClick={() => setActiveTab('chat_chung')}
+              className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_chung' ? 'bg-brand/12 text-brand' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+              <MessageSquare className="size-4 shrink-0" /><span>Chat chung</span>
             </button>
-          )}
-          <button type="button" aria-label="Chat chung" title="Chat chung" aria-pressed={activeTab === 'chat_chung'} onClick={() => setActiveTab('chat_chung')}
-            className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'chat_chung' ? 'bg-brand/12 text-brand' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
-            <MessageSquare className="size-4 shrink-0" /><span>Chat chung</span>
-          </button>
-          <button type="button" aria-label="Bạn bè" title="Bạn bè" aria-pressed={activeTab === 'ban_be'} onClick={() => setActiveTab('ban_be')}
-            className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'ban_be' ? 'bg-purple-500/15 text-social' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
-            <Users className="size-4 shrink-0" />
-            <span className="flex items-center justify-center gap-1">Bạn bè<span aria-hidden title={onlineFriendsCount + ' bạn đang trực tuyến'} className="rounded-md bg-success/10 px-1 text-success tabular-nums">{onlineFriendsCount > 99 ? '99+' : onlineFriendsCount}</span></span>
-          </button>
+            <button type="button" aria-label="Bạn bè" title="Bạn bè" aria-pressed={activeTab === 'ban_be'} onClick={() => setActiveTab('ban_be')}
+              className={cn('flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand', activeTab === 'ban_be' ? 'bg-purple-500/15 text-social' : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary')}>
+              <Users className="size-4 shrink-0" />
+              <span className="flex items-center justify-center gap-1">Bạn bè<span aria-hidden title={onlineFriendsCount + ' bạn đang trực tuyến'} className="rounded-md bg-success/10 px-1 text-success tabular-nums">{onlineFriendsCount > 99 ? '99+' : onlineFriendsCount}</span></span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tab 1: Chat phòng (Trò chuyện giữa người chơi & người xem trong phòng game) */}
       {coChatPhong && activeTab === 'chat_phong' && (
@@ -565,7 +570,7 @@ export function GameSocialSidebar({
       )}
 
       {/* Tab 2: Chat chung (Sảnh toàn trường) */}
-      {activeTab === 'chat_chung' && (
+      {!roomOnly && activeTab === 'chat_chung' && (
         <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-hidden">
           <CampusChatDrawer
             messages={messages}
@@ -651,7 +656,7 @@ export function GameSocialSidebar({
       )}
 
       {/* Tab 3: Bạn bè & Trò chuyện riêng (Gộp 2 trong 1) */}
-      {activeTab === 'ban_be' && (
+      {!roomOnly && activeTab === 'ban_be' && (
         <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-hidden">
           {!nguoiDung ? (
             <div className="flex-1 flex flex-col min-h-0">
