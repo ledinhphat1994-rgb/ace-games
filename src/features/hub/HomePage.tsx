@@ -192,91 +192,93 @@ export function HomePage() {
   return (
     <div className="pb-12 space-y-6">
 
-      {/* ── VÙNG 1+: Compact Hero + CTA — Zone 1 merged into Zone 1+ ── */}
+      {/* ── VÙNG 1: Full-Width Cyber Hero Banner ── */}
       <section
-        aria-label="Digital Campus"
-        className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-[#030d20] shadow-[0_0_48px_rgba(56,189,248,0.10)] min-h-[240px] lg:min-h-[260px] group"
+        aria-label="Chào mừng bạn học"
+        className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[440px] lg:min-h-[480px] flex flex-col justify-center p-8 sm:p-12 lg:p-16 group"
       >
-        {/* Background */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <img
             src="/assets/cyber_mockups/home_hero_bg.webp"
-            alt=""
-            className="h-full w-full object-cover object-center opacity-40 crisp-image group-hover:opacity-50 group-hover:scale-[1.02] transition-all duration-700"
+            alt="Digital Campus Hero"
+            className="h-full w-full object-cover object-right opacity-75 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#020c24] via-[#020c24]/80 to-[#04112e]/60" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/70 to-transparent" />
-          {/* Subtle violet accent trên right side */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_100%_at_right,_rgba(139,92,246,0.18),_transparent)]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020c24] via-[#020c24]/85 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
         </div>
 
-        {/* Content: 2 cột */}
-        <div className="relative z-10 h-full flex flex-col sm:flex-row items-center justify-between gap-6 p-6 sm:p-8 lg:p-10">
-
-          {/* Trái: Brand + Headline + CTA khám phá */}
-          <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/25 bg-sky-500/10 px-3 py-0.5 text-[11px] font-bold tracking-widest text-sky-400 mb-3">
-              <span className="size-1.5 rounded-full bg-sky-400 animate-pulse" />
-              <span>DIGITAL CAMPUS • LỚP 10A7</span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-[1.2]">
-              Học tập · Kết nối ·{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-300">Phát triển</span>
-            </h1>
-
-            <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md">
-              Chơi game, kết bạn và học tập hiệu quả — tất cả trong một nơi dành riêng cho lớp 10A7.
-            </p>
-
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Button
-                size="sm"
-                onClick={() => navigate('/learn')}
-                className="h-9 px-5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs shadow-[0_0_16px_rgba(56,189,248,0.35)] transition-all cursor-pointer gap-2"
-              >
-                <BookOpen className="size-3.5" />
-                <span>Bắt đầu khám phá</span>
-                <ArrowRight className="size-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/arena')}
-                className="h-9 px-4 rounded-xl border border-white/15 bg-white/5 hover:bg-white/12 text-white/80 hover:text-white font-semibold text-xs backdrop-blur-sm transition-all cursor-pointer gap-2"
-              >
-                <Gamepad2 className="size-3.5 text-purple-300" />
-                <span>Xem game</span>
-              </Button>
-            </div>
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+            <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+            <span>DIGITAL CAMPUS • LỚP 10A7</span>
           </div>
 
-          {/* Phải: CTA Community — compact card */}
-          <div className="shrink-0 w-full sm:w-auto sm:max-w-[280px] rounded-2xl border border-violet-500/25 bg-white/5 backdrop-blur-md p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Crown className="size-4 text-amber-400 fill-amber-400 shrink-0" />
-              <span className="text-[11px] font-bold text-amber-400 tracking-wider uppercase">Cộng đồng</span>
-            </div>
-            <div>
-              <p className="text-sm font-black text-white leading-snug">
-                Tham gia Digital Campus
-                <br />
-                <span className="text-violet-300">ngay hôm nay</span>
-              </p>
-              <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
-                Học hiệu quả, chơi game vui cùng hàng ngàn học sinh.
-              </p>
-            </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+            Học tập · Kết nối
+            <br />
+            Chơi game · Phát triển
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-indigo-400">
+              Tất cả trong một nơi.
+            </span>
+          </h1>
+
+          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
+            Cùng nhau học tập, chơi game, kết nối bạn bè và phát triển kỹ năng để tạo nên một cộng đồng học sinh mạnh mẽ hơn.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3.5">
             <Button
-              size="sm"
-              onClick={() => navigate('/community')}
-              className="h-8 w-full rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-xs shadow-[0_0_14px_rgba(139,92,246,0.4)] transition-all cursor-pointer gap-1.5"
+              size="lg"
+              onClick={() => navigate('/learn')}
+              className="h-11 px-6 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all cursor-pointer gap-2"
             >
-              <span>Tạo tài khoản miễn phí</span>
-              <ArrowRight className="size-3" />
+              <BookOpen className="size-4" />
+              <span>Bắt đầu khám phá</span>
+              <ArrowRight className="size-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate('/arena')}
+              className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer gap-2"
+            >
+              <Gamepad2 className="size-4 text-purple-300" />
+              <span>Xem video giới thiệu</span>
             </Button>
           </div>
         </div>
+      </section>
+
+      {/* ── VÙNG 1+: CTA Community Banner — full width ── */}
+      <section
+        aria-label="Tham gia cộng đồng"
+        className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-[#1a0533] via-[#160840] to-[#0d1a40] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-[0_0_40px_rgba(139,92,246,0.2)]"
+      >
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_top_left,_rgba(139,92,246,1),_transparent_50%)]" />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(56,189,248,1),_transparent_50%)]" />
+        <div className="relative z-10 min-w-0">
+          <div className="flex items-center gap-2 mb-3">
+            <Crown className="size-5 text-amber-400 fill-amber-400" />
+            <span className="text-xs font-bold text-amber-400 tracking-widest uppercase">Cộng đồng Digital Campus</span>
+          </div>
+          <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
+            Tham gia cộng đồng Digital Campus
+            <br />
+            <span className="text-violet-300">ngay hôm nay</span>
+          </h2>
+          <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
+            Học hiệu quả hơn, chơi game vui hơn và kết nối bạn bè cùng hàng ngàn học sinh, sinh viên trong toàn quốc.
+          </p>
+        </div>
+        <Button
+          size="lg"
+          onClick={() => navigate('/community')}
+          className="relative z-10 shrink-0 h-11 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.45)] transition-all cursor-pointer gap-2 whitespace-nowrap"
+        >
+          <span>Tạo tài khoản miễn phí</span>
+          <ArrowRight className="size-3.5" />
+        </Button>
       </section>
 
       {/* ── VÙNG 2: Quick Nav Cards — 4 mục trong container chung ── */}
