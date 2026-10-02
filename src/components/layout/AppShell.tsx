@@ -119,12 +119,12 @@ export function AppShell({ children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="flex min-h-svh bg-canvas text-foreground">
-      {/* Desktop Left Sidebar (Approved Reference Design) */}
+    <div className="min-h-svh bg-canvas text-foreground">
+      {/* Desktop Left Sidebar (Fixed) */}
       {!isFullscreen && <AppSidebar className="hidden lg:flex" />}
 
-      {/* Main Content Column */}
-      <div className="flex flex-1 flex-col min-w-0">
+      {/* Main Content Column — shifts right by sidebar width on desktop */}
+      <div className={cn('flex flex-col min-w-0', !isFullscreen && 'lg:ml-[240px] xl:ml-[256px]')}>
         {/* 1. Header (Sticky desktop & mobile) */}
         {!isFullscreen && (
           <AppHeader

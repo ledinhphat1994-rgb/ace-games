@@ -25,6 +25,50 @@ import { toast } from 'sonner'
 
 const LEADERBOARD_LINK = { to: '/leaderboard', label: 'Bảng xếp hạng' }
 
+// Quick Nav Cards cho Vùng 2
+const QUICK_NAV = [
+  {
+    to: '/learn',
+    Icon: BookOpen,
+    label: 'Học tập',
+    desc: 'Phòng học nhóm & tài liệu',
+    gradient: 'from-sky-500/20 to-blue-500/10',
+    border: 'border-sky-500/30',
+    iconBg: 'bg-sky-500/15 text-sky-400',
+    hover: 'hover:border-sky-400/60 hover:shadow-[0_0_20px_rgba(56,189,248,0.18)]',
+  },
+  {
+    to: '/arena',
+    Icon: Gamepad2,
+    label: 'Game',
+    desc: 'Cờ vua, cờ tướng, caro...',
+    gradient: 'from-purple-500/20 to-violet-500/10',
+    border: 'border-purple-500/30',
+    iconBg: 'bg-purple-500/15 text-purple-400',
+    hover: 'hover:border-purple-400/60 hover:shadow-[0_0_20px_rgba(168,85,247,0.18)]',
+  },
+  {
+    to: '/community',
+    Icon: Users,
+    label: 'Cộng đồng',
+    desc: 'Bạn bè & bảng tin lớp',
+    gradient: 'from-emerald-500/20 to-teal-500/10',
+    border: 'border-emerald-500/30',
+    iconBg: 'bg-emerald-500/15 text-emerald-400',
+    hover: 'hover:border-emerald-400/60 hover:shadow-[0_0_20px_rgba(16,185,129,0.18)]',
+  },
+  {
+    to: '/leaderboard',
+    Icon: Trophy,
+    label: 'Bảng xếp hạng',
+    desc: 'Vinh danh & kỷ lục',
+    gradient: 'from-amber-500/20 to-yellow-500/10',
+    border: 'border-amber-500/30',
+    iconBg: 'bg-amber-500/15 text-amber-400',
+    hover: 'hover:border-amber-400/60 hover:shadow-[0_0_20px_rgba(245,158,11,0.18)]',
+  },
+]
+
 export function HomePage() {
   const navigate = useNavigate()
   const { nguoiDung, moAuthModal } = usePhien()
@@ -52,7 +96,6 @@ export function HomePage() {
     [rooms, friends, presenceMap, blockedUsers, presenceReady, trangThai],
   )
 
-  // Danh sách phòng học đang mở (sắp xếp bạn bè lên trước, rồi đến phòng đông người)
   const activeRoomsPreview = useMemo(() => {
     return [...rooms].sort((a, b) => {
       const friendsA = roomFriendsMap.get(a.id)?.length ?? 0
@@ -62,7 +105,6 @@ export function HomePage() {
     })
   }, [rooms, roomFriendsMap])
 
-  // Bạn bè thật đang online từ presenceMap (không fake data)
   const onlineFriends = useMemo(() => {
     return friends.filter((f) => {
       const p = presenceMap[f.id]
@@ -70,7 +112,6 @@ export function HomePage() {
     })
   }, [friends, presenceMap])
 
-  // Tin nhắn thật từ Campus Chat (10 tin mới nhất để người dùng kéo cuộn đọc)
   const recentMessagesPreview = useMemo(() => {
     return messages
       .slice(-10)
@@ -119,7 +160,7 @@ export function HomePage() {
 
   return (
     <div className="pb-12 space-y-8">
-      {/* 1. Full-Width Cyber Hero Banner (Cao gấp đôi ~460px, ngang trọn vẹn màn hình) */}
+      {/* ── VÙNG 1: Full-Width Cyber Hero Banner (~480px, ngang trọn vẹn) ── */}
       <section
         aria-label="Chào mừng bạn học"
         className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[440px] lg:min-h-[480px] flex flex-col justify-center p-8 sm:p-12 lg:p-16 group"
@@ -141,7 +182,10 @@ export function HomePage() {
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
-            Xin chào, <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-indigo-400">{displayName}</span>
+            Xin chào,{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-indigo-400">
+              {displayName}
+            </span>
           </h1>
 
           <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
@@ -172,11 +216,33 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── Bố cục 2 cột bên dưới (8 cột chính + 4 cột tiện ích) ── */}
+      {/* ── VÙNG 2: Quick Nav Cards — 4 điểm đến chính ngang hàng ── */}
+      <section aria-label="Điều hướng nhanh" className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        {QUICK_NAV.map(({ to, Icon, label, desc, gradient, border, iconBg, hover }) => (
+          <button
+            key={to}
+            type="button"
+            onClick={() => navigate(to)}
+            className={`group relative flex flex-col items-start gap-3 rounded-2xl border bg-gradient-to-br p-4 sm:p-5 transition-all duration-200 cursor-pointer text-left w-full ${gradient} ${border} ${hover}`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconBg} border border-white/10 transition-transform duration-200 group-hover:scale-110`}>
+              <Icon className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-white leading-tight">{label}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed line-clamp-2">{desc}</p>
+            </div>
+            <ArrowRight className="absolute bottom-4 right-4 size-3.5 text-slate-500 group-hover:text-white group-hover:translate-x-0.5 transition-all duration-200" />
+          </button>
+        ))}
+      </section>
+
+      {/* ── Bố cục 2 cột: Vùng 3+4 (8 col) + Vùng 5 (4 col) ── */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* ── Khu vực chính giữa: 8 cột trên XL ── */}
+        {/* ── VÙNG 3+4: Khu vực chính — 8 cột ── */}
         <div className="xl:col-span-8 space-y-7 min-w-0">
-          {/* 2. Phòng học trực tuyến (Kéo qua kéo lại mượt mà trơn tru không giật khấc) */}
+
+          {/* ── VÙNG 3a: Phòng học trực tuyến (carousel ngang) ── */}
           <section aria-label="Phòng học trực tuyến" className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -188,15 +254,11 @@ export function HomePage() {
                   ({activeRoomsPreview.length} phòng)
                 </span>
               </div>
-
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (!nguoiDung) {
-                    moAuthModal('dang_nhap')
-                    return
-                  }
+                  if (!nguoiDung) { moAuthModal('dang_nhap'); return }
                   setMoTaoPhong(true)
                 }}
                 className="h-8 gap-1.5 text-xs font-semibold border-sky-500/30 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 cursor-pointer"
@@ -206,20 +268,11 @@ export function HomePage() {
               </Button>
             </div>
 
-            {/* Thanh kéo ngang mượt mà cho phòng học */}
             {activeRoomsPreview.length > 0 ? (
-              <div
-                ref={roomsDrag.ref}
-                {...roomsDrag.events}
-                className="smooth-carousel gap-4 pb-3 pt-1 scrollbar-none"
-              >
+              <div ref={roomsDrag.ref} {...roomsDrag.events} className="smooth-carousel gap-4 pb-3 pt-1 scrollbar-none">
                 {activeRoomsPreview.map((room) => (
                   <div key={room.id} className="shrink-0 w-[290px] sm:w-[330px]">
-                    <RoomCard
-                      room={room}
-                      friends={roomFriendsMap.get(room.id)}
-                      onVaoPhong={xuLyVaoPhong}
-                    />
+                    <RoomCard room={room} friends={roomFriendsMap.get(room.id)} onVaoPhong={xuLyVaoPhong} />
                   </div>
                 ))}
               </div>
@@ -237,10 +290,7 @@ export function HomePage() {
                 <Button
                   size="sm"
                   onClick={() => {
-                    if (!nguoiDung) {
-                      moAuthModal('dang_nhap')
-                      return
-                    }
+                    if (!nguoiDung) { moAuthModal('dang_nhap'); return }
                     setMoTaoPhong(true)
                   }}
                   className="h-8 px-4 rounded-xl bg-brand text-brand-foreground font-bold text-xs"
@@ -252,26 +302,19 @@ export function HomePage() {
             )}
           </section>
 
-          {/* 3. Đấu trường trò chơi (Kéo qua kéo lại mượt mà trơn tru không giật khối) */}
+          {/* ── VÙNG 3b: Đấu trường trò chơi (carousel ngang) ── */}
           <section aria-label="Đấu trường trò chơi" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Gamepad2 className="size-4.5 text-purple-400" />
-                <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                  Đấu trường trò chơi
-                </h2>
-                <span className="text-xs text-text-tertiary">
-                  (5 trò chơi trí tuệ & giải trí)
-                </span>
-              </div>
+            <div className="flex items-center gap-2">
+              <Gamepad2 className="size-4.5 text-purple-400" />
+              <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
+                Đấu trường trò chơi
+              </h2>
+              <span className="text-xs text-text-tertiary">
+                (5 trò chơi trí tuệ &amp; giải trí)
+              </span>
             </div>
 
-            {/* Thanh kéo ngang mượt mà cho 5 trò chơi */}
-            <div
-              ref={gamesDrag.ref}
-              {...gamesDrag.events}
-              className="smooth-carousel gap-4 pb-3 pt-1 scrollbar-none"
-            >
+            <div ref={gamesDrag.ref} {...gamesDrag.events} className="smooth-carousel gap-4 pb-3 pt-1 scrollbar-none">
               {GAME_CATALOG.map((game) => (
                 <div
                   key={game.id}
@@ -290,7 +333,6 @@ export function HomePage() {
                       {game.badge}
                     </span>
                   </div>
-
                   <div className="p-3.5 flex flex-col flex-1 justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-1.5">
@@ -299,11 +341,8 @@ export function HomePage() {
                           {game.shortTitle}
                         </h3>
                       </div>
-                      <p className="mt-1 text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                        {game.description}
-                      </p>
+                      <p className="mt-1 text-xs text-slate-400 line-clamp-2 leading-relaxed">{game.description}</p>
                     </div>
-
                     <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-purple-400 font-bold">
                       <span>Chơi ngay</span>
                       <div className="size-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-colors">
@@ -315,21 +354,48 @@ export function HomePage() {
               ))}
             </div>
           </section>
+
+          {/* ── VÙNG 4: CTA Community Banner (full-width dưới vùng 3) ── */}
+          <section
+            aria-label="Tham gia cộng đồng"
+            className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-950/60 via-purple-950/40 to-indigo-950/60 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-[0_0_30px_rgba(139,92,246,0.15)]"
+          >
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_left,_rgba(139,92,246,0.8),_transparent_60%)]" />
+            <div className="relative z-10 min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-0.5 text-[11px] font-bold tracking-wider text-violet-400 mb-2">
+                <Users className="size-3" />
+                <span>CỘNG ĐỒNG LỚP 10A7</span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">
+                Kết nối · Chia sẻ · Cùng tiến bộ
+              </h3>
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
+                Tham gia bảng tin lớp, kết bạn học, theo dõi hoạt động và trao đổi kiến thức cùng cả lớp.
+              </p>
+            </div>
+            <Button
+              size="lg"
+              onClick={() => navigate('/community')}
+              className="relative z-10 shrink-0 h-11 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all cursor-pointer gap-2 whitespace-nowrap"
+            >
+              <Users className="size-4" />
+              <span>Vào cộng đồng</span>
+              <ArrowRight className="size-3.5" />
+            </Button>
+          </section>
         </div>
 
-        {/* ── Cột tiện ích bên phải: 4 cột trên XL (Kéo lên kéo xuống) ── */}
-        <div className="xl:col-span-4 space-y-6">
-          {/* Tiện ích 1: Bạn bè trực tuyến (Kéo lên kéo xuống) */}
-          <section aria-label="Bạn bè trực tuyến" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <h2 className="text-sm sm:text-base font-bold text-text-primary">
-                  Bạn bè trực tuyến ({onlineFriends.length})
-                </h2>
-              </div>
-            </div>
+        {/* ── VÙNG 5: Right Panel — Bạn bè + Tin nhắn + Vinh danh (4 cột) ── */}
+        <div className="xl:col-span-4 space-y-5 self-start">
 
+          {/* Vùng 5a: Bạn bè trực tuyến (kéo lên kéo xuống) */}
+          <section aria-label="Bạn bè trực tuyến" className="space-y-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">
+                Bạn bè trực tuyến ({onlineFriends.length})
+              </h2>
+            </div>
             <div className="rounded-2xl border border-border-default/80 bg-surface p-3 shadow-sm">
               {onlineFriends.length > 0 ? (
                 <div
@@ -346,27 +412,17 @@ export function HomePage() {
                           ? 'Tạm vắng'
                           : 'Đang trực tuyến'
                     return (
-                      <div
-                        key={f.id}
-                        className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-surface-raised transition-colors group"
-                      >
+                      <div key={f.id} className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-surface-raised transition-colors group">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="relative shrink-0">
-                            <AnhNguoiDung
-                              avatar={f.avatar}
-                              ten={f.displayName}
-                              className="h-8 w-8 rounded-full border border-sky-400/30"
-                            />
+                            <AnhNguoiDung avatar={f.avatar} ten={f.displayName} className="h-8 w-8 rounded-full border border-sky-400/30" />
                             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border border-[#061536]" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-white group-hover:text-sky-400 transition-colors truncate">
-                              {f.displayName}
-                            </p>
+                            <p className="text-xs font-bold text-white group-hover:text-sky-400 transition-colors truncate">{f.displayName}</p>
                             <p className="text-[11px] text-slate-400 truncate">{statusText}</p>
                           </div>
                         </div>
-
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -397,17 +453,14 @@ export function HomePage() {
             </div>
           </section>
 
-          {/* Tiện ích 2: Trò chuyện sảnh trường (Kéo lên kéo xuống) */}
+          {/* Vùng 5b: Tin nhắn sảnh trường (kéo lên kéo xuống) */}
           <section aria-label="Trò chuyện sảnh trường" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="size-4 text-sky-400" />
-                <h2 className="text-sm sm:text-base font-bold text-text-primary">
-                  Tin nhắn sảnh trường
-                </h2>
-              </div>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="size-4 text-sky-400" />
+              <h2 className="text-sm sm:text-base font-bold text-text-primary">
+                Tin nhắn sảnh trường
+              </h2>
             </div>
-
             <div className="rounded-2xl border border-border-default/80 bg-surface p-3 shadow-sm">
               {recentMessagesPreview.length > 0 ? (
                 <div
@@ -425,9 +478,7 @@ export function HomePage() {
                         <span className="font-bold text-sky-400">{msg.sender}</span>
                         <span>{msg.time}</span>
                       </div>
-                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                        {msg.preview}
-                      </p>
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">{msg.preview}</p>
                     </div>
                   ))}
                 </div>
@@ -447,11 +498,11 @@ export function HomePage() {
             </div>
           </section>
 
-          {/* Tiện ích 3: Thẻ Bảng xếp hạng thi đua */}
+          {/* Vùng 5c: Bảng thi đua & Kỷ lục */}
           <section aria-label="Bảng vinh danh" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-950/20 p-4 shadow-sm space-y-3">
             <div className="flex items-center gap-2.5 text-amber-400">
               <Trophy className="size-4.5" />
-              <h3 className="text-sm font-bold text-white">Bảng thi đua & Kỷ lục</h3>
+              <h3 className="text-sm font-bold text-white">Bảng thi đua &amp; Kỷ lục</h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
               Theo dõi bảng vinh danh học tập, chuỗi ngày chuyên cần và kỷ lục các giải đấu cờ của trường.

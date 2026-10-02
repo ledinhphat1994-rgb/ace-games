@@ -15,7 +15,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     <aside
       aria-label="Thanh điều hướng chính"
       className={cn(
-        'hidden lg:flex w-60 xl:w-64 shrink-0 flex-col border-r border-border-subtle bg-surface sticky top-0 h-screen z-20 select-none py-5 px-3.5',
+        'hidden lg:flex fixed left-0 top-0 w-[240px] xl:w-[256px] flex-col border-r border-border-subtle bg-surface h-screen z-40 select-none py-5 px-3.5 overflow-y-auto',
         className,
       )}
     >
