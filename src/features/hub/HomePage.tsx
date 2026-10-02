@@ -336,22 +336,22 @@ export function HomePage() {
   return (
     <div className="pb-12 space-y-6">
 
-      {/* ── VÙNG 1: Full-Width Cyber Hero Banner + Auto-Slider + VÙNG 2 TÍCH HỢP TRONG BANNER ── */}
+      {/* ── BANNER: Full-Width Cyber Hero Banner + Auto-Slider ── */}
       <section
-        aria-label="Chào mừng và Điều hướng nhanh"
-        className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] flex flex-col group"
+        aria-label="Chào mừng bạn học"
+        className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[440px] lg:min-h-[480px] flex flex-col justify-center group"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
         {/* Khung chuyển slide tự động (Auto-playing Carousel Stage) */}
-        <div className="relative min-h-[420px] sm:min-h-[450px] lg:min-h-[470px] overflow-hidden flex flex-col justify-center">
+        <div className="relative w-full min-h-[440px] lg:min-h-[480px] overflow-hidden flex flex-col justify-center">
           {bannerSlides.map((slide, idx) => {
             const isActive = slideIndex === idx
             const PrimaryIcon = slide.primaryAction.icon
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 transition-all duration-700 ease-in-out ${
+                className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 pb-16 sm:pb-18 lg:pb-18 transition-all duration-700 ease-in-out ${
                   isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
                 }`}
               >
@@ -368,7 +368,7 @@ export function HomePage() {
 
                 {/* Nội dung slide */}
                 <div className="relative z-10 max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
                     <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
                     <span>{slide.badge}</span>
                   </div>
@@ -377,11 +377,11 @@ export function HomePage() {
                     {slide.title}
                   </h1>
 
-                  <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
+                  <p className="mt-3.5 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
                     {slide.desc}
                   </p>
 
-                  <div className="mt-8 flex flex-wrap items-center gap-3.5">
+                  <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3.5">
                     <Button
                       size="lg"
                       onClick={() => navigate(slide.primaryAction.to)}
@@ -417,19 +417,19 @@ export function HomePage() {
             )
           })}
 
-          {/* Dấu chấm điều hướng (Pagination Dots) & Nút chuyển slide */}
-          <div className="absolute bottom-6 right-6 sm:right-10 z-20 flex items-center gap-2.5">
+          {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) — SÁT CHÍNH GIỮA CẠNH DƯỚI CỦA BANNER ── */}
+          <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
             <button
               type="button"
               onClick={() => setSlideIndex((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
               aria-label="Banner trước"
-              className="p-1.5 rounded-full border border-white/15 bg-black/40 hover:bg-black/70 text-white/70 hover:text-white transition-all cursor-pointer backdrop-blur-sm shadow-sm"
+              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
             >
               <ChevronLeft className="size-4" />
             </button>
 
             {/* Mấy dấu chấm chuyển banner tự động */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-black/35 backdrop-blur-sm border border-white/15">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
               {bannerSlides.map((_, idx) => (
                 <button
                   key={idx}
@@ -438,8 +438,8 @@ export function HomePage() {
                   aria-label={`Chuyển đến banner ${idx + 1}`}
                   className={`transition-all duration-300 rounded-full cursor-pointer ${
                     slideIndex === idx
-                      ? 'w-7 h-2 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
-                      : 'w-2 h-2 bg-white/35 hover:bg-white/70'
+                      ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                      : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
                   }`}
                 />
               ))}
@@ -449,50 +449,15 @@ export function HomePage() {
               type="button"
               onClick={() => setSlideIndex((prev) => (prev + 1) % bannerSlides.length)}
               aria-label="Banner tiếp theo"
-              className="p-1.5 rounded-full border border-white/15 bg-black/40 hover:bg-black/70 text-white/70 hover:text-white transition-all cursor-pointer backdrop-blur-sm shadow-sm"
+              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
             >
               <ChevronRight className="size-4" />
             </button>
           </div>
         </div>
-
-        {/* ── VÙNG 2: Quick Nav Cards — TÍCH HỢP TRỰC TIẾP TRONG CHÂN BANNER ── */}
-        <div className="relative z-10 border-t border-sky-500/20 bg-gradient-to-r from-black/60 via-black/40 to-black/60 backdrop-blur-md">
-          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10">
-            {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }, idx) => {
-              const isCurrentSlide = slideIndex === idx
-              return (
-                <button
-                  key={to}
-                  type="button"
-                  onClick={() => navigate(to)}
-                  className={`group relative flex flex-col items-center gap-3.5 py-6 px-4 text-center cursor-pointer transition-all duration-200 hover:bg-white/5 ${
-                    isCurrentSlide ? 'bg-white/[0.04]' : ''
-                  } ${hover}`}
-                >
-                  {hubImg && (
-                    <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-300">
-                      <img src={hubImg} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  )}
-                  <div className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${glow} transition-transform duration-200 group-hover:scale-110`}>
-                    <Icon className="size-7 text-white" />
-                  </div>
-                  <div className="relative min-w-0">
-                    <p className={`text-sm font-bold ${accent} leading-tight`}>{label}</p>
-                    <p className="mt-1 text-[11px] text-slate-300/80 leading-relaxed whitespace-pre-line">{desc}</p>
-                  </div>
-                  <div className={`relative flex h-6 w-6 items-center justify-center rounded-full bg-white/10 border ${border} transition-all duration-200 group-hover:scale-110`}>
-                    <ArrowRight className={`size-3 ${accent}`} />
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
       </section>
 
-      {/* ── VÙNG 1+: CTA Community Banner — full width ── */}
+      {/* ── VÙNG 2: CTA Cộng đồng Digital Campus (Hoán đổi vị trí lên trên 4 card) ── */}
       <section
         aria-label="Tham gia cộng đồng"
         className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-[#1a0533] via-[#160840] to-[#0d1a40] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-[0_0_40px_rgba(139,92,246,0.2)]"
@@ -521,6 +486,43 @@ export function HomePage() {
           <span>Tạo tài khoản miễn phí</span>
           <ArrowRight className="size-3.5" />
         </Button>
+      </section>
+
+      {/* ── VÙNG 1: Quick Nav Cards — 4 card Học tập, Game,... (Hoán đổi vị trí xuống dưới CTA Cộng đồng) ── */}
+      <section aria-label="Điều hướng nhanh">
+        <div className="rounded-2xl border border-border-default/60 bg-surface shadow-sm overflow-hidden">
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border-subtle">
+            {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }, idx) => {
+              const isCurrentSlide = slideIndex === idx
+              return (
+                <button
+                  key={to}
+                  type="button"
+                  onClick={() => navigate(to)}
+                  className={`group relative flex flex-col items-center gap-4 py-7 px-5 text-center cursor-pointer transition-all duration-200 hover:bg-surface-raised ${
+                    isCurrentSlide ? 'bg-surface-raised/40' : ''
+                  } ${hover}`}
+                >
+                  {hubImg && (
+                    <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-300">
+                      <img src={hubImg} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  )}
+                  <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${glow} transition-transform duration-200 group-hover:scale-110`}>
+                    <Icon className="size-8 text-white" />
+                  </div>
+                  <div className="relative min-w-0">
+                    <p className={`text-sm font-bold ${accent} leading-tight`}>{label}</p>
+                    <p className="mt-1 text-[11px] text-text-tertiary leading-relaxed whitespace-pre-line">{desc}</p>
+                  </div>
+                  <div className={`relative flex h-7 w-7 items-center justify-center rounded-full bg-surface-raised border ${border} transition-all duration-200 group-hover:scale-110`}>
+                    <ArrowRight className={`size-3.5 ${accent}`} />
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </section>
 
       {/* ── Bố cục 2 cột: Vùng 3 (8 col) + Vùng 5 (4 col) ── */}
