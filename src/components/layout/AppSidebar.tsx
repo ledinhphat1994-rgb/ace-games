@@ -19,20 +19,24 @@ export function AppSidebar({ className }: AppSidebarProps) {
         className,
       )}
     >
-      {/* ── Brand Logo ── */}
+      {/* ── Brand Logo (Vùng 1: Thiết kế mới hiện đại, không còn chữ 10A7) ── */}
       <NavLink
         to="/"
-        className="flex items-center gap-3 px-2 py-1.5 mb-6 group rounded-2xl hover:bg-surface-overlay/60 transition-colors"
+        className="flex items-center gap-3 px-2 py-2 mb-6 group rounded-2xl hover:bg-surface-overlay/80 transition-all duration-200"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 border border-brand/30 text-brand shadow-[0_0_16px_rgba(56,189,248,0.2)] group-hover:scale-105 group-hover:bg-brand/25 transition-all duration-200">
-          <GraduationCap className="h-5 w-5" />
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 via-indigo-500/15 to-purple-500/20 border border-sky-400/40 text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.25)] group-hover:scale-105 group-hover:border-sky-400/70 transition-all duration-300">
+          <GraduationCap className="h-5 w-5 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500" />
+          </span>
         </div>
         <div className="min-w-0">
-          <span className="block text-base font-bold tracking-tight text-text-primary leading-tight">
+          <span className="block text-base font-extrabold tracking-tight text-text-primary leading-tight">
             Digital Campus
           </span>
-          <span className="block text-[11px] font-medium text-text-tertiary truncate mt-0.5">
-            Lớp 10A7 · 2026-2027
+          <span className="block text-[11px] font-semibold text-sky-400/90 truncate mt-0.5 tracking-wide">
+            GDTX Định Quán · 2026-2027
           </span>
         </div>
       </NavLink>

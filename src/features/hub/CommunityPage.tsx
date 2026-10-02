@@ -1165,7 +1165,7 @@ export function CommunityPage() {
                     <p className="text-xs font-semibold text-text-primary group-hover:text-brand transition-colors truncate">
                       Kênh trò chuyện trường
                     </p>
-                    <p className="text-[11px] text-text-tertiary truncate">Thảo luận cùng toàn thể lớp 10A7</p>
+                    <p className="text-[11px] text-text-tertiary truncate">Thảo luận cùng bạn học toàn trường</p>
                   </div>
                 </div>
               </button>

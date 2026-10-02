@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Gamepad2,
-  MapPin,
   MessageSquare,
   Sparkles,
   Trophy,
@@ -130,7 +129,7 @@ export function HomePage() {
   const bannerSlides = useMemo(() => [
     {
       id: 'overview',
-      badge: nguoiDung?.ten ? `DIGITAL CAMPUS • ${nguoiDung.ten.toUpperCase()}` : 'DIGITAL CAMPUS • LỚP 10A7',
+      badge: nguoiDung?.ten ? `DIGITAL CAMPUS • ${nguoiDung.ten.toUpperCase()}` : 'DIGITAL CAMPUS • GDTX ĐỊNH QUÁN',
       title: (
         <>
           Học tập · Kết nối
@@ -217,7 +216,7 @@ export function HomePage() {
     },
     {
       id: 'community',
-      badge: 'CỘNG ĐỒNG HỌC SINH • LỚP 10A7',
+      badge: 'CỘNG ĐỒNG HỌC SINH • GDTX ĐỊNH QUÁN',
       title: (
         <>
           Kết nối bạn bè,
@@ -288,7 +287,7 @@ export function HomePage() {
       const r = activeRoomsPreview[0]
       items.push({
         tag: 'HỌC TẬP', tagColor: 'bg-sky-500',
-        image: '/assets/cyber_mockups/act_study.webp',
+        image: '/assets/learning/room_study.webp',
         title: r.ten,
         desc: `${r.soNguoi}/${r.sucChua} học sinh đang tham gia`,
         meta: `GV ${r.chuPhongTen}`,
@@ -297,9 +296,9 @@ export function HomePage() {
     } else {
       items.push({
         tag: 'HỌC TẬP', tagColor: 'bg-sky-500',
-        image: '/assets/cyber_mockups/act_study.webp',
+        image: '/assets/learning/room_study.webp',
         title: 'Mở phòng học nhóm',
-        desc: 'Tạo phòng học để cùng bạn bè trao đổi bài vở',
+        desc: 'Tạo phòng học để cùng bạn bè trao đổi bài vở và tài liệu ôn thi',
         meta: 'Nhấn để tạo phòng',
         onClick: () => {
           if (!nguoiDung) { moAuthModal('dang_nhap'); return }
@@ -312,9 +311,9 @@ export function HomePage() {
     if (g) {
       items.push({
         tag: 'GAME', tagColor: 'bg-purple-500',
-        image: g.cover,
-        title: `Digital Campus Cup · ${g.shortTitle}`,
-        desc: g.description,
+        image: '/assets/games/cover_chess.webp',
+        title: `Đấu trường trí tuệ · ${g.shortTitle}`,
+        desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 hoặc rèn luyện cùng AI',
         meta: '1v1 & Đấu AI',
         onClick: () => navigate(`/arena?game=${g.id}`),
       })
@@ -322,9 +321,9 @@ export function HomePage() {
     // CỘNG ĐỒNG: dữ liệu presence thật
     items.push({
       tag: 'CỘNG ĐỒNG', tagColor: 'bg-emerald-500',
-      image: '/assets/cyber_mockups/act_community.webp',
-      title: 'Ngày hội Kết nối lớp 10A7',
-      desc: onlineFriends.length > 0 ? `${onlineFriends.length} bạn học đang trực tuyến` : 'Kết nối và trao đổi cùng cả lớp',
+      image: '/assets/community/community_hero.webp',
+      title: 'Ngày hội Kết nối bạn học',
+      desc: onlineFriends.length > 0 ? `${onlineFriends.length} bạn học đang trực tuyến` : 'Không gian kết nối và trao đổi cùng bạn bè toàn trường',
       meta: 'Digital Campus · Online',
       onClick: () => navigate('/community'),
     })
@@ -512,32 +511,30 @@ export function HomePage() {
                   key={i}
                   type="button"
                   onClick={item.onClick}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-all duration-200 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-all duration-200 hover:border-brand/40 hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)] bg-surface"
                 >
+                  {/* Ảnh bìa + Vùng 2: Badge được fix chuẩn, tinh tế, không trùng lặp */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
                     <img
                       src={item.image}
                       alt={item.title}
                       loading="lazy"
-                      className="h-full w-full object-cover crisp-image group-hover:scale-105 transition-transform duration-400"
+                      className="h-full w-full object-cover crisp-image group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
-                    <span className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${item.tagColor} shadow-sm`}>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
+                    {/* Vùng 2: Huy hiệu danh mục sắc nét, thiết kế pill bo tròn hiện đại */}
+                    <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white shadow-lg backdrop-blur-md border border-white/20 ${item.tagColor}`}>
                       {item.tag}
                     </span>
                   </div>
-                  <div className="flex flex-col flex-1 gap-2 p-4 bg-surface">
-                    <h3 className="text-sm font-bold text-text-primary line-clamp-2 leading-snug group-hover:text-brand transition-colors">
+                  {/* Nội dung thẻ (Đã xóa toàn bộ Vùng X thừa thãi theo yêu cầu) */}
+                  <div className="flex flex-col flex-1 p-4 bg-surface gap-1.5">
+                    <h3 className="text-sm font-bold text-text-primary line-clamp-1 leading-snug group-hover:text-brand transition-colors">
                       {item.title}
                     </h3>
-                    <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">{item.desc}</p>
-                    <div className="mt-auto flex items-center justify-between pt-2 border-t border-border-subtle">
-                      <div className="flex items-center gap-1.5 text-[10px] text-text-tertiary">
-                        <MapPin className="size-3" />
-                        <span>{item.meta}</span>
-                      </div>
-                      <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-brand group-hover:translate-x-0.5 transition-all" />
-                    </div>
+                    <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">
+                      {item.desc}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -653,7 +650,7 @@ export function HomePage() {
           <section aria-label="Bảng thi đua" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-950/15 overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-amber-500/15">
               <Trophy className="size-4 text-amber-400" />
-              <h3 className="text-xs font-bold text-text-primary">Bảng thi đua &amp; Kỷ lục lớp</h3>
+              <h3 className="text-xs font-bold text-text-primary">Bảng thi đua &amp; Kỷ lục trường</h3>
             </div>
             <div className="p-4 space-y-3">
               <p className="text-[11px] text-text-secondary leading-relaxed">
