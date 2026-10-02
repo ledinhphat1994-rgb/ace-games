@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
@@ -17,7 +17,6 @@ import {
   Gamepad2,
   MapPin,
   MessageSquare,
-  Send,
   Trophy,
   Users,
 } from 'lucide-react'
@@ -78,14 +77,12 @@ const QUICK_NAV = [
 export function HomePage() {
   const navigate = useNavigate()
   const { nguoiDung, moAuthModal } = usePhien()
-  const { rooms, socialState, presenceMap, presenceReady, trangThai, messages } = useCampus()
+  const { rooms, socialState, presenceMap, presenceReady, trangThai } = useCampus()
 
   const friendsDrag = useDragScroll<HTMLDivElement>({ direction: 'vertical' })
 
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
-  const [quickMsg, setQuickMsg] = useState('')
-  const quickInputRef = useRef<HTMLInputElement>(null)
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -115,18 +112,6 @@ export function HomePage() {
     })
   }, [friends, presenceMap])
 
-  const recentMessagesPreview = useMemo(() => {
-    return messages
-      .slice(-8)
-      .reverse()
-      .map((m) => ({
-        id: m.id,
-        sender: m.ten,
-        preview: m.noiDung,
-        time: new Date(m.taoLuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      }))
-  }, [messages])
-
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
       toast.error('Phòng học đã đầy số lượng người tham gia!')
@@ -150,13 +135,6 @@ export function HomePage() {
     } else {
       window.dispatchEvent(new CustomEvent('campus:open-chat'))
     }
-  }
-
-  const handleQuickSend = () => {
-    if (!nguoiDung) { moAuthModal?.('dang_nhap'); return }
-    // Mở chat panel — người dùng gửi tin trực tiếp trong panel
-    handleOpenCampusChat()
-    setQuickMsg('')
   }
 
   // Vùng 3: Hoạt động nổi bật — dữ liệu thật từ hệ thống
@@ -272,96 +250,35 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── VÙNG 1+: CTA Community (trái) + Tin nhắn nhanh (phải) ── */}
-      <section aria-label="Cộng đồng và tin nhắn nhanh" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        {/* Trái: CTA Community với Crown */}
-        <div className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-br from-[#1a0533] via-[#160840] to-[#0d1a40] p-6 flex flex-col justify-between gap-4 shadow-[0_0_30px_rgba(139,92,246,0.2)]">
-          <div className="absolute inset-0 opacity-25 bg-[radial-gradient(ellipse_at_top_left,_rgba(139,92,246,1),_transparent_55%)]" />
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(56,189,248,1),_transparent_55%)]" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-3">
-              <Crown className="size-5 text-amber-400 fill-amber-400" />
-              <span className="text-xs font-bold text-amber-400 tracking-widest uppercase">Cộng đồng Digital Campus</span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-black text-white leading-snug">
-              Tham gia cộng đồng Digital Campus
-              <br />
-              <span className="text-violet-300">ngay hôm nay</span>
-            </h2>
-            <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-              Học hiệu quả hơn, chơi game vui hơn và kết nối bạn bè cùng hàng ngàn học sinh trong toàn quốc.
-            </p>
+      {/* ── VÙNG 1+: CTA Community Banner — full width ── */}
+      <section
+        aria-label="Tham gia cộng đồng"
+        className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-[#1a0533] via-[#160840] to-[#0d1a40] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-[0_0_40px_rgba(139,92,246,0.2)]"
+      >
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_top_left,_rgba(139,92,246,1),_transparent_50%)]" />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(56,189,248,1),_transparent_50%)]" />
+        <div className="relative z-10 min-w-0">
+          <div className="flex items-center gap-2 mb-3">
+            <Crown className="size-5 text-amber-400 fill-amber-400" />
+            <span className="text-xs font-bold text-amber-400 tracking-widest uppercase">Cộng đồng Digital Campus</span>
           </div>
-          <Button
-            size="lg"
-            onClick={() => navigate('/community')}
-            className="relative z-10 h-11 w-full sm:w-auto rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.45)] transition-all cursor-pointer gap-2"
-          >
-            <span>Tạo tài khoản miễn phí</span>
-            <ArrowRight className="size-3.5" />
-          </Button>
+          <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
+            Tham gia cộng đồng Digital Campus
+            <br />
+            <span className="text-violet-300">ngay hôm nay</span>
+          </h2>
+          <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
+            Học hiệu quả hơn, chơi game vui hơn và kết nối bạn bè cùng hàng ngàn học sinh, sinh viên trong toàn quốc.
+          </p>
         </div>
-
-        {/* Phải: Tin nhắn nhanh */}
-        <div className="rounded-2xl border border-border-default/80 bg-surface shadow-sm flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border-subtle">
-            <MessageSquare className="size-4 text-brand" />
-            <h2 className="text-sm font-bold text-text-primary">Tin nhắn nhanh</h2>
-            <span className="ml-auto text-[11px] text-text-tertiary">Sảnh lớp 10A7</span>
-          </div>
-
-          {/* Recent messages (real data) */}
-          <div className="flex-1 overflow-y-auto max-h-[160px] divide-y divide-border-subtle">
-            {recentMessagesPreview.length > 0 ? (
-              recentMessagesPreview.slice(0, 4).map((msg) => (
-                <div
-                  key={msg.id}
-                  onClick={() => handleOpenCampusChat()}
-                  className="flex items-start gap-2.5 px-4 py-2.5 hover:bg-surface-raised transition-colors cursor-pointer"
-                >
-                  <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-brand/15 text-brand text-[10px] font-bold mt-0.5">
-                    {msg.sender.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[11px] font-bold text-brand truncate">{msg.sender}</span>
-                      <span className="text-[10px] text-text-tertiary shrink-0">{msg.time}</span>
-                    </div>
-                    <p className="text-[11px] text-text-secondary line-clamp-1">{msg.preview}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex items-center justify-center py-8 text-xs text-text-tertiary">
-                Chưa có tin nhắn. Hãy gửi lời chào đầu tiên!
-              </div>
-            )}
-          </div>
-
-          {/* Quick input */}
-          <div className="border-t border-border-subtle p-3 flex gap-2 items-center">
-            <input
-              ref={quickInputRef}
-              type="text"
-              value={quickMsg}
-              onChange={(e) => setQuickMsg(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleQuickSend()}
-              onFocus={() => { if (!nguoiDung) { moAuthModal?.('dang_nhap') } }}
-              placeholder={nguoiDung ? 'Nhắn gì đó cho cả lớp...' : 'Đăng nhập để nhắn tin...'}
-              className="flex-1 h-8 px-3 rounded-lg bg-surface-raised border border-border-default/60 text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand/60 transition-colors"
-            />
-            <Button
-              size="icon-sm"
-              onClick={handleQuickSend}
-              title="Mở chat và gửi"
-              className="h-8 w-8 rounded-lg bg-brand hover:bg-brand/90 text-white shrink-0 cursor-pointer"
-            >
-              <Send className="size-3.5" />
-            </Button>
-          </div>
-        </div>
+        <Button
+          size="lg"
+          onClick={() => navigate('/community')}
+          className="relative z-10 shrink-0 h-11 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.45)] transition-all cursor-pointer gap-2 whitespace-nowrap"
+        >
+          <span>Tạo tài khoản miễn phí</span>
+          <ArrowRight className="size-3.5" />
+        </Button>
       </section>
 
       {/* ── VÙNG 2: Quick Nav Cards — 4 mục trong container chung ── */}
