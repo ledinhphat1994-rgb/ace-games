@@ -15,7 +15,6 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Crown,
   Gamepad2,
   MapPin,
   MessageSquare,
@@ -457,38 +456,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── VÙNG 2: CTA Cộng đồng Digital Campus (Hoán đổi vị trí lên trên 4 card) ── */}
-      <section
-        aria-label="Tham gia cộng đồng"
-        className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-[#1a0533] via-[#160840] to-[#0d1a40] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-[0_0_40px_rgba(139,92,246,0.2)]"
-      >
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_top_left,_rgba(139,92,246,1),_transparent_50%)]" />
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(56,189,248,1),_transparent_50%)]" />
-        <div className="relative z-10 min-w-0">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown className="size-5 text-amber-400 fill-amber-400" />
-            <span className="text-xs font-bold text-amber-400 tracking-widest uppercase">Cộng đồng Digital Campus</span>
-          </div>
-          <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
-            Tham gia cộng đồng Digital Campus
-            <br />
-            <span className="text-violet-300">ngay hôm nay</span>
-          </h2>
-          <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
-            Học hiệu quả hơn, chơi game vui hơn và kết nối bạn bè cùng hàng ngàn học sinh, sinh viên trong toàn quốc.
-          </p>
-        </div>
-        <Button
-          size="lg"
-          onClick={() => navigate('/community')}
-          className="relative z-10 shrink-0 h-11 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.45)] transition-all cursor-pointer gap-2 whitespace-nowrap"
-        >
-          <span>Tạo tài khoản miễn phí</span>
-          <ArrowRight className="size-3.5" />
-        </Button>
-      </section>
-
-      {/* ── VÙNG 1: Quick Nav Cards — 4 card Học tập, Game,... (Hoán đổi vị trí xuống dưới CTA Cộng đồng) ── */}
+      {/* ── Quick Nav Cards — 4 card Học tập, Game, Cộng đồng, Bảng xếp hạng ── */}
       <section aria-label="Điều hướng nhanh">
         <div className="rounded-2xl border border-border-default/60 bg-surface shadow-sm overflow-hidden">
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border-subtle">
