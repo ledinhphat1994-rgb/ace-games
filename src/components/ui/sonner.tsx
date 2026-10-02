@@ -4,12 +4,13 @@ import { CheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } fro
 
 import { useTheme } from '@/app/theme'
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
   const { resolved } = useTheme()
   return (
     <Sonner
       theme={resolved}
       className="toaster group"
+      position={position}
       closeButton
       duration={2500}
       icons={{

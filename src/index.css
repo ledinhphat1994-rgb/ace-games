@@ -630,12 +630,19 @@ textarea {
   width: auto !important;
   max-width: calc(100vw - 2rem) !important;
   pointer-events: none;
+  z-index: 99999 !important;
 }
 
 [data-sonner-toaster][data-x-position="right"] {
   display: flex !important;
   flex-direction: column !important;
   align-items: flex-end !important;
+}
+
+[data-sonner-toaster][data-x-position="center"] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
 }
 
 [data-sonner-toast] {

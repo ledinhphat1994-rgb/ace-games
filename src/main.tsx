@@ -93,9 +93,9 @@ createRoot(document.getElementById('root')!).render(
       <TooltipProvider>
         <RouterProvider router={router} />
         <Toaster
-          position="top-right"
+          position="top-center"
           offset={16}
-          mobileOffset={{ top: 16, right: 16 }}
+          mobileOffset={{ top: 16 }}
           closeButton
           gap={10}
           duration={2500}
