@@ -15,9 +15,8 @@ import toolbarRaw from '../src/features/games/GamePlayToolbar.tsx?raw'
 import leaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
 
 describe('Quy tắc thiết kế: Zero Overlap & Nút Thành tựu & Xóa nút Thành viên góc phải', () => {
-  it('1. ClassroomTopBar có nút Thành viên và ghi chú cạnh Chat, giữ dải thành viên trung tâm', () => {
-    expect(topBarRaw).toContain('topbar-btn-members')
-    expect(topBarRaw).toContain("onTogglePanel('members')")
+  it('1. ClassroomTopBar loại bỏ nút Thành viên thừa thãi cạnh Chat, giữ dải thành viên trung tâm', () => {
+    expect(topBarRaw).not.toContain('topbar-btn-members')
     expect(topBarRaw).toContain('memberStrip')
   })
 

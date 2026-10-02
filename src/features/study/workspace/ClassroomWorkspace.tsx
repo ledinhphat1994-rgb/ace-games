@@ -435,7 +435,7 @@ export function ClassroomWorkspace({
       {/* Chiếu video (không toàn màn hình): khung video ôm 16:9 theo chiều cao có sẵn rồi cả cụm [video + chat] căn giữa,
           nên không còn dải trống hai bên; cột container chỉ bật từ sm trở lên vì ngăn kéo chat trên điện thoại là phần tử fixed. */}
       <div
-        className={`relative flex flex-1 min-h-0 w-full gap-2 overflow-hidden px-2 sm:gap-3 sm:px-3 ${
+        className={`relative flex flex-1 min-h-0 w-full gap-2 overflow-hidden px-2 sm:gap-3 sm:px-3 pb-2 sm:pb-3 ${
           videoChinh ? 'justify-center sm:[container-type:size]' : ''
         }`}
       >
@@ -486,6 +486,91 @@ export function ClassroomWorkspace({
             slideLasers={slideLasers}
             onSendSlideLaser={onSendSlideLaser}
           />
+
+          {/* ── 4. THANH CÔNG CỤ (Vùng 2: nổi trên sân khấu ở đáy, toàn màn hình tự thu xuống) ── */}
+          <div
+            className={
+              isFullscreen
+                ? 'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center'
+                : 'pointer-events-none absolute inset-x-0 bottom-2.5 z-40 flex justify-center px-2'
+            }
+          >
+            {anDock && (
+              <button
+                type="button"
+                onPointerEnter={moDock}
+                onClick={moDock}
+                onFocus={moDock}
+                className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface/90 text-text-secondary shadow-lg backdrop-blur-md transition-colors hover:text-text-primary cursor-pointer"
+                title="Thanh công cụ"
+                aria-label="Hiện thanh công cụ"
+                data-testid="dock-handle"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+            )}
+            <div
+              className={`transition-[transform,opacity] duration-300 ${
+                anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'
+              } ${isFullscreen ? 'mb-2' : ''}`}
+              onPointerEnter={isFullscreen ? moDock : undefined}
+              onPointerLeave={isFullscreen ? (e) => henThuGon(e.pointerType === 'touch' ? 2500 : 1200) : undefined}
+              onFocusCapture={isFullscreen ? moDock : undefined}
+              data-testid="dock-wrapper"
+              data-thu-gon={anDock || undefined}
+            >
+              <ClassroomToolDock
+                boCuc={boCuc}
+                onBamLop={(id) => {
+                  if (id === 'doc' && !docUrl) {
+                    onUploadSlide()
+                    return
+                  }
+                  if (id === 'video' && !videoId) {
+                    onOpenSearchQueue()
+                    return
+                  }
+                  setBoCuc((bc) => bamLop(bc, id))
+                }}
+                coTaiLieu={Boolean(docUrl)}
+                videoDangPhat={videoDangPhat}
+                isHost={isHost}
+                canModerate={canModerate}
+                congCu={congCu}
+                coTheDung={coTheDung}
+                coTheXoa={coTheXoa}
+                coMic={coMic}
+                // Chọn công cụ không đổi bố cục: mỗi lớp (bảng, video, tài liệu) có mặt vẽ riêng nằm ngay trên nó.
+                onChonCongCu={(c) => {
+                  if (!coTheDung(c)) return
+                  setCongCu(c)
+                }}
+                hinh={hinh}
+                onChonHinh={setHinh}
+                mau={mau}
+                onChonMau={setMau}
+                co={co}
+                onChonCo={setCo}
+                onXoaHet={() => {
+                  onClearWhiteboard()
+                  onClearSlideAnnotations?.()
+                }}
+                onOpenCalculator={onOpenCalculator}
+                onOpenSessionPanel={onOpenSessionPanel}
+                onKhayMo={setKhayDockMo}
+                myMic={myMic}
+                onToggleMic={onToggleMic}
+                voiceState={voiceState}
+                audioInputs={audioInputs}
+                audioOutputs={audioOutputs}
+                isSinkIdSupported={isSinkIdSupported}
+                onSetAudioInput={onSetAudioInput}
+                onSetAudioOutput={onSetAudioOutput}
+                onRefreshDevices={onRefreshDevices}
+                isReconnecting={isReconnecting}
+              />
+            </div>
+          </div>
         </main>
 
         {/* Single Contextual Right Panel */}
@@ -513,87 +598,6 @@ export function ClassroomWorkspace({
           onResolveNotesConflict={onResolveNotesConflict}
           isReconnecting={isReconnecting}
         />
-      </div>
-
-      {/* ── 4. THANH CÔNG CỤ (toàn màn hình: nổi trên sân khấu, tự thu xuống, rê vào nút nhỏ ở đáy để hiện lại) ── */}
-      <div className={isFullscreen ? 'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center' : undefined}>
-        {anDock && (
-          <button
-            type="button"
-            onPointerEnter={moDock}
-            onClick={moDock}
-            onFocus={moDock}
-            className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface/90 text-text-secondary shadow-lg backdrop-blur-md transition-colors hover:text-text-primary cursor-pointer"
-            title="Thanh công cụ"
-            aria-label="Hiện thanh công cụ"
-            data-testid="dock-handle"
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-        )}
-        <div
-          className={
-            isFullscreen
-              ? `mb-2 transition-[transform,opacity] duration-300 ${anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'}`
-              : undefined
-          }
-          onPointerEnter={isFullscreen ? moDock : undefined}
-          onPointerLeave={isFullscreen ? (e) => henThuGon(e.pointerType === 'touch' ? 2500 : 1200) : undefined}
-          onFocusCapture={isFullscreen ? moDock : undefined}
-          data-testid="dock-wrapper"
-          data-thu-gon={anDock || undefined}
-        >
-          <ClassroomToolDock
-            boCuc={boCuc}
-            onBamLop={(id) => {
-              if (id === 'doc' && !docUrl) {
-                onUploadSlide()
-                return
-              }
-              if (id === 'video' && !videoId) {
-                onOpenSearchQueue()
-                return
-              }
-              setBoCuc((bc) => bamLop(bc, id))
-            }}
-            coTaiLieu={Boolean(docUrl)}
-            videoDangPhat={videoDangPhat}
-            isHost={isHost}
-            canModerate={canModerate}
-            congCu={congCu}
-            coTheDung={coTheDung}
-            coTheXoa={coTheXoa}
-            coMic={coMic}
-            // Chọn công cụ không đổi bố cục: mỗi lớp (bảng, video, tài liệu) có mặt vẽ riêng nằm ngay trên nó.
-            onChonCongCu={(c) => {
-              if (!coTheDung(c)) return
-              setCongCu(c)
-            }}
-            hinh={hinh}
-            onChonHinh={setHinh}
-            mau={mau}
-            onChonMau={setMau}
-            co={co}
-            onChonCo={setCo}
-            onXoaHet={() => {
-              onClearWhiteboard()
-              onClearSlideAnnotations?.()
-            }}
-            onOpenCalculator={onOpenCalculator}
-            onOpenSessionPanel={onOpenSessionPanel}
-            onKhayMo={setKhayDockMo}
-            myMic={myMic}
-            onToggleMic={onToggleMic}
-            voiceState={voiceState}
-            audioInputs={audioInputs}
-            audioOutputs={audioOutputs}
-            isSinkIdSupported={isSinkIdSupported}
-            onSetAudioInput={onSetAudioInput}
-            onSetAudioOutput={onSetAudioOutput}
-            onRefreshDevices={onRefreshDevices}
-            isReconnecting={isReconnecting}
-          />
-        </div>
       </div>
     </div>
   )

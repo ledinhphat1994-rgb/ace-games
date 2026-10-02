@@ -18,19 +18,19 @@ const GOC_CUA_SO = [
  * Tay kéo đổi cỡ cửa sổ nổi: vùng bắt chuột dày, nằm vắt qua mép (một nửa ngoài, một nửa trong) — cửa sổ không còn
  * overflow-hidden ở khung ngoài nên phần ngoài mép không bị cắt. Rê vào cửa sổ thì hiện vạch / góc chữ L để biết chỗ kéo.
  */
-const TAY_KEO_CANH: { huong: 'n' | 's' | 'w' | 'e'; lop: string; vach: string; tieuDe: string }[] = [
-  { huong: 'n', lop: '-top-2 inset-x-4 h-4 cursor-ns-resize', vach: 'inset-x-3 top-1/2 h-1 -translate-y-1/2', tieuDe: 'Kéo thay đổi chiều cao' },
-  { huong: 's', lop: '-bottom-2 inset-x-4 h-4 cursor-ns-resize', vach: 'inset-x-3 top-1/2 h-1 -translate-y-1/2', tieuDe: 'Kéo thay đổi chiều cao' },
-  { huong: 'w', lop: '-left-2 inset-y-4 w-4 cursor-ew-resize', vach: 'inset-y-3 left-1/2 w-1 -translate-x-1/2', tieuDe: 'Kéo thay đổi chiều rộng' },
-  { huong: 'e', lop: '-right-2 inset-y-4 w-4 cursor-ew-resize', vach: 'inset-y-3 left-1/2 w-1 -translate-x-1/2', tieuDe: 'Kéo thay đổi chiều rộng' },
+const TAY_KEO_CANH: { huong: 'n' | 's' | 'w' | 'e'; lop: string; tieuDe: string }[] = [
+  { huong: 'n', lop: '-top-2 inset-x-4 h-4 cursor-ns-resize', tieuDe: 'Kéo thay đổi chiều cao' },
+  { huong: 's', lop: '-bottom-2 inset-x-4 h-4 cursor-ns-resize', tieuDe: 'Kéo thay đổi chiều cao' },
+  { huong: 'w', lop: '-left-2 inset-y-4 w-4 cursor-ew-resize', tieuDe: 'Kéo thay đổi chiều rộng' },
+  { huong: 'e', lop: '-right-2 inset-y-4 w-4 cursor-ew-resize', tieuDe: 'Kéo thay đổi chiều rộng' },
 ]
 
-/** Góc: ô 28px (12px ngoài mép), góc chữ L 14px ôm đúng góc cửa sổ. */
+/** Góc: ô 28px (12px ngoài mép), góc chữ L dày 4px rõ nét ôm đúng góc cửa sổ. */
 const TAY_KEO_GOC: { huong: 'nw' | 'ne' | 'sw' | 'se'; lop: string; chuL: string }[] = [
-  { huong: 'nw', lop: '-top-3 -left-3 cursor-nwse-resize', chuL: 'top-3 left-3 border-t-[3px] border-l-[3px] rounded-tl-lg' },
-  { huong: 'ne', lop: '-top-3 -right-3 cursor-nesw-resize', chuL: 'top-3 right-3 border-t-[3px] border-r-[3px] rounded-tr-lg' },
-  { huong: 'sw', lop: '-bottom-3 -left-3 cursor-nesw-resize', chuL: 'bottom-3 left-3 border-b-[3px] border-l-[3px] rounded-bl-lg' },
-  { huong: 'se', lop: '-bottom-3 -right-3 cursor-nwse-resize', chuL: 'bottom-3 right-3 border-b-[3px] border-r-[3px] rounded-br-lg' },
+  { huong: 'nw', lop: '-top-3 -left-3 cursor-nwse-resize', chuL: 'top-3 left-3 border-t-4 border-l-4 rounded-tl-lg' },
+  { huong: 'ne', lop: '-top-3 -right-3 cursor-nesw-resize', chuL: 'top-3 right-3 border-t-4 border-r-4 rounded-tr-lg' },
+  { huong: 'sw', lop: '-bottom-3 -left-3 cursor-nesw-resize', chuL: 'bottom-3 left-3 border-b-4 border-l-4 rounded-bl-lg' },
+  { huong: 'se', lop: '-bottom-3 -right-3 cursor-nwse-resize', chuL: 'bottom-3 right-3 border-b-4 border-r-4 rounded-br-lg' },
 ]
 
 interface KhungLopProps {
@@ -293,7 +293,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
       {/* Tay kéo đổi cỡ ở 4 cạnh và 4 góc cửa sổ nổi (chỉ người trình chiếu) */}
       {vaiTro === 'pip' && !khoa && (
         <>
-          {TAY_KEO_CANH.map(({ huong, lop, vach, tieuDe }) => (
+          {TAY_KEO_CANH.map(({ huong, lop, tieuDe }) => (
             <div
               key={huong}
               onPointerDown={(e) => batDauThayDoiKichThuoc(e, huong)}
@@ -303,11 +303,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
               className={`group/tay absolute z-50 select-none touch-none ${lop}`}
               title={tieuDe}
               data-testid={`khung-${id}-keo-${huong}`}
-            >
-              <span
-                className={`pointer-events-none absolute rounded-full bg-brand opacity-0 transition-opacity group-hover/khung:opacity-40 group-hover/tay:opacity-100 ${vach}`}
-              />
-            </div>
+            />
           ))}
           {TAY_KEO_GOC.map(({ huong, lop, chuL }) => (
             <div
@@ -321,7 +317,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
               data-testid={`khung-${id}-keo-${huong}`}
             >
               <span
-                className={`pointer-events-none absolute size-3.5 border-brand opacity-0 transition-opacity group-hover/khung:opacity-70 group-hover/tay:opacity-100 ${chuL}`}
+                className={`pointer-events-none absolute size-4.5 border-brand/90 opacity-70 transition-opacity group-hover/khung:opacity-100 group-hover/tay:opacity-100 drop-shadow-md ${chuL}`}
               />
             </div>
           ))}

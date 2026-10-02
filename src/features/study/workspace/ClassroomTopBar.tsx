@@ -18,7 +18,6 @@ import {
   Crown,
   Loader2,
   MessageSquare,
-  Users,
   Wifi,
   WifiOff,
   X,
@@ -71,7 +70,7 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 border-b border-border-subtle/80 bg-canvas px-2 py-1 select-none sm:px-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]"
+      className="relative z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 border-b border-border-subtle/80 bg-canvas px-2 py-1 select-none sm:px-3"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
@@ -120,9 +119,9 @@ export function ClassroomTopBar({
         </div>
       </div>
 
-      {/* ── CENTER: MEMBER STRIP (vùng 1 ra 1+ và căn giữa) ── */}
+      {/* ── CENTER: MEMBER STRIP (vùng 5 căn giữa cạnh trên so với màn hình) ── */}
       {memberStrip && (
-        <div className="col-span-2 row-start-2 flex min-w-0 items-center justify-start lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:justify-center">
+        <div className="col-span-2 row-start-2 flex min-w-0 items-center justify-start lg:col-span-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:justify-center pointer-events-auto max-w-[calc(100vw-360px)]">
           {memberStrip}
         </div>
       )}
@@ -148,19 +147,6 @@ export function ClassroomTopBar({
               {Math.min(unreadChatCount, 99)}
             </span>
           )}
-        </button>
-
-        {/* Members & Shared Notes Drawer Toggle */}
-        <button
-          type="button"
-          onClick={() => onTogglePanel('members')}
-          className={nutPanel(activePanel === 'members')}
-          data-testid="topbar-btn-members"
-          title="Thành viên và ghi chú"
-          aria-label="Thành viên và ghi chú"
-        >
-          <Users className="size-4" />
-          <span className="hidden sm:inline">Thành viên</span>
         </button>
 
         {/* Nút hủy phòng (chỉ dành cho chủ phòng) */}
