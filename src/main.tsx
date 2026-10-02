@@ -6,12 +6,17 @@ import { RouterProvider } from 'react-router/dom'
 import { AuthGate } from '@/app/AuthGate'
 import { NotFoundPage } from '@/app/NotFoundPage'
 import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ViewportMetrics } from '@/components/layout/ViewportMetrics'
 import { AppShell } from '@/components/layout/AppShell'
 import { LearningPage } from '@/features/hub/LearningPage'
 import './index.css'
 import { ThemeProvider } from '@/app/theme'
+
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { toast?: typeof toast }).toast = toast
+}
 
 // Trang đích /learn nằm trong bundle chính; các trang khác tách chunk riêng, chỉ tải khi người dùng mở tới.
 const CommunityPage = lazy(() => import('@/features/hub/CommunityPage').then((m) => ({ default: m.CommunityPage })))
@@ -93,6 +98,7 @@ createRoot(document.getElementById('root')!).render(
           mobileOffset={{ top: 16, right: 16 }}
           closeButton
           gap={10}
+          duration={2500}
         />
       </TooltipProvider>
     </QueryClientProvider>
