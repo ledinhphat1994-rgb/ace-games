@@ -80,6 +80,7 @@
 }
 
 html {
+  scroll-behavior: smooth;
   scrollbar-gutter: stable;
 }
 
@@ -87,6 +88,80 @@ body {
   margin: 0;
   min-height: 100svh;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Global Speed & Tactile Responsiveness ─────────────────── */
+html,
+body,
+button,
+a,
+[role="button"],
+[role="tab"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hardware accelerated smooth drag / momentum surfaces */
+.smooth-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
+}
+
+/* Ultra-Smooth Continuous Drag & Horizontal Carousels (Zero Snap, Pure Fluid Analog) */
+.smooth-carousel {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto !important;
+  scroll-snap-type: none !important;
+  user-select: none;
+  cursor: grab;
+}
+
+.smooth-carousel:active {
+  cursor: grabbing;
+}
+
+.smooth-carousel > * {
+  scroll-snap-align: none !important;
+  flex-shrink: 0;
+}
+
+.smooth-carousel.is-dragging {
+  cursor: grabbing;
+}
+
+.smooth-carousel.is-dragging * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+
+/* Snappy, Butter-Smooth 140ms Dialog / Sheet / Popover Open & Close */
+[data-slot="dialog-content"],
+[data-slot="dialog-overlay"],
+[data-slot="sheet-content"],
+[data-slot="sheet-overlay"],
+[data-slot="popover-content"],
+[data-slot="dropdown-content"] {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Instant micro-press feedback for interactive cards and tab triggers */
+[data-slot="card"][role="button"],
+.interactive-card {
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 120ms ease-out, border-color 120ms ease-out;
+}
+[data-slot="card"][role="button"]:active,
+.interactive-card:active {
+  transform: scale(0.985) translateY(1px);
 }
 
 @theme inline {
@@ -181,66 +256,66 @@ body {
 }
 
 /* ============================================================
-   DARK THEME — Obsidian Slate & Electric Sky (Chuẩn Linear & Raycast: Đen phiến thạch, Xanh da trời công nghệ)
+   DARK THEME — Cyber Sapphire Blue (Đúng chuẩn ảnh mẫu mockup 10A7: Xanh lam hoàng gia & Sapphire đậm)
    ============================================================ */
 .dark {
   /* ─── Core shadcn tokens (used by all primitives) ─────── */
-  --background: #090d16;
+  --background: #020c24;
   --foreground: #f8fafc;
-  --card: #0f172a;
+  --card: #061536;
   --card-foreground: #f8fafc;
-  --popover: #111827;
+  --popover: #0a1f4d;
   --popover-foreground: #f8fafc;
   --primary: #38bdf8;
-  --primary-foreground: #041322;
-  --secondary: #172033;
+  --primary-foreground: #020c24;
+  --secondary: #0a1f4d;
   --secondary-foreground: #f8fafc;
-  --muted: #172033;
+  --muted: #0a1f4d;
   --muted-foreground: #94a3b8;
-  --accent: #172033;
+  --accent: #0c2356;
   --accent-foreground: #f8fafc;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.12);
+  --border: rgba(56, 189, 248, 0.12);
+  --input: rgba(56, 189, 248, 0.16);
   --ring: #38bdf8;
 
   /* ─── Surface hierarchy ─────────────────────────────────── */
-  --canvas: #090d16;           /* Obsidian deepest canvas */
-  --surface: #0f172a;          /* Primary dark surface (slate-900) */
-  --surface-raised: #172033;   /* Elevated surface — dropdowns, popovers */
-  --surface-overlay: #1e293b;  /* Hover / overlay state */
-  --surface-interactive: #1e293b; /* Interactive hover tint */
+  --canvas: #020c24;           /* Deepest cyber sapphire canvas */
+  --surface: #061536;          /* Primary dark sapphire surface */
+  --surface-raised: #0a1f4d;   /* Elevated surface — dropdowns, popovers */
+  --surface-overlay: #0f2b69;  /* Hover / overlay state */
+  --surface-interactive: #143785; /* Interactive hover tint */
   /* Legacy keys (used by existing components) */
-  --surface-1: #0f172a;
-  --surface-2: #172033;
-  --surface-elevated: #172033;
+  --surface-1: #061536;
+  --surface-2: #0a1f4d;
+  --surface-elevated: #0f2b69;
 
   /* ─── Semantic borders ──────────────────────────────────── */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(56, 189, 248, 0.25);
-  --border-active: rgba(56, 189, 248, 0.6);  /* Electric sky active accent */
+  --border-subtle: rgba(56, 189, 248, 0.08);
+  --border-default: rgba(56, 189, 248, 0.18);
+  --border-strong: rgba(56, 189, 248, 0.38);
+  --border-active: rgba(56, 189, 248, 0.75);  /* Electric cyan active accent */
 
   /* ─── Text hierarchy ────────────────────────────────────── */
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-tertiary: #64748b;
-  --text-on-brand: #041322;    /* Dark crisp text on electric sky */
+  --text-on-brand: #020c24;    /* Dark crisp text on electric sky */
 
   /* ─── Brand ─────────────────────────────────────────────── */
   --brand: #38bdf8;
   --brand-hover: #7dd3fc;
-  --brand-foreground: #041322;
+  --brand-foreground: #020c24;
 
   /* ─── Semantic color roles ──────────────────────────────── */
   --success: #10b981;                  /* Emerald — active/online/game */
-  --success-muted: rgba(16, 185, 129, 0.12);
+  --success-muted: rgba(16, 185, 129, 0.14);
   --warning: #f59e0b;                  /* Amber — streak/achievements */
-  --warning-muted: rgba(245, 158, 11, 0.12);
+  --warning-muted: rgba(245, 158, 11, 0.14);
   --social: #818cf8;                   /* Indigo/Sky — community/social */
-  --social-muted: rgba(129, 140, 248, 0.12);
+  --social-muted: rgba(129, 140, 248, 0.14);
   --achievement: #f59e0b;              /* Warm Gold — badges/rewards */
-  --achievement-muted: rgba(245, 158, 11, 0.12);
+  --achievement-muted: rgba(245, 158, 11, 0.14);
   --danger: oklch(0.704 0.191 22.216);
 
   /* ─── Charts (inherit from root) ────────────────────────── */
@@ -250,14 +325,14 @@ body {
   --chart-4: #f59e0b;
   --chart-5: #f87171;
 
-  /* ─── Sidebar (matches surface) ─────────────────────────── */
-  --sidebar: #0f172a;
+  /* ─── Sidebar (matches sapphire surface) ─────────────────── */
+  --sidebar: #03102d;
   --sidebar-foreground: #f8fafc;
   --sidebar-primary: #38bdf8;
-  --sidebar-primary-foreground: #041322;
-  --sidebar-accent: #172033;
+  --sidebar-primary-foreground: #020c24;
+  --sidebar-accent: #0a1f4d;
   --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-border: rgba(56, 189, 248, 0.12);
   --sidebar-ring: #38bdf8;
 }
 
@@ -271,6 +346,21 @@ body {
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  .dark body,
+  .dark .bg-canvas {
+    background-color: var(--canvas);
+    background-image:
+      radial-gradient(ellipse 90% 55% at 50% -10%, rgba(14, 116, 222, 0.28), transparent 70%),
+      radial-gradient(ellipse 70% 45% at 90% 20%, rgba(56, 189, 248, 0.15), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 10% 45%, rgba(30, 58, 138, 0.2), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  .crisp-image {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
 
   html {
@@ -297,14 +387,31 @@ body {
     color: var(--text-primary);
   }
 
+  html, body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, a, [role="button"], input, select {
+    touch-action: manipulation;
+  }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
 
+  /* GPU compositing for fast dialog, drawer and sheet rendering */
+  [data-slot="dialog-content"],
+  [data-slot="dialog-overlay"],
+  [data-slot="sheet-content"] {
+    will-change: transform, opacity;
+  }
+
   /* Smooth scrolling for inner containers (not window) */
   .scroll-smooth-inner {
     scroll-behavior: smooth;
+    overscroll-behavior: contain;
   }
 
   /* Typography scale */

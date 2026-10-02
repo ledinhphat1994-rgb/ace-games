@@ -287,8 +287,8 @@ export function CommunityPage() {
 
   return (
     <div data-testid="community-social-hub" className="space-y-6">
-      {/* ── CYBER HERO BANNER (MATCHING MOCKUP 4) ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-violet-500/25 bg-gradient-to-r from-[#0d1424] via-[#151c36] to-[#0b1020] p-6 lg:p-8 shadow-2xl">
+      {/* ── CYBER HERO BANNER (MATCHING MOCKUP 4 - DOUBLED HEIGHT) ── */}
+      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-violet-500/25 bg-gradient-to-r from-[#0d1424] via-[#151c36] to-[#0b1020] p-8 sm:p-12 lg:p-16 shadow-2xl">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(139,92,246,0.18),rgba(255,255,255,0))]" />
 
         {/* Background graphic from mockups */}
@@ -300,27 +300,27 @@ export function CommunityPage() {
           />
         </div>
 
-        <div className="relative z-10 max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-400 backdrop-blur-md mb-3">
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-xs font-semibold text-violet-400 backdrop-blur-md mb-4">
             <Users className="size-3.5" />
             <span>Không gian kết nối & trao đổi trực tuyến</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase drop-shadow-md">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase drop-shadow-md leading-[1.2]">
             Cộng đồng Digital Campus
           </h1>
 
-          <div className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+          <div className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
             {moTaTrucTiep}
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-4">
             {nguoiDung ? (
               <>
                 <Button
                   data-testid="community-find-friends-cta"
                   onClick={() => openDrawerTab('search')}
-                  className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:brightness-110 shadow-lg shadow-cyan-500/20 border-0 h-10 px-4 rounded-xl cursor-pointer"
+                  className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:brightness-110 shadow-lg shadow-cyan-500/20 border-0 h-11 px-6 rounded-xl cursor-pointer text-sm"
                 >
                   <Search className="size-4" />
                   <span>Tìm bạn học</span>
@@ -329,18 +329,18 @@ export function CommunityPage() {
                   data-testid="community-open-chat-cta"
                   onClick={handleOpenChat}
                   variant="outline"
-                  className="gap-2 border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:text-white h-10 px-4 rounded-xl cursor-pointer"
+                  className="gap-2 border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:text-white h-11 px-5 rounded-xl cursor-pointer text-sm"
                 >
                   <MessageSquare className="size-4" />
                   <span>Trò chuyện trường</span>
                 </Button>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => moAuthModal('dang_nhap')}>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={() => moAuthModal('dang_nhap')} className="h-11 px-5 rounded-xl text-sm">
                   Đăng nhập
                 </Button>
-                <Button onClick={() => moAuthModal('dang_ky')} className="bg-brand text-brand-foreground hover:bg-brand/90">
+                <Button onClick={() => moAuthModal('dang_ky')} className="bg-brand text-brand-foreground hover:bg-brand/90 h-11 px-6 rounded-xl text-sm font-bold">
                   Đăng ký
                 </Button>
               </div>

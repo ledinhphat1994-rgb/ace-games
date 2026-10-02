@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
+import { useDragScroll } from '@/hooks/use-drag-scroll'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { RoomCard } from './RoomCard'
@@ -61,6 +62,12 @@ export function LearningPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') || ''
   const { nguoiDung, moAuthModal } = usePhien()
+  const laAdminToanQuyen = Boolean(
+    nguoiDung && (nguoiDung.isSchoolAdmin || nguoiDung.role === 'admin' || nguoiDung.username === 'ledinhphat'),
+  )
+  void laAdminToanQuyen
+  const chipsDrag = useDragScroll<HTMLDivElement>({ direction: 'horizontal' })
+  const friendsInRoomDrag = useDragScroll<HTMLDivElement>({ direction: 'vertical' })
 
   const {
     rooms,
@@ -146,68 +153,72 @@ export function LearningPage() {
   }
 
   return (
-    <div className="pb-12">
+    <div className="pb-12 space-y-8">
+      {/* 1. Hero Banner Sảnh học tập (Full-width, Doubled Height) */}
+      <section
+        aria-label="Giới thiệu sảnh học tập"
+        className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.15)] group"
+      >
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <img
+            src="/assets/cyber_mockups/learning_hero_bg.webp"
+            alt="Không gian học tập Digital Campus"
+            className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020c24] via-[#020c24]/85 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
+        </div>
+
+        <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+            <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+            <span>PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
+            Sảnh Học Tập Trực Tuyến
+          </h1>
+
+          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+            Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Button
+              size="default"
+              onClick={canDangNhap(() => setMoTaoPhong(true))}
+              className="h-11 px-6 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all cursor-pointer gap-2"
+            >
+              <Plus className="size-4" />
+              <span>Tạo phòng học mới</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="default"
+              onClick={canDangNhap(() => setMoVaoBangMa(true))}
+              className="h-11 px-5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer gap-2"
+            >
+              <DoorOpen className="size-4 text-sky-400" />
+              <span>Vào phòng bằng mã</span>
+            </Button>
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* ── Khu vực chính giữa: 8 Cột trên XL ── */}
         <div className="xl:col-span-8 space-y-6 min-w-0">
-          {/* 1. Hero Banner Sảnh học tập */}
-          <section
-            aria-label="Giới thiệu sảnh học tập"
-            className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-[#0b1220] shadow-[0_0_40px_rgba(56,189,248,0.08)] group"
-          >
-            <div className="absolute inset-0 z-0 overflow-hidden">
-              <img
-                src="/assets/cyber_mockups/learning_hero_bg.webp"
-                alt="Không gian học tập Digital Campus"
-                className="h-full w-full object-cover object-right opacity-35 dark:opacity-40 scale-100 group-hover:scale-102 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#090d16] via-[#090d16]/90 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-transparent to-transparent" />
-            </div>
-
-            <div className="relative z-10 p-6 sm:p-9 max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-3.5 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-                <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
-                <span>PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN</span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-[1.25]">
-                Sảnh Học Tập Trực Tuyến
-              </h1>
-
-              <p className="mt-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
-                Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.
-              </p>
-
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <Button
-                  size="default"
-                  onClick={canDangNhap(() => setMoTaoPhong(true))}
-                  className="h-10 px-5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all cursor-pointer gap-2"
-                >
-                  <Plus className="size-4" />
-                  <span>Tạo phòng học mới</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={canDangNhap(() => setMoVaoBangMa(true))}
-                  className="h-10 px-4 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all cursor-pointer gap-2"
-                >
-                  <DoorOpen className="size-4 text-sky-400" />
-                  <span>Vào phòng bằng mã</span>
-                </Button>
-              </div>
-            </div>
-          </section>
-
           {/* 2. Thống kê học tập thực tế */}
           <ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />
 
-          {/* 3. Thanh chủ đề môn học (Kéo qua kéo lại - Horizontal Scroll) */}
+          {/* 3. Thanh chủ đề môn học (Kéo qua kéo lại mượt mà - Smooth Drag Scroll) */}
           <section aria-label="Lọc theo môn học" className="space-y-2">
-            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-none snap-x touch-pan-x scroll-smooth">
+            <div
+              ref={chipsDrag.ref}
+              {...chipsDrag.events}
+              className="smooth-carousel flex overflow-x-auto gap-2 pb-2 scrollbar-none touch-pan-x cursor-grab active:cursor-grabbing select-none"
+            >
               {CHU_DE_HOC_TAP.map((cd) => {
                 const isActive = tuKhoa === cd.id
                 return (
@@ -216,7 +227,7 @@ export function LearningPage() {
                     type="button"
                     onClick={() => datTuKhoa(cd.id)}
                     className={cn(
-                      'snap-start shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border',
+                      'shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border',
                       isActive
                         ? 'bg-sky-500 text-white border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
                         : 'border-border-default/70 bg-[#0f172a] text-slate-300 hover:bg-slate-800 hover:text-white',
@@ -406,9 +417,13 @@ export function LearningPage() {
               </h2>
             </div>
 
-            <div className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-3 shadow-sm">
+            <div className="rounded-2xl border border-border-default/80 bg-surface p-3 shadow-sm">
               {friends.filter((f) => presenceMap[f.id]?.activity?.type === 'room').length > 0 ? (
-                <div className="overflow-y-auto max-h-[240px] scrollbar-thin space-y-2 pr-1">
+                <div
+                  ref={friendsInRoomDrag.ref}
+                  {...friendsInRoomDrag.events}
+                  className="overflow-y-auto max-h-[240px] scrollbar-thin space-y-2 pr-1 cursor-grab active:cursor-grabbing select-none touch-pan-y"
+                >
                   {friends
                     .filter((f) => presenceMap[f.id]?.activity?.type === 'room')
                     .map((f) => (
@@ -437,7 +452,7 @@ export function LearningPage() {
           </section>
 
           {/* Tiện ích 2: Tính năng phòng học trực tuyến */}
-          <section aria-label="Tính năng phòng học" className="rounded-2xl border border-border-default/70 bg-[#0f172a] p-4 shadow-sm space-y-3">
+          <section aria-label="Tính năng phòng học" className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Công cụ tương tác trong phòng
             </h3>

@@ -293,44 +293,44 @@ export function LeaderboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12" data-testid="leaderboard-page">
-      {/* ── 1. Cyber Hero Banner (Matching Mockup 5) ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-r from-[#0d1424] via-[#1c1828] to-[#0b1020] p-6 lg:p-8 shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.15),rgba(255,255,255,0))]" />
+      {/* ── 1. Cyber Hero Banner (Matching Mockup 5 - DOUBLED HEIGHT) ── */}
+      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-r from-[#040e29] via-[#091538] to-[#040e29] p-8 sm:p-12 lg:p-16 shadow-2xl">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.18),rgba(255,255,255,0))]" />
 
         {/* Background graphic from mockups */}
-        <div className="absolute right-0 top-0 bottom-0 w-2/5 opacity-40 lg:opacity-75 pointer-events-none overflow-hidden select-none">
+        <div className="absolute right-0 top-0 bottom-0 w-2/5 opacity-50 lg:opacity-85 pointer-events-none overflow-hidden select-none">
           <img
             src="/assets/cyber_mockups/leaderboard_hero_bg.webp"
             alt=""
-            className="w-full h-full object-cover object-left mix-blend-screen"
+            className="w-full h-full object-cover object-left mix-blend-screen crisp-image"
           />
         </div>
 
-        <div className="relative z-10 max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 backdrop-blur-md mb-3">
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold text-amber-400 backdrop-blur-md mb-4">
             <Trophy className="size-3.5" />
             <span>Vinh danh thành tích học tập & kỷ lục trò chơi</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase drop-shadow-md">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase drop-shadow-md leading-[1.2]">
             Bảng xếp hạng Digital Campus
           </h1>
 
-          <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
             Vinh danh thành tích học tập và kỷ lục trò chơi trên toàn trường. Dữ liệu được tính toán và xác thực tự động theo thời gian thực.
           </p>
 
-          <div className="mt-5 flex items-center gap-3">
+          <div className="mt-8 flex items-center gap-4">
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefresh}
               disabled={isLoading || isRefetching}
-              className="h-10 gap-2 rounded-xl border-amber-500/40 bg-amber-500/15 px-4 text-xs font-bold text-amber-300 hover:bg-amber-500/25 hover:text-white active:scale-95 transition-all cursor-pointer shadow-md"
+              className="h-11 gap-2 rounded-xl border-amber-500/40 bg-amber-500/15 px-5 text-sm font-bold text-amber-300 hover:bg-amber-500/25 hover:text-white active:scale-95 transition-all cursor-pointer shadow-md"
               title="Làm mới bảng xếp hạng"
               aria-label="Làm mới bảng xếp hạng"
             >
-              <RefreshCw className={cn('size-3.5', (isLoading || isRefetching) && 'animate-spin')} />
+              <RefreshCw className={cn('size-4', (isLoading || isRefetching) && 'animate-spin')} />
               <span>Làm mới dữ liệu</span>
             </Button>
           </div>

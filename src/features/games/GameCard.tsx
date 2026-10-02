@@ -32,7 +32,7 @@ export function GameCard({ game, waiting = 0, onMoSanh }: GameCardProps) {
           src={game.cover}
           alt=""
           loading="lazy"
-          className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          className="size-full object-cover crisp-image transition-transform duration-500 ease-out group-hover:scale-105"
         />
 
         {/* Bàn chờ trực tiếp — chỉ hiện khi là trò đối kháng và có bàn chờ thực sự */}
