@@ -107,9 +107,14 @@ export function AppShell({ children }: AppShellProps) {
 
   const location = useLocation()
   const isGameRoom = location.pathname.startsWith('/game/')
-  // Trang 3 cột (xếp hạng | nội dung | chat & bạn bè): Game và Học tập dùng khung rộng.
+  // Tất cả hub pages dùng cùng max-width và padding đồng nhất (không phân biệt rộng/hẹp)
   const isWidePage =
-    location.pathname.startsWith('/arena') || location.pathname.startsWith('/game') || location.pathname.startsWith('/learn')
+    location.pathname === '/' ||
+    location.pathname.startsWith('/arena') ||
+    location.pathname.startsWith('/game') ||
+    location.pathname.startsWith('/learn') ||
+    location.pathname.startsWith('/community') ||
+    location.pathname.startsWith('/leaderboard')
 
   const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement))
   useEffect(() => {
