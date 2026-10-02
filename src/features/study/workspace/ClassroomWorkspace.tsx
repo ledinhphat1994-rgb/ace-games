@@ -318,7 +318,7 @@ export function ClassroomWorkspace({
     return () => window.removeEventListener('keydown', thoat)
   }, [isFullscreen, laNguoiTrinhChieu])
 
-  // Toàn màn hình: thanh công cụ tự thu xuống để không che sân khấu; rê chuột / chạm vào nút nhỏ ở đáy là hiện lại.
+  // Thanh công cụ: di chuyển sát cạnh dưới của bảng trình chiếu; khi không sử dụng sẽ ẩn đi và để lại 1 mũi tên mở rộng.
   // Đang mở khay (bút, công cụ) thì giữ nguyên.
   const [dockThuGon, setDockThuGon] = useState(false)
   const [khayDockMo, setKhayDockMo] = useState(false)
@@ -336,11 +336,11 @@ export function ClassroomWorkspace({
     setDockThuGon(false)
   }
   useEffect(() => {
+    henThuGon(3500)
     if (isFullscreen) henThuGon(2000)
-    else moDock()
     return huyThuGon
   }, [isFullscreen])
-  const anDock = isFullscreen && dockThuGon && !khayDockMo
+  const anDock = dockThuGon && !khayDockMo
 
   // Unread chat tracking
   const [lastReadMessageId, setLastReadMessageId] = useState<number>(0)
@@ -487,12 +487,12 @@ export function ClassroomWorkspace({
             onSendSlideLaser={onSendSlideLaser}
           />
 
-          {/* ── 4. THANH CÔNG CỤ (Vùng 2: nổi trên sân khấu ở đáy, toàn màn hình tự thu xuống) ── */}
+          {/* ── 4. THANH CÔNG CỤ (Vùng 2: sát cạnh dưới sân khấu, khi không dùng tự thu để lại mũi tên mở rộng) ── */}
           <div
             className={
               isFullscreen
                 ? 'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center'
-                : 'pointer-events-none absolute inset-x-0 bottom-2.5 z-40 flex justify-center px-2'
+                : 'pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-2'
             }
           >
             {anDock && (
@@ -501,9 +501,9 @@ export function ClassroomWorkspace({
                 onPointerEnter={moDock}
                 onClick={moDock}
                 onFocus={moDock}
-                className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface/90 text-text-secondary shadow-lg backdrop-blur-md transition-colors hover:text-text-primary cursor-pointer"
-                title="Thanh công cụ"
-                aria-label="Hiện thanh công cụ"
+                className="pointer-events-auto absolute bottom-0 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-t-xl border-t border-x border-border-default bg-surface/95 text-text-secondary shadow-lg backdrop-blur-md transition-colors hover:text-text-primary hover:bg-surface-raised cursor-pointer"
+                title="Mở rộng thanh công cụ"
+                aria-label="Mở rộng thanh công cụ"
                 data-testid="dock-handle"
               >
                 <ChevronUp className="h-4 w-4" />
@@ -512,10 +512,10 @@ export function ClassroomWorkspace({
             <div
               className={`transition-[transform,opacity] duration-300 ${
                 anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'
-              } ${isFullscreen ? 'mb-2' : ''}`}
-              onPointerEnter={isFullscreen ? moDock : undefined}
-              onPointerLeave={isFullscreen ? (e) => henThuGon(e.pointerType === 'touch' ? 2500 : 1200) : undefined}
-              onFocusCapture={isFullscreen ? moDock : undefined}
+              } ${isFullscreen ? 'mb-2' : 'mb-0.5'}`}
+              onPointerEnter={moDock}
+              onPointerLeave={(e) => henThuGon(e.pointerType === 'touch' ? 2500 : 1500)}
+              onFocusCapture={moDock}
               data-testid="dock-wrapper"
               data-thu-gon={anDock || undefined}
             >

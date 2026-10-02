@@ -25,12 +25,12 @@ const TAY_KEO_CANH: { huong: 'n' | 's' | 'w' | 'e'; lop: string; tieuDe: string 
   { huong: 'e', lop: '-right-2 inset-y-4 w-4 cursor-ew-resize', tieuDe: 'Kéo thay đổi chiều rộng' },
 ]
 
-/** Góc: ô 28px (12px ngoài mép), góc chữ L dày 4px rõ nét ôm đúng góc cửa sổ. */
-const TAY_KEO_GOC: { huong: 'nw' | 'ne' | 'sw' | 'se'; lop: string; chuL: string }[] = [
-  { huong: 'nw', lop: '-top-3 -left-3 cursor-nwse-resize', chuL: 'top-3 left-3 border-t-4 border-l-4 rounded-tl-lg' },
-  { huong: 'ne', lop: '-top-3 -right-3 cursor-nesw-resize', chuL: 'top-3 right-3 border-t-4 border-r-4 rounded-tr-lg' },
-  { huong: 'sw', lop: '-bottom-3 -left-3 cursor-nesw-resize', chuL: 'bottom-3 left-3 border-b-4 border-l-4 rounded-bl-lg' },
-  { huong: 'se', lop: '-bottom-3 -right-3 cursor-nwse-resize', chuL: 'bottom-3 right-3 border-b-4 border-r-4 rounded-br-lg' },
+/** Góc: ô 28px (12px ngoài mép), bắt chuột đổi cỡ nhưng không vẽ đường kẻ đè lên khung */
+const TAY_KEO_GOC: { huong: 'nw' | 'ne' | 'sw' | 'se'; lop: string }[] = [
+  { huong: 'nw', lop: '-top-3 -left-3 cursor-nwse-resize' },
+  { huong: 'ne', lop: '-top-3 -right-3 cursor-nesw-resize' },
+  { huong: 'sw', lop: '-bottom-3 -left-3 cursor-nesw-resize' },
+  { huong: 'se', lop: '-bottom-3 -right-3 cursor-nwse-resize' },
 ]
 
 interface KhungLopProps {
@@ -305,7 +305,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
               data-testid={`khung-${id}-keo-${huong}`}
             />
           ))}
-          {TAY_KEO_GOC.map(({ huong, lop, chuL }) => (
+          {TAY_KEO_GOC.map(({ huong, lop }) => (
             <div
               key={huong}
               onPointerDown={(e) => batDauThayDoiKichThuoc(e, huong)}
@@ -315,11 +315,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
               className={`group/tay absolute z-50 size-7 select-none touch-none ${lop}`}
               title="Kéo đổi kích thước"
               data-testid={`khung-${id}-keo-${huong}`}
-            >
-              <span
-                className={`pointer-events-none absolute size-4.5 border-brand/90 opacity-70 transition-opacity group-hover/khung:opacity-100 group-hover/tay:opacity-100 drop-shadow-md ${chuL}`}
-              />
-            </div>
+            />
           ))}
         </>
       )}

@@ -70,11 +70,11 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="relative z-30 grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 border-b border-border-subtle/80 bg-canvas px-2 py-1 select-none sm:px-3"
+      className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-border-subtle/80 bg-canvas px-2 py-1 select-none sm:px-3"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      <div className="flex flex-1 min-w-0 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={onLeaveRoom}
@@ -91,27 +91,27 @@ export function ClassroomTopBar({
         </button>
 
         <div className="min-w-0 flex-1">
-          <h1 className="flex items-start gap-1.5 text-xs sm:text-sm font-bold tracking-tight text-text-primary break-words">
+          <h1 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold tracking-tight text-text-primary truncate">
             {isHost && (
-              <Crown className="mt-0.5 size-3.5 sm:size-4 shrink-0 text-achievement drop-shadow-xs" aria-label="Bạn là chủ phòng" />
+              <Crown className="size-3.5 sm:size-4 shrink-0 text-achievement drop-shadow-xs" aria-label="Bạn là chủ phòng" />
             )}
-            <span className="min-w-0 break-words">{roomTitle}</span>
+            <span className="truncate">{roomTitle}</span>
           </h1>
 
           {/* Connection status */}
           {isReconnecting ? (
-            <p className="flex items-center gap-1 text-[11px] font-semibold text-warning">
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-warning truncate">
               <Loader2 className="size-3 animate-spin shrink-0" />
-              <span>Đang kết nối lại…</span>
+              <span className="truncate">Đang kết nối lại…</span>
             </p>
           ) : isOnline ? (
-            <p className="flex items-center gap-1.5 text-[11px] font-medium text-text-tertiary" title="Kết nối trực tuyến">
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-text-tertiary truncate" title="Kết nối trực tuyến">
               <Wifi className="size-3 text-success shrink-0" />
               <span>Trực tuyến</span>
               {latencyMs !== null && latencyMs > 0 && <span className="tabular-nums opacity-75">· {latencyMs} ms</span>}
             </p>
           ) : (
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-destructive" title="Mất kết nối">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-destructive truncate" title="Mất kết nối">
               <WifiOff className="size-3 shrink-0" />
               <span>Mất kết nối</span>
             </p>
@@ -121,13 +121,13 @@ export function ClassroomTopBar({
 
       {/* ── CENTER: MEMBER STRIP (vùng 5 căn giữa cạnh trên so với màn hình) ── */}
       {memberStrip && (
-        <div className="col-span-2 row-start-2 flex min-w-0 items-center justify-start lg:col-span-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:justify-center pointer-events-auto max-w-[calc(100vw-360px)]">
+        <div className="flex shrink-0 items-center justify-center pointer-events-auto max-w-[calc(100vw-360px)]">
           {memberStrip}
         </div>
       )}
 
       {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS + CLOSE ROOM ── */}
-      <div className="flex shrink-0 items-center justify-end gap-2">
+      <div className="flex flex-1 shrink-0 items-center justify-end gap-2">
         {/* Chat Drawer Toggle */}
         <button
           type="button"

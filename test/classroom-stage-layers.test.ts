@@ -125,7 +125,7 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
 
   it('toàn màn hình: thanh công cụ tự thu xuống, nút nhỏ ở đáy hiện lại khi rê / chạm; đang mở khay thì giữ nguyên', () => {
     expect(workspaceRaw).toContain('if (isFullscreen) henThuGon(2000)')
-    expect(workspaceRaw).toContain('const anDock = isFullscreen && dockThuGon && !khayDockMo')
+    expect(workspaceRaw).toContain('const anDock = dockThuGon && !khayDockMo')
     expect(workspaceRaw).toContain('data-testid="dock-handle"')
     expect(workspaceRaw).toContain("anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'")
     // Lớp bọc không chặn thao tác trên sân khấu khi thanh đã thu xuống.
