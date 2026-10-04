@@ -472,6 +472,17 @@ export function CampusChatDrawer({
     }
 
     setReactingState(null)
+
+    // Khi người dùng thả emoji vào tin nhắn (nhất là tin nhắn cuối hoặc khi đang ở đáy):
+    // Tự động cuộn mượt xuống đáy để lộ trọn vẹn pill emoji và tin nhắn, không để thanh trượt bị khựng.
+    requestAnimationFrame(() => {
+      const khung = khungRef.current
+      if (khung && (oDayRef.current || msgId === idTinCuoi)) {
+        khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+        oDayRef.current = true
+        setODay(true)
+      }
+    })
   }
 
   // 1. Tăng số lượng emoji khi click thêm 1 lần nữa vào emoji đã thả
@@ -531,6 +542,13 @@ export function CampusChatDrawer({
         }),
       )
     }
+
+    requestAnimationFrame(() => {
+      const khung = khungRef.current
+      if (khung && (oDayRef.current || msgId === idTinCuoi)) {
+        khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+      }
+    })
   }
 
   useEffect(() => {
@@ -664,6 +682,13 @@ export function CampusChatDrawer({
       )
     }
     toast.info(`Đã gỡ ${emoji}`)
+
+    requestAnimationFrame(() => {
+      const khung = khungRef.current
+      if (khung && (oDayRef.current || msgId === idTinCuoi)) {
+        khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+      }
+    })
   }
 
   useEffect(() => {
@@ -803,8 +828,32 @@ export function CampusChatDrawer({
     }
   }, [])
 
+  const listRef = useRef<HTMLOListElement>(null)
+
+  // Theo dõi chiều cao thực tế của danh sách tin nhắn (ví dụ khi thả emoji làm nở pill biểu cảm):
+  // Nếu người dùng đang ở đáy thì tự động bám theo chiều cao mới, kéo xuống tận đáy mượt mà, không bị khựng.
+  useEffect(() => {
+    const listEl = listRef.current
+    const khung = khungRef.current
+    if (!listEl || !khung) return
+
+    let prevHeight = listEl.scrollHeight
+    const observer = new ResizeObserver(() => {
+      const newHeight = listEl.scrollHeight
+      if (newHeight !== prevHeight) {
+        prevHeight = newHeight
+        if (oDayRef.current) {
+          khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+        }
+      }
+    })
+
+    observer.observe(listEl)
+    return () => observer.disconnect()
+  }, [])
+
   // Chỉ cuộn bên trong khung tin (không đụng tới cuộn trang). Lần đầu nhảy thẳng xuống cuối; về sau chỉ bám theo
-  // tin mới khi người dùng đang ở cuối hoặc vừa tự gửi — đang đọc tin cũ thì không kéo họ đi, chỉ hiện nút "Tin nhắn mới".
+  // tin mới hoặc khi reactions thay đổi khi người dùng đang ở cuối hoặc vừa tự gửi — đang đọc tin cũ thì không kéo họ đi.
   useLayoutEffect(() => {
     const khung = khungRef.current
     if (!khung || idTinCuoi === null) return
@@ -816,7 +865,7 @@ export function CampusChatDrawer({
     if (oDayRef.current || tinCuoiCuaMinh) {
       khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
     }
-  }, [idTinCuoi, tinCuoiCuaMinh])
+  }, [idTinCuoi, tinCuoiCuaMinh, reactions, reactionCounts])
 
   const xuLyCuon = () => {
     const khung = khungRef.current
@@ -898,7 +947,7 @@ export function CampusChatDrawer({
               </p>
             </div>
           ) : (
-            <ol>
+            <ol ref={listRef}>
               {hienThiMessages.map((msg: TinCampus, i: number) => {
                 const truoc = i > 0 ? hienThiMessages[i - 1] : null
                 const sangNgayMoi = !truoc || !cungNgay(truoc.taoLuc, msg.taoLuc)

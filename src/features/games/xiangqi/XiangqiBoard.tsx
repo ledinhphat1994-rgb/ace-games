@@ -376,7 +376,20 @@ export function XiangqiBoard({
   const [isAvatarPinned, setIsAvatarPinned] = useState(false)
   const avatarBubbleRef = useRef<HTMLDivElement>(null)
 
-  // Vị trí kéo thả tự do của Avatar người chơi trong Vùng 2+
+  // Bounding box di chuyển Avatar trong Vùng 4 (không ra ngoài, tuyệt đối không chạm/đè bàn cờ)
+  const VUNG_4_BOUNDS = {
+    MIN_X: -200,
+    MAX_X: 0,
+    MIN_Y: -200,
+    MAX_Y: 10,
+  } as const
+
+  const clampAvatarPos = (x: number, y: number) => ({
+    x: Math.max(VUNG_4_BOUNDS.MIN_X, Math.min(VUNG_4_BOUNDS.MAX_X, x)),
+    y: Math.max(VUNG_4_BOUNDS.MIN_Y, Math.min(VUNG_4_BOUNDS.MAX_Y, y)),
+  })
+
+  // Vị trí kéo thả tự do của Avatar người chơi trong Vùng 4
   const [avatarOffset, setAvatarOffset] = useState<{ x: number; y: number }>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -384,13 +397,13 @@ export function XiangqiBoard({
         if (saved) {
           const parsed = JSON.parse(saved)
           if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-            return parsed
+            return clampAvatarPos(parsed.x, parsed.y)
           }
         }
       } catch {}
     }
-    // Mặc định lùi sang trái vào không gian Vùng 2+
-    return { x: -40, y: -20 }
+    // Mặc định nằm chuẩn tại vị trí Vùng 4 cạnh bàn cờ
+    return { x: 0, y: 0 }
   })
 
   const isDraggingAvatarRef = useRef(false)
@@ -401,6 +414,7 @@ export function XiangqiBoard({
     initY: 0,
   })
   const hasMovedAvatarRef = useRef(false)
+  const justToggledPointerUpRef = useRef(false)
 
   const handleAvatarPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
@@ -419,12 +433,12 @@ export function XiangqiBoard({
     if (!isDraggingAvatarRef.current) return
     const dx = e.clientX - dragStartRef.current.startX
     const dy = e.clientY - dragStartRef.current.startY
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    if (Math.hypot(dx, dy) > 5) {
       hasMovedAvatarRef.current = true
     }
     const newX = dragStartRef.current.initX + dx
     const newY = dragStartRef.current.initY + dy
-    setAvatarOffset({ x: newX, y: newY })
+    setAvatarOffset(clampAvatarPos(newX, newY))
   }
 
   const handleAvatarPointerUp = (e: React.PointerEvent) => {
@@ -439,9 +453,13 @@ export function XiangqiBoard({
         localStorage.setItem('xiangqi_avatar_pos', JSON.stringify(avatarOffset))
       } catch {}
     } else {
-      // Click nhẹ (không kéo) -> toggle mở cụm công cụ
+      // Click nhẹ (không kéo) -> toggle mở cụm công cụ (có guard chống double toggle)
       if (!isAvatarPinned) {
+        justToggledPointerUpRef.current = true
         setIsAvatarOpen((prev) => !prev)
+        setTimeout(() => {
+          justToggledPointerUpRef.current = false
+        }, 300)
       }
     }
   }
@@ -1501,18 +1519,21 @@ export function XiangqiBoard({
           />
         </section>
 
-        {/* ==================== CỘT BÊN TRÁI: VÙNG 1+ (TRÊN) VÀ VÙNG 1 (DƯỚI) ==================== */}
-
-        {/* VÙNG 1+: BẢNG CHỌN CẢM XÚC NHANH CỦA BẠN (KHÔNG CÒN BONG BÓNG LƠ LỬNG DƯ THỪA) */}
-        <div
-          id="vung-1-plus-container"
-          className="w-full xl:absolute xl:right-[calc(100%+24px)] xl:bottom-[200px] xl:w-[250px] z-35 flex flex-col gap-2 pointer-events-none"
+        {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH) ==================== */}
+        <aside
+          id="vung-2-plus-card"
+          ref={avatarBubbleRef}
+          aria-label="Bảng điều khiển kỳ thủ"
+          style={{
+            transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
+          }}
+          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
-          {/* Bảng chọn cảm xúc nhanh khi bấm icon Smile: Thiết kế ngắn gọn dễ dùng */}
+          {/* BẢNG CHỌN CẢM XÚC NHANH KHI BẤM ICON SMILE: NẰM TRONG VÙNG 4 CÙNG AVATAR, KHÔNG ĐÈ BÀN CỜ */}
           {isQuickMenuOpen && (
             <div
               ref={quickMenuRef}
-              className="pointer-events-auto p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none"
+              className="pointer-events-auto mb-2 w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0"
             >
               <div className="flex items-center justify-between pb-1 border-b border-white/10">
                 <span className="text-[11px] font-bold text-amber-400">Biểu cảm</span>
@@ -1571,19 +1592,7 @@ export function XiangqiBoard({
               </div>
             </div>
           )}
-        </div>
 
-        {/* VÙNG 1: BUBBLE AVATAR KỲ THỦ BẠN (TRUNG TÂM DUY NHẤT LÀ AVATAR) */}
-        {/* VÙNG 1: BUBBLE AVATAR KỲ THỦ BẠN (TRUNG TÂM DUY NHẤT LÀ AVATAR, KÉO THẢ TỰ DO TRONG VÙNG 2+) */}
-        <aside
-          id="vung-2-plus-card"
-          ref={avatarBubbleRef}
-          aria-label="Bảng điều khiển kỳ thủ"
-          style={{
-            transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
-          }}
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-30 shrink-0 pointer-events-auto"
-        >
           {/* CỤM BUBBLES CÔNG CỤ (BUNG RA PHÍA TRÊN AVATAR KHI CLICK VÀO AVATAR HOẶC KHI GHIM) */}
           {(isAvatarPinned || isAvatarOpen) && (
             <div className="relative mb-3 w-[240px] p-2.5 rounded-2xl border border-sky-500/30 bg-gradient-to-b from-[#181d28]/95 via-[#131720]/95 to-[#0d1017]/95 shadow-[0_12px_32px_rgba(0,0,0,0.6)] backdrop-blur-md flex flex-col gap-2 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -1760,22 +1769,24 @@ export function XiangqiBoard({
 
           {/* TRUNG TÂM: 1 AVATAR BUBBLE DUY NHẤT */}
           <div className="relative flex flex-col items-center mb-8">
-            {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ */}
+            {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ, NỞ SANG TRÁI VÀO VÙNG 4 ĐỂ TUYỆT ĐỐI KHÔNG ĐÈ BÀN CỜ */}
             {myQuickMessage && (
-              <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none">
-                {myQuickMessage.emoji && <span className="text-sm">{myQuickMessage.emoji}</span>}
-                <span className="max-w-[120px] truncate">{myQuickMessage.text}</span>
+              <div className="absolute bottom-full mb-2.5 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+                {myQuickMessage.emoji && <span className="text-sm shrink-0">{myQuickMessage.emoji}</span>}
+                <span className="truncate">{myQuickMessage.text}</span>
               </div>
             )}
 
-            {/* AVATAR TRÒN TRUNG TÂM (GIỮ KÉO TỰ DO TRONG VÙNG 2+ HOẶC CLICK ĐỂ MỞ THAO TÁC) */}
+            {/* AVATAR TRÒN TRUNG TÂM (GIỮ KÉO TỰ DO TRONG VÙNG 4 HOẶC CLICK ĐỂ MỞ THAO TÁC) */}
             <button
               type="button"
               onPointerDown={handleAvatarPointerDown}
               onPointerMove={handleAvatarPointerMove}
               onPointerUp={handleAvatarPointerUp}
               onPointerCancel={handleAvatarPointerUp}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
+                if (justToggledPointerUpRef.current) return
                 if (!hasMovedAvatarRef.current && !isAvatarPinned) {
                   setIsAvatarOpen((prev) => !prev)
                 }
@@ -1851,11 +1862,11 @@ export function XiangqiBoard({
         >
           {/* TRUNG TÂM: 1 AVATAR BUBBLE DUY NHẤT CỦA ĐỐI THỦ */}
           <div className="relative flex flex-col items-center">
-            {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ */}
+            {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ, NỞ SANG PHẢI RA NGOÀI ĐỂ TUYỆT ĐỐI KHÔNG ĐÈ BÀN CỜ */}
             {opponentQuickMessage && (
-              <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none">
-                {opponentQuickMessage.emoji && <span className="text-sm">{opponentQuickMessage.emoji}</span>}
-                <span className="max-w-[120px] truncate">{opponentQuickMessage.text}</span>
+              <div className="absolute bottom-full mb-2.5 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+                {opponentQuickMessage.emoji && <span className="text-sm shrink-0">{opponentQuickMessage.emoji}</span>}
+                <span className="truncate">{opponentQuickMessage.text}</span>
               </div>
             )}
 
