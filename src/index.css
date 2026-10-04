@@ -1447,19 +1447,19 @@ input[type='number'] {
   position: absolute;
   top: 30%;
   bottom: 30%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-dialog-surface::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.40) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 .skeuo-dialog-surface::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.40) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
 /* Nền Card giả kim loại tối (Chưa chọn): Viền mỏng 1px, sáng nhẹ 2 cạnh bên */
@@ -1512,63 +1512,67 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-card-amber-active::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.22);
 }
 .skeuo-card-amber-active::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.22);
 }
 
-/* Đường bao card có dải sáng nhẹ ở 2 bên cạnh để dễ nhận biết ranh giới card */
+/* Đường bao card có dải sáng nhẹ ở 2 bên cạnh để dễ nhận biết ranh giới card (Thanh mảnh 1px, dịu mắt) */
 .card-side-glow {
   position: relative;
+}
+.fixed.card-side-glow,
+[data-slot="dialog-content"].card-side-glow {
+  position: fixed;
 }
 .card-side-glow::before,
 .card-side-glow::after {
   content: '';
   position: absolute;
-  top: 20%;
-  bottom: 20%;
-  width: 1.5px;
+  top: 25%;
+  bottom: 25%;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 2;
 }
 .card-side-glow::before {
   left: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.38) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 .card-side-glow::after {
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.38) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
-/* Khi card được chọn (active) thì dải sáng 2 bên rõ nét hơn */
+/* Khi card được chọn (active) thì dải sáng 2 bên rõ nét hơn nhưng vẫn giữ đường nét thanh mảnh 1px */
 .card-side-glow-active::before,
 .card-side-glow-active::after {
-  top: 15%;
-  bottom: 15%;
-  width: 2px;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
 }
 .card-side-glow-active::before {
   left: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.95) 50%, transparent 100%);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.28);
 }
 .card-side-glow-active::after {
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.95) 50%, transparent 100%);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.28);
 }
 
 /* Card trạng thái chọn phát sáng Electric Cyan dịu nhẹ với dải sáng lấp lánh 2 bên cạnh */
@@ -1586,22 +1590,22 @@ input[type='number'] {
 .skeuo-card-cyan-active::after {
   content: '';
   position: absolute;
-  top: 18%;
-  bottom: 18%;
-  width: 1.5px;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 2;
 }
 .skeuo-card-cyan-active::before {
   left: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.95) 50%, transparent 100%);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.28);
 }
 .skeuo-card-cyan-active::after {
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.95) 50%, transparent 100%);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.28);
 }
 
 /* Card trạng thái cơ bản/chưa chọn với đường bao xanh & lấp lánh nhẹ 2 bên cạnh */
@@ -1623,22 +1627,22 @@ input[type='number'] {
 .skeuo-card-cyan-base::after {
   content: '';
   position: absolute;
-  top: 20%;
-  bottom: 20%;
-  width: 1.5px;
+  top: 25%;
+  bottom: 25%;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 2;
 }
 .skeuo-card-cyan-base::before {
   left: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.75) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.38) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 .skeuo-card-cyan-base::after {
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.75) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.38) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
 /* ==========================================================================
@@ -1652,19 +1656,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-game-active-edge::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-active-edge::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 
 /* 1. Cờ Vua: Nâu hoàng kim Bronze */
@@ -1683,19 +1687,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-game-chess-active::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-chess-active::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-chess-base {
   background: linear-gradient(135deg, rgba(45, 30, 14, 0.75) 0%, rgba(22, 14, 6, 0.9) 100%);
@@ -1736,19 +1740,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-game-xiangqi-active::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-xiangqi-active::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 
 /* 3. Cờ Caro: Xanh biển sâu Deep Navy */
@@ -1778,19 +1782,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-game-caro-active::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-caro-active::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 
 /* 4. Trí Nhớ: Tím huyền bí Royal Violet */
@@ -1820,19 +1824,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-game-memory-active::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-memory-active::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 
 /* 5. Rắn Săn Mồi: Xanh lục bảo Deep Emerald */
@@ -1862,19 +1866,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-game-snake-active::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-game-snake-active::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 
 /* Viên nhộng con thoi 3D bo tròn (Pill button - Inactive, viền 1px) */
@@ -1930,22 +1934,22 @@ input[type='number'] {
 .skeuo-pill-cyan-base::after {
   content: '';
   position: absolute;
-  top: 20%;
-  bottom: 20%;
-  width: 1.5px;
+  top: 25%;
+  bottom: 25%;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 2;
 }
 .skeuo-pill-cyan-base::before {
   left: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
-  box-shadow: 0 0 4px rgba(56, 189, 248, 0.3);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.38) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 .skeuo-pill-cyan-base::after {
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
-  box-shadow: 0 0 4px rgba(56, 189, 248, 0.3);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.38) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
 /* Nút mốc thời gian/pill active phát sáng xanh Electric Cyan với lấp lánh 2 bên cạnh */
@@ -1965,22 +1969,22 @@ input[type='number'] {
 .skeuo-pill-cyan-active::after {
   content: '';
   position: absolute;
-  top: 18%;
-  bottom: 18%;
-  width: 1.5px;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 2;
 }
 .skeuo-pill-cyan-active::before {
   left: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.95) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.28);
 }
 .skeuo-pill-cyan-active::after {
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.95) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.65) 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.28);
 }
 
 /* Nút CTA nổi 3D Amber Gold dịu nhẹ, sang trọng, không chói mắt */
@@ -2135,19 +2139,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-subcard-active-amber::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 .skeuo-subcard-active-amber::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(251, 191, 36, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.20);
 }
 
 /* Sub-card kích hoạt Electric Cyan (Active, viền 1px dải sáng 2 bên) */
@@ -2168,19 +2172,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-subcard-active-cyan::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.20);
 }
 .skeuo-subcard-active-cyan::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(56, 189, 248, 0.20);
 }
 
 /* Sub-card kích hoạt Royal Purple (Active, viền 1px dải sáng 2 bên) */
@@ -2201,19 +2205,19 @@ input[type='number'] {
   position: absolute;
   top: 20%;
   bottom: 20%;
-  width: 1.5px;
+  width: 1px;
   pointer-events: none;
   border-radius: 9999px;
 }
 .skeuo-subcard-active-purple::before {
   left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(192, 132, 252, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(168, 85, 247, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(192, 132, 252, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(168, 85, 247, 0.20);
 }
 .skeuo-subcard-active-purple::after {
   right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(192, 132, 252, 0.85) 50%, transparent 100%);
-  box-shadow: 0 0 6px rgba(168, 85, 247, 0.35);
+  background: linear-gradient(180deg, transparent 0%, rgba(192, 132, 252, 0.55) 50%, transparent 100%);
+  box-shadow: 0 0 3px rgba(168, 85, 247, 0.20);
 }
 
 /* Thanh điều chỉnh/trạng thái tinh gọn 1 hàng duy nhất (Single-Row Inline Control) */

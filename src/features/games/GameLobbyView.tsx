@@ -1305,10 +1305,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* ── Dialog tạo bàn đấu mới trực tiếp (Card luôn cố định kích thước, đúng chuẩn thiết kế mockup) ── */}
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
-          style={{ top: '72px', translate: '-50% 0', transform: 'none' }}
-          className="sm:max-w-[530px] w-[calc(100vw-2rem)] h-[700px] max-h-[94vh] flex flex-col p-5 sm:p-6 bg-surface border border-border-default rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary card-side-glow"
+          className="sm:max-w-[520px] w-[calc(100vw-2rem)] max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-surface border border-border-default rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary card-side-glow"
         >
-          <DialogHeader className="shrink-0 mb-0.5">
+          <DialogHeader className="shrink-0 mb-1">
             <DialogTitle className="text-lg font-bold text-text-primary flex items-center gap-2.5">
               <Sword className="size-5 text-brand" />
               <span>Tạo bàn đấu</span>
@@ -1318,7 +1317,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0 space-y-1.5">
+          <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0 space-y-1.5 overflow-y-auto pr-0.5">
             {/* 1. Tên phòng */}
             <div className="space-y-1.5 shrink-0">
               <label className="text-xs font-semibold text-text-secondary">Tên phòng:</label>
