@@ -1306,7 +1306,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
           style={{ top: '72px', translate: '-50% 0', transform: 'none' }}
-          className="sm:max-w-[530px] w-[calc(100vw-2rem)] h-[700px] max-h-[94vh] flex flex-col p-5 sm:p-6 bg-surface border border-border-default rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary"
+          className="sm:max-w-[530px] w-[calc(100vw-2rem)] h-[700px] max-h-[94vh] flex flex-col p-5 sm:p-6 bg-surface border border-border-default rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary card-side-glow"
         >
           <DialogHeader className="shrink-0 mb-0.5">
             <DialogTitle className="text-lg font-bold text-text-primary flex items-center gap-2.5">
@@ -1322,7 +1322,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             {/* 1. Tên phòng */}
             <div className="space-y-1.5 shrink-0">
               <label className="text-xs font-semibold text-text-secondary">Tên phòng:</label>
-              <div className="relative rounded-xl border border-border-default bg-surface hover:border-border-strong h-10 px-3.5 flex items-center transition-colors">
+              <div className="relative rounded-xl border border-border-default bg-surface hover:border-border-strong h-10 px-3.5 flex items-center transition-colors card-side-glow">
                 <input
                   type="text"
                   value={tenPhongMoi}
@@ -1353,9 +1353,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                       type="button"
                       onClick={() => setGameMoiChon(item.id)}
                       className={cn(
-                        'h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden',
+                        'h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden card-side-glow',
                         isSelected
-                          ? 'border-brand bg-brand/10 text-brand shadow-xs'
+                          ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
                           : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
                       )}
                     >
@@ -1436,7 +1436,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     </div>
 
                     {/* Vùng thanh thời gian: 1 hàng cố định h-9, thiết kế chuẩn campus */}
-                    <div className="h-9 rounded-xl border border-border-subtle bg-surface-overlay/50 px-3.5 flex items-center justify-between select-none">
+                    <div className="h-9 rounded-xl border border-border-subtle bg-surface-overlay/50 px-3.5 flex items-center justify-between select-none card-side-glow">
                       <span className="text-xs font-semibold text-text-secondary">
                         {cheDoTurn === 'custom' ? 'Thời gian tùy chỉnh' : 'Thời gian mỗi lượt'}
                       </span>
@@ -1505,7 +1505,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     </div>
                   </>
                 ) : (
-                  <div className="h-full rounded-xl border border-border-subtle bg-surface-overlay/30 flex flex-col items-center justify-center gap-1 text-xs text-text-secondary font-semibold select-none">
+                  <div className="h-full rounded-xl border border-border-subtle bg-surface-overlay/30 flex flex-col items-center justify-center gap-1 text-xs text-text-secondary font-semibold select-none card-side-glow">
                     <Sparkles className="size-5 text-brand mb-0.5" />
                     <span className="text-xs font-bold text-text-primary">Chơi đơn</span>
                   </div>
@@ -1524,9 +1524,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     setLoiTaoBan(null)
                   }}
                   className={cn(
-                    'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
+                    'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
                     cheDoPhong === 'public'
-                      ? 'border-brand bg-brand/10 text-brand shadow-xs'
+                      ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
                       : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
                   )}
                 >
@@ -1541,9 +1541,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     setLoiTaoBan(null)
                   }}
                   className={cn(
-                    'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
+                    'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
                     cheDoPhong === 'private'
-                      ? 'border-brand bg-brand/10 text-brand shadow-xs'
+                      ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
                       : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
                   )}
                 >
@@ -1561,9 +1561,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   }
                 }}
                 className={cn(
-                  'rounded-xl border-2 px-3.5 py-2 h-[58px] flex flex-col justify-between transition-colors duration-150 select-none cursor-pointer',
+                  'rounded-xl border-2 px-3.5 py-2 h-[58px] flex flex-col justify-between transition-colors duration-150 select-none cursor-pointer card-side-glow',
                   cheDoPhong === 'private'
-                    ? 'border-brand bg-brand/5'
+                    ? 'border-brand bg-brand/5 card-side-glow-active'
                     : 'border-border-default bg-surface hover:bg-surface-raised',
                 )}
               >

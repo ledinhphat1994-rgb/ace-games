@@ -197,7 +197,7 @@ export function ProfilePage() {
       <PageHeader title="Hồ sơ" />
 
       {/* ── Bìa danh tính & 4 Huy hiệu (Đồng bộ chuẩn giao diện thẻ của web) ── */}
-      <section className="overflow-hidden rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-xs relative">
+      <section className="overflow-hidden rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-xs relative card-side-glow">
         {/* Bìa phong cảnh trường học */}
         <div
           className="h-44 sm:h-56 bg-cover bg-center relative"
@@ -393,7 +393,7 @@ export function ProfilePage() {
         {/* CỘT TRÁI (7 CỘT) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card 1: Bảng vinh danh Top 3 Podiums & Bảng xếp hạng tuần */}
-          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 overflow-hidden relative shadow-xs">
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 overflow-hidden relative shadow-xs card-side-glow">
             <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
               <Trophy className="size-5 text-amber-500" />
               <span>Bảng vinh danh</span>
@@ -499,7 +499,7 @@ export function ProfilePage() {
           </section>
 
           {/* Card 2: Tập tin học tập */}
-          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 overflow-hidden relative shadow-xs">
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 overflow-hidden relative shadow-xs card-side-glow">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
                 <FileText className="size-5 text-brand" />
@@ -509,14 +509,14 @@ export function ProfilePage() {
 
             {/* 2 Khung thông số chuyên cần & tích luỹ */}
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-surface-overlay/50">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-surface-overlay/50 card-side-glow">
                 <Flame className="size-5 text-orange-500 shrink-0" />
                 <div>
                   <p className="text-sm font-bold text-text-primary tabular-nums">{profile?.currentStreak ?? 0} Ngày</p>
                   <p className="text-[11px] text-text-tertiary font-medium">Chuyên cần</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-surface-overlay/50">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-surface-overlay/50 card-side-glow">
                 <Zap className="size-5 text-amber-500 shrink-0" />
                 <div>
                   <p className="text-sm font-bold text-text-primary tabular-nums">{profile?.totalXp ?? 0} XP</p>
@@ -534,7 +534,7 @@ export function ProfilePage() {
               ].map((file) => (
                 <div
                   key={file.title}
-                  className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-overlay/30 hover:bg-surface-overlay/60 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-overlay/30 hover:bg-surface-overlay/60 transition-colors card-side-glow"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="size-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0 text-red-500 font-bold text-[10px] tracking-wide">
@@ -562,7 +562,7 @@ export function ProfilePage() {
         {/* CỘT PHẢI (5 CỘT) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Card 3: Thông tin cá nhân */}
-          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs">
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs card-side-glow">
             <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
               <User className="size-5 text-brand" />
               <span>Thông tin cá nhân</span>
@@ -654,7 +654,7 @@ export function ProfilePage() {
           </section>
 
           {/* Card 4: Bảo mật & Liên kết Google */}
-          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs">
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs card-side-glow">
             <h3 className="text-base font-bold text-text-primary flex items-center gap-2 mb-4">
               <ShieldCheck className="size-5 text-success" />
               <span>Bảo mật & Liên kết</span>

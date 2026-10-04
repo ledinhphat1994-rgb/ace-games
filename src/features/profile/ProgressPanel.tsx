@@ -42,7 +42,7 @@ export function ProgressPanel() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
+      <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6 card-side-glow">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Tiến trình học tập</h3>
@@ -98,7 +98,7 @@ export function ProgressPanel() {
       </section>
 
       {thuThach && (
-        <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
+        <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6 card-side-glow">
           <div className="flex items-start gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-success-muted text-success">
               <Target className="size-4" />
