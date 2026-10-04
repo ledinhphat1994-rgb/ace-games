@@ -1218,7 +1218,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           {/* Card 1: Bảng thi đua game */}
           <section
             aria-label="Thi đua game"
-            className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-blue-950/20 p-4 shadow-sm space-y-3"
+            className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-blue-950/20 p-4 shadow-sm space-y-3 card-campus-glow"
           >
             <div className="flex items-center gap-2.5 text-sky-400">
               <Trophy className="size-4.5" />
@@ -1240,7 +1240,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           <section
             aria-label="Sự kiện game"
             data-testid="game-events-card"
-            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5"
+            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5 card-campus-glow"
           >
             <div className="flex items-center gap-2 border-b border-border-subtle/60 pb-3">
               <Calendar className="size-4 text-sky-400" />

@@ -1053,17 +1053,48 @@ body { min-width: 280px; }
 }
 
 /* Craft: giấy, mực, đồng — áp lên primitive dùng chung, không đổi bố cục. */
-[data-slot="card"] {
-  box-shadow: var(--shadow-soft);
+[data-slot="card"],
+.card-campus-glow {
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  box-shadow:
+    0 0 20px -2px rgba(56, 189, 248, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
+[data-slot="card"]:hover,
+.card-campus-glow:hover {
+  border-color: rgba(56, 189, 248, 0.40);
+  box-shadow:
+    0 0 26px -2px rgba(56, 189, 248, 0.20),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Áp dụng vầng sáng nhẹ êm dịu (Soft Cyan Ambient Glow) theo hình mẫu tham chiếu cho các card cố định chính */
+main section.rounded-2xl.border,
+main div.rounded-2xl.border.bg-surface,
+main div.rounded-2xl.border.bg-surface\/90,
+main div.rounded-2xl.border.bg-surface\/85,
+main article.rounded-2xl.border {
+  border-color: rgba(56, 189, 248, 0.22);
+  box-shadow:
+    0 0 20px -2px rgba(56, 189, 248, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+main section.rounded-2xl.border:hover,
+main button.rounded-2xl.border:hover,
+main article.rounded-2xl.border:hover {
+  border-color: rgba(56, 189, 248, 0.40);
+  box-shadow:
+    0 0 26px -2px rgba(56, 189, 248, 0.20),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
 [data-slot="button"][data-variant="default"],
 button.bg-primary,
 button.bg-brand {
   letter-spacing: -0.01em;
-}
-.dark [data-slot="dialog-content"],
-.dark [data-slot="sheet-content"] {
-  background-color: var(--surface-raised);
 }
 
 /* Sonner Toast: Xóa nút đóng X và ẩn triệt để card rỗng */
@@ -1433,47 +1464,56 @@ input[type='number'] {
    ánh sáng dịu mắt (calm lighting), Zero CLS, Breathing room
    ========================================================================== */
 
-/* Nền Dialog/Modal Semi-Skeuomorphic: Viền 1px mỏng, sáng nhẹ ở giữa 2 cạnh bên */
-.skeuo-dialog-surface {
-  background: linear-gradient(180deg, #0c1527 0%, #080f1d 50%, #050a14 100%);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+/* ==========================================================================
+   Card Popup (Dialog, Modal, Sheet, Popover) - Thiết kế Buồng Bay Lơ Lửng 3D
+   Khi backdrop trong suốt (không làm tối đen nền), popup nổi bật nhờ:
+   1. Nền đặc xanh đen đa tầng (98% - 100% opacity) chống lọt chữ/hình phía sau.
+   2. Đường viền kép 1px cyan sắc sảo + gờ phản quang mép trên (Top Bevel).
+   3. Đổ bóng 3D tách lớp sâu thực tế (Deep Occlusion Shadow).
+   4. Vầng hào quang cyan (Ambient Cyan Aura) tỏa êm xung quanh đồng bộ với card cố định.
+   ========================================================================== */
+.skeuo-dialog-surface,
+.popup-surface-glow,
+[data-slot="dialog-content"],
+[data-slot="dialog-content"].card-side-glow,
+[data-slot="alert-dialog-content"] {
+  background: linear-gradient(180deg, rgba(14, 23, 42, 0.98) 0%, rgba(8, 14, 28, 0.99) 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.22) !important;
   box-shadow:
-    0 25px 80px rgba(0, 0, 0, 0.9),
-    inset 0 1px 1px rgba(255, 255, 255, 0.1);
-}
-.skeuo-dialog-surface::before,
-.skeuo-dialog-surface::after {
-  content: '';
-  position: absolute;
-  top: 30%;
-  bottom: 30%;
-  width: 1px;
-  pointer-events: none;
-  border-radius: 9999px;
-}
-.skeuo-dialog-surface::before {
-  left: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.40) 50%, transparent 100%);
-  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
-}
-.skeuo-dialog-surface::after {
-  right: -0.5px;
-  background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.40) 50%, transparent 100%);
-  box-shadow: 0 0 3px rgba(56, 189, 248, 0.18);
+    0 24px 70px -10px rgba(0, 0, 0, 0.90),
+    0 10px 30px -5px rgba(0, 0, 0, 0.75),
+    0 0 35px -2px rgba(56, 189, 248, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
 }
 
-/* Nền Card giả kim loại tối (Chưa chọn): Viền mỏng 1px, sáng nhẹ 2 cạnh bên */
+[data-slot="popover-content"] {
+  background: linear-gradient(180deg, rgba(14, 23, 42, 0.98) 0%, rgba(8, 14, 28, 0.99) 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.28) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    0 16px 45px -8px rgba(0, 0, 0, 0.85),
+    0 0 24px -2px rgba(56, 189, 248, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.10) !important;
+}
+
+/* Nền Card giả kim loại tối (Chưa chọn): Viền mỏng 1px, sáng nhẹ êm dịu toàn diện */
 .skeuo-card-base {
   background: linear-gradient(160deg, #0f192b 0%, #091120 100%);
-  border: 1px solid rgba(71, 85, 105, 0.4);
+  border: 1px solid rgba(56, 189, 248, 0.22);
   box-shadow:
+    0 0 20px -2px rgba(56, 189, 248, 0.12),
     inset 0 1px 1px rgba(255, 255, 255, 0.06),
     0 4px 14px rgba(0, 0, 0, 0.45);
   position: relative;
   transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 .skeuo-card-base:hover {
-  border-color: rgba(148, 163, 184, 0.5);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow:
+    0 0 26px -2px rgba(56, 189, 248, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08),
+    0 6px 18px rgba(0, 0, 0, 0.5);
   background: linear-gradient(160deg, #131e33 0%, #0c1426 100%);
 }
 .skeuo-card-base::before,
@@ -1527,9 +1567,12 @@ input[type='number'] {
   box-shadow: 0 0 4px rgba(245, 158, 11, 0.22);
 }
 
-/* Đường bao card có dải sáng nhẹ ở 2 bên cạnh để dễ nhận biết ranh giới card (Thanh mảnh 1px, dịu mắt) */
+/* Đường bao card có vầng sáng nhẹ êm dịu toàn diện + dải sáng thanh mảnh 1px ở 2 bên cạnh */
 .card-side-glow {
   position: relative;
+  box-shadow:
+    0 0 20px -2px rgba(56, 189, 248, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 .fixed.card-side-glow,
 [data-slot="dialog-content"].card-side-glow {
@@ -1558,6 +1601,11 @@ input[type='number'] {
 }
 
 /* Khi card được chọn (active) thì dải sáng 2 bên rõ nét hơn nhưng vẫn giữ đường nét thanh mảnh 1px */
+.card-side-glow-active {
+  box-shadow:
+    0 0 26px -2px rgba(56, 189, 248, 0.24),
+    inset 0 1px 1px rgba(255, 255, 255, 0.10);
+}
 .card-side-glow-active::before,
 .card-side-glow-active::after {
   top: 20%;
@@ -2106,19 +2154,24 @@ input[type='number'] {
   z-index: 50;
 }
 
-/* Sub-card cơ bản (Inactive, viền 1px mảnh đồng nhất) */
+/* Sub-card cơ bản (Inactive, viền 1px mảnh đồng nhất, vầng sáng nhẹ êm dịu) */
 .skeuo-subcard-base {
   background: linear-gradient(180deg, #131d31 0%, #0b1220 100%);
-  border: 1px solid rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.20);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.875rem;
   box-shadow:
+    0 0 16px -2px rgba(56, 189, 248, 0.10),
     inset 0 1px 1px rgba(255, 255, 255, 0.04),
     0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 .skeuo-subcard-base:hover {
-  border-color: rgba(56, 189, 248, 0.35);
+  border-color: rgba(56, 189, 248, 0.40);
+  box-shadow:
+    0 0 22px -2px rgba(56, 189, 248, 0.20),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08),
+    0 6px 16px rgba(0, 0, 0, 0.45);
 }
 
 /* Sub-card kích hoạt Amber Gold (Active, viền 1px dải sáng 2 bên) */

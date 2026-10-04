@@ -460,7 +460,7 @@ export function HomePage() {
 
       {/* ── Quick Nav Cards — 4 card Học tập, Game, Cộng đồng, Bảng xếp hạng ── */}
       <section aria-label="Điều hướng nhanh">
-        <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative">
+        <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative card-campus-glow">
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border-subtle">
             {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }, idx) => {
               const isCurrentSlide = slideIndex === idx
@@ -514,7 +514,7 @@ export function HomePage() {
                   key={i}
                   type="button"
                   onClick={item.onClick}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-colors duration-150 hover:border-brand/40 hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)] bg-surface/90 backdrop-blur-sm"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-colors duration-150 hover:border-brand/40 bg-surface/90 backdrop-blur-sm card-campus-glow"
                 >
                   {/* Ảnh bìa + Vùng 2: Badge được fix chuẩn, tinh tế, không trùng lặp */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
@@ -557,7 +557,7 @@ export function HomePage() {
                 <span className="ml-auto text-[11px] font-bold text-emerald-400">{onlineFriends.length} online</span>
               )}
             </div>
-            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-sm overflow-hidden card-campus-glow">
               {onlineFriends.length > 0 ? (
                 <div
                   ref={friendsDrag.ref}
@@ -626,7 +626,7 @@ export function HomePage() {
               <h2 className="text-sm font-bold text-text-primary">Tin nhắn sảnh trường</h2>
             </div>
 
-            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-3 shadow-sm">
+            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-3 shadow-sm card-campus-glow">
               {recentMessagesPreview.length > 0 ? (
                 <div className="overflow-y-auto max-h-[220px] scrollbar-thin space-y-2 pr-1">
                   {recentMessagesPreview.map((msg) => (
@@ -662,7 +662,7 @@ export function HomePage() {
           </section>
 
           {/* 5c: Bảng thi đua & Kỷ lục */}
-          <section aria-label="Bảng thi đua" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-950/15 overflow-hidden shadow-sm">
+          <section aria-label="Bảng thi đua" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-950/15 overflow-hidden shadow-sm card-campus-glow">
             <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-amber-500/15">
               <Trophy className="size-4 text-amber-400" />
               <h3 className="text-xs font-bold text-text-primary">Bảng thi đua &amp; Kỷ lục trường</h3>

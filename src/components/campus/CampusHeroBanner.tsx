@@ -41,7 +41,7 @@ export function CampusHeroBanner({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#14140f] shadow-2xl transition-all ${className}`}
+      className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_35px_rgba(56,189,248,0.12)] card-campus-glow transition-colors ${className}`}
       data-testid="campus-hero-banner"
     >
       {/* Background artwork layer */}
