@@ -20,23 +20,16 @@ import {
   Award,
   Camera,
   Download,
+  FileText,
   Flame,
   KeyRound,
   Pencil,
   ShieldCheck,
+  Trophy,
   User,
   Zap,
 } from 'lucide-react'
-import {
-  IconCrown3D,
-  IconPdf3D,
-  IconXpMedal3D,
-  IconShield3D,
-  IconTrophyGold3D,
-  IconStarSparkle,
-  PodiumTop3,
-  CornerBolts,
-} from '@/features/games/GameArt3D'
+import { PodiumTop3 } from '@/features/games/GameArt3D'
 import { toast } from 'sonner'
 
 const EMOJI_GOI_Y = ['💡', '✨', '🔥', '📚', '🎯', '🚀', '⭐', '🏆', '💪', '❤️', '😊', '🎓']
@@ -203,21 +196,19 @@ export function ProfilePage() {
     <div className="space-y-8">
       <PageHeader title="Hồ sơ" />
 
-      {/* ── Bìa danh tính & 4 Huy hiệu 3D (Đúng phong cách Mockup 2) ── */}
-      <section className="overflow-hidden rounded-2xl sm:rounded-3xl cyber-steel-card shadow-xl relative">
-        <CornerBolts />
-
-        {/* Bìa phong cảnh trường học lúc hoàng hôn */}
+      {/* ── Bìa danh tính & 4 Huy hiệu (Đồng bộ chuẩn giao diện thẻ của web) ── */}
+      <section className="overflow-hidden rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-xs relative">
+        {/* Bìa phong cảnh trường học */}
         <div
           className="h-44 sm:h-56 bg-cover bg-center relative"
           style={{ backgroundImage: 'url(/assets/profile/profile_cover_clean.jpg)' }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent" />
         </div>
 
         <div className="p-5 sm:p-6 -mt-12 sm:-mt-16 relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
-            {/* Avatar kim loại ánh ngọc sapphire */}
+            {/* Avatar người dùng */}
             <div className="relative shrink-0">
               <div
                 role="button"
@@ -232,19 +223,19 @@ export function ProfilePage() {
                 className="group/avatar relative block cursor-pointer rounded-2xl outline-none"
                 title="Nhấn để đổi ảnh đại diện"
               >
-                <Avatar className="size-20 sm:size-24 rounded-2xl ring-4 ring-amber-400/80 shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-transform duration-150 group-hover/avatar:scale-105">
+                <Avatar className="size-20 sm:size-24 rounded-2xl ring-2 ring-border-default shadow-md transition-transform duration-150 group-hover/avatar:scale-105">
                   {nguoiDung.avatar && (
                     <AvatarImage src={nguoiDung.avatar} alt={displayName} className="rounded-2xl object-cover" />
                   )}
-                  <AvatarFallback className="rounded-2xl bg-gradient-to-br from-amber-500/20 to-sky-500/20 text-2xl font-black text-amber-400">
+                  <AvatarFallback className="rounded-2xl bg-surface-raised text-2xl font-bold text-text-primary">
                     {chuCaiDau}
                   </AvatarFallback>
                 </Avatar>
 
                 {/* Overlay hover đổi avatar */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-black/60 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover/avatar:opacity-100">
-                  <Camera className="size-5 text-amber-300" />
-                  <span className="mt-1 text-[10px] font-bold text-amber-300">Đổi ảnh</span>
+                  <Camera className="size-5 text-white" />
+                  <span className="mt-1 text-[10px] font-bold text-white">Đổi ảnh</span>
                 </div>
               </div>
             </div>
@@ -276,10 +267,10 @@ export function ProfilePage() {
                       value={tenTam}
                       onChange={(e) => setTenTam(e.target.value)}
                       maxLength={TEN_HIEN_THI_TOI_DA}
-                      className="h-8 w-44 text-sm font-semibold cyber-stardust-input text-white"
+                      className="h-8 w-44 text-sm font-semibold bg-surface border-border-default text-text-primary"
                       ref={focusEditor}
                     />
-                    <Button type="submit" size="xs" disabled={dangLuuProfile} className="cyber-gold-btn text-xs font-bold">
+                    <Button type="submit" size="xs" disabled={dangLuuProfile} className="bg-brand hover:bg-brand/90 text-white text-xs font-bold">
                       Lưu
                     </Button>
                     <Button type="button" variant="ghost" size="xs" onClick={() => setDangSuaTen(false)}>
@@ -288,7 +279,7 @@ export function ProfilePage() {
                   </form>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-black tracking-wide text-white drop-shadow-md">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-text-primary">
                       {displayName}
                     </h2>
                     <button
@@ -297,7 +288,7 @@ export function ProfilePage() {
                         setTenTam(displayName)
                         setDangSuaTen(true)
                       }}
-                      className="p-1 text-slate-400 hover:text-amber-400 transition-colors rounded-lg hover:bg-slate-800/60 cursor-pointer"
+                      className="p-1 text-text-tertiary hover:text-brand transition-colors rounded-lg hover:bg-surface-raised cursor-pointer"
                       title="Chỉnh sửa tên hiển thị"
                       aria-label="Sửa tên"
                     >
@@ -312,10 +303,10 @@ export function ProfilePage() {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-sky-400/80 font-medium mt-0.5">@{nguoiDung.username}</p>
+              <p className="text-xs text-text-tertiary font-medium mt-0.5">@{nguoiDung.username}</p>
 
               {/* Suy nghĩ nhanh */}
-              <div className="mt-2.5 rounded-xl border border-sky-500/20 bg-black/40 px-3 py-1.5 min-h-[2rem] flex items-center justify-between gap-2 max-w-md">
+              <div className="mt-2.5 rounded-xl border border-border-default bg-surface-overlay/60 px-3 py-1.5 min-h-[2rem] flex items-center justify-between gap-2 max-w-md">
                 {dangSuaSuyNghi ? (
                   <form onSubmit={handleLuuSuyNghiNhanh} className="w-full space-y-2">
                     <Input
@@ -323,17 +314,17 @@ export function ProfilePage() {
                       onChange={(e) => setSuyNghiTam(e.target.value)}
                       placeholder="Nhập suy nghĩ của bạn…"
                       maxLength={150}
-                      className="h-8 text-xs cyber-stardust-input text-white"
+                      className="h-8 text-xs bg-surface border-border-default text-text-primary"
                       autoFocus
                     />
                     <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[10px] text-slate-400 mr-1">Icon:</span>
+                      <span className="text-[10px] text-text-tertiary mr-1">Icon:</span>
                       {EMOJI_GOI_Y.map((em) => (
                         <button
                           key={em}
                           type="button"
                           onClick={() => setSuyNghiTam((prev) => (prev ? prev + ' ' + em : em))}
-                          className="size-6 text-xs rounded hover:bg-slate-700 transition-all flex items-center justify-center cursor-pointer"
+                          className="size-6 text-xs rounded hover:bg-surface-raised transition-all flex items-center justify-center cursor-pointer"
                         >
                           {em}
                         </button>
@@ -343,14 +334,14 @@ export function ProfilePage() {
                       <Button type="button" variant="ghost" size="xs" onClick={() => setDangSuaSuyNghi(false)}>
                         Hủy
                       </Button>
-                      <Button type="submit" size="xs" disabled={dangLuuProfile} className="cyber-gold-btn text-xs font-bold">
+                      <Button type="submit" size="xs" disabled={dangLuuProfile} className="bg-brand hover:bg-brand/90 text-white text-xs font-bold">
                         {dangLuuProfile ? 'Đang lưu…' : 'Lưu'}
                       </Button>
                     </div>
                   </form>
                 ) : (
                   <>
-                    <p className="text-xs italic text-slate-300 break-words line-clamp-1 flex-1">
+                    <p className="text-xs italic text-text-secondary break-words line-clamp-1 flex-1">
                       {tieuDeHoSo ? `"${tieuDeHoSo}"` : '"Chưa có suy nghĩ nào."'}
                     </p>
                     <button
@@ -359,7 +350,7 @@ export function ProfilePage() {
                         setSuyNghiTam(tieuDeHoSo)
                         setDangSuaSuyNghi(true)
                       }}
-                      className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 shrink-0 cursor-pointer ml-1"
+                      className="flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline shrink-0 cursor-pointer ml-1"
                       title="Chỉnh sửa suy nghĩ"
                     >
                       <Pencil className="size-3" />
@@ -371,27 +362,27 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {/* 4 Huy hiệu Cyber Glow nổi bật (Mockup 2) */}
+          {/* 4 Huy hiệu thống kê chuẩn giao diện campus */}
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-            {/* Badge 1: Ribbon Medal XP */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-amber-400/50 bg-gradient-to-r from-amber-500/15 to-amber-600/10 text-amber-300 font-bold text-xs shadow-[0_0_15px_rgba(245,158,11,0.25)] select-none">
-              <IconXpMedal3D size={20} />
-              <span>{soLieu(profile?.totalXp) ?? '0'} XP</span>
+            {/* Badge 1: XP */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border-default bg-surface-overlay/80 text-xs font-semibold text-text-secondary select-none shadow-xs">
+              <Zap className="size-4 text-amber-400" />
+              <span className="text-text-primary font-bold">{soLieu(profile?.totalXp) ?? '0'} XP</span>
             </div>
-            {/* Badge 2: Class Shield */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-sky-400/50 bg-gradient-to-r from-sky-500/15 to-blue-600/10 text-sky-300 font-bold text-xs shadow-[0_0_15px_rgba(56,189,248,0.25)] select-none">
-              <IconShield3D size={20} />
-              <span>{nguoiDung.lop?.ten || leaderboardData?.lopTen || 'Lớp 10A7'}</span>
+            {/* Badge 2: Lớp */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border-default bg-surface-overlay/80 text-xs font-semibold text-text-secondary select-none shadow-xs">
+              <ShieldCheck className="size-4 text-sky-400" />
+              <span className="text-text-primary font-bold">{nguoiDung.lop?.ten || leaderboardData?.lopTen || 'Lớp 10A7'}</span>
             </div>
-            {/* Badge 3: Trophy Ranking */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-purple-400/50 bg-gradient-to-r from-purple-500/15 to-indigo-600/10 text-purple-300 font-bold text-xs shadow-[0_0_15px_rgba(168,85,247,0.25)] select-none">
-              <IconTrophyGold3D size={20} />
-              <span>{myRank} BXH</span>
+            {/* Badge 3: BXH */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border-default bg-surface-overlay/80 text-xs font-semibold text-text-secondary select-none shadow-xs">
+              <Award className="size-4 text-purple-400" />
+              <span className="text-text-primary font-bold">{myRank} BXH</span>
             </div>
-            {/* Badge 4: Streaks Flame */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-orange-400/50 bg-gradient-to-r from-orange-500/15 to-red-600/10 text-orange-300 font-bold text-xs shadow-[0_0_15px_rgba(249,115,22,0.25)] select-none">
-              <Flame className="size-4.5 text-orange-400 fill-orange-400" />
-              <span>{soLieu(profile?.currentStreak) ?? '0'} Streaks</span>
+            {/* Badge 4: Streaks */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border-default bg-surface-overlay/80 text-xs font-semibold text-text-secondary select-none shadow-xs">
+              <Flame className="size-4 text-orange-400 fill-orange-400" />
+              <span className="text-text-primary font-bold">{soLieu(profile?.currentStreak) ?? '0'} Streaks</span>
             </div>
           </div>
         </div>
@@ -402,10 +393,9 @@ export function ProfilePage() {
         {/* CỘT TRÁI (7 CỘT) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card 1: Bảng vinh danh Top 3 Podiums & Bảng xếp hạng tuần */}
-          <section className="rounded-2xl cyber-steel-card p-5 sm:p-6 overflow-hidden relative shadow-lg">
-            <CornerBolts />
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <IconCrown3D size={22} />
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 overflow-hidden relative shadow-xs">
+            <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
+              <Trophy className="size-5 text-amber-500" />
               <span>Bảng vinh danh</span>
             </h3>
 
@@ -453,49 +443,49 @@ export function ProfilePage() {
                 )}
               </div>
             ) : (
-              <div className="h-28 flex items-center justify-center text-xs text-slate-400 font-medium">
+              <div className="h-28 flex items-center justify-center text-xs text-text-tertiary font-medium">
                 Bảng xếp hạng tuần sẽ xuất hiện khi có học sinh tích luỹ XP
               </div>
             )}
 
             {/* Bảng xếp hạng chi tiết bên dưới */}
             {leaderboardData?.items && leaderboardData.items.length > 0 && (
-              <div className="mt-5 border-t border-slate-700/60 pt-4">
+              <div className="mt-5 border-t border-border-subtle pt-4">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="text-slate-400 border-b border-slate-700/40 pb-2">
+                      <tr className="text-text-tertiary border-b border-border-subtle pb-2">
                         <th className="py-2 pl-2 font-bold w-12">Hạng</th>
                         <th className="py-2 font-bold">Thành viên</th>
                         <th className="py-2 font-bold text-right pr-2">XP Tuần</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-border-subtle">
                       {leaderboardData.items.slice(0, 5).map((user, idx) => {
                         const isMe = user.accountId === String(nguoiDung.accountId)
                         return (
                           <tr
                             key={user.accountId}
                             className={cn(
-                              'hover:bg-slate-800/40 transition-colors',
+                              'hover:bg-surface-overlay/50 transition-colors',
                               isMe && 'bg-amber-500/10 font-bold',
                             )}
                           >
-                            <td className="py-2.5 pl-2 font-black text-amber-400">
+                            <td className="py-2.5 pl-2 font-black text-amber-500">
                               #{idx + 1}
                             </td>
                             <td className="py-2.5">
                               <div className="flex items-center gap-2">
-                                <Avatar className="size-6 rounded-lg ring-1 ring-slate-600">
+                                <Avatar className="size-6 rounded-lg ring-1 ring-border-default">
                                   <AvatarImage src={user.avatarUrl || undefined} />
                                   <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                                 </Avatar>
-                                <span className={cn('truncate max-w-[140px] text-white', isMe && 'text-amber-300')}>
+                                <span className={cn('truncate max-w-[140px] text-text-primary', isMe && 'text-amber-500')}>
                                   {user.displayName}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-2.5 pr-2 text-right font-black text-amber-400">
+                            <td className="py-2.5 pr-2 text-right font-black text-amber-500">
                               +{user.weeklyXp.toLocaleString('vi-VN')} XP
                             </td>
                           </tr>
@@ -508,30 +498,29 @@ export function ProfilePage() {
             )}
           </section>
 
-          {/* Card 2: Tập tin học tập (Khung kim loại đồng thau 3D vát cạnh Brass Plate) */}
-          <section className="rounded-2xl cyber-brass-plate p-5 sm:p-6 overflow-hidden relative shadow-xl">
-            <CornerBolts color="brass" />
+          {/* Card 2: Tập tin học tập */}
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 overflow-hidden relative shadow-xs">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-amber-300 flex items-center gap-2">
-                <IconPdf3D size={24} />
+              <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <FileText className="size-5 text-brand" />
                 <span>Tập tin học tập</span>
               </h3>
             </div>
 
-            {/* 2 Khung rãnh thông số đồng thau âm bản (Mockup 2) */}
+            {/* 2 Khung thông số chuyên cần & tích luỹ */}
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-600/40 bg-black/40 shadow-inner">
-                <Flame className="size-5 text-amber-400 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-surface-overlay/50">
+                <Flame className="size-5 text-orange-500 shrink-0" />
                 <div>
-                  <p className="text-sm font-black text-amber-300 tabular-nums">{profile?.currentStreak ?? 0} Ngày</p>
-                  <p className="text-[10px] text-amber-400/80 font-medium">Chuyên cần</p>
+                  <p className="text-sm font-bold text-text-primary tabular-nums">{profile?.currentStreak ?? 0} Ngày</p>
+                  <p className="text-[11px] text-text-tertiary font-medium">Chuyên cần</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-600/40 bg-black/40 shadow-inner">
-                <Zap className="size-5 text-amber-400 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-surface-overlay/50">
+                <Zap className="size-5 text-amber-500 shrink-0" />
                 <div>
-                  <p className="text-sm font-black text-amber-300 tabular-nums">{profile?.totalXp ?? 0} XP</p>
-                  <p className="text-[10px] text-amber-400/80 font-medium">Tích luỹ</p>
+                  <p className="text-sm font-bold text-text-primary tabular-nums">{profile?.totalXp ?? 0} XP</p>
+                  <p className="text-[11px] text-text-tertiary font-medium">Tích luỹ</p>
                 </div>
               </div>
             </div>
@@ -545,19 +534,21 @@ export function ProfilePage() {
               ].map((file) => (
                 <div
                   key={file.title}
-                  className="flex items-center justify-between p-3 rounded-xl border border-amber-600/40 bg-[#160e06]/80 hover:border-amber-400/60 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-overlay/30 hover:bg-surface-overlay/60 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <IconPdf3D size={28} className="shrink-0" />
+                    <div className="size-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0 text-red-500 font-bold text-[10px] tracking-wide">
+                      PDF
+                    </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-amber-100 truncate">{file.title}</p>
-                      <p className="text-[10px] text-amber-400/70">{file.size}</p>
+                      <p className="text-xs font-semibold text-text-primary truncate">{file.title}</p>
+                      <p className="text-[11px] text-text-tertiary">{file.size}</p>
                     </div>
                   </div>
                   <a
                     href="/assets/learning/tai-lieu-mau.pdf"
                     download
-                    className="p-2 rounded-lg border border-amber-600/60 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-colors"
+                    className="p-2 rounded-lg border border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary transition-colors"
                     title="Tải về"
                   >
                     <Download className="size-3.5" />
@@ -570,17 +561,16 @@ export function ProfilePage() {
 
         {/* CỘT PHẢI (5 CỘT) */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Card 3: Thông tin cá nhân (Thép phay xước có 4 ốc vít) */}
-          <section className="rounded-2xl cyber-steel-card p-5 sm:p-6 relative shadow-lg">
-            <CornerBolts />
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <User className="size-5 text-sky-400" />
+          {/* Card 3: Thông tin cá nhân */}
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs">
+            <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
+              <User className="size-5 text-brand" />
               <span>Thông tin cá nhân</span>
             </h3>
 
             <form onSubmit={handleUpdateProfile} className="mt-4 space-y-3.5">
               <div className="space-y-1.5">
-                <Label htmlFor="ho-so-ten" className="text-xs font-bold text-slate-300">
+                <Label htmlFor="ho-so-ten" className="text-xs font-semibold text-text-secondary">
                   Họ và tên
                 </Label>
                 <Input
@@ -590,13 +580,13 @@ export function ProfilePage() {
                   placeholder="Nhập họ và tên…"
                   autoComplete="name"
                   maxLength={TEN_HIEN_THI_TOI_DA}
-                  className="cyber-stardust-input text-white rounded-xl h-9.5 text-xs font-semibold"
+                  className="rounded-xl border border-border-default bg-surface text-text-primary placeholder:text-text-tertiary h-9.5 text-xs font-medium focus:border-brand focus:ring-1 focus:ring-brand"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="ho-so-ngaysinh" className="text-xs font-bold text-slate-300">
+                <Label htmlFor="ho-so-ngaysinh" className="text-xs font-semibold text-text-secondary">
                   Ngày tháng năm sinh
                 </Label>
                 <Input
@@ -604,12 +594,12 @@ export function ProfilePage() {
                   type="date"
                   value={ngaySinh}
                   onChange={(e) => setNgaySinh(e.target.value)}
-                  className="cyber-stardust-input text-white rounded-xl h-9.5 text-xs font-semibold"
+                  className="rounded-xl border border-border-default bg-surface text-text-primary placeholder:text-text-tertiary h-9.5 text-xs font-medium focus:border-brand focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="ho-so-noisinhsong" className="text-xs font-bold text-slate-300">
+                <Label htmlFor="ho-so-noisinhsong" className="text-xs font-semibold text-text-secondary">
                   Nơi sinh sống
                 </Label>
                 <Input
@@ -618,12 +608,12 @@ export function ProfilePage() {
                   onChange={(e) => setNoiSinhSong(e.target.value)}
                   placeholder="Ví dụ: Định Quán, Đồng Nai"
                   maxLength={100}
-                  className="cyber-stardust-input text-white rounded-xl h-9.5 text-xs font-semibold"
+                  className="rounded-xl border border-border-default bg-surface text-text-primary placeholder:text-text-tertiary h-9.5 text-xs font-medium focus:border-brand focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="ho-so-sdt" className="text-xs font-bold text-slate-300">
+                <Label htmlFor="ho-so-sdt" className="text-xs font-semibold text-text-secondary">
                   SĐT liên hệ
                 </Label>
                 <Input
@@ -633,12 +623,12 @@ export function ProfilePage() {
                   onChange={(e) => setSdtLienHe(e.target.value)}
                   placeholder="Ví dụ: 0912 345 678"
                   maxLength={20}
-                  className="cyber-stardust-input text-white rounded-xl h-9.5 text-xs font-semibold"
+                  className="rounded-xl border border-border-default bg-surface text-text-primary placeholder:text-text-tertiary h-9.5 text-xs font-medium focus:border-brand focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="ho-so-sothich" className="text-xs font-bold text-slate-300">
+                <Label htmlFor="ho-so-sothich" className="text-xs font-semibold text-text-secondary">
                   Sở thích
                 </Label>
                 <Input
@@ -647,28 +637,26 @@ export function ProfilePage() {
                   onChange={(e) => setSoThich(e.target.value)}
                   placeholder="Ví dụ: Đọc sách, lập trình, cờ vua…"
                   maxLength={200}
-                  className="cyber-stardust-input text-white rounded-xl h-9.5 text-xs font-semibold"
+                  className="rounded-xl border border-border-default bg-surface text-text-primary placeholder:text-text-tertiary h-9.5 text-xs font-medium focus:border-brand focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="pt-2">
-                <button
+                <Button
                   type="submit"
                   disabled={dangLuuProfile}
-                  className="cyber-gold-btn w-full rounded-xl py-2.5 text-xs font-black cursor-pointer transition-colors duration-150 flex items-center justify-center gap-2"
+                  className="w-full rounded-xl py-2.5 h-10 text-xs font-bold bg-brand hover:bg-brand/90 text-white shadow-xs cursor-pointer"
                 >
-                  <IconStarSparkle className="size-3.5" />
                   <span>{dangLuuProfile ? 'Đang lưu…' : 'Lưu thay đổi'}</span>
-                </button>
+                </Button>
               </div>
             </form>
           </section>
 
           {/* Card 4: Bảo mật & Liên kết Google */}
-          <section className="rounded-2xl cyber-steel-card p-5 sm:p-6 relative shadow-lg">
-            <CornerBolts />
-            <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4">
-              <ShieldCheck className="size-5 text-emerald-400" />
+          <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs">
+            <h3 className="text-base font-bold text-text-primary flex items-center gap-2 mb-4">
+              <ShieldCheck className="size-5 text-success" />
               <span>Bảo mật & Liên kết</span>
             </h3>
 
@@ -677,18 +665,17 @@ export function ProfilePage() {
               <LienKetGoogle />
 
               {/* Nút Đổi mật khẩu nhanh */}
-              <div className="pt-3 border-t border-slate-700/60 flex items-center justify-between">
+              <div className="pt-3 border-t border-border-subtle flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-white">Mật khẩu tài khoản</p>
-                  <p className="text-[10px] text-slate-400">Đổi mật khẩu định kỳ để bảo vệ tài khoản</p>
+                  <p className="text-xs font-semibold text-text-primary">Mật khẩu tài khoản</p>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setMoDoiMatKhauModal(true)}
-                  className="gap-1.5 border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold"
+                  className="gap-1.5 border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold rounded-xl"
                 >
-                  <KeyRound className="size-3.5" />
+                  <KeyRound className="size-3.5 text-text-tertiary" />
                   <span>Đổi mật khẩu</span>
                 </Button>
               </div>
@@ -696,14 +683,7 @@ export function ProfilePage() {
           </section>
 
           {/* Card 5: Tiến trình học tập */}
-          <section className="rounded-2xl cyber-steel-card p-5 sm:p-6 relative shadow-lg">
-            <CornerBolts />
-            <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4">
-              <Award className="size-5 text-amber-400" />
-              <span>Tiến trình học tập</span>
-            </h3>
-            <ProgressPanel />
-          </section>
+          <ProgressPanel />
         </div>
       </div>
 

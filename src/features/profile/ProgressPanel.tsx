@@ -46,7 +46,6 @@ export function ProgressPanel() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Tiến trình học tập</h3>
-            <p className="mt-0.5 text-sm text-text-secondary">Chuỗi ngày và XP được tính từ các buổi học, thử thách đã hoàn thành.</p>
           </div>
           <div className="max-sm:day-loc-deu w-full gap-2 sm:flex sm:w-auto [--the-nho-nhat:9rem]">
             <Button variant="outline" size="sm" onClick={() => setMoHuyHieu(true)}>
