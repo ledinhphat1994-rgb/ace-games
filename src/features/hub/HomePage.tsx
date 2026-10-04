@@ -9,6 +9,7 @@ import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { GAME_CATALOG } from '@/features/games/game-catalog'
 import {
   ArrowRight,
@@ -22,6 +23,7 @@ import {
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatFriendArea } from '@/features/hub/social-semantics'
 
 // Vùng 2: Quick Nav — 4 mục điều hướng nhanh tích hợp trong banner
 const QUICK_NAV = [
@@ -86,6 +88,7 @@ export function HomePage() {
   const [isPaused, setIsPaused] = useState(false)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -256,7 +259,7 @@ export function HomePage() {
 
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
-      toast.error('Phòng học đã đầy số lượng người tham gia!')
+      toast.error('Phòng học đã đầy')
       return
     }
     if (room.coMatKhau) {
@@ -457,7 +460,7 @@ export function HomePage() {
 
       {/* ── Quick Nav Cards — 4 card Học tập, Game, Cộng đồng, Bảng xếp hạng ── */}
       <section aria-label="Điều hướng nhanh">
-        <div className="rounded-2xl border border-border-default/60 bg-surface shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative">
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border-subtle">
             {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }, idx) => {
               const isCurrentSlide = slideIndex === idx
@@ -511,7 +514,7 @@ export function HomePage() {
                   key={i}
                   type="button"
                   onClick={item.onClick}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-all duration-200 hover:border-brand/40 hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)] bg-surface"
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-colors duration-150 hover:border-brand/40 hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)] bg-surface/90 backdrop-blur-sm"
                 >
                   {/* Ảnh bìa + Vùng 2: Badge được fix chuẩn, tinh tế, không trùng lặp */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
@@ -554,7 +557,7 @@ export function HomePage() {
                 <span className="ml-auto text-[11px] font-bold text-emerald-400">{onlineFriends.length} online</span>
               )}
             </div>
-            <div className="rounded-2xl border border-border-default/80 bg-surface shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-sm overflow-hidden">
               {onlineFriends.length > 0 ? (
                 <div
                   ref={friendsDrag.ref}
@@ -563,22 +566,34 @@ export function HomePage() {
                 >
                   {onlineFriends.map((f) => {
                     const presence = presenceMap[f.id]
-                    const statusText =
-                      presence?.activity?.type === 'room' ? 'Đang trong phòng học'
-                      : presence?.state === 'away' ? 'Tạm vắng'
-                      : 'Đang trực tuyến'
+                    const statusText = formatFriendArea(presence, true)
                     return (
                       <div key={f.id} className="flex items-center justify-between gap-2.5 px-4 py-3 hover:bg-surface-raised transition-colors group">
-                        <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setNguoiXem({
+                              id: f.id,
+                              ten: f.displayName,
+                              avatar: f.avatar,
+                              lopTen: f.lopTen,
+                              anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                            })
+                          }}
+                          className="flex items-center gap-3 min-w-0 text-left cursor-pointer group/friend-btn focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand rounded-lg"
+                          aria-label={`Xem thông tin ${f.displayName}`}
+                          title={`Xem thông tin ${f.displayName}`}
+                        >
                           <div className="relative shrink-0">
-                            <AnhNguoiDung avatar={f.avatar} ten={f.displayName} className="h-8 w-8 rounded-full" />
+                            <AnhNguoiDung avatar={f.avatar} ten={f.displayName} className="h-8 w-8 rounded-full group-hover/friend-btn:ring-2 group-hover/friend-btn:ring-brand/40 transition-all" />
                             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border-2 border-surface" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-text-primary truncate">{f.displayName}</p>
+                            <p className="text-xs font-bold text-text-primary truncate group-hover/friend-btn:text-brand transition-colors">{f.displayName}</p>
                             <p className="text-[11px] text-text-tertiary truncate">{statusText}</p>
                           </div>
-                        </div>
+                        </button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -611,7 +626,7 @@ export function HomePage() {
               <h2 className="text-sm font-bold text-text-primary">Tin nhắn sảnh trường</h2>
             </div>
 
-            <div className="rounded-2xl border border-border-default/80 bg-surface p-3 shadow-sm">
+            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-3 shadow-sm">
               {recentMessagesPreview.length > 0 ? (
                 <div className="overflow-y-auto max-h-[220px] scrollbar-thin space-y-2 pr-1">
                   {recentMessagesPreview.map((msg) => (
@@ -689,6 +704,7 @@ export function HomePage() {
           }}
         />
       )}
+      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
     </div>
   )
 }

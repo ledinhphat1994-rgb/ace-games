@@ -12,12 +12,23 @@
     "**/node_modules": true,
     "dist": true,
     ".wrangler": true,
-    "package-lock.json": true
+    "package-lock.json": true,
+    "**/.git": true,
+    "**/.system_generated": true,
+    "**/.tempmediaStorage": true,
+    "**/.vite": true,
+    "**/coverage": true
   },
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/dist/**": true,
-    "**/.wrangler/**": true
+    "**/.wrangler/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.system_generated/**": true,
+    "**/.tempmediaStorage/**": true,
+    "**/.vite/**": true,
+    "**/coverage/**": true
   },
   "eslint.useFlatConfig": true,
   "eslint.validate": ["javascript"],

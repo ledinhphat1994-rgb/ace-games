@@ -1,8 +1,27 @@
 import type { CSSProperties } from "react"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { Toaster as Sonner, toast as SonnerToast, type ToasterProps } from "sonner"
 import { CheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 import { useTheme } from '@/app/theme'
+
+// Guard sonner methods against empty/falsy messages to prevent empty toast cards
+if (typeof window !== "undefined") {
+  const rawToast = SonnerToast as any
+  const methods = ["success", "error", "info", "warning", "message"] as const
+  for (const m of methods) {
+    const orig = rawToast[m]
+    if (typeof orig === "function" && !orig.__dc_guarded) {
+      const wrapped = (message: any, data?: any) => {
+        if (!message || (typeof message === "string" && !message.trim())) {
+          return undefined
+        }
+        return orig(message, data)
+      }
+      wrapped.__dc_guarded = true
+      rawToast[m] = wrapped
+    }
+  }
+}
 
 const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
   const { resolved } = useTheme()
@@ -11,7 +30,7 @@ const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
       theme={resolved}
       className="toaster group"
       position={position}
-      closeButton
+      closeButton={false}
       duration={2500}
       icons={{
         success: (
@@ -46,20 +65,15 @@ const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
           "--normal-bg": "var(--surface-raised)",
           "--normal-text": "var(--text-primary)",
           "--normal-border": "var(--border-strong)",
-          "--border-radius": "9999px",
-          "--toast-close-button-start": "unset",
-          "--toast-close-button-end": "0.625rem",
-          "--toast-close-button-top": "50%",
-          "--toast-close-button-transform": "translateY(-50%)",
+          "--border-radius": "1rem",
         } as CSSProperties
       }
       toastOptions={{
         duration: 2500,
         classNames: {
-          toast: "cn-toast !flex !items-center !gap-2.5 !py-2 !pl-2.5 !pr-10 !rounded-full !w-fit !max-w-[min(92vw,420px)] !min-w-0 !shadow-lg",
-          title: "!text-left !font-semibold !text-[0.875rem] !text-text-primary !leading-snug !whitespace-nowrap",
-          description: "!text-left !text-xs !text-text-secondary !leading-normal",
-          closeButton: "!absolute !top-1/2 !right-2.5 !left-auto !size-5.5 !rounded-full !border !border-border-default !bg-surface-overlay hover:!bg-surface-interactive !text-text-tertiary hover:!text-text-primary flex items-center justify-center transition-all cursor-pointer",
+          toast: "cn-toast !flex !items-center !gap-2.5 !py-2.5 !px-3.5 !rounded-2xl !w-fit !max-w-[min(92vw,480px)] !min-w-0 !shadow-lg relative",
+          title: "!text-left !font-semibold !text-xs sm:!text-[0.875rem] !text-text-primary !leading-snug !break-words !line-clamp-2",
+          description: "!text-left !text-xs !text-text-secondary !leading-normal !break-words",
         },
       }}
       {...props}

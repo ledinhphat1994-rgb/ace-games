@@ -3,7 +3,7 @@
 // "Ghép trận nhanh" không bao giờ kết nối được.
 import { describe, expect, it } from 'vitest'
 import type { GameType, GoiGame } from '../shared/protocol/game'
-import { MAU_MA_BAN, laTroChoiDon, nenKhoiTaoBan, nenTuVaoBan, taoMaBan } from '../src/features/games/game-ids'
+import { MAU_MA_BAN, laTroChoiDon, nenKhoiTaoBan, nenTuVaoBan, taoMaBan, SLUG_TIENG_VIET_GAME } from '../src/features/games/game-ids'
 import workerRaw from '../worker/index.ts?raw'
 import { dangNhapLayCookie, moKetNoi } from './ws'
 
@@ -20,7 +20,8 @@ describe('Mã bàn của sảnh Game', () => {
       for (const random of [0, 0.5, 0.123456789, 0.999999]) {
         const ma = taoMaBan(loai, 1_790_000_000_000, random)
         expect(ma, `${loai} -> ${ma}`).toMatch(MAU_MA_BAN)
-        expect(ma.startsWith(loai.replace(/_/g, '-') + '-')).toBe(true)
+        const expectedPrefix = (SLUG_TIENG_VIET_GAME[loai] || loai.replace(/_/g, '-')) + '-'
+        expect(ma.startsWith(expectedPrefix)).toBe(true)
       }
     }
   })

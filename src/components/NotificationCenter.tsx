@@ -9,6 +9,7 @@ import {
   Loader2,
   Megaphone,
   ShieldAlert,
+  Star,
   Trophy,
   UserCheck,
   UserPlus,
@@ -56,7 +57,7 @@ interface NotificationItemProps {
 
 function NotificationItem({ n, onDismiss }: NotificationItemProps) {
   const navigate = useNavigate()
-  const { acceptFriendRequest, rejectFriendRequest, socialState, lamMoiSocialState } = useCampusContext()
+  const { acceptFriendRequest, rejectFriendRequest, socialState, lamMoiSocialState, chapNhanBanThan, huyBanThan } = useCampusContext()
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null)
 
   const requestId = n.meta?.requestId
@@ -76,6 +77,43 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
   const coYeuCauCho = Boolean(
     requestId && socialState?.incomingRequests.some((r) => r.id === requestId),
   )
+
+  const isCloseFriendRequest = n.meta?.subType === 'close_friend_request'
+  const isCloseFriendAccepted = n.meta?.subType === 'close_friend_accepted'
+
+  const banBeItem = actorId ? socialState?.friends.find((f) => f.id === actorId) : undefined
+  const daLaBanThan = banBeItem?.isCloseFriend === true
+
+  const handleAcceptCloseFriend = useCallback(async () => {
+    if (!actorId) return
+    setBusy('accept')
+    try {
+      const kq = await chapNhanBanThan(actorId)
+      if (kq.ok) {
+        toast.success('Đã trở thành Bạn thân ⭐!')
+        onDismiss(nid)
+      } else {
+        toast.error(kq.loi ?? 'Không thể chấp nhận bạn thân.')
+      }
+    } finally {
+      setBusy(null)
+    }
+  }, [actorId, nid, chapNhanBanThan, onDismiss])
+
+  const handleRejectCloseFriend = useCallback(async () => {
+    if (!actorId) return
+    setBusy('reject')
+    try {
+      const kq = await huyBanThan(actorId)
+      if (kq.ok) {
+        onDismiss(nid)
+      } else {
+        toast.error(kq.loi ?? 'Không thể từ chối.')
+      }
+    } finally {
+      setBusy(null)
+    }
+  }, [actorId, nid, huyBanThan, onDismiss])
 
   const handleAccept = useCallback(async () => {
     if (!requestId) return
@@ -162,11 +200,34 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
     }
   }, [invitationId, nid, onDismiss])
 
-  const kieu = KIEU_THONG_BAO[n.type] ?? KIEU_THONG_BAO.system_announcement
+  const kieu = (isCloseFriendRequest || isCloseFriendAccepted)
+    ? { icon: Star, mau: 'bg-warning/15 text-warning' }
+    : (KIEU_THONG_BAO[n.type] ?? KIEU_THONG_BAO.system_announcement)
   const Icon = kieu.icon
 
   let hanhDong: ReactNode = null
-  if (n.type === 'friend_request') {
+  if (isCloseFriendRequest) {
+    if (daLaBanThan) {
+      hanhDong = (
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-warning">
+          <Star className="size-3.5 fill-warning" />
+          Đã là Bạn thân
+        </span>
+      )
+    } else if (!n.read && actorId) {
+      hanhDong = (
+        <>
+          <Button size="xs" disabled={busy !== null} onClick={handleAcceptCloseFriend} className="bg-warning text-black hover:bg-warning/90 font-semibold gap-1">
+            {busy === 'accept' ? <Loader2 className="animate-spin size-3.5" /> : <Star className="size-3.5 fill-current" />}
+            Xác nhận Bạn thân ⭐
+          </Button>
+          <Button size="xs" variant="outline" disabled={busy !== null} onClick={handleRejectCloseFriend}>
+            Từ chối
+          </Button>
+        </>
+      )
+    }
+  } else if (n.type === 'friend_request') {
     if (daLaBan) {
       hanhDong = (
         <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">

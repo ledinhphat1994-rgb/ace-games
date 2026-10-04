@@ -8,6 +8,7 @@
 > 4. Không bao giờ thu hẹp kiến trúc thành một website lớp học hay LMS đơn lẻ.
 > 5. Không tin tưởng báo cáo lý thuyết hơn bằng chứng mã nguồn và runtime thực tế.
 > 6. Độ chính xác chức năng & sự tin cậy luôn đi trước vẻ bóng bẩy giao diện.
+> 7. **BẮT BUỘC ĐỌC VÀ TUÂN THỦ TOÀN BỘ QUY TẮC THIẾT KẾ GIAO DIỆN WEB (Mục 6, 7, 8, 9, 10, 11, 12 bên dưới và [.agents/rules/10-ui-ux-layout-constitution.md](.agents/rules/10-ui-ux-layout-constitution.md)) TRƯỚC KHI THỰC THI CHỈNH SỬA BẤT KỲ GIAO DIỆN NÀO.**
 
 ## 1. Kiến trúc hệ thống chính thức
 - **Runtime & Deployment:** Cloudflare Workers + Static Assets + Durable Objects (SQLite, WebSocket Hibernation API) + D1 Database + KV (Rate Limit) + R2 (Lưu trữ ảnh & media).
@@ -23,13 +24,14 @@ Tóm gọn: **Sửa local → test đúng lỗi → final local check 1 lần �
    Chỉ chạy test liên quan trực tiếp đến phần đang sửa (ví dụ: `npx vitest run test/my-file.test.ts`). Lỗi thì sửa tiếp local.
    *Cấm:* Không full test, không build, không GitHub CI, không staging trong vòng lặp debug.
 
-2. **XONG → CHECK LOCAL 1 LẦN:**
+2. **XONG → CHECK LOCAL 1 LẦN (Tối ưu CPU & Tốc độ):**
    Chỉ khi đã hoàn thành toàn bộ sửa đổi mới chạy Local Final Gate (DUY NHẤT 1 LẦN):
    - `npm run typecheck` (0 lỗi)
    - `npm run lint` (0 lỗi)
-   - `npm test` (100% xanh)
+   - **Targeted Test** (`npx vitest run test/<file-lien-quan>.test.ts`, 100% xanh)
    - `npm run build:bundle` (`vite build`, không lặp lại typecheck)
    - `git diff --check` (0 lỗi whitespace / conflict)
+   *Lưu ý quan trọng:* **BỎ HẲN `npm test` toàn bộ (113 files, 1.349 tests)** trong flow thường ngày và UI tasks để tránh ngốn CPU, nóng máy và mất thời gian (2-3 phút). Toàn bộ test suite chỉ chạy 1 lần duy nhất khi chuẩn bị Deploy Production hoặc khi User yêu cầu rõ ràng.
    PASS hết mới commit/push. Pre-commit chỉ check staged diff & lint file staged. Không chạy GitHub CI.
 
 3. **STAGING CHỈ KHI THẬT SỰ CẦN:**
@@ -39,8 +41,10 @@ Tóm gọn: **Sửa local → test đúng lỗi → final local check 1 lần �
 4. **PRODUCTION → GUARD → DEPLOY → SMOKE:**
    Khi được duyệt: `main sạch + HEAD == origin/main + config production đúng → deploy → smoke`.
    Chỉ kiểm tra thêm migration/RoomDO/auth/voice khi diff thật sự đụng các phần đó.
+   Chạy full test suite (`npm test`) trước khi kích hoạt quy trình deploy production.
 
 ### Những thứ BỎ HẲN khỏi flow thường ngày:
+- **BỎ HẲN `npm test` toàn bộ trong flow thường ngày / UI tasks** (chỉ chạy Targeted Test 2-3s).
 - Không GitHub CI trên PR / push.
 - Không full test sau mỗi lần sửa nhỏ.
 - Không full test trong pre-commit (`.husky/pre-commit` chỉ chạy `git diff --cached --check` và lint staged files).
@@ -101,13 +105,14 @@ NEED: <thứ cần quyết định>
 - Mọi thay đổi hoàn tất phải tự động kiểm thử toàn diện (`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`), commit với thông điệp rõ ràng chuẩn conventional, push lên nhánh làm việc và sẵn sàng deploy lên domain chính thức.
 - **Agent Deploy Permission — TOÀN QUYỀN KHI USER NÓI "DEPLOY":** User nói "deploy" là uỷ quyền đầy đủ để agent tự làm trọn chuỗi, không hỏi lại: Local Final Gate PASS → merge PR vào `main` (`gh pr merge <số> --merge`) → `git checkout main && git pull --ff-only` → (có migration mới thì `npx wrangler d1 migrations apply <db> --remote --config wrangler.production.jsonc` trước) → `npm run deploy:production` (local) → smoke → báo Version ID + SHA. KHÔNG chạy workflow GitHub Actions "Triển khai production".
 
-## 6. Quy tắc sửa giao diện tối giản (Chỉ đổi tiêu đề, cấm thêm nội dung bổ sung)
-- **Quy tắc bắt buộc trước khi sửa giao diện:** Khi nhận yêu cầu chỉnh sửa giao diện, CHỈ thay đổi đúng nội dung tiêu đề (title/heading) được yêu cầu.
-- **Cấm tuyệt đối thêm nội dung bổ sung:** Tuyệt đối KHÔNG tự ý chèn thêm văn bản bổ sung, mô tả phụ, hướng dẫn sử dụng, phụ đề (subtitles/descriptions), tags giải thích hay đoạn văn chú thích đi kèm cho tiêu đề đó.
-- **Tiêu đề tự tường minh:** Giữ giao diện sạch sẽ, trực quan, tinh gọn tuyệt đối theo nguyên tắc "Obvious UI Does Not Explain Itself".
+## 6. Quy tắc sửa giao diện tối giản (Chỉ ghi tiêu đề, tuyệt đối cấm chú thích)
+- **Quy tắc bắt buộc trước khi sửa bất kỳ nội dung chức năng/giao diện nào:** TUYỆT ĐỐI KHÔNG ĐƯỢC CHÚ THÍCH, CHỈ GHI TIÊU ĐỀ.
+- **Cấm tuyệt đối thêm nội dung bổ sung:** Tuyệt đối KHÔNG tự ý chèn thêm văn bản bổ sung, mô tả phụ, hướng dẫn sử dụng, phụ đề (subtitles/descriptions), tags giải thích, đoạn văn chú thích đi kèm hay nhãn giải nghĩa cho tiêu đề/tùy chọn đó.
+- **Tiêu đề tự tường minh:** Giữ giao diện sạch sẽ, trực quan, tinh gọn tuyệt đối theo nguyên tắc "Obvious UI Does Not Explain Itself". Mọi chức năng tự rõ nghĩa qua tiêu đề và ngữ cảnh.
 
 ## 7. Quy tắc thiết kế bố cục: Tuyệt đối không đè phần tử (Zero Overlap Invariant) & Tối ưu không gian hẹp
-- **Cấm đè lên nhau (Zero Overlap Invariant):** Các card, nút bấm (buttons), nhãn, menu và popup tuyệt đối không được chồng đè, lấn át hay che khuất nhau. Phải sử dụng layout có cấu trúc rõ ràng (`grid`, `flex-col`, `gap` tách biệt, `flex-wrap`), dự trù đủ min-width và padding.
+- **Cấm đè lên nhau giữa các card cố định & Ưu tiên Top-Layer cho Popup mới nhất (Fixed Cards Non-Overlap & Top-Layer Popup Stacking):** Giữa các card cố định với nhau TUYỆT ĐỐI KHÔNG BAO GIỜ ĐƯỢC ĐÈ LÊN NHAU. Mọi phần tử cố định phải có ranh giới cấu trúc rõ ràng qua CSS Grid / Flexbox, padding và margin độc lập, tuyệt đối không dùng absolute positioning để giả lập bố cục thường. Chỉ khi là card popup tạm thời (Dialog, Popover, Dropdown Menu, Tooltip, Sheet drawer) thì card popup nào được mở gần đây nhất mới có quyền hiển thị trên cùng (Top-Layer / Stacking context cao nhất) các card khác.
+- **Khoảng cách thông thoáng & Nhịp điệu không gian (Breathing Room & Spacing Rhythm Invariant):** Luôn luôn có khoảng cách hợp lý, rõ ràng và nhất quán (margin, padding, gap) giữa các card, giữa các tiêu đề và giữa các khối nội dung với nhau. Tuyệt đối không để các card, nút bấm hay nhãn dính sát rạt vào nhau gây cảm giác ngột ngạt; giữ cho giao diện luôn có không gian đệm để trải nghiệm nhìn vào thật sự "thoáng con mắt", tôn trọng khoảng trống tự nhiên (whitespace).
 - **Nút thành tựu:** Hồ sơ và bảng thông tin người dùng phải có nút/mục "Thành tựu" (Achievements) rõ ràng, trực quan để người dùng theo dõi huy hiệu và tiến độ học tập / hoạt động.
 - **Tối ưu không gian hẹp / Mobile (Icon-Only Compact Mode):** Khi màn hình hoặc container có không gian hẹp (mobile, popover hẹp, thanh điều khiển thu nhỏ), chuyển sang sử dụng icon đại diện thay vì chèn chữ dài dòng gây vỡ giao diện hoặc tràn đè lên nhau. Luôn kèm `title` và `aria-label` để đảm bảo trải nghiệm và khả năng tiếp cận.
 
@@ -120,6 +125,37 @@ NEED: <thứ cần quyết định>
   * Khoảng trống tự nhiên (whitespace) là yếu tố thẩm mỹ hợp lệ và bắt buộc để mắt người dùng được thư giãn ("thoáng con mắt"), tạo cảm giác cao cấp và hiện đại.
 - **Không tạo CTA cạnh tranh trong Hero (Zero Competing Hero CTAs):**
   * Banner Hero tập trung vào lời chào và trạng thái lớp học, không đặt hàng loạt nút bấm chuyển trang trùng lặp với các phần nội dung thực tế (phòng học, trò chơi) ngay bên dưới.
+
+## 9. Quy tắc card luôn cố định khi cấu hình & tương tác (Card Stability & Zero Layout Shift Invariant)
+- **Cố định chiều cao và bố cục (Fixed Dimensions):** Mọi card, modal dialog hoặc panel khi người dùng cấu hình, chuyển tab, chuyển chế độ (như chọn game 1v1 / game solo, chuyển Công khai / Riêng tư, chọn mốc thời gian...) BẮT BUỘC phải giữ chiều cao và bố cục cố định (Fixed Dimensions / Reserved Slots).
+- **Card cố định không di chuyển khi thao tác chuyển đổi (Fixed Dimensions & Zero Movement on Toggle / Transition):** Các card cố định BẮT BUỘC KHÔNG ĐƯỢC DI CHUYỂN khi người dùng thao tác chuyển đổi (chuyển tab, chọn trò chơi, chọn mốc thời gian, chuyển chế độ Công khai / Riêng tư, bật/tắt tùy chọn). Toàn bộ tọa độ vị trí (x, y) của card, các tiêu đề bên trong và nút hành động chính (Footer CTA) phải đứng yên 100%, không co giật hay xê dịch dù chỉ 1 pixel.
+- **Cố định các card con bên trong card mẹ (Sub-card Stability & Coordinate Locking Invariant):** Mọi card con, nút chọn hoặc panel bên trong một card mẹ/dialog (như card chọn game, card chọn thời gian, card chế độ phòng, card nhập mật khẩu) BẮT BUỘC phải giữ nguyên tọa độ (x, y) và chiều cao cố định khi người dùng chuyển đổi giữa các game (ví dụ từ game 1v1 sang game chơi đơn) hoặc giữa các chế độ. Vùng thời gian/cấu hình phải dành sẵn slot cố định có chiều cao đồng nhất, tuyệt đối không được co rút hay phình to làm dịch chuyển các card con lân cận.
+- **Thiết kế 1 hàng tinh gọn cho card tùy chỉnh (Single-Row Inline Control Invariant):** Card tùy chỉnh/trạng thái (như thanh thời gian lượt) BẮT BUỘC chỉ thiết kế duy nhất 1 hàng cố định (`h-9` hoặc `h-10`). Khi chuyển sang chế độ tùy chỉnh, hiển thị bộ điều khiển (stepper, nút tăng giảm) ngay trên chính hàng đó, TUYỆT ĐỐI KHÔNG sinh thêm hàng thứ 2 gây dư thừa, khựng chuyển động hay làm sụt lún đẩy các card bên dưới.
+- **Cấm co giật sụt lún (Zero CLS):** Tuyệt đối cấm để card co giật, sụt lún hay nhảy chiều cao (Zero CLS) khi bật/tắt các tùy chọn bên trong. Các vùng nội dung có điều kiện phải dự trù sẵn không gian (slot cố định) hoặc hiển thị trạng thái tương ứng chiếm trọn không gian đó.
+- **Nút hành động cố định vị trí & Chống đè Footer CTA (Fixed Action Placement & Zero Overlap with Footer CTA):** Nút hành động chính (Footer CTA như Hủy, Tạo bàn ngay, Lưu, Áp dụng) phải luôn đứng yên tại vị trí chuẩn, không bị đẩy lên kéo xuống giật cục khi người dùng thao tác. Luôn duy trì khoảng đệm an toàn (khoảng cách >= 12px) giữa card con cuối cùng và thanh Footer CTA, tuyệt đối không để card hay nội dung đè lên các nút thao tác.
+- **Cố định tiêu đề & nhãn trong card (Fixed Title & Label Invariant):** Ngoài việc cố định chiều cao của card, các tiêu đề và nhãn trường (như nhãn "Mật khẩu phòng:", tiêu đề cấu hình, nhãn thời gian...) bên trong card hoặc modal dialog khi người dùng chuyển tab / chuyển chế độ (ví dụ chuyển giữa Công khai và Riêng tư) BẮT BUỘC phải đứng yên tại một vị trí tọa độ cố định, tuyệt đối không được nhảy lên nhảy xuống (nhảy từ giữa lên trên hoặc ngược lại) giữa các trạng thái. Tách nhãn thành dòng cố định riêng biệt phía trên ô dữ liệu để cấu trúc khung và vị trí chữ luôn bất biến ở mọi chế độ.
+
+## 10. Quy tắc viền đồng nhất, chuyển động không khựng & Cân đối card cùng cấp (Zero-Stutter Motion & Peer Card Uniformity Invariant)
+- **Quy tắc bắt buộc AI đọc rule thiết kế trước khi sửa (Mandatory Design Gate):** Trước mọi thao tác chỉnh sửa UI/UX trên bất kỳ trang nào, AI BẮT BUỘC phải đọc và tuân thủ toàn bộ các quy tắc thiết kế: không chú thích (chỉ ghi tiêu đề), card cố định không di chuyển, tiêu đề cố định, không đè phần tử, nhịp điệu khoảng cách thoáng mắt, viền đồng nhất, và tuyệt đối không dùng transition-all gây giật/khựng. Áp dụng đồng bộ cho toàn bộ hệ thống web.
+- **Viền đồng nhất & Chống khựng chuyển động (Uniform Border & Motion Transition Invariant):**
+  * Tuyệt đối KHÔNG dùng `transition-all` cho các nút bấm, tab, card hoặc modal có thay đổi trạng thái kích thước hay đường viền; chỉ được dùng `transition-colors duration-150` để chuyển đổi màu sắc (màu nền, màu viền, màu chữ).
+  * Giữa trạng thái được chọn (active) và chưa chọn (inactive), BẮT BUỘC phải dùng cùng độ dày đường viền (ví dụ `border-2` cho cả 2 trạng thái). Tuyệt đối cấm đổi giữa `border` (1px) và `border-2` (2px) vì việc này khiến trình duyệt animate `border-width` gây hiện tượng rung giật, co giãn hoặc khựng khung hình.
+- **Cân đối card cùng cấp (Peer Card Uniformity & Grid Consistency Invariant):**
+  * Các card, nút lựa chọn hoặc ô nội dung cùng một cấp danh mục (như danh sách các trò chơi, các mốc thời gian, các tùy chọn chế độ) BẮT BUỘC phải có kích thước, tỷ lệ, độ cao và độ rộng đồng đều và nhất quán theo lưới CSS.
+  * Tuyệt đối không để một card tự ý kéo dài (như gán `col-span-2` làm card dài gấp đôi) trong khi các card cùng cấp khác chỉ chiếm 1 cột, gây khập khiễng và mất cân đối thị giác.
+  * Khi danh sách có số lượng lẻ, giữ nguyên kích thước 1 cột chuẩn cho mọi card, không tự tiện cho card cuối cùng giãn rộng chiếm nhiều cột.
+- **Giữ nguyên cấu trúc DOM và vị trí chỉ báo (Persistent DOM Node & Reserved Indicator Invariant):**
+  * Các chỉ báo trạng thái (như dấu chấm tròn `size-2`, icon check, icon mắt ẩn/hiện mật khẩu) phải luôn được giữ nguyên slot trong DOM và điều khiển bằng `opacity-0` / `opacity-100` hoặc padding dành sẵn, tuyệt đối không unmount/remount làm dịch chuyển vị trí chữ hoặc gây reflow/repaint khựng khung hình.
+
+## 11. Quy tắc Tuyệt đối Không Ẩn / Không Làm Tối Đen Khu Vực Xung Quanh Khi Bật Popup (Non-Obscuring Popup & Transparent Backdrop Invariant)
+- **Tuyệt đối không bao giờ được ẩn khu vực xung quanh khi bật bất kỳ popup nào có trong web:** Khi mở bất kỳ popup, dialog, modal, drawer, popover hay sheet nào trên toàn bộ hệ thống web, TUYỆT ĐỐI KHÔNG được ẩn, che lấp, làm tối mịt (pitch black), hoặc làm mờ nhòe (heavy blur) khu vực xung quanh.
+- **Không dùng backdrop đen dày hoặc blur che khuất:** Lớp phủ backdrop (`DialogOverlay`, `AlertDialogOverlay`, `SheetOverlay`...) TUYỆT ĐỐI KHÔNG dùng `bg-black/45`, `bg-black/60` hay `backdrop-blur` dày làm tối thui màn hình phía sau. Thay vào đó, lớp phủ phải giữ độ trong suốt cao (chỉ dùng tối đa `bg-black/10` hoặc `bg-transparent` kèm click-to-dismiss, không blur làm mất chi tiết) nhằm đảm bảo toàn bộ giao diện phía sau (banner, danh sách phòng, bảng xếp hạng, bạn bè) vẫn hiển thị sắc nét, sống động, nhận diện rõ ràng 100%.
+## 12. Quy tắc họa tiết nền mờ toàn diện & Thẩm mỹ Skeuomorphic hoàn thiện (Balanced Blueprint Background & Skeuomorphic Aesthetic Invariant)
+- **Họa tiết nền mờ phân bổ toàn diện & cân đối (Balanced Blueprint Watermark):** Khi sử dụng họa tiết đồ họa chìm / blueprint vi mạch cho card hoặc modal, BẮT BUỘC phải phân bổ hài hòa, đồng đều ở tất cả các khu vực (góc trên trái, góc trên phải, giữa các cạnh bên, góc dưới trái, góc dưới phải và lưới chấm chìm toàn diện). Tuyệt đối KHÔNG được chỉ đặt họa tiết dồn cục ở duy nhất một góc (như góc trên bên phải) làm mất cân bằng bố cục thị giác.
+- **Độ mờ tinh tế & không gây nhiễu (Calm & Non-Distracting Contrast):** Họa tiết nền mờ chỉ được dùng nét mảnh (`strokeWidth="1"` hoặc `0.8`), tông màu dịu nhẹ (`rgba(56, 189, 248, 0.10)` - `0.14`), lưới chấm mờ (`0.06` - `0.08`), tuyệt đối không dùng màu quá sáng hoặc các hình khối đặc gây chói mắt hay cạnh tranh thị giác với văn bản và nút bấm chính.
+- **Đường bao mỏng 1px với dải sáng nhẹ trung tâm hai bên:** Card sử dụng đường bao mảnh 1px (`border: 1px solid rgba(...)`), kết hợp hiệu ứng sáng nhẹ ở giữa hai cạnh bên qua pseudo-elements `::before` và `::after` (`top: 20%; bottom: 20%; width: 1.5px; linear-gradient`).
+- **Cố định cạnh trên của modal khi co giãn kích thước:** Khi mở rộng card modal, chỉ mở rộng sang hai cạnh bên (chiều rộng) và cạnh dưới (chiều cao), giữ nguyên tọa độ cạnh trên (`top: 72px`, `translate: -50% 0`, `transform: none`), tuyệt đối không để cạnh trên bị kéo trôi lên sát nóc viewport.
+- **Cố định tuyệt đối các card con và nút bấm bên trong:** Sub-card, nút chọn, stepper tùy chỉnh chỉ nằm trên 1 hàng duy nhất (`h-9`), slot thời gian luôn cố định chiều cao `114px` ở cả chế độ 1v1 lẫn chơi đơn. Duy trì khoảng cách an toàn >= 12px với thanh Footer CTA, tuyệt đối không đè card/nội dung lên nhau.
 
 ## Mandatory UI/UX constitution
 

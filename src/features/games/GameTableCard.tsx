@@ -40,7 +40,11 @@ export function GameTableCard({ table, onEnter, hideGameBadge = false }: GameTab
           {!hideGameBadge && <span>{info.shortTitle}</span>}
           <span className="inline-flex shrink-0 items-center gap-1">
             <Clock className="size-3" />
-            {table.turnTimerSeconds}s
+            {table.turnTimerSeconds === 0
+              ? 'Vô hạn'
+              : table.turnTimerSeconds >= 60 && table.turnTimerSeconds % 60 === 0
+                ? `${table.turnTimerSeconds / 60}p`
+                : `${table.turnTimerSeconds}s`}
           </span>
           {table.soNguoiXem > 0 && (
             <span className="inline-flex shrink-0 items-center gap-1" title={`${table.soNguoiXem} người xem`}>

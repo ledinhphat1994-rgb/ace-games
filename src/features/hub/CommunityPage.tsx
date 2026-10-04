@@ -668,29 +668,45 @@ export function CommunityPage() {
                     const isRejecting = busyActionId === `reject-${req.id}`
                     return (
                       <li key={req.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setNguoiXem({
+                              id: sender.id,
+                              ten: sender.displayName,
+                              avatar: sender.avatar,
+                              lopTen: sender.lopTen,
+                              vaiTro: sender.role,
+                              anchorRect: rect,
+                            })
+                          }}
+                          className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer group/sender hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand rounded-lg"
+                          aria-label={`Xem thông tin ${sender.displayName}`}
+                          title={`Xem thông tin ${sender.displayName}`}
+                        >
                           <div className="relative shrink-0">
                             {sender.avatar ? (
                               <img
                                 src={sender.avatar}
                                 alt=""
-                                className="size-10 rounded-full object-cover"
+                                className="size-10 rounded-full object-cover group-hover/sender:ring-2 group-hover/sender:ring-brand/40 transition-all"
                               />
                             ) : (
-                              <div className="flex size-10 items-center justify-center rounded-full bg-social/20 text-social text-xs font-bold">
+                              <div className="flex size-10 items-center justify-center rounded-full bg-social/20 text-social text-xs font-bold group-hover/sender:ring-2 group-hover/sender:ring-brand/40 transition-all">
                                 {getInitials(sender.displayName)}
                               </div>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-text-primary truncate">
+                            <p className="text-sm font-semibold text-text-primary truncate group-hover/sender:text-brand transition-colors">
                               {sender.displayName}
                             </p>
                             <p className="text-xs text-text-tertiary truncate">
                               @{sender.username} {sender.lopTen ? `· ${sender.lopTen}` : ''}
                             </p>
                           </div>
-                        </div>
+                        </button>
 
                         <div className="flex items-center gap-2 shrink-0">
                           <Button

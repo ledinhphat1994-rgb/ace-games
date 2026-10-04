@@ -1,13 +1,17 @@
 // Hồ sơ dùng chung: dữ liệu và quan hệ authoritative; bố cục thích ứng theo kích thước popup.
 import { useMemo, useRef, useState } from 'react'
 import { Popover } from '@base-ui/react/popover'
-import { useQuery } from '@tanstack/react-query'
-import { Award, ChevronLeft, Lock, MessageSquare, User, X } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Award, BadgeCheck, ChevronLeft, Lock, MessageSquare, Pencil, User, X } from 'lucide-react'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { layHoSoNguoiDung } from '@/lib/api'
 import { tinhLevel } from '@/features/games/GameLeaderboard'
+import { useTopLayerZIndex } from '@/lib/top-layer'
+import { cn } from '@/lib/utils'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
 import { AnhNguoiDung } from './AnhNguoiDung'
+import { GhiChuSuyNghiModal } from './GhiChuSuyNghiModal'
 import { NutQuanHe } from './NutQuanHe'
 import { nhanVaiTro } from './quan-he'
 
@@ -37,13 +41,22 @@ interface HoSoNguoiDungDialogProps {
 
 export function HoSoNguoiDungDialog({ nguoi, onDong }: HoSoNguoiDungDialogProps) {
   if (!nguoi) return null
-  return <NoiDungHoSoPop key={nguoi.id} nguoi={nguoi} onDong={onDong} />
+  return (
+    <NoiDungHoSoPop
+      key={`${nguoi.id}_${nguoi.anchorRect?.top ?? 0}_${nguoi.anchorRect?.left ?? 0}`}
+      nguoi={nguoi}
+      onDong={onDong}
+    />
+  )
 }
 
 function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void }) {
   const { nguoiDung } = usePhien()
   const isMe = nguoiDung ? nguoiDung.accountId === nguoi.id : false
   const [xemThanhTuu, setXemThanhTuu] = useState(false)
+  const [moModalGhiChu, setMoModalGhiChu] = useState(false)
+  const { zIndex, bringToFront } = useTopLayerZIndex(true, 'popover')
+  const queryClient = useQueryClient()
   const closeRef = useRef<HTMLButtonElement>(null)
   const returnFocusRef = useRef(document.activeElement)
   const anchor = useMemo(() => ({
@@ -89,6 +102,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const vaiTro = nhanVaiTro(hoSo?.role ?? nguoi.vaiTro)
   const lopTen = hoSo ? hoSo.lopTen : (nguoi.lopTen ?? null)
   const capDo = hoSo ? tinhLevel(hoSo.totalXp) : null
+  const tagDinhDanh = (isMe && nguoiDung?.username) ? `@${nguoiDung.username}` : (hoSo?.tag || `@c10a7_${nguoi.id}`)
 
   const danhSachThanhTuu = achievementsData?.achievements ?? []
   const unlockedCount =
@@ -99,22 +113,25 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const nhanThanhTuu = 'Xem tất cả thành tựu của ' + ten + (unlockedCount !== null ? ' (' + unlockedCount + '/' + totalCount + ')' : '')
 
   return (
-    <Popover.Root open modal onOpenChange={(open) => { if (!open) onDong() }}>
+    <Popover.Root open modal={false} onOpenChange={(open) => { if (!open) onDong() }}>
       <Popover.Portal>
-        <Popover.Backdrop className="fixed inset-0 z-40" />
+        {/* Layer stack invariant: z-[130] base context, z-[140] popover positioner fallback, zIndex 9000+ từ useTopLayerZIndex popover */}
         <Popover.Positioner
           anchor={anchor}
           positionMethod="fixed"
-          side="bottom"
-          align="start"
-          sideOffset={8}
+          side="top"
+          align="center"
+          sideOffset={6}
           collisionPadding={12}
-          collisionAvoidance={{ side: 'shift', align: 'shift' }}
+          collisionAvoidance={{ side: 'flip', align: 'shift' }}
           sticky
-          className="z-50"
+          style={{ zIndex }}
+          className="z-[140]"
         >
           <Popover.Popup
             initialFocus={closeRef}
+            style={{ zIndex: zIndex + 1 }}
+            onPointerDownCapture={bringToFront}
             finalFocus={() => {
               const previous = returnFocusRef.current
               if (previous instanceof HTMLElement && previous !== document.body && previous.isConnected) return previous
@@ -122,28 +139,107 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
               const selector = `button[aria-label="${CSS.escape('Xem thông tin ' + nguoi.ten)}"]`
               return Array.from(document.querySelectorAll<HTMLButtonElement>(selector)).find(button => button.getClientRects().length > 0) ?? null
             }}
-            aria-label={xemThanhTuu ? nhanThanhTuu : 'Hồ sơ của ' + ten}
-            className="flex w-88 max-w-[calc(100vw-24px)] max-h-[min(36rem,var(--available-height,calc(100dvh-24px)))] min-h-0 flex-col rounded-2xl border border-border-default bg-surface-raised shadow-xl outline-none"
+            aria-label={moModalGhiChu ? 'Chỉnh sửa ghi chú suy nghĩ' : xemThanhTuu ? nhanThanhTuu : 'Hồ sơ của ' + ten}
+            className="relative overflow-hidden flex w-92 max-w-[calc(100vw-24px)] max-h-[min(38rem,var(--available-height,calc(100dvh-24px)))] min-h-0 flex-col rounded-2xl border border-sky-500/25 bg-gradient-to-b from-slate-900/98 via-slate-900/98 to-slate-950/98 shadow-2xl outline-none"
             data-testid="ho-so-nguoi-dung"
           >
-            <header className="flex min-w-0 shrink-0 items-start gap-2 border-b border-border-subtle p-3">
-              {xemThanhTuu ? (
-                <Button variant="ghost" size="icon-lg" onClick={() => setXemThanhTuu(false)} title="Quay lại hồ sơ" aria-label="Quay lại hồ sơ">
-                  <ChevronLeft />
-                </Button>
-              ) : (
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <AnhNguoiDung ten={ten} avatar={avatar} className="size-12 text-base" />
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <h2 className="break-words text-base font-semibold leading-snug text-text-primary">{ten}</h2>
-                    {isMe && <span data-testid="badge-ban-highlight" className="text-xs font-semibold text-brand">★ BẠN</span>}
-                    {vaiTro && <p className="break-words text-xs text-text-secondary">{vaiTro}</p>}
-                    {lopTen && <p className="break-words text-xs text-text-secondary">{lopTen}</p>}
+            <BlueprintCommunityPattern className="opacity-75 pointer-events-none" />
+            {/* Chỉnh sửa suy nghĩ trực tiếp ở Vùng 2 (nằm trên các layer khác, nhỏ gọn tinh tế vừa đủ) */}
+            {isMe && moModalGhiChu ? (
+              <GhiChuSuyNghiModal
+                inline
+                open={moModalGhiChu}
+                onClose={() => setMoModalGhiChu(false)}
+                currentNote={hoSo?.tieuDeHoSo || ''}
+                currentAvatar={avatar}
+                displayName={ten}
+                onSaveSuccess={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['ho-so-nguoi-dung', nguoi.id] })
+                  setMoModalGhiChu(false)
+                }}
+              />
+            ) : (
+              <>
+            {/* ── VÙNG 2: Header gồm 1. Avatar (bấm để edit mở Vùng 1), 2. Tên người dùng, 3. Tag xác thực người dùng, và Dòng trạng thái như Vùng 1 ── */}
+            <header className="flex min-w-0 shrink-0 flex-col border-b border-border-subtle p-3.5 gap-2">
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                {xemThanhTuu ? (
+                  <Button variant="ghost" size="icon-lg" onClick={() => setXemThanhTuu(false)} title="Quay lại hồ sơ" aria-label="Quay lại hồ sơ">
+                    <ChevronLeft />
+                  </Button>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    {/* Phần 1: Avatar người dùng (nếu là mình, bấm để edit cấu hình như Vùng 1) */}
+                    <div className="relative shrink-0">
+                      {isMe ? (
+                        <button
+                          type="button"
+                          onClick={() => setMoModalGhiChu(true)}
+                          className="group/avatar relative block rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          title="Bấm vào ảnh đại diện để sửa ghi chú & suy nghĩ"
+                          aria-label="Cấu hình ghi chú suy nghĩ"
+                        >
+                          <AnhNguoiDung ten={ten} avatar={avatar} className="size-13 text-base transition-transform group-hover/avatar:scale-105" />
+                          <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-brand text-brand-foreground shadow-xs ring-2 ring-surface-raised">
+                            <Pencil className="size-2.5" />
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="relative">
+                          <AnhNguoiDung ten={ten} avatar={avatar} className="size-13 text-base" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Phần 2 & 3: Tên người dùng + Tag xác thực người dùng */}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h2 className="break-words text-base font-bold leading-snug text-text-primary">{ten}</h2>
+                        {isMe && <span data-testid="badge-ban-highlight" className="text-[11px] font-bold text-brand px-1.5 py-0.5 rounded bg-brand/10">★ BẠN</span>}
+                      </div>
+
+                      {/* Tag người dùng: mỗi tài khoản có 1 tag riêng để xác thực */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          data-testid="tag-xac-thuc"
+                          title="Tag định danh xác thực tài khoản"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-mono font-semibold"
+                        >
+                          <BadgeCheck className="size-3 shrink-0" />
+                          <span>{tagDinhDanh}</span>
+                        </span>
+                        {vaiTro && <span className="text-xs text-text-tertiary">· {vaiTro}</span>}
+                        {lopTen && <span className="text-xs text-text-tertiary">· {lopTen}</span>}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+                {xemThanhTuu && <h2 className="min-w-0 flex-1 self-center break-words text-sm font-semibold text-text-primary">Thành tựu <span className="text-text-secondary">{unlockedCount !== null ? '(' + unlockedCount + '/' + totalCount + ')' : ''}</span></h2>}
+                <Popover.Close render={<Button ref={closeRef} variant="ghost" size="icon-lg" className="ml-auto shrink-0" aria-label="Đóng" title="Đóng" />}><X /></Popover.Close>
+              </div>
+
+              {/* Dòng trạng thái như Vùng 1: hiển thị suy nghĩ / trạng thái, bấm để sửa */}
+              {!xemThanhTuu && (
+                isMe ? (
+                  <button
+                    type="button"
+                    onClick={() => setMoModalGhiChu(true)}
+                    className="group/status flex w-full items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-800/80 border border-slate-700/60 hover:border-brand/40 transition-colors duration-150 text-left cursor-pointer shadow-xs"
+                    title="Bấm để cập nhật ghi chú suy nghĩ"
+                  >
+                    <span className="text-sm shrink-0">💭</span>
+                    <span className={cn("text-xs font-medium truncate flex-1", hoSo?.tieuDeHoSo ? "text-text-primary" : "text-text-tertiary")}>
+                      {hoSo?.tieuDeHoSo || "Chia sẻ suy nghĩ…"}
+                    </span>
+                    <Pencil className="size-3 text-text-tertiary group-hover/status:text-brand transition-colors shrink-0" />
+                  </button>
+                ) : hoSo?.tieuDeHoSo ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-border-subtle text-xs text-text-secondary">
+                    <span className="text-sm shrink-0">💭</span>
+                    <span className="truncate italic">“{hoSo.tieuDeHoSo}”</span>
+                  </div>
+                ) : null
               )}
-              {xemThanhTuu && <h2 className="min-w-0 flex-1 self-center break-words text-sm font-semibold text-text-primary">Thành tựu <span className="text-text-secondary">{unlockedCount !== null ? '(' + unlockedCount + '/' + totalCount + ')' : ''}</span></h2>}
-              <Popover.Close render={<Button ref={closeRef} variant="ghost" size="icon-lg" className="ml-auto" aria-label="Đóng" title="Đóng" />}><X /></Popover.Close>
             </header>
 
             {xemThanhTuu ? (
@@ -170,20 +266,38 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
             ) : (
               <>
                 <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
-
-                  {hoSo?.tieuDeHoSo && <p className="mb-3 break-words text-sm text-text-secondary">{hoSo.tieuDeHoSo}</p>}
                   {isError ? (
                     <p data-testid="ho-so-loi" role="status" className="mt-4 text-sm text-text-secondary">Không tải được thông tin.</p>
                   ) : (
-                    <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-2 text-sm tabular-nums text-text-secondary" aria-busy={isPending}>
-                      <div className="flex items-baseline gap-2"><dt>Cấp</dt><dd data-testid="ho-so-cap" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : capDo}</dd></div>
-                      <div className="flex items-baseline gap-2"><dt>XP</dt><dd data-testid="ho-so-xp" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : (hoSo?.totalXp ?? 0).toLocaleString('vi-VN')}</dd></div>
-                    </dl>
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums text-text-secondary" aria-busy={isPending}>
+                        <div className="flex items-baseline gap-2"><dt>Cấp</dt><dd data-testid="ho-so-cap" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : capDo}</dd></div>
+                        <div className="flex items-baseline gap-2"><dt>XP</dt><dd data-testid="ho-so-xp" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : (hoSo?.totalXp ?? 0).toLocaleString('vi-VN')}</dd></div>
+                      </dl>
+
+                      {/* Huy hiệu thành tựu nằm sát bên dòng XP */}
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => setXemThanhTuu(true)}
+                        aria-label={nhanThanhTuu}
+                        title={nhanThanhTuu}
+                        data-testid="ho-so-btn-thanh-tuu"
+                        className="h-8 px-2.5 gap-1.5 rounded-xl border-border-default hover:bg-surface-raised text-text-secondary hover:text-text-primary shrink-0 cursor-pointer"
+                      >
+                        <Award className="size-4 text-warning" />
+                        <span className="text-xs font-medium">Thành tựu</span>
+                        {unlockedCount !== null && (
+                          <span className="text-[11px] text-text-tertiary">({unlockedCount}/{totalCount})</span>
+                        )}
+                      </Button>
+                    </div>
                   )}
                 </div>
-                <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 space-y-3 border-t border-border-subtle p-4">
-                  {!isMe && <NutQuanHe id={nguoi.id} day />}
-                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_44px] gap-2">
+                {/* Vùng 4 và Vùng 5 cùng 1 hàng chia đôi card ra (grid-cols-2) */}
+                <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 border-t border-border-subtle p-3.5">
+                  <div className={cn("grid gap-2 w-full", isMe ? "grid-cols-1" : "grid-cols-2")}>
+                    {!isMe && <NutQuanHe id={nguoi.id} day />}
                     <Button
                       variant="default"
                       onClick={() => {
@@ -191,19 +305,18 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                         else window.dispatchEvent(new CustomEvent('campus:open-dm', { detail: { id: nguoi.id, displayName: ten, avatar, lopTen } }))
                         onDong()
                       }}
-                      className="min-h-11 min-w-0 whitespace-normal px-3 text-sm"
+                      className="w-full min-h-11 min-w-0 whitespace-normal px-2.5 text-sm font-semibold rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 transition-colors duration-150 shadow-sm cursor-pointer"
                       title={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
                       aria-label={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
                       data-testid="ho-so-btn-nhan-tin"
                     >
                       {isMe ? <User className="size-4 shrink-0" /> : <MessageSquare className="size-4 shrink-0" />}
-                      <span className="break-words">{isMe ? 'Hồ sơ' : 'Nhắn tin'}</span>
-                    </Button>
-                    <Button variant="outline" size="icon-lg" onClick={() => setXemThanhTuu(true)} aria-label={nhanThanhTuu} title={nhanThanhTuu} data-testid="ho-so-btn-thanh-tuu">
-                      <Award className="size-5" />
+                      <span className="truncate">{isMe ? 'Hồ sơ' : 'Nhắn tin'}</span>
                     </Button>
                   </div>
                 </footer>
+              </>
+            )}
               </>
             )}
           </Popover.Popup>

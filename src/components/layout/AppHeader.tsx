@@ -10,7 +10,7 @@ import type { NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
 import { GraduationCap, MessageSquare } from 'lucide-react'
 import { ThemeSwitch } from './ThemeSwitch'
-import { CampusSearch } from './CampusSearch'
+// CampusSearch: Vùng 1 đã xóa theo yêu cầu
 
 interface AppHeaderProps {
   nguoiDung: NguoiDung | null
@@ -41,26 +41,29 @@ export function AppHeader({
   onMoAuthModal,
 }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-canvas/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-4 px-3 sm:px-6">
-        {/* ── Left Area: Mobile Brand + Desktop Search ── */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          {/* Mobile brand logo (visible only on mobile/tablet when sidebar is hidden) */}
-          <NavLink to="/learn" className="flex lg:hidden items-center gap-2.5 group shrink-0 select-none">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/30 bg-brand/15 text-brand shadow-sm">
-              <GraduationCap className="h-5 w-5" />
+    <header className="sticky top-0 z-40 w-full pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-surface/95 backdrop-blur-md">
+      <div className="flex h-16 w-full items-center justify-between gap-3 sm:gap-6 px-3 sm:px-6">
+        {/* ── Left Area: Brand Logo (VÙNG 4: Topbar dài hết chiều ngang chứa logo và chữ Digital Campus) + Desktop Search ── */}
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
+          {/* Brand logo (visible across desktop & mobile) */}
+          <NavLink to="/learn" className="flex items-center gap-3 group shrink-0 select-none rounded-xl py-1 pr-1 sm:pr-2 hover:opacity-90 transition-opacity">
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 via-indigo-500/15 to-purple-500/20 border border-sky-400/40 text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.25)] group-hover:scale-105 group-hover:border-sky-400/70 transition-all duration-300">
+              {/* Animated glow aura */}
+              <span className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-sky-400/40 via-indigo-400/30 to-purple-400/40 blur-[3px] animate-pulse pointer-events-none" />
+              <GraduationCap className="relative h-5 w-5 drop-shadow-[0_0_8px_rgba(56,189,248,0.9)] transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500" />
+              </span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight text-text-primary leading-tight">
+            <div className="min-w-0">
+              <span className="block text-base font-extrabold tracking-tight text-text-primary leading-tight">
                 Digital Campus
               </span>
             </div>
+            <span className="lg:hidden sr-only">Thương hiệu trường học số</span>
           </NavLink>
-
-          {/* Search bar (Full width pill input on desktop, icon on mobile) */}
-          <div className="flex-1 max-w-xl">
-            <CampusSearch />
-          </div>
+          {/* Vùng 1: Đã xóa thanh tìm kiếm theo yêu cầu (CampusSearch) */}
         </div>
 
         {/* ── Right Area: Status + Theme + Notifications + Messages + Avatar ── */}
@@ -82,7 +85,7 @@ export function AppHeader({
           {/* Notifications (only when logged in) */}
           {nguoiDung && <NotificationCenter />}
 
-          {/* Messages / Campus Chat trigger button */}
+          {/* Messages / Campus Chat trigger button (Chuyển xuống Vùng 5 góc phải dưới cùng) */}
           <Button
             variant="ghost"
             size="icon-lg"
@@ -90,7 +93,7 @@ export function AppHeader({
             aria-label="Trò chuyện toàn trường"
             title="Trò chuyện toàn trường"
             data-testid="header-chat-button"
-            className="relative"
+            className="relative hidden"
           >
             <MessageSquare className="size-4.5 text-text-secondary hover:text-text-primary transition-colors" />
             {coTinNhanMoi && (

@@ -13,6 +13,8 @@ import rootRulesRaw from '../.agents/rules/00-digital-campus-root.md?raw'
 import apiRaw from '../worker/routes/engagement-api.ts?raw'
 import toolbarRaw from '../src/features/games/GamePlayToolbar.tsx?raw'
 import leaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
+import dmThreadRaw from '../src/components/chat/DirectMessageThread.tsx?raw'
+import nutQuanHeRaw from '../src/components/social/NutQuanHe.tsx?raw'
 
 describe('Quy tắc thiết kế: Zero Overlap & Nút Thành tựu & Xóa nút Thành viên góc phải', () => {
   it('1. ClassroomTopBar loại bỏ nút Thành viên thừa thãi cạnh Chat, giữ dải thành viên trung tâm', () => {
@@ -65,5 +67,22 @@ describe('Quy tắc thiết kế: Zero Overlap & Nút Thành tựu & Xóa nút T
   it('6. Icon tương tác trên toàn bộ trang sáng rõ, không bị mờ', () => {
     expect(leaderboardRaw).toContain('text-white/80 hover:text-white')
     expect(toolbarRaw).toContain('text-white')
+  })
+
+  it('7. Thiết kế lại Vùng 1 và Vùng 2 theo yêu cầu mới', () => {
+    // Vùng 1: Nút thành tựu nằm sát bên dòng XP, không còn ở footer
+    expect(dialogRaw).toContain('ho-so-btn-thanh-tuu')
+    expect(dialogRaw).toContain('ho-so-btn-nhan-tin')
+    expect(dialogRaw).toContain('w-full min-h-11')
+
+    // Vùng 2: Xóa icon User thừa ở header DirectMessageThread, chuyển sang click Avatar
+    expect(dmThreadRaw).not.toContain('title={`Xem hồ sơ của ${target.displayName}`}')
+    expect(dmThreadRaw).toContain('group/user-header')
+    expect(dmThreadRaw).toContain('setNguoiXem({')
+
+    // NutQuanHe: Trạng thái bạn bè với hủy kết bạn chung 1 dòng, khi hủy kết bạn thì hiển thị kết bạn
+    expect(nutQuanHeRaw).toContain('Hủy kết bạn')
+    expect(nutQuanHeRaw).toContain('Kết bạn')
+    expect(nutQuanHeRaw).toContain('flex min-w-0 w-full items-center justify-between gap-3')
   })
 })

@@ -2,25 +2,33 @@
 // Digital Campus v2: Milestone PQA-C2 — Classroom Presentation Surface
 
 import type { TiaLaserTrang } from '@/hooks/use-room'
-import type { SlideState, SlideAnnotationStroke } from '@shared/protocol/room'
+import type { SlideState, SlideAnnotationStroke, LoaiTaiLieuNap, TaiLieuNapItem, QuyenCongCu } from '@shared/protocol/room'
 import {
   AlertTriangle,
+  Check,
   ChevronLeft,
   ChevronRight,
   Download,
   FileSpreadsheet,
   FileText,
+  GripVertical,
+  Image as ImageIcon,
+  Presentation,
   RefreshCw,
+  Search,
   Upload,
   X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useQuery } from '@tanstack/react-query'
 import { PdfCanvasViewer } from '../PdfCanvasViewer'
 import { PptxSlideViewer } from '../PptxSlideViewer'
 import { BUOC_HET } from '../pptx-hieu-ung'
+import { DocxDocumentViewer } from '../DocxDocumentViewer'
+import { XlsxSpreadsheetViewer } from '../XlsxSpreadsheetViewer'
 import { deriveDocumentStatus, laTepPptx } from './types'
 import { SlideAnnotationLayer, type AnnotationTool } from './SlideAnnotationLayer'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
@@ -28,6 +36,7 @@ import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 /** Công cụ chung của sân khấu → công cụ chú thích trên trang tài liệu. */
 const CONG_CU_TREN_TRANG: Record<CongCu, AnnotationTool> = {
   chuot: 'pointer',
+  di_chuyen: 'move',
   but: 'pen',
   to_sang: 'highlighter',
   tay: 'eraser',
@@ -43,7 +52,9 @@ export interface DocumentStageViewProps {
   /** step: số cú bấm hiệu ứng .pptx đã chạy trên trang đó (bỏ trống với PDF). */
   onPageChange?: (newPage: number, step?: number) => void
   onUploadSlide: () => void
-  onCloseDoc?: () => void
+  onCloseDoc?: (loai?: LoaiTaiLieuNap, docUrl?: string) => void
+  /** Chuyển đổi giữa các loại tài liệu đã nạp (PowerPoint, Excel, Word, Ảnh). */
+  onSwitchDoc?: (loai: LoaiTaiLieuNap, docUrl?: string) => void
   /** Người trình chiếu: báo số slide thật của .pptx dựng trên trình duyệt (tệp cũ / có slide ẩn). */
   onSetTotalPages?: (totalPages: number) => void
   /** Tài liệu nhúng (Word / Excel / Office Online) không vẽ theo trang được: lớp vẽ tàng hình riêng của tài liệu phủ lên. */
@@ -72,6 +83,9 @@ export interface DocumentStageViewProps {
   /** Tẩy được nét của người khác (chỉ người trình chiếu). */
   coTheTayMoiNet?: boolean
   khoaCuaToi?: string
+  slideScroll?: { scrollRatio: number; scrollTop?: number; scrollHeight?: number; docUrl?: string; zoom?: number; panX?: number; panY?: number } | null
+  onSendSlideScroll?: (ratio: number, scrollTop?: number, scrollHeight?: number, docUrl?: string, zoom?: number, panX?: number, panY?: number) => void
+  quyenCongCu?: Record<string, QuyenCongCu[]>
 }
 
 function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string }) {
@@ -128,9 +142,11 @@ async function layLienKetXem(docUrl: string): Promise<string> {
 function OfficeEmbedViewer({
   docName,
   docUrl,
+  canControl = false,
 }: {
   docName: string
   docUrl: string
+  canControl?: boolean
 }) {
   const [viewerType, setViewerType] = useState<'microsoft' | 'google'>('microsoft')
   const [showAdvisory, setShowAdvisory] = useState(false)
@@ -162,6 +178,23 @@ function OfficeEmbedViewer({
         : `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`
 
   if (showAdvisory || (laTepPhong && lienKetXem.isError)) {
+    // Học sinh / người tham gia không xem cảnh báo kỹ thuật hoặc hướng dẫn chuyển đổi PDF
+    if (!canControl) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full w-full p-6 text-center text-text-secondary select-none" data-testid="student-doc-waiting">
+          <div className="rounded-2xl bg-surface-overlay p-4 border border-border-subtle text-text-tertiary mb-3">
+            <Presentation className="h-8 w-8 text-brand" />
+          </div>
+          <h4 className="text-sm font-semibold text-text-primary">
+            Chủ phòng đang chuẩn bị bài giảng
+          </h4>
+          <p className="text-xs text-text-tertiary mt-1">
+            Nội dung bài giảng sẽ tự động hiển thị khi sẵn sàng
+          </p>
+        </div>
+      )
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <PptxAdvisoryCard docName={docName} docUrl={docUrl} />
@@ -192,7 +225,7 @@ function OfficeEmbedViewer({
           </div>
         )}
       </div>
-      {!isGoogleSlides && (
+      {!isGoogleSlides && canControl && (
         <div className="flex items-center justify-between px-3 py-1.5 bg-surface border-t border-border-subtle text-xs shrink-0">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-text-secondary">Trình xem:</span>
@@ -248,6 +281,7 @@ export function DocumentStageView({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSwitchDoc,
   onSetTotalPages,
   dieuKhienKhung,
   compact = false,
@@ -266,21 +300,131 @@ export function DocumentStageView({
   coTheTayMoiNet,
   khoaCuaToi,
   onSendSlideLaser,
+  slideScroll,
+  onSendSlideScroll,
+  quyenCongCu = {},
 }: DocumentStageViewProps) {
   const [hasRenderError, setHasRenderError] = useState(false)
+  const [searchExcel, setSearchExcel] = useState('')
   const activeTool = CONG_CU_TREN_TRANG[congCu]
 
-  // Local-only view settings (PQA-C2 Section 5: never synchronized via RoomDO)
-  const [zoomScale, setZoomScale] = useState<number>(1.0)
-  const [fitMode, setFitMode] = useState<'page' | 'width'>('page')
-
   const canControl = !isReconnecting && (isHost || canModerate)
+  const coQuyenCuon = canControl || Boolean(khoaCuaToi && quyenCongCu[khoaCuaToi]?.includes('cuon'))
+  const coQuyenDiChuyen = canControl || Boolean(khoaCuaToi && quyenCongCu[khoaCuaToi]?.includes('di_chuyen'))
   const status = deriveDocumentStatus(slideState, hasRenderError)
+
+  // Local-only view settings per document (PQA-C2 Section 5: never synchronized via RoomDO; scoped per active document)
+  const [docViewSettings, setDocViewSettings] = useState<Record<string, { zoom: number; fit: 'page' | 'width' }>>({})
+  const currentDocKey = slideState?.docUrl || 'default'
+  const currentView = docViewSettings[currentDocKey] || { zoom: 1.0, fit: 'page' as const }
+  // Zoom: nếu là người tham gia thì tự động đồng bộ theo góc nhìn người trình chiếu (Host Follow Mode)
+  const zoomScale =
+    !canControl && slideScroll && (!slideScroll.docUrl || slideScroll.docUrl === slideState?.docUrl) && slideScroll.zoom !== undefined
+      ? slideScroll.zoom
+      : currentView.zoom
+  const fitMode = currentView.fit
+
+  const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number } | null>(null)
+  const imageContainerRef = useRef<HTMLDivElement>(null)
+  const isProgrammaticScrollRef = useRef(false)
 
   // .pptx dựng ngay trên trình duyệt, chuyển trang đồng bộ như PDF; dựng lỗi thì quay về trình xem Office Online.
   const [pptxLoi, setPptxLoi] = useState(false)
   const dungPptx = laTepPptx(slideState) && !pptxLoi
   const coChuyenTrang = slideState?.fileType === 'pdf' || dungPptx
+
+  const isWord = Boolean(
+    slideState &&
+      (/\.(docx|doc)$/i.test(slideState.docName || '') ||
+        /\.(docx|doc)$/i.test(slideState.docUrl.split('?')[0]) ||
+        ((slideState.docName || '').toLowerCase().includes('.doc') && !laTepPptx(slideState))),
+  )
+
+  const isExcel = Boolean(
+    slideState &&
+      (/\.(xlsx|xls|csv)$/i.test(slideState.docName || '') ||
+        /\.(xlsx|xls|csv)$/i.test(slideState.docUrl.split('?')[0]) ||
+        ((slideState.docName || '').toLowerCase().includes('.xls') && !laTepPptx(slideState))),
+  )
+
+  const isLegacyXls = Boolean(
+    slideState &&
+      (/\.xls$/i.test(slideState.docName || '') || /\.xls$/i.test(slideState.docUrl.split('?')[0])) &&
+      !/\.xlsx$/i.test(slideState.docName || '') &&
+      !/\.xlsx$/i.test(slideState.docUrl.split('?')[0]),
+  )
+
+  const isImage = Boolean(
+    slideState &&
+      (slideState.fileType === 'image' ||
+        /\.(png|jpe?g|webp|gif|svg)$/i.test(slideState.docName || '') ||
+        /\.(png|jpe?g|webp|gif|svg)$/i.test(slideState.docUrl.split('?')[0])),
+  )
+
+  const loaiHienTai: LoaiTaiLieuNap = isImage ? 'image' : isExcel ? 'excel' : isWord ? 'word' : 'pptx'
+
+  const [openAppMenu, setOpenAppMenu] = useState<LoaiTaiLieuNap | null>(null)
+
+  const docsByApp = useMemo(() => {
+    const map: Record<LoaiTaiLieuNap, TaiLieuNapItem[]> = {
+      pptx: [],
+      excel: [],
+      word: [],
+      image: [],
+    }
+    if (!slideState?.loadedDocs || slideState.loadedDocs.length === 0) {
+      if (slideState) {
+        map[loaiHienTai].push({
+          loai: loaiHienTai,
+          docId: slideState.docId,
+          docUrl: slideState.docUrl,
+          docName: slideState.docName,
+          fileType: slideState.fileType,
+          currentPage: slideState.currentPage,
+          totalPages: slideState.totalPages,
+          step: slideState.step,
+        })
+      }
+      return map
+    }
+    for (const doc of slideState.loadedDocs) {
+      if (map[doc.loai]) {
+        map[doc.loai].push(doc)
+      }
+    }
+    return map
+  }, [slideState, loaiHienTai])
+
+  const activeApps = useMemo(() => {
+    return (['pptx', 'excel', 'word', 'image'] as const).filter((app) => docsByApp[app].length > 0)
+  }, [docsByApp])
+
+  // Image pan state (Kéo di chuyển hình ảnh mượt mà không nhấp nháy/biến mất)
+  const [imagePan, setImagePan] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [isPanningImage, setIsPanningImage] = useState(false)
+  const panStartRef = useRef<{ x: number; y: number; startPanX: number; startPanY: number } | null>(null)
+
+  const effectivePan =
+    !canControl && slideScroll && (!slideScroll.docUrl || slideScroll.docUrl === slideState?.docUrl) && slideScroll.panX !== undefined && slideScroll.panY !== undefined
+      ? { x: slideScroll.panX, y: slideScroll.panY }
+      : imagePan
+
+  const handlePanBackground = useCallback((dx: number, dy: number, isDone: boolean) => {
+    if (!coQuyenDiChuyen) return
+    if (!panStartRef.current) {
+      panStartRef.current = { x: 0, y: 0, startPanX: imagePan.x, startPanY: imagePan.y }
+    }
+    setIsPanningImage(!isDone)
+    const newX = Math.round(panStartRef.current.startPanX + dx)
+    const newY = Math.round(panStartRef.current.startPanY + dy)
+    setImagePan({ x: newX, y: newY })
+    if (isDone) {
+      panStartRef.current = null
+      if (canControl && onSendSlideScroll && slideState) {
+        onSendSlideScroll(0, 0, 0, slideState.docUrl, zoomScale, newX, newY)
+      }
+    }
+  }, [coQuyenDiChuyen, imagePan.x, imagePan.y, canControl, onSendSlideScroll, slideState, zoomScale])
 
   // .pptx: mỗi slide có thể có nhiều cú bấm hiệu ứng — tiến / lùi đi qua từng cú bấm trước khi đổi slide (như PowerPoint).
   const [soBuocPptx, setSoBuocPptx] = useState<number[] | null>(null)
@@ -319,22 +463,53 @@ export function DocumentStageView({
   const conTien = trangHienTai < tongTrang || buocHienTai < soBuocTrang(trangHienTai)
   const conLui = trangHienTai > 1 || Math.min(buocHienTai, soBuocTrang(trangHienTai)) > 0
 
-  // Zoom handlers (clamped between 0.5 and 3.0)
+  // Zoom handlers (clamped between 0.5 and 3.0) — scoped strictly to active document
   const handleZoomIn = useCallback(() => {
-    setZoomScale((z) => Math.min(3.0, Math.round((z + 0.25) * 100) / 100))
-  }, [])
+    setDocViewSettings((prev) => {
+      const cur = prev[currentDocKey] || { zoom: 1.0, fit: 'page' }
+      const newZoom = Math.min(3.0, Math.round((cur.zoom + 0.25) * 100) / 100)
+      if (canControl && onSendSlideScroll && slideState) {
+        onSendSlideScroll(0, 0, 0, slideState.docUrl, newZoom, imagePan.x, imagePan.y)
+      }
+      return {
+        ...prev,
+        [currentDocKey]: { ...cur, zoom: newZoom },
+      }
+    })
+  }, [currentDocKey, canControl, onSendSlideScroll, slideState, imagePan.x, imagePan.y])
 
   const handleZoomOut = useCallback(() => {
-    setZoomScale((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))
-  }, [])
+    setDocViewSettings((prev) => {
+      const cur = prev[currentDocKey] || { zoom: 1.0, fit: 'page' }
+      const newZoom = Math.max(0.5, Math.round((cur.zoom - 0.25) * 100) / 100)
+      if (canControl && onSendSlideScroll && slideState) {
+        onSendSlideScroll(0, 0, 0, slideState.docUrl, newZoom, imagePan.x, imagePan.y)
+      }
+      return {
+        ...prev,
+        [currentDocKey]: { ...cur, zoom: newZoom },
+      }
+    })
+  }, [currentDocKey, canControl, onSendSlideScroll, slideState, imagePan.x, imagePan.y])
 
   const handleResetZoom = useCallback(() => {
-    setZoomScale(1.0)
-  }, [])
+    setDocViewSettings((prev) => {
+      const cur = prev[currentDocKey] || { zoom: 1.0, fit: 'page' }
+      return { ...prev, [currentDocKey]: { ...cur, zoom: 1.0 } }
+    })
+    setImagePan({ x: 0, y: 0 })
+    if (canControl && onSendSlideScroll && slideState) {
+      onSendSlideScroll(0, 0, 0, slideState.docUrl, 1.0, 0, 0)
+    }
+  }, [currentDocKey, canControl, onSendSlideScroll, slideState])
 
   const handleToggleFit = useCallback(() => {
-    setFitMode((m) => (m === 'page' ? 'width' : 'page'))
-  }, [])
+    setDocViewSettings((prev) => {
+      const cur = prev[currentDocKey] || { zoom: 1.0, fit: 'page' }
+      const m = cur.fit
+      return { ...prev, [currentDocKey]: { ...cur, fit: m === 'page' ? 'width' : 'page' } }
+    })
+  }, [currentDocKey])
 
   // Keyboard navigation & accessibility (Section 14) — chỉ khi tài liệu là lớp chính
   useEffect(() => {
@@ -382,7 +557,37 @@ export function DocumentStageView({
     setHasRenderError(false)
     setPptxLoi(false)
     setSoBuocPptx(null)
+    setImagePan({ x: 0, y: 0 })
+    setImageNaturalSize(null)
   }
+
+  // Xử lý cuộn vùng xem hình ảnh và phát tỷ lệ cuộn cho người tham gia
+  const handleImageScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isProgrammaticScrollRef.current) return
+    if (!coQuyenCuon) return
+    const el = e.currentTarget
+    const maxScroll = el.scrollHeight - el.clientHeight
+    if (maxScroll <= 0) return
+    const ratio = Math.max(0, Math.min(1, el.scrollTop / maxScroll))
+    if (canControl && onSendSlideScroll && slideState) {
+      onSendSlideScroll(ratio, el.scrollTop, el.scrollHeight, slideState.docUrl, zoomScale, imagePan.x, imagePan.y)
+    }
+  }
+
+  // Đồng bộ vị trí cuộn cho container ảnh từ người trình chiếu
+  useEffect(() => {
+    if (canControl || !slideScroll || !imageContainerRef.current) return
+    if (slideScroll.docUrl && slideState && slideScroll.docUrl !== slideState.docUrl) return
+    const el = imageContainerRef.current
+    const maxScroll = el.scrollHeight - el.clientHeight
+    if (maxScroll > 0 && typeof slideScroll.scrollRatio === 'number') {
+      isProgrammaticScrollRef.current = true
+      el.scrollTop = Math.round(slideScroll.scrollRatio * maxScroll)
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = false
+      })
+    }
+  }, [slideScroll, canControl, slideState])
 
   // ── 1. EMPTY DOCUMENT STATE ──
   if (status === 'no_document') {
@@ -413,66 +618,303 @@ export function DocumentStageView({
       {/* ── TOP DOCUMENT TOOLBAR / HEADER ── */}
       <div
         data-keo-khung
-        className={`relative flex shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
+        className={`relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border-subtle bg-surface z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
       >
-        {/* Left: Doc Name & Type Badge — VÙNG 2: CHỈ HIỆN VỚI NGƯỜI THAM GIA */}
-        {!canControl ? (
-          <div className="flex items-center gap-2 truncate pr-2 min-w-0" data-testid="document-stage-docname-badge">
-            <FileText className="h-4 w-4 text-orange-400 shrink-0" />
-            <span className="truncate text-xs font-semibold text-white text-text-primary max-w-[110px] sm:max-w-[200px]" data-testid="document-stage-docname" title={slideState?.docName || 'Tài liệu'}>
-              {slideState?.docName || 'Tài liệu'}
-            </span>
-            {!compact && (
-              <span className="hidden sm:inline rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-orange-300">
-                {slideState?.fileType || 'Doc'}
-              </span>
-            )}
-            {isReconnecting && (
-              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-warning" aria-label="Đang kết nối lại" />
-            )}
+        {/* Left (Col 1): Drag handle + App Cards (EXCEL, POWERPOINT, WORD, ẢNH) — VÙNG 1 */}
+        <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto [scrollbar-width:none] pr-2" data-testid="doc-loaded-tabs">
+          <div
+            data-keo-khung-handle
+            data-keo-khung
+            role="button"
+            tabIndex={-1}
+            className="flex items-center justify-center p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-raised cursor-grab active:cursor-grabbing transition-colors shrink-0 touch-none select-none"
+            title="Giữ chuột hoặc ngón tay để di chuyển khung tài liệu"
+            aria-label="Kéo di chuyển khung tài liệu"
+          >
+            <GripVertical className="h-4 w-4" />
           </div>
-        ) : (
-          <div className="flex items-center gap-2 min-w-0">
-            {isReconnecting && (
-              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-warning" aria-label="Đang kết nối lại" />
-            )}
-          </div>
-        )}
 
-        {/* Center: Synchronized Page Navigation — VÙNG 3: XÓA VỚI NGƯỜI THAM GIA, CĂN GIỮA VỚI CHỦ PHÒNG */}
-        {/* Student: honest read-only indicator without mutation buttons (Section 4) */}
-        {canControl && slideState && (slideState.totalPages > 1 || soBuocTrang(trangHienTai) > 0) && coChuyenTrang && (
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 bg-surface-overlay rounded-lg px-1.5 py-0.5 border border-border-default" data-testid="doc-page-nav">
-            <button
-              type="button"
-              disabled={!conLui}
-              onClick={diLui}
-              className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
-              title="Trang trước (←)"
-              aria-label="Trang trước"
-              data-testid="doc-btn-prev"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <span className="text-xs font-mono font-bold text-orange-300 px-1" data-testid="doc-page-counter">
-              {slideState.currentPage}/{slideState.totalPages}
-            </span>
-            <button
-              type="button"
-              disabled={!conTien}
-              onClick={diTien}
-              className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
-              title="Trang sau (→)"
-              aria-label="Trang sau"
-              data-testid="doc-btn-next"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
+          {activeApps.map((app) => {
+            const files = docsByApp[app]
+            const isAppActive = loaiHienTai === app
+            const activeDocInApp = files.find((d) => d.docUrl === slideState?.docUrl) || files[0]
+            const isMenuOpen = openAppMenu === app
+            const hasMultipleFiles = files.length > 1
 
-        {/* Right: Local Zoom/Fit, Host Document Actions & layer frame controls — VÙNG 1 */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
+            const iconColor =
+              app === 'excel'
+                ? 'text-emerald-400'
+                : app === 'word'
+                  ? 'text-blue-400'
+                  : app === 'image'
+                    ? 'text-purple-400'
+                    : 'text-amber-400'
+            const bgBadge =
+              app === 'excel'
+                ? 'bg-emerald-500/15 border-emerald-500/30'
+                : app === 'word'
+                  ? 'bg-blue-500/15 border-blue-500/30'
+                  : app === 'image'
+                    ? 'bg-purple-500/15 border-purple-500/30'
+                    : 'bg-amber-500/15 border-amber-500/30'
+            const badgeCountColor =
+              app === 'excel'
+                ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-500/40'
+                : app === 'word'
+                  ? 'bg-blue-500/25 text-blue-200 ring-1 ring-blue-500/40'
+                  : app === 'image'
+                    ? 'bg-purple-500/25 text-purple-200 ring-1 ring-purple-500/40'
+                    : 'bg-amber-500/25 text-amber-200 ring-1 ring-amber-500/40'
+            const tenLoai =
+              app === 'excel'
+                ? 'Excel'
+                : app === 'word'
+                  ? 'Word'
+                  : app === 'image'
+                    ? 'Ảnh'
+                    : 'PowerPoint'
+
+            const renderAppIcon = (sizeCls = 'h-3.5 w-3.5') =>
+              app === 'excel' ? (
+                <FileSpreadsheet className={`${sizeCls} shrink-0 ${iconColor}`} />
+              ) : app === 'word' ? (
+                <FileText className={`${sizeCls} shrink-0 ${iconColor}`} />
+              ) : app === 'image' ? (
+                <ImageIcon className={`${sizeCls} shrink-0 ${iconColor}`} />
+              ) : (
+                <Presentation className={`${sizeCls} shrink-0 ${iconColor}`} />
+              )
+
+            // Người tham gia không thấy gì khi click vào các card tài liệu; chỉ có chủ phòng mới thấy & tương tác được
+            if (!canControl) {
+              return (
+                <div
+                  key={app}
+                  className={`group relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs select-none shrink-0 cursor-default ${
+                    isAppActive
+                      ? `${bgBadge} ring-1 ring-brand/40 shadow-xs font-semibold text-text-primary`
+                      : 'border-border-default/60 bg-surface-overlay/50 text-text-secondary'
+                  }`}
+                  title={`${tenLoai}: ${activeDocInApp?.docName || 'Tài liệu'}`}
+                  data-testid={`doc-tab-${app}`}
+                >
+                  {renderAppIcon('h-4 w-4')}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 ${iconColor}`}>
+                    {tenLoai}
+                  </span>
+                  {hasMultipleFiles && (
+                    <span
+                      className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold font-mono shadow-xs shrink-0 ${badgeCountColor}`}
+                      title={`${files.length} tài liệu`}
+                    >
+                      {files.length}
+                    </span>
+                  )}
+                </div>
+              )
+            }
+
+            if (hasMultipleFiles) {
+              return (
+                <Popover
+                  key={app}
+                  open={isMenuOpen}
+                  onOpenChange={(nextOpen) => setOpenAppMenu(nextOpen ? app : null)}
+                >
+                  <PopoverTrigger
+                    type="button"
+                    className={`group relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-all cursor-pointer shrink-0 select-none ${
+                      isAppActive
+                        ? `${bgBadge} ring-1 ring-brand/40 shadow-xs font-semibold text-text-primary`
+                        : 'border-border-default/60 bg-surface-overlay/50 text-text-secondary hover:bg-surface-raised hover:text-text-primary'
+                    }`}
+                    title={`${tenLoai}: ${activeDocInApp?.docName || 'Tài liệu'}`}
+                    data-testid={`doc-tab-${app}`}
+                  >
+                    {renderAppIcon('h-4 w-4')}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 ${iconColor}`}>
+                      {tenLoai}
+                    </span>
+
+                    {/* Số to rõ thẩm mỹ nằm trong card: chỉ hiện nếu hơn 1 tài liệu */}
+                    <span
+                      className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold font-mono shadow-xs shrink-0 transition-transform group-hover:scale-105 ${badgeCountColor}`}
+                      title={`${files.length} tài liệu`}
+                    >
+                      {files.length}
+                    </span>
+                  </PopoverTrigger>
+
+                  <PopoverContent
+                    align="start"
+                    side="bottom"
+                    sideOffset={6}
+                    className="w-72 p-2 rounded-xl border border-border-default bg-surface-raised shadow-xl backdrop-blur-md flex flex-col gap-1 text-xs z-50"
+                    data-testid={`doc-app-menu-${app}`}
+                  >
+                    <div className="flex items-center justify-between pb-1.5 mb-1 border-b border-border-subtle px-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-bold uppercase ${iconColor}`}>{tenLoai}</span>
+                        <span className="text-[11px] text-text-tertiary font-mono">({files.length}/5 tệp)</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 max-h-56 overflow-y-auto [scrollbar-width:thin]">
+                      {files.map((file, idx) => {
+                        const isCurrent = file.docUrl === slideState?.docUrl
+                        return (
+                          <button
+                            type="button"
+                            key={file.docUrl || idx}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onSwitchDoc?.(app, file.docUrl)
+                              setOpenAppMenu(null)
+                            }}
+                            className={`group flex w-full items-center justify-between gap-2 p-1.5 rounded-lg border transition-colors cursor-pointer text-left ${
+                              isCurrent
+                                ? `${bgBadge} ring-1 ring-brand/30 font-medium text-text-primary`
+                                : 'border-transparent hover:bg-surface-overlay text-text-secondary hover:text-text-primary'
+                            }`}
+                            title={file.docName}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {isCurrent ? (
+                                <Check className={`h-3.5 w-3.5 shrink-0 ${iconColor}`} />
+                              ) : (
+                                <span className="h-1.5 w-1.5 rounded-full bg-border-strong shrink-0 ml-1" />
+                              )}
+                              <span className="truncate text-xs min-w-0" title={file.docName}>
+                                {file.docName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {file.totalPages > 1 && (
+                                <span className="text-[10px] font-mono text-text-tertiary">
+                                  {file.currentPage}/{file.totalPages}
+                                </span>
+                              )}
+                              {canControl && onCloseDoc && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onCloseDoc(app, file.docUrl)
+                                    if (files.length <= 1) setOpenAppMenu(null)
+                                  }}
+                                  className="p-1 rounded text-text-tertiary hover:bg-surface-overlay hover:text-red-400 transition-colors cursor-pointer"
+                                  title={`Gỡ tệp ${file.docName}`}
+                                  aria-label={`Gỡ tệp ${file.docName}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )
+            }
+
+            // Chỉ 1 tài liệu: không hiện số, bấm trực tiếp để chuyển tài liệu
+            return (
+              <div key={app} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onSwitchDoc?.(app, files[0]?.docUrl)}
+                  className={`group relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-all cursor-pointer shrink-0 select-none ${
+                    isAppActive
+                      ? `${bgBadge} ring-1 ring-brand/40 shadow-xs font-semibold text-text-primary`
+                      : 'border-border-default/60 bg-surface-overlay/50 text-text-secondary hover:bg-surface-raised hover:text-text-primary'
+                  }`}
+                  title={`${tenLoai}: ${activeDocInApp?.docName || 'Tài liệu'}`}
+                  data-testid={`doc-tab-${app}`}
+                >
+                  {renderAppIcon()}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 ${iconColor}`}>
+                    {tenLoai}
+                  </span>
+                  {canControl && onCloseDoc && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onCloseDoc(app, files[0]?.docUrl)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.stopPropagation()
+                          onCloseDoc(app, files[0]?.docUrl)
+                        }
+                      }}
+                      className="ml-0.5 rounded p-0.5 text-text-tertiary hover:bg-surface-overlay hover:text-red-400 transition-colors shrink-0"
+                      title={`Đóng ${tenLoai}`}
+                      aria-label={`Đóng ${tenLoai}`}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </span>
+                  )}
+                </button>
+              </div>
+            )
+          })}
+          {isReconnecting && (
+            <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-warning" aria-label="Đang kết nối lại" />
+          )}
+        </div>
+
+        {/* Center (Col 2): Căn giữa 50% tuyệt đối — VÙNG 1 & 2 (Chỉ hiển thị với chủ phòng canControl) */}
+        <div className="flex items-center justify-center shrink-0">
+          {canControl && (
+            isExcel ? (
+              <div className="flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-overlay px-2 py-0.5 shrink-0">
+                <Search className="h-3 w-3 text-text-tertiary pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchExcel}
+                  onChange={(e) => setSearchExcel(e.target.value)}
+                  placeholder="Tìm ô..."
+                  className="w-20 sm:w-32 bg-transparent text-[11px] text-text-primary outline-none placeholder:text-text-tertiary"
+                  data-testid="doc-excel-search"
+                />
+              </div>
+            ) : slideState && (slideState.totalPages > 1 || soBuocTrang(trangHienTai) > 0) && coChuyenTrang ? (
+              <div className="flex items-center gap-1 bg-surface-overlay rounded-lg px-1.5 py-0.5 border border-border-default shrink-0 shadow-xs" data-testid="doc-page-nav">
+                <button
+                  type="button"
+                  disabled={!conLui}
+                  onClick={diLui}
+                  className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors rounded hover:bg-surface-overlay"
+                  title="Trang trước (←)"
+                  aria-label="Trang trước"
+                  data-testid="doc-btn-prev"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-xs font-mono font-bold text-orange-300 px-1.5" data-testid="doc-page-counter">
+                  {slideState.currentPage}/{slideState.totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={!conTien}
+                  onClick={diTien}
+                  className="p-1 text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors rounded hover:bg-surface-overlay"
+                  title="Trang sau (→)"
+                  aria-label="Trang sau"
+                  data-testid="doc-btn-next"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null
+          )}
+        </div>
+
+        {/* Right (Col 3): Local Zoom/Fit, Host Document Actions & layer frame controls */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 justify-end">
           {/* Thu phóng tại máy mình (không đồng bộ) — chỉ người trình chiếu; ẩn khi là cửa sổ nổi. Người tham gia chỉ xem. */}
           {!compact && !dungPptx && canControl && (
             <div className="hidden lg:flex items-center gap-0.5 bg-surface-overlay rounded-lg p-0.5 border border-border-default" data-testid="doc-zoom-controls">
@@ -533,8 +975,8 @@ export function DocumentStageView({
                 type="button"
                 onClick={onUploadSlide}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary cursor-pointer"
-                title="Đổi tài liệu"
-                aria-label="Đổi tài liệu"
+                title="Nạp / Đổi tài liệu"
+                aria-label="Nạp / Đổi tài liệu"
                 data-testid="doc-btn-replace"
               >
                 <Upload className="h-3.5 w-3.5" />
@@ -545,15 +987,20 @@ export function DocumentStageView({
               {onCloseDoc && (
                 <button
                   type="button"
-                  onClick={onCloseDoc}
+                  onClick={() => onCloseDoc()}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-overlay hover:text-red-400 cursor-pointer"
-                  title="Đóng trình chiếu"
-                  aria-label="Đóng trình chiếu"
+                  title="Tắt trình chiếu"
+                  aria-label="Tắt trình chiếu"
                   data-testid="doc-btn-close"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
+            </div>
+          )}
+          {!canControl && dieuKhienKhung && (
+            <div className="flex items-center gap-0.5">
+              {dieuKhienKhung}
             </div>
           )}
         </div>
@@ -562,18 +1009,28 @@ export function DocumentStageView({
       {/* ── MAIN DOCUMENT VIEWPORT AREA ── */}
       <div className="relative flex-1 bg-canvas overflow-hidden flex items-center justify-center p-2 sm:p-4">
         {status === 'render_error' ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center text-text-secondary space-y-2" data-testid="doc-render-error">
-            <AlertTriangle className="h-8 w-8 text-warning opacity-90" />
-            <p className="text-xs font-semibold text-text-primary">Không thể tải tài liệu này</p>
-            <button
-              type="button"
-              onClick={() => setHasRenderError(false)}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-overlay px-3 py-1.5 text-xs text-text-primary hover:bg-surface-overlay transition-colors cursor-pointer"
-            >
-              <RefreshCw className="h-3 w-3" />
-              <span>Thử lại</span>
-            </button>
-          </div>
+          canControl ? (
+            <div className="flex flex-col items-center justify-center p-6 text-center text-text-secondary space-y-2" data-testid="doc-render-error">
+              <AlertTriangle className="h-8 w-8 text-warning opacity-90" />
+              <p className="text-xs font-semibold text-text-primary">Không thể tải tài liệu này</p>
+              <button
+                type="button"
+                onClick={() => setHasRenderError(false)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-overlay px-3 py-1.5 text-xs text-text-primary hover:bg-surface-overlay transition-colors cursor-pointer"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Thử lại</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-6 text-center text-text-secondary space-y-2" data-testid="doc-render-waiting">
+              <div className="rounded-2xl bg-surface-overlay p-4 border border-border-subtle text-text-tertiary mb-1">
+                <Presentation className="h-8 w-8 text-brand" />
+              </div>
+              <p className="text-xs font-semibold text-text-primary">Chủ phòng đang chuẩn bị bài giảng</p>
+              <p className="text-[11px] text-text-tertiary">Vui lòng đợi trong giây lát...</p>
+            </div>
+          )
         ) : slideState?.fileType === 'pdf' ? (
           <div className="h-full w-full flex items-center justify-center overflow-auto" data-testid="doc-pdf-viewer">
             <PdfCanvasViewer
@@ -585,6 +1042,7 @@ export function DocumentStageView({
             >
               <SlideAnnotationLayer
                 pageNumber={slideState.currentPage}
+                docUrl={slideState.docUrl}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
                 hinh={hinh}
@@ -602,26 +1060,44 @@ export function DocumentStageView({
             </PdfCanvasViewer>
           </div>
         ) : slideState?.fileType === 'image' ? (
-          <div className="h-full w-full flex items-center justify-center overflow-auto p-2" data-testid="doc-image-container">
+          <div
+            ref={imageContainerRef}
+            onScroll={handleImageScroll}
+            className={`h-full w-full flex items-center justify-center p-2 ${
+              coQuyenCuon ? 'overflow-auto' : 'overflow-hidden overscroll-none'
+            }`}
+            data-testid="doc-image-container"
+          >
             <div
-              className="relative inline-flex items-center justify-center m-auto transition-transform duration-100 ease-out"
+              className={`relative inline-flex items-center justify-center m-auto ${isPanningImage ? '' : 'transition-transform duration-100 ease-out'}`}
               style={{
-                transform: `scale(${zoomScale})`,
+                transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${zoomScale})`,
                 transformOrigin: 'center center',
+                aspectRatio: imageNaturalSize ? `${imageNaturalSize.width} / ${imageNaturalSize.height}` : undefined,
                 maxWidth: fitMode === 'page' ? '100%' : 'none',
                 maxHeight: fitMode === 'page' ? '100%' : 'none',
+                width: imageNaturalSize && fitMode === 'width' ? '100%' : undefined,
+                height: imageNaturalSize && fitMode === 'page' ? '100%' : undefined,
               }}
             >
               <img
                 src={slideState.docUrl}
                 alt={slideState.docName || 'Bài giảng'}
+                onLoad={(e) => {
+                  const img = e.currentTarget
+                  if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                    setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight })
+                  }
+                }}
                 onError={() => setHasRenderError(true)}
-                className="object-contain rounded-lg shadow-2xl border border-border-default select-none max-h-full max-w-full"
+                onDragStart={(e) => e.preventDefault()}
+                className="w-full h-full object-cover rounded-lg shadow-2xl border border-border-default select-none block"
                 draggable={false}
                 data-testid="doc-image-viewer"
               />
               <SlideAnnotationLayer
                 pageNumber={1}
+                docUrl={slideState.docUrl}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
                 hinh={hinh}
@@ -630,6 +1106,7 @@ export function DocumentStageView({
                 canAnnotate={coTheChuThich ?? canControl}
                 onSendStroke={onSendSlideAnnotation}
                 onRemoveStroke={onRemoveSlideAnnotation}
+                onPanBackground={handlePanBackground}
                 lasers={slideLasers}
                 coLaser={coLaser ?? canControl}
                 coTheTayMoiNet={coTheTayMoiNet ?? canControl}
@@ -653,6 +1130,7 @@ export function DocumentStageView({
             >
               <SlideAnnotationLayer
                 pageNumber={slideState.currentPage}
+                docUrl={slideState.docUrl}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
                 hinh={hinh}
@@ -669,9 +1147,98 @@ export function DocumentStageView({
               />
             </PptxSlideViewer>
           </div>
+        ) : isWord && slideState ? (
+          <div className="relative h-full w-full" data-testid="doc-word-viewer">
+            <DocxDocumentViewer
+              docName={slideState.docName}
+              docUrl={slideState.docUrl}
+              compact={compact}
+              hideHeader={true}
+              scale={zoomScale}
+              canControl={canControl}
+              canScroll={coQuyenCuon}
+              scrollRatio={
+                slideScroll && (!slideScroll.docUrl || slideScroll.docUrl === slideState.docUrl)
+                  ? slideScroll.scrollRatio
+                  : undefined
+              }
+              onScrollRatioChange={
+                coQuyenCuon && onSendSlideScroll
+                  ? (ratio, sTop, sHeight) => onSendSlideScroll(ratio, sTop, sHeight, slideState.docUrl)
+                  : undefined
+              }
+            >
+              <SlideAnnotationLayer
+                pageNumber={1}
+                docUrl={slideState.docUrl}
+                strokes={slideAnnotations}
+                activeTool={activeTool}
+                hinh={hinh}
+                selectedColor={mau}
+                selectedSize={co}
+                canAnnotate={coTheChuThich ?? canControl}
+                onSendStroke={onSendSlideAnnotation}
+                onRemoveStroke={onRemoveSlideAnnotation}
+                lasers={slideLasers}
+                coLaser={coLaser ?? canControl}
+                coTheTayMoiNet={coTheTayMoiNet ?? canControl}
+                khoaCuaToi={khoaCuaToi}
+                onSendLaser={onSendSlideLaser}
+              />
+            </DocxDocumentViewer>
+          </div>
+        ) : isExcel && slideState ? (
+          <div className="relative h-full w-full" data-testid="doc-excel-viewer">
+            {isLegacyXls ? (
+              <>
+                <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} canControl={canControl} />
+                {lopVeNhung && <div className="pointer-events-none absolute inset-0 z-10">{lopVeNhung}</div>}
+              </>
+            ) : (
+              <XlsxSpreadsheetViewer
+                docName={slideState.docName}
+                docUrl={slideState.docUrl}
+                compact={compact}
+                hideHeader={true}
+                scale={zoomScale}
+                search={searchExcel}
+                canControl={canControl}
+                canScroll={coQuyenCuon}
+                scrollRatio={
+                  slideScroll && (!slideScroll.docUrl || slideScroll.docUrl === slideState.docUrl)
+                    ? slideScroll.scrollRatio
+                    : undefined
+                }
+                onScrollRatioChange={
+                  coQuyenCuon && onSendSlideScroll
+                    ? (ratio, sTop, sHeight) => onSendSlideScroll(ratio, sTop, sHeight, slideState.docUrl)
+                    : undefined
+                }
+                onSearchChange={setSearchExcel}
+              >
+                <SlideAnnotationLayer
+                  pageNumber={1}
+                  docUrl={slideState.docUrl}
+                  strokes={slideAnnotations}
+                  activeTool={activeTool}
+                  hinh={hinh}
+                  selectedColor={mau}
+                  selectedSize={co}
+                  canAnnotate={coTheChuThich ?? canControl}
+                  onSendStroke={onSendSlideAnnotation}
+                  onRemoveStroke={onRemoveSlideAnnotation}
+                  lasers={slideLasers}
+                  coLaser={coLaser ?? canControl}
+                  coTheTayMoiNet={coTheTayMoiNet ?? canControl}
+                  khoaCuaToi={khoaCuaToi}
+                  onSendLaser={onSendSlideLaser}
+                />
+              </XlsxSpreadsheetViewer>
+            )}
+          </div>
         ) : slideState?.fileType === 'pptx' ? (
           <div className="relative h-full w-full">
-            <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} />
+            <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} canControl={canControl} />
             {lopVeNhung && <div className="pointer-events-none absolute inset-0 z-10">{lopVeNhung}</div>}
           </div>
         ) : (

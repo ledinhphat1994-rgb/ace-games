@@ -125,20 +125,17 @@ describe('UI-6C: Memory Game Experience', () => {
   })
 })
 
-describe('UI-6C: Snake Game Experience (Duel & Classic)', () => {
-  it('preserves two real modes: Đối kháng (Wormate3D) and Cổ điển (SnakeDeluxe / Phaser)', () => {
-    expect(soloStageRaw).toContain("snakeTab === 'classic'")
-    expect(soloStageRaw).toContain('<SnakeDeluxe')
+describe('UI-6C: Snake Game Experience (Modern Wormate3D Arena)', () => {
+  it('SoloGameStage renders SnakeDuel directly without classic tab', () => {
+    expect(soloStageRaw).not.toContain("snakeTab === 'classic'")
     expect(soloStageRaw).toContain('<SnakeDuel')
   })
 
-  it('both modes share a single coherent mode switch and canonical back action', () => {
-    expect(snakeDuelRaw).toContain('onTabChange')
-    expect(snakeDeluxeRaw).toContain('onTabChange')
-    expect(snakeDuelRaw).toContain('Đối kháng')
-    expect(snakeDuelRaw).toContain('Cổ điển')
-    expect(snakeDeluxeRaw).toContain('Đối kháng')
-    expect(snakeDeluxeRaw).toContain('Cổ điển')
+  it('SnakeDuel supports 100% PvE, PvP + PvE, and 100% PvP with 0 bot option', () => {
+    expect(snakeDuelRaw).toContain('100% PVP')
+    expect(snakeDuelRaw).toContain('100% PVE')
+    expect(snakeDuelRaw).toContain('PVP + PVE')
+    expect(snakeDuelRaw).not.toContain('Cổ điển')
     // No duplicate back button in SoloGameStage
     expect(soloStageRaw).not.toContain('Quay lại sảnh')
   })

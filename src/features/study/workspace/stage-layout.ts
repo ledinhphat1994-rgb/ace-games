@@ -26,6 +26,8 @@ export type BoCuc = Partial<Record<LopId, VaiTroLop>> & {
   khung?: Partial<Record<LopId, KhungCuaSo>>
   /** Vai trò ngay trước khi ẩn: bật lại lớp thì về đúng vai trò cũ (cửa sổ nổi giữ nguyên khung), không tự phóng to. */
   truocKhiAn?: Partial<Record<LopId, 'main' | 'pip'>>
+  /** Thứ tự xếp chồng các cửa sổ nổi (thu nhỏ mới nhất nằm ở cuối / trên cùng). */
+  thuTuPip?: LopId[]
 }
 
 /** Bố cục nhận từ máy chủ: bản cũ có thể còn vai trò 'phu' (bảng phủ, đã bỏ) — đọc thành cửa sổ nổi. */
@@ -33,6 +35,7 @@ export type BoCucMayChu = Partial<Record<LopId, VaiTroLop | 'phu'>> & {
   toanManHinh?: boolean
   khung?: BoCuc['khung']
   truocKhiAn?: BoCuc['truocKhiAn']
+  thuTuPip?: LopId[]
 }
 
 /** Kẹp khung trong sân khấu, làm tròn cho gọn gói tin. */
@@ -57,6 +60,27 @@ export function lopChinh(bc: BoCuc): LopId | null {
   return THU_TU_LOP.find((id) => bc[id] === 'main') ?? null
 }
 
+export function xoaKhoiThuTuPip(ds: LopId[] | undefined, id: LopId): LopId[] | undefined {
+  if (!ds) return undefined
+  const ketQua = ds.filter((x) => x !== id)
+  return ketQua.length > 0 ? ketQua : undefined
+}
+
+export function themVaoThuTuPip(ds: LopId[] | undefined, id: LopId, cacLopPipHienTai?: readonly LopId[]): LopId[] {
+  const goc = ds ?? (cacLopPipHienTai ? cacLopPipHienTai.filter((x) => x !== id) : [])
+  const loc = goc.filter((x) => x !== id)
+  return [...loc, id]
+}
+
+/** Đưa một cửa sổ nổi lên trên cùng (khi người dùng chạm / kéo nó). */
+export function lenDauPip(bc: BoCuc, id: LopId): BoCuc {
+  if (bc[id] !== 'pip') return bc
+  const thuTuCu = bc.thuTuPip ?? THU_TU_LOP.filter((k) => bc[k] === 'pip')
+  const thuTuMoi = themVaoThuTuPip(thuTuCu, id)
+  if (cungMang(bc.thuTuPip, thuTuMoi)) return bc
+  return { ...bc, thuTuPip: thuTuMoi }
+}
+
 /** Lớp chính vừa mất: nâng cửa sổ nổi đầu tiên lên. */
 function nangLopChinh(bc: BoCuc): BoCuc {
   if (lopChinh(bc)) return bc
@@ -66,19 +90,26 @@ function nangLopChinh(bc: BoCuc): BoCuc {
 
 /** Đưa một lớp lên làm lớp chính; lớp chính cũ thu thành cửa sổ nổi. */
 export function lamChinh(bc: BoCuc, id: LopId): BoCuc {
-  const ketQua: BoCuc = { ...bc }
   const cu = lopChinh(bc)
+  const ketQua: BoCuc = { ...bc }
   if (cu && cu !== id) ketQua[cu] = 'pip'
   ketQua[id] = 'main'
+  if (bc.thuTuPip) {
+    const loc = bc.thuTuPip.filter((x) => x !== id && x !== cu)
+    ketQua.thuTuPip = cu && cu !== id ? [...loc, cu] : (loc.length > 0 ? loc : undefined)
+  }
   return ketQua
 }
 
-/** Lớp chính thu thành cửa sổ nổi (lớp khác đang hiện được nâng lên làm chính). */
+/** Lớp chính thu thành cửa sổ nổi — giữ nguyên trạng thái nổi của các lớp khác, lớp mới thu nhỏ đè lên trên. */
 export function thuNho(bc: BoCuc, id: LopId): BoCuc {
   if (bc[id] !== 'main') return bc
-  const conLai = THU_TU_LOP.find((khac) => khac !== id && bc[khac] === 'pip')
-  if (conLai) return { ...bc, [id]: 'pip', [conLai]: 'main' }
-  return { ...bc, [id]: 'pip' }
+  const thuTuCu = bc.thuTuPip ?? THU_TU_LOP.filter((khac) => khac !== id && bc[khac] === 'pip')
+  return {
+    ...bc,
+    [id]: 'pip',
+    thuTuPip: themVaoThuTuPip(thuTuCu, id),
+  }
 }
 
 /** Ẩn một lớp (vẫn chạy); nhớ vai trò đang có để bật lại đúng như cũ. */
@@ -86,7 +117,13 @@ export function anLop(bc: BoCuc, id: LopId): BoCuc {
   const vaiTro = bc[id]
   if (!vaiTro) return bc
   const nho = vaiTro === 'main' || vaiTro === 'pip' ? { truocKhiAn: { ...bc.truocKhiAn, [id]: vaiTro } } : {}
-  return nangLopChinh({ ...bc, ...nho, [id]: 'an' })
+  const thuTu = bc.thuTuPip ? xoaKhoiThuTuPip(bc.thuTuPip, id) : undefined
+  return nangLopChinh({
+    ...bc,
+    ...nho,
+    [id]: 'an',
+    ...(bc.thuTuPip ? { thuTuPip: thuTu } : {}),
+  })
 }
 
 /** Bỏ hẳn một lớp khỏi sân khấu (nội dung đã kết thúc: đóng tài liệu, gỡ video). */
@@ -94,6 +131,9 @@ export function goLop(bc: BoCuc, id: LopId): BoCuc {
   if (!bc[id]) return bc
   const ketQua: BoCuc = { ...bc }
   delete ketQua[id]
+  if (ketQua.thuTuPip) {
+    ketQua.thuTuPip = xoaKhoiThuTuPip(ketQua.thuTuPip, id)
+  }
   return nangLopChinh(ketQua)
 }
 
@@ -125,6 +165,7 @@ export function theoBoCucTrinhChieu(bc: BoCucMayChu, coVideo: boolean, coTaiLieu
     ...(typeof bc.toanManHinh === 'boolean' ? { toanManHinh: bc.toanManHinh } : {}),
     ...(bc.khung ? { khung: bc.khung } : {}),
     ...(bc.truocKhiAn ? { truocKhiAn: bc.truocKhiAn } : {}),
+    ...(Array.isArray(bc.thuTuPip) ? { thuTuPip: bc.thuTuPip } : {}),
   }
   for (const id of THU_TU_LOP) {
     const vaiTro = bc[id] === 'phu' ? 'pip' : bc[id]
@@ -132,16 +173,25 @@ export function theoBoCucTrinhChieu(bc: BoCucMayChu, coVideo: boolean, coTaiLieu
     if ((id === 'video' && !coVideo) || (id === 'doc' && !coTaiLieu)) continue
     ketQua[id] = vaiTro
   }
-  return nangLopChinh(ketQua)
+  const coLopChinhTrenMayChu = THU_TU_LOP.some((id) => bc[id] === 'main')
+  return coLopChinhTrenMayChu ? nangLopChinh(ketQua) : ketQua
 }
 
 const cungKhung = (a?: KhungCuaSo, b?: KhungCuaSo) =>
   a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)
 
+const cungMang = (a?: LopId[], b?: LopId[]) => {
+  if (a === b) return true
+  if (!a || !b) return !a && !b
+  if (a.length !== b.length) return false
+  return a.every((v, i) => v === b[i])
+}
+
 export function cungBoCuc(a: BoCuc, b: BoCucMayChu | null): boolean {
   return (
     b !== null &&
     Boolean(a.toanManHinh) === Boolean(b.toanManHinh) &&
+    cungMang(a.thuTuPip, b.thuTuPip) &&
     THU_TU_LOP.every((id) => a[id] === b[id] && cungKhung(a.khung?.[id], b.khung?.[id]))
   )
 }

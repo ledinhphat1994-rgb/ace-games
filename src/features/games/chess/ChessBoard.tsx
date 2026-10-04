@@ -20,7 +20,7 @@ import { dungTheCoVua } from '../../../../worker/game-engine'
 import type { BanOnline } from '@/hooks/use-game'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { Crown, RotateCcw, Lightbulb, BarChart3, Flag, ScrollText, Swords, MessageCircle } from 'lucide-react'
+import { Crown, RotateCcw, Lightbulb, BarChart3, ScrollText, Swords, MessageCircle } from 'lucide-react'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import {
   guiBieuCamOnline,
@@ -189,9 +189,21 @@ interface ChessBoardProps {
   initialMode?: PlayMode
   /** Bàn online (mở từ sảnh): PvP chuyển sang Online — máy chủ làm trọng tài, đối thủ là người thật. */
   online?: BanOnline
+  roomName?: string
+  isPrivate?: boolean
+  soPhongHienThi?: string
+  onInvite?: () => void
 }
 
-export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
+export function ChessBoard({
+  onBack,
+  initialMode,
+  online,
+  roomName,
+  isPrivate,
+  soPhongHienThi,
+  onInvite,
+}: ChessBoardProps) {
   const [posTaiCho, setPos] = useState<ChessPosition>(() => ChessPosition.fromFen())
   const [selectedSq, setSelectedSq] = useState<number | null>(null)
   const { mode, doiCheDo, laOnline, vanVuaBatDau, xoaVanVuaBatDau } = useCheDoBan(online, initialMode)
@@ -512,6 +524,9 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
+    if (online && online.mySide === 'X') {
+      online.datPve(newMode === 'ai')
+    }
   }
 
   const handleResetOrSurrender = () => {
@@ -581,13 +596,101 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
     setPendingPromo(null)
   }
 
+  // Khối đối thủ và người chơi hợp nhất vào Vùng 3 (GamePlayToolbar)
+  const opponentSlotContent = (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
+      <div className="size-6 sm:size-7 rounded-md bg-surface-overlay border border-border-default flex items-center justify-center font-bold text-xs text-text-primary shrink-0 shadow-inner">
+        {mauCuaToi === WHITE ? '♚' : '♔'}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
+          {mode === 'ai' || Boolean(online?.meta.isPve)
+            ? 'Người chơi AI'
+            : laOnline
+              ? (mauOnline === WHITE ? 'Đối thủ (Đen)' : 'Đối thủ (Trắng)')
+              : 'Bên Đen'}
+        </span>
+        {isAiThinking && (
+          <span className="text-[9px] text-cyan-400 font-medium animate-pulse">Đang tính...</span>
+        )}
+      </div>
+      {captured.friendlyLost.length > 0 && (
+        <div className="hidden md:flex items-center gap-0.5 ml-0.5">
+          {captured.friendlyLost.slice(0, 3).map((type, i) => (
+            <span key={i} className="size-4 rounded-full border border-border-default bg-surface-overlay text-text-secondary font-bold text-[8px] flex items-center justify-center shrink-0">
+              {CHESS_SYMBOLS[type] || '♟'}
+            </span>
+          ))}
+          {captured.friendlyLost.length > 3 && (
+            <span className="text-[8px] font-mono text-text-tertiary">+{captured.friendlyLost.length - 3}</span>
+          )}
+        </div>
+      )}
+      <div
+        className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          pos.turn !== mauCuaToi && isPlaying
+            ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)] animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {formatClockTime(clock.timeRemaining)}
+      </div>
+      <div className="absolute top-full mt-2 left-0 z-50 pointer-events-none">
+        <GameOpponentBubble bubble={bongDoiThu} theme="amber" />
+      </div>
+    </div>
+  )
+
+  const playerSlotContent = (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
+      <div
+        className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          pos.turn === mauCuaToi && isPlaying
+            ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)] animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {formatClockTime(clock.timeRemaining)}
+      </div>
+      {captured.enemyCaptured.length > 0 && (
+        <div className="hidden md:flex items-center gap-0.5 mr-0.5">
+          {captured.enemyCaptured.slice(0, 3).map((type, i) => (
+            <span key={i} className="size-4 rounded-full border border-border-default bg-surface-overlay text-text-secondary font-bold text-[8px] flex items-center justify-center shrink-0">
+              {CHESS_SYMBOLS[type] || '♟'}
+            </span>
+          ))}
+          {captured.enemyCaptured.length > 3 && (
+            <span className="text-[8px] font-mono text-text-tertiary">+{captured.enemyCaptured.length - 3}</span>
+          )}
+        </div>
+      )}
+      <div className="flex flex-col min-w-0 text-right">
+        <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
+          {laOnline ? (mauOnline === WHITE ? 'Bạn (Trắng)' : 'Bạn (Đen)') : (playerColor === WHITE ? 'Bạn (Trắng)' : 'Bạn (Đen)')}
+        </span>
+      </div>
+      <div className="size-6 sm:size-7 rounded-md bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center font-bold text-xs text-cyan-400 shrink-0 shadow-inner">
+        {mauCuaToi === WHITE ? '♔' : '♚'}
+      </div>
+      <div className="absolute top-full mt-2 right-0 z-50 pointer-events-none">
+        <GamePlayerBubble bubble={playerBubble} theme="amber" />
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full">
-      {/* Thanh điều khiển cân đối & trạng thái ván đấu */}
+      {/* Thanh điều khiển cân đối & trạng thái ván đấu (Vùng 3 tích hợp đối thủ & người chơi) */}
       <GamePlayToolbar
         onBack={onBack}
         title="Cờ Vua"
         icon={<Crown className="size-4 text-amber-400" />}
+        roomName={roomName}
+        isPrivate={isPrivate}
+        soPhongHienThi={soPhongHienThi}
+        onInvite={onInvite}
         mode={mode}
         onModeChange={handleModeChange}
         onlineAvailable={Boolean(online)}
@@ -603,7 +706,12 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
         showRankings={false}
-        showRoomChat={Boolean(online)}
+        showRoomChat={true}
+        turnSeconds={clock.myPendingProposal ?? clock.turnSeconds}
+        onTurnSecondsChange={clock.proposeTime}
+        timePresets={TIME_PRESETS}
+        opponentSlot={opponentSlotContent}
+        playerSlot={playerSlotContent}
         rightSlot={
           <GameQuickEmote
             emotes={DANH_SACH_THAI_DO_CHESS}
@@ -615,52 +723,12 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
       />
 
       {/* ── BỐ CỤC CHUẨN CYBER CAMPUS: BÀN CỜ + BẢNG ĐIỀU KHIỂN & LỊCH SỬ NƯỚC ĐI ── */}
-      <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-5 sm:gap-6 w-full max-w-6xl flex-1 my-auto px-2 sm:px-4 py-2">
-        {/* CỘT TRÁI: BÀN CỜ & THANH NGƯỜI CHƠI */}
-        <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] shrink-0">
-          {/* THANH ĐỐI THỦ (TRÊN BÀN CỜ) */}
-          <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-border-default/80 bg-slate-900/90 backdrop-blur-md shadow-xs min-h-11">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="size-7 rounded-md bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-xs text-text-primary shrink-0 shadow-inner">
-                {mauCuaToi === WHITE ? '♚' : '♔'}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-text-primary truncate">
-                  {laOnline ? (mauOnline === WHITE ? 'Đối thủ (Đen)' : 'Đối thủ (Trắng)') : (mode === 'ai' ? 'Máy AI' : 'Bên Đen')}
-                </span>
-                {isAiThinking && (
-                  <span className="text-[10px] text-cyan-400 font-medium animate-pulse">Đang tính toán...</span>
-                )}
-              </div>
-              {/* Quân của mình bị bắt */}
-              {captured.friendlyLost.length > 0 && (
-                <div className="hidden sm:flex items-center gap-1 ml-2">
-                  {captured.friendlyLost.slice(0, 8).map((type, i) => (
-                    <span key={i} className="size-5 rounded-full border border-white/10 bg-slate-800 text-slate-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                      {CHESS_SYMBOLS[type] || '♟'}
-                    </span>
-                  ))}
-                  {captured.friendlyLost.length > 8 && (
-                    <span className="text-[10px] font-mono text-text-tertiary">+{captured.friendlyLost.length - 8}</span>
-                  )}
-                </div>
-              )}
-            </div>
+      <div className="flex flex-col xl:flex-row items-center xl:items-start justify-center gap-5 sm:gap-6 w-full flex-1 my-auto px-2 sm:px-4 py-2">
+        {/* CỘT CÂN BẰNG TRÁI (SPACER ĐỂ BÀN CỜ ĐẠT 100% CĂN GIỮA MÀN HÌNH TƯƠNG ĐƯƠNG VÙNG 3) */}
+        <div className="hidden xl:block shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] pointer-events-none opacity-0 select-none" aria-hidden="true" />
 
-            <div className="flex items-center gap-2 shrink-0">
-              <GameOpponentBubble bubble={bongDoiThu} theme="amber" />
-              <div
-                className={cn(
-                  'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
-                  pos.turn !== mauCuaToi && isPlaying
-                    ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)] animate-pulse'
-                    : 'border-border-default bg-slate-800/80 text-text-secondary',
-                )}
-              >
-                {formatClockTime(clock.timeRemaining)}
-              </div>
-            </div>
-          </div>
+        {/* CỘT GIỮA: BÀN CỜ TRUNG TÂM */}
+        <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] shrink-0 gap-2">
 
           {/* Bàn cờ 8×8 Cyber Dark Neon - 100% hiển thị đầy đủ, không bị che */}
           <div className="game-board-shell w-full min-w-0 relative p-2.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15),0_0_20px_rgba(6,182,212,0.1)] ring-1 ring-white/10 shrink flex flex-col items-center">
@@ -794,17 +862,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
               <BarChart3 className="size-3.5 text-cyan-400" />
               <span className="hidden sm:inline">Phân tích</span>
             </button>
-
-            <button
-              type="button"
-              onClick={handleResetOrSurrender}
-              disabled={isOver ? false : surrenderAttempts >= 3}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-semibold text-rose-400 hover:text-rose-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs"
-              title={isOver ? 'Ván mới' : 'Xin thua ván này'}
-            >
-              <Flag className="size-3.5" />
-              <span className="hidden sm:inline">{isOver ? 'Ván mới' : 'Đầu hàng'}</span>
-            </button>
           </div>
 
           {/* Phân tích thế cờ khi bật */}
@@ -817,68 +874,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
             </div>
           )}
 
-          {/* THANH NGƯỜI CHƠI (DƯỚI BÀN CỜ) */}
-          <div className="w-full flex items-center justify-between px-3 py-1.5 mt-2 rounded-xl border border-border-default/80 bg-slate-900/90 backdrop-blur-md shadow-xs min-h-11">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="size-7 rounded-md bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center font-bold text-xs text-cyan-400 shrink-0 shadow-inner">
-                {mauCuaToi === WHITE ? '♔' : '♚'}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-text-primary truncate">
-                  {laOnline ? (mauOnline === WHITE ? 'Bạn (Trắng)' : 'Bạn (Đen)') : (playerColor === WHITE ? 'Bạn (Trắng)' : 'Bạn (Đen)')}
-                </span>
-              </div>
-              {/* Quân đối thủ bị bắt */}
-              {captured.enemyCaptured.length > 0 && (
-                <div className="hidden sm:flex items-center gap-1 ml-2">
-                  {captured.enemyCaptured.slice(0, 8).map((type, i) => (
-                    <span key={i} className="size-5 rounded-full border border-white/10 bg-slate-800 text-slate-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                      {CHESS_SYMBOLS[type] || '♟'}
-                    </span>
-                  ))}
-                  {captured.enemyCaptured.length > 8 && (
-                    <span className="text-[10px] font-mono text-text-tertiary">+{captured.enemyCaptured.length - 8}</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <GamePlayerBubble bubble={playerBubble} theme="amber" />
-              <div
-                className={cn(
-                  'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
-                  pos.turn === mauCuaToi && isPlaying
-                    ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)] animate-pulse'
-                    : 'border-border-default bg-slate-800/80 text-text-secondary',
-                )}
-              >
-                {formatClockTime(clock.timeRemaining)}
-              </div>
-            </div>
-          </div>
-
-          {/* Thiết lập thời gian khi chưa vào trận (chỉ hiện trước ván) */}
-          {!isPlaying && (
-            <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-slate-900 border border-border-default text-xs">
-              <span className="text-[11px] text-text-tertiary font-medium">Thời gian mỗi lượt:</span>
-              {TIME_PRESETS.map((sec) => (
-                <button
-                  key={sec}
-                  type="button"
-                  onClick={() => clock.proposeTime(sec)}
-                  className={cn(
-                    'px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer border',
-                    (clock.myPendingProposal ?? clock.turnSeconds) === sec
-                      ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/40 shadow-xs'
-                      : 'bg-slate-800 border-white/5 text-text-tertiary hover:text-text-primary',
-                  )}
-                >
-                  {sec}s
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* CỘT PHẢI: LỊCH SỬ NƯỚC ĐI & CHAT NHANH (Theo đúng ảnh mẫu Cyber Dark) */}
@@ -975,18 +970,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
               </div>
             </div>
           )}
-
-          {/* Nút hành động nhanh ở đáy */}
-          <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={handleResetOrSurrender}
-              className="flex-1 h-9 rounded-xl border border-border-default/70 bg-slate-800/80 hover:bg-slate-800 text-xs font-bold text-white transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-            >
-              <Flag className="size-3.5 text-rose-400" />
-              <span>{isOver ? 'Ván mới' : 'Xin thua'}</span>
-            </button>
-          </div>
         </div>
       </div>
 

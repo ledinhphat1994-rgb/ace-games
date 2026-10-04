@@ -153,6 +153,42 @@ export function formatLastSeen(ts: number | null | undefined): string {
 }
 
 /**
+ * Format friend location according to Digital Campus area rules:
+ * Chỉ hiển thị khu vực trang web (ví dụ: đang ở khu vực game, khu vực học tập, khu vực trang chủ, khu vực cộng đồng),
+ * chỉ ghi như vậy, không ghi chi tiết phòng nào chỗ nào.
+ */
+export function formatFriendArea(
+  presence: FriendPresence | undefined,
+  presenceReady = true,
+): string {
+  if (!presenceReady) return 'Đang đồng bộ…'
+  if (!presence) return 'Ngoại tuyến'
+  if (presence.state === 'offline') {
+    return formatLastSeen(presence.lastSeen ?? null)
+  }
+  if (presence.state === 'away') {
+    return 'Tạm vắng'
+  }
+  const act = presence.activity
+  if (act) {
+    if (act.type === 'game' || act.area === 'game') {
+      return 'Đang ở khu vực game'
+    }
+    if (act.type === 'room' || act.type === 'learn' || act.area === 'learn') {
+      return 'Đang ở khu vực học tập'
+    }
+    if (act.type === 'community' || act.area === 'community') {
+      return 'Đang ở khu vực cộng đồng'
+    }
+    if (act.type === 'home' || act.type === 'lobby' || act.area === 'home') {
+      return 'Đang ở khu vực trang chủ'
+    }
+  }
+  return 'Đang ở khu vực trang chủ'
+}
+
+
+/**
  * Search lifecycle states.
  * Guarantees that network errors never collapse into fake empty results ("Không tìm thấy").
  */

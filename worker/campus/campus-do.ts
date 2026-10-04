@@ -9,6 +9,8 @@ import {
   type MaLoi,
 } from '../../shared/protocol/common'
 import { CHAT_CAMPUS, MON_HOC, type MonHoc } from '../../shared/rooms/constants'
+import { parseReactionData } from './campus-reactions'
+import type { ReactionDetail } from '../../shared/protocol/campus'
 import { msTuD1 } from '../lib/thoi-gian'
 import { giaiMaDanhTinh, HEADER_DANH_TINH, laYeuCauWebSocket } from '../lib/ws'
 import { thayPhong, type DanhTinhCampus } from './danh-tinh'
@@ -225,11 +227,14 @@ export class CampusDO extends DurableObject<Env> {
     }
 
     const online = this.demOnline()
+    const { reactions, reactionDetails } = await this.layReactionsCampus(chat.map((m) => m.id))
     this.gui(server, {
       type: 'snapshot',
       online,
       rooms: this.phongChoNguoiXem(dt),
       chat,
+      reactions,
+      reactionDetails,
       me: { accountId: dt.accountId, xoaMoiTin: dt.xoaMoiTin },
       serverNow: Date.now(),
     })
@@ -653,6 +658,9 @@ export class CampusDO extends DurableObject<Env> {
     if (noiDung.length > CHAT_CAMPUS.TOI_DA_KY_TU) {
       return this.loi(ws, reqId, 'invalid_payload', `Tin nhắn tối đa ${CHAT_CAMPUS.TOI_DA_KY_TU} ký tự.`)
     }
+    if (noiDung.startsWith('[SYS_')) {
+      return this.loi(ws, reqId, 'invalid_payload', 'Nội dung tin nhắn không hợp lệ.')
+    }
 
     const bayGio = Date.now()
     const truoc = this.guiChatGanNhat.get(dt.accountId)
@@ -768,6 +776,36 @@ export class CampusDO extends DurableObject<Env> {
     } catch (e) {
       console.error('Không tải được chat Campus:', e)
       return []
+    }
+  }
+
+  async phatReactionChat(msgId: number, reactions: string[], reactionDetails?: ReactionDetail[]): Promise<void> {
+    this.phatTatCa({ type: 'chat.reaction', msgId, reactions, reactionDetails })
+  }
+
+  private async layReactionsCampus(msgIds: number[]): Promise<{
+    reactions: Record<number, string[]>
+    reactionDetails: Record<number, ReactionDetail[]>
+  }> {
+    if (msgIds.length === 0) return { reactions: {}, reactionDetails: {} }
+    try {
+      const placeholders = msgIds.map(() => '?').join(',')
+      const res = await this.env.DB.prepare(
+        `SELECT message_id, emojis FROM message_reactions WHERE scope = 'campus' AND message_id IN (${placeholders})`
+      )
+        .bind(...msgIds)
+        .all<{ message_id: number; emojis: string }>()
+
+      const reactions: Record<number, string[]> = {}
+      const reactionDetails: Record<number, ReactionDetail[]> = {}
+      for (const row of res.results ?? []) {
+        const { emojis, details } = parseReactionData(row.emojis)
+        reactions[row.message_id] = emojis
+        reactionDetails[row.message_id] = details
+      }
+      return { reactions, reactionDetails }
+    } catch {
+      return { reactions: {}, reactionDetails: {} }
     }
   }
 
@@ -1121,6 +1159,45 @@ export class CampusDO extends DurableObject<Env> {
           }
           for (const ws of this.ctx.getWebSockets(theTaiKhoan(message.senderId))) {
             this.gui(ws, { type: 'social.direct_message', message })
+          }
+        }
+        break
+      }
+      case 'social.direct_message_reaction': {
+        const { friendId, targetId, messageId, reactions } = suKien
+        const reactionDetails = (suKien as any).reactionDetails
+        if (messageId !== undefined && Array.isArray(reactions)) {
+          const payload = {
+            type: 'social.direct_message_reaction' as const,
+            friendId,
+            targetId,
+            messageId,
+            reactions,
+            reactionDetails,
+          }
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(targetId))) {
+            this.gui(ws, payload)
+          }
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(friendId))) {
+            this.gui(ws, payload)
+          }
+        }
+        break
+      }
+      case 'social.direct_message_deleted': {
+        const { messageId, friendId, senderId } = suKien
+        if (messageId !== undefined) {
+          const payload = {
+            type: 'social.direct_message_deleted' as const,
+            messageId,
+            friendId,
+            senderId,
+          }
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(friendId))) {
+            this.gui(ws, payload)
+          }
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(senderId))) {
+            this.gui(ws, payload)
           }
         }
         break

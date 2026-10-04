@@ -42,6 +42,14 @@ export function AuthGate() {
 
   const xuLyDangXuat = useCallback(async () => {
     await dangXuat().catch(() => {})
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i)
+        if (k && k.startsWith('dc_quick_game')) {
+          sessionStorage.removeItem(k)
+        }
+      }
+    } catch {}
     queryClient.setQueryData(KHOA_PHIEN, { nguoiDung: null })
   }, [queryClient])
 

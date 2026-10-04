@@ -88,9 +88,21 @@ interface CaroBoardProps {
   initialMode?: PlayMode
   /** Bàn online (mở từ sảnh): PvP chuyển sang Online — máy chủ làm trọng tài, đối thủ là người thật. */
   online?: BanOnline
+  roomName?: string
+  isPrivate?: boolean
+  soPhongHienThi?: string
+  onInvite?: () => void
 }
 
-export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
+export function CaroBoard({
+  onBack,
+  initialMode,
+  online,
+  roomName,
+  isPrivate,
+  soPhongHienThi,
+  onInvite,
+}: CaroBoardProps) {
   const [boardTaiCho, setBoard] = useState<CaroCell[][]>(() =>
     Array.from({ length: SIZE }, () => Array(SIZE).fill(null))
   )
@@ -255,6 +267,9 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   const handleModeChange = (newMode: PlayMode) => {
     if (!doiCheDo(newMode)) return
     resetGame()
+    if (online && online.mySide === 'X') {
+      online.datPve(newMode === 'ai')
+    }
   }
 
   const handleResetOrSurrender = () => {
@@ -335,19 +350,86 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
   const nutOnline = banOnline ? nutHanhDongOnline(banOnline, () => setIsSurrenderModalOpen(true)) : null
 
+  // Khối đối thủ và người chơi hợp nhất vào Vùng 3 (GamePlayToolbar)
+  const opponentSlotContent = (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
+      <div className="size-6 sm:size-7 rounded-md bg-rose-500/15 border border-rose-500/30 flex items-center justify-center font-black text-xs text-rose-500 shrink-0">
+        O
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
+          {mode === 'ai' || Boolean(online?.meta.isPve)
+            ? 'Người chơi AI'
+            : banOnline
+              ? (benToiOnline === 'X' ? 'Đối thủ (Quân O)' : 'Đối thủ (Quân X)')
+              : 'Quân O'}
+        </span>
+        {isAiThinking && (
+          <span className="text-[9px] text-cyan-400 font-medium animate-pulse">Đang tính...</span>
+        )}
+      </div>
+      <div
+        className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          currentTurn !== playerSide && isPlaying && !winner
+            ? 'border-rose-500/60 bg-rose-500/10 text-rose-500 shadow-sm animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {formatClockTime(clock.timeRemaining)}
+      </div>
+      <div className="absolute top-full mt-2 left-0 z-50 pointer-events-none">
+        <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
+      </div>
+    </div>
+  )
+
+  const playerSlotContent = (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
+      <div
+        className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          currentTurn === playerSide && isPlaying && !winner
+            ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-400 shadow-sm animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {formatClockTime(clock.timeRemaining)}
+      </div>
+      <div className="flex flex-col min-w-0 text-right">
+        <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
+          {banOnline ? (benToiOnline === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)') : (playerSide === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)')}
+        </span>
+      </div>
+      <div className="size-6 sm:size-7 rounded-md bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center font-black text-xs text-cyan-500 shrink-0">
+        X
+      </div>
+      <div className="absolute top-full mt-2 right-0 z-50 pointer-events-none">
+        <GamePlayerBubble bubble={playerBubble} theme="cyan" />
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full relative select-none">
       {/* ── 1 & 1+: THANH TOOLBAR ĐẦY ĐỦ CHIỀU NGANG (W-FULL) ── */}
-      {/* Căn giữa hoàn toàn so với Bảng lớn 2, với cụm Mode ở chính giữa 50% */}
+      {/* Căn giữa hoàn toàn so với Bảng lớn 2, với cụm Mode ở chính giữa 50% (Vùng 3 tích hợp đối thủ & người chơi) */}
       <GamePlayToolbar
         onBack={onBack}
         title="Cờ Caro"
         icon={<Swords className="size-4 text-cyan-400" />}
+        roomName={roomName}
+        isPrivate={isPrivate}
+        soPhongHienThi={soPhongHienThi}
+        onInvite={onInvite}
         mode={mode}
         onModeChange={handleModeChange}
         onlineAvailable={Boolean(online)}
         showRankings={false}
-        showRoomChat={Boolean(online)}
+        showRoomChat={true}
+        turnSeconds={clock.myPendingProposal ?? clock.turnSeconds}
+        onTurnSecondsChange={clock.proposeTime}
+        timePresets={TIME_PRESETS}
         aiLevel={aiLevel}
         onAiLevelChange={setAiLevel}
         onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
@@ -358,6 +440,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         turnLabel={`Lượt: ${currentTurn === 'X' ? 'Quân X (Đi trước)' : 'Quân O'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
+        opponentSlot={opponentSlotContent}
+        playerSlot={playerSlotContent}
         rightSlot={
           <GameQuickEmote
             emotes={QUICK_EMOTES_CARO}
@@ -369,38 +453,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         className="w-full shrink-0"
       />
 
-      {/* ── BỐ CỤC CHUẨN LICHESS / ZEN MODE: THANH ĐỐI THỦ -> BÀN CỜ -> THANH NGƯỜI CHƠI ── */}
-      <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] flex-1 my-auto px-1 sm:px-2">
-        {/* THANH ĐỐI THỦ (TRÊN BÀN CỜ) */}
-        <div className="w-full flex items-center justify-between px-3 py-1.5 mb-1.5 rounded-xl border border-border-default bg-surface-raised/90 backdrop-blur-md shadow-xs min-h-11">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-md bg-rose-500/15 border border-rose-500/30 flex items-center justify-center font-black text-xs text-rose-500 shrink-0">
-              O
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate">
-                {banOnline ? (benToiOnline === 'X' ? 'Đối thủ (Quân O)' : 'Đối thủ (Quân X)') : (mode === 'ai' ? 'Máy AI' : 'Quân O')}
-              </span>
-              {isAiThinking && (
-                <span className="text-[10px] text-cyan-400 font-medium animate-pulse">Đang tính toán...</span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
-            <div
-              className={cn(
-                'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
-                currentTurn !== playerSide && isPlaying && !winner
-                  ? 'border-rose-500/60 bg-rose-500/10 text-rose-500 shadow-sm animate-pulse'
-                  : 'border-border-default bg-surface-overlay/60 text-text-secondary',
-              )}
-            >
-              {formatClockTime(clock.timeRemaining)}
-            </div>
-          </div>
-        </div>
+      {/* ── BỐ CỤC CHUẨN: BÀN CỜ TRUNG TÂM (THANH ĐỐI THỦ & NGƯỜI CHƠI ĐÃ GỘP VÀO VÙNG 3) ── */}
+      <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] flex-1 my-auto px-1 sm:px-2 gap-2">
 
         {/* Khung bàn cờ phẳng to hơn */}
         <div
@@ -599,56 +653,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
           visible={Boolean(heroicBanner)}
           onClose={() => setHeroicBanner(null)}
         />
-
-        {/* THANH NGƯỜI CHƠI (DƯỚI BÀN CỜ) */}
-        <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1.5 rounded-xl border border-border-default bg-surface-raised/90 backdrop-blur-md shadow-xs min-h-11">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-md bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center font-black text-xs text-cyan-500 shrink-0">
-              X
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate">
-                {banOnline ? (benToiOnline === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)') : (playerSide === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)')}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <GamePlayerBubble bubble={playerBubble} theme="cyan" />
-            <div
-              className={cn(
-                'px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tracking-wider transition-all',
-                currentTurn === playerSide && isPlaying && !winner
-                  ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-400 shadow-sm animate-pulse'
-                  : 'border-border-default bg-surface-overlay/60 text-text-secondary',
-              )}
-            >
-              {formatClockTime(clock.timeRemaining)}
-            </div>
-          </div>
-        </div>
-
-        {/* Thiết lập thời gian khi chưa vào trận (chỉ hiện trước ván) */}
-        {!isPlaying && (
-          <div className="flex items-center justify-center gap-1.5 mt-2 py-1 px-3 rounded-full bg-surface-raised/80 border border-border-default text-xs">
-            <span className="text-[11px] text-text-tertiary font-medium">Thời gian mỗi lượt:</span>
-            {TIME_PRESETS.map((sec) => (
-              <button
-                key={sec}
-                type="button"
-                onClick={() => clock.proposeTime(sec)}
-                className={cn(
-                  'px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-all cursor-pointer border',
-                  (clock.myPendingProposal ?? clock.turnSeconds) === sec
-                    ? 'bg-brand/15 text-brand border-brand/40 shadow-xs'
-                    : 'bg-surface-overlay/80 border-border-subtle text-text-tertiary hover:text-text-primary',
-                )}
-              >
-                {sec}s
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Token kiểm thử giao diện đồng nhất: shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] */}
         <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true" />

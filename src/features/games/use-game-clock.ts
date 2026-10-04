@@ -35,7 +35,7 @@ export function useGameClock({
   }, [turnKey, currentTurnSeconds])
 
   useEffect(() => {
-    if (isOnline || !isPlaying) return
+    if (isOnline || !isPlaying || currentTurnSeconds <= 0) return
 
     const interval = setInterval(() => {
       setLocalTimeRemaining((prev) => {

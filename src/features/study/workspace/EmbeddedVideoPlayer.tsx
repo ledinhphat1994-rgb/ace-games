@@ -14,7 +14,7 @@ export interface EmbeddedVideoPlayerProps {
   canControlMedia?: boolean
   volume: number
   onVolumeChange: (vol: number) => void
-  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => void
+  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate' | 'close', time?: number, rate?: number) => void
   onOpenSearchQueue: () => void
   calculateTargetTime: () => number
   /** Nút điều khiển khung (phóng to / thu nhỏ / ẩn …) đặt ở góc phải đầu khung. */
@@ -140,7 +140,7 @@ export function EmbeddedVideoPlayer({
 
   return (
     <div
-      className={`group relative flex h-full w-full flex-col overflow-hidden bg-black select-none ${
+      className={`group relative flex h-full w-full flex-col overflow-hidden bg-[#101010] select-none ${
         !showControls && isPlaying ? 'cursor-none' : ''
       }`}
       data-testid="embedded-video-stage"
@@ -156,7 +156,7 @@ export function EmbeddedVideoPlayer({
       }}
     >
       {/* ── Main Video Viewport Area (100% diện tích, hiển thị nguyên bản toàn bộ khung hình không cắt xén) ── */}
-      <div className="relative h-full w-full flex-1 bg-black overflow-hidden flex items-center justify-center">
+      <div className="relative h-full w-full flex-1 bg-[#101010] overflow-hidden flex items-center justify-center">
         <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
           <div
             id={containerId}
@@ -266,7 +266,7 @@ export function EmbeddedVideoPlayer({
 
               {dieuKhienKhung}
 
-              {onCloseVideo && (
+              {!dieuKhienKhung && onCloseVideo && (
                 <button
                   type="button"
                   onClick={onCloseVideo}

@@ -15,6 +15,7 @@ import {
   type QuyenCongCu,
   type SlideState,
   type SlideAnnotationStroke,
+  type LoaiTaiLieuNap,
   type VoiceParticipantState,
   type BannedMemberItem,
   canonicalMediaPosition,
@@ -107,6 +108,15 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([])
   const [slideState, setSlideState] = useState<SlideState | null>(null)
   const [slideAnnotations, setSlideAnnotations] = useState<SlideAnnotationStroke[]>([])
+  const [slideScroll, setSlideScroll] = useState<{
+    scrollRatio: number
+    scrollTop?: number
+    scrollHeight?: number
+    docUrl?: string
+    zoom?: number
+    panX?: number
+    panY?: number
+  } | null>(null)
   /** Tia laser trên trang tài liệu, theo người đang trỏ (nhiều người được cấp laser trỏ cùng lúc). */
   const [slideLaserMap, setSlideLaserMap] = useState<Record<string, TiaLaserTrang>>({})
   /** Bố cục sân khấu người trình chiếu đặt (học sinh hiển thị theo). */
@@ -225,6 +235,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
           setSlideAnnotations(goi.slideAnnotations ?? [])
+          if (goi.slideScroll) {
+            setSlideScroll(goi.slideScroll)
+          }
           // Learning Session v1 snapshot
           setSessionGoal(goi.sessionGoal ?? null)
           setSessionTasks(goi.sessionTasks ?? [])
@@ -265,6 +278,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setPollVoteCounts(goi.voteCounts)
           break
 
+        case 'session.poll.position':
+          if (goi.position) {
+            setActivePoll((prev) => (prev ? { ...prev, position: goi.position } : prev))
+          }
+          break
+
         case 'session.summary':
           setSessionSummary(goi.summary)
           break
@@ -291,7 +310,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
             const st = goi.stroke
             if (typeof st.epoch === 'number' && st.epoch < whiteboardEpochRef.current) return
             setWhiteboardStrokes((prev) => {
-              if (prev.some((s) => s.id === st.id)) return prev
+              const tonTai = prev.some((s) => s.id === st.id)
+              if (tonTai) return prev.map((s) => (s.id === st.id ? st : s))
               return [...prev, st].slice(-1000)
             })
           } else if (goi.action === 'stroke.clear') {
@@ -340,14 +360,28 @@ export function useRoom(roomId: string, myActorKey?: string) {
           if (!goi.slide) {
             setSlideAnnotations([])
             setSlideLaserMap({})
+            setSlideScroll(null)
           }
+          break
+
+        case 'slide.scroll':
+          setSlideScroll({
+            scrollRatio: goi.scrollRatio,
+            scrollTop: goi.scrollTop,
+            scrollHeight: goi.scrollHeight,
+            docUrl: goi.docUrl,
+            zoom: (goi as any).zoom,
+            panX: (goi as any).panX,
+            panY: (goi as any).panY,
+          })
           break
 
         case 'slide.annotation':
           if (goi.action === 'add' && goi.stroke) {
             const st = goi.stroke
             setSlideAnnotations((prev) => {
-              if (prev.some((s) => s.id === st.id)) return prev
+              const tonTai = prev.some((s) => s.id === st.id)
+              if (tonTai) return prev.map((s) => (s.id === st.id ? st : s))
               return [...prev, st].slice(-500)
             })
           } else if (goi.action === 'remove' && goi.strokeId) {
@@ -471,6 +505,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
           // Surface info to UI — màn "Phòng học đã đóng" đã nêu thông điệp, không bắn thêm toast trùng lời
           setRoomClosedInfo({ reason: goi.reason, message: goi.message })
           setTrangThai('bi_tu_choi')
+          setChatMessages([])
           break
         }
 
@@ -697,6 +732,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
       ...stroke,
       epoch: 'epoch' in stroke && typeof stroke.epoch === 'number' ? stroke.epoch : whiteboardEpochRef.current,
     }
+    // Optimistic local update (Zero-latency drawing & smooth move)
+    setWhiteboardStrokes((prev) => {
+      const tonTai = prev.some((s) => s.id === strokeWithEpoch.id)
+      if (tonTai) return prev.map((s) => (s.id === strokeWithEpoch.id ? strokeWithEpoch : s))
+      return [...prev, strokeWithEpoch].slice(-200)
+    })
     ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.add', stroke: strokeWithEpoch } }))
   }, [])
 
@@ -709,6 +750,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const removeStroke = useCallback((id: string) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
+    setWhiteboardStrokes((prev) => prev.filter((s) => s.id !== id))
     ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.remove', id } }))
   }, [])
 
@@ -999,15 +1041,72 @@ export function useRoom(roomId: string, myActorKey?: string) {
     }))
   }, [])
 
-  const closeSlideDoc = useCallback(() => {
+  const switchSlideDoc = useCallback((loai: LoaiTaiLieuNap, docUrl?: string) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'close_doc' } }))
+    // Optimistic local switch: instantly render target document type without roundtrip latency
+    setSlideState((prev) => {
+      if (!prev || !prev.loadedDocs) return prev
+      const muc = docUrl
+        ? prev.loadedDocs.find((x) => x.docUrl === docUrl)
+        : prev.loadedDocs.find((x) => x.loai === loai)
+      if (!muc) return prev
+      return {
+        docId: muc.docId,
+        docUrl: muc.docUrl,
+        docName: muc.docName,
+        fileType: muc.fileType,
+        currentPage: muc.currentPage || 1,
+        totalPages: muc.totalPages || 1,
+        step: muc.step ?? 0,
+        loadedDocs: prev.loadedDocs,
+      }
+    })
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'switch_doc', loai, ...(docUrl ? { docUrl } : {}) } }))
+  }, [])
+
+  const closeSlideDoc = useCallback((loai?: LoaiTaiLieuNap, docUrl?: string) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    // Optimistic local close
+    setSlideState((prev) => {
+      if (!prev) return null
+      if (prev.loadedDocs && prev.loadedDocs.length > 1) {
+        let conLai = prev.loadedDocs
+        if (docUrl) {
+          conLai = prev.loadedDocs.filter((x) => x.docUrl !== docUrl)
+        } else if (loai) {
+          conLai = prev.loadedDocs.filter((x) => x.loai !== loai)
+        }
+        if (conLai.length > 0) {
+          const conActive = conLai.find((x) => x.docUrl === prev.docUrl)
+          const activeMoi = conActive || (loai ? conLai.find((x) => x.loai === loai) : null) || conLai[0]
+          return {
+            docId: activeMoi.docId,
+            docUrl: activeMoi.docUrl,
+            docName: activeMoi.docName,
+            fileType: activeMoi.fileType,
+            currentPage: activeMoi.currentPage || 1,
+            totalPages: activeMoi.totalPages || 1,
+            step: activeMoi.step ?? 0,
+            loadedDocs: conLai,
+          }
+        }
+      }
+      return null
+    })
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'close_doc', ...(loai ? { loai } : {}), ...(docUrl ? { docUrl } : {}) } }))
   }, [])
 
   const sendSlideAnnotation = useCallback((stroke: SlideAnnotationStroke) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
+    // Optimistic local update (Zero-latency drawing & smooth move)
+    setSlideAnnotations((prev) => {
+      const tonTai = prev.some((s) => s.id === stroke.id)
+      if (tonTai) return prev.map((s) => (s.id === stroke.id ? stroke : s))
+      return [...prev, stroke].slice(-500)
+    })
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'annotation_add', stroke } }))
   }, [])
 
@@ -1021,6 +1120,24 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'laser', point, page } }))
+  }, [])
+
+  const sendSlideScroll = useCallback((scrollRatio: number, scrollTop?: number, scrollHeight?: number, docUrl?: string, zoom?: number, panX?: number, panY?: number) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({
+      type: 'slide.action',
+      data: {
+        action: 'scroll',
+        scrollRatio,
+        scrollTop,
+        scrollHeight,
+        docUrl,
+        ...(zoom !== undefined ? { zoom } : {}),
+        ...(panX !== undefined ? { panX } : {}),
+        ...(panY !== undefined ? { panY } : {}),
+      },
+    }))
   }, [])
 
   const removeSlideAnnotation = useCallback((id: string) => {
@@ -1072,8 +1189,21 @@ export function useRoom(roomId: string, myActorKey?: string) {
     sendSessionAction({ action: 'timer.reset' })
   }, [sendSessionAction])
 
-  const createPoll = useCallback((question: string, options: string[]) => {
-    sendSessionAction({ action: 'poll.create', question, options })
+  const createPoll = useCallback((
+    question: string,
+    options: string[],
+    durationSeconds?: number,
+    allowViewOtherAnswers?: boolean,
+    correctOptionIndex?: number,
+  ) => {
+    sendSessionAction({
+      action: 'poll.create',
+      question,
+      options,
+      ...(durationSeconds && durationSeconds > 0 ? { durationSeconds } : {}),
+      allowViewOtherAnswers: Boolean(allowViewOtherAnswers),
+      ...(typeof correctOptionIndex === 'number' ? { correctOptionIndex } : {}),
+    })
   }, [sendSessionAction])
 
   const votePoll = useCallback((pollId: string, optionId: string) => {
@@ -1082,6 +1212,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
   const closePoll = useCallback(() => {
     sendSessionAction({ action: 'poll.close' })
+  }, [sendSessionAction])
+
+  const movePoll = useCallback((x: number, y: number) => {
+    sendSessionAction({ action: 'poll.move', x, y })
   }, [sendSessionAction])
 
   const startSession = useCallback(() => {
@@ -1148,16 +1282,19 @@ export function useRoom(roomId: string, myActorKey?: string) {
     setAudioOutputDevice,
     slideState,
     slideAnnotations,
+    slideScroll,
     slideLaser: slideLasers[0] ?? null,
     slideLasers,
     changeSlidePage,
     setSlideTotalPages,
     loadSlideDoc,
+    switchSlideDoc,
     closeSlideDoc,
     sendSlideAnnotation,
     clearSlideAnnotations,
     removeSlideAnnotation,
     sendSlideLaser,
+    sendSlideScroll,
     // Learning Session v1
     sessionGoal,
     sessionTasks,
@@ -1180,6 +1317,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     createPoll,
     votePoll,
     closePoll,
+    movePoll,
     startSession,
     endSession,
   }

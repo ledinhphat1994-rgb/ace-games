@@ -48,6 +48,8 @@ export interface WhiteboardStroke {
   by?: string
   /** Mặt vẽ: lớp vẽ tàng hình gắn với video / tài liệu nhúng. Không có = Bảng (độc lập). */
   mat?: MatNet
+  /** URL tài liệu khi mat === 'tailieu' để nét vẽ gắn với đúng tài liệu trong tab. */
+  docUrl?: string
 }
 
 /** Lớp vẽ tàng hình gắn với một lớp nội dung — tách hẳn khỏi Bảng. */
@@ -78,6 +80,7 @@ export interface RoomChatMessage {
   ten: string
   text: string
   taoLuc: number
+  avatar?: string | null
 }
 
 export const YOUTUBE_VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/
@@ -103,6 +106,7 @@ export interface ThanhVienPhong {
   canModerate?: boolean
   /** Ảnh đại diện của tài khoản (đã lọc bằng avatarThanhVien); không có thì hiện chữ cái đầu. */
   avatar?: string | null
+  accountId?: number
 }
 
 /**
@@ -120,7 +124,7 @@ export function avatarThanhVien(giaTri: unknown): string | null {
 // ── Quyền công cụ của từng người tham gia (chủ phòng cấp / thu hồi tức thì) ──
 // Mặc định người tham gia CHỈ XEM (không quyền nào). KHÔNG có quyền tài liệu / bảng / video:
 // phần trình chiếu (bật, ẩn, phóng to, thu nhỏ, đổi trang, phát video) luôn thuộc chủ phòng.
-export const QUYEN_CONG_CU = ['mic', 'laser', 'but', 'to_sang', 'chu', 'hinh', 'tay', 'xoa'] as const
+export const QUYEN_CONG_CU = ['mic', 'laser', 'but', 'to_sang', 'chu', 'hinh', 'tay', 'xoa', 'cuon', 'di_chuyen'] as const
 export type QuyenCongCu = (typeof QUYEN_CONG_CU)[number]
 
 export function laQuyenCongCuHopLe(gia: unknown): gia is QuyenCongCu {
@@ -159,6 +163,7 @@ export const LenhPhongMedia = z.discriminatedUnion('action', [
   }),
   z.object({ action: z.literal('load'), videoId: z.string().regex(YOUTUBE_VIDEO_ID_REGEX, 'ID video YouTube phải đúng 11 ký tự'), title: z.string().max(200).optional() }),
   z.object({ action: z.literal('set_host_only'), enabled: z.boolean() }),
+  z.object({ action: z.literal('close') }),
 ])
 export type LenhPhongMedia = z.infer<typeof LenhPhongMedia>
 
@@ -184,6 +189,7 @@ export const LenhPhongWhiteboard = z.discriminatedUnion('action', [
       text: z.string().min(1).max(200).optional(),
       opacity: z.number().min(0.05).max(1).optional(),
       mat: z.enum(['video', 'tailieu']).optional(),
+      docUrl: z.string().max(500).optional(),
     }),
   }),
   z.object({ action: z.literal('stroke.clear') }),
@@ -217,6 +223,21 @@ export interface SlideAnnotationStroke {
   text?: string
   /** actorKey người vẽ (máy chủ gắn) — người được cấp quyền tẩy chỉ tẩy được nét của mình. */
   by?: string
+  /** URL tài liệu để nét vẽ gắn với đúng tài liệu trong tab. */
+  docUrl?: string
+}
+
+export type LoaiTaiLieuNap = 'pptx' | 'excel' | 'word' | 'image'
+
+export interface TaiLieuNapItem {
+  loai: LoaiTaiLieuNap
+  docId?: number
+  docUrl: string
+  docName: string
+  fileType: 'pptx' | 'pdf' | 'image'
+  totalPages: number
+  currentPage: number
+  step?: number
 }
 
 export interface SlideState {
@@ -228,6 +249,10 @@ export interface SlideState {
   totalPages: number
   /** .pptx: số cú bấm hiệu ứng đã chạy trên trang hiện tại (0 = vừa vào slide). */
   step?: number
+  /** Tỷ lệ cuộn trang tài liệu (Word, PDF, Excel...) được đồng bộ từ người trình chiếu [0..1] */
+  scrollRatio?: number
+  /** Danh sách tối đa 3 loại tài liệu đã nạp (PowerPoint, Excel, Word). */
+  loadedDocs?: TaiLieuNapItem[]
 }
 
 export const LenhPhongSlide = z.discriminatedUnion('action', [
@@ -241,7 +266,16 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
     fileType: z.enum(['pptx', 'pdf', 'image']),
     totalPages: z.number().int().positive().default(1),
   }),
-  z.object({ action: z.literal('close_doc') }),
+  z.object({
+    action: z.literal('switch_doc'),
+    loai: z.enum(['pptx', 'excel', 'word', 'image']),
+    docUrl: z.string().optional(),
+  }),
+  z.object({
+    action: z.literal('close_doc'),
+    loai: z.enum(['pptx', 'excel', 'word', 'image']).optional(),
+    docUrl: z.string().optional(),
+  }),
   // .pptx dựng trên trình duyệt: người trình chiếu báo số slide thật (slide ẩn bị bỏ qua) — không xoá chú thích như load_doc.
   z.object({ action: z.literal('set_total_pages'), totalPages: z.number().int().positive().max(500) }),
   z.object({
@@ -255,6 +289,7 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
       size: z.number().positive().max(50),
       opacity: z.number().min(0.05).max(1).optional(),
       text: z.string().min(1).max(200).optional(),
+      docUrl: z.string().max(500).optional(),
     }),
   }),
   z.object({
@@ -269,6 +304,16 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
     action: z.literal('laser'),
     point: z.tuple([z.number(), z.number()]).nullable(),
     page: z.number().int().positive(),
+  }),
+  z.object({
+    action: z.literal('scroll'),
+    scrollRatio: z.number().min(0).max(1),
+    scrollTop: z.number().nonnegative().optional(),
+    scrollHeight: z.number().positive().optional(),
+    docUrl: z.string().optional(),
+    zoom: z.number().min(0.2).max(5).optional(),
+    panX: z.number().optional(),
+    panY: z.number().optional(),
   }),
 ])
 export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
@@ -330,6 +375,7 @@ export interface SessionTimerState {
 export interface PollOption {
   id: string
   text: string
+  isCorrect?: boolean
 }
 
 export interface ActivePoll {
@@ -339,6 +385,11 @@ export interface ActivePoll {
   createdBy: string
   createdAt: number
   closed: boolean
+  durationSeconds?: number
+  endsAt?: number
+  allowViewOtherAnswers?: boolean
+  correctOptionId?: string
+  position?: { x: number; y: number }
 }
 
 export interface SessionSummary {
@@ -378,7 +429,11 @@ export const LenhPhongSession = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('poll.create'),
     question: z.string().min(1).max(500),
-    options: z.array(z.string().min(1).max(200)).min(2).max(4),
+    options: z.array(z.string().min(1).max(200)).min(1).max(8),
+    durationSeconds: z.number().int().min(5).max(3600).optional(),
+    allowViewOtherAnswers: z.boolean().optional(),
+    correctOptionIndex: z.number().int().min(0).max(7).optional(),
+    correctOptionId: z.string().optional(),
   }),
   z.object({
     action: z.literal('poll.vote'),
@@ -386,6 +441,11 @@ export const LenhPhongSession = z.discriminatedUnion('action', [
     optionId: z.string().min(1).max(64),
   }),
   z.object({ action: z.literal('poll.close') }),
+  z.object({
+    action: z.literal('poll.move'),
+    x: z.number().finite(),
+    y: z.number().finite(),
+  }),
   // Session lifecycle
   z.object({ action: z.literal('session.start') }),
   z.object({ action: z.literal('session.end') }),
@@ -421,6 +481,7 @@ const KHUNG_CUA_SO = z.object({
   h: z.number().min(0.05).max(1),
 })
 const TRUOC_KHI_AN = z.enum(['main', 'pip'])
+const LOP_ID = z.enum(['doc', 'video', 'board'])
 export const BoCucSanKhau = z.object({
   doc: VAI_TRO_LOP.optional(),
   video: VAI_TRO_LOP.optional(),
@@ -433,6 +494,8 @@ export const BoCucSanKhau = z.object({
   truocKhiAn: z
     .object({ doc: TRUOC_KHI_AN.optional(), video: TRUOC_KHI_AN.optional(), board: TRUOC_KHI_AN.optional() })
     .optional(),
+  /** Thứ tự xếp chồng các cửa sổ nổi (thu nhỏ mới nhất nằm ở cuối / trên cùng). */
+  thuTuPip: z.array(LOP_ID).optional(),
 })
 export type BoCucSanKhau = z.infer<typeof BoCucSanKhau>
 
@@ -464,6 +527,17 @@ export const LenhPhong = z.discriminatedUnion('type', [
     targetKey: z.string().min(1).max(128),
     cap: z.array(z.string().max(32)).max(16),
   }),
+  // Đồng bộ vị trí cuộn tài liệu trình chiếu (Word, PDF, Excel...)
+  z.object({
+    type: z.literal('slide.scroll'),
+    scrollRatio: z.number().min(0).max(1),
+    scrollTop: z.number().nonnegative().optional(),
+    scrollHeight: z.number().positive().optional(),
+    docUrl: z.string().optional(),
+    zoom: z.number().min(0.2).max(5).optional(),
+    panX: z.number().optional(),
+    panY: z.number().optional(),
+  }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
 
@@ -482,6 +556,16 @@ export type GoiPhong =
       chat: RoomChatMessage[]
       slide: SlideState | null
       slideAnnotations?: SlideAnnotationStroke[]
+      /** Vị trí cuộn trang tài liệu hiện hành của người trình chiếu. */
+      slideScroll?: {
+        scrollRatio: number
+        scrollTop?: number
+        scrollHeight?: number
+        docUrl?: string
+        zoom?: number
+        panX?: number
+        panY?: number
+      } | null
       /** Bố cục sân khấu người trình chiếu đặt gần nhất (null khi chưa đặt). */
       stageLayout?: BoCucSanKhau | null
       /** Quyền công cụ chủ phòng đã cấp, theo actorKey (không có = chỉ xem). */
@@ -518,6 +602,17 @@ export type GoiPhong =
     }
   | { type: 'queue.sync'; queue: QueueItem[] }
   | { type: 'slide.sync'; slide: SlideState | null }
+  | {
+      type: 'slide.scroll'
+      scrollRatio: number
+      scrollTop?: number
+      scrollHeight?: number
+      docUrl?: string
+      senderKey?: string
+      zoom?: number
+      panX?: number
+      panY?: number
+    }
   | {
       type: 'slide.annotation'
       action: 'add' | 'clear' | 'remove'
@@ -558,6 +653,10 @@ export type GoiPhong =
       poll: ActivePoll | null
       /** vote counts per optionId — only sent to host when poll is open, to all when closed */
       voteCounts: Record<string, number> | null
+    }
+  | {
+      type: 'session.poll.position'
+      position: { x: number; y: number }
     }
   | { type: 'session.summary'; summary: SessionSummary }
   | { type: 'session.participation'; activeKeys: string[] }

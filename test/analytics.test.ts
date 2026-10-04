@@ -196,7 +196,7 @@ describe('Milestone 0.1: Analytics Failure Isolation & Observability Correctness
       const cleaned = sanitizeAnalyticsProperties({ safeNote: longString })
       expect(cleaned).not.toBeNull()
       expect(typeof cleaned?.safeNote).toBe('string')
-      expect((cleaned?.safeNote as string).length).toBe(128)
+      expect((cleaned?.safeNote as string | undefined)?.length).toBe(128)
     })
 
     it('Normalizes routes to prevent high-cardinality unbounded dimensions', () => {

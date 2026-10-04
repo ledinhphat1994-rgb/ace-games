@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { FileSpreadsheet, Link, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { BlueprintStudyPattern } from '@/components/ui/blueprint-patterns'
 
 interface SlideUploadModalProps {
   open: boolean
@@ -55,6 +55,19 @@ async function countPdfPages(file: File): Promise<number> {
   }
 }
 
+/** Cắt tên file dài ở giữa và giữ đầu + đuôi (kèm phần mở rộng) */
+function truncateMiddle(str: string, maxLength = 34): string {
+  if (!str || str.length <= maxLength) return str
+  const extIndex = str.lastIndexOf('.')
+  const ext = extIndex !== -1 && str.length - extIndex <= 8 ? str.slice(extIndex) : ''
+  const base = ext ? str.slice(0, extIndex) : str
+  const targetLen = maxLength - 3 - ext.length
+  if (targetLen <= 6) return `${str.slice(0, 14)}...${str.slice(-8)}`
+  const frontChars = Math.ceil(targetLen / 2)
+  const backChars = Math.floor(targetLen / 2)
+  return `${base.slice(0, frontChars)}...${base.slice(-backChars)}${ext}`
+}
+
 export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: SlideUploadModalProps) {
   const [docName, setDocName] = useState('')
   const [docUrl, setDocUrl] = useState('')
@@ -70,6 +83,11 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
 
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
+
+    if (ext === 'doc') {
+      toast.error('Định dạng Word cũ (.doc) không được hỗ trợ để đảm bảo đồng bộ chuẩn xác. Vui lòng lưu tệp thành .docx hoặc xuất sang .pdf rồi tải lại.')
+      return
+    }
 
     let type: 'pptx' | 'pdf' | 'image' = 'pptx'
     if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) type = 'image'
@@ -195,7 +213,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     }
     onLoadSlide(docUrl.trim(), docName.trim(), fileType, Math.max(1, totalPages), docId)
     onOpenChange(false)
-    toast.success(`Đã chèn bài giảng "${docName}" lên bảng đen!`)
+    const tenRutGon = docName.trim().length > 32 ? `${docName.trim().slice(0, 29)}...` : docName.trim()
+    toast.success(`Đã chèn bài giảng "${tenRutGon}" lên bảng đen!`)
   }
 
   const handlePickGoogleSlides = () => {
@@ -212,22 +231,28 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/15 bg-[#0d1422] text-slate-100 sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold text-brand">
-            <FileSpreadsheet className="h-5 w-5 text-brand" />
-            Chèn Tài Liệu
+      <DialogContent
+        style={{ top: '72px', translate: '-50% 0', transform: 'none' }}
+        className="skeuo-modal-surface sm:max-w-[480px] w-[calc(100vw-2rem)] flex flex-col justify-between overflow-hidden p-6 text-white shadow-2xl"
+      >
+        {/* Họa tiết Blueprint Study Schematic mờ chìm toàn diện */}
+        <BlueprintStudyPattern className="opacity-80 pointer-events-none" />
+
+        <DialogHeader className="shrink-0 mb-3 relative z-10">
+          <DialogTitle className="flex items-center gap-2 text-base font-bold text-white tracking-wide">
+            <FileSpreadsheet className="h-5 w-5 text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+            <span>Chèn tài liệu</span>
           </DialogTitle>
           <DialogDescription className="sr-only">Chèn tài liệu vào phòng học</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-1">
+        <div className="space-y-4 pt-1 overflow-hidden relative z-10">
           {/* Drag-and-drop / click upload box */}
           <div
-            className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors cursor-pointer ${
+            className={`rounded-2xl border p-5 text-center transition-colors duration-150 cursor-pointer overflow-hidden ${
               isDragOver
-                ? 'border-brand bg-brand/10'
-                : 'border-white/20 bg-white/5 hover:border-brand/40'
+                ? 'skeuo-subcard-active-cyan'
+                : 'skeuo-subcard-base'
             }`}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
             onDragLeave={() => setIsDragOver(false)}
@@ -237,17 +262,20 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             <input
               type="file"
               id="slide-file-input"
-              accept=".pdf,.pptx,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.pptx,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp"
               onChange={handleFileChange}
               className="hidden"
             />
-            <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
+            <div className="flex flex-col items-center justify-center gap-2 pointer-events-none w-full max-w-full overflow-hidden">
               <div className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-                isDragOver ? 'bg-brand/25 text-brand' : 'bg-brand/15 text-brand'
+                isDragOver ? 'bg-sky-500/25 text-sky-300' : 'bg-sky-500/15 text-sky-400'
               }`}>
                 <Upload className="h-5 w-5" />
               </div>
-              <span className="text-xs font-semibold text-slate-200">
+              <span
+                className="text-xs font-semibold text-slate-200 max-w-full px-2 truncate block text-center"
+                title={docName || undefined}
+              >
                 {isUploading
                   ? tienDo < 100
                     ? `Đang tải lên… ${tienDo}%`
@@ -255,26 +283,26 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
                   : isDetecting
                     ? 'Đang phát hiện số trang...'
                     : docName
-                      ? docName
+                      ? truncateMiddle(docName, 34)
                       : isDragOver
                         ? 'Thả tệp vào đây'
                         : 'Chọn tệp tài liệu'}
               </span>
               {isUploading ? (
                 <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/10" data-testid="slide-upload-progress">
-                  <div className="h-full rounded-full bg-brand transition-[width] duration-200" style={{ width: `${tienDo}%` }} />
+                  <div className="h-full rounded-full bg-sky-400 transition-[width] duration-200" style={{ width: `${tienDo}%` }} />
                 </div>
               ) : (
                 <span className="text-[11px] text-slate-400" data-testid="slide-upload-types">
-                  PDF · PowerPoint (.pptx) · Word · Excel — tối đa 30 MB · Ảnh PNG, JPG, WEBP — tối đa 10 MB
+                  PDF · PowerPoint · Word · Excel · Ảnh
                 </span>
               )}
             </div>
           </div>
 
-          {/* Hoặc dán link Google Slides — cùng nút Chèn lên bảng bên dưới */}
+          {/* Dán link Google Slides */}
           <div className="relative">
-            <Link className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-400" />
+            <Link className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sky-400" />
             <Input
               value={glUrl}
               onChange={(e) => setGlUrl(e.target.value)}
@@ -284,29 +312,28 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
               placeholder="Dán link Google Slides"
               aria-label="Link Google Slides"
               autoComplete="off"
-              className="h-9 border-white/10 bg-black/40 pl-8 text-xs text-white"
+              className="h-10 border border-sky-400/20 bg-slate-950/80 pl-8 text-xs text-white skeuo-input-deep"
               data-testid="slide-google-link"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
-            <Button
-              variant="ghost"
-              size="sm"
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-sky-400/15">
+            <button
+              type="button"
               onClick={() => onOpenChange(false)}
-              className="text-xs text-slate-400 hover:text-white"
+              className="skeuo-btn-cancel h-10 px-5 text-xs font-semibold"
             >
               Hủy
-            </Button>
-            <Button
-              size="sm"
+            </button>
+            <button
+              type="button"
               onClick={handleConfirm}
               disabled={isDetecting || isUploading || (!glUrl.trim() && !docUrl)}
               data-testid="slide-btn-insert"
-              className="bg-brand hover:bg-brand-hover text-xs font-bold px-4"
+              className="skeuo-btn-cta-amber h-10 px-5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Chèn Lên Bảng
-            </Button>
+              Chèn lên bảng
+            </button>
           </div>
         </div>
       </DialogContent>

@@ -186,4 +186,49 @@ describe('Sảnh riêng từng trò chơi (/arena/:gameType)', () => {
     expect(await coBan(laySanhRieng('xiangqi'))).toBe(false)
     expect(await coBan(layLobby())).toBe(false)
   })
+
+  it('bàn tạo riêng tư với mật khẩu thì đăng lên sảnh có cờ isPrivate và coMatKhau', async () => {
+    const maBan = `co-tuong-rieng-tu-phong-99`
+    const chu = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu1'))
+    await chu.cho('game.snapshot')
+    chu.gui({ type: 'game.init', gameType: 'xiangqi', turnSeconds: 30, isPrivate: true, password: 'secret-pass' })
+    await chu.cho('game.sync')
+
+    const ban = (await layLobby().danhSach()).find((b) => b.id === maBan)
+    expect(ban).toBeDefined()
+    expect(ban?.isPrivate).toBe(true)
+    expect(ban?.coMatKhau).toBe(true)
+
+    // Xác thực API verify-password
+    const { exports } = await import('cloudflare:workers')
+    const resSai = await exports.default.fetch(`https://campus.test/api/game/${maBan}/verify-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'wrong-password' }),
+    })
+    expect(resSai.status).toBe(403)
+    const jsonSai = (await resSai.json()) as { ok: boolean }
+    expect(jsonSai.ok).toBe(false)
+
+    const resDung = await exports.default.fetch(`https://campus.test/api/game/${maBan}/verify-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'secret-pass' }),
+    })
+    expect(resDung.status).toBe(200)
+    const jsonDung = (await resDung.json()) as { ok: boolean }
+    expect(jsonDung.ok).toBe(true)
+
+    // Người khác kết nối không có pass -> Bị chặn 403
+    const khachKhongPass = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu2'))
+    expect(khachKhongPass.status).toBe(403)
+
+    // Người khác có pass -> Vào được
+    const khach = await moKetNoi<GoiGame>(`/ws/game/${maBan}?pass=secret-pass`, await dangNhapLayCookie('qa.v2.thu2'))
+    expect(khach.status).toBe(101)
+    await khach.cho('game.snapshot')
+    khach.dong()
+
+    chu.dong()
+  })
 })

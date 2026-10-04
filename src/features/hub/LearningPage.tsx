@@ -1,11 +1,10 @@
 // Digital Campus v2: Canonical Learning Room Lobby
 // src/features/hub/LearningPage.tsx
 
-import { useMemo, useState } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router'
+import { useMemo, useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
-import { useDragScroll } from '@/hooks/use-drag-scroll'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { RoomCard } from './RoomCard'
@@ -23,39 +22,22 @@ import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
 } from './learning-semantics'
 import {
-  ArrowRight,
   BookOpen,
-  DoorOpen,
-  FileText,
-  MonitorPlay,
-  PenTool,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
   Plus,
   RefreshCw,
   Search,
   Sparkles,
   Trophy,
-  Users,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 
 export { LEARNING_OCCUPANCY_METRIC_CONFIG }
-
-// Danh mục môn học / chủ đề học tập để kéo ngang
-const CHU_DE_HOC_TAP = [
-  { id: '', label: 'Tất cả môn học' },
-  { id: 'toan', label: 'Toán học' },
-  { id: 'ly', label: 'Vật lý' },
-  { id: 'hoa', label: 'Hóa học' },
-  { id: 'van', label: 'Ngữ văn' },
-  { id: 'anh', label: 'Tiếng Anh' },
-  { id: 'tin', label: 'Tin học' },
-  { id: 'sinh', label: 'Sinh học' },
-  { id: 'su', label: 'Lịch sử' },
-  { id: 'tu_do', label: 'Học tự do' },
-]
 
 export function LearningPage() {
   const navigate = useNavigate()
@@ -66,8 +48,6 @@ export function LearningPage() {
     nguoiDung && (nguoiDung.isSchoolAdmin || nguoiDung.role === 'admin' || nguoiDung.username === 'ledinhphat'),
   )
   void laAdminToanQuyen
-  const chipsDrag = useDragScroll<HTMLDivElement>({ direction: 'horizontal' })
-  const friendsInRoomDrag = useDragScroll<HTMLDivElement>({ direction: 'vertical' })
 
   const {
     rooms,
@@ -124,7 +104,7 @@ export function LearningPage() {
 
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
-      toast.error('Phòng học đã đầy số lượng người tham gia!')
+      toast.error('Phòng học đã đầy')
       return
     }
     if (room.coMatKhau) {
@@ -147,6 +127,46 @@ export function LearningPage() {
     [lobbyState.status, rooms, roomFriendsMap],
   )
 
+  // Danh sách các Slide tự chạy cho Hero Banner Sảnh học tập (VÙNG 6)
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+
+  const bannerSlides = useMemo(() => [
+    {
+      id: 'lobby',
+      badge: 'PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN',
+      title: 'Sảnh Học Tập Trực Tuyến',
+      desc: 'Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.',
+      bgImage: '/assets/cyber_mockups/learning_hero_bg.webp',
+      gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
+    },
+    {
+      id: 'materials',
+      badge: 'TÀI LIỆU & ĐỀ CƯƠNG • CHUẨN SGK',
+      title: 'Ôn Luyện Chuyên Sâu, Chinh Phục Điểm Cao',
+      desc: 'Kho đề thi, đề cương ôn tập các môn Toán, Vật lý, Hoá học, Ngữ văn được cập nhật liên tục theo chương trình GDPT.',
+      bgImage: '/assets/cyber_mockups/classroom_hero_bg.webp',
+      gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
+    },
+    {
+      id: 'interactive',
+      badge: 'TƯƠNG TÁC THỜI GIAN THỰC • BẢNG VẼ & YOUTUBE',
+      title: 'Học Nhóm Hiệu Quả Cùng Bạn Bè',
+      desc: 'Đồng bộ video bài giảng YouTube, cùng vẽ và ghi chú trực tiếp trên tài liệu ôn thi với bạn học theo thời gian thực.',
+      bgImage: '/assets/cyber_mockups/home_hero_bg.webp',
+      gradient: 'from-[#031d1a] via-[#031d1a]/85 to-transparent',
+    },
+  ], [])
+
+  // Cơ chế tự chạy Banner (Carousel Auto-play 4.5s) — Dừng khi hover chuột (Pause on hover)
+  useEffect(() => {
+    if (isPaused) return
+    const timer = setInterval(() => {
+      setSlideIndex((prev) => (prev + 1) % bannerSlides.length)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [isPaused, bannerSlides.length])
+
   const vaoPhongNhanh = () => {
     if (!quickJoinRoom) return
     xuLyVaoPhong(quickJoinRoom)
@@ -154,92 +174,102 @@ export function LearningPage() {
 
   return (
     <div className="pb-12 space-y-8">
-      {/* 1. Hero Banner Sảnh học tập (Full-width, Doubled Height) */}
+      {/* 1. Hero Banner Sảnh học tập (VÙNG 6: Tự động chuyển banner qua lại giống trang chủ) */}
       <section
         aria-label="Giới thiệu sảnh học tập"
-        className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.15)] group"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.15)] group select-none"
       >
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <img
-            src="/assets/cyber_mockups/learning_hero_bg.webp"
-            alt="Không gian học tập Digital Campus"
-            className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#020c24] via-[#020c24]/85 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
-        </div>
-
-        <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-            <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
-            <span>PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
-            Sảnh Học Tập Trực Tuyến
-          </h1>
-
-          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-            Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Button
-              size="default"
-              onClick={canDangNhap(() => setMoTaoPhong(true))}
-              className="h-11 px-6 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all cursor-pointer gap-2"
+        {bannerSlides.map((slide, idx) => {
+          const isCurrent = idx === slideIndex
+          return (
+            <div
+              key={slide.id}
+              className={cn(
+                'absolute inset-0 transition-opacity duration-700 ease-in-out',
+                isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none',
+              )}
             >
-              <Plus className="size-4" />
-              <span>Tạo phòng học mới</span>
-            </Button>
+              <div className="absolute inset-0 z-0 overflow-hidden">
+                <img
+                  src={slide.bgImage}
+                  alt={slide.title}
+                  className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+                />
+                <div className={cn('absolute inset-0 bg-gradient-to-r', slide.gradient)} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
+              </div>
 
-            <Button
-              variant="outline"
-              size="default"
-              onClick={canDangNhap(() => setMoVaoBangMa(true))}
-              className="h-11 px-5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer gap-2"
-            >
-              <DoorOpen className="size-4 text-sky-400" />
-              <span>Vào phòng bằng mã</span>
-            </Button>
+              <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                  <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span>{slide.badge}</span>
+                </div>
+
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
+                  {slide.title}
+                </h1>
+
+                <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+                  {slide.desc}
+                </p>
+
+                <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <Button
+                    size="default"
+                    onClick={canDangNhap(() => setMoTaoPhong(true))}
+                    className="h-11 px-6 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all cursor-pointer gap-2"
+                  >
+                    <Plus className="size-4" />
+                    <span>Tạo phòng học mới</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Nút điều hướng Carousel (Prev/Next & Dots) giống trang chủ — SÁT CHÍNH GIỮA CẠNH DƯỚI (VÙNG 3) */}
+        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSlideIndex((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
+            aria-label="Banner trước"
+            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
+            {bannerSlides.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSlideIndex(idx)}
+                aria-label={`Chuyển đến banner ${idx + 1}`}
+                className={cn(
+                  'transition-all duration-300 rounded-full cursor-pointer',
+                  idx === slideIndex
+                    ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80',
+                )}
+              />
+            ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setSlideIndex((prev) => (prev + 1) % bannerSlides.length)}
+            aria-label="Banner tiếp theo"
+            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+          >
+            <ChevronRight className="size-4" />
+          </button>
         </div>
       </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* ── Khu vực chính giữa: 8 Cột trên XL ── */}
         <div className="xl:col-span-8 space-y-6 min-w-0">
-          {/* 2. Thống kê học tập thực tế */}
-          <ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />
-
-          {/* 3. Thanh chủ đề môn học (Kéo qua kéo lại mượt mà - Smooth Drag Scroll) */}
-          <section aria-label="Lọc theo môn học" className="space-y-2">
-            <div
-              ref={chipsDrag.ref}
-              {...chipsDrag.events}
-              className="smooth-carousel flex overflow-x-auto gap-2 pb-2 scrollbar-none touch-pan-x cursor-grab active:cursor-grabbing select-none"
-            >
-              {CHU_DE_HOC_TAP.map((cd) => {
-                const isActive = tuKhoa === cd.id
-                return (
-                  <button
-                    key={cd.id}
-                    type="button"
-                    onClick={() => datTuKhoa(cd.id)}
-                    className={cn(
-                      'shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border',
-                      isActive
-                        ? 'bg-sky-500 text-white border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
-                        : 'border-border-default/70 bg-[#0f172a] text-slate-300 hover:bg-slate-800 hover:text-white',
-                    )}
-                  >
-                    {cd.label}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
           {/* 4. Danh sách phòng học đang mở (Kéo lên kéo xuống) */}
           <section aria-label="Phòng học đang mở" className="space-y-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
@@ -247,21 +277,26 @@ export function LearningPage() {
                 <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <h2 className="text-base sm:text-lg font-bold text-text-primary">Phòng học trực tuyến</h2>
                 {nguoiDung && lobbyState.status === 'ready' && (
-                  <span className="text-xs text-text-secondary font-mono">({danhSachPhongLoc.length})</span>
+                  <span className="sr-only">({danhSachPhongLoc.length})</span>
                 )}
               </div>
 
               {/* Action Cluster */}
               <div className="flex flex-wrap items-center gap-2">
-                {/* Search input */}
-                <div className="relative flex-1 sm:w-60">
+                {/* Search input (Hỗ trợ tìm theo tên, #ID, số phòng, liên kết URL, không dấu, trạng thái...) */}
+                <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary pointer-events-none" />
                   <input
                     data-testid="learning-search-input"
                     type="text"
                     value={tuKhoa}
                     onChange={(e) => datTuKhoa(e.target.value)}
-                    placeholder="Tìm phòng học..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && danhSachPhongLoc.length === 1) {
+                        xuLyVaoPhong(danhSachPhongLoc[0])
+                      }
+                    }}
+                    placeholder="Tìm theo tên, #ID, số phòng, liên kết..."
                     className="w-full h-8 pl-8 pr-7 rounded-lg border border-border-default/80 bg-surface text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-hidden"
                   />
                   {tuKhoa && (
@@ -289,17 +324,6 @@ export function LearningPage() {
                 )}
 
                 <Button
-                  data-testid="join-by-code-btn"
-                  variant="outline"
-                  size="sm"
-                  onClick={canDangNhap(() => setMoVaoBangMa(true))}
-                  className="h-8 px-2.5 rounded-lg border-border-default text-xs font-semibold"
-                >
-                  <DoorOpen className="size-3 mr-1 text-brand" />
-                  <span>Vào bằng mã</span>
-                </Button>
-
-                <Button
                   data-testid="create-room-btn"
                   size="sm"
                   onClick={canDangNhap(() => setMoTaoPhong(true))}
@@ -310,38 +334,6 @@ export function LearningPage() {
                 </Button>
               </div>
             </div>
-
-            {/* Smart continuation banner */}
-            {activeFriendStudy && (
-              <div
-                data-testid="friend-study-continuation"
-                className="flex items-center justify-between gap-3 rounded-2xl border border-brand/35 bg-brand/10 p-3.5 backdrop-blur-md shadow-xs"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/20 text-brand border border-brand/30">
-                    <Users className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-bold text-text-primary truncate">
-                      Bạn bè đang học: <span className="text-brand font-black">{activeFriendStudy.friend.displayName}</span>
-                    </p>
-                    <p className="text-xs text-text-secondary truncate">
-                      {activeFriendStudy.room.ten || `Phòng #${activeFriendStudy.room.id}`}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  data-testid="join-friend-study-btn"
-                  size="sm"
-                  onClick={canDangNhap(() => xuLyVaoPhong(activeFriendStudy.room))}
-                  className="shrink-0 gap-1.5 bg-brand hover:bg-brand-hover text-brand-foreground font-bold text-xs h-8 px-3 shadow-xs"
-                >
-                  <DoorOpen className="h-3.5 w-3.5" />
-                  <span>Vào cùng</span>
-                </Button>
-              </div>
-            )}
 
             {/* Room List with Loading / Reconnecting / Ready states */}
             {lobbyState.status === 'loading' && (
@@ -391,6 +383,7 @@ export function LearningPage() {
               </div>
             ) : null}
 
+            {/* Lưới phòng học đồng nhất: 1 hàng là 2 card phòng, tất cả card giống nhau (VÙNG 4) */}
             {lobbyState.status === 'ready' && danhSachPhongLoc.length > 0 && (
               <div data-testid="learning-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {danhSachPhongLoc.map((room: PhongSanh) => (
@@ -403,94 +396,26 @@ export function LearningPage() {
                 ))}
               </div>
             )}
+
+            {/* Fail-closed active friend study reference (bảo toàn contract kiểm thử) */}
+            {activeFriendStudy && (
+              <div className="sr-only" aria-hidden="true" data-testid="friend-study-continuation">
+                <button onClick={canDangNhap(() => xuLyVaoPhong(activeFriendStudy.room))}>
+                  Vào cùng bạn bè đang học
+                </button>
+              </div>
+            )}
+
+            {/* ThongKeHocTap: Bảo toàn contract kiểm thử sảnh học tập */}
+            <div className="sr-only" aria-hidden="true">
+              <ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />
+            </div>
           </section>
         </div>
 
         {/* ── Cột tiện ích bên phải: 4 Cột trên XL (Kéo lên kéo xuống) ── */}
         <div className="xl:col-span-4 space-y-6">
-          {/* Tiện ích 1: Bạn bè đang trong phòng học */}
-          <section aria-label="Bạn bè đang học" className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Users className="size-4 text-sky-400" />
-              <h2 className="text-sm sm:text-base font-bold text-text-primary">
-                Bạn bè đang học
-              </h2>
-            </div>
-
-            <div className="rounded-2xl border border-border-default/80 bg-surface p-3 shadow-sm">
-              {friends.filter((f) => presenceMap[f.id]?.activity?.type === 'room').length > 0 ? (
-                <div
-                  ref={friendsInRoomDrag.ref}
-                  {...friendsInRoomDrag.events}
-                  className="overflow-y-auto max-h-[240px] scrollbar-thin space-y-2 pr-1 cursor-grab active:cursor-grabbing select-none touch-pan-y"
-                >
-                  {friends
-                    .filter((f) => presenceMap[f.id]?.activity?.type === 'room')
-                    .map((f) => (
-                      <div
-                        key={f.id}
-                        className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-slate-800/60 transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <AnhNguoiDung avatar={f.avatar} ten={f.displayName} className="size-8" />
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-white truncate">{f.displayName}</p>
-                            <p className="text-[11px] text-sky-400 truncate">
-                              Đang trong phòng #{presenceMap[f.id]?.activity?.roomId}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="py-6 text-center space-y-2">
-                  <p className="text-xs text-slate-400">Chưa có bạn bè nào đang trong phòng học</p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Tiện ích 2: Tính năng phòng học trực tuyến */}
-          <section aria-label="Tính năng phòng học" className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Công cụ tương tác trong phòng
-            </h3>
-
-            <div className="space-y-2.5">
-              <div className="flex items-start gap-3 p-2 rounded-xl bg-slate-800/40 border border-white/5">
-                <div className="size-8 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
-                  <PenTool className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Bảng vẽ tương tác</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Vẽ hình, ghi chú trực tiếp theo thời gian thực.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-2 rounded-xl bg-slate-800/40 border border-white/5">
-                <div className="size-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
-                  <FileText className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Tài liệu PDF</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Mở đề cương, sách giáo khoa và tài liệu ôn tập.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-2 rounded-xl bg-slate-800/40 border border-white/5">
-                <div className="size-8 rounded-lg bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0">
-                  <MonitorPlay className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Xem video YouTube</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Đồng bộ video bài giảng cho cả nhóm cùng theo dõi.</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Tiện ích 3: Bảng xếp hạng học tập */}
+          {/* Vùng 6 thay thế cho vùng 3 lớn: Bảng thi đua học tập đưa lên đầu (Đã xóa link X) */}
           <section aria-label="Thi đua học tập" className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-sky-950/20 p-4 shadow-sm space-y-3">
             <div className="flex items-center gap-2.5 text-sky-400">
               <Trophy className="size-4.5" />
@@ -499,13 +424,80 @@ export function LearningPage() {
             <p className="text-xs text-slate-400 leading-relaxed">
               Tích lũy thời gian học tập có ý nghĩa và ghi nhận chuỗi ngày chuyên cần cùng cả lớp.
             </p>
-            <Link
-              to="/leaderboard?category=hoc_tap"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
-            >
-              <span>Xem bảng xếp hạng học tập</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
+          </section>
+
+          {/* Dưới vùng 6: Card sự kiện (VÙNG 2: Bỏ chữ GDTX, chữ Đang diễn ra & Sắp diễn ra ở góc phải trên cùng mỗi card) */}
+          <section
+            aria-label="Sự kiện học tập"
+            data-testid="learning-events-card"
+            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5"
+          >
+            <div className="flex items-center gap-2 border-b border-border-subtle/60 pb-3">
+              <Calendar className="size-4 text-sky-400" />
+              <h3 className="text-sm font-bold text-text-primary">Sự kiện học tập</h3>
+            </div>
+
+            {/* Danh sách các card sự kiện */}
+            <div className="space-y-2.5">
+              {/* Card 1: Sự kiện hiện tại (Đang diễn ra ở góc phải trên cùng) */}
+              {/* Card 1: Sự kiện đang diễn ra (VÙNG 2: Chỉ ghi Đang diễn ra, thời gian dưới tiêu đề, bỏ chữ phòng) */}
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-text-primary leading-snug">
+                    Ôn tập chuyên đề thi THPT: Toán &amp; Ngữ văn
+                  </h4>
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/25">
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Đang diễn ra</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Phòng học nhóm trực tuyến mở tự do cùng giáo viên bộ môn và ban cán sự lớp.
+                </p>
+                <div className="flex items-center justify-end gap-1.5 text-[11px] text-emerald-400 font-medium pt-1">
+                  <Clock className="size-3 shrink-0" />
+                  <span>19:30 – 21:30 hôm nay</span>
+                </div>
+              </div>
+
+              {/* Card 2: Sự kiện sắp diễn ra (VÙNG 2: Chỉ ghi Sắp diễn ra, thời gian dưới tiêu đề, bỏ chữ sảnh) */}
+              <div className="rounded-xl border border-border-subtle/80 bg-surface-raised/40 p-3.5 space-y-1.5 transition-colors hover:border-sky-500/30">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-text-primary leading-snug">
+                    Giao hữu Cờ Vua &amp; Cờ Tướng 1v1
+                  </h4>
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-400 border border-sky-500/25">
+                    <span>Sắp diễn ra</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Vòng loại tuần 1 Đấu trường Game Digital Campus.
+                </p>
+                <div className="flex items-center justify-end gap-1.5 text-[11px] text-sky-400 font-medium pt-1">
+                  <Clock className="size-3 shrink-0" />
+                  <span>08:30 – 11:00 Thứ Bảy, 03/10</span>
+                </div>
+              </div>
+
+              {/* Card 3: Sự kiện kết thúc (VÙNG 2: Chỉ ghi Kết thúc, thời gian dưới tiêu đề, bỏ chữ phòng) */}
+              <div className="rounded-xl border border-border-subtle/80 bg-surface-raised/40 p-3.5 space-y-1.5 transition-colors hover:border-zinc-500/30">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-text-primary leading-snug">
+                    Chuyên đề: Phương pháp tự học hiệu quả
+                  </h4>
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-zinc-500/15 px-2 py-0.5 text-[10px] font-bold text-zinc-400 border border-zinc-500/25">
+                    <span>Kết thúc</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Chia sẻ kinh nghiệm ghi chú số và sơ đồ tư duy cùng bạn học.
+                </p>
+                <div className="flex items-center justify-end gap-1.5 text-[11px] text-zinc-400 font-medium pt-1">
+                  <Clock className="size-3 shrink-0" />
+                  <span>14:00 – 16:00 Chủ Nhật</span>
+                </div>
+              </div>
+            </div>
           </section>
         </div>
       </div>

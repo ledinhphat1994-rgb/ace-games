@@ -7,6 +7,7 @@ import type { NguoiDung } from '@/lib/api'
 import { cn, getInitials } from '@/lib/utils'
 import type { RoomChatMessage, ThanhVienPhong, SharedNotes } from '@shared/protocol/room'
 import type { VoiceClientState } from '@/lib/voice-client'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import {
   AlertCircle,
   Ban,
@@ -93,6 +94,7 @@ export function ClassroomContextPanel({
   const [chatInput, setChatInput] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const oDayRef = useRef(true)
 
@@ -185,72 +187,41 @@ export function ClassroomContextPanel({
         aria-modal={compact || undefined}
         tabIndex={-1}
         aria-label="Khung thông tin bên phải"
-        className="fixed lg:relative right-0 inset-y-0 lg:inset-y-auto h-dvh lg:h-full z-50 lg:z-20 flex w-full sm:w-96 lg:w-80 max-w-full shrink-0 flex-col overflow-hidden border-l border-border-default bg-surface shadow-2xl lg:rounded-2xl lg:border lg:shadow-none pb-[env(safe-area-inset-bottom)]"
+        className="fixed lg:relative right-0 inset-y-0 lg:inset-y-auto h-dvh lg:h-full z-50 lg:z-20 flex w-full sm:w-96 lg:w-80 max-w-full shrink-0 flex-col gap-2 overflow-hidden bg-canvas/95 lg:bg-transparent pb-[env(safe-area-inset-bottom)]"
         data-testid="classroom-context-panel"
       >
-        {/* ── PANEL HEADER ── */}
-        <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-3.5 py-2 select-none">
-          <p className="text-sm font-semibold text-text-primary">
-            {view === 'chat' ? (
-              'Trò chuyện'
-            ) : view === 'members' ? (
-              <>
-                Thành viên <span className="font-medium text-text-tertiary tabular-nums">{members.length}</span>
-              </>
-            ) : (
-              'Công cụ'
-            )}
-          </p>
 
-          <div className="flex items-center gap-1">
-            {view === 'members' && (
-              <>
-                <Button type="button" size="xs" variant="outline" onClick={onOpenInvite} title="Mời bạn bè vào phòng">
-                  <UserPlus />
-                  Mời
-                </Button>
-
-                {coQuyenQuanLy && (
-                  <button
-                    type="button"
-                    onClick={onOpenBannedList}
-                    className={cn(NUT_ICON, 'hover:bg-destructive/10 hover:text-destructive')}
-                    title="Danh sách cấm"
-                    aria-label="Danh sách cấm vào phòng"
-                  >
-                    <Ban className="size-4" />
-                  </button>
-                )}
-              </>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              className={cn(NUT_ICON, 'hover:bg-surface-overlay hover:text-text-primary')}
-              title="Đóng bảng này (Escape)"
-              aria-label="Đóng bảng"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* ── SUBVIEW: CHAT ── */}
+        {/* ── SUBVIEW: CHAT (VÙNG 4 và VÙNG 2+ TÁCH BIỆT HOÀN TOÀN) ── */}
         {view === 'chat' && (
-          <div className="flex flex-1 flex-col overflow-hidden" data-testid="context-panel-chat">
-            {/* Messages list */}
-            <div
-              ref={chatScrollRef}
-              onScroll={() => {
-                const khung = chatScrollRef.current
-                if (khung) oDayRef.current = khung.scrollHeight - khung.scrollTop - khung.clientHeight < NGUONG_DAY_PX
-              }}
-              role="log"
-              aria-label="Tin nhắn trong phòng"
-              className="flex-1 space-y-2 overflow-y-auto overscroll-contain px-3.5 py-3"
-              style={{ overflowAnchor: 'none' }}
-            >
+          <>
+            {/* VÙNG 4: Khung danh sách tin nhắn riêng biệt */}
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border-default bg-surface shadow-sm" data-testid="context-panel-chat">
+              {/* ── PANEL HEADER CHAT ── */}
+              <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-3.5 py-2 select-none">
+                <p className="text-sm font-semibold text-text-primary">Trò chuyện</p>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className={cn(NUT_ICON, 'hover:bg-surface-overlay hover:text-text-primary')}
+                  title="Đóng bảng này (Escape)"
+                  aria-label="Đóng bảng"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              {/* Messages list (Vùng 4) */}
+              <div
+                ref={chatScrollRef}
+                onScroll={() => {
+                  const khung = chatScrollRef.current
+                  if (khung) oDayRef.current = khung.scrollHeight - khung.scrollTop - khung.clientHeight < NGUONG_DAY_PX
+                }}
+                role="log"
+                aria-label="Tin nhắn trong phòng"
+                className="flex-1 space-y-2 overflow-y-auto overscroll-contain px-3.5 py-3"
+                style={{ overflowAnchor: 'none' }}
+              >
               {chatMessages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-4 text-center">
                   <p className="text-sm font-medium text-text-primary">Chưa có tin nhắn</p>
@@ -263,15 +234,30 @@ export function ClassroomContextPanel({
                     <div key={msg.id} className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
                       <span className="mb-0.5 px-1 text-[11px] font-medium text-text-tertiary">{msg.ten}</span>
                       <div className={cn('group/chatmsg relative flex max-w-[90%] items-center gap-1.5', isMe && 'flex-row-reverse')}>
-                        <span
-                          aria-hidden
-                          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[10px] font-semibold text-text-secondary"
+                        <button
+                          type="button"
+                          disabled={!msg.accountId}
+                          onClick={(e) => {
+                            if (!msg.accountId) return
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setNguoiXem({
+                              id: msg.accountId,
+                              ten: msg.ten,
+                              anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                            })
+                          }}
+                          className={cn(
+                            'flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[10px] font-semibold text-text-secondary',
+                            msg.accountId && 'cursor-pointer hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand',
+                          )}
+                          title={msg.accountId ? `Xem thông tin ${msg.ten}` : msg.ten}
+                          aria-label={msg.accountId ? `Xem thông tin ${msg.ten}` : msg.ten}
                         >
                           {getInitials(msg.ten)}
-                        </span>
+                        </button>
                         <div
                           className={cn(
-                            'min-w-0 rounded-2xl px-3 py-1.5 text-[0.8125rem] leading-relaxed break-words whitespace-pre-wrap text-text-primary select-text',
+                            'min-w-0 rounded-2xl px-3 py-1.5 text-[0.8125rem] leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap text-text-primary select-text',
                             isMe ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised',
                           )}
                         >
@@ -304,8 +290,11 @@ export function ClassroomContextPanel({
               )}
             </div>
 
-            {/* Composer */}
-            <div className="relative border-t border-border-subtle p-2.5">
+            </div>
+            {/* Hết VÙNG 4 */}
+
+            {/* VÙNG 2+: KHUNG NHẬP TIN NHẮN (COMPOSER CARD) - Chiều cao h-[60px] sm:h-16 giống hệt Vùng 2, KHÔNG đụng vào Vùng 4 */}
+            <div className="relative h-[60px] sm:h-16 shrink-0 rounded-2xl border border-border-default bg-surface/95 px-2.5 shadow-sm backdrop-blur-xl flex items-center">
               {showEmoji && (
                 <div className="absolute right-2 bottom-full z-20 mb-2 w-64 rounded-2xl bg-surface-raised p-2 shadow-xl ring-1 ring-white/[0.08]">
                   <div className="grid grid-cols-8 gap-1">
@@ -323,13 +312,13 @@ export function ClassroomContextPanel({
                 </div>
               )}
 
-              <form onSubmit={handleFormSubmit} className="flex items-center gap-1.5">
+              <form onSubmit={handleFormSubmit} className="flex flex-1 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setShowEmoji((v) => !v)}
                   className={cn(
                     NUT_ICON,
-                    'size-9 rounded-xl',
+                    'size-9 sm:size-10 rounded-xl',
                     showEmoji ? 'bg-brand/12 text-brand' : 'hover:bg-surface-overlay hover:text-text-primary',
                   )}
                   title="Chèn biểu cảm"
@@ -348,7 +337,7 @@ export function ClassroomContextPanel({
                   maxLength={1000}
                   autoComplete="off"
                   enterKeyHint="send"
-                  className="h-9 flex-1"
+                  className="h-9 sm:h-10 flex-1 bg-surface-overlay text-xs rounded-xl"
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing) return
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -363,7 +352,7 @@ export function ClassroomContextPanel({
                   type="submit"
                   size="icon"
                   disabled={isReconnecting || !chatInput.trim() || isSending}
-                  className="size-9 shrink-0 rounded-xl"
+                  className="size-9 sm:size-10 shrink-0 rounded-xl"
                   aria-label="Gửi tin nhắn"
                   // Bấm gửi không lấy mất con trỏ của ô nhập
                   onMouseDown={(e) => e.preventDefault()}
@@ -373,8 +362,56 @@ export function ClassroomContextPanel({
                 </Button>
               </form>
             </div>
-          </div>
+          </>
         )}
+
+        {/* ── SUBVIEW: MEMBERS & TOOLS (CARD RIÊNG) ── */}
+        {view !== 'chat' && (
+          <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border-default bg-surface shadow-sm">
+            <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-3.5 py-2 select-none">
+              <p className="text-sm font-semibold text-text-primary">
+                {view === 'members' ? (
+                  <>
+                    Thành viên <span className="font-medium text-text-tertiary tabular-nums">{members.length}</span>
+                  </>
+                ) : (
+                  'Công cụ'
+                )}
+              </p>
+
+              <div className="flex items-center gap-1">
+                {view === 'members' && (
+                  <>
+                    <Button type="button" size="xs" variant="outline" onClick={onOpenInvite} title="Mời bạn bè vào phòng">
+                      <UserPlus />
+                      Mời
+                    </Button>
+
+                    {coQuyenQuanLy && (
+                      <button
+                        type="button"
+                        onClick={onOpenBannedList}
+                        className={cn(NUT_ICON, 'hover:bg-destructive/10 hover:text-destructive')}
+                        title="Danh sách cấm"
+                        aria-label="Danh sách cấm vào phòng"
+                      >
+                        <Ban className="size-4" />
+                      </button>
+                    )}
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className={cn(NUT_ICON, 'hover:bg-surface-overlay hover:text-text-primary')}
+                  title="Đóng bảng này (Escape)"
+                  aria-label="Đóng bảng"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
 
         {/* ── SUBVIEW: MEMBERS & SHARED NOTES ── */}
         {view === 'members' && (
@@ -391,14 +428,28 @@ export function ClassroomContextPanel({
 
                 return (
                   <li key={m.key} className="group flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-surface-raised/60">
-                    <span
+                    <button
+                      type="button"
+                      disabled={!accId}
+                      onClick={(e) => {
+                        if (!accId) return
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setNguoiXem({
+                          id: accId,
+                          ten: m.ten,
+                          anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                        })
+                      }}
                       className={cn(
                         'relative flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[11px] font-semibold text-text-secondary',
+                        accId && 'cursor-pointer hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand',
                         isSpeaking && 'ring-2 ring-success',
                       )}
+                      title={accId ? `Xem thông tin ${m.ten}` : m.ten}
+                      aria-label={accId ? `Xem thông tin ${m.ten}` : m.ten}
                     >
                       {getInitials(m.ten)}
-                    </span>
+                    </button>
 
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-1 text-sm font-medium break-words text-text-primary">
@@ -507,7 +558,10 @@ export function ClassroomContextPanel({
             </div>
           </div>
         )}
+        </div>
+        )}
       </aside>
+      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
     </>
   )
 }

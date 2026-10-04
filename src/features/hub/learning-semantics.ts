@@ -206,17 +206,88 @@ export function deriveLobbyState(params: {
   return { status: 'ready', rooms: params.rooms }
 }
 
+function boDauTiengViet(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, (m) => (m === 'đ' ? 'd' : 'D'))
+    .toLowerCase()
+}
+
 /**
- * Pure filter for active rooms in lobby by query (room name, host name, subject)
+ * Pure filter for active rooms in lobby by any keyword, room ID, link, or room attribute
  */
 export function filterLobbyRooms(rooms: PhongSanh[], query: string): PhongSanh[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return rooms
+  const raw = query.trim()
+  if (!raw) return rooms
+
+  const qLower = raw.toLowerCase()
+  const qNorm = boDauTiengViet(raw)
+
+  // 1. Kiểm tra nếu query chứa ID phòng hoặc liên kết phòng (VD: /room/phong-42, phong-42, #42, hoặc chỉ số 42)
+  const idMatch = raw.match(/(?:room\/phong-|phong-?|#|^)(\d+)(?:\b|$)/i)
+  const targetNumericId = idMatch ? Number(idMatch[1]) : null
+
   return rooms.filter((room) => {
-    const matchName = (room.ten || '').toLowerCase().includes(q)
-    const matchHost = (room.chuPhongTen || '').toLowerCase().includes(q)
-    const matchSubject = (room.monHoc || '').toLowerCase().includes(q)
-    return matchName || matchHost || matchSubject
+    // A. Khớp chính xác ID phòng nếu có
+    if (targetNumericId !== null && room.id === targetNumericId) {
+      return true
+    }
+
+    // B. Khớp số ID phòng dạng chuỗi (VD: "42", "#42")
+    const idStr = String(room.id)
+    if (idStr === raw || `#${idStr}` === raw) {
+      return true
+    }
+
+    // C. Dấu hiệu phòng mật khẩu / tự do công khai
+    const isLockQuery = ['khoa', 'mat khau', 'password', 'lock', 'rieng tu', 'private'].includes(qNorm)
+    const isPublicQuery = ['cong khai', 'tu do', 'public', 'mo', 'open'].includes(qNorm)
+    if (isLockQuery && room.coMatKhau) return true
+    if (isPublicQuery && !room.coMatKhau) return true
+
+    // D. Gom toàn bộ thông tin tìm kiếm của phòng (tên, chủ phòng, môn học, mô tả, lớp...)
+    const searchableOriginal = [
+      room.ten,
+      room.chuPhongTen,
+      room.monHoc,
+      room.moTa,
+      room.lopTen,
+      room.phamVi === 'truong' ? 'toan truong' : 'lop',
+      `#${room.id}`,
+      `phong-${room.id}`,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    // Khớp chuỗi gốc trực tiếp (bao gồm dấu hoặc không dấu)
+    if (searchableOriginal.includes(qLower)) {
+      return true
+    }
+
+    // Khớp không dấu (accent-insensitive)
+    const searchableNorm = boDauTiengViet(searchableOriginal)
+    if (searchableNorm.includes(qNorm)) {
+      return true
+    }
+
+    // Nếu query có dấu gạch ngang (như 'hoa-hoc', 'tieng-anh', 'vat-li')
+    const qWithSpace = qNorm.replace(/[-_]+/g, ' ').trim()
+    if (qWithSpace && searchableNorm.includes(qWithSpace)) {
+      return true
+    }
+
+    // Nếu có nhiều từ phân cách bởi dấu cách, mỗi từ phải khớp đúng một từ trong danh sách từ của phòng
+    const words = qWithSpace.split(/\s+/).filter(Boolean)
+    if (words.length > 1) {
+      const searchableWords = searchableNorm.split(/[\s,.-]+/).filter(Boolean)
+      if (words.every((qw) => searchableWords.includes(qw))) {
+        return true
+      }
+    }
+
+    return false
   })
 }
 

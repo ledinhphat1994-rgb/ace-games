@@ -432,9 +432,79 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
     setIsSurrenderModalOpen(true)
   }
 
+  // Khối đối thủ và người chơi hợp nhất vào Vùng 3 (GamePlayToolbar)
+  const opponentSlotContent = (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
+      <div
+        className={cn(
+          'size-6 sm:size-7 rounded-md flex items-center justify-center font-bold text-xs border transition-colors shrink-0',
+          turn === 2 && !isGameOver
+            ? 'bg-violet-500/20 border-violet-400 text-violet-300 ring-2 ring-violet-400/40'
+            : 'bg-surface-overlay border-border-default text-text-secondary',
+        )}
+      >
+        {mode === 'pve' ? <Bot className="size-3.5 sm:size-4" /> : <User className="size-3.5 sm:size-4" />}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
+          {mode === 'pve' ? 'Máy (AI)' : 'Người chơi 2'}
+        </span>
+        {turn === 2 && !isGameOver && isAiThinking && (
+          <span className="text-[9px] text-violet-400 font-medium animate-pulse">Đang tính...</span>
+        )}
+      </div>
+      <div
+        className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          turn === 2 && !isGameOver
+            ? 'border-violet-500/60 bg-violet-500/10 text-violet-400 shadow-sm animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {score2} cặp
+      </div>
+      <div className="absolute top-full mt-2 left-0 z-50 pointer-events-none">
+        <GameOpponentBubble bubble={opponentBubble} theme="violet" />
+      </div>
+    </div>
+  )
+
+  const playerSlotContent = (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
+      <div
+        className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          turn === 1 && !isGameOver
+            ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-400 shadow-sm animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {score1} cặp
+      </div>
+      <div className="flex flex-col min-w-0 text-right">
+        <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
+          {mode === 'pve' ? 'Bạn' : 'Người chơi 1'}
+        </span>
+      </div>
+      <div
+        className={cn(
+          'size-6 sm:size-7 rounded-md flex items-center justify-center font-bold text-xs border transition-colors shrink-0',
+          turn === 1 && !isGameOver
+            ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 ring-2 ring-emerald-400/40'
+            : 'bg-surface-overlay border-border-default text-text-secondary',
+        )}
+      >
+        <Brain className="size-3.5 sm:size-4" />
+      </div>
+      <div className="absolute top-full mt-2 right-0 z-50 pointer-events-none">
+        <GamePlayerBubble bubble={playerBubble} theme="violet" />
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full min-h-0 select-none">
-      {/* ── 1. THANH ĐIỀU KHIỂN CHUẨN HOÁ (Không chat/rankings nhúng) ── */}
+      {/* ── 1. THANH ĐIỀU KHIỂN CHUẨN HOÁ (Vùng 3 tích hợp đối thủ & người chơi) ── */}
       <GamePlayToolbar
         onBack={onBack}
         title="Lật Thẻ Trí Nhớ"
@@ -457,6 +527,8 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         activeSide={turn === 1 ? 'red' : 'black'}
         turnLabel=""
         hideCenterTurn={true}
+        opponentSlot={opponentSlotContent}
+        playerSlot={playerSlotContent}
         showRoomChat={false}
         showRankings={false}
         rightSlot={
@@ -471,43 +543,6 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
 
       {/* ── 2. KHÔNG GIAN BÀN CHƠI TRUNG TÂM (4×4 CHIẾM ƯU THẾ TUYỆT ĐỐI) ── */}
       <div className="relative flex flex-col items-center justify-center w-full max-w-[520px] flex-1 my-auto px-2 py-2 gap-2">
-        {/* DẢI ĐỐI THỦ (TRÊN BÀN CHƠI) */}
-        <div className="relative flex items-center justify-between w-full px-3 py-2 rounded-xl bg-surface-raised border border-border-default shadow-xs shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className={cn(
-              'size-7 rounded-lg flex items-center justify-center text-xs font-bold border transition-colors shrink-0',
-              turn === 2 && !isGameOver
-                ? 'bg-violet-500/20 border-violet-400 text-violet-300 ring-2 ring-violet-400/40'
-                : 'bg-surface border-border-default text-text-secondary'
-            )}>
-              {mode === 'pve' ? <Bot className="size-4" /> : <User className="size-4" />}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate">
-                {mode === 'pve' ? 'Máy (AI)' : 'Người chơi 2'}
-              </span>
-              <span className="text-[10px] text-text-tertiary">
-                {isGameOver
-                  ? (isWinner === false ? 'Chiến thắng' : isWinner === true ? 'Thất bại' : 'Hoà')
-                  : turn === 2
-                    ? (isAiThinking ? 'Đang suy nghĩ…' : 'Đang chọn thẻ…')
-                    : 'Chờ lượt'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-xs text-text-tertiary">Điểm:</span>
-            <span className="text-sm font-bold font-mono text-violet-400 tabular-nums">
-              {score2} cặp
-            </span>
-          </div>
-
-          {/* Bong bóng biểu cảm đối thủ (ngay trên dải đối thủ, không che thẻ) */}
-          <div className="absolute -top-12 right-2 z-30 pointer-events-none">
-            <GameOpponentBubble bubble={opponentBubble} theme="violet" />
-          </div>
-        </div>
 
         {/* THÔNG BÁO KẾT THÚC VÁN (NẾU ĐÃ KẾT THÚC) */}
         {isGameOver && (
@@ -597,44 +632,6 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
                 </button>
               )
             })}
-          </div>
-        </div>
-
-        {/* DẢI NGƯỜI CHƠI (DƯỚI BÀN CHƠI) */}
-        <div className="relative flex items-center justify-between w-full px-3 py-2 rounded-xl bg-surface-raised border border-border-default shadow-xs shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className={cn(
-              'size-7 rounded-lg flex items-center justify-center text-xs font-bold border transition-colors shrink-0',
-              turn === 1 && !isGameOver
-                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 ring-2 ring-emerald-400/40'
-                : 'bg-surface border-border-default text-text-secondary'
-            )}>
-              <Brain className="size-4" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate">
-                {mode === 'pve' ? 'Bạn' : 'Người chơi 1'}
-              </span>
-              <span className="text-[10px] text-text-tertiary">
-                {isGameOver
-                  ? (isWinner === true ? 'Chiến thắng' : isWinner === false ? 'Thất bại' : 'Hoà')
-                  : turn === 1
-                    ? 'Lượt của bạn'
-                    : 'Chờ đối thủ…'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-xs text-text-tertiary">Điểm:</span>
-            <span className="text-sm font-bold font-mono text-emerald-400 tabular-nums">
-              {score1} cặp
-            </span>
-          </div>
-
-          {/* Bong bóng biểu cảm người chơi (ngay dưới dải người chơi, không che thẻ) */}
-          <div className="absolute -bottom-12 right-2 z-30 pointer-events-none">
-            <GamePlayerBubble bubble={playerBubble} theme="violet" />
           </div>
         </div>
       </div>

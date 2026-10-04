@@ -19,6 +19,8 @@ import {
   type WhiteboardStroke,
   type SlideState,
   type SlideAnnotationStroke,
+  type LoaiTaiLieuNap,
+  type TaiLieuNapItem,
   type BoCucSanKhau,
   type MatNet,
   type VoiceParticipantState,
@@ -33,6 +35,7 @@ import {
   type BanSanh,
   type BoardCell,
   type GameMetaState,
+  type GameType,
   type GoiGame,
   LenhGame,
   laCoNuoc,
@@ -135,6 +138,7 @@ const DEFAULT_GAME_META: GameMetaState = {
   endReason: null,
   rematchBy: null,
   firstTurn: 'X',
+  isPve: false,
 }
 
 const DEFAULT_SESSION_TIMER: SessionTimerState = {
@@ -195,6 +199,15 @@ export class RoomDO extends DurableObject<Env> {
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
   private notes: SharedNotes = { ...DEFAULT_NOTES }
   private slide: SlideState | null = null
+  private slideScroll: {
+    scrollRatio: number
+    scrollTop?: number
+    scrollHeight?: number
+    docUrl?: string
+    zoom?: number
+    panX?: number
+    panY?: number
+  } | null = null
   /** Bố cục sân khấu người trình chiếu đặt gần nhất — học sinh hiển thị theo. */
   private stageLayout: BoCucSanKhau | null = null
   private whiteboardEpoch = 1
@@ -217,6 +230,9 @@ export class RoomDO extends DurableObject<Env> {
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
   // Lưu bền trong room_meta (`game_room_id`) để sau khi DO ngủ đông rồi thức dậy vẫn báo được sảnh.
   private gameRoomId: string | null = null
+  private isPrivateGame = false
+  private gamePassword: string | null = null
+  private isPersistentLobbyRoom = false
   // Nhịp gửi biểu cảm của từng actor trong bàn game (chống spam; chỉ cần sống trong bộ nhớ).
   private nhipBieuCam = new Map<string, { luc: number; soLan: number }>()
   // Nhịp gửi của từng kết nối (chỉ cần sống trong bộ nhớ; ngủ đông dậy thì đếm lại từ đầu).
@@ -411,6 +427,9 @@ export class RoomDO extends DurableObject<Env> {
         this.ctx.storage.sql.exec('ALTER TABLE room_chat ADD COLUMN req_id TEXT')
       } catch {}
       try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_chat ADD COLUMN avatar TEXT')
+      } catch {}
+      try {
         this.ctx.storage.sql.exec('ALTER TABLE voice_publications ADD COLUMN mid TEXT')
       } catch {}
       try {
@@ -470,7 +489,9 @@ export class RoomDO extends DurableObject<Env> {
           options_json TEXT NOT NULL,
           created_by TEXT NOT NULL,
           created_at INTEGER NOT NULL,
-          closed INTEGER NOT NULL DEFAULT 0
+          closed INTEGER NOT NULL DEFAULT 0,
+          duration_seconds INTEGER NOT NULL DEFAULT 0,
+          ends_at INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS session_poll_votes (
           poll_id TEXT NOT NULL,
@@ -525,6 +546,18 @@ export class RoomDO extends DurableObject<Env> {
       `)
       try {
         this.ctx.storage.sql.exec('ALTER TABLE pending_session_summary_sync ADD COLUMN facts_json TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE session_polls ADD COLUMN duration_seconds INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE session_polls ADD COLUMN ends_at INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE session_polls ADD COLUMN allow_view_other_answers INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE session_polls ADD COLUMN correct_option_id TEXT')
       } catch {}
       try {
         this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN retry_attempts INTEGER NOT NULL DEFAULT 0')
@@ -582,6 +615,12 @@ export class RoomDO extends DurableObject<Env> {
         } else if (r.key === 'game_room_id') {
           this.gameRoomId = r.value
           this.isGameRoom = true
+        } else if (r.key === 'is_private_game') {
+          this.isPrivateGame = r.value === '1'
+        } else if (r.key === 'game_password') {
+          this.gamePassword = r.value
+        } else if (r.key === 'persistent_lobby_room') {
+          this.isPersistentLobbyRoom = r.value === '1'
         }
       }
 
@@ -772,17 +811,27 @@ export class RoomDO extends DurableObject<Env> {
           created_by: string
           created_at: number
           closed: number
-        }>('SELECT id, question, options_json, created_by, created_at, closed FROM session_polls ORDER BY created_at DESC LIMIT 1')]
+          duration_seconds?: number
+          ends_at?: number
+          allow_view_other_answers?: number
+          correct_option_id?: string | null
+        }>('SELECT id, question, options_json, created_by, created_at, closed, duration_seconds, ends_at, allow_view_other_answers, correct_option_id FROM session_polls ORDER BY created_at DESC LIMIT 1')]
         if (pollRows.length > 0) {
           const pr = pollRows[0]
           try {
+            const endsAt = pr.ends_at && pr.ends_at > 0 ? pr.ends_at : undefined
+            const isClosed = Boolean(pr.closed) || (endsAt !== undefined && Date.now() >= endsAt)
             this.activePoll = {
               id: pr.id,
               question: pr.question,
               options: JSON.parse(pr.options_json),
               createdBy: pr.created_by,
               createdAt: pr.created_at,
-              closed: Boolean(pr.closed),
+              closed: isClosed,
+              durationSeconds: pr.duration_seconds && pr.duration_seconds > 0 ? pr.duration_seconds : undefined,
+              endsAt,
+              allowViewOtherAnswers: Boolean(pr.allow_view_other_answers),
+              correctOptionId: pr.correct_option_id || undefined,
             }
           } catch {}
         }
@@ -1047,6 +1096,11 @@ export class RoomDO extends DurableObject<Env> {
     // 2. Learning session timer deadline
     if (this.sessionTimer.running && this.sessionTimer.endsAt > 0) {
       deadlines.push(this.sessionTimer.endsAt)
+    }
+
+    // 2b. Active poll countdown timer deadline
+    if (this.activePoll && !this.activePoll.closed && this.activePoll.endsAt && this.activePoll.endsAt > 0) {
+      deadlines.push(this.activePoll.endsAt)
     }
 
     // 3. Earliest pending voice revocation retry
@@ -1429,6 +1483,9 @@ export class RoomDO extends DurableObject<Env> {
     if (this.kiemTraVaCapNhatSessionTimer(now)) {
       this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: now })
     }
+    if (this.kiemTraVaCapNhatPoll(now)) {
+      this.phatPollSync()
+    }
     try {
       await this.retryPendingVoiceRevocations(now)
     } catch (err) {
@@ -1462,6 +1519,20 @@ export class RoomDO extends DurableObject<Env> {
     this.baoLobby()
     this.broadcastGame(this.goiDongBoGame(now))
     return true
+  }
+
+  private kiemTraVaCapNhatPoll(now: number): boolean {
+    if (!this.activePoll || this.activePoll.closed) return false
+    if (this.activePoll.endsAt && this.activePoll.endsAt > 0 && now >= this.activePoll.endsAt) {
+      this.activePoll.closed = true
+      try {
+        this.ctx.storage.sql.exec('UPDATE session_polls SET closed = 1 WHERE id = ?1', this.activePoll.id)
+      } catch (err) {
+        console.error('Lỗi đóng session_polls qua alarm:', err)
+      }
+      return true
+    }
+    return false
   }
 
   private gheCua(actorKey: string): PlayerSide | null {
@@ -1546,6 +1617,11 @@ export class RoomDO extends DurableObject<Env> {
           this.guiLoiGame(ws, 'Bàn này đã có người chơi, không thể tạo lại.')
           return
         }
+        const isRiengTu = Boolean(goi.isPrivate || this.gameRoomId?.includes('rieng-tu'))
+        this.isPrivateGame = isRiengTu
+        if (goi.password) this.gamePassword = goi.password
+        if (isRiengTu) this.luuMeta('is_private_game', '1')
+        if (goi.password) this.luuMeta('game_password', goi.password)
         this.gameMeta = {
           ...DEFAULT_GAME_META,
           gameType: goi.gameType,
@@ -1562,6 +1638,12 @@ export class RoomDO extends DurableObject<Env> {
       }
 
       case 'game.join': {
+        if (this.isPrivateGame && this.gamePassword && att.key !== this.gameMeta.playerX) {
+          if (!goi.password || goi.password !== this.gamePassword) {
+            this.guiLoiGame(ws, 'Mật khẩu bàn không chính xác.')
+            return
+          }
+        }
         if (this.gheCua(att.key)) {
           // Đã ngồi sẵn (mở thêm tab, vào lại sau khi rớt mạng): chỉ gửi lại trạng thái cho chính người này.
           ws.send(JSON.stringify(this.goiDongBoGame(now)))
@@ -1569,6 +1651,10 @@ export class RoomDO extends DurableObject<Env> {
         }
         if (this.gameMeta.status !== 'waiting') {
           this.guiLoiGame(ws, 'Bàn đang có trận đấu — bạn đang xem.')
+          return
+        }
+        if (this.gameMeta.isPve && att.key !== this.gameMeta.playerX) {
+          this.guiLoiGame(ws, 'Bàn đang ở chế độ Đấu Máy (PvE). Bạn chỉ có thể theo dõi.')
           return
         }
         // Ghế của người đã rời bàn (không còn kết nối nào) coi như trống: không ghép người mới với một người
@@ -1585,7 +1671,7 @@ export class RoomDO extends DurableObject<Env> {
         } else if (!this.gameMeta.playerO) {
           this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
         } else {
-          this.guiLoiGame(ws, 'Bàn đã đủ hai người chơi.')
+          this.guiLoiGame(ws, 'Bàn đã đủ 2 người chơi.')
           return
         }
 
@@ -1632,7 +1718,7 @@ export class RoomDO extends DurableObject<Env> {
         const { x, y } = goi
         const H = this.gameBoard.length
         const W = this.gameBoard[0].length
-        const hanLuotMoi = now + this.gameMeta.turnTimerSeconds * 1000
+        const hanLuotMoi = this.gameMeta.turnTimerSeconds > 0 ? now + this.gameMeta.turnTimerSeconds * 1000 : 0
         let nuocVuaDi: NuocVuaDi = { player: side, x, y }
 
         if (this.gameMeta.gameType === 'caro_15') {
@@ -1701,20 +1787,21 @@ export class RoomDO extends DurableObject<Env> {
         return
       }
 
+      case 'game.start':
       case 'game.rematch': {
         const side = this.gheCua(att.key)
         if (!side) {
-          this.guiLoiGame(ws, 'Chỉ hai người chơi của bàn mới đấu lại được.')
+          this.guiLoiGame(ws, 'Chỉ hai người chơi của bàn mới thao tác được.')
           return
         }
-        if (this.gameMeta.status !== 'ended') {
-          this.guiLoiGame(ws, 'Ván này chưa kết thúc.')
+        if (!this.gameMeta.playerX || !this.gameMeta.playerO) {
+          this.guiLoiGame(ws, 'Cần đủ 2 người chơi để bắt đầu ván đấu.')
           return
         }
-        if (this.gameMeta.rematchBy === side) return // Đã mời, đang chờ đối thủ đồng ý.
-        if (this.gameMeta.rematchBy === benKia(side)) {
-          // Cả hai cùng muốn đấu lại: ván mới, đổi bên đi trước.
-          const van = batDauVan({ ...this.gameMeta, firstTurn: benKia(this.gameMeta.firstTurn) }, now)
+        if (this.gameMeta.status === 'playing') return
+        if (goi.type === 'game.start' || this.gameMeta.rematchBy === benKia(side)) {
+          const firstTurn = this.gameMeta.status === 'ended' ? benKia(this.gameMeta.firstTurn) : this.gameMeta.firstTurn
+          const van = batDauVan({ ...this.gameMeta, firstTurn }, now)
           this.gameMeta = van.meta
           this.gameBoard = van.board
           this.gameMoves = []
@@ -1758,21 +1845,70 @@ export class RoomDO extends DurableObject<Env> {
         return
       }
 
+      case 'game.set_pve': {
+        const side = this.gheCua(att.key)
+        if (side !== 'X' && !att.isAdmin && !att.isTeacher && !att.canModerate) {
+          this.guiLoiGame(ws, 'Chỉ chủ phòng mới có quyền đổi chế độ Đấu Máy (PvE).')
+          return
+        }
+        const isPve = Boolean(goi.isPve)
+        const expelledPlayerO = isPve ? this.gameMeta.playerO : null
+
+        this.gameMeta = {
+          ...this.gameMeta,
+          isPve,
+          playerO: isPve ? null : this.gameMeta.playerO,
+          playerOName: isPve ? null : this.gameMeta.playerOName,
+          status: isPve ? 'waiting' : this.gameMeta.status,
+        }
+
+        if (expelledPlayerO) {
+          for (const s of this.ctx.getWebSockets()) {
+            const clientAtt = s.deserializeAttachment() as AttachmentKetNoi | null
+            if (clientAtt?.key === expelledPlayerO) {
+              this.guiLoiGame(s, 'Chủ phòng đã bật chế độ Đấu Máy (PvE). Bạn đã được chuyển sang chế độ khán giả.')
+            }
+          }
+        }
+
+        this.luuGameState()
+        this.baoLobby()
+        this.phatTrangThaiGame(now)
+        return
+      }
+
       default:
         return
     }
   }
 
   /** Nội dung đổi (video mới, tài liệu mới / đóng) → xoá nét trên lớp vẽ gắn với nội dung cũ. Nét trên Bảng giữ nguyên. */
-  private xoaNetTheoMat(mat: MatNet): void {
+  private xoaNetTheoMat(mat: MatNet, docUrl?: string): void {
     let ids: string[] = []
     try {
-      ids = this.ctx.storage.sql
-        .exec<{ id: string }>("SELECT id FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1", mat)
-        .toArray()
-        .map((r) => r.id)
-      if (ids.length === 0) return
-      this.ctx.storage.sql.exec("DELETE FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1", mat)
+      if (docUrl) {
+        ids = this.ctx.storage.sql
+          .exec<{ id: string }>(
+            "SELECT id FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1 AND json_extract(stroke_data, '$.docUrl') = ?2",
+            mat,
+            docUrl,
+          )
+          .toArray()
+          .map((r) => r.id)
+        if (ids.length === 0) return
+        this.ctx.storage.sql.exec(
+          "DELETE FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1 AND json_extract(stroke_data, '$.docUrl') = ?2",
+          mat,
+          docUrl,
+        )
+      } else {
+        ids = this.ctx.storage.sql
+          .exec<{ id: string }>("SELECT id FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1", mat)
+          .toArray()
+          .map((r) => r.id)
+        if (ids.length === 0) return
+        this.ctx.storage.sql.exec("DELETE FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1", mat)
+      }
     } catch (err) {
       console.error('Lỗi xoá nét theo lớp vẽ:', err)
       return
@@ -1846,16 +1982,35 @@ export class RoomDO extends DurableObject<Env> {
         sender_name: string
         content: string
         created_at: number
-      }>('SELECT id, account_id, sender_name, content, created_at FROM room_chat ORDER BY id DESC LIMIT 50')]
+        avatar?: string | null
+      }>('SELECT id, account_id, sender_name, content, created_at, avatar FROM room_chat ORDER BY id DESC LIMIT 50')]
       return rows.reverse().map((r) => ({
         id: String(r.id),
         accountId: r.account_id,
         ten: r.sender_name,
         text: r.content,
         taoLuc: r.created_at,
+        avatar: r.avatar ?? null,
       }))
     } catch {
-      return []
+      try {
+        const rows = [...this.ctx.storage.sql.exec<{
+          id: number
+          account_id: number
+          sender_name: string
+          content: string
+          created_at: number
+        }>('SELECT id, account_id, sender_name, content, created_at FROM room_chat ORDER BY id DESC LIMIT 50')]
+        return rows.reverse().map((r) => ({
+          id: String(r.id),
+          accountId: r.account_id,
+          ten: r.sender_name,
+          text: r.content,
+          taoLuc: r.created_at,
+        }))
+      } catch {
+        return []
+      }
     }
   }
 
@@ -1996,6 +2151,45 @@ export class RoomDO extends DurableObject<Env> {
         if (this.gameRoomId) this.luuMeta('game_room_id', this.gameRoomId)
         if (this.roomName) this.luuMeta('room_name', this.roomName)
       }
+      if (this.gameRoomId?.includes('rieng-tu')) {
+        this.isPrivateGame = true
+        this.luuMeta('is_private_game', '1')
+      }
+      const rawPw = request.headers.get('X-Game-Password')
+      if (rawPw) {
+        try {
+          const decodedPw = decodeURIComponent(rawPw)
+          if (decodedPw && (!this.gamePassword || key === this.hostKey)) {
+            this.gamePassword = decodedPw
+            this.luuMeta('game_password', decodedPw)
+          }
+        } catch {}
+      }
+
+      // Cả người tham gia và người xem đều phải có mật khẩu mới vào được bàn riêng tư
+      const isPrivate = this.isPrivateGame || Boolean(this.gameRoomId?.includes('rieng-tu'))
+      if (isPrivate && this.gamePassword) {
+        const isHost = key === this.hostKey || key === this.gameMeta.playerX
+        if (!isHost) {
+          let providedPw = ''
+          try {
+            providedPw = rawPw ? decodeURIComponent(rawPw) : ''
+          } catch {}
+          if (!providedPw || providedPw !== this.gamePassword) {
+            return new Response(
+              JSON.stringify({
+                type: 'error',
+                code: 'password_required',
+                message: 'Bàn đấu riêng tư yêu cầu mật khẩu chính xác.',
+              }),
+              {
+                status: 403,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            )
+          }
+        }
+      }
     }
 
     const { 0: client, 1: server } = new WebSocketPair()
@@ -2040,34 +2234,7 @@ export class RoomDO extends DurableObject<Env> {
       this.kiemTraVaCapNhatSessionTimer(Date.now())
 
       // Gửi snapshot ngay cho người mới vào phòng học
-      const snapshot: GoiPhong = {
-        type: 'room.snapshot',
-        roomId: this.ctx.id.toString(),
-        hostKey: this.hostKey,
-        members: this.layDanhSachThanhVien(),
-        media: this.media,
-        pomodoro: this.pomodoro,
-        notes: this.notes,
-        strokes: this.layStrokes(),
-        whiteboardEpoch: this.whiteboardEpoch,
-        queue: this.layQueue(),
-        chat: this.layChat(),
-        slide: this.slide,
-        slideAnnotations: this.laySlideAnnotations(),
-        stageLayout: this.stageLayout,
-        quyenCongCu: this.layQuyenCongCu(),
-        voiceRegistry: this.getVoiceRegistry(),
-        serverNow: Date.now(),
-        // Learning Session v1
-        sessionGoal: this.sessionGoal,
-        sessionTasks: this.sessionTasks,
-        sessionTaskCompletions: this.laySessionTaskCompletions(),
-        sessionTimer: this.sessionTimer,
-        activePoll: this.activePoll,
-        pollVoteCounts: this.layPollVoteCountsChoNguoiDung(attObj),
-        sessionStartedAt: this.sessionStartedAt,
-        activeParticipantKeys: this.layActiveParticipants(),
-      }
+      const snapshot = this.taoSnapshotPhongHoc(attObj)
       try {
         server.send(JSON.stringify(snapshot))
       } catch {}
@@ -2330,6 +2497,17 @@ export class RoomDO extends DurableObject<Env> {
             return
           }
           this.media = { ...this.media, hostOnlyControl: d.enabled }
+        } else if (d.action === 'close') {
+          this.xoaNetTheoMat('video')
+          this.media = {
+            videoId: '',
+            title: '',
+            status: 'paused',
+            time: 0,
+            playbackRate: 1,
+            updatedAt: now,
+            hostOnlyControl: this.media.hostOnlyControl ?? false,
+          }
         }
 
         this.luuMeta('media', this.media)
@@ -2447,10 +2625,13 @@ export class RoomDO extends DurableObject<Env> {
             epoch: this.whiteboardEpoch,
             // Người vẽ do máy chủ gắn (không lấy từ client) — căn cứ cho quyền tẩy nét.
             by: att.key,
+            ...(st.mat === 'tailieu' && (st.docUrl || this.slide?.docUrl)
+              ? { docUrl: st.docUrl || this.slide?.docUrl }
+              : {}),
           }
           try {
             this.ctx.storage.sql.exec(
-              'INSERT OR IGNORE INTO whiteboard_strokes (id, stroke_data, created_at) VALUES (?1, ?2, ?3)',
+              'INSERT OR REPLACE INTO whiteboard_strokes (id, stroke_data, created_at) VALUES (?1, ?2, ?3)',
               st.id,
               JSON.stringify(strokeWithEpoch),
               Date.now(),
@@ -2629,7 +2810,8 @@ export class RoomDO extends DurableObject<Env> {
           d.action === 'annotation_clear' ||
           d.action === 'annotation_remove' ||
           d.action === 'laser'
-        if (!laQuanTri && !laChuThich) {
+        const laCuon = d.action === 'scroll'
+        if (!laQuanTri && !laChuThich && !laCuon) {
           ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền điều khiển tài liệu trình chiếu.' }))
           return
         }
@@ -2662,29 +2844,146 @@ export class RoomDO extends DurableObject<Env> {
             ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ. Chỉ chấp nhận tệp tải lên (/api/rooms/... hoặc /api/files/...) hoặc Google Slides.' }))
             return
           }
-          const totalPages = d.fileType === 'image' ? 1 : Math.max(1, Math.min(500, d.totalPages))
-          this.slide = {
+          const docName = lamSachVanBan(d.docName) || 'Tài liệu trình chiếu'
+          const tenKiemTra = docName.toLowerCase()
+          const isImage =
+            d.fileType === 'image' ||
+            /\.(png|jpe?g|webp|gif|svg)$/i.test(tenKiemTra) ||
+            /\.(png|jpe?g|webp|gif|svg)$/i.test(pathname)
+          const totalPages = isImage ? 1 : Math.max(1, Math.min(500, d.totalPages))
+          const loai: LoaiTaiLieuNap =
+            tenKiemTra.endsWith('.xlsx') || tenKiemTra.endsWith('.xls')
+              ? 'excel'
+              : tenKiemTra.endsWith('.docx') || tenKiemTra.endsWith('.doc')
+                ? 'word'
+                : isImage
+                  ? 'image'
+                  : 'pptx'
+
+          const newItem: TaiLieuNapItem = {
+            loai,
             docId: d.docId,
             docUrl: isR2Asset ? pathname : rawUrl,
-            docName: lamSachVanBan(d.docName) || 'Tài liệu trình chiếu',
-            fileType: d.fileType,
+            docName,
+            fileType: isImage ? 'image' : d.fileType,
             currentPage: 1,
             totalPages,
           }
-          try {
-            this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
-          } catch {}
-          this.broadcast({ type: 'slide.annotation', action: 'clear' })
-          this.xoaNetTheoMat('tailieu')
-          if (docCu && docCu !== d.docId) this.donTaiLieuCu(docCu)
+          // Nạp tối đa 5 tệp cho mỗi app (pptx, excel, word, image).
+          const dsKhacLoai = (this.slide?.loadedDocs || []).filter((item) => item.loai !== loai)
+          const dsCungLoai = (this.slide?.loadedDocs || []).filter((item) => item.loai === loai && item.docUrl !== (isR2Asset ? pathname : rawUrl))
+          // Giữ tối đa 4 tệp cũ cùng loại + 1 tệp mới = tối đa 5 tệp cho app này
+          const dsCungLoaiMoi = [...dsCungLoai.slice(-4), newItem]
+          const loadedDocs = [...dsKhacLoai, ...dsCungLoaiMoi]
+
+          this.slide = {
+            ...newItem,
+            loadedDocs,
+          }
+          if (this.slide?.loadedDocs && this.slide.loadedDocs.length > 1) {
+            try {
+              this.ctx.storage.sql.exec("DELETE FROM slide_annotations WHERE json_extract(stroke_data, '$.docUrl') = ?1", newItem.docUrl)
+            } catch {}
+            this.xoaNetTheoMat('tailieu', newItem.docUrl)
+          } else {
+            try {
+              this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
+            } catch {}
+            this.broadcast({ type: 'slide.annotation', action: 'clear' })
+            this.xoaNetTheoMat('tailieu')
+          }
+          if (docCu && docCu !== d.docId && !loadedDocs.some((x) => x.docId === docCu)) {
+            this.donTaiLieuCu(docCu)
+          }
+        } else if (d.action === 'switch_doc') {
+          if (this.slide?.loadedDocs) {
+            const dsCapNhat = this.slide.loadedDocs.map((item) =>
+              item.docUrl === this.slide?.docUrl
+                ? { ...item, currentPage: this.slide.currentPage, step: this.slide.step }
+                : item,
+            )
+            const muc = d.docUrl
+              ? dsCapNhat.find((x) => x.docUrl === d.docUrl)
+              : dsCapNhat.find((x) => x.loai === d.loai)
+            if (muc) {
+              this.slide = {
+                docId: muc.docId,
+                docUrl: muc.docUrl,
+                docName: muc.docName,
+                fileType: muc.fileType,
+                currentPage: muc.currentPage || 1,
+                totalPages: muc.totalPages || 1,
+                step: muc.step ?? 0,
+                loadedDocs: dsCapNhat,
+              }
+            }
+          }
         } else if (d.action === 'close_doc') {
-          this.donTaiLieuCu(this.slide?.docId)
-          this.slide = null
-          try {
-            this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
-          } catch {}
-          this.broadcast({ type: 'slide.annotation', action: 'clear' })
-          this.xoaNetTheoMat('tailieu')
+          if (this.slide?.loadedDocs && this.slide.loadedDocs.length > 1) {
+            let biDong: TaiLieuNapItem[] = []
+            let conLai: TaiLieuNapItem[] = []
+            if (d.docUrl) {
+              biDong = this.slide.loadedDocs.filter((x) => x.docUrl === d.docUrl)
+              conLai = this.slide.loadedDocs.filter((x) => x.docUrl !== d.docUrl)
+            } else if (d.loai) {
+              biDong = this.slide.loadedDocs.filter((x) => x.loai === d.loai)
+              conLai = this.slide.loadedDocs.filter((x) => x.loai !== d.loai)
+            }
+            if (conLai.length > 0) {
+              for (const bd of biDong) {
+                if (bd.docId && !conLai.some((x) => x.docId === bd.docId)) {
+                  this.donTaiLieuCu(bd.docId)
+                }
+                if (bd.docUrl) {
+                  try {
+                    this.ctx.storage.sql.exec("DELETE FROM slide_annotations WHERE json_extract(stroke_data, '$.docUrl') = ?1", bd.docUrl)
+                    this.ctx.storage.sql.exec("DELETE FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.docUrl') = ?1", bd.docUrl)
+                  } catch {}
+                  this.xoaNetTheoMat('tailieu', bd.docUrl)
+                }
+              }
+              const conActive = conLai.find((x) => x.docUrl === this.slide?.docUrl)
+              const activeMoi = conActive || (d.loai ? conLai.find((x) => x.loai === d.loai) : null) || conLai[0]
+              this.slide = {
+                docId: activeMoi.docId,
+                docUrl: activeMoi.docUrl,
+                docName: activeMoi.docName,
+                fileType: activeMoi.fileType,
+                currentPage: activeMoi.currentPage || 1,
+                totalPages: activeMoi.totalPages || 1,
+                step: activeMoi.step ?? 0,
+                loadedDocs: conLai,
+              }
+            } else {
+              if (this.slide?.loadedDocs) {
+                for (const m of this.slide.loadedDocs) {
+                  if (m.docId) this.donTaiLieuCu(m.docId)
+                }
+              } else {
+                this.donTaiLieuCu(this.slide?.docId)
+              }
+              this.slide = null
+              try {
+                this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
+              } catch {}
+              this.broadcast({ type: 'slide.annotation', action: 'clear' })
+              this.xoaNetTheoMat('tailieu')
+            }
+          } else {
+            if (this.slide?.loadedDocs) {
+              for (const m of this.slide.loadedDocs) {
+                if (m.docId) this.donTaiLieuCu(m.docId)
+              }
+            } else {
+              this.donTaiLieuCu(this.slide?.docId)
+            }
+            this.slide = null
+            try {
+              this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
+            } catch {}
+            this.broadcast({ type: 'slide.annotation', action: 'clear' })
+            this.xoaNetTheoMat('tailieu')
+          }
         } else if (d.action === 'set_total_pages') {
           // .pptx dựng trên trình duyệt: chỉ sửa số trang (giữ trang hiện tại trong giới hạn), không đụng tới chú thích.
           if (!this.slide || this.slide.fileType !== 'pptx') return
@@ -2715,6 +3014,7 @@ export class RoomDO extends DurableObject<Env> {
             opacity: st.opacity,
             ...(st.tool === 'text' && st.text ? { text: st.text } : {}),
             by: att.key,
+            ...(st.docUrl || this.slide?.docUrl ? { docUrl: st.docUrl || this.slide?.docUrl } : {}),
           }
           try {
             this.ctx.storage.sql.exec(
@@ -2774,6 +3074,35 @@ export class RoomDO extends DurableObject<Env> {
             ws,
           )
           return
+        } else if (d.action === 'scroll') {
+          if (!laQuanTri && !this.coQuyen(att, laQuanTri, 'cuon') && !this.coQuyen(att, laQuanTri, 'di_chuyen')) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền cuộn trang cho bạn.' }))
+            return
+          }
+          this.slideScroll = {
+            scrollRatio: d.scrollRatio,
+            scrollTop: d.scrollTop,
+            scrollHeight: d.scrollHeight,
+            docUrl: d.docUrl || this.slide?.docUrl,
+            zoom: d.zoom,
+            panX: d.panX,
+            panY: d.panY,
+          }
+          this.broadcast(
+            {
+              type: 'slide.scroll',
+              scrollRatio: d.scrollRatio,
+              scrollTop: d.scrollTop,
+              scrollHeight: d.scrollHeight,
+              docUrl: d.docUrl || this.slide?.docUrl,
+              zoom: d.zoom,
+              panX: d.panX,
+              panY: d.panY,
+              senderKey: att.key,
+            },
+            ws,
+          )
+          return
         }
         this.luuMeta('slide', this.slide)
         this.broadcast({ type: 'slide.sync', slide: this.slide })
@@ -2812,12 +3141,13 @@ export class RoomDO extends DurableObject<Env> {
         let id = now
         try {
           const res = this.ctx.storage.sql.exec(
-            'INSERT INTO room_chat (account_id, req_id, sender_name, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id',
+            'INSERT INTO room_chat (account_id, req_id, sender_name, content, created_at, avatar) VALUES (?1, ?2, ?3, ?4, ?5, ?6) RETURNING id',
             att.accountId,
             reqId,
             att.ten,
             text,
             now,
+            att.avatar ?? null,
           )
           const row = [...res][0] as { id: number } | undefined
           if (row) id = row.id
@@ -2831,7 +3161,27 @@ export class RoomDO extends DurableObject<Env> {
             ws.send(JSON.stringify({ type: 'ack', reqId }))
             return
           }
-          console.error('Lỗi lưu chat vào SQLite:', err)
+          try {
+            const res = this.ctx.storage.sql.exec(
+              'INSERT INTO room_chat (account_id, req_id, sender_name, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id',
+              att.accountId,
+              reqId,
+              att.ten,
+              text,
+              now,
+            )
+            const row = [...res][0] as { id: number } | undefined
+            if (row) id = row.id
+            this.ctx.storage.sql.exec(
+              'DELETE FROM room_chat WHERE id NOT IN (SELECT id FROM room_chat ORDER BY id DESC LIMIT 200)',
+            )
+          } catch (innerErr: any) {
+            if (String(innerErr).includes('UNIQUE') || String(innerErr).includes('constraint')) {
+              ws.send(JSON.stringify({ type: 'ack', reqId }))
+              return
+            }
+            console.error('Lỗi lưu chat vào SQLite:', innerErr)
+          }
         }
 
         const msg: RoomChatMessage = {
@@ -2840,6 +3190,7 @@ export class RoomDO extends DurableObject<Env> {
           ten: att.ten,
           text,
           taoLuc: now,
+          avatar: att.avatar ?? null,
         }
         ws.send(JSON.stringify({ type: 'ack', reqId }))
         this.broadcast({ type: 'room.chat', message: msg })
@@ -2905,14 +3256,45 @@ export class RoomDO extends DurableObject<Env> {
       }
 
       case 'stage.layout': {
-        // Chỉ người trình chiếu đặt bố cục sân khấu; học sinh nhận stage.sync và hiển thị theo.
-        if (!laQuanTri) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới đổi được bố cục trình chiếu.' }))
+        // Chỉ người trình chiếu hoặc người được cấp quyền di chuyển mới đổi được bố cục/vị trí khung; học sinh nhận stage.sync và hiển thị theo.
+        if (!laQuanTri && !this.coQuyen(att, laQuanTri, 'di_chuyen')) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người được cấp quyền di chuyển mới đổi được vị trí khung trình chiếu.' }))
           return
         }
         this.stageLayout = goi.layout
         this.luuMeta('stage_layout', this.stageLayout)
         this.broadcast({ type: 'stage.sync', layout: this.stageLayout }, ws)
+        break
+      }
+
+      case 'slide.scroll': {
+        if (!laQuanTri && !this.coQuyen(att, laQuanTri, 'cuon')) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền cuộn trang cho bạn.' }))
+          return
+        }
+        this.slideScroll = {
+          scrollRatio: goi.scrollRatio,
+          scrollTop: goi.scrollTop,
+          scrollHeight: goi.scrollHeight,
+          docUrl: goi.docUrl || this.slide?.docUrl,
+          zoom: goi.zoom,
+          panX: goi.panX,
+          panY: goi.panY,
+        }
+        this.broadcast(
+          {
+            type: 'slide.scroll',
+            scrollRatio: goi.scrollRatio,
+            scrollTop: goi.scrollTop,
+            scrollHeight: goi.scrollHeight,
+            docUrl: goi.docUrl || this.slide?.docUrl,
+            zoom: goi.zoom,
+            panX: goi.panX,
+            panY: goi.panY,
+            senderKey: att.key,
+          },
+          ws,
+        )
         break
       }
 
@@ -2924,6 +3306,124 @@ export class RoomDO extends DurableObject<Env> {
         }
         await this.handleSessionAction(ws, att, parsed.data)
         break
+      }
+    }
+  }
+
+  private taoSnapshotPhongHoc(attChoPoll?: AttachmentKetNoi | null): GoiPhong {
+    return {
+      type: 'room.snapshot',
+      roomId: this.ctx.id.toString(),
+      hostKey: this.hostKey ?? '',
+      members: this.layDanhSachThanhVien(),
+      media: this.media,
+      pomodoro: this.pomodoro,
+      notes: this.notes,
+      strokes: this.layStrokes(),
+      whiteboardEpoch: this.whiteboardEpoch,
+      queue: this.layQueue(),
+      chat: this.layChat(),
+      slide: this.slide,
+      slideAnnotations: this.laySlideAnnotations(),
+      slideScroll: this.slideScroll,
+      stageLayout: this.stageLayout,
+      quyenCongCu: this.layQuyenCongCu(),
+      voiceRegistry: this.getVoiceRegistry(),
+      serverNow: Date.now(),
+      // Learning Session v1
+      sessionGoal: this.sessionGoal,
+      sessionTasks: this.sessionTasks,
+      sessionTaskCompletions: this.laySessionTaskCompletions(),
+      sessionTimer: this.sessionTimer,
+      activePoll: this.activePoll,
+      pollVoteCounts: attChoPoll ? this.layPollVoteCountsChoNguoiDung(attChoPoll) : {},
+      sessionStartedAt: this.sessionStartedAt,
+      activeParticipantKeys: this.layActiveParticipants(),
+    }
+  }
+
+  private async xuLyActorRoiPhong(att: AttachmentKetNoi, ws: WebSocket): Promise<void> {
+    const conLai = this.ctx.getWebSockets().filter((w) => {
+      if (w === ws || w.readyState !== WebSocket.OPEN) return false
+      const a = w.deserializeAttachment() as AttachmentKetNoi | null
+      return a?.key === att.key
+    })
+    if (conLai.length === 0) {
+      this.removeVoicePublication(att.key)
+      if (this.roomName && att.accountId) {
+        try {
+          await this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+            .roiPhong(att.accountId, this.roomName)
+        } catch {}
+      }
+
+      // ── Tự động chuyển quyền chủ phòng khi chủ phòng bỏ phòng ──
+      const laChuPhongRoi = att.key === this.hostKey || (this.isGameRoom && att.key === this.gameMeta.playerX)
+      const socketsConLai = this.ctx.getWebSockets().filter((w) => {
+        if (w === ws || w.readyState !== WebSocket.OPEN) return false
+        const a = w.deserializeAttachment() as AttachmentKetNoi | null
+        return a && a.key !== att.key
+      })
+      const uniqueActorsConLai = new Map<string, AttachmentKetNoi>()
+      for (const sw of socketsConLai) {
+        const sa = sw.deserializeAttachment() as AttachmentKetNoi | null
+        if (sa?.key && !uniqueActorsConLai.has(sa.key)) {
+          uniqueActorsConLai.set(sa.key, sa)
+        }
+      }
+
+      if (laChuPhongRoi) {
+        if (uniqueActorsConLai.size >= 1) {
+          if (this.isGameRoom) {
+            // Bàn game: nếu còn playerO thì đôn playerO lên làm chủ phòng/chủ bàn mới (playerX), hoặc người còn lại bất kỳ
+            const newHost =
+              (this.gameMeta.playerO && uniqueActorsConLai.get(this.gameMeta.playerO)) ||
+              [...uniqueActorsConLai.values()][0]
+            if (newHost) {
+              this.hostKey = newHost.key
+              this.luuMeta('host_key', this.hostKey)
+              this.gameMeta = {
+                ...this.gameMeta,
+                playerX: newHost.key,
+                playerXName: newHost.ten,
+                playerO: null,
+                playerOName: null,
+                status: 'waiting',
+              }
+              this.luuGameState()
+              this.phatTrangThaiGame(Date.now())
+              this.baoLobby(ws)
+            }
+          } else {
+            // Phòng thường / học tập: chuyển chủ phòng cho người còn lại
+            const newHost = [...uniqueActorsConLai.values()][0]
+            if (newHost) {
+              this.hostKey = newHost.key
+              this.luuMeta('host_key', this.hostKey)
+              const numericId = this.parseNumericRoomId()
+              if (numericId && this.env?.DB) {
+                this.ctx.waitUntil(
+                  this.env.DB.prepare('UPDATE phong SET chu_phong_khoa = ?1, chu_phong_ten = ?2 WHERE id = ?3')
+                    .bind(newHost.key, newHost.ten, numericId)
+                    .run()
+                    .catch(() => {}),
+                )
+              }
+              this.broadcast(this.taoSnapshotPhongHoc(), ws)
+            }
+          }
+        }
+      } else if (this.isGameRoom && att.key === this.gameMeta.playerO) {
+        // Người rời là playerO (không phải host), giải phóng ghế O và trả về waiting nếu đang chơi
+        this.gameMeta = {
+          ...this.gameMeta,
+          playerO: null,
+          playerOName: null,
+          status: this.gameMeta.status === 'playing' ? 'ended' : 'waiting',
+        }
+        this.luuGameState()
+        this.phatTrangThaiGame(Date.now())
+        this.baoLobby(ws)
       }
     }
   }
@@ -2948,20 +3448,7 @@ export class RoomDO extends DurableObject<Env> {
           },
         })
       }
-      const conLai = this.ctx.getWebSockets().filter((w) => {
-        if (w === ws || w.readyState !== WebSocket.OPEN) return false
-        const a = w.deserializeAttachment() as AttachmentKetNoi | null
-        return a?.key === att.key
-      })
-      if (conLai.length === 0) {
-        this.removeVoicePublication(att.key)
-        if (this.roomName && att.accountId) {
-          try {
-            await this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
-              .roiPhong(att.accountId, this.roomName)
-          } catch {}
-        }
-      }
+      await this.xuLyActorRoiPhong(att, ws)
     }
 
     // ── Lifecycle: Empty Room Tracking ──
@@ -3000,20 +3487,7 @@ export class RoomDO extends DurableObject<Env> {
     this.nạpDuLieuNeuCan()
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
-      const conLai = this.ctx.getWebSockets().filter((w) => {
-        if (w === ws || w.readyState !== WebSocket.OPEN) return false
-        const a = w.deserializeAttachment() as AttachmentKetNoi | null
-        return a?.key === att.key
-      })
-      if (conLai.length === 0) {
-        this.removeVoicePublication(att.key)
-        if (this.roomName && att.accountId) {
-          try {
-            await this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
-              .roiPhong(att.accountId, this.roomName)
-          } catch {}
-        }
-      }
+      await this.xuLyActorRoiPhong(att, ws)
     }
 
     // ── Lifecycle: Empty Room Tracking ──
@@ -3143,6 +3617,7 @@ export class RoomDO extends DurableObject<Env> {
           isHost: att.key === this.hostKey,
           canModerate: Boolean(att.canModerate),
           avatar: att.avatar ?? null,
+          accountId: att.accountId,
         })
       }
     }
@@ -3210,6 +3685,7 @@ export class RoomDO extends DurableObject<Env> {
     if (!this.activePoll) return null
     if (this.activePoll.closed) return this.layPollVoteCounts(this.activePoll.id)
     if (att && this.coQuyenDieuKhien(att)) return this.layPollVoteCounts(this.activePoll.id)
+    if (this.activePoll.allowViewOtherAnswers) return this.layPollVoteCounts(this.activePoll.id)
     return null
   }
 
@@ -3223,6 +3699,7 @@ export class RoomDO extends DurableObject<Env> {
       this.broadcast({ type: 'session.poll.sync', poll: this.activePoll, voteCounts: counts })
       return
     }
+    const allowView = Boolean(this.activePoll.allowViewOtherAnswers)
     for (const ws of this.ctx.getWebSockets()) {
       if (ws.readyState !== WebSocket.OPEN) continue
       const att = ws.deserializeAttachment() as AttachmentKetNoi | null
@@ -3230,7 +3707,7 @@ export class RoomDO extends DurableObject<Env> {
       const msg: GoiPhong = {
         type: 'session.poll.sync',
         poll: this.activePoll,
-        voteCounts: isControl ? counts : null,
+        voteCounts: (isControl || allowView) ? counts : null,
       }
       try {
         ws.send(JSON.stringify(msg))
@@ -3542,15 +4019,24 @@ export class RoomDO extends DurableObject<Env> {
         const cleanOptions = action.options
           .map((o) => lamSachVanBan(o))
           .filter(Boolean)
-        if (cleanOptions.length < 2 || cleanOptions.length > 4) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Bình chọn phải có từ 2 đến 4 lựa chọn.' }))
+        if (cleanOptions.length < 1 || cleanOptions.length > 8) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Bình chọn phải có từ 1 đến 8 lựa chọn.' }))
           return
         }
         const pollId = crypto.randomUUID()
-        const options: PollOption[] = cleanOptions.map((text) => ({
+        const correctIndex = typeof action.correctOptionIndex === 'number' && action.correctOptionIndex >= 0 && action.correctOptionIndex < cleanOptions.length
+          ? action.correctOptionIndex
+          : undefined
+        const options: PollOption[] = cleanOptions.map((text, idx) => ({
           id: crypto.randomUUID(),
           text,
+          ...(correctIndex !== undefined ? { isCorrect: idx === correctIndex } : {}),
         }))
+        const correctOptionId = correctIndex !== undefined ? options[correctIndex]?.id : (action.correctOptionId || undefined)
+        const durationSec = typeof action.durationSeconds === 'number' && action.durationSeconds > 0
+          ? Math.max(5, Math.min(3600, Math.round(action.durationSeconds)))
+          : undefined
+        const endsAt = durationSec ? Date.now() + durationSec * 1000 : undefined
         this.activePoll = {
           id: pollId,
           question,
@@ -3558,20 +4044,29 @@ export class RoomDO extends DurableObject<Env> {
           createdBy: att.ten || 'Giáo viên',
           createdAt: Date.now(),
           closed: false,
+          durationSeconds: durationSec,
+          endsAt,
+          allowViewOtherAnswers: Boolean(action.allowViewOtherAnswers),
+          correctOptionId,
         }
         this.pollVotes.set(pollId, new Map())
         try {
           this.ctx.storage.sql.exec(
-            'INSERT INTO session_polls (id, question, options_json, created_by, created_at, closed) VALUES (?1, ?2, ?3, ?4, ?5, 0)',
+            'INSERT INTO session_polls (id, question, options_json, created_by, created_at, closed, duration_seconds, ends_at, allow_view_other_answers, correct_option_id) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9)',
             pollId,
             question,
             JSON.stringify(options),
             this.activePoll.createdBy,
             this.activePoll.createdAt,
+            durationSec ?? 0,
+            endsAt ?? 0,
+            this.activePoll.allowViewOtherAnswers ? 1 : 0,
+            correctOptionId ?? null,
           )
         } catch (err) {
           console.error('Lỗi lưu session_polls:', err)
         }
+        await this.reconcileRoomAlarm()
         this.phatPollSync()
         if (this.env?.ANALYTICS_DB) {
           recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
@@ -3589,8 +4084,20 @@ export class RoomDO extends DurableObject<Env> {
           ws.send(JSON.stringify({ type: 'error', message: 'Yêu cầu đăng nhập để tham gia bình chọn.' }))
           return
         }
-        if (!this.activePoll || this.activePoll.closed || this.activePoll.id !== action.pollId) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Bình chọn hiện không mở hoặc không tồn tại.' }))
+        if (
+          !this.activePoll ||
+          this.activePoll.closed ||
+          this.activePoll.id !== action.pollId ||
+          (this.activePoll.endsAt && Date.now() >= this.activePoll.endsAt)
+        ) {
+          if (this.activePoll && !this.activePoll.closed && this.activePoll.endsAt && Date.now() >= this.activePoll.endsAt) {
+            this.activePoll.closed = true
+            try {
+              this.ctx.storage.sql.exec('UPDATE session_polls SET closed = 1 WHERE id = ?1', this.activePoll.id)
+            } catch {}
+            this.phatPollSync()
+          }
+          ws.send(JSON.stringify({ type: 'error', message: 'Bình chọn hiện không mở hoặc đã hết thời gian.' }))
           return
         }
         const optExists = this.activePoll.options.some((o) => o.id === action.optionId)
@@ -3641,7 +4148,23 @@ export class RoomDO extends DurableObject<Env> {
         } catch (err) {
           console.error('Lỗi đóng session_polls:', err)
         }
+        await this.reconcileRoomAlarm()
         this.phatPollSync()
+        break
+      }
+
+      case 'poll.move': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền di chuyển bảng bình chọn.' }))
+          return
+        }
+        if (this.activePoll) {
+          this.activePoll.position = { x: action.x, y: action.y }
+        }
+        this.broadcast({
+          type: 'session.poll.position',
+          position: { x: action.x, y: action.y },
+        })
         break
       }
 
@@ -4082,6 +4605,7 @@ export class RoomDO extends DurableObject<Env> {
   // lỗi báo cáo không được phép làm hỏng phản hồi nước đi thật cho người chơi.
   private baoLobby(boQua?: WebSocket): void {
     if (!this.isGameRoom || !this.gameRoomId) return
+    const isPrivate = this.isPrivateGame || Boolean(this.gameRoomId?.includes('rieng-tu'))
     const ban: BanSanh = {
       id: this.gameRoomId,
       gameType: this.gameMeta.gameType,
@@ -4091,6 +4615,8 @@ export class RoomDO extends DurableObject<Env> {
       soNguoiXem: this.demNguoiXemGame(boQua),
       turnTimerSeconds: this.gameMeta.turnTimerSeconds,
       capNhatLuc: Date.now(),
+      isPrivate,
+      coMatKhau: isPrivate,
     }
     for (const lobby of this.cacSanhGame()) {
       const rpc = ban.trangThai === 'ended' ? lobby.xoaBan(ban.id) : lobby.capNhatBan(ban)
@@ -4113,6 +4639,11 @@ export class RoomDO extends DurableObject<Env> {
     if (!this.isGameRoom || !this.gameRoomId) return
     if (this.layDanhSachThanhVien(vuaRoi).length > 0) {
       if (this.gameMeta.playerX || this.gameMeta.playerO) this.baoLobby(vuaRoi)
+      return
+    }
+    // Nếu bàn được tạo từ sảnh và đang chờ đối thủ (status === 'waiting'),
+    // giữ bàn trên sảnh để người khác thấy và vào tham gia!
+    if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && this.gameMeta.playerX) {
       return
     }
     for (const lobby of this.cacSanhGame()) {
@@ -5567,6 +6098,89 @@ export class RoomDO extends DurableObject<Env> {
 
 
 
+    if (request.method === 'POST' && url.pathname === '/internal/game/create-room') {
+      try {
+        const body = (await request.json()) as {
+          roomId: string
+          gameType: GameType
+          turnSeconds: number
+          isPrivate: boolean
+          password?: string
+          hostKey: string
+          hostName: string
+          roomName?: string
+          soPhong?: number
+        }
+
+        this.isGameRoom = true
+        this.isPersistentLobbyRoom = true
+        this.gameRoomId = body.roomId
+        this.luuMeta('game_room_id', body.roomId)
+        this.luuMeta('persistent_lobby_room', '1')
+        this.hostKey = body.hostKey
+        this.luuMeta('host_key', body.hostKey)
+        if (body.roomName) {
+          this.roomName = body.roomName
+          this.luuMeta('room_name', body.roomName)
+        }
+        this.isPrivateGame = Boolean(body.isPrivate)
+        if (body.isPrivate) {
+          this.luuMeta('is_private_game', '1')
+        }
+        if (body.password) {
+          this.gamePassword = body.password
+          this.luuMeta('game_password', body.password)
+        }
+        this.gameMeta = {
+          ...DEFAULT_GAME_META,
+          gameType: body.gameType,
+          playerX: body.hostKey,
+          playerXName: body.hostName,
+          turnTimerSeconds: body.turnSeconds,
+          status: 'waiting',
+        }
+        this.gameBoard = taoBanMoi(body.gameType)
+        this.gameMoves = []
+        this.luuGameState()
+        this.baoLobby()
+        return json({ ok: true, roomId: body.roomId })
+      } catch (err: any) {
+        return json({ ok: false, message: err?.message || 'Lỗi khởi tạo bàn.' }, 500)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/game/cancel-room') {
+      this.gameMeta = { ...this.gameMeta, status: 'ended' }
+      this.isPersistentLobbyRoom = false
+      this.luuMeta('persistent_lobby_room', '0')
+      this.luuGameState()
+      if (this.gameRoomId) {
+        for (const lobby of this.cacSanhGame()) {
+          this.ctx.waitUntil(
+            lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
+          )
+        }
+      }
+      return json({ ok: true })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/game/verify-password') {
+      try {
+        const body = (await request.json()) as { password?: string }
+        const pw = body.password?.trim()
+        const isPrivate = this.isPrivateGame || Boolean(this.gameRoomId?.includes('rieng-tu'))
+        if (!isPrivate || !this.gamePassword) {
+          return json({ ok: true, isPrivate: false })
+        }
+        if (pw && pw === this.gamePassword) {
+          return json({ ok: true, isPrivate: true })
+        }
+        return json({ ok: false, message: 'Mật khẩu không chính xác.' }, 403)
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ.' }, 400)
+      }
+    }
+
     return new Response('Không tìm thấy endpoint nội bộ.', { status: 404 })
   }
 
@@ -5694,6 +6308,11 @@ export class RoomDO extends DurableObject<Env> {
     this.voiceRegistry.clear()
     try {
       this.ctx.storage.sql.exec('DELETE FROM voice_publications')
+    } catch {}
+
+    // 6b. Xóa sạch toàn bộ nội dung cuộc trò chuyện trong phòng khi phòng bị hủy/đóng
+    try {
+      this.ctx.storage.sql.exec('DELETE FROM room_chat')
     } catch {}
 
     // 7. Báo gỡ khỏi GameLobby nếu là phòng game

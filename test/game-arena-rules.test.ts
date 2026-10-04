@@ -85,6 +85,11 @@ describe('Luật bàn 1v1 (game-engine, hàm thuần)', () => {
     const { meta: m, board } = batDauVan(meta({ status: 'ended', winner: 'X', firstTurn: 'O', rematchBy: 'X' }), 5_000)
     expect(m).toMatchObject({ status: 'playing', currentTurn: 'O', winner: null, endReason: null, rematchBy: null, turnTimerEndsAt: 35_000 })
     expect(board.flat().every((c: unknown) => c === null)).toBe(true)
+
+    // Vô thời hạn (turnTimerSeconds = 0): turnTimerEndsAt phải bằng 0 và không bao giờ tính hết giờ
+    const { meta: mVoHan } = batDauVan(meta({ turnTimerSeconds: 0 }), 5_000)
+    expect(mVoHan.turnTimerEndsAt).toBe(0)
+    expect(daHetGioLuot(mVoHan, 9_999_999)).toBe(false)
   })
 })
 

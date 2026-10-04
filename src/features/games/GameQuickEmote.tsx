@@ -180,14 +180,14 @@ export function GameQuickEmote({
                 title="Cảm xúc nhanh"
                 aria-label="Mở danh sách cảm xúc nhanh"
                 className={cn(
-                  'h-8 gap-1.5 border-border-default bg-surface hover:bg-surface-raised text-xs text-text-primary font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2.5 cursor-pointer shadow-xs',
+                  'size-8 p-0 border-border-default bg-surface hover:bg-surface-raised text-xs text-text-primary font-bold transition-all hover:scale-105 active:scale-95 shrink-0 cursor-pointer shadow-xs flex items-center justify-center',
                   isOpen && 'bg-surface-raised border-border-strong text-text-primary shadow-sm',
                 )}
               >
                 <span className="text-sm leading-none select-none">
                   {isOpen ? '💬' : '😊'}
                 </span>
-                <span className="game-control-label">Biểu cảm</span>
+                <span className="sr-only">Biểu cảm</span>
               </Button>
             ) : (
               <Button

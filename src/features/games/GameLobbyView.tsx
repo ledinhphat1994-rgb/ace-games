@@ -1,324 +1,1892 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 import {
   ArrowRight,
-  Brain,
-  DoorOpen,
+  Calendar,
+  Check,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Eye,
+  EyeOff,
   Gamepad2,
-  Shield,
+  Lock,
+  Plus,
+  RotateCcw,
+  Search,
+  Sparkles,
   Sword,
   Trophy,
-  Users,
+  X,
 } from 'lucide-react'
-import type { BanSanh, GameType } from '@shared/protocol/game'
+import { CAC_GAME_1V1, type BanSanh, type GameType } from '@shared/protocol/game'
 import { useGameRooms } from '../../hooks/use-game-rooms'
-import { GameCard } from './GameCard'
 import { ThongKeGame } from './ThongKeGame'
-import { CAC_GAME_1V1, CAC_GAME_SOLO, type GameDefinition, GAME_CATALOG } from './game-catalog'
+import { GameArt } from './GameArt'
+import {
+  IconCrown3D,
+  IconXiangqiPiece3D,
+  IconCaroCubes3D,
+  IconManaCrystal3D,
+  IconSnakeApple3D,
+  IconGlobe3D,
+  IconShield3D,
+  IconStarSparkle,
+  IconSword3D,
+  BlueprintArcadePattern,
+} from './GameArt3D'
+import { GAME_CATALOG_BY_ID } from './game-catalog'
+import { laTroChoiDon, taoMaBan } from './game-ids'
 import { usePhien } from '@/app/phien'
-import { useDragScroll } from '@/hooks/use-drag-scroll'
+import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { ThePhongGame, type PhongGameItem } from './ThePhongGame'
+import { toast } from 'sonner'
 
 interface GameLobbyViewProps {
-  onMoSanh: (gameType: GameType) => void
+  onMoSanh?: (gameType: GameType) => void
 }
 
+const THU_TU_GAME: Record<GameType, number> = {
+  chess: 1,
+  xiangqi: 2,
+  caro_15: 3,
+  solo_memory: 4,
+  solo_snake: 5,
+}
+
+// Chuẩn hóa tiếng Việt bỏ dấu và chuyển chữ thường để tìm kiếm linh hoạt
+function xoaDauTiengViet(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .trim()
+}
+
+export interface SuKienGameItem {
+  id: string
+  tieuDe: string
+  moTa: string
+  /** Mốc thời gian chi tiết được thiết lập để hiển thị mới nhất từ trên xuống dưới */
+  thoiGianBatDau: string
+  thoiGianKetThuc: string
+  thoiGianHienThi: string
+  badgeText: string
+  badgeVariant: 'emerald' | 'sky' | 'amber'
+  isLive?: boolean
+}
+
+// Danh sách sự kiện với thời gian chi tiết
+export const DANH_SACH_SU_KIEN_GAME: readonly SuKienGameItem[] = [
+  {
+    id: 'event-snake-2048',
+    tieuDe: 'Thử thách Kỷ lục Rắn Săn Mồi & 2048',
+    moTa: 'Đua top điểm số cao nhất trường nhận huy hiệu danh dự và điểm thưởng.',
+    thoiGianBatDau: '2026-10-04T14:00:00+07:00',
+    thoiGianKetThuc: '2026-10-04T16:00:00+07:00',
+    thoiGianHienThi: '14:00 – 16:00 Chủ Nhật, 04/10',
+    badgeText: 'Chủ nhật',
+    badgeVariant: 'amber',
+  },
+  {
+    id: 'event-chess-tourney',
+    tieuDe: 'Giải Cờ Vua Digital Campus Mùa 1',
+    moTa: 'Đấu loại trực tiếp vòng bảng giữa các khối lớp trên hệ thống chống gian lận.',
+    thoiGianBatDau: '2026-10-03T19:30:00+07:00',
+    thoiGianKetThuc: '2026-10-03T21:30:00+07:00',
+    thoiGianHienThi: '19:30 – 21:30 Thứ Bảy, 03/10',
+    badgeText: 'Đang diễn ra',
+    badgeVariant: 'emerald',
+    isLive: true,
+  },
+  {
+    id: 'event-friendly-1v1',
+    tieuDe: 'Giao hữu Cờ Vua & Cờ Tướng 1v1',
+    moTa: 'Vòng loại tuần 1 Đấu trường Game Digital Campus.',
+    thoiGianBatDau: '2026-10-03T08:30:00+07:00',
+    thoiGianKetThuc: '2026-10-03T11:00:00+07:00',
+    thoiGianHienThi: '08:30 – 11:00 Thứ Bảy, 03/10',
+    badgeText: 'Sắp diễn ra',
+    badgeVariant: 'sky',
+  },
+]
+
+// Danh sách phòng mẫu với số phòng DUY NHẤT không trùng lặp (1 đến 10), link 100% tiếng Việt
+const PLATFORM_DEFAULT_ROOMS: PhongGameItem[] = [
+  // 1. VIP Giải đấu: Giải Cờ Vua Digital Campus Mùa 1 - Bàn #1
+  {
+    id: 'giai-dau-co-vua-1',
+    gameType: 'chess',
+    tieuDe: 'Giải Cờ Vua Mùa 1 · Bàn VIP',
+    tenChu: 'Ban Trọng Tài',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 60,
+    soNguoiXem: 12,
+    isVip: true,
+    isTournament: true,
+    soPhong: 1,
+  },
+  // 2. Cờ Vua: Bàn #2, #3, #4 (Không trùng #1)
+  {
+    id: 'co-vua-1',
+    gameType: 'chess',
+    tenChu: 'Thầy Mai',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 30,
+    soNguoiXem: 3,
+    soPhong: 2,
+  },
+  {
+    id: 'co-vua-2',
+    gameType: 'chess',
+    tenChu: 'Nguyễn Văn Học Sinh',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 30,
+    soNguoiXem: 1,
+    soPhong: 3,
+  },
+  {
+    id: 'co-vua-3',
+    gameType: 'chess',
+    tenChu: 'Lê An',
+    tenKhach: 'Trần Bình',
+    trangThai: 'playing',
+    turnTimerSeconds: 30,
+    soNguoiXem: 5,
+    soPhong: 4,
+  },
+  // 3. Cờ Tướng: Bàn #5, #6 (Mã tiếng Việt co-tuong, không dùng tiếng Trung xiangqi)
+  {
+    id: 'co-tuong-1',
+    gameType: 'xiangqi',
+    tenChu: 'Trần Văn Cường',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 30,
+    soNguoiXem: 2,
+    soPhong: 5,
+  },
+  {
+    id: 'co-tuong-2',
+    gameType: 'xiangqi',
+    tenChu: 'Phạm Minh Tuấn',
+    tenKhach: 'Lê Văn Nam',
+    trangThai: 'playing',
+    turnTimerSeconds: 30,
+    soNguoiXem: 4,
+    soPhong: 6,
+  },
+  // 4. Cờ Caro: Bàn #7, #8 (Mã tiếng Việt co-caro)
+  {
+    id: 'co-caro-1',
+    gameType: 'caro_15',
+    tenChu: 'Hoàng Yến',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 15,
+    soNguoiXem: 2,
+    soPhong: 7,
+  },
+  {
+    id: 'co-caro-2',
+    gameType: 'caro_15',
+    tenChu: 'Đỗ Hữu Đạt',
+    tenKhach: 'Vũ Thị Hạnh',
+    trangThai: 'playing',
+    turnTimerSeconds: 15,
+    soNguoiXem: 6,
+    soPhong: 8,
+  },
+  // 5. Trí Nhớ (Solo): Bàn #9 (Mã tiếng Việt tri-nho)
+  {
+    id: 'tri-nho-1',
+    gameType: 'solo_memory',
+    tieuDe: 'Thử Thách Trí Nhớ 4×4',
+    tenChu: 'Đấu trường Solo',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 0,
+    soNguoiXem: 0,
+    soPhong: 9,
+  },
+  // 6. Rắn Săn Mồi (Solo): Bàn #10 (Mã tiếng Việt ran-san-moi)
+  {
+    id: 'ran-san-moi-1',
+    gameType: 'solo_snake',
+    tieuDe: 'Đua Top Điểm Cao Rắn Săn Mồi',
+    tenChu: 'Đấu trường Arcade',
+    tenKhach: null,
+    trangThai: 'waiting',
+    turnTimerSeconds: 0,
+    soNguoiXem: 0,
+    soPhong: 10,
+  },
+]
+
+export const DANH_SACH_GAME_CHOI_NGAY: Array<{
+  id: GameType
+  title: string
+  desc: string
+  theLoai: string
+}> = [
+  {
+    id: 'chess',
+    title: 'Cờ Vua',
+    desc: 'Bàn cờ 8×8 tiêu chuẩn quốc tế · Thi đấu 1v1 hoặc so tài cao thủ',
+    theLoai: 'Đối kháng 1v1',
+  },
+  {
+    id: 'xiangqi',
+    title: 'Cờ Tướng',
+    desc: 'Bàn cờ 9×10, sông Sở Hà Hán Giới · Đấu trí chiến thuật đỉnh cao',
+    theLoai: 'Đối kháng 1v1',
+  },
+  {
+    id: 'caro_15',
+    title: 'Cờ Caro',
+    desc: 'Bàn cờ 15×15 chuẩn thi đấu · 5 quân liên hoàn giành chiến thắng',
+    theLoai: 'Đối kháng 1v1',
+  },
+  {
+    id: 'solo_memory',
+    title: 'Trí Nhớ',
+    desc: 'Lật tìm các cặp biểu tượng khớp · Rèn luyện phản xạ và trí nhớ',
+    theLoai: 'Chơi đơn',
+  },
+  {
+    id: 'solo_snake',
+    title: 'Rắn Săn Mồi',
+    desc: 'Điều khiển chú rắn neon ăn mồi phát sáng · Đua điểm bảng vàng',
+    theLoai: 'Chơi đơn',
+  },
+]
+
+const ALL_QUICK_GAME_IDS: GameType[] = DANH_SACH_GAME_CHOI_NGAY.map((g) => g.id)
+
 export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
-  const { nguoiDung } = usePhien()
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'pvp' | 'solo'>('all')
+  void onMoSanh
+  const navigate = useNavigate()
+  const { nguoiDung, moAuthModal } = usePhien()
+  const { socialState } = useCampus()
+  const [selectedFilter, setSelectedFilter] = useState<string>('all')
+  const [tuKhoa, setTuKhoa] = useState('')
+  // State cho Modal tạo bàn đấu
+  const [moTaoBanModal, setMoTaoBanModal] = useState(false)
+  const [tenPhongMoi, setTenPhongMoi] = useState('')
+  const [gameMoiChon, setGameMoiChon] = useState<GameType | 'random'>('chess')
+  const [cheDoTurn, setCheDoTurn] = useState<number | 'custom'>(30)
+  const [turnTuyChinh, setTurnTuyChinh] = useState<number>(45)
+  const [cheDoPhong, setCheDoPhong] = useState<'public' | 'private'>('public')
+  const [matKhauPhong, setMatKhauPhong] = useState('')
+  const [hienMatKhau, setHienMatKhau] = useState(false)
+  const [loiTaoBan, setLoiTaoBan] = useState<string | null>(null)
+  const [dangTaoBan, setDangTaoBan] = useState(false)
+  const [localCreatedRooms, setLocalCreatedRooms] = useState<PhongGameItem[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('dc_my_game_rooms') || localStorage.getItem('dc_my_game_rooms')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
 
-  const categoriesDrag = useDragScroll<HTMLDivElement>({ direction: 'horizontal' })
-  const gamesCarouselDrag = useDragScroll<HTMLDivElement>({ direction: 'horizontal' })
-  const tablesDrag = useDragScroll<HTMLDivElement>({ direction: 'vertical' })
+  // Trạng thái đã làm sạch sảnh để người dùng kiểm thử phòng riêng biệt
+  const [sanhDaXoaPhong, setSanhDaXoaPhong] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('dc_lobby_cleared') !== 'false'
+    } catch {
+      return true
+    }
+  })
 
+  // Đặt lại / Xóa tất cả các bàn đấu test
+  const datLaiTatCaPhong = async () => {
+    // Hủy các bàn của mình trên máy chủ nếu có
+    for (const r of allRooms) {
+      const laCuaToi = r.tenChu && nguoiDung && (r.tenChu === nguoiDung.ten || r.tenChu === nguoiDung.username)
+      if (laCuaToi && r.trangThai === 'waiting') {
+        try {
+          await fetch(`/api/game/${encodeURIComponent(r.id)}/cancel`, { method: 'POST' })
+        } catch {}
+      }
+    }
+    setLocalCreatedRooms([])
+    setSanhDaXoaPhong(true)
+    try {
+      sessionStorage.setItem('dc_lobby_cleared', 'true')
+      sessionStorage.removeItem('dc_my_game_rooms')
+      localStorage.removeItem('dc_my_game_rooms')
+    } catch {}
+    toast.success('Đã đặt lại sảnh, xóa tất cả phòng test.')
+  }
+
+  // Hủy 1 bàn đấu cụ thể do chính mình làm chủ
+  const huyBan = async (roomId: string) => {
+    try {
+      await fetch(`/api/game/${encodeURIComponent(roomId)}/cancel`, { method: 'POST' })
+      setLocalCreatedRooms((prev) => {
+        const next = prev.filter((r) => r.id !== roomId)
+        try {
+          sessionStorage.setItem('dc_my_game_rooms', JSON.stringify(next))
+          localStorage.setItem('dc_my_game_rooms', JSON.stringify(next))
+        } catch {}
+        return next
+      })
+      toast.success('Đã hủy bàn đấu.')
+    } catch {
+      toast.error('Không thể hủy bàn đấu.')
+    }
+  }
+
+  // State cho Modal nhập mật khẩu khi vào phòng riêng tư
+  const [phongCanNhapMatKhau, setPhongCanNhapMatKhau] = useState<PhongGameItem | null>(null)
+  const [matKhauVaoPhong, setMatKhauVaoPhong] = useState('')
+  const [hienMatKhauVao, setHienMatKhauVao] = useState(false)
+  const [loiVaoPhong, setLoiVaoPhong] = useState<string | null>(null)
+  const [dangKiemTraVaoPhong, setDangKiemTraVaoPhong] = useState(false)
+
+  // ─── GHI NHỚ LOẠI GAME CHO CHƠI NGAY (LƯU VÀO SESSION CHO LƯỢT ĐĂNG NHẬP NÀY) ───
+  const storageKey = `dc_quick_game_${nguoiDung?.accountId ?? 'guest'}`
+  const [moPopupChoiNgay, setMoPopupChoiNgay] = useState(false)
+
+  const parseStoredGames = (raw: string | null): GameType[] => {
+    if (!raw) return []
+    try {
+      if (raw.startsWith('[')) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          return parsed.filter((g): g is GameType => ALL_QUICK_GAME_IDS.includes(g))
+        }
+      }
+      const parts = raw.split(',').map((s) => s.trim()) as GameType[]
+      return parts.filter((g) => ALL_QUICK_GAME_IDS.includes(g))
+    } catch {
+      return []
+    }
+  }
+
+  const [cacGameGhiNho, setCacGameGhiNho] = useState<GameType[]>(() => {
+    try {
+      const saved = sessionStorage.getItem(storageKey)
+      return parseStoredGames(saved)
+    } catch {
+      return []
+    }
+  })
+
+  // Tương thích ngược với gameGhiNho
+  const gameGhiNho = cacGameGhiNho.length > 0 ? cacGameGhiNho[0] : null
+  const setGameGhiNho = (g: GameType | null) => {
+    setCacGameGhiNho(g ? [g] : [])
+  }
+  void gameGhiNho
+  void setGameGhiNho
+
+  // Danh sách game đang chọn trong modal
+  const [cacGameDangChon, setCacGameDangChon] = useState<GameType[]>(cacGameGhiNho)
+
+  useEffect(() => {
+    if (moPopupChoiNgay) {
+      setCacGameDangChon(cacGameGhiNho.length > 0 ? cacGameGhiNho : ALL_QUICK_GAME_IDS)
+    }
+  }, [moPopupChoiNgay, cacGameGhiNho])
+
+  // Khi tài khoản đăng xuất hoặc đăng nhập lại -> tự động xóa/cập nhật lại ghi nhớ
+  const lastUserIdRef = useRef(nguoiDung?.accountId)
+  useEffect(() => {
+    if (nguoiDung?.accountId !== lastUserIdRef.current) {
+      lastUserIdRef.current = nguoiDung?.accountId
+      try {
+        const saved = sessionStorage.getItem(`dc_quick_game_${nguoiDung?.accountId ?? 'guest'}`)
+        setCacGameGhiNho(parseStoredGames(saved))
+      } catch {
+        setCacGameGhiNho([])
+      }
+    }
+  }, [nguoiDung?.accountId])
+
+  // Kết nối sảnh WebSocket toàn trường của Đấu trường Game
   const { data: tablesData, isPending, isError } = useGameRooms(undefined, Boolean(nguoiDung))
   const tables = useMemo<BanSanh[]>(
     () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended'),
     [tablesData],
   )
 
-  const waitingCounts = useMemo(() => {
-    const dem: Partial<Record<GameType, number>> = {}
-    for (const t of tables) {
-      if (t.trangThai === 'waiting') {
-        dem[t.gameType] = (dem[t.gameType] ?? 0) + 1
-      }
-    }
-    return dem
-  }, [tables])
-
   const hasAuthoritativeData = Boolean(nguoiDung) && !isPending && !isError
 
-  const displayedGames = useMemo<GameDefinition[]>(() => {
-    if (selectedFilter === 'pvp') return CAC_GAME_1V1
-    if (selectedFilter === 'solo') return CAC_GAME_SOLO
-    return GAME_CATALOG
-  }, [selectedFilter])
+  // Tổng hợp danh sách phòng game và tích hợp thông tin bạn bè + ĐẢM BẢO SỐ PHÒNG LÀ DUY NHẤT
+  const allRooms = useMemo<PhongGameItem[]>(() => {
+    const friendNames = new Set(
+      (socialState?.friends ?? []).flatMap((f) => [
+        f.displayName.toLowerCase(),
+        f.username.toLowerCase(),
+      ]),
+    )
 
-  // Danh mục game chuẩn của nền tảng (không fake danh mục)
-  const categories = [
-    { id: 'all' as const, label: 'Tất cả trò chơi (5)', icon: Gamepad2 },
-    { id: 'pvp' as const, label: 'Đối kháng 1v1 (3)', icon: Sword },
-    { id: 'solo' as const, label: 'Chơi đơn & Kỷ lục (2)', icon: Brain },
+    const localMap = new Map(localCreatedRooms.map((r) => [r.id, r]))
+
+    // Chuyển đổi BanSanh từ server sang PhongGameItem
+    const liveRooms: PhongGameItem[] = tables.map((t) => {
+      const localMeta = localMap.get(t.id)
+      const isVip = Boolean(
+        localMeta?.isVip ||
+        t.id.includes('vip') ||
+        t.id.includes('tournament') ||
+        t.tenChu?.toLowerCase().includes('trọng tài') ||
+        t.tenChu?.toLowerCase().includes('vip'),
+      )
+      const friendsInRoom: string[] = []
+      if (t.tenChu && friendNames.has(t.tenChu.toLowerCase())) friendsInRoom.push(t.tenChu)
+      if (t.tenKhach && friendNames.has(t.tenKhach.toLowerCase())) friendsInRoom.push(t.tenKhach)
+
+      const numMatch = t.id.match(/\d+/)
+      const soPhong = localMeta?.soPhong ?? (numMatch ? parseInt(numMatch[0], 10) : undefined)
+      const hasPw = Boolean(
+        t.isPrivate ||
+        t.coMatKhau ||
+        t.id.includes('rieng-tu') ||
+        localMeta?.isPrivate ||
+        localMeta?.coMatKhau ||
+        sessionStorage.getItem(`dc_game_pw_${t.id}`) ||
+        localStorage.getItem(`dc_game_pw_${t.id}`),
+      )
+
+      return {
+        id: t.id,
+        gameType: t.gameType,
+        tieuDe: localMeta?.tieuDe,
+        tenChu: localMeta?.tenChu || t.tenChu,
+        tenKhach: t.tenKhach,
+        trangThai: t.trangThai,
+        soNguoiXem: t.soNguoiXem,
+        turnTimerSeconds: t.turnTimerSeconds,
+        isVip,
+        soPhong,
+        friendsInRoom,
+        isPrivate: hasPw,
+        coMatKhau: hasPw,
+        matKhau: localMeta?.matKhau || (hasPw ? (sessionStorage.getItem(`dc_game_pw_${t.id}`) || localStorage.getItem(`dc_game_pw_${t.id}`) || undefined) : undefined),
+      }
+    })
+
+    const liveIds = new Set(liveRooms.map((r) => r.id))
+    const merged = [...localCreatedRooms.filter((lr) => !liveIds.has(lr.id)), ...liveRooms]
+
+    // Ghép các phòng mẫu chuẩn nền tảng (chỉ nạp khi chưa được yêu cầu xóa/reset để kiểm thử)
+    if (!sanhDaXoaPhong) {
+      for (const d of PLATFORM_DEFAULT_ROOMS) {
+        if (!liveIds.has(d.id)) {
+          const friendsInRoom: string[] = []
+          if (d.tenChu && friendNames.has(d.tenChu.toLowerCase())) friendsInRoom.push(d.tenChu)
+          if (d.tenKhach && friendNames.has(d.tenKhach.toLowerCase())) friendsInRoom.push(d.tenKhach)
+
+          merged.push({
+            ...d,
+            friendsInRoom,
+          })
+        }
+      }
+    }
+
+    // ── ĐẢM BẢO SỐ PHÒNG LÀ DUY NHẤT KHÔNG TRÙNG LẶP TRÊN TOÀN BỘ SẢNH ──
+    const usedNumbers = new Set<number>()
+    let nextAvailableNum = 1
+
+    const finalRooms: PhongGameItem[] = merged.map((room) => {
+      let num = room.soPhong
+      if (!num || usedNumbers.has(num)) {
+        while (usedNumbers.has(nextAvailableNum)) {
+          nextAvailableNum++
+        }
+        num = nextAvailableNum
+        usedNumbers.add(num)
+        nextAvailableNum++
+      } else {
+        usedNumbers.add(num)
+      }
+      return {
+        ...room,
+        soPhong: num,
+      }
+    })
+
+    return finalRooms
+  }, [tables, socialState?.friends, localCreatedRooms, sanhDaXoaPhong])
+
+  // ─── THUẬT TOÁN SẮP XẾP TỰ ĐỘNG CHUẨN YÊU CẦU ──────────────────────────────
+  // 1. Phòng VIP đặc biệt của giải đấu hiện lên trên cùng (Priority 1)
+  // 2. Phòng có bạn bè của người dùng hiện tiếp theo (Priority 2)
+  // 3. Game giống nhau thì các phòng xếp sát nhau (Priority 3)
+  // 4. Sắp xếp theo số phòng từ thấp lên cao (Priority 4)
+  const sortedRooms = useMemo(() => {
+    return [...allRooms].sort((a, b) => {
+      // 1. VIP Giải đấu
+      const aVip = a.isVip || a.isTournament ? 1 : 0
+      const bVip = b.isVip || b.isTournament ? 1 : 0
+      if (aVip !== bVip) return bVip - aVip
+
+      // 2. Phòng có bạn bè
+      const aFriend = (a.friendsInRoom?.length ?? 0) > 0 ? 1 : 0
+      const bFriend = (b.friendsInRoom?.length ?? 0) > 0 ? 1 : 0
+      if (aFriend !== bFriend) return bFriend - aFriend
+
+      // 3. Game giống nhau xếp sát nhau
+      const aGame = THU_TU_GAME[a.gameType] ?? 99
+      const bGame = THU_TU_GAME[b.gameType] ?? 99
+      if (aGame !== bGame) return aGame - bGame
+
+      // 4. Số phòng từ thấp lên cao (Số phòng là duy nhất)
+      const aNum = a.soPhong ?? 999999
+      const bNum = b.soPhong ?? 999999
+      if (aNum !== bNum) return aNum - bNum
+
+      return a.id.localeCompare(b.id)
+    })
+  }, [allRooms])
+
+  // Lọc phòng theo danh mục và TỐI ƯU CÔNG CỤ TÌM KIẾM MẠNH MẼ (từ khóa, tên, link, số phòng)
+  const displayedRooms = useMemo(() => {
+    let list = sortedRooms
+
+    if (selectedFilter === 'pvp') {
+      list = list.filter((r) => (CAC_GAME_1V1 as readonly GameType[]).includes(r.gameType))
+    } else if (selectedFilter === 'solo') {
+      list = list.filter((r) => laTroChoiDon(r.gameType))
+    } else if (selectedFilter === 'vip') {
+      list = list.filter((r) => r.isVip || r.isTournament)
+    } else if (selectedFilter === 'friends') {
+      list = list.filter((r) => (r.friendsInRoom?.length ?? 0) > 0)
+    } else if (selectedFilter !== 'all') {
+      list = list.filter((r) => r.gameType === selectedFilter)
+    }
+
+    const qRaw = tuKhoa.trim()
+    if (!qRaw) return list
+
+    const qNorm = xoaDauTiengViet(qRaw)
+    const tokens = qNorm.split(/\s+/).filter(Boolean)
+
+    return list.filter((r) => {
+      const gameDef = GAME_CATALOG_BY_ID[r.gameType]
+      const soPhongStr = String(r.soPhong ?? '')
+      const idStr = r.id.toLowerCase()
+
+      // Bể từ khóa phong phú hỗ trợ tìm kiếm toàn diện
+      const pool = [
+        idStr,
+        `#${soPhongStr}`,
+        `phong ${soPhongStr}`,
+        `bàn ${soPhongStr}`,
+        `ban ${soPhongStr}`,
+        `p${soPhongStr}`,
+        soPhongStr,
+        r.gameType,
+        gameDef?.title ?? '',
+        gameDef?.shortTitle ?? '',
+        gameDef?.subtitle ?? '',
+        r.tenChu ?? '',
+        r.tenKhach ?? '',
+        r.tieuDe ?? '',
+        ...(r.friendsInRoom ?? []),
+        r.isVip || r.isTournament ? 'vip giai dau tournament dac biet' : '',
+        (r.friendsInRoom?.length ?? 0) > 0 ? 'ban be friend co ban be' : '',
+        r.trangThai === 'waiting' ? 'cho doi thu san sang waiting' : 'dang dau playing xem dau',
+        r.turnTimerSeconds ? `${r.turnTimerSeconds}s ${r.turnTimerSeconds} giay` : '',
+        `/game/${idStr}`,
+        `game/${idStr}`,
+      ]
+        .map(xoaDauTiengViet)
+        .join(' ')
+
+      // Nếu người dùng dán cả link / URL phòng game
+      if (qRaw.includes('/game/') || qRaw.includes('game/')) {
+        const urlMatch = qRaw.match(/game\/([^/?#&]+)/i)
+        if (urlMatch && urlMatch[1]) {
+          const targetId = urlMatch[1].toLowerCase()
+          if (idStr.includes(targetId)) return true
+        }
+      }
+
+      // Mọi từ khóa (token) đều phải khớp với thông tin phòng
+      return tokens.every((token) => {
+        const numOnly = token.replace(/^[#p]/, '')
+        if (/^\d+$/.test(numOnly) && soPhongStr === numOnly) {
+          return true
+        }
+        return pool.includes(token)
+      })
+    })
+  }, [sortedRooms, selectedFilter, tuKhoa])
+
+  // Hành động vào bàn trực tiếp không qua sảnh phụ
+  const vaoBanTrucTiep = (room: PhongGameItem) => {
+    if (!nguoiDung && !room.isVip) {
+      moAuthModal('dang_nhap')
+      return
+    }
+    // Nếu phòng có mật khẩu và người dùng không phải chủ phòng
+    const laChuPhong = Boolean(nguoiDung && (room.tenChu === nguoiDung.ten || room.tenChu === nguoiDung.username))
+    if ((room.coMatKhau || room.isPrivate) && !laChuPhong) {
+      setPhongCanNhapMatKhau(room)
+      setMatKhauVaoPhong('')
+      setLoiVaoPhong(null)
+      return
+    }
+    navigate(`/game/${encodeURIComponent(room.id)}?gameType=${room.gameType}&sanh=arena`)
+  }
+
+  // Xác nhận mật khẩu vào bàn riêng tư
+  const xacNhanMatKhauVaoPhong = async () => {
+    if (!phongCanNhapMatKhau || dangKiemTraVaoPhong) return
+    const pw = matKhauVaoPhong.trim()
+    if (!pw) {
+      setLoiVaoPhong('Vui lòng nhập mật khẩu phòng.')
+      return
+    }
+    setDangKiemTraVaoPhong(true)
+    setLoiVaoPhong(null)
+    try {
+      const res = await fetch(`/api/game/${encodeURIComponent(phongCanNhapMatKhau.id)}/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        setLoiVaoPhong(data.message || 'Mật khẩu không chính xác, vui lòng thử lại.')
+        setDangKiemTraVaoPhong(false)
+        return
+      }
+      const targetRoom = phongCanNhapMatKhau
+      sessionStorage.setItem(`dc_game_auth_${targetRoom.id}`, 'ok')
+      sessionStorage.setItem(`dc_game_pw_${targetRoom.id}`, pw)
+      localStorage.setItem(`dc_game_pw_${targetRoom.id}`, pw)
+      setPhongCanNhapMatKhau(null)
+      navigate(`/game/${encodeURIComponent(targetRoom.id)}?gameType=${targetRoom.gameType}&sanh=arena&pass=${encodeURIComponent(pw)}`)
+    } catch {
+      setLoiVaoPhong('Không thể kiểm tra mật khẩu. Vui lòng thử lại.')
+    } finally {
+      setDangKiemTraVaoPhong(false)
+    }
+  }
+
+  // Thực hiện vào bàn nhanh theo loại game đã chọn (link 100% tiếng Việt)
+  const thucHienVaoGameNhanh = (gameChon: GameType) => {
+    const banCho = sortedRooms.find((r) => r.gameType === gameChon && r.trangThai === 'waiting' && !r.coMatKhau && !r.isPrivate)
+    if (banCho) {
+      vaoBanTrucTiep(banCho)
+      return
+    }
+    const maBan = taoMaBan(gameChon)
+    navigate(`/game/${encodeURIComponent(maBan)}?gameType=${gameChon}&turn=30&sanh=arena`)
+  }
+
+  // Chơi ngay: tìm các bàn đang chờ của các game đã ghi nhớ
+  const thucHienChoiNgay = (danhSachGame: GameType[]) => {
+    const cacBanCho = sortedRooms.filter(
+      (r) => danhSachGame.includes(r.gameType) && r.trangThai === 'waiting' && !r.coMatKhau && !r.isPrivate,
+    )
+
+    if (cacBanCho.length > 0) {
+      // Ưu tiên bàn có bạn bè trước
+      const banBanBe = cacBanCho.find((r) => (r.friendsInRoom?.length ?? 0) > 0)
+      const banChon = banBanBe || cacBanCho[0]
+      const tenGame = GAME_CATALOG_BY_ID[banChon.gameType]?.shortTitle || banChon.gameType
+      toast.info(`Chơi ngay: Đang vào bàn #${banChon.soPhong} (${tenGame})`, {
+        id: 'quick-play-entering',
+      })
+      vaoBanTrucTiep(banChon)
+      return
+    }
+
+    // Nếu không có bàn đang chờ, tự động mở bàn mới của game đầu tiên/ngẫu nhiên trong danh sách đã chọn
+    const gameVao = danhSachGame[Math.floor(Math.random() * danhSachGame.length)] || 'chess'
+    const tenGame = GAME_CATALOG_BY_ID[gameVao]?.shortTitle || gameVao
+    toast.info(`Chơi ngay: Mở bàn ${tenGame} mới chờ đối thủ...`, {
+      id: 'quick-play-created',
+    })
+    thucHienVaoGameNhanh(gameVao)
+  }
+
+  // Xử lý bấm giữ im (long press) cho nút Chơi ngay để mở cài đặt chọn game
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const daKichHoatLongPressRef = useRef(false)
+
+  const onQuickPlayPointerDown = () => {
+    daKichHoatLongPressRef.current = false
+    longPressTimerRef.current = setTimeout(() => {
+      daKichHoatLongPressRef.current = true
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(40) } catch {}
+      }
+      setMoPopupChoiNgay(true)
+    }, 450)
+  }
+
+  const onQuickPlayPointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  // Chơi ngay: Nếu đã ghi nhớ loại game trong phiên đăng nhập này thì vào ngay, chưa có thì mở popup chọn
+  const choiNgay = () => {
+    if (daKichHoatLongPressRef.current) {
+      daKichHoatLongPressRef.current = false
+      return
+    }
+
+    if (!nguoiDung) {
+      toast.info('Bạn đang chơi chế độ luyện tập — đăng nhập để lưu điểm Elo vào bảng xếp hạng.', {
+        id: 'khach-choi-ngay',
+        action: { label: 'Đăng nhập', onClick: () => moAuthModal('dang_nhap') },
+      })
+    }
+
+    if (!cacGameGhiNho.length) {
+      setMoPopupChoiNgay(true)
+      return
+    }
+
+    const tenCacGame = cacGameGhiNho
+      .map((g) => GAME_CATALOG_BY_ID[g]?.shortTitle || g)
+      .join(', ')
+    toast.info(`Chơi ngay: Đang tìm bàn (${tenCacGame})`, {
+      id: 'quick-play-remembered',
+      action: {
+        label: 'Đổi game',
+        onClick: () => setMoPopupChoiNgay(true),
+      },
+    })
+    thucHienChoiNgay(cacGameGhiNho)
+  }
+
+  // Toggle chọn 1 game trong popup
+  const toggleChonGame = (gameId: GameType) => {
+    setCacGameDangChon((prev) =>
+      prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId],
+    )
+  }
+
+  // Toggle chọn tất cả / bỏ chọn
+  const toggleChonTatCa = () => {
+    if (cacGameDangChon.length === ALL_QUICK_GAME_IDS.length) {
+      setCacGameDangChon([])
+    } else {
+      setCacGameDangChon([...ALL_QUICK_GAME_IDS])
+    }
+  }
+
+  // Lưu và chơi ngay từ popup
+  const luuVaChoiNgay = () => {
+    if (cacGameDangChon.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 trò chơi để chơi ngay.')
+      return
+    }
+    const gameChon = JSON.stringify(cacGameDangChon)
+    try {
+      sessionStorage.setItem(storageKey, gameChon)
+    } catch {}
+    setCacGameGhiNho(cacGameDangChon)
+    setMoPopupChoiNgay(false)
+    toast.success(`Đã ghi nhớ ${cacGameDangChon.length} trò chơi cho lượt đăng nhập này.`, {
+      id: 'quick-play-saved',
+    })
+    thucHienChoiNgay(cacGameDangChon)
+  }
+
+  // Chọn loại game từ popup và ghi nhớ cho phiên đăng nhập này (tương thích test)
+  const chonVaLuuGameNhanh = (gameChon: GameType) => {
+    try {
+      sessionStorage.setItem(storageKey, gameChon)
+    } catch {}
+    setCacGameGhiNho([gameChon])
+    setMoPopupChoiNgay(false)
+    const gameDef = GAME_CATALOG_BY_ID[gameChon]
+    toast.success(`Đã ghi nhớ lựa chọn ${gameDef?.shortTitle || gameChon} cho lượt đăng nhập này.`, {
+      id: 'quick-play-saved',
+    })
+    thucHienVaoGameNhanh(gameChon)
+  }
+  void chonVaLuuGameNhanh
+
+  // Danh sách sự kiện game: Tự động sắp xếp mới nhất từ trên xuống dưới theo thời gian chi tiết
+  const suKienSapXep = useMemo(() => {
+    return [...DANH_SACH_SU_KIEN_GAME].sort(
+      (a, b) => new Date(b.thoiGianBatDau).getTime() - new Date(a.thoiGianBatDau).getTime(),
+    )
+  }, [])
+
+  // Tạo bàn đấu mới (Công khai hoặc Riêng tư có mật khẩu, đăng ký ngay lên máy chủ để toàn trường thấy)
+  const xacNhanTaoBan = async () => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
+    const isPrivate = cheDoPhong === 'private' || matKhauPhong.trim().length >= 4
+    const cleanPw = matKhauPhong.trim()
+    if (isPrivate && (!cleanPw || cleanPw.length < 4)) {
+      setLoiTaoBan('Vui lòng nhập mật khẩu phòng (tối thiểu 4 ký tự).')
+      return
+    }
+    const soPhongMoi = Math.floor(Math.random() * 89) + 11
+    const tieuDeBan = tenPhongMoi.trim() || undefined
+    const gameTypeThucTe: GameType =
+      gameMoiChon === 'random'
+        ? CAC_GAME_1V1[Math.floor(Math.random() * CAC_GAME_1V1.length)]
+        : gameMoiChon
+    const is1v1 = (CAC_GAME_1V1 as readonly GameType[]).includes(gameTypeThucTe)
+    const turnThucTe = cheDoTurn === 'custom' ? Math.max(0, Math.min(3600, Number(turnTuyChinh) || 0)) : Number(cheDoTurn)
+    const turnLuu = is1v1 ? turnThucTe : 0
+
+    setDangTaoBan(true)
+    setLoiTaoBan(null)
+
+    try {
+      const res = await fetch('/api/game/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameType: gameTypeThucTe,
+          tieuDe: tieuDeBan,
+          turnTimerSeconds: turnLuu,
+          isPrivate,
+          password: cleanPw || undefined,
+          soPhong: soPhongMoi,
+        }),
+      })
+
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; roomId?: string; loi?: string; message?: string }
+      if (!res.ok || !data.ok || !data.roomId) {
+        setLoiTaoBan(data.loi || data.message || 'Không thể tạo bàn đấu trên máy chủ.')
+        setDangTaoBan(false)
+        return
+      }
+
+      const maBanThucTe = data.roomId
+
+      if (isPrivate) {
+        sessionStorage.setItem(`dc_game_pw_${maBanThucTe}`, cleanPw)
+        localStorage.setItem(`dc_game_pw_${maBanThucTe}`, cleanPw)
+        sessionStorage.setItem(`dc_game_auth_${maBanThucTe}`, 'ok')
+      }
+
+      setMoTaoBanModal(false)
+      setTenPhongMoi('')
+      setMatKhauPhong('')
+      setCheDoPhong('public')
+      setLoiTaoBan(null)
+      setDangTaoBan(false)
+      const pwQuery = isPrivate ? `&accessMode=password&pass=${encodeURIComponent(cleanPw)}` : ''
+      navigate(`/game/${encodeURIComponent(maBanThucTe)}?gameType=${gameTypeThucTe}&turn=${turnLuu}&sanh=arena${pwQuery}`)
+    } catch {
+      setLoiTaoBan('Lỗi kết nối máy chủ khi tạo bàn đấu.')
+      setDangTaoBan(false)
+    }
+  }
+
+  // Bộ lọc dạng thẻ pill
+  const filterPills = [
+    { id: 'all', label: `Tất cả (${allRooms.length})` },
+    { id: 'chess', label: 'Cờ Vua' },
+    { id: 'xiangqi', label: 'Cờ Tướng' },
+    { id: 'caro_15', label: 'Cờ Caro' },
+    { id: 'solo_memory', label: 'Trí Nhớ' },
+    { id: 'solo_snake', label: 'Rắn Săn Mồi' },
+    { id: 'vip', label: '⭐ VIP Giải đấu' },
+    { id: 'friends', label: 'Có bạn bè' },
   ]
+
+  // Carousel tự chạy cho Hero Banner
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+
+  const bannerSlides = useMemo(
+    () => [
+      {
+        id: 'arena',
+        badge: 'ĐẤU TRƯỜNG TRÒ CHƠI • DIGITAL CAMPUS',
+        title: 'Đấu Trí Chiến Thuật & Giải Trí',
+        desc: 'Thi đấu cờ vua, cờ tướng, cờ caro đối kháng trực tuyến hoặc luyện tập trí tuệ và phản xạ cùng bạn học.',
+        bgImage: '/assets/games/game_hero_clean.jpg',
+        gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
+      },
+      {
+        id: 'pvp-elo',
+        badge: 'THI ĐẤU ĐỐI KHÁNG 1V1 • XẾP HẠNG ELO',
+        title: 'Tranh Tài Cao Thủ, Khẳng Định Bản Lĩnh',
+        desc: 'Hệ thống ghép trận thời gian thực, bảng xếp hạng Elo chuẩn quốc tế và xác thực máy chủ chống gian lận.',
+        bgImage: '/assets/games/game_hero_clean.jpg',
+        gradient: 'from-[#031535] via-[#031535]/85 to-transparent',
+      },
+      {
+        id: 'puzzle-arcade',
+        badge: 'RÈN LUYỆN TRÍ TUỆ • ĐA DẠNG THỂ LOẠI',
+        title: 'Giải Trí Lành Mạnh Cùng Bạn Học',
+        desc: 'Rèn luyện tư duy logic, phản xạ nhanh nhạy với các trò chơi cờ chiến thuật, giải đố và arcade kinh điển.',
+        bgImage: '/assets/games/game_hero_clean.jpg',
+        gradient: 'from-[#021330] via-[#021330]/85 to-transparent',
+      },
+    ],
+    [],
+  )
+
+  useEffect(() => {
+    if (isPaused) return
+    const timer = setInterval(() => {
+      setSlideIndex((prev) => (prev + 1) % bannerSlides.length)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [isPaused, bannerSlides.length])
 
   return (
     <div className="pb-12 space-y-8">
-      {/* 1. Hero Grand Hall Banner (Full-width, Doubled Height) */}
+      {/* 1. Hero Banner Sảnh trò chơi (Chuẩn màu Sky/Blue, không dùng tím/hồng) */}
       <section
         aria-label="Đấu trường game Digital Campus"
-        className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-purple-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(168,85,247,0.15)] group"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(2,132,199,0.15)] group select-none"
       >
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <img
-            src="/assets/cyber_mockups/game_hero_bg.webp"
-            alt="Game Arena Banner"
-            className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#020c24] via-[#020c24]/85 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
-        </div>
-
-        <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-purple-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-purple-400 mb-4 shadow-[0_0_12px_rgba(168,85,247,0.2)]">
-            <span className="size-2 rounded-full bg-purple-400 animate-pulse" />
-            <span>ĐẤU TRƯỜNG TRÒ CHƠI • DIGITAL CAMPUS</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
-            Đấu Trí Chiến Thuật & Giải Trí
-          </h1>
-
-          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-            Thi đấu cờ vua, cờ tướng, cờ caro đối kháng trực tuyến hoặc luyện tập trí tuệ và phản xạ cùng Máy.
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Button
-              size="default"
-              onClick={() => onMoSanh('chess')}
-              className="h-11 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all cursor-pointer gap-2"
+        {bannerSlides.map((slide, idx) => {
+          const isCurrent = idx === slideIndex
+          return (
+            <div
+              key={slide.id}
+              className={cn(
+                'absolute inset-0 transition-opacity duration-700 ease-in-out',
+                isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none',
+              )}
             >
-              <Sword className="size-4" />
-              <span>Vào sảnh Cờ Vua</span>
-              <ArrowRight className="size-3.5" />
-            </Button>
+              <div className="absolute inset-0 z-0 overflow-hidden">
+                <img
+                  src={slide.bgImage}
+                  alt={slide.title}
+                  className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+                />
+                <div className={cn('absolute inset-0 bg-gradient-to-r', slide.gradient)} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
+              </div>
 
-            <Link
-              to="/leaderboard"
-              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer"
-            >
-              <Trophy className="size-4 text-amber-400" />
-              <span>Bảng xếp hạng game</span>
-            </Link>
+              <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                  <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span>{slide.badge}</span>
+                </div>
+
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
+                  {slide.title}
+                </h1>
+
+                <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+                  {slide.desc}
+                </p>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-sky-400/20 bg-sky-950/40 text-xs text-sky-300 font-semibold backdrop-blur-md">
+                    <Sword className="size-3.5 text-sky-400" />
+                    <span>Đấu trường 1v1 & Solo</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-400/20 bg-amber-950/40 text-xs text-amber-300 font-semibold backdrop-blur-md">
+                    <Trophy className="size-3.5 text-amber-400" />
+                    <span>Xếp hạng thời gian thực</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Nút điều hướng Carousel (Prev/Next & Dots) */}
+        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSlideIndex((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
+            aria-label="Banner trước"
+            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
+            {bannerSlides.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSlideIndex(idx)}
+                aria-label={`Chuyển đến banner ${idx + 1}`}
+                className={cn(
+                  'transition-all duration-300 rounded-full cursor-pointer',
+                  idx === slideIndex
+                    ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80',
+                )}
+              />
+            ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setSlideIndex((prev) => (prev + 1) % bannerSlides.length)}
+            aria-label="Banner tiếp theo"
+            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+          >
+            <ChevronRight className="size-4" />
+          </button>
         </div>
       </section>
 
+      {/* Bố cục 2 cột đồng bộ với Sảnh học tập: 8 Cột trái + 4 Cột phải */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* ── Khu vực chính giữa: 8 Cột trên XL ── */}
         <div className="xl:col-span-8 space-y-6 min-w-0">
-          {/* 2. Thanh lọc danh mục (Kéo qua kéo lại mượt mà - Smooth Drag Scroll) */}
-          <section aria-label="Danh mục game" className="space-y-2">
-            <div
-              ref={categoriesDrag.ref}
-              {...categoriesDrag.events}
-              className="smooth-carousel flex overflow-x-auto gap-2 pb-2 scrollbar-none touch-pan-x cursor-grab active:cursor-grabbing select-none"
-            >
-              {categories.map((cat) => {
-                const Icon = cat.icon
-                const isActive = selectedFilter === cat.id
+          {/* VÙNG 3: SẢNH CHUNG TRỰC TIẾP CHO TẤT CẢ CÁC GAME (Không qua sảnh riêng) */}
+          <section aria-label="Sảnh phòng game trực tuyến" className="space-y-4">
+            {/* Header & Cụm hành động */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
+                <h2 className="text-base sm:text-lg font-bold text-text-primary">
+                  Phòng game trực tuyến
+                </h2>
+              </div>
+
+              {/* Action Cluster */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search input (tìm theo tên phòng, chủ phòng, game...) */}
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary pointer-events-none" />
+                  <input
+                    data-testid="game-search-input"
+                    type="text"
+                    value={tuKhoa}
+                    onChange={(e) => setTuKhoa(e.target.value)}
+                    placeholder="Tìm theo số phòng, tên game, người chơi..."
+                    className="w-full h-8 pl-8 pr-7 rounded-lg border border-border-default/80 bg-surface text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-hidden"
+                  />
+                  {tuKhoa && (
+                    <button
+                      type="button"
+                      onClick={() => setTuKhoa('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary cursor-pointer"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Vùng 3: Nút Chơi ngay (Bấm nhanh: Chơi ngay • Bấm giữ im: Mở cài đặt chọn game) */}
+                <Button
+                  data-testid="quick-play-btn"
+                  variant="outline"
+                  size="sm"
+                  onClick={choiNgay}
+                  onPointerDown={onQuickPlayPointerDown}
+                  onPointerUp={onQuickPlayPointerUp}
+                  onPointerLeave={onQuickPlayPointerUp}
+                  onPointerCancel={onQuickPlayPointerUp}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setMoPopupChoiNgay(true)
+                  }}
+                  className="h-8 px-3 rounded-lg border-border-default text-xs font-semibold cursor-pointer hover:bg-surface-raised gap-1.5 select-none active:scale-95 transition-all"
+                  title={
+                    cacGameGhiNho.length > 0
+                      ? `Chơi ngay: ${cacGameGhiNho.map((g) => GAME_CATALOG_BY_ID[g]?.shortTitle || g).join(', ')} • Bấm giữ để chọn game`
+                      : 'Chơi ngay • Bấm giữ để chọn game'
+                  }
+                >
+                  <Sparkles className="size-3.5 text-sky-400" />
+                  <span>Chơi ngay</span>
+                  {cacGameGhiNho.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">
+                      {cacGameGhiNho.length === ALL_QUICK_GAME_IDS.length
+                        ? 'Tất cả'
+                        : `${cacGameGhiNho.length} game`}
+                    </span>
+                  )}
+                </Button>
+
+                {allRooms.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={datLaiTatCaPhong}
+                    className="h-8 px-2.5 rounded-lg border-border-default/80 hover:bg-surface-raised text-text-tertiary hover:text-amber-400 text-xs font-semibold cursor-pointer gap-1 transition-colors"
+                    title="Xóa tất cả phòng test để làm sạch sảnh"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span>Đặt lại sảnh</span>
+                  </Button>
+                )}
+
+                <Button
+                  data-testid="create-table-btn"
+                  size="sm"
+                  onClick={() => setMoTaoBanModal(true)}
+                  className="h-8 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  <Plus className="size-3.5 mr-1" />
+                  <span>Tạo bàn đấu</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Bộ lọc danh mục dạng thẻ pill */}
+            <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none select-none">
+              {filterPills.map((pill) => {
+                const isActive = selectedFilter === pill.id
                 return (
                   <button
-                    key={cat.id}
+                    key={pill.id}
                     type="button"
-                    onClick={() => setSelectedFilter(cat.id)}
+                    onClick={() => setSelectedFilter(pill.id)}
                     className={cn(
-                      'shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer',
+                      'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer',
                       isActive
-                        ? 'bg-purple-500 text-white border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                        : 'border-border-default/70 bg-[#0f172a] text-slate-300 hover:bg-slate-800 hover:text-white',
+                        ? 'bg-sky-500 text-white border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
+                        : 'border-border-default/70 bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary',
                     )}
                   >
-                    <Icon className="size-3.5" />
-                    <span>{cat.label}</span>
+                    <span>{pill.label}</span>
                   </button>
                 )
               })}
             </div>
-          </section>
 
-          {/* 3. Băng chuyền trò chơi (Kéo qua kéo lại trơn tru mượt mà - Smooth Horizontal Carousel) */}
-          <section aria-label="Trò chơi trực tuyến" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Gamepad2 className="h-5 w-5 text-purple-400" />
-                <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                  Danh sách trò chơi ({displayedGames.length})
-                </h2>
-              </div>
-            </div>
-
-            {/* Thanh cuộn ngang mượt mà liên tục cho các thẻ game (không snap khựng khối) */}
-            <div
-              ref={gamesCarouselDrag.ref}
-              {...gamesCarouselDrag.events}
-              className="smooth-carousel flex overflow-x-auto gap-4 pb-4 pt-1 scrollbar-none touch-pan-x cursor-grab active:cursor-grabbing select-none"
-            >
-              {displayedGames.map((game) => (
-                <div key={game.id} className="shrink-0 w-[280px] sm:w-[320px]">
-                  <GameCard
-                    game={game}
-                    waiting={hasAuthoritativeData ? (waitingCounts[game.id] ?? 0) : 0}
-                    onMoSanh={() => onMoSanh(game.id)}
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* 4. Danh sách bàn chơi đang mở (Kéo lên kéo xuống - Vertical Scroll) */}
-          <section aria-label="Bàn chơi đang mở" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                  Bàn đấu đang chờ ({tables.length})
-                </h2>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border-default/80 bg-surface p-3 shadow-sm">
-              {tables.length > 0 ? (
-                <div
-                  ref={tablesDrag.ref}
-                  {...tablesDrag.events}
-                  className="overflow-y-auto max-h-[340px] scrollbar-thin space-y-2 pr-1 cursor-grab active:cursor-grabbing select-none touch-pan-y"
-                >
-                  {tables.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/60 border border-white/5 hover:border-purple-500/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="size-9 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center justify-center shrink-0">
-                          <DoorOpen className="size-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-white truncate">
-                            {t.tenChu ? `Bàn của ${t.tenChu}` : `Bàn #${t.id}`}
-                          </p>
-                          <p className="text-[11px] text-slate-400 truncate">
-                            {t.gameType === 'chess'
-                              ? 'Cờ Vua'
-                              : t.gameType === 'xiangqi'
-                                ? 'Cờ Tướng'
-                                : t.gameType === 'caro_15'
-                                  ? 'Cờ Caro'
-                                  : t.gameType}
-                            {' • '}
-                            {t.trangThai === 'waiting' ? (
-                              <span className="text-emerald-400 font-semibold">Đang chờ đối thủ</span>
-                            ) : (
-                              <span className="text-amber-400">Đang thi đấu</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        onClick={() => onMoSanh(t.gameType)}
-                        className="h-8 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shrink-0 cursor-pointer"
-                      >
-                        <span>Vào bàn</span>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+            {/* LƯỚI PHÒNG GAME CHUNG (Sảnh trực tiếp, mỗi phòng có hình nhỏ và tên game) */}
+            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {displayedRooms.length > 0 ? (
+                displayedRooms.map((room) => {
+                  const laChuPhong = Boolean(
+                    nguoiDung &&
+                      room.tenChu &&
+                      (room.tenChu === nguoiDung.ten || room.tenChu === nguoiDung.username),
+                  )
+                  return (
+                    <ThePhongGame
+                      key={room.id}
+                      room={room}
+                      onVao={() => vaoBanTrucTiep(room)}
+                      onHuy={() => huyBan(room.id)}
+                      laChuPhong={laChuPhong}
+                    />
+                  )
+                })
               ) : (
-                <div className="py-8 text-center space-y-2">
-                  <Gamepad2 className="size-8 text-slate-600 mx-auto" />
-                  <p className="text-xs font-semibold text-slate-300">Chưa có bàn chơi nào đang mở</p>
-                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                    Hãy bấm vào một trò chơi ở phía trên để tạo bàn đấu mới hoặc so tài ngay với Máy (AI).
-                  </p>
+                <div className="col-span-full flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border-default bg-surface/50 space-y-3">
+                  <div className="size-12 rounded-2xl bg-surface-raised border border-border-subtle flex items-center justify-center text-text-tertiary">
+                    <Gamepad2 className="size-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-text-primary">Không tìm thấy phòng game phù hợp</h3>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Hãy thử đổi từ khóa tìm kiếm hoặc tạo bàn đấu mới ngay bây giờ.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setMoTaoBanModal(true)}
+                    className="h-8 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold"
+                  >
+                    <Plus className="size-3.5 mr-1" />
+                    <span>Tạo bàn đấu ngay</span>
+                  </Button>
                 </div>
               )}
             </div>
-          </section>
 
-          {/* Admin ThongKeGame */}
-          <ThongKeGame ban={tables} sanSang={hasAuthoritativeData} />
+            {/* MỤC 2 (ĐÃ ẨN KHỎI GIAO DIỆN USER ĐỂ THIẾT KẾ RIÊNG CHO ADMIN SAU — BẢO TOÀN CONTRACT KIỂM THỬ) */}
+            <div className="sr-only" aria-hidden="true">
+              <ThongKeGame ban={tables} sanSang={hasAuthoritativeData} />
+            </div>
+          </section>
         </div>
 
-        {/* ── Cột tiện ích bên phải: 4 Cột trên XL (Kéo lên kéo xuống) ── */}
+        {/* ── Cột tiện ích bên phải: 4 Cột trên XL (Đồng bộ sắc xanh Sapphire/Sky) ── */}
         <div className="xl:col-span-4 space-y-6">
-          {/* Tiện ích 1: Hướng dẫn cơ chế thi đấu */}
-          <section aria-label="Chế độ chơi" className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Chế độ thi đấu
-            </h3>
-
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/40 border border-white/5">
-                <div className="size-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
-                  <Users className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Đối kháng 1v1 (PvP)</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Tạo bàn, mời bạn bè qua mã phòng hoặc ghép ngẫu nhiên cùng học sinh trong trường.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/40 border border-white/5">
-                <div className="size-8 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
-                  <Brain className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Luyện tập với Máy (PvE AI)</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Rèn luyện chiến thuật ngoại tuyến với AI đa cấp độ: Dễ, Trung bình, Khó.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-800/40 border border-white/5">
-                <div className="size-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
-                  <Shield className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Xác thực máy chủ chống gian lận</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Tất cả kết quả và kỷ lục trò chơi được máy chủ Cloudflare Worker xác thực nghiêm ngặt.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Tiện ích 2: Bảng xếp hạng kỷ lục Game */}
-          <section aria-label="Kỷ lục game" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-950/20 p-4 shadow-sm space-y-3">
-            <div className="flex items-center gap-2.5 text-amber-400">
+          {/* Card 1: Bảng thi đua game */}
+          <section
+            aria-label="Thi đua game"
+            className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-blue-950/20 p-4 shadow-sm space-y-3"
+          >
+            <div className="flex items-center gap-2.5 text-sky-400">
               <Trophy className="size-4.5" />
-              <h3 className="text-sm font-bold text-white">Bảng xếp hạng kỷ lục</h3>
+              <h3 className="text-sm font-bold text-white">Bảng thi đua game</h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Tôn vinh những kỳ thủ cờ vua, cờ tướng, cờ caro và cao thủ săn mồi đạt kỷ lục cao nhất trường.
+              Tích lũy điểm Elo, so tài chiến thuật đỉnh cao và ghi danh bảng vàng cao thủ trường.
             </p>
             <Link
               to="/leaderboard"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
             >
               <span>Xem bảng xếp hạng game</span>
               <ArrowRight className="size-3.5" />
             </Link>
           </section>
+
+          {/* Card 2: Sự kiện & Giải đấu */}
+          <section
+            aria-label="Sự kiện game"
+            data-testid="game-events-card"
+            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5"
+          >
+            <div className="flex items-center gap-2 border-b border-border-subtle/60 pb-3">
+              <Calendar className="size-4 text-sky-400" />
+              <h3 className="text-sm font-bold text-text-primary">Sự kiện &amp; Giải đấu</h3>
+            </div>
+
+            {/* Danh sách các card sự kiện game: Tự động sắp xếp mới nhất từ trên xuống dưới theo thời gian chi tiết được thiết lập */}
+            <div className="space-y-2.5">
+              {suKienSapXep.map((evt) => (
+                <div
+                  key={evt.id}
+                  className={cn(
+                    'rounded-xl border p-3.5 space-y-1.5 transition-colors',
+                    evt.isLive
+                      ? 'border-emerald-500/25 bg-emerald-500/5'
+                      : evt.badgeVariant === 'amber'
+                        ? 'border-border-subtle/80 bg-surface-raised/40 hover:border-amber-500/30'
+                        : 'border-border-subtle/80 bg-surface-raised/40 hover:border-sky-500/30',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-xs font-bold text-text-primary leading-snug">
+                      {evt.tieuDe}
+                    </h4>
+                    <span
+                      className={cn(
+                        'shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold border',
+                        evt.isLive
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+                          : evt.badgeVariant === 'amber'
+                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+                            : 'bg-sky-500/15 text-sky-400 border-sky-500/25',
+                      )}
+                    >
+                      {evt.isLive && <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                      <span>{evt.badgeText}</span>
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-secondary leading-relaxed">
+                    {evt.moTa}
+                  </p>
+                  <div
+                    className={cn(
+                      'flex items-center justify-end gap-1.5 text-[11px] font-medium pt-1',
+                      evt.isLive
+                        ? 'text-emerald-400'
+                        : evt.badgeVariant === 'amber'
+                          ? 'text-amber-400'
+                          : 'text-sky-400',
+                    )}
+                  >
+                    <Clock className="size-3 shrink-0" />
+                    <span>{evt.thoiGianHienThi}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
+
+      {/* ── Dialog tạo bàn đấu mới trực tiếp (Card luôn cố định kích thước, đúng chuẩn thiết kế mockup) ── */}
+      <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
+        <DialogContent
+          style={{ top: '72px', translate: '-50% 0', transform: 'none' }}
+          className="sm:max-w-[530px] w-[calc(100vw-2rem)] h-[700px] max-h-[94vh] flex flex-col p-5 sm:p-6 skeuo-dialog-surface rounded-[28px] justify-between overflow-hidden text-white"
+        >
+          {/* Họa tiết Arcade Blueprint toàn diện phân bổ đều các góc và viền */}
+          <BlueprintArcadePattern className="opacity-90" />
+
+          <DialogHeader className="shrink-0 mb-0.5 relative z-10">
+            <DialogTitle className="text-xl font-black text-white flex items-center gap-2.5 tracking-wide">
+              <IconSword3D size={28} className="drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+              <span>Tạo bàn đấu</span>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Chọn trò chơi, thời gian và chế độ phòng để mở bàn thi đấu cùng bạn bè.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0 space-y-1.5">
+            {/* 1. Tên phòng: Viền xanh, lấp lánh nhẹ 2 bên cạnh, chữ trắng */}
+            <div className="space-y-1 shrink-0 relative z-10">
+              <label className="text-xs font-semibold text-white">Tên phòng:</label>
+              <div className="relative rounded-2xl skeuo-card-cyan-base h-9 px-3.5 flex items-center overflow-hidden">
+                <input
+                  type="text"
+                  value={tenPhongMoi}
+                  onChange={(e) => setTenPhongMoi(e.target.value)}
+                  placeholder="Nhập tên phòng..."
+                  maxLength={40}
+                  className="w-full bg-transparent text-xs text-white font-medium placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* 2. Chọn trò chơi: Lưới 2 cột 5 game với 1 icon 3D nổi bật duy nhất bên phải & màu nền chất liệu riêng biệt (VÙNG 1 GIỮ NGUYÊN) */}
+            <div className="space-y-1 shrink-0 relative z-10">
+              <label className="text-xs font-semibold text-slate-300">Chọn trò chơi:</label>
+              <div className="grid grid-cols-2 gap-2 select-none">
+                {[
+                  {
+                    id: 'chess' as const,
+                    name: 'Cờ Vua',
+                    Icon: IconCrown3D,
+                    activeClass: 'skeuo-game-chess-active text-white',
+                    baseClass: 'skeuo-game-chess-base text-slate-200',
+                  },
+                  {
+                    id: 'xiangqi' as const,
+                    name: 'Cờ Tướng',
+                    Icon: IconXiangqiPiece3D,
+                    activeClass: 'skeuo-game-xiangqi-active text-white',
+                    baseClass: 'skeuo-game-xiangqi-base text-slate-200',
+                  },
+                  {
+                    id: 'caro_15' as const,
+                    name: 'Cờ Caro',
+                    Icon: IconCaroCubes3D,
+                    activeClass: 'skeuo-game-caro-active text-white',
+                    baseClass: 'skeuo-game-caro-base text-slate-200',
+                  },
+                  {
+                    id: 'solo_memory' as const,
+                    name: 'Trí Nhớ',
+                    Icon: IconManaCrystal3D,
+                    activeClass: 'skeuo-game-memory-active text-white',
+                    baseClass: 'skeuo-game-memory-base text-slate-200',
+                  },
+                  {
+                    id: 'solo_snake' as const,
+                    name: 'Rắn Săn Mồi',
+                    Icon: IconSnakeApple3D,
+                    activeClass: 'skeuo-game-snake-active text-white',
+                    baseClass: 'skeuo-game-snake-base text-slate-200',
+                  },
+                ].map((item) => {
+                  const Icon = item.Icon
+                  const isSelected = gameMoiChon === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setGameMoiChon(item.id)}
+                      className={cn(
+                        'h-[46px] px-3.5 rounded-2xl border text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden',
+                        isSelected ? item.activeClass : item.baseClass,
+                      )}
+                    >
+                      <span className="truncate text-xs font-bold text-white tracking-wide">
+                        {item.name}
+                      </span>
+                      <div className="shrink-0 flex items-center justify-center">
+                        <Icon size={32} className="drop-shadow-md" />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 3. Chọn thời gian lượt: Đường bao xanh, lấp lánh nhẹ 2 bên cạnh, chữ trắng */}
+            <div className="space-y-1.5 shrink-0 relative z-10">
+              <label className="text-xs font-semibold text-white">Thời gian mỗi lượt:</label>
+              <div className="h-[114px] flex flex-col justify-between select-none">
+                {gameMoiChon === 'random' || (CAC_GAME_1V1 as readonly GameType[]).includes(gameMoiChon) ? (
+                  <>
+                    <div className="flex items-center gap-1.5 h-16">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const list = [30, 120, 900, 1800, 0, 'custom'] as const
+                          const currIdx = list.indexOf(cheDoTurn as any)
+                          const prevIdx = currIdx <= 0 ? list.length - 1 : currIdx - 1
+                          setCheDoTurn(list[prevIdx])
+                        }}
+                        className="size-7 rounded-full skeuo-pill-cyan-base text-white hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        aria-label="Thời gian trước"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      <div className="grid grid-cols-3 gap-1.5 flex-1">
+                        {[
+                          { label: '30 giây', value: 30 },
+                          { label: '2 phút', value: 120 },
+                          { label: '15 phút', value: 900 },
+                          { label: '30 phút', value: 1800 },
+                          { label: 'Vô thời hạn', value: 0 },
+                          { label: 'Tùy chỉnh', value: 'custom' as const },
+                        ].map((moc) => (
+                          <button
+                            key={String(moc.value)}
+                            type="button"
+                            onClick={() => setCheDoTurn(moc.value)}
+                            className={cn(
+                              'h-7 rounded-full text-xs transition-colors duration-150 cursor-pointer text-center flex items-center justify-center select-none text-white',
+                              cheDoTurn === moc.value
+                                ? 'skeuo-pill-cyan-active font-black'
+                                : 'skeuo-pill-cyan-base font-bold',
+                            )}
+                          >
+                            {moc.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const list = [30, 120, 900, 1800, 0, 'custom'] as const
+                          const currIdx = list.indexOf(cheDoTurn as any)
+                          const nextIdx = (currIdx + 1) % list.length
+                          setCheDoTurn(list[nextIdx])
+                        }}
+                        className="size-7 rounded-full skeuo-pill-cyan-base text-white hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        aria-label="Thời gian tiếp theo"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+
+                    {/* Vùng thanh thời gian: 1 hàng cố định h-9, đường bao xanh, lấp lánh nhẹ 2 bên, chữ trắng */}
+                    <div className="h-9 rounded-2xl skeuo-card-cyan-base px-3.5 flex items-center justify-between select-none overflow-hidden">
+                      <span className="text-xs font-semibold text-white">
+                        {cheDoTurn === 'custom' ? 'Thời gian tùy chỉnh' : 'Thời gian mỗi lượt'}
+                      </span>
+                      {cheDoTurn === 'custom' ? (
+                        <div className="flex items-center gap-1.5 bg-[#0e2a4a] px-2 py-0.5 rounded-lg border border-sky-400/50">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTurnTuyChinh((v) => {
+                                if (v >= 1800) return Math.max(0, v - 300)
+                                if (v >= 300) return Math.max(0, v - 60)
+                                if (v >= 60) return Math.max(0, v - 15)
+                                if (v > 0) return Math.max(0, v - 5)
+                                return 0
+                              })
+                            }
+                            className="w-5 h-5 flex items-center justify-center rounded text-white hover:bg-sky-900/50 transition-colors cursor-pointer text-xs font-black"
+                            aria-label="Giảm thời gian"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            max={3600}
+                            value={turnTuyChinh}
+                            onChange={(e) => setTurnTuyChinh(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
+                            className="w-10 text-center text-xs font-bold text-white bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <span className="text-xs text-white/90 font-medium">
+                            {turnTuyChinh === 0
+                              ? 'Vô hạn'
+                              : turnTuyChinh >= 60 && turnTuyChinh % 60 === 0
+                                ? `${turnTuyChinh / 60}p`
+                                : 'giây'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTurnTuyChinh((v) => {
+                                if (v === 0) return 30
+                                if (v < 60) return Math.min(3600, v + 15)
+                                if (v < 1800) return Math.min(3600, v + 60)
+                                return Math.min(3600, v + 300)
+                              })
+                            }
+                            className="w-5 h-5 flex items-center justify-center rounded text-white hover:bg-sky-900/50 transition-colors cursor-pointer text-xs font-black"
+                            aria-label="Tăng thời gian"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-white font-bold tracking-wide">
+                          {cheDoTurn === 30
+                            ? '30 giây / lượt'
+                            : cheDoTurn === 120
+                              ? '2 phút / lượt'
+                              : cheDoTurn === 900
+                                ? '15 phút / lượt'
+                                : cheDoTurn === 1800
+                                  ? '30 phút / lượt'
+                                  : 'Vô thời hạn'}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full rounded-2xl skeuo-card-cyan-base flex flex-col items-center justify-center gap-1 text-xs text-white font-semibold select-none overflow-hidden">
+                    <Sparkles className="size-5 text-sky-400 mb-0.5" />
+                    <span className="text-xs font-bold text-white">Chơi đơn</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 4. Chế độ phòng & Mật khẩu: Đường bao xanh, lấp lánh nhẹ 2 bên cạnh, chữ trắng */}
+            <div className="space-y-1.5 shrink-0 relative z-10">
+              <label className="text-xs font-semibold text-white">Chế độ phòng:</label>
+              <div className="grid grid-cols-2 gap-2 select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheDoPhong('public')
+                    setLoiTaoBan(null)
+                  }}
+                  className={cn(
+                    'h-[46px] px-3.5 rounded-2xl border text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
+                    cheDoPhong === 'public'
+                      ? 'skeuo-card-cyan-active text-white'
+                      : 'skeuo-card-cyan-base text-white',
+                  )}
+                >
+                  <span className="text-xs font-bold text-white">Công khai</span>
+                  <IconGlobe3D size={28} className="shrink-0 drop-shadow-md" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheDoPhong('private')
+                    setLoiTaoBan(null)
+                  }}
+                  className={cn(
+                    'h-[46px] px-3.5 rounded-2xl border text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
+                    cheDoPhong === 'private'
+                      ? 'skeuo-card-cyan-active text-white'
+                      : 'skeuo-card-cyan-base text-white',
+                  )}
+                >
+                  <span className="text-xs font-bold text-white">Riêng tư</span>
+                  <IconShield3D size={28} className="shrink-0 drop-shadow-md" />
+                </button>
+              </div>
+
+              {/* Card cố định cho mật khẩu: Đường bao xanh, lấp lánh nhẹ 2 bên cạnh, chữ trắng */}
+              <div
+                onClick={() => {
+                  if (cheDoPhong !== 'private') {
+                    setCheDoPhong('private')
+                    setLoiTaoBan(null)
+                  }
+                }}
+                className={cn(
+                  'relative rounded-2xl border px-3.5 py-2 h-[58px] flex flex-col justify-between transition-colors duration-150 select-none cursor-pointer overflow-hidden',
+                  cheDoPhong === 'private'
+                    ? 'skeuo-card-cyan-active'
+                    : 'skeuo-card-cyan-base',
+                )}
+              >
+                {/* Họa tiết Blueprint công nghệ dịu nhẹ đồng bộ góc trên bên phải của card (không chói mắt) */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none opacity-40">
+                  <svg className="w-full h-full" viewBox="0 0 440 60" preserveAspectRatio="none" fill="none">
+                    <defs>
+                      <pattern id="grid-card-blueprint" width="14" height="14" patternUnits="userSpaceOnUse">
+                        <circle cx="2" cy="2" r="0.6" fill="rgba(56, 189, 248, 0.25)" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid-card-blueprint)" />
+                    <g stroke="rgba(56, 189, 248, 0.25)" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M 280 12 H 340 V 30 H 420" />
+                      <circle cx="280" cy="12" r="1.5" fill="rgba(56, 189, 248, 0.35)" />
+                      <circle cx="420" cy="30" r="1.5" fill="rgba(56, 189, 248, 0.35)" />
+                      <path d="M 320 48 H 380 V 38 H 430" />
+                      <rect x="300" y="24" width="16" height="10" rx="2" />
+                      <circle cx="304" cy="29" r="1" />
+                      <circle cx="312" cy="29" r="1" />
+                    </g>
+                  </svg>
+                </div>
+
+                <span className="text-xs font-semibold text-white transition-colors duration-150 relative z-10">
+                  Mật khẩu phòng:
+                </span>
+
+                <div className="relative flex items-center z-10">
+                  <input
+                    type={cheDoPhong === 'private' && !hienMatKhau ? 'password' : 'text'}
+                    value={matKhauPhong}
+                    onFocus={() => {
+                      if (cheDoPhong !== 'private') {
+                        setCheDoPhong('private')
+                        setLoiTaoBan(null)
+                      }
+                    }}
+                    onChange={(e) => {
+                      setMatKhauPhong(e.target.value)
+                      if (cheDoPhong !== 'private') setCheDoPhong('private')
+                      if (loiTaoBan) setLoiTaoBan(null)
+                    }}
+                    placeholder={cheDoPhong === 'private' ? 'Nhập mật khẩu cho phòng...' : 'Bấm vào đây để đặt mật khẩu...'}
+                    maxLength={20}
+                    className="w-full bg-transparent border-0 p-0 text-xs text-white font-medium placeholder:text-slate-400 focus:outline-none pr-8"
+                  />
+                  {cheDoPhong === 'private' && (
+                    <button
+                      type="button"
+                      onClick={() => setHienMatKhau(!hienMatKhau)}
+                      className="absolute right-0 text-white/80 hover:text-white p-0.5 cursor-pointer transition-colors"
+                      aria-label={hienMatKhau ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    >
+                      {hienMatKhau ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Slot cố định cho thông báo lỗi: Vĩnh viễn trong DOM, giữ h-4 cố định, toggle opacity */}
+              <div className="h-4 shrink-0 flex items-center">
+                <p
+                  className={cn(
+                    'text-[10px] text-red-400 font-medium leading-4 transition-opacity duration-150',
+                    loiTaoBan ? 'opacity-100' : 'opacity-0 select-none pointer-events-none',
+                  )}
+                  aria-hidden={!loiTaoBan}
+                >
+                  {loiTaoBan || 'Lỗi tạo bàn'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Dialog Footer: Nút Tạo bàn ngay giữ nguyên thiết kế, nút Hủy đường bao xanh chữ trắng */}
+          <div className="flex justify-end gap-3 pt-2.5 border-t border-sky-950/70 shrink-0 relative z-10">
+            <button
+              type="button"
+              onClick={() => {
+                setMoTaoBanModal(false)
+                setLoiTaoBan(null)
+              }}
+              className="px-6 h-10 rounded-full skeuo-pill-cyan-base text-white hover:text-white font-bold text-xs transition-colors cursor-pointer select-none flex items-center justify-center"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              disabled={dangTaoBan}
+              onClick={xacNhanTaoBan}
+              className="skeuo-btn-cta-amber px-8 h-10 text-xs flex items-center justify-center gap-1.5 select-none relative overflow-visible cursor-pointer"
+            >
+              <span>{dangTaoBan ? 'Đang tạo...' : 'Tạo bàn ngay'}</span>
+              <IconStarSparkle className="absolute -top-3 -right-2 text-white drop-shadow-[0_0_8px_#ffffff]" size={22} />
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Chọn game Chơi Ngay (Nhỏ gọn, vừa vặn nội dung, chỉ ghi Chơi ngay, xóa vùng 4) ── */}
+      <Dialog open={moPopupChoiNgay} onOpenChange={setMoPopupChoiNgay}>
+        <DialogContent
+          data-testid="quick-play-dialog"
+          className="sm:max-w-sm w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col p-4 bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden"
+        >
+          <DialogHeader className="shrink-0 mb-1">
+            <DialogTitle className="text-base font-bold text-text-primary flex items-center gap-2">
+              <Sparkles className="size-4 text-sky-400" />
+              <span>Chơi ngay</span>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Chọn các trò chơi bạn muốn vào ngay
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Thanh công cụ: Chọn tất cả & Thống kê số lượng */}
+          <div className="flex items-center justify-between py-1 px-0.5 shrink-0 border-b border-border-subtle/70">
+            <button
+              type="button"
+              onClick={toggleChonTatCa}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors cursor-pointer py-0.5 px-1.5 rounded-lg hover:bg-sky-500/10"
+            >
+              <CheckSquare className="size-3.5" />
+              <span>{cacGameDangChon.length === ALL_QUICK_GAME_IDS.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</span>
+            </button>
+            <span className="text-[11px] font-semibold text-text-tertiary">
+              Đã chọn: <strong className="text-sky-400 font-bold">{cacGameDangChon.length}</strong>/{ALL_QUICK_GAME_IDS.length} game
+            </span>
+          </div>
+
+          {/* Danh sách các game: Thiết kế nhỏ gọn, xóa vùng 4, chỉ giữ checkbox + icon + tên game */}
+          <div className="space-y-1.5 py-1.5 overflow-y-auto max-h-[46vh] pr-0.5">
+            {DANH_SACH_GAME_CHOI_NGAY.map((game) => {
+              const isSelected = cacGameDangChon.includes(game.id)
+              return (
+                <button
+                  key={game.id}
+                  data-testid={`quick-choice-${game.id}`}
+                  type="button"
+                  onClick={() => toggleChonGame(game.id)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-all cursor-pointer group',
+                    isSelected
+                      ? 'border-sky-500 bg-sky-500/10 shadow-xs ring-1 ring-sky-500/30'
+                      : 'border-border-default bg-surface hover:bg-surface-raised hover:border-sky-500/40',
+                  )}
+                >
+                  {/* Checkbox trực quan */}
+                  <div
+                    className={cn(
+                      'size-5 rounded-md border flex items-center justify-center shrink-0 transition-colors',
+                      isSelected
+                        ? 'border-sky-500 bg-sky-500 text-white shadow-xs'
+                        : 'border-border-default bg-surface-raised group-hover:border-sky-400/50',
+                    )}
+                  >
+                    {isSelected && <Check className="size-3.5 stroke-[3]" />}
+                  </div>
+
+                  <GameArt gameType={game.id} variant="icon" className="size-8 shrink-0 rounded-lg" />
+
+                  <span className="text-xs font-bold text-text-primary group-hover:text-sky-400 transition-colors truncate">
+                    {game.title}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Dialog Footer: Tinh gọn, chỉ có các nút hành động */}
+          <div className="flex justify-end items-center gap-2 pt-2.5 border-t border-border-subtle shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMoPopupChoiNgay(false)}
+              className="rounded-xl text-xs font-semibold px-3.5 h-8"
+            >
+              Hủy
+            </Button>
+            <Button
+              size="sm"
+              onClick={luuVaChoiNgay}
+              className="rounded-xl text-xs font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-xs px-3.5 h-8 gap-1.5"
+            >
+              <Sparkles className="size-3.5" />
+              <span>Lưu & Chơi ngay</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog nhập mật khẩu khi vào bàn đấu riêng tư (Cố định chiều cao và bố cục 100%, Zero CLS, Zero Stutter theo Rule 9 & 10) ── */}
+      <Dialog
+        open={Boolean(phongCanNhapMatKhau)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPhongCanNhapMatKhau(null)
+            setLoiVaoPhong(null)
+            setMatKhauVaoPhong('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-sm w-[calc(100vw-2rem)] h-[248px] p-5 sm:p-6 bg-surface border border-border-default rounded-2xl flex flex-col justify-between shadow-2xl select-none overflow-hidden">
+          <DialogHeader className="shrink-0">
+            {/* Rule 6: Chỉ ghi tiêu đề, tuyệt đối cấm chú thích */}
+            <DialogTitle className="text-base font-bold text-text-primary flex items-center gap-2">
+              <Lock className="size-4 text-amber-400" />
+              <span>Bàn đấu riêng tư</span>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Nhập mật khẩu vào bàn đấu riêng tư
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Vùng thân card: Cố định vị trí nhãn, ô nhập và slot thông báo lỗi */}
+          <div className="flex-1 flex flex-col justify-center space-y-1.5 min-h-0 py-1">
+            <label className="text-xs font-semibold text-text-primary block shrink-0">
+              Mật khẩu phòng:
+            </label>
+            <div className="relative shrink-0">
+              <input
+                type={hienMatKhauVao ? 'text' : 'password'}
+                value={matKhauVaoPhong}
+                onChange={(e) => {
+                  setMatKhauVaoPhong(e.target.value)
+                  if (loiVaoPhong) setLoiVaoPhong(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    xacNhanMatKhauVaoPhong()
+                  }
+                }}
+                placeholder="Nhập mật khẩu..."
+                className={cn(
+                  'w-full h-10 pl-3 pr-10 text-xs rounded-xl border-2 bg-surface text-text-primary placeholder:text-text-tertiary focus:outline-none transition-colors duration-150',
+                  loiVaoPhong
+                    ? 'border-red-500/80 focus:border-red-500'
+                    : 'border-border-default focus:border-amber-400',
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => setHienMatKhauVao(!hienMatKhauVao)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-1 cursor-pointer transition-colors duration-150"
+                aria-label={hienMatKhauVao ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {hienMatKhauVao ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+
+            {/* Slot cố định cho dòng thông báo lỗi: Vĩnh viễn trong DOM, giữ h-5 cố định, chỉ toggle opacity-0 / opacity-100 */}
+            <div className="h-5 shrink-0 flex items-center">
+              <p
+                className={cn(
+                  'text-[11px] text-red-500 dark:text-red-400 font-medium leading-none transition-opacity duration-150',
+                  loiVaoPhong ? 'opacity-100' : 'opacity-0 select-none pointer-events-none',
+                )}
+                aria-hidden={!loiVaoPhong}
+              >
+                {loiVaoPhong || 'Mật khẩu không chính xác.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Footer CTA: Cố định vị trí 100%, không bị xê dịch hay đẩy lên đẩy xuống */}
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-border-subtle shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setPhongCanNhapMatKhau(null)
+                setLoiVaoPhong(null)
+                setMatKhauVaoPhong('')
+              }}
+              className="rounded-xl text-xs font-semibold px-4 h-9 cursor-pointer border-2 border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary transition-colors duration-150"
+            >
+              Hủy
+            </Button>
+            <Button
+              size="sm"
+              disabled={dangKiemTraVaoPhong}
+              onClick={xacNhanMatKhauVaoPhong}
+              className="rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-xs px-5 h-9 cursor-pointer transition-colors duration-150 disabled:opacity-50"
+            >
+              {dangKiemTraVaoPhong ? 'Đang kiểm tra...' : 'Vào bàn'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

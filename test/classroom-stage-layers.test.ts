@@ -14,6 +14,7 @@ import {
   goLop,
   hienLop,
   lamChinh,
+  lenDauPip,
   lopChinh,
   theoBoCucTrinhChieu,
   thuNho,
@@ -76,9 +77,41 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(lamChinh({ board: 'main', video: 'pip' }, 'video')).toEqual({ board: 'pip', video: 'main' })
   })
 
-  it('thu nhỏ lớp chính: lớp đang nổi được nâng lên; không còn lớp nào thì chỉ thu nhỏ', () => {
-    expect(thuNho({ video: 'main', doc: 'pip' }, 'video')).toEqual({ video: 'pip', doc: 'main' })
-    expect(thuNho({ video: 'main' }, 'video')).toEqual({ video: 'pip' })
+  it('thu nhỏ lớp chính: chuyển thành cửa sổ nổi, không tự ý nâng lớp khác; thứ tự pip cập nhật để lớp mới thu nhỏ đè lên trên', () => {
+    expect(thuNho({ video: 'main', doc: 'pip' }, 'video')).toEqual({ video: 'pip', doc: 'pip', thuTuPip: ['doc', 'video'] })
+    expect(thuNho({ video: 'main' }, 'video')).toEqual({ video: 'pip', thuTuPip: ['video'] })
+  })
+
+  it('thu nhỏ cả 3 chức năng trình chiếu: cả 3 đều là cửa sổ nổi; chức năng thu nhỏ lượt mới nhất sẽ đè lên chức năng thu nhỏ lượt trước đó', () => {
+    // 1. Ban đầu: doc là main, video và board là pip
+    let bc = { doc: 'main', video: 'pip', board: 'pip' } as const
+    // 2. Thu nhỏ doc: doc thành pip, không lớp nào bị tự động phóng to
+    let bc2 = thuNho(bc, 'doc')
+    expect(bc2.doc).toBe('pip')
+    expect(bc2.video).toBe('pip')
+    expect(bc2.board).toBe('pip')
+    expect(lopChinh(bc2)).toBeNull()
+    // doc thu nhỏ lượt mới nhất -> đè lên video và board (nằm ở cuối thuTuPip)
+    expect(bc2.thuTuPip).toEqual(['video', 'board', 'doc'])
+
+    // 3. Phóng to video -> video thành main (dưới cùng), doc và board vẫn là pip
+    let bc3 = lamChinh(bc2, 'video')
+    expect(bc3.video).toBe('main')
+    expect(bc3.doc).toBe('pip')
+    expect(bc3.board).toBe('pip')
+    expect(bc3.thuTuPip).toEqual(['board', 'doc'])
+
+    // 4. Thu nhỏ video -> video thành pip lượt mới nhất, đè lên board và doc
+    let bc4 = thuNho(bc3, 'video')
+    expect(bc4.video).toBe('pip')
+    expect(lopChinh(bc4)).toBeNull()
+    expect(bc4.thuTuPip).toEqual(['board', 'doc', 'video'])
+
+    // 5. Chạm/tương tác đưa board lên đầu pip stack (nằm ở cuối mảng)
+    let bc5 = lenDauPip(bc4, 'board')
+    expect(bc5.thuTuPip).toEqual(['doc', 'video', 'board'])
+    let bc6 = lenDauPip(bc4, 'doc')
+    expect(bc6.thuTuPip).toEqual(['board', 'video', 'doc'])
   })
 
   it('ẩn lớp chính: nâng cửa sổ nổi lên làm chính', () => {
@@ -149,11 +182,11 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
 
   it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / toàn màn hình / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {
     // Khung: không còn nút điều khiển nào.
-    expect(stageRaw).toContain('chiXem={!canControl}')
+    expect(stageRaw).toContain('chiXem={!coQuyenDiChuyen}')
     expect(khungRaw).toContain('if (chiXem) return null')
     expect(khungRaw).toContain('data-testid={`layer-${id}-hide`}')
     // Cửa sổ nổi khoá kéo và điểm đổi cỡ.
-    for (const id of ['doc', 'video', 'board']) expect(stageRaw).toContain(`<KhungLop id="${id}" vaiTro={boCuc.${id}} viTri={viTriCuaSo(boCuc, '${id}')} khoa={!canControl} {...khungCuaSo('${id}')}>`)
+    for (const id of ['doc', 'video', 'board']) expect(stageRaw).toContain(`<KhungLop id="${id}" vaiTro={boCuc.${id}} viTri={viTriCuaSo(boCuc, '${id}')} khoa={!coQuyenDiChuyen} {...khungCuaSo('${id}')}>`)
     expect(khungRaw).toContain("if (khoa || vaiTro !== 'pip' || resizeRef.current) return")
     expect(khungRaw).toContain("{vaiTro === 'pip' && !khoa && (")
     // Nút mở lại bài giảng khi sân khấu trống chỉ dành cho người trình chiếu.
@@ -381,7 +414,7 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
 
     // Học sinh không đổi được bố cục của cả phòng.
     an.gui({ type: 'stage.layout', layout: { board: 'main' } })
-    await an.cho('error', (g) => g.message.includes('bố cục trình chiếu'))
+    await an.cho('error', (g) => g.message.includes('trình chiếu'))
     await host.khongNhan('stage.sync', () => true, 200)
 
     // Vai trò lạ bị từ chối ngay ở lược đồ.
@@ -397,7 +430,7 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     host.dong()
     an.dong()
     vaoSau.dong()
-  })
+  }, 15000)
 
   it('người tham gia chỉ xem: không điều khiển video (kể cả khi đã tắt hostOnlyControl), không đụng hàng chờ', async () => {
     const id = await chenPhong('Phòng chỉ xem', 'acc:1')

@@ -115,4 +115,21 @@ describe('API: /api/yt-check và /api/yt-search', () => {
     const kq = (await res.json()) as { videoId: string }[]
     expect(kq.map((v) => v.videoId)).toEqual([duoc, khongRo])
   })
+
+  it('/api/yt-search: sort=upload_date sử dụng sp=CAISAhAB (toàn thời gian) thay vì EgIIAw== (giới hạn 7 ngày)', async () => {
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    let goiUrl = ''
+    globalThis.fetch = (async (dauVao: string | URL | Request) => {
+      const url = typeof dauVao === 'string' ? dauVao : dauVao instanceof URL ? dauVao.href : dauVao.url
+      if (url.startsWith('https://www.youtube.com/results')) {
+        goiUrl = url
+        return new Response('<script>var ytInitialData = {};</script>')
+      }
+      return fetchGoc(dauVao as RequestInfo)
+    }) as typeof fetch
+
+    await exports.default.fetch(`${GOC}/api/yt-search?q=top+music+video+2026&sort=upload_date`, { headers: { Cookie: cookie } })
+    expect(goiUrl).toContain('&sp=CAISAhAB')
+    expect(goiUrl).not.toContain('EgIIAw')
+  })
 })

@@ -6,7 +6,11 @@ import type { RelationshipStatus, SocialState } from '@shared/protocol/social'
 export function suyRaQuanHe(id: number, toiId: number, state: SocialState): RelationshipStatus {
   if (id === toiId) return 'self'
   if (state.blockedUsers.some((b) => b.id === id)) return 'blocked'
-  if (state.friends.some((f) => f.id === id)) return 'friend'
+  const fr = state.friends.find((f) => f.id === id)
+  if (fr) {
+    if (fr.isCloseFriend) return 'close_friend'
+    return 'friend'
+  }
   if (state.outgoingRequests.some((r) => r.receiver?.id === id)) return 'pending_sent'
   if (state.incomingRequests.some((r) => r.sender?.id === id)) return 'pending_received'
   return 'none'

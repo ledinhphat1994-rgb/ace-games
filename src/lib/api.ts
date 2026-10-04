@@ -167,9 +167,24 @@ export async function timKiemNguoiDung(tuKhoa: string): Promise<import('@shared/
   return res.results || []
 }
 
-export async function layTinNhanRieng(friendId: number): Promise<import('@shared/protocol/social').DirectMessage[]> {
-  const res = await goiApi<{ ok: boolean; messages: import('@shared/protocol/social').DirectMessage[] }>(`/api/social/messages/${friendId}`)
-  return res.messages || []
+export interface LayTinNhanRiengResult {
+  messages: import('@shared/protocol/social').DirectMessage[]
+  reactions?: Record<number, string[]>
+  reactionDetails?: Record<number, import('@shared/protocol/campus').ReactionDetail[]>
+}
+
+export async function layTinNhanRieng(friendId: number): Promise<LayTinNhanRiengResult> {
+  const res = await goiApi<{
+    ok: boolean
+    messages: import('@shared/protocol/social').DirectMessage[]
+    reactions?: Record<number, string[]>
+    reactionDetails?: Record<number, import('@shared/protocol/campus').ReactionDetail[]>
+  }>(`/api/social/messages/${friendId}`)
+  return {
+    messages: res.messages || [],
+    reactions: res.reactions || {},
+    reactionDetails: res.reactionDetails || {},
+  }
 }
 
 export async function guiTinNhanRieng(friendId: number, noiDung: string): Promise<import('@shared/protocol/social').DirectMessage> {
@@ -179,4 +194,50 @@ export async function guiTinNhanRieng(friendId: number, noiDung: string): Promis
     body: JSON.stringify({ noiDung }),
   })
   return res.message
+}
+
+export interface ThaoTacReactionInput {
+  action?: 'add' | 'remove' | 'replace' | 'increment'
+  emoji?: string
+  oldEmoji?: string
+  emojis?: string[]
+}
+
+export async function guiReactionTinNhanRieng(
+  friendId: number,
+  messageId: number,
+  data: string[] | ThaoTacReactionInput,
+): Promise<{ ok: boolean; messageId: number; reactions: string[]; reactionDetails?: import('@shared/protocol/campus').ReactionDetail[] }> {
+  const payload = Array.isArray(data) ? { messageId, emojis: data } : { messageId, ...data }
+  return await goiApi<{ ok: boolean; messageId: number; reactions: string[]; reactionDetails?: import('@shared/protocol/campus').ReactionDetail[] }>(
+    `/api/social/messages/${friendId}/reaction`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+export async function xoaTinNhanRieng(
+  friendId: number,
+  messageId: number,
+): Promise<{ ok: boolean; messageId: number }> {
+  return await goiApi<{ ok: boolean; messageId: number }>(
+    `/api/social/messages/${friendId}/${messageId}`,
+    { method: 'DELETE' },
+  )
+}
+export async function guiReactionCampusChat(
+  messageId: number,
+  data: string[] | ThaoTacReactionInput,
+): Promise<{ ok: boolean; messageId: number; reactions: string[]; reactionDetails?: import('@shared/protocol/campus').ReactionDetail[] }> {
+  const payload = Array.isArray(data) ? { messageId, emojis: data } : { messageId, ...data }
+  return await goiApi<{ ok: boolean; messageId: number; reactions: string[]; reactionDetails?: import('@shared/protocol/campus').ReactionDetail[] }>(
+    '/api/campus/chat/reaction',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  )
 }

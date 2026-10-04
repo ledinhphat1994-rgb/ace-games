@@ -4,12 +4,13 @@ import { KhungChoTrang } from './KhungChoTrang'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppHeader } from './AppHeader'
 import { AppSidebar } from './AppSidebar'
 import { MobileNav } from './MobileNav'
 import { CampusChatSheet } from './CampusChatSheet'
+import { BlueprintGlobalBackground } from '@/components/ui/blueprint-patterns'
 
 interface AppShellProps {
   children?: React.ReactNode
@@ -48,9 +49,38 @@ export function AppShell({ children }: AppShellProps) {
     myPermissions,
     guiChat,
     xoaChat,
+    setActivity,
+    socialState,
   } = useCampus()
 
-  const [isChatOpen, setIsChatOpen] = useState(false)
+  const location = useLocation()
+  const [isChatOpen, setIsChatOpen] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const saved = localStorage.getItem('c10a7_chat_open')
+    if (saved !== null) return saved === 'true'
+    return window.innerWidth >= 1024 && window.location.pathname.startsWith('/game/')
+  })
+  const [hasNewDm, setHasNewDm] = useState(false)
+
+  // Tự động mở khung chat khi bước vào bàn game trên desktop nếu người dùng chưa đóng
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024 && location.pathname.startsWith('/game/')) {
+      const saved = localStorage.getItem('c10a7_chat_open')
+      if (saved !== 'false') {
+        setIsChatOpen(true)
+      }
+    }
+  }, [location.pathname])
+
+  useEffect(() => {
+    const handleDm = () => {
+      if (!isChatOpen) {
+        setHasNewDm(true)
+      }
+    }
+    window.addEventListener('campus:direct_message', handleDm)
+    return () => window.removeEventListener('campus:direct_message', handleDm)
+  }, [isChatOpen])
   const [idTinDaXem, setIdTinDaXem] = useState<number | null>(() => (nguoiDung ? docTinDaXem(nguoiDung.accountId) : null))
 
   // Chấm trên nút trò chuyện chỉ sáng khi có tin của người khác mới hơn lần xem gần nhất
@@ -58,9 +88,11 @@ export function AppShell({ children }: AppShellProps) {
   const coTinNhanMoi =
     nguoiDung !== null &&
     !isChatOpen &&
-    tinCuoi !== null &&
-    tinCuoi.accountId !== nguoiDung.accountId &&
-    (idTinDaXem === null || tinCuoi.id > idTinDaXem)
+    (hasNewDm ||
+      (tinCuoi !== null &&
+        tinCuoi.accountId !== nguoiDung.accountId &&
+        (idTinDaXem === null || tinCuoi.id > idTinDaXem)) ||
+      (socialState?.friends?.some((f) => (f.unreadCount ?? 0) > 0) ?? false))
 
   const [activeDmTarget, setActiveDmTarget] = useState<import('./CampusChatSheet').DmTargetUser | null>(null)
 
@@ -70,6 +102,10 @@ export function AppShell({ children }: AppShellProps) {
       return
     }
     setIsChatOpen(mo)
+    try {
+      localStorage.setItem('c10a7_chat_open', String(mo))
+    } catch {}
+    if (mo) setHasNewDm(false)
     if (tinCuoi) {
       setIdTinDaXem(tinCuoi.id)
       ghiTinDaXem(nguoiDung.accountId, tinCuoi.id)
@@ -105,7 +141,23 @@ export function AppShell({ children }: AppShellProps) {
     return () => window.removeEventListener('campus:open-dm', handleOpenDM)
   }, [nguoiDung, moAuthModal])
 
-  const location = useLocation()
+  useEffect(() => {
+    if (!nguoiDung) return
+    const path = location.pathname
+    if (path.startsWith('/room/')) {
+      return
+    }
+    if (path.startsWith('/arena') || path.startsWith('/game')) {
+      setActivity({ type: 'game', area: 'game' })
+    } else if (path.startsWith('/learn')) {
+      setActivity({ type: 'learn', area: 'learn' })
+    } else if (path.startsWith('/community')) {
+      setActivity({ type: 'community', area: 'community' })
+    } else {
+      setActivity({ type: 'home', area: 'home' })
+    }
+  }, [location.pathname, nguoiDung, setActivity])
+
   const isGameRoom = location.pathname.startsWith('/game/')
   // Tất cả hub pages dùng cùng max-width và padding đồng nhất (không phân biệt rộng/hẹp)
   const isWidePage =
@@ -124,37 +176,48 @@ export function AppShell({ children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="min-h-svh bg-canvas text-foreground">
-      {/* Desktop Left Sidebar (Fixed) */}
-      {!isFullscreen && <AppSidebar className="hidden lg:flex" />}
+    <div className="min-h-svh bg-canvas text-foreground flex flex-col relative overflow-x-clip">
+      {/* Nền mờ họa tiết vi mạch Blueprint toàn diện cho toàn trang web */}
+      <BlueprintGlobalBackground />
 
-      {/* Main Content Column — shifts right by sidebar width on desktop */}
-      <div className={cn('flex flex-col min-w-0', !isFullscreen && 'lg:ml-[240px] xl:ml-[256px]')}>
-        {/* 1. Header (Sticky desktop & mobile) */}
-        {!isFullscreen && (
-          <AppHeader
-            nguoiDung={nguoiDung}
-            trangThai={trangThai}
-            onlineCount={onlineCount}
-            latencyMs={latencyMs}
-            coTinNhanMoi={coTinNhanMoi}
-            onDoDoTre={doDoTre}
-            onKetNoiLai={ketNoiLai}
-            onDangXuat={() => void dangXuat()}
-            onToggleChat={() => datMoChat(!isChatOpen)}
-            onLamMoiPhien={lamMoiPhien}
-            onMoAuthModal={moAuthModal}
-          />
-        )}
+      {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất) */}
+      {!isFullscreen && (
+        <AppHeader
+          nguoiDung={nguoiDung}
+          trangThai={trangThai}
+          onlineCount={onlineCount}
+          latencyMs={latencyMs}
+          coTinNhanMoi={coTinNhanMoi}
+          onDoDoTre={doDoTre}
+          onKetNoiLai={ketNoiLai}
+          onDangXuat={() => void dangXuat()}
+          onToggleChat={() => datMoChat(!isChatOpen)}
+          onLamMoiPhien={lamMoiPhien}
+          onMoAuthModal={moAuthModal}
+        />
+      )}
 
-        {/* 2. Main Content Container */}
+      {/* Main Content Layout with Desktop Left Sidebar (Under Header) */}
+      <div className="flex-1 flex min-w-0 relative">
+        {/* Desktop Left Sidebar (Fixed under Topbar) */}
+        {!isFullscreen && <AppSidebar className="hidden lg:flex" />}
+
+        {/* Main Content Column — shifts right by sidebar width on desktop; balances with right margin on game room for exact screen center */}
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-w-0',
+            !isFullscreen && 'lg:ml-[240px] xl:ml-[256px]',
+            !isFullscreen && isGameRoom && 'lg:mr-[240px] xl:mr-[256px]'
+          )}
+        >
+          {/* 2. Main Content Container */}
         <main
           className={cn(
             'w-full flex-1 transition-all',
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
               : isGameRoom
-                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-2 sm:pt-4 pb-[calc(20px+env(safe-area-inset-bottom))] mx-auto flex flex-col justify-center'
+                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-1 sm:pt-2 pb-6 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] overflow-hidden'
                 : isWidePage
                   ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
                   : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
@@ -195,11 +258,43 @@ export function AppShell({ children }: AppShellProps) {
         ) : null}
 
         <Suspense fallback={<KhungChoTrang />}>{children || <Outlet />}</Suspense>
-      </main>
+        </main>
+        </div>
       </div>
 
       {/* 3. Mobile Bottom Navigation */}
       {!isFullscreen && <MobileNav />}
+
+      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng */}
+      {!isFullscreen && (
+        <button
+          type="button"
+          onClick={() => datMoChat(!isChatOpen)}
+          aria-label={isChatOpen ? 'Đóng trò chuyện toàn trường' : 'Trò chuyện toàn trường'}
+          title={isChatOpen ? 'Đóng trò chuyện' : 'Trò chuyện toàn trường'}
+          data-testid="floating-chat-button"
+          className={cn(
+            'fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[80] flex items-center justify-center rounded-full text-white cursor-pointer border border-sky-300/30 transition-all duration-300',
+            isChatOpen
+              ? 'size-12 bg-gradient-to-r from-sky-500 to-blue-600 opacity-100 scale-100 shadow-[0_4px_20px_rgba(56,189,248,0.5)]'
+              : cn(
+                  'size-9.5 sm:size-10 bg-sky-600/75 shadow-md',
+                  coTinNhanMoi ? 'opacity-85' : 'opacity-40',
+                  'hover:opacity-100 hover:size-12 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:scale-105 hover:shadow-[0_4px_20px_rgba(56,189,248,0.45)]',
+                  'focus-visible:opacity-100 focus-visible:size-12 focus-visible:ring-2 focus-visible:ring-sky-400',
+                  'active:scale-95',
+                ),
+          )}
+        >
+          <MessageSquare className={cn('text-white transition-all', isChatOpen ? 'size-5.5' : 'size-4.5 sm:size-5')} />
+          {coTinNhanMoi && !isChatOpen && (
+            <span className="absolute -top-1 -right-1 flex size-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+              <span className="relative inline-flex rounded-full size-3 bg-destructive border-2 border-canvas" />
+            </span>
+          )}
+        </button>
+      )}
 
       {/* 4. Global Campus Chat Drawer (On-demand Sheet) */}
       <CampusChatSheet

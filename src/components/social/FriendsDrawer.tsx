@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNod
 import { useNavigate } from 'react-router'
 import {
   AlertCircle,
-  ArrowRight,
   Ban,
   Check,
   Clock,
@@ -36,6 +35,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { timKiemNguoiDung } from '@/lib/api'
 import type { SearchResultItem } from '@shared/protocol/social'
 import { cn, getInitials } from '@/lib/utils'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
 import {
   UserSearchController,
   type SearchState,
@@ -99,6 +100,7 @@ export function FriendsDrawer({
   const [activeTab, setActiveTab] = useState<TabBanBe>(defaultTab || 'friends')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchController] = useState(() => new UserSearchController())
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' })
   // Kết quả lần tìm gần nhất — vẫn hiện (mờ đi) trong lúc tìm lại, để danh sách không nháy trống theo từng phím.
   const [ketQuaDangHien, setKetQuaDangHien] = useState<SearchResultItem[]>([])
@@ -327,7 +329,10 @@ export function FriendsDrawer({
       )}
 
       <SheetContent side="right" className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md flex flex-col h-full overflow-hidden [&_[data-slot=sheet-close]]:size-11">
-        <SheetHeader className="px-4 pt-4 pb-3 pr-16 shrink-0 border-b border-border-subtle">
+        {/* Họa tiết Blueprint Community Schematic mờ chìm toàn diện */}
+        <BlueprintCommunityPattern className="opacity-40 pointer-events-none" />
+
+        <SheetHeader className="px-4 pt-4 pb-3 pr-16 shrink-0 border-b border-border-subtle relative z-10">
           <SheetTitle className="text-base font-semibold text-text-primary">Bạn bè</SheetTitle>
           <SheetDescription className="text-[0.8125rem] text-text-tertiary tabular-nums">
             {friends.length} bạn
@@ -404,7 +409,22 @@ export function FriendsDrawer({
                         className="flex min-w-0 flex-wrap items-start gap-3 px-3.5 py-3"
                       >
                         <DanhTinhNguoiDung>
-                          <div className="relative mt-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setNguoiXem({
+                                id: friend.id,
+                                ten: friend.displayName,
+                                lopTen: friend.lopTen,
+                                avatar: friend.avatar,
+                                anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                              })
+                            }}
+                            className="relative mt-0.5 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                            title={`Xem thông tin ${friend.displayName}`}
+                            aria-label={`Xem thông tin ${friend.displayName}`}
+                          >
                             <AnhDaiDien ten={friend.displayName} anh={friend.avatar} mo={status === 'offline'} />
                             <span
                               data-testid={`presence-dot-${friend.username}`}
@@ -430,13 +450,26 @@ export function FriendsDrawer({
                                       : 'Ngoại tuyến'
                               }
                             />
-                          </div>
+                          </button>
 
                           <div className="min-w-0 flex-1">
                             <p className="flex flex-wrap items-baseline gap-x-1.5">
-                              <span className="min-w-0 text-sm font-medium break-words text-text-primary">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setNguoiXem({
+                                    id: friend.id,
+                                    ten: friend.displayName,
+                                    lopTen: friend.lopTen,
+                                    avatar: friend.avatar,
+                                    anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                                  })
+                                }}
+                                className="min-w-0 text-left font-medium break-words text-text-primary hover:text-brand hover:underline cursor-pointer"
+                              >
                                 {friend.displayName}
-                              </span>
+                              </button>
                               {friend.lopTen && <span className="text-xs text-text-tertiary">{friend.lopTen}</span>}
                             </p>
 
@@ -576,8 +609,38 @@ export function FriendsDrawer({
                             className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3"
                           >
                             <DanhTinhNguoiDung>
-                              <AnhDaiDien ten={sender.displayName} anh={sender.avatar} />
-                              <NguoiDung ten={sender.displayName} username={sender.username} lop={sender.lopTen} />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setNguoiXem({
+                                    id: sender.id,
+                                    ten: sender.displayName,
+                                    lopTen: sender.lopTen,
+                                    avatar: sender.avatar,
+                                    anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                                  })
+                                }}
+                                className="relative mt-0.5 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                title={`Xem thông tin ${sender.displayName}`}
+                                aria-label={`Xem thông tin ${sender.displayName}`}
+                              >
+                                <AnhDaiDien ten={sender.displayName} anh={sender.avatar} />
+                              </button>
+                              <NguoiDung
+                                ten={sender.displayName}
+                                username={sender.username}
+                                lop={sender.lopTen}
+                                onClick={(rect) => {
+                                  setNguoiXem({
+                                    id: sender.id,
+                                    ten: sender.displayName,
+                                    lopTen: sender.lopTen,
+                                    avatar: sender.avatar,
+                                    anchorRect: rect,
+                                  })
+                                }}
+                              />
                             </DanhTinhNguoiDung>
                             <div className="flex shrink-0 flex-wrap items-center gap-2">
                               <Button
@@ -626,8 +689,38 @@ export function FriendsDrawer({
                             className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3"
                           >
                             <DanhTinhNguoiDung>
-                              <AnhDaiDien ten={receiver.displayName} anh={receiver.avatar} />
-                              <NguoiDung ten={receiver.displayName} username={receiver.username} lop={receiver.lopTen} />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setNguoiXem({
+                                    id: receiver.id,
+                                    ten: receiver.displayName,
+                                    lopTen: receiver.lopTen,
+                                    avatar: receiver.avatar,
+                                    anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                                  })
+                                }}
+                                className="relative mt-0.5 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                title={`Xem thông tin ${receiver.displayName}`}
+                                aria-label={`Xem thông tin ${receiver.displayName}`}
+                              >
+                                <AnhDaiDien ten={receiver.displayName} anh={receiver.avatar} />
+                              </button>
+                              <NguoiDung
+                                ten={receiver.displayName}
+                                username={receiver.username}
+                                lop={receiver.lopTen}
+                                onClick={(rect) => {
+                                  setNguoiXem({
+                                    id: receiver.id,
+                                    ten: receiver.displayName,
+                                    lopTen: receiver.lopTen,
+                                    avatar: receiver.avatar,
+                                    anchorRect: rect,
+                                  })
+                                }}
+                              />
                             </DanhTinhNguoiDung>
                             <Button
                               data-testid={`cancel-request-btn-${receiver.username}`}
@@ -717,8 +810,38 @@ export function FriendsDrawer({
                     className="flex min-w-0 flex-wrap items-center gap-3 px-3.5 py-3"
                   >
                     <DanhTinhNguoiDung>
-                                <AnhDaiDien ten={user.displayName} anh={user.avatar} />
-                      <NguoiDung ten={user.displayName} username={user.username} lop={user.lopTen} />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          setNguoiXem({
+                            id: user.id,
+                            ten: user.displayName,
+                            lopTen: user.lopTen,
+                            avatar: user.avatar,
+                            anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                          })
+                        }}
+                        className="relative mt-0.5 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        title={`Xem thông tin ${user.displayName}`}
+                        aria-label={`Xem thông tin ${user.displayName}`}
+                      >
+                        <AnhDaiDien ten={user.displayName} anh={user.avatar} />
+                      </button>
+                      <NguoiDung
+                        ten={user.displayName}
+                        username={user.username}
+                        lop={user.lopTen}
+                        onClick={(rect) => {
+                          setNguoiXem({
+                            id: user.id,
+                            ten: user.displayName,
+                            lopTen: user.lopTen,
+                            avatar: user.avatar,
+                            anchorRect: rect,
+                          })
+                        }}
+                      />
                     </DanhTinhNguoiDung>
                     <QuanHe
                       user={user}
@@ -759,21 +882,7 @@ export function FriendsDrawer({
             )}
           </TabsContent>
         </Tabs>
-
-        {/* Lối tắt mở trang Cộng đồng đầy đủ */}
-        <div className="shrink-0 border-t border-border-subtle p-3 bg-surface-raised/40">
-          <Button
-            variant="ghost"
-            className="w-full justify-between text-xs text-text-secondary hover:text-text-primary h-9 px-3"
-            onClick={() => {
-              handleOpenChange(false)
-              navigate('/community')
-            }}
-          >
-            <span>Mở không gian Cộng đồng</span>
-            <ArrowRight className="size-3.5" />
-          </Button>
-        </div>
+        <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
       </SheetContent>
     </Sheet>
   )
@@ -850,10 +959,33 @@ function DanhTinhNguoiDung({ children }: { children: ReactNode }) {
   return <div className="flex min-w-0 grow basis-48 items-start gap-3">{children}</div>
 }
 
-function NguoiDung({ ten, username, lop }: { ten: string; username: string; lop: string | null }) {
+function NguoiDung({
+  ten,
+  username,
+  lop,
+  onClick,
+}: {
+  ten: string
+  username: string
+  lop: string | null
+  onClick?: (rect: { top: number; left: number; right: number; bottom: number }) => void
+}) {
   return (
     <div className="min-w-0 flex-1">
-      <p className="text-sm font-medium break-words text-text-primary">{ten}</p>
+      {onClick ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            onClick({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom })
+          }}
+          className="text-left cursor-pointer hover:underline hover:text-brand transition-colors block max-w-full"
+        >
+          <p className="text-sm font-medium break-words text-text-primary">{ten}</p>
+        </button>
+      ) : (
+        <p className="text-sm font-medium break-words text-text-primary">{ten}</p>
+      )}
       <p className="text-xs break-words text-text-tertiary">
         @{username}
         {lop ? ` · ${lop}` : ''}

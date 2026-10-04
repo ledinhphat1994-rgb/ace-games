@@ -72,12 +72,6 @@ export const ALLOWED_DOCUMENT_RULES: Record<
     ],
     fileType: 'pptx',
   },
-  doc: {
-    maxBytes: 30 * 1024 * 1024,
-    folder: 'slides',
-    allowedMimes: ['application/msword', 'application/octet-stream'],
-    fileType: 'pptx',
-  },
   xlsx: {
     maxBytes: 30 * 1024 * 1024,
     folder: 'slides',
@@ -337,12 +331,21 @@ export async function validateDocumentUpload(
     }
   }
 
+  // Explicit rejection of legacy binary DOC with informative guidance
+  if (rawExt === 'doc') {
+    return {
+      ok: false,
+      errorCode: UPLOAD_ERROR_CODES.UNSUPPORTED_TYPE,
+      error: 'Định dạng .doc cũ (Word 97-2003) không được hỗ trợ để đảm bảo đồng bộ chuẩn xác. Vui lòng lưu tệp thành .docx hoặc xuất sang .pdf để trình chiếu.',
+    }
+  }
+
   const rule = ALLOWED_DOCUMENT_RULES[rawExt]
   if (!rule) {
     return {
       ok: false,
       errorCode: UPLOAD_ERROR_CODES.UNSUPPORTED_TYPE,
-      error: `Định dạng tệp ".${rawExt}" không được hỗ trợ. Hệ thống hỗ trợ .pdf, .pptx, Word (.docx/.doc), Excel (.xlsx/.xls) và ảnh.`,
+      error: `Định dạng tệp ".${rawExt}" không được hỗ trợ. Hệ thống hỗ trợ .pdf, .pptx, Word (.docx), Excel (.xlsx/.xls) và ảnh.`,
     }
   }
 

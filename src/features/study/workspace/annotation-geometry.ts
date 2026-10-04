@@ -5,7 +5,7 @@ import type { SlideAnnotationStroke } from '@shared/protocol/room'
 import { netDuocCham } from './cong-cu'
 
 /** shape: hình (kiểu hình chọn riêng — chữ nhật, tròn, tam giác, đường thẳng, mũi tên). */
-export type AnnotationTool = 'pointer' | 'pen' | 'highlighter' | 'eraser' | 'laser' | 'text' | 'shape'
+export type AnnotationTool = 'pointer' | 'move' | 'pen' | 'highlighter' | 'eraser' | 'laser' | 'text' | 'shape'
 
 /**
  * Downsamples / compacts stroke points to <= maxPoints (default 300)

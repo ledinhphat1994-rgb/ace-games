@@ -52,7 +52,7 @@ export function batDauVan(meta: GameMetaState, now: number): { meta: GameMetaSta
     winLine: null,
     endReason: null,
     rematchBy: null,
-    turnTimerEndsAt: now + meta.turnTimerSeconds * 1000,
+    turnTimerEndsAt: meta.turnTimerSeconds > 0 ? now + meta.turnTimerSeconds * 1000 : 0,
   }
   return { meta: moi, board }
 }

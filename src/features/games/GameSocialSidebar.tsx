@@ -260,6 +260,8 @@ export function GameSocialSidebar({
   )
 
   const roomMessagesContainerRef = useRef<HTMLDivElement>(null)
+  const roomInputRef = useRef<HTMLInputElement>(null)
+  const campusInputRef = useRef<HTMLInputElement>(null)
 
   // Cuộn an toàn nội bộ container (tuân thủ nguyên tắc Zero CLS & Anti-Jitter, cấm window scroll)
   useEffect(() => {
@@ -348,8 +350,11 @@ export function GameSocialSidebar({
   }, [roomOnly, setActiveTab])
 
   const insertRoomEmoji = (emoji: string) => {
-    setRoomText((prev) => prev + emoji)
+    setRoomText((prev) => (prev + emoji).slice(0, DO_DAI_TIN_BAN_TOI_DA))
     setIsRoomEmojiOpen(false)
+    setTimeout(() => {
+      roomInputRef.current?.focus({ preventScroll: true })
+    }, 0)
   }
 
   const getFriendPresence = (friendId: number) => {
@@ -557,6 +562,7 @@ export function GameSocialSidebar({
             </Popover>
 
             <Input
+              ref={roomInputRef}
               value={roomText}
               onChange={(e) => setRoomText(e.target.value)}
               maxLength={DO_DAI_TIN_BAN_TOI_DA}
@@ -636,6 +642,9 @@ export function GameSocialSidebar({
                       onClick={() => {
                         setCampusText((prev) => prev + emoji)
                         setIsCampusEmojiOpen(false)
+                        setTimeout(() => {
+                          campusInputRef.current?.focus({ preventScroll: true })
+                        }, 0)
                       }}
                       className="flex items-center justify-center p-1.5 text-base rounded hover:bg-surface-overlay active:scale-125 transition-transform cursor-pointer"
                     >
@@ -647,6 +656,7 @@ export function GameSocialSidebar({
             </Popover>
 
             <Input
+              ref={campusInputRef}
               value={campusText}
               onChange={(e) => setCampusText(e.target.value)}
               placeholder="Nhắn tới cả trường…"
@@ -982,7 +992,7 @@ function HopChatRieng11({
     layTinNhanRieng(friend.id)
       .then((res) => {
         if (!unmounted) {
-          setMessages(res)
+          setMessages(res.messages)
           setLoading(false)
           cuonXuongCuoi()
         }

@@ -1,20 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useLocation } from 'react-router'
 import {
-  ArrowLeft,
-  ArrowRight,
-  MessageSquare,
+  Gamepad2,
+  GraduationCap,
   School,
   Search,
   Users,
+  X,
 } from 'lucide-react'
-import { useNavigate } from 'react-router'
 
 import { useCampusContext } from '@/app/CampusContext'
+import { usePhien } from '@/app/phien'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
-import { Button } from '@/components/ui/button'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -24,11 +27,87 @@ import { CampusChatDrawer } from '@/features/hub/CampusChatDrawer'
 import { formatLastSeen } from '@/features/hub/social-semantics'
 import type { KetQuaThaoTac } from '@/hooks/use-campus'
 import { cn } from '@/lib/utils'
-import type { TinCampus } from '@shared/protocol/campus'
-import type { FriendItem } from '@shared/protocol/social'
+import type { PhongSanh, TinCampus } from '@shared/protocol/campus'
+import type { FriendItem, FriendPresence } from '@shared/protocol/social'
 import { DirectMessageThread, type DmTargetUser } from '@/components/chat/DirectMessageThread'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
+import { useGameRoomChatBridge } from '@/lib/game-room-chat-bridge'
 
 export type { DmTargetUser }
+
+function layViTriBanBe(presence: FriendPresence | undefined, rooms: PhongSanh[] = []): { text: string; isOnline: boolean; isAway: boolean } {
+  if (!presence) return { text: 'Ngoại tuyến', isOnline: false, isAway: false }
+  if (presence.state === 'offline') {
+    return { text: formatLastSeen(presence.lastSeen ?? null), isOnline: false, isAway: false }
+  }
+  if (presence.state === 'away') {
+    return { text: 'Tạm vắng', isOnline: false, isAway: true }
+  }
+
+  const act = presence.activity
+  if (act) {
+    if (act.type === 'room') {
+      const isGame = act.area === 'game'
+      const muc = isGame ? 'Game' : 'Học tập'
+      const rId = act.roomId || rooms?.find((r) => r.ten === act.roomTitle)?.id
+      const ten = act.roomTitle || rooms?.find((r) => r.id === rId)?.ten || ''
+      if (rId && ten) {
+        const tenDaCoSo = ten.toLowerCase().includes(`phòng #${rId}`) || ten.toLowerCase().includes(`phòng ${rId}`)
+        return { text: tenDaCoSo ? `${muc} • ${ten}` : `${muc} • Phòng #${rId} • ${ten}`, isOnline: true, isAway: false }
+      }
+      if (rId) return { text: `${muc} • Phòng #${rId}`, isOnline: true, isAway: false }
+      if (ten) return { text: `${muc} • ${ten}`, isOnline: true, isAway: false }
+      return { text: muc, isOnline: true, isAway: false }
+    }
+    if (act.type === 'game' || act.area === 'game') return { text: 'Game', isOnline: true, isAway: false }
+    if (act.type === 'learn' || act.area === 'learn') return { text: 'Học tập', isOnline: true, isAway: false }
+    if (act.type === 'community' || act.area === 'community') return { text: 'Cộng đồng', isOnline: true, isAway: false }
+    if (act.type === 'home' || act.area === 'home') return { text: 'Trang chủ', isOnline: true, isAway: false }
+    if (act.type === 'lobby') return { text: 'Sảnh Campus', isOnline: true, isAway: false }
+  }
+  return { text: 'Trang chủ', isOnline: true, isAway: false }
+}
+
+const STORAGE_KEY = 'c10a7_chat_sheet_dimensions'
+
+interface SheetDimensions {
+  width: number
+  height: number
+}
+
+function layTieuDePhongGame(rawId: string): string {
+  const lower = rawId.toLowerCase()
+  if (lower.startsWith('xiangqi')) return 'Chat Cờ Tướng'
+  if (lower.startsWith('chess')) return 'Chat Cờ Vua'
+  if (lower.startsWith('caro')) return 'Chat Cờ Caro'
+  if (lower.startsWith('snake')) return 'Chat Rắn Săn Mồi'
+  if (lower.startsWith('memory')) return 'Chat Trí Nhớ'
+  return 'Chat phòng game'
+}
+
+function getInitialDimensions(): SheetDimensions {
+  if (typeof window === 'undefined') return { width: 440, height: 580 }
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (typeof parsed.width === 'number' && typeof parsed.height === 'number') {
+        const maxWidth = Math.max(360, window.innerWidth - 32)
+        const maxHeight = Math.max(400, window.innerHeight - 100)
+        return {
+          width: Math.min(Math.max(360, parsed.width), maxWidth),
+          height: Math.min(Math.max(400, parsed.height), maxHeight),
+        }
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return {
+    width: Math.min(460, Math.max(360, window.innerWidth - 32)),
+    height: Math.min(580, Math.max(400, window.innerHeight - 100)),
+  }
+}
 
 interface CampusChatSheetProps {
   open: boolean
@@ -40,11 +119,13 @@ interface CampusChatSheetProps {
   activeDmTarget?: DmTargetUser | null
   onSelectDmTarget?: (target: DmTargetUser | null) => void
   coTinNhanMoiCampus?: boolean
+  roomChatMessages?: import('@shared/protocol/room').RoomChatMessage[]
+  onSendRoomChat?: (text: string) => Promise<boolean> | void
+  roomTitle?: string
+  roomMembers?: Array<{ accountId?: number; avatar?: string | null; ten?: string }>
 }
 
-type ActiveConversation =
-  | { type: 'campus' }
-  | { type: 'dm'; target: DmTargetUser }
+export type ChatTab = 'ban_be' | 'toan_truong' | 'phong'
 
 export function CampusChatSheet({
   open,
@@ -56,21 +137,249 @@ export function CampusChatSheet({
   activeDmTarget,
   onSelectDmTarget,
   coTinNhanMoiCampus = false,
+  roomChatMessages,
+  onSendRoomChat,
+  roomTitle,
+  roomMembers,
 }: CampusChatSheetProps) {
-  const navigate = useNavigate()
-  const { socialState, friendsPresence, presenceReady } = useCampusContext()
+  const { nguoiDung } = usePhien()
+  const { socialState, friendsPresence, presenceReady, rooms } = useCampusContext()
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
 
-  const [activeConversation, setActiveConversation] = useState<ActiveConversation>({ type: 'campus' })
-  const [mobileView, setMobileView] = useState<'list' | 'thread'>('thread')
-  const [searchQuery, setSearchQuery] = useState('')
+  const gameBridge = useGameRoomChatBridge()
+  const effectiveRoomMessages = roomChatMessages ?? gameBridge?.messages ?? null
+  const effectiveOnSendRoomChat = onSendRoomChat ?? gameBridge?.onSend ?? null
+  const effectiveRoomMembers = roomMembers ?? gameBridge?.roomMembers ?? null
 
-  const [prevTargetId, setPrevTargetId] = useState<number | null>(activeDmTarget?.id ?? null)
-  if (activeDmTarget && activeDmTarget.id !== prevTargetId) {
-    setPrevTargetId(activeDmTarget.id)
-    setActiveConversation({ type: 'dm', target: activeDmTarget })
-    setMobileView('thread')
+  const onlineFriendsCount = useMemo(() => {
+    if (!presenceReady) return 0
+    return friends.filter((f) => {
+      const p = friendsPresence[f.id]
+      return p?.state === 'online' || p?.state === 'away'
+    }).length
+  }, [friends, friendsPresence, presenceReady])
+
+  const avatarMap = useMemo(() => {
+    const map = new Map<number, string>()
+    if (nguoiDung?.accountId && nguoiDung?.avatar) {
+      map.set(nguoiDung.accountId, nguoiDung.avatar)
+    }
+    for (const f of friends) {
+      if (f.id && f.avatar) {
+        map.set(f.id, f.avatar)
+      }
+    }
+    for (const m of effectiveRoomMembers ?? []) {
+      if (m.accountId && m.avatar) {
+        map.set(m.accountId, m.avatar)
+      }
+    }
+    return map
+  }, [nguoiDung?.accountId, nguoiDung?.avatar, friends, effectiveRoomMembers])
+
+  const avatarByNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    if (nguoiDung?.ten && nguoiDung?.avatar) {
+      map.set(nguoiDung.ten, nguoiDung.avatar)
+    }
+    for (const f of friends) {
+      if (f.displayName && f.avatar) {
+        map.set(f.displayName, f.avatar)
+      }
+    }
+    for (const m of effectiveRoomMembers ?? []) {
+      if (m.ten && m.avatar) {
+        map.set(m.ten, m.avatar)
+      }
+    }
+    return map
+  }, [nguoiDung?.ten, nguoiDung?.avatar, friends, effectiveRoomMembers])
+
+  const location = useLocation()
+  const gameRoomId = location.pathname.match(/^\/game\/([^/?#]+)/)?.[1] ?? null
+  const studyRoomId = location.pathname.match(/^\/room\/([^/?#]+)/)?.[1]?.replace(/^phong-/, '') ?? null
+
+  const inRoomInfo = useMemo(() => {
+    if (gameRoomId) {
+      return {
+        type: 'game' as const,
+        id: gameRoomId,
+        title: layTieuDePhongGame(gameRoomId),
+        subtitle: `Bàn đấu #${gameRoomId.slice(0, 8)}`,
+      }
+    }
+    if (studyRoomId) {
+      return {
+        type: 'study' as const,
+        id: studyRoomId,
+        title: roomTitle || 'Chat phòng học',
+        subtitle: `Phòng học #${studyRoomId.slice(0, 8)}`,
+      }
+    }
+    return null
+  }, [gameRoomId, studyRoomId, roomTitle])
+
+  // VÙNG X: TABS (Bạn bè | Toàn trường | Phòng)
+  const [activeTab, setActiveTab] = useState<ChatTab>(() => {
+    if (activeDmTarget) return 'ban_be'
+    if (gameRoomId || studyRoomId) return 'phong'
+    return 'toan_truong'
+  })
+
+  // Tự động chuyển tab Phòng duy nhất 1 lần khi bước vào phòng (không ép người dùng khi họ đổi tab khác)
+  const lastAutoSwitchedRoomIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const currentRoomId = inRoomInfo?.id ?? null
+    if (currentRoomId && lastAutoSwitchedRoomIdRef.current !== currentRoomId && !activeDmTarget) {
+      lastAutoSwitchedRoomIdRef.current = currentRoomId
+      setActiveTab('phong')
+    } else if (!currentRoomId) {
+      lastAutoSwitchedRoomIdRef.current = null
+    }
+  }, [inRoomInfo?.id, activeDmTarget])
+
+  // Quản lý người bạn đang nhắn tin riêng (null = xem danh sách bạn bè)
+  const [internalDmTarget, setInternalDmTarget] = useState<DmTargetUser | null>(null)
+  const currentDmTarget = activeDmTarget !== undefined ? activeDmTarget : internalDmTarget
+
+  useEffect(() => {
+    if (activeDmTarget) {
+      setActiveTab('ban_be')
+    }
+  }, [activeDmTarget])
+
+  // VÙNG 2: THANH SEARCH TÌM KIẾM THEO TAB ACTIVE
+  const [searchQuery, setSearchQuery] = useState('')
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
+
+  // Khả năng co giãn khung chat trên Desktop (các cạnh và góc)
+  const [dimensions, setDimensions] = useState<SheetDimensions>(getInitialDimensions)
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 640)
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      setIsDesktop(window.innerWidth >= 640)
+      setDimensions((prev) => {
+        const maxWidth = Math.max(360, window.innerWidth - 32)
+        const maxHeight = Math.max(400, window.innerHeight - 100)
+        return {
+          width: Math.min(Math.max(360, prev.width), maxWidth),
+          height: Math.min(Math.max(400, prev.height), maxHeight),
+        }
+      })
+    }
+    window.addEventListener('resize', handleWindowResize)
+    return () => window.removeEventListener('resize', handleWindowResize)
+  }, [])
+
+  const handleResizeStart = (e: React.PointerEvent, direction: 'w' | 'n' | 'nw') => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const startX = e.clientX
+    const startY = e.clientY
+    const startWidth = dimensions.width
+    const startHeight = dimensions.height
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const deltaX = startX - moveEvent.clientX
+      const deltaY = startY - moveEvent.clientY
+
+      const maxWidth = Math.max(360, window.innerWidth - 32)
+      const maxHeight = Math.max(400, window.innerHeight - 100)
+
+      let nextWidth = startWidth
+      let nextHeight = startHeight
+
+      if (direction === 'w' || direction === 'nw') {
+        nextWidth = Math.min(Math.max(360, startWidth + deltaX), maxWidth)
+      }
+      if (direction === 'n' || direction === 'nw') {
+        nextHeight = Math.min(Math.max(400, startHeight + deltaY), maxHeight)
+      }
+
+      setDimensions({ width: nextWidth, height: nextHeight })
+    }
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      setDimensions((curr) => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(curr))
+        } catch {
+          // ignore
+        }
+        return curr
+      })
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
   }
+
+  // Theo dõi các bạn bè đã đọc tin nhắn
+  const [daDocFriendIds, setDaDocFriendIds] = useState<Set<number>>(() => new Set())
+
+  // Quản lý số tin nhắn chưa đọc cho từng bạn bè
+  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>(() => {
+    const init: Record<number, number> = {}
+    for (const f of socialState?.friends ?? []) {
+      if (typeof f.unreadCount === 'number') {
+        init[f.id] = f.unreadCount
+      }
+    }
+    return init
+  })
+
+  // Cập nhật khi socialState.friends thay đổi
+  useEffect(() => {
+    if (!socialState?.friends) return
+    setUnreadCounts((prev) => {
+      const next = { ...prev }
+      for (const f of socialState.friends) {
+        const serverCount = typeof f.unreadCount === 'number' ? f.unreadCount : 0
+        const isCurrentActive = currentDmTarget?.id === f.id && open
+        const isAlreadyRead = daDocFriendIds.has(f.id)
+        if (isCurrentActive || isAlreadyRead) {
+          next[f.id] = 0
+        } else {
+          next[f.id] = Math.max(prev[f.id] ?? 0, serverCount)
+        }
+      }
+      return next
+    })
+  }, [socialState?.friends, currentDmTarget, open, daDocFriendIds])
+
+  // Lắng nghe tin nhắn riêng realtime tới
+  useEffect(() => {
+    const handleDm = (e: Event) => {
+      const ce = e as CustomEvent<{ senderId?: number; nguoiGuiId?: number }>
+      const senderId = ce.detail?.senderId ?? ce.detail?.nguoiGuiId
+      if (!senderId) return
+      if (currentDmTarget?.id === senderId && open) {
+        return
+      }
+      setDaDocFriendIds((prev) => {
+        if (!prev.has(senderId)) return prev
+        const next = new Set(prev)
+        next.delete(senderId)
+        return next
+      })
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [senderId]: (prev[senderId] ?? 0) + 1,
+      }))
+    }
+
+    window.addEventListener('campus:direct_message', handleDm)
+    return () => window.removeEventListener('campus:direct_message', handleDm)
+  }, [currentDmTarget, open])
+
+  const hasUnreadFriends = useMemo(() => {
+    return Object.values(unreadCounts).some((count) => count > 0)
+  }, [unreadCounts])
 
   // Lọc danh sách bạn bè theo từ khóa tìm kiếm
   const friendsFiltered = useMemo(() => {
@@ -84,12 +393,7 @@ export function CampusChatSheet({
     )
   }, [friends, searchQuery])
 
-  const handleSelectCampus = () => {
-    setActiveConversation({ type: 'campus' })
-    onSelectDmTarget?.(null)
-    setMobileView('thread')
-  }
-
+  // Chọn bạn bè để mở cuộc trò chuyện
   const handleSelectFriend = (friend: FriendItem) => {
     const target: DmTargetUser = {
       id: friend.id,
@@ -97,263 +401,486 @@ export function CampusChatSheet({
       avatar: friend.avatar,
       lopTen: friend.lopTen,
     }
-    setActiveConversation({ type: 'dm', target })
+    setDaDocFriendIds((prev) => {
+      const next = new Set(prev)
+      next.add(friend.id)
+      return next
+    })
+    setUnreadCounts((prev) => ({ ...prev, [friend.id]: 0 }))
+    setInternalDmTarget(target)
     onSelectDmTarget?.(target)
-    setMobileView('thread')
   }
 
+  // Nút Back quay lại danh sách bạn bè
+  const handleBackFromDm = useCallback(() => {
+    setInternalDmTarget(null)
+    onSelectDmTarget?.(null)
+  }, [onSelectDmTarget])
+
+  // Mapped room messages (lọc bỏ các gói tin hệ thống nội bộ để không rác khung chat)
+  const mappedRoomMessages = useMemo<TinCampus[]>(() => {
+    if (!effectiveRoomMessages) return []
+    return effectiveRoomMessages
+      .filter((m) => !m.text.startsWith('[SYS_'))
+      .map((m, idx) => {
+        let numId = parseInt(m.id, 10)
+        if (isNaN(numId) || numId <= 0) {
+          numId = Math.abs(m.id.split('').reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0)) || (idx + 1)
+        }
+        return {
+          id: numId,
+          accountId: m.accountId,
+          ten: m.ten,
+          vaiTro: 'hoc_sinh' as const,
+          lopTen: null,
+          noiDung: m.text,
+          taoLuc: m.taoLuc,
+          avatar: m.avatar || avatarMap.get(m.accountId) || avatarByNameMap.get(m.ten) || undefined,
+        }
+      })
+  }, [effectiveRoomMessages, avatarMap, avatarByNameMap])
+
+  // Lọc tin nhắn toàn trường theo từ khóa tìm kiếm
+  const campusMessagesFiltered = useMemo(() => {
+    const list = messages.filter((m) => !m.noiDung.trim().startsWith('[SYS_'))
+    if (!searchQuery.trim()) return list
+    const q = searchQuery.trim().toLowerCase()
+    return list.filter(
+      (m) =>
+        m.noiDung.toLowerCase().includes(q) ||
+        m.ten.toLowerCase().includes(q),
+    )
+  }, [messages, searchQuery])
+
+  // Lọc tin nhắn phòng theo từ khóa tìm kiếm
+  const roomMessagesFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return mappedRoomMessages
+    const q = searchQuery.trim().toLowerCase()
+    return mappedRoomMessages.filter(
+      (m) =>
+        m.noiDung.toLowerCase().includes(q) ||
+        m.ten.toLowerCase().includes(q),
+    )
+  }, [mappedRoomMessages, searchQuery])
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false} disablePointerDismissal={true}>
       <SheetContent
         side="right"
-        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-2xl data-[side=right]:md:max-w-3xl data-[side=right]:lg:max-w-4xl h-full flex flex-col overflow-hidden [&_[data-slot=sheet-close]]:size-10"
+        floating
+        hideOverlay
+        showCloseButton={false}
+        style={
+          isDesktop
+            ? {
+                width: `${dimensions.width}px`,
+                height: `${dimensions.height}px`,
+              }
+            : undefined
+        }
+        className={cn(
+          'gap-0 p-0 z-[70] shadow-2xl overflow-hidden flex flex-col',
+          'top-3 right-3 left-3 bottom-[136px] max-h-[calc(100vh-148px)] rounded-2xl border border-border-default',
+          'sm:top-auto sm:right-4 sm:bottom-[84px] sm:left-auto',
+          'sm:rounded-2xl sm:border sm:border-border-default',
+          'sm:w-[480px] md:w-[500px] lg:w-[520px]',
+          'sm:min-w-[360px] sm:max-w-[calc(100vw-24px)] sm:min-h-[400px] sm:max-h-[calc(100vh-96px)]',
+          'sm:shadow-[-8px_12px_32px_rgba(0,0,0,0.45)]',
+          '[&_[data-slot=sheet-close]]:size-9',
+        )}
       >
         <SheetHeader className="sr-only">
-          <SheetTitle>Trung tâm trò chuyện và tin nhắn</SheetTitle>
-          <SheetDescription>Trò chuyện toàn trường và tin nhắn riêng trực tiếp với bạn bè</SheetDescription>
+          <SheetTitle>Trò chuyện Campus</SheetTitle>
+          <SheetDescription>Bảng trò chuyện bạn bè, toàn trường và phòng học</SheetDescription>
         </SheetHeader>
 
-        <div className="flex h-full w-full min-h-0 overflow-hidden">
+        {/* Họa tiết Blueprint Community Schematic mờ chìm toàn diện */}
+        <BlueprintCommunityPattern className="opacity-35 pointer-events-none" />
+
+        {/* Các tay cầm co giãn trên Desktop */}
+        {isDesktop && (
+          <>
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'w')}
+              className="hidden sm:block absolute top-0 left-0 bottom-0 w-2.5 cursor-ew-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
+              title="Kéo cạnh trái để thay đổi độ rộng"
+              aria-label="Kéo cạnh trái để thay đổi độ rộng"
+            >
+              <div className="absolute top-1/2 left-0.5 -translate-y-1/2 w-1 h-8 rounded-full bg-border-strong opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'n')}
+              className="hidden sm:block absolute top-0 left-0 right-0 h-2.5 cursor-ns-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
+              title="Kéo cạnh trên để thay đổi chiều cao"
+              aria-label="Kéo cạnh trên để thay đổi chiều cao"
+            >
+              <div className="absolute top-0.5 left-1/2 -translate-x-1/2 h-1 w-8 rounded-full bg-border-strong opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'nw')}
+              className="hidden sm:block absolute top-0 left-0 size-4 cursor-nwse-resize z-50 hover:bg-brand/30 active:bg-brand/50 transition-colors select-none"
+              title="Kéo góc để co giãn cả 2 chiều"
+              aria-label="Kéo góc để co giãn cả 2 chiều"
+            >
+              <span className="sr-only">Co giãn khung chat</span>
+            </div>
+          </>
+        )}
+
+        <div className="flex flex-col h-full w-full min-h-0 bg-surface">
           {/* ════════════════════════════════════════════════════════════════════════════════
-              CỘT TRÁI: DANH SÁCH HỘI THOẠI (Hiện trên Desktop, chuyển đổi trên Mobile)
+              VÙNG X: CÁC TAB (Bạn bè, Toàn trường, Phòng) & NÚT ĐÓNG TÁCH BIỆT
               ════════════════════════════════════════════════════════════════════════════════ */}
-          <aside
-            aria-label="Danh sách hội thoại"
-            className={cn(
-              'flex flex-col border-r border-border-subtle bg-surface shrink-0 w-full sm:w-72 lg:w-80 h-full min-h-0',
-              mobileView === 'thread' ? 'hidden sm:flex' : 'flex',
-            )}
-          >
-            {/* Header danh sách hội thoại */}
-            <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3.5 pr-14 sm:pr-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="size-4.5 text-brand" />
-                <h2 className="text-sm font-semibold text-text-primary">Tin nhắn & Trò chuyện</h2>
-              </div>
-            </div>
-
-            {/* Ô tìm kiếm hội thoại / bạn bè */}
-            <div className="p-3 border-b border-border-subtle">
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm bạn bè…"
-                  aria-label="Tìm bạn bè trong danh sách trò chuyện"
-                  className="h-9 pl-9 pr-3 text-xs bg-surface-raised border-border-subtle"
-                />
-              </div>
-            </div>
-
-            {/* Danh sách hội thoại cuộn nội bộ */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1 min-h-0">
-              {/* 1. Trò chuyện toàn trường (Kênh cố định trên cùng) */}
+          <div className="shrink-0 p-2 border-b border-border-subtle bg-surface flex items-center gap-2">
+            <div className="flex-1 grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-surface-raised border border-border-subtle/60">
+              {/* Tab 1: Bạn bè */}
               <button
                 type="button"
-                onClick={handleSelectCampus}
+                onClick={() => {
+                  setActiveTab('ban_be')
+                  setSearchQuery('')
+                }}
                 className={cn(
-                  'w-full flex items-center gap-3 rounded-xl p-2.5 text-left transition-colors cursor-pointer group',
-                  activeConversation.type === 'campus'
-                    ? 'bg-brand/12 text-brand font-medium'
-                    : 'text-text-primary hover:bg-surface-raised',
+                  'h-8.5 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
+                  activeTab === 'ban_be'
+                    ? 'border-brand/40 bg-brand/12 text-brand'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
                 )}
+                title="Bạn bè"
+                aria-label="Tab Bạn bè"
               >
-                <div className="relative shrink-0 flex size-10 items-center justify-center rounded-full bg-brand/15 text-brand">
-                  <School className="size-5" />
-                  {coTinNhanMoiCampus && (
-                    <span className="absolute -top-0.5 -right-0.5 flex size-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                      <span className="relative inline-flex rounded-full size-2.5 bg-destructive" />
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-sm font-semibold truncate">Toàn trường</span>
-                    {coTinNhanMoiCampus && (
-                      <span className="text-[10px] font-semibold text-destructive uppercase tracking-wider shrink-0">
-                        Mới
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-text-tertiary truncate">Sảnh trò chuyện chung</p>
-                </div>
+                <Users className="size-3.5 shrink-0" />
+                <span>Bạn bè</span>
+                {onlineFriendsCount > 0 && (
+                  <span className="px-1 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 tabular-nums">
+                    {onlineFriendsCount}
+                  </span>
+                )}
+                {hasUnreadFriends && (
+                  <span className="size-2 rounded-full bg-destructive animate-pulse" />
+                )}
               </button>
 
-              {/* Phân cách danh sách bạn bè */}
-              <div className="pt-3 pb-1 px-2.5 flex items-center justify-between text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">
-                <span>Bạn bè</span>
-                <span className="tabular-nums font-normal">{friends.length}</span>
-              </div>
-
-              {/* Danh sách bạn bè */}
-              {friendsFiltered.length === 0 ? (
-                <div className="py-8 px-4 text-center">
-                  <Users className="size-8 mx-auto text-text-tertiary opacity-40 mb-2" />
-                  <p className="text-xs text-text-secondary">
-                    {searchQuery ? 'Không tìm thấy bạn nào khớp.' : 'Chưa có bạn bè nào.'}
-                  </p>
-                  {!searchQuery && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 text-xs gap-1.5 h-8"
-                      onClick={() => {
-                        onOpenChange(false)
-                        navigate('/community')
-                      }}
-                    >
-                      <span>Tìm bạn tại Cộng đồng</span>
-                      <ArrowRight className="size-3" />
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                friendsFiltered.map((friend) => {
-                  const presence = presenceReady ? friendsPresence[friend.id] : undefined
-                  const status = presenceReady ? (presence?.state ?? 'offline') : 'unknown'
-                  const isOnline = status === 'online'
-                  const isAway = status === 'away'
-                  const activity = presenceReady ? presence?.activity : undefined
-                  const isSelected =
-                    activeConversation.type === 'dm' && activeConversation.target.id === friend.id
-
-                  return (
-                    <button
-                      key={friend.id}
-                      type="button"
-                      onClick={() => handleSelectFriend(friend)}
-                      className={cn(
-                        'w-full flex items-center gap-3 rounded-xl p-2.5 text-left transition-colors cursor-pointer group',
-                        isSelected
-                          ? 'bg-brand/12 text-brand font-medium'
-                          : 'text-text-primary hover:bg-surface-raised',
-                      )}
-                    >
-                      <div className="relative shrink-0">
-                        <AnhNguoiDung ten={friend.displayName} avatar={friend.avatar} className="size-10 text-sm" />
-                        <span
-                          className={cn(
-                            'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface',
-                            !presenceReady
-                              ? 'bg-slate-500'
-                              : isOnline
-                                ? 'bg-emerald-500'
-                                : isAway
-                                  ? 'bg-amber-400'
-                                  : 'bg-slate-500',
-                          )}
-                          title={
-                            !presenceReady
-                              ? 'Đang kết nối lại'
-                              : isOnline
-                                ? 'Trực tuyến'
-                                : isAway
-                                  ? 'Tạm vắng'
-                                  : 'Ngoại tuyến'
-                          }
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-sm font-semibold truncate">{friend.displayName}</span>
-                          {friend.lopTen && (
-                            <span className="text-[10px] text-text-tertiary rounded bg-surface-overlay px-1 py-0.2 shrink-0">
-                              {friend.lopTen}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-text-tertiary truncate">
-                          {!presenceReady
-                            ? 'Đang đồng bộ…'
-                            : activity
-                              ? activity.roomTitle
-                                ? `Trong phòng: ${activity.roomTitle}`
-                                : 'Đang học nhóm'
-                              : isOnline
-                                ? 'Trực tuyến'
-                                : isAway
-                                  ? 'Tạm vắng'
-                                  : formatLastSeen(presence?.lastSeen ?? null)}
-                        </p>
-                      </div>
-                    </button>
-                  )
-                })
-              )}
-            </div>
-
-            {/* Footer cột trái: Lối tắt tới /community */}
-            <div className="p-3 border-t border-border-subtle bg-surface-raised/40">
-              <Button
-                variant="ghost"
-                className="w-full justify-between text-xs text-text-secondary hover:text-text-primary h-8.5 px-2.5"
+              {/* Tab 2: Toàn trường */}
+              <button
+                type="button"
                 onClick={() => {
-                  onOpenChange(false)
-                  navigate('/community')
+                  setActiveTab('toan_truong')
+                  setSearchQuery('')
                 }}
+                className={cn(
+                  'h-8.5 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
+                  activeTab === 'toan_truong'
+                    ? 'border-brand/40 bg-brand/12 text-brand'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
+                )}
+                title="Toàn trường"
+                aria-label="Tab Toàn trường"
               >
-                <span>Mở không gian Cộng đồng</span>
-                <ArrowRight className="size-3.5" />
-              </Button>
+                <School className="size-3.5 shrink-0" />
+                <span>Toàn trường</span>
+                {coTinNhanMoiCampus && (
+                  <span className="size-2 rounded-full bg-destructive animate-pulse" />
+                )}
+              </button>
+
+              {/* Tab 3: Phòng */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('phong')
+                  setSearchQuery('')
+                }}
+                className={cn(
+                  'h-8.5 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
+                  activeTab === 'phong'
+                    ? 'border-brand/40 bg-brand/12 text-brand'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
+                )}
+                title={inRoomInfo ? inRoomInfo.title : 'Phòng'}
+                aria-label="Tab Phòng"
+              >
+                {inRoomInfo?.type === 'game' ? (
+                  <Gamepad2 className="size-3.5 shrink-0" />
+                ) : (
+                  <GraduationCap className="size-3.5 shrink-0" />
+                )}
+                <span>Phòng</span>
+                {inRoomInfo && (
+                  <span className="size-2 rounded-full bg-emerald-400" />
+                )}
+              </button>
             </div>
-          </aside>
+
+            {/* Nút đóng SheetClose độc lập bên phải - không đè lên tab Phòng */}
+            <SheetClose
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 shrink-0 text-text-secondary hover:text-text-primary hover:bg-surface-overlay rounded-xl border border-border-subtle/60 cursor-pointer"
+                  title="Đóng chat"
+                  aria-label="Đóng chat"
+                />
+              }
+            >
+              <X className="size-4" />
+              <span className="sr-only">Đóng</span>
+            </SheetClose>
+          </div>
 
           {/* ════════════════════════════════════════════════════════════════════════════════
-              CỘT PHẢI: KHUNG TRÒ CHUYỆN HOẠT ĐỘNG (Toàn trường hoặc Tin nhắn riêng 1-1)
+              VÙNG 2: THANH SEARCH TÌM KIẾM MỌI THỨ Ở TAB ACTIVE
               ════════════════════════════════════════════════════════════════════════════════ */}
-          <main
-            aria-label="Khung trò chuyện hoạt động"
-            className={cn(
-              'flex flex-col flex-1 min-w-0 bg-canvas h-full min-h-0',
-              mobileView === 'list' ? 'hidden sm:flex' : 'flex',
-            )}
-          >
-            {activeConversation.type === 'campus' ? (
-              <div className="flex flex-col h-full min-h-0">
-                {/* Header trò chuyện toàn trường */}
-                <div className="flex shrink-0 items-center justify-between border-b border-border-subtle bg-surface px-4 py-3 pr-14 sm:pr-4">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="icon-lg"
-                      onClick={() => setMobileView('list')}
-                      className="sm:hidden -ml-2 text-text-secondary hover:text-text-primary"
-                      aria-label="Quay lại danh sách hội thoại"
-                    >
-                      <ArrowLeft className="size-4.5" />
-                    </Button>
-                    <div className="flex size-9 items-center justify-center rounded-full bg-brand/15 text-brand shrink-0">
-                      <School className="size-4.5" />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-semibold text-text-primary">Trò chuyện toàn trường</h2>
-                      <p className="text-xs text-text-tertiary">Mọi thành viên trường đều thấy tin nhắn</p>
-                    </div>
-                  </div>
-                </div>
+          <div className="shrink-0 px-3 py-2 border-b border-border-subtle bg-surface">
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  activeTab === 'ban_be'
+                    ? 'Tìm bạn bè…'
+                    : activeTab === 'toan_truong'
+                      ? 'Tìm tin nhắn toàn trường…'
+                      : 'Tìm tin nhắn trong phòng…'
+                }
+                aria-label={
+                  activeTab === 'ban_be'
+                    ? 'Tìm bạn bè'
+                    : activeTab === 'toan_truong'
+                      ? 'Tìm tin nhắn toàn trường'
+                      : 'Tìm tin nhắn trong phòng'
+                }
+                className="h-8.5 pl-9 pr-8 text-xs bg-surface-raised border-border-subtle rounded-xl"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-full cursor-pointer"
+                  aria-label="Xóa tìm kiếm"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
 
-                {/* Danh sách tin nhắn toàn trường */}
+          {/* ════════════════════════════════════════════════════════════════════════════════
+              VÙNG 3: NỘI DUNG NHẮN TIN / DANH SÁCH BẠN BÈ
+              ════════════════════════════════════════════════════════════════════════════════ */}
+          <div className="flex-1 min-h-0 flex flex-col bg-canvas overflow-hidden">
+            {activeTab === 'phong' ? (
+              inRoomInfo || effectiveRoomMessages ? (
                 <CampusChatDrawer
-                  messages={messages}
+                  messages={roomMessagesFiltered}
                   myPermissions={myPermissions}
-                  onSendMessage={onSendMessage}
+                  onSendMessage={async (text) => {
+                    if (effectiveOnSendRoomChat) {
+                      await effectiveOnSendRoomChat(text)
+                      return { ok: true, thanhCong: true }
+                    }
+                    return { ok: false, thanhCong: false, loi: 'Không có kết nối phòng' }
+                  }}
                   onDeleteMessage={onDeleteMessage}
                   hideHeader
                   className="min-h-0 flex-1"
+                  placeholder="Nhập tin nhắn trong phòng…"
+                  emptyMessage={searchQuery ? 'Không tìm thấy tin nhắn nào khớp.' : 'Chưa có tin nhắn trong phòng.'}
+                  scope="room"
+                  roomId={inRoomInfo?.id ? String(inRoomInfo.id) : undefined}
                 />
-              </div>
-            ) : (
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center py-10 px-4">
+                  <Gamepad2 className="size-10 text-text-tertiary opacity-40 mb-2" />
+                  <p className="text-xs font-semibold text-text-secondary">Bạn hiện không ở trong phòng nào</p>
+                  <p className="text-[11px] text-text-tertiary mt-1">Vào phòng học hoặc bàn game để trò chuyện cùng mọi người.</p>
+                </div>
+              )
+            ) : activeTab === 'toan_truong' ? (
+              <CampusChatDrawer
+                messages={campusMessagesFiltered}
+                myPermissions={myPermissions}
+                onSendMessage={onSendMessage}
+                onDeleteMessage={onDeleteMessage}
+                hideHeader
+                className="min-h-0 flex-1"
+                placeholder="Nhập tin nhắn toàn trường…"
+                emptyMessage={searchQuery ? 'Không tìm thấy tin nhắn nào khớp.' : 'Chưa có tin nhắn toàn trường.'}
+              />
+            ) : currentDmTarget ? (
               <DirectMessageThread
-                target={activeConversation.target}
-                onBack={() => setMobileView('list')}
+                target={currentDmTarget}
+                onBack={handleBackFromDm}
                 className="min-h-0 flex-1"
               />
+            ) : (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {/* Header danh sách bạn bè */}
+                <div className="px-3 py-2 flex items-center justify-between text-xs font-semibold text-text-secondary border-b border-border-subtle bg-surface/50">
+                  <span>Bạn bè</span>
+                  <span
+                    data-testid="friends-count-badge"
+                    className="text-[11px] text-text-tertiary font-normal"
+                  >
+                    {onlineFriendsCount} trực tuyến / {friends.length} bạn
+                  </span>
+                </div>
+
+                {/* Danh sách bạn bè cuộn */}
+                <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1 min-h-0 styled-scrollbar">
+                  {friendsFiltered.length === 0 ? (
+                    <div className="py-12 px-4 text-center">
+                      <Users className="size-8 mx-auto text-text-tertiary opacity-40 mb-2" />
+                      <p className="text-xs text-text-secondary">
+                        {searchQuery ? 'Không tìm thấy bạn nào khớp.' : 'Chưa có bạn bè nào.'}
+                      </p>
+                    </div>
+                  ) : (
+                    friendsFiltered.map((friend) => {
+                      const presence = presenceReady ? friendsPresence[friend.id] : undefined
+                      const status = presenceReady ? (presence?.state ?? 'offline') : 'unknown'
+                      const isOnline = status === 'online'
+                      const isAway = status === 'away'
+                      const isCoMat = isOnline || isAway
+                      const isMarkedRead = daDocFriendIds.has(friend.id)
+                      const unreadRaw = isMarkedRead ? 0 : (unreadCounts[friend.id] ?? (isMarkedRead ? 0 : friend.unreadCount) ?? 0)
+                      const unread = Math.max(0, unreadRaw)
+                      const viTriBan = layViTriBanBe(presence, rooms)
+
+                      return (
+                        <button
+                          key={friend.id}
+                          type="button"
+                          onClick={() => handleSelectFriend(friend)}
+                          className={cn(
+                            'w-full flex items-center gap-3 rounded-xl p-2.5 text-left transition-colors cursor-pointer group',
+                            isCoMat
+                              ? 'text-text-primary hover:bg-surface-raised opacity-100'
+                              : 'text-text-secondary hover:bg-surface-raised opacity-75 hover:opacity-100',
+                          )}
+                        >
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setNguoiXem({
+                                id: friend.id,
+                                ten: friend.displayName,
+                                avatar: friend.avatar,
+                                lopTen: friend.lopTen,
+                                anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                              })
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setNguoiXem({
+                                  id: friend.id,
+                                  ten: friend.displayName,
+                                  avatar: friend.avatar,
+                                  lopTen: friend.lopTen,
+                                  anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                                })
+                              }
+                            }}
+                            className="relative shrink-0 cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                            title={`Xem thông tin ${friend.displayName}`}
+                            aria-label={`Xem thông tin ${friend.displayName}`}
+                          >
+                            <AnhNguoiDung
+                              ten={friend.displayName}
+                              avatar={friend.avatar}
+                              className={cn('size-10 text-sm transition-all', !isCoMat && 'grayscale-35 opacity-75')}
+                            />
+                            {unread > 0 && (
+                              <span className="absolute -top-0.5 -right-0.5 flex size-2.5 z-10">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                                <span className="relative inline-flex rounded-full size-2.5 bg-destructive" />
+                              </span>
+                            )}
+                            <span
+                              className={cn(
+                                'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface',
+                                !presenceReady
+                                  ? 'bg-slate-500'
+                                  : isOnline
+                                    ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50'
+                                    : isAway
+                                      ? 'bg-amber-400'
+                                      : 'bg-slate-500',
+                              )}
+                              title={
+                                !presenceReady
+                                  ? 'Đang kết nối lại'
+                                  : isOnline
+                                    ? 'Trực tuyến'
+                                    : isAway
+                                      ? 'Tạm vắng'
+                                      : 'Ngoại tuyến'
+                              }
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span
+                                className={cn(
+                                  'text-sm truncate transition-colors',
+                                  isCoMat ? 'font-semibold text-text-primary' : 'font-medium text-text-secondary',
+                                )}
+                              >
+                                {friend.displayName}
+                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {friend.lopTen && (
+                                  <span className="text-[10px] text-text-tertiary rounded bg-surface-overlay px-1.5 py-0.2 shrink-0">
+                                    {friend.lopTen}
+                                  </span>
+                                )}
+                                {unread > 0 && (
+                                  <span
+                                    data-testid={`unread-badge-${friend.id}`}
+                                    className="min-w-4.5 h-4.5 px-1.5 flex items-center justify-center rounded-full bg-destructive text-white text-[10px] font-bold leading-none tabular-nums shadow-xs shrink-0"
+                                  >
+                                    {unread > 100 ? '100+' : unread}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <p
+                              className={cn(
+                                'text-[11px] truncate mt-0.5 leading-tight',
+                                viTriBan.isOnline
+                                  ? 'text-emerald-400 font-medium'
+                                  : viTriBan.isAway
+                                    ? 'text-amber-400'
+                                    : 'text-text-tertiary',
+                              )}
+                              title={viTriBan.text}
+                            >
+                              {viTriBan.text}
+                            </p>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
             )}
-          </main>
+          </div>
         </div>
+
+        <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
       </SheetContent>
     </Sheet>
   )

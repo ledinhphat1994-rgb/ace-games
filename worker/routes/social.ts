@@ -12,6 +12,7 @@ import type {
 import { kiemTraPhien, layPhien } from '../lib/session'
 import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { createNotification } from '../services/notification-service'
+import { parseReactionData, xuLyCapNhatReactions, type ActionReactionInput } from '../campus/campus-reactions'
 
 export const socialApp = new Hono<{ Bindings: Env }>()
 
@@ -47,15 +48,58 @@ socialApp.get('/state', async (c) => {
       lopTen: string | null
     }>()
 
-  const friends: FriendItem[] = (friendsRaw ?? []).map((r) => ({
-    id: r.id,
-    username: r.username,
-    displayName: r.displayName,
-    avatar: r.avatar,
-    role: r.role,
-    lopTen: r.lopTen,
-    friendedAt: r.friendedAt,
-  }))
+  // 1b. Tin nhắn chưa đọc theo từng bạn bè
+  const unreadMap = new Map<number, number>()
+  try {
+    const { results: unreadRaw } = await c.env.DB.prepare(
+      `SELECT sender_id as senderId, COUNT(*) as count
+         FROM direct_messages
+        WHERE receiver_id = ?1 AND da_doc = 0
+        GROUP BY sender_id`,
+    )
+      .bind(myId)
+      .all<{ senderId: number; count: number }>()
+    for (const u of unreadRaw ?? []) {
+      unreadMap.set(u.senderId, u.count)
+    }
+  } catch {}
+
+  // 1c. Trạng thái bạn thân
+  const closeFriendsMap = new Map<string, { status: string; requested_by: number }>()
+  try {
+    const { results: cfRaw } = await c.env.DB.prepare(
+      `SELECT account_low_id, account_high_id, status, requested_by
+         FROM close_friends
+        WHERE account_low_id = ?1 OR account_high_id = ?1`,
+    )
+      .bind(myId)
+      .all<{ account_low_id: number; account_high_id: number; status: string; requested_by: number }>()
+    for (const cf of cfRaw ?? []) {
+      closeFriendsMap.set(`${cf.account_low_id}:${cf.account_high_id}`, {
+        status: cf.status,
+        requested_by: cf.requested_by,
+      })
+    }
+  } catch {}
+
+  const friends: FriendItem[] = (friendsRaw ?? []).map((r) => {
+    const low = Math.min(myId, r.id)
+    const high = Math.max(myId, r.id)
+    const cf = closeFriendsMap.get(`${low}:${high}`)
+    return {
+      id: r.id,
+      username: r.username,
+      displayName: r.displayName,
+      avatar: r.avatar,
+      role: r.role,
+      lopTen: r.lopTen,
+      friendedAt: r.friendedAt,
+      unreadCount: unreadMap.get(r.id) ?? 0,
+      isCloseFriend: cf ? cf.status === 'confirmed' : false,
+      closeFriendPending: cf ? cf.status === 'pending' : false,
+      closeFriendRequestedBy: cf ? cf.requested_by : undefined,
+    }
+  })
 
   // 2. Lời mời đến
   const { results: incomingRaw } = await c.env.DB.prepare(
@@ -281,6 +325,7 @@ socialApp.get('/profile/:id', async (c) => {
     .first<HoSoNguoiDung>()
 
   if (!hoSo) return loi('Không tìm thấy người dùng.', 404)
+  hoSo.tag = `@c10a7_${hoSo.id}`
   return c.json({ ok: true, profile: hoSo })
 })
 
@@ -696,6 +741,11 @@ socialApp.post('/unfriend', async (c) => {
     return loi('Quan hệ bạn bè không tồn tại.', 404)
   }
 
+  // Tự động xoá quan hệ bạn thân nếu có
+  try {
+    await c.env.DB.prepare('DELETE FROM close_friends WHERE account_low_id = ?1 AND account_high_id = ?2').bind(low, high).run()
+  } catch {}
+
   await thongBaoCampusDO(c.env, {
     type: 'social.friend_removed',
     accountIds: [myId, friendId],
@@ -728,9 +778,10 @@ socialApp.post('/block', async (c) => {
   const high = Math.max(myId, targetId)
   const now = Date.now()
 
-  // Transaction: Xoá bạn bè (nếu có), xoá lời mời 2 chiều (nếu có), ghi nhận block
+  // Transaction: Xoá bạn bè (nếu có), xoá lời mời 2 chiều (nếu có), xoá bạn thân (nếu có), ghi nhận block
   await c.env.DB.batch([
     c.env.DB.prepare('DELETE FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2').bind(low, high),
+    c.env.DB.prepare('DELETE FROM close_friends WHERE account_low_id = ?1 AND account_high_id = ?2').bind(low, high),
     c.env.DB.prepare('DELETE FROM friend_requests WHERE (sender_id = ?1 AND receiver_id = ?2) OR (sender_id = ?2 AND receiver_id = ?1)').bind(myId, targetId),
     c.env.DB.prepare('INSERT OR IGNORE INTO blocks (blocker_id, blocked_id, created_at) VALUES (?1, ?2, ?3)').bind(myId, targetId, now),
   ])
@@ -744,6 +795,230 @@ socialApp.post('/block', async (c) => {
 
   return c.json({ ok: true, isBlocked: true })
 })
+
+/** Gửi yêu cầu Bạn thân ⭐ */
+const xuLyYeuCauBanThan = async (c: any) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+
+  let body: { targetAccountId?: number }
+  try {
+    body = await c.req.json()
+  } catch {
+    return loi('Dữ liệu không hợp lệ.', 400)
+  }
+
+  const targetId = Number(body?.targetAccountId)
+  if (!Number.isInteger(targetId) || targetId <= 0 || targetId === myId) {
+    return loi('Mã tài khoản không hợp lệ.', 400)
+  }
+
+  const low = Math.min(myId, targetId)
+  const high = Math.max(myId, targetId)
+
+  // Phải là bạn bè mới có thể đặt làm bạn thân
+  const daLaBan = await c.env.DB.prepare(
+    'SELECT id FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2',
+  )
+    .bind(low, high)
+    .first()
+
+  if (!daLaBan) {
+    return loi('Chỉ có thể kết bạn thân khi đã là bạn bè.', 400)
+  }
+
+  // Kiểm tra bảng close_friends
+  const existing = (await c.env.DB.prepare(
+    'SELECT id, status, requested_by FROM close_friends WHERE account_low_id = ?1 AND account_high_id = ?2',
+  )
+    .bind(low, high)
+    .first()) as { id: number; status: string; requested_by: number } | null
+
+  const now = Date.now()
+  if (existing) {
+    if (existing.status === 'confirmed') {
+      return c.json({ ok: true, isCloseFriend: true, alreadyCloseFriend: true })
+    }
+    if (existing.requested_by === myId) {
+      return c.json({ ok: true, pending: true, message: 'Đã gửi lời mời trước đó.' })
+    }
+    // Đối phương cũng đã gửi lời mời bạn thân trước đó => Hội tụ thành bạn thân ngay!
+    await c.env.DB.prepare(
+      'UPDATE close_friends SET status = ?1 WHERE id = ?2',
+    ).bind('confirmed', existing.id).run()
+
+    await createNotification(c.env.DB, {
+      recipientId: targetId,
+      type: 'system_announcement',
+      title: 'Đã trở thành Bạn thân ⭐',
+      body: `${kq.taiKhoan.ten || kq.taiKhoan.username} và bạn đã trở thành Bạn thân của nhau.`,
+      data: {
+        subType: 'close_friend_accepted',
+        actorId: myId,
+        actorName: kq.taiKhoan.ten || kq.taiKhoan.username,
+        actorAvatar: kq.taiKhoan.avatar,
+      },
+      idempotencyKey: `close_friend_accepted:${low}_${high}_${now}`,
+      now,
+    })
+
+    return c.json({ ok: true, isCloseFriend: true })
+  }
+
+  // Thêm mới yêu cầu bạn thân pending
+  await c.env.DB.prepare(
+    'INSERT INTO close_friends (account_low_id, account_high_id, status, requested_by, created_at) VALUES (?1, ?2, ?3, ?4, ?5)',
+  )
+    .bind(low, high, 'pending', myId, now)
+    .run()
+
+  // Tạo thông báo cho người nhận
+  await createNotification(c.env.DB, {
+    recipientId: targetId,
+    type: 'system_announcement',
+    title: 'Lời mời Bạn thân ⭐',
+    body: `${kq.taiKhoan.ten || kq.taiKhoan.username} muốn đặt bạn làm Bạn thân.`,
+    data: {
+      subType: 'close_friend_request',
+      actorId: myId,
+      actorName: kq.taiKhoan.ten || kq.taiKhoan.username,
+      actorAvatar: kq.taiKhoan.avatar,
+    },
+    idempotencyKey: `close_friend_req:${low}_${high}_${now}`,
+    now,
+  })
+
+  return c.json({ ok: true, pending: true })
+}
+
+socialApp.post('/close-friend/request', xuLyYeuCauBanThan)
+socialApp.post('/friends/close-friend/request', xuLyYeuCauBanThan)
+
+/** Xác nhận / Chấp nhận lời mời Bạn thân ⭐ */
+const xuLyChapNhanBanThan = async (c: any) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+
+  let body: { targetAccountId?: number }
+  try {
+    body = await c.req.json()
+  } catch {
+    return loi('Dữ liệu không hợp lệ.', 400)
+  }
+
+  const targetId = Number(body?.targetAccountId)
+  if (!Number.isInteger(targetId) || targetId <= 0 || targetId === myId) {
+    return loi('Mã tài khoản không hợp lệ.', 400)
+  }
+
+  const low = Math.min(myId, targetId)
+  const high = Math.max(myId, targetId)
+
+  const daLaBan = await c.env.DB.prepare(
+    'SELECT id FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2',
+  )
+    .bind(low, high)
+    .first()
+
+  if (!daLaBan) return loi('Hai người chưa phải là bạn bè.', 400)
+
+  // Cập nhật close_friends thành confirmed
+  const updateRes = await c.env.DB.prepare(
+    `UPDATE close_friends
+        SET status = 'confirmed'
+      WHERE account_low_id = ?1 AND account_high_id = ?2 AND requested_by = ?3 RETURNING id`,
+  )
+    .bind(low, high, targetId)
+    .first()
+
+  if (!updateRes) {
+    const check = (await c.env.DB.prepare(
+      'SELECT id, status FROM close_friends WHERE account_low_id = ?1 AND account_high_id = ?2',
+    ).bind(low, high).first()) as { id: number; status: string } | null
+    if (check?.status === 'confirmed') {
+      return c.json({ ok: true, isCloseFriend: true, alreadyConfirmed: true })
+    }
+    return loi('Không tìm thấy yêu cầu Bạn thân hợp lệ.', 404)
+  }
+
+  const now = Date.now()
+
+  // Thông báo lại cho người gửi lời mời
+  await createNotification(c.env.DB, {
+    recipientId: targetId,
+    type: 'system_announcement',
+    title: 'Đã trở thành Bạn thân ⭐',
+    body: `${kq.taiKhoan.ten || kq.taiKhoan.username} đã đồng ý lời mời Bạn thân của bạn.`,
+    data: {
+      subType: 'close_friend_accepted',
+      actorId: myId,
+      actorName: kq.taiKhoan.ten || kq.taiKhoan.username,
+      actorAvatar: kq.taiKhoan.avatar,
+    },
+    idempotencyKey: `close_friend_accepted:${low}_${high}_${now}`,
+    now,
+  })
+
+  // Đánh dấu đã đọc các thông báo yêu cầu close_friend_request liên quan
+  try {
+    await c.env.DB.prepare(
+      `UPDATE notifications
+          SET read_at = ?1
+        WHERE recipient_id = ?2 AND read_at IS NULL
+          AND json_extract(data_json, '$.subType') = 'close_friend_request'
+          AND json_extract(data_json, '$.actorId') = ?3`,
+    ).bind(now, myId, targetId).run()
+  } catch {}
+
+  return c.json({ ok: true, isCloseFriend: true })
+}
+
+socialApp.post('/close-friend/accept', xuLyChapNhanBanThan)
+socialApp.post('/friends/close-friend/accept', xuLyChapNhanBanThan)
+
+/** Hủy quan hệ Bạn thân / Từ chối lời mời bạn thân ⭐ */
+const xuLyHuyBanThan = async (c: any) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+
+  let body: { targetAccountId?: number }
+  try {
+    body = await c.req.json()
+  } catch {
+    return loi('Dữ liệu không hợp lệ.', 400)
+  }
+
+  const targetId = Number(body?.targetAccountId)
+  if (!Number.isInteger(targetId) || targetId <= 0 || targetId === myId) {
+    return loi('Mã tài khoản không hợp lệ.', 400)
+  }
+
+  const low = Math.min(myId, targetId)
+  const high = Math.max(myId, targetId)
+
+  await c.env.DB.prepare(
+    'DELETE FROM close_friends WHERE account_low_id = ?1 AND account_high_id = ?2',
+  ).bind(low, high).run()
+
+  // Đánh dấu đã đọc thông báo lời mời nếu có
+  try {
+    await c.env.DB.prepare(
+      `UPDATE notifications
+          SET read_at = ?1
+        WHERE recipient_id = ?2 AND read_at IS NULL
+          AND json_extract(data_json, '$.subType') = 'close_friend_request'
+          AND json_extract(data_json, '$.actorId') = ?3`,
+    ).bind(Date.now(), myId, targetId).run()
+  } catch {}
+
+  return c.json({ ok: true })
+}
+
+socialApp.post('/close-friend/remove', xuLyHuyBanThan)
+socialApp.post('/friends/close-friend/remove', xuLyHuyBanThan)
 
 /** Bỏ chặn người dùng */
 socialApp.post('/unblock', async (c) => {
@@ -837,7 +1112,97 @@ socialApp.get('/messages/:friendId', async (c) => {
     daDoc: Boolean(r.daDoc),
   }))
 
-  return c.json({ ok: true, messages })
+  const messageIds = messages.map((m) => m.id)
+  const reactionsMap: Record<number, string[]> = {}
+  const reactionDetailsMap: Record<number, import('../../shared/protocol/campus').ReactionDetail[]> = {}
+  if (messageIds.length > 0) {
+    try {
+      const placeholders = messageIds.map(() => '?').join(',')
+      const reactionsRes = await c.env.DB.prepare(
+        `SELECT message_id, emojis FROM message_reactions WHERE scope = 'dm' AND message_id IN (${placeholders})`,
+      )
+        .bind(...messageIds)
+        .all<{ message_id: number; emojis: string }>()
+
+      for (const row of reactionsRes.results ?? []) {
+        const { emojis: ems, details: dts } = parseReactionData(row.emojis)
+        reactionsMap[row.message_id] = ems
+        reactionDetailsMap[row.message_id] = dts
+      }
+    } catch {}
+  }
+
+  return c.json({ ok: true, messages, reactions: reactionsMap, reactionDetails: reactionDetailsMap })
+})
+
+/** Thả hoặc đổi emoji reaction cho tin nhắn riêng */
+socialApp.post('/messages/:friendId/reaction', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+  const myName = kq.taiKhoan.ten || kq.taiKhoan.username || 'Thành viên'
+
+  const friendId = Number(c.req.param('friendId'))
+  if (!Number.isInteger(friendId) || friendId <= 0) return loi('Mã bạn bè không hợp lệ.', 400)
+
+  let body: ActionReactionInput & { messageId?: number }
+  try {
+    body = await c.req.json()
+  } catch {
+    return loi('Dữ liệu không hợp lệ.', 400)
+  }
+
+  const messageId = Number(body?.messageId)
+  if (!Number.isInteger(messageId) || messageId <= 0) return loi('Mã tin nhắn không hợp lệ.', 400)
+
+  // Xác minh tin nhắn này có thuộc cuộc trò chuyện giữa 2 người không
+  const msg = await c.env.DB.prepare(
+    'SELECT id FROM direct_messages WHERE id = ?1 AND ((sender_id = ?2 AND receiver_id = ?3) OR (sender_id = ?3 AND receiver_id = ?2))',
+  )
+    .bind(messageId, myId, friendId)
+    .first()
+  if (!msg) return loi('Không tìm thấy tin nhắn.', 404)
+
+  // Lấy dữ liệu reaction hiện tại trong D1
+  const existingRow = await c.env.DB.prepare(
+    "SELECT emojis FROM message_reactions WHERE scope = 'dm' AND message_id = ?1",
+  )
+    .bind(messageId)
+    .first<{ emojis: string }>()
+
+  const updateRes = xuLyCapNhatReactions(existingRow?.emojis, body, { id: myId, name: myName })
+  if (updateRes.loi) {
+    return loi(updateRes.loi, (updateRes.statusCode || 400) as any)
+  }
+
+  const { emojis, details } = updateRes
+  const now = Date.now()
+
+  if (emojis.length > 0 && details.length > 0) {
+    await c.env.DB.prepare(
+      `INSERT INTO message_reactions (scope, message_id, emojis, cap_nhat_luc)
+       VALUES ('dm', ?1, ?2, ?3)
+       ON CONFLICT(scope, message_id) DO UPDATE SET emojis = excluded.emojis, cap_nhat_luc = excluded.cap_nhat_luc`,
+    )
+      .bind(messageId, JSON.stringify({ emojis, details }), now)
+      .run()
+  } else {
+    await c.env.DB.prepare("DELETE FROM message_reactions WHERE scope = 'dm' AND message_id = ?1")
+      .bind(messageId)
+      .run()
+  }
+
+  // Báo CampusDO phát realtime cho cả 2 người
+  await thongBaoCampusDO(c.env, {
+    type: 'social.direct_message_reaction',
+    friendId: myId,
+    targetId: friendId,
+    messageId,
+    reactions: emojis,
+    reactionDetails: details,
+  })
+
+  return c.json({ ok: true, messageId, reactions: emojis, reactionDetails: details })
 })
 
 /** Gửi tin nhắn riêng tới một người bạn */
@@ -906,6 +1271,44 @@ socialApp.post('/messages/:friendId', async (c) => {
   })
 
   return c.json({ ok: true, message })
+})
+
+// Xoá tin nhắn riêng (chỉ người gửi mới có quyền xoá tin của mình)
+socialApp.delete('/messages/:friendId/:messageId', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+
+  const friendId = Number(c.req.param('friendId'))
+  const messageId = Number(c.req.param('messageId'))
+  if (!friendId || isNaN(friendId) || !messageId || isNaN(messageId)) {
+    return loi('Tham số không hợp lệ.', 400)
+  }
+
+  const msg = await c.env.DB.prepare(
+    'SELECT sender_id, receiver_id FROM direct_messages WHERE id = ?1',
+  )
+    .bind(messageId)
+    .first<{ sender_id: number; receiver_id: number }>()
+
+  if (!msg) return loi('Tin nhắn không tồn tại.', 404)
+  if (msg.sender_id !== myId) {
+    return loi('Bạn chỉ có thể xoá tin nhắn của mình.', 403)
+  }
+
+  await c.env.DB.prepare('DELETE FROM direct_messages WHERE id = ?1')
+    .bind(messageId)
+    .run()
+
+  // Báo CampusDO phát realtime cho cả hai bên
+  await thongBaoCampusDO(c.env, {
+    type: 'social.direct_message_deleted',
+    messageId,
+    friendId,
+    senderId: myId,
+  })
+
+  return c.json({ ok: true, messageId })
 })
 
 

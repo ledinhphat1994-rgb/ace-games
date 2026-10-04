@@ -10,6 +10,7 @@ import {
   type MatNet,
   type LopLaser,
   type QuyenCongCu,
+  type LoaiTaiLieuNap,
 } from '@shared/protocol/room'
 import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 
@@ -34,6 +35,8 @@ export interface PresentationStageProps {
   onPhongTo: (id: LopId) => void
   onThuNho: (id: LopId) => void
   onAn: (id: LopId) => void
+  onGoLop?: (id: LopId) => void
+  onLenDau?: (id: LopId) => void
   /** Người trình chiếu kéo / đổi cỡ cửa sổ nổi xong → khung mới (đồng bộ cho cả phòng). */
   onDoiKhung?: (id: LopId, khung: KhungCuaSo) => void
   /** Đang kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
@@ -54,19 +57,22 @@ export interface PresentationStageProps {
   slideState?: SlideState | null
   onPageChange?: (newPage: number, step?: number) => void
   onUploadSlide: () => void
-  onCloseDoc?: () => void
+  onCloseDoc?: (loai?: LoaiTaiLieuNap, docUrl?: string) => void
+  onSwitchDoc?: (loai: LoaiTaiLieuNap, docUrl?: string) => void
   onSetTotalPages?: (totalPages: number) => void
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onRemoveSlideAnnotation?: (id: string) => void
   slideLasers?: TiaLaserTrang[]
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
+  slideScroll?: { scrollRatio: number; scrollTop?: number; scrollHeight?: number; docUrl?: string; zoom?: number; panX?: number; panY?: number } | null
+  onSendSlideScroll?: (ratio: number, scrollTop?: number, scrollHeight?: number, docUrl?: string, zoom?: number, panX?: number, panY?: number) => void
   // Video props
   mediaState?: MediaState | null
   canControlMedia?: boolean
   volume: number
   onVolumeChange: (vol: number) => void
-  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => void
+  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate' | 'close', time?: number, rate?: number) => void
   onOpenSearchQueue: () => void
   calculateTargetTime: () => number
   // Whiteboard props
@@ -84,6 +90,8 @@ export function PresentationStage({
   onPhongTo,
   onThuNho,
   onAn,
+  onGoLop: _onGoLop,
+  onLenDau,
   onDoiKhung,
   onKeoKhung,
   stageLasers = [],
@@ -100,12 +108,15 @@ export function PresentationStage({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSwitchDoc,
   onSetTotalPages,
   slideAnnotations,
   onSendSlideAnnotation,
   onRemoveSlideAnnotation,
   slideLasers = [],
   onSendSlideLaser,
+  slideScroll,
+  onSendSlideScroll,
   mediaState,
   canControlMedia = true,
   volume,
@@ -126,10 +137,25 @@ export function PresentationStage({
   // phần thừa quanh khung là nền chung của phòng (ClassroomWorkspace căn giữa cả cụm video + chat). Toàn màn hình giữ nguyên.
   const videoChinh = boCuc.video === 'main' && !isFullscreen && Boolean(mediaState?.videoId)
 
+  const tinhZIndex = (id: LopId): number => {
+    const vaiTro = boCuc[id]
+    if (vaiTro === 'main') return 10
+    if (vaiTro === 'pip') {
+      const thuTu = boCuc.thuTuPip ?? (['doc', 'video', 'board'] as const).filter((k) => boCuc[k] === 'pip')
+      const viTri = thuTu.indexOf(id)
+      return 20 + (viTri >= 0 ? viTri : 0)
+    }
+    return 0
+  }
+
+  const coQuyenDiChuyen = canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('di_chuyen'))
+
   const khungCuaSo = (id: LopId) => ({
     khung: boCuc.khung?.[id],
-    onDoiKhung: canControl && onDoiKhung ? (k: KhungCuaSo) => onDoiKhung(id, k) : undefined,
-    onKeoKhung: canControl && onKeoKhung ? (k: KhungCuaSo) => onKeoKhung(id, k) : undefined,
+    zIndex: tinhZIndex(id),
+    onLenDau: () => onLenDau?.(id),
+    onDoiKhung: coQuyenDiChuyen && onDoiKhung ? (k: KhungCuaSo) => onDoiKhung(id, k) : undefined,
+    onKeoKhung: coQuyenDiChuyen && onKeoKhung ? (k: KhungCuaSo) => onKeoKhung(id, k) : undefined,
   })
 
   const nutKhung = (id: LopId) => {
@@ -144,7 +170,10 @@ export function PresentationStage({
         onAn={() => onAn(id)}
         toanManHinh={isFullscreen}
         onToanManHinh={onToggleFullscreen}
-        chiXem={!canControl}
+        chiXem={!coQuyenDiChuyen}
+        onDong={id === 'doc' ? undefined : () => onAn(id)}
+        tieuDeDong={id === 'board' ? 'Tắt bảng' : id === 'video' ? 'Tắt video' : 'Tắt tài liệu'}
+        testIdDong={`layer-${id}-close`}
       />
     )
   }
@@ -165,6 +194,7 @@ export function PresentationStage({
 
   const coQuyenDungCongCu = (c: CongCu): boolean => {
     if (canControl) return true
+    if (c === 'chuot' || c === 'di_chuyen') return true
     if (!myActorKey) return false
     const dsQuyen = quyenCongCu[myActorKey]
     if (!dsQuyen) return false
@@ -172,7 +202,9 @@ export function PresentationStage({
     if (c === 'chu') return dsQuyen.includes('chu')
     if (c === 'to_sang') return dsQuyen.includes('to_sang')
     if (c === 'khung') return dsQuyen.includes('hinh')
-    return dsQuyen.includes('but')
+    if (c === 'laser') return dsQuyen.includes('laser')
+    if (c === 'but') return dsQuyen.includes('but')
+    return false
   }
 
   const duocTay = canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('tay'))
@@ -188,6 +220,7 @@ export function PresentationStage({
       co={co}
       laPhu={laPhu}
       mat={mat}
+      docUrl={mat === 'tailieu' ? slideState?.docUrl : undefined}
       coTheVe={duocDungCongCuHienTai}
       coTheTayMoiNet={duocTay}
       khoaCuaToi={myActorKey}
@@ -266,7 +299,7 @@ export function PresentationStage({
 
         {/* ── LỚP TÀI LIỆU ── */}
         {boCuc.doc && (
-          <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!canControl} {...khungCuaSo('doc')}>
+          <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!coQuyenDiChuyen} {...khungCuaSo('doc')}>
             <DocumentStageView
               slideState={slideState}
               lopVeNhung={
@@ -280,6 +313,7 @@ export function PresentationStage({
               onPageChange={onPageChange}
               onUploadSlide={onUploadSlide}
               onCloseDoc={onCloseDoc}
+              onSwitchDoc={onSwitchDoc}
               onSetTotalPages={onSetTotalPages}
               dieuKhienKhung={nutKhung('doc')}
               compact={boCuc.doc === 'pip'}
@@ -294,6 +328,9 @@ export function PresentationStage({
               onRemoveSlideAnnotation={onRemoveSlideAnnotation}
               slideLasers={slideLasers}
               onSendSlideLaser={onSendSlideLaser}
+              slideScroll={slideScroll}
+              onSendSlideScroll={onSendSlideScroll}
+              quyenCongCu={quyenCongCu}
               coTheChuThich={duocDungCongCuHienTai}
               coLaser={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('laser'))}
               coTheTayMoiNet={duocTay}
@@ -304,7 +341,7 @@ export function PresentationStage({
 
         {/* ── LỚP VIDEO ── */}
         {boCuc.video && (
-          <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')} khoa={!canControl} {...khungCuaSo('video')}>
+          <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')} khoa={!coQuyenDiChuyen} {...khungCuaSo('video')}>
             {mediaState && mediaState.videoId ? (
               <EmbeddedVideoPlayer
                 mediaState={mediaState}
@@ -326,7 +363,7 @@ export function PresentationStage({
                 compact={boCuc.video === 'pip'}
                 isReconnecting={isReconnecting}
                 onCloseVideo={() => {
-                  onSyncMedia('pause')
+                  onSyncMedia('close')
                   onAn('video')
                 }}
               />
@@ -361,7 +398,7 @@ export function PresentationStage({
 
         {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi (độc lập, không phủ lên lớp khác) ── */}
         {boCuc.board && (
-          <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!canControl} {...khungCuaSo('board')}>
+          <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!coQuyenDiChuyen} {...khungCuaSo('board')}>
             <div className="flex h-full w-full flex-col overflow-hidden bg-canvas" data-testid="whiteboard-stage">
               <div
                 data-keo-khung

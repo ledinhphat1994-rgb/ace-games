@@ -1,4 +1,4 @@
-import { Calculator as CalcIcon, Delete, GripHorizontal, History, Minimize2, X } from 'lucide-react'
+import { Calculator as CalcIcon, Delete, GripHorizontal, History, Minus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 interface FloatingCalculatorProps {
@@ -119,8 +119,13 @@ export function FloatingCalculator({ zIndex, onFocus, onClose }: FloatingCalcula
             <History className="h-3 w-3" />
             {hienLichSu ? 'Bàn phím' : 'Lịch sử'}
           </button>
-          <button onClick={() => setIsMinimized(true)} className="rounded p-1 text-slate-400 hover:text-white">
-            <Minimize2 className="h-3 w-3" />
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="rounded p-1 text-slate-400 hover:text-white"
+            title="Ẩn máy tính"
+            aria-label="Ẩn"
+          >
+            <Minus className="h-3 w-3" />
           </button>
           <button onClick={onClose} className="rounded p-1 text-slate-400 hover:text-red-400">
             <X className="h-3.5 w-3.5" />

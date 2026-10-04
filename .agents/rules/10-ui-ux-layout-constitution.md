@@ -169,6 +169,71 @@ context menu
 fullscreen UI
 explicit floating toolbar
 
+POPUP STACKING & TOP-LAYER RULE:
+Between fixed cards: NEVER overlap.
+For transient popup surfaces (dialog, modal, popover, dropdown, tooltip, sheet):
+The most recently opened popup surface MUST always be rendered on top (highest stacking context / top-layer)
+of other surfaces.
+
+NON-OBSCURING POPUP & TRANSPARENT BACKDROP INVARIANT:
+Tuyệt đối KHÔNG BAO GIỜ ĐƯỢC ẨN KHU VỰC XUNG QUANH KHI BẬT BẤT KỲ POPUP NÀO CÓ TRONG WEB.
+When opening any dialog, modal, popover, drawer, or sheet:
+NEVER obscure, black out (e.g. `bg-black/45`, `bg-black/60`), or heavily blur the surrounding background.
+The backdrop overlay MUST remain ultra-light and transparent (maximum `bg-black/10` or `bg-transparent`, no heavy backdrop-blur),
+ensuring the surrounding page, hero banner, room cards, leaderboards, and navigation remain 100% visible, sharp, and recognizable.
+Popups MUST always remain strictly centered in the viewport (`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`),
+never using overriding `relative` classes that cause the dialog to drift down or clip footer actions.
+
+FIXED CARD MOVEMENT INVARIANT:
+Fixed cards, panels, and modals must NEVER move when switching options, tabs, or modes.
+(x, y) coordinates and dimensions must remain strictly constant.
+
+SUB-CARD STABILITY & COORDINATE LOCKING INVARIANT:
+All sub-cards, option pills, and panels inside a container card or dialog must preserve strictly constant (x, y) coordinates and heights when switching between game types (1v1 vs solo) or modes.
+Time selection containers must have a fixed reserved height slot; never collapse or expand dynamically to shift surrounding cards.
+
+SINGLE-ROW INLINE CONTROL INVARIANT:
+Custom adjustment and status bars must remain strictly 1 single row (e.g. h-9 / h-10).
+When custom mode is active, display the stepper controller inline within the exact same row.
+Never generate a 2nd row that causes layout stutter or pushes downward cards.
+
+ZERO OVERLAP WITH FOOTER CTA:
+The bottom-most sub-card must maintain a safe breathing buffer (>= 12px) from the footer CTA divider bar,
+strictly preventing any element or button from overlapping.
+
+BREATHING ROOM & SPACING INVARIANT:
+Always maintain generous, comfortable spacing (gap, padding, margin) between cards,
+between titles, and between content blocks. Elements must never bump against each other,
+preserving visual calm and "thoáng mắt".
+
+ZERO-STUTTER MOTION & UNIFORM BORDER INVARIANT:
+Never use `transition-all` on buttons, tabs, or cards that change border or dimensions.
+Use ONLY `transition-colors duration-150` for state transitions.
+Never alternate between `border` (1px) and `border-2` (2px) on active vs inactive states;
+always use the same border-width (e.g. `border-2`) across both states to prevent 1px frame jumps.
+Keep indicator slots (dots, icons) permanently reserved in the DOM (`opacity-0` / `opacity-100`)
+to avoid shifting label text on selection.
+
+PEER CARD UNIFORMITY INVARIANT:
+Peer cards and choice buttons in the same list or grid MUST share identical dimensions,
+aspect ratios, and height/width tracks. Never stretch one peer card (e.g. `col-span-2`)
+while others occupy 1 column, creating visual asymmetry.
+
+BALANCED BLUEPRINT WATERMARK & SKEUOMORPHIC AESTHETIC INVARIANT:
+When background watermark graphics or circuit schematics are used on cards/modals,
+they MUST be distributed in a balanced and cohesive manner across all corners and edges
+(top-left, top-right, middle edges, bottom-left, bottom-right, and full-area dot grid).
+NEVER cluster watermark artwork solely in one corner, leaving other areas bare.
+All blueprint strokes must remain calm and non-distracting (strokeWidth <= 1px, opacity 0.10 - 0.14).
+Card borders must remain thin 1px with subtle side-edge middle glow highlights.
+Modal top edge must stay anchored, expanding only left/right and downwards.
+All sub-cards, single-row custom stepper controls, and action footers must preserve coordinate locking with zero overlap.
+
+MANDATORY DESIGN RULE PRE-CHECK:
+Before modifying any UI/UX or frontend code, the AI agent MUST read and adhere to all design rules:
+title-only (no subtitles/annotations), fixed card stability, fixed title/label coordinates,
+zero overlap, breathing room, uniform border width, zero-stutter motion, and balanced blueprint background aesthetics across the entire site.
+
 Normal layout must prefer:
 
 flex

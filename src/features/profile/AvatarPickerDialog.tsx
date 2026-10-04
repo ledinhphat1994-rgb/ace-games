@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
 import { AvatarPicker } from './AvatarPicker'
 
 export interface AvatarPickerDialogProps {
@@ -16,7 +17,8 @@ export function AvatarPickerDialog({
 }: AvatarPickerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="skeuo-modal-surface max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+        <BlueprintCommunityPattern className="opacity-75 pointer-events-none" />
         <DialogHeader>
           <DialogTitle>Ảnh đại diện</DialogTitle>
         </DialogHeader>

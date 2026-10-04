@@ -1,16 +1,16 @@
 // Khung cho một lớp trên sân khấu (Tài liệu / Bảng / Video) + nút điều khiển góc phải đầu khung.
 // Đổi vai trò (chính ⇄ cửa sổ nổi ⇄ ẩn) chỉ đổi class: phần tử con giữ nguyên, video YouTube không bị tải lại.
 
-import { EyeOff, Maximize, Maximize2, Minimize, PictureInPicture2, X } from 'lucide-react'
+import { Maximize, Maximize2, Minimize, Minus, PictureInPicture2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { kepKhung, type KhungCuaSo, type LopId, type VaiTroLop } from './stage-layout'
 
 // Góc đặt cửa sổ nổi theo thứ tự: dưới-phải, trên-phải, dưới-trái, trên-trái.
 const GOC_CUA_SO = [
-  'right-3 bottom-3',
+  'right-3 bottom-16',
   'right-3 top-3',
-  'left-3 bottom-3',
+  'left-3 bottom-16',
   'left-3 top-3',
 ] as const
 
@@ -41,6 +41,8 @@ interface KhungLopProps {
   khoa?: boolean
   /** Vị trí + cỡ cửa sổ nổi do người trình chiếu đặt (tỉ lệ sân khấu); chưa có thì nằm ở góc mặc định. */
   khung?: KhungCuaSo
+  zIndex?: number
+  onLenDau?: () => void
   /** Người trình chiếu thả chuột sau khi kéo / đổi cỡ → khung mới (đồng bộ cho cả phòng). */
   onDoiKhung?: (khung: KhungCuaSo) => void
   /** Trong lúc kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
@@ -70,7 +72,18 @@ function hopBatDau(el: HTMLElement | null): HopBatDau | undefined {
 const khungTuHop = (h: HopBatDau, trai: number, tren: number, rong: number, cao: number) =>
   kepKhung({ x: trai / h.chaRong, y: tren / h.chaCao, w: rong / h.chaRong, h: cao / h.chaCao })
 
-export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, onKeoKhung, children }: KhungLopProps) {
+export function KhungLop({
+  id,
+  vaiTro,
+  viTri,
+  khoa = false,
+  khung,
+  zIndex,
+  onLenDau,
+  onDoiKhung,
+  onKeoKhung,
+  children,
+}: KhungLopProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [dich, setDich] = useState({ x: 0, y: 0 })
   const [kichThuoc, setKichThuoc] = useState<{ rong?: number; cao?: number } | null>(null)
@@ -87,6 +100,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
     hop?: HopBatDau
     cuoi?: { rong: number; cao: number; x: number; y: number }
   } | null>(null)
+  const rafKeoKhungRef = useRef<number | null>(null)
 
   // Rời chế độ cửa sổ nổi thì bỏ vị trí và kích thước đã kéo.
   useEffect(() => {
@@ -118,14 +132,18 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
     vaiTro === 'main'
       ? 'absolute inset-0 z-0'
       : vaiTro === 'pip'
-        ? `group/khung absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] rounded-xl border border-border-default shadow-2xl shadow-black/60`
+        ? `group/khung absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? (id === 'video' ? 'aspect-video' : '') : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] rounded-xl border border-border-default shadow-2xl shadow-black/60`
         : 'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'
 
   // Kéo cửa sổ nổi bằng thanh tiêu đề (phần tử có data-keo-khung, trừ nút / ô nhập).
   const batDauKeo = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (vaiTro === 'pip') {
+      onLenDau?.()
+    }
     if (khoa || vaiTro !== 'pip' || resizeRef.current) return
     const dich0 = e.target as HTMLElement
-    if (!dich0.closest('[data-keo-khung]') || dich0.closest('button, input, select, a, [role="slider"]')) return
+    const laHandle = Boolean(dich0.closest('[data-keo-khung-handle]'))
+    if (!laHandle && (!dich0.closest('[data-keo-khung]') || dich0.closest('button, input, select, a, [role="slider"]'))) return
     keoRef.current = { px: e.clientX, py: e.clientY, x: dich.x, y: dich.y, hop: hopBatDau(ref.current) }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
@@ -151,11 +169,22 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
     keo.cuoi = { x, y }
     setDich({ x, y })
     if (onKeoKhung && keo.hop) {
-      onKeoKhung(khungTuHop(keo.hop, keo.hop.trai + (x - keo.x), keo.hop.tren + (y - keo.y), keo.hop.rong, keo.hop.cao))
+      if (!rafKeoKhungRef.current) {
+        rafKeoKhungRef.current = requestAnimationFrame(() => {
+          rafKeoKhungRef.current = null
+          if (keo.hop) {
+            onKeoKhung(khungTuHop(keo.hop, keo.hop.trai + (x - keo.x), keo.hop.tren + (y - keo.y), keo.hop.rong, keo.hop.cao))
+          }
+        })
+      }
     }
   }
 
   const thaKeo = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (rafKeoKhungRef.current) {
+      cancelAnimationFrame(rafKeoKhungRef.current)
+      rafKeoKhungRef.current = null
+    }
     const keo = keoRef.current
     if (!keo) return
     keoRef.current = null
@@ -235,6 +264,19 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
       }
     }
 
+    if (id === 'video') {
+      if (r.huong.includes('e') || r.huong.includes('w')) {
+        moiCao = Math.round(moiRong * 9 / 16)
+      } else {
+        moiRong = Math.round(moiCao * 16 / 9)
+      }
+      if (isBottomAnchor) {
+        moiY = r.y + (moiCao - r.cao)
+      } else if (r.huong.includes('n')) {
+        moiY = r.y + (r.cao - moiCao)
+      }
+    }
+
     r.cuoi = { rong: Math.round(moiRong), cao: Math.round(moiCao), x: Math.round(moiX), y: Math.round(moiY) }
     setKichThuoc({ rong: r.cuoi.rong, cao: r.cuoi.cao })
     setDich({ x: r.cuoi.x, y: r.cuoi.y })
@@ -274,15 +316,33 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
         vaiTro === 'pip'
           ? {
               ...(khung
-                ? { left: `${khung.x * 100}%`, top: `${khung.y * 100}%`, width: `${khung.w * 100}%`, height: `${khung.h * 100}%` }
+                ? {
+                    left: `${khung.x * 100}%`,
+                    top: `${khung.y * 100}%`,
+                    width: `${khung.w * 100}%`,
+                    height: id === 'video' ? 'auto' : `${khung.h * 100}%`,
+                  }
                 : {}),
               transform: `translate(${dich.x}px, ${dich.y}px)`,
+              ...(id === 'video' ? { aspectRatio: '16 / 9' } : {}),
               ...(kichThuoc?.rong ? { width: `${kichThuoc.rong}px` } : {}),
-              ...(kichThuoc?.cao ? { height: `${kichThuoc.cao}px` } : {}),
+              ...(kichThuoc?.cao
+                ? id === 'video'
+                  ? { height: `${Math.round((kichThuoc.rong ?? 400) * 9 / 16)}px` }
+                  : { height: `${kichThuoc.cao}px` }
+                : {}),
+              ...(zIndex !== undefined ? { zIndex } : {}),
             }
-          : undefined
+          : vaiTro === 'main' && zIndex !== undefined
+            ? { zIndex }
+            : undefined
       }
-      onPointerDown={batDauKeo}
+      onPointerDown={(e) => {
+        if (vaiTro === 'pip') {
+          onLenDau?.()
+        }
+        batDauKeo(e)
+      }}
       onPointerMove={dangKeo}
       onPointerUp={thaKeo}
       onPointerCancel={thaKeo}
@@ -296,7 +356,10 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
           {TAY_KEO_CANH.map(({ huong, lop, tieuDe }) => (
             <div
               key={huong}
-              onPointerDown={(e) => batDauThayDoiKichThuoc(e, huong)}
+              onPointerDown={(e) => {
+                onLenDau?.()
+                batDauThayDoiKichThuoc(e, huong)
+              }}
               onPointerMove={dangThayDoiKichThuoc}
               onPointerUp={thaThayDoiKichThuoc}
               onPointerCancel={thaThayDoiKichThuoc}
@@ -308,7 +371,10 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
           {TAY_KEO_GOC.map(({ huong, lop }) => (
             <div
               key={huong}
-              onPointerDown={(e) => batDauThayDoiKichThuoc(e, huong)}
+              onPointerDown={(e) => {
+                onLenDau?.()
+                batDauThayDoiKichThuoc(e, huong)
+              }}
               onPointerMove={dangThayDoiKichThuoc}
               onPointerUp={thaThayDoiKichThuoc}
               onPointerCancel={thaThayDoiKichThuoc}
@@ -334,7 +400,7 @@ export interface NutKhungProps {
   /** Người tham gia chỉ xem: không có nút điều khiển khung nào (ẩn, mở, phóng to, thu nhỏ, toàn màn hình). */
   chiXem?: boolean
   onDoi?: () => void
-  iconDoi?: typeof EyeOff
+  iconDoi?: React.ComponentType<{ className?: string }>
   tieuDeDoi?: string
   testIdDoi?: string
   onDong?: () => void
@@ -406,7 +472,7 @@ export function NutKhung({
       {nutToanManHinh}
 
       <button type="button" onClick={onAn} className={nut} title="Ẩn" aria-label="Ẩn" data-testid={`layer-${id}-hide`}>
-        <EyeOff className="h-3.5 w-3.5" />
+        <Minus className="h-3.5 w-3.5" />
       </button>
 
       {onDong && (

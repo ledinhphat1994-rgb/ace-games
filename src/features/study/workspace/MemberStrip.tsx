@@ -15,7 +15,9 @@ import {
   Highlighter,
   Mic,
   MousePointer2,
+  Move,
   Pen,
+  ScrollText,
   Shapes,
   Trash2,
   Type,
@@ -42,6 +44,8 @@ const O_QUYEN: { quyen: QuyenCongCu; ten: string; icon: LucideIcon }[] = [
   { quyen: 'hinh', ten: 'Hình', icon: Shapes },
   { quyen: 'tay', ten: 'Tẩy', icon: Eraser },
   { quyen: 'xoa', ten: 'Xoá hết', icon: Trash2 },
+  { quyen: 'cuon', ten: 'Cuộn trang', icon: ScrollText },
+  { quyen: 'di_chuyen', ten: 'Di chuyển', icon: Move },
 ]
 
 const MAU_NEN = ['bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-orange-500', 'bg-indigo-500']
@@ -142,7 +146,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
       className={cn(
         // Không dùng justify-center trên khung cuộn (tràn thì người đầu bị cắt, không cuộn tới được): lề tự động ở
         // người đầu / cuối để căn giữa. Đệm ngang + dọc chừa chỗ cho viền, quầng sáng, vương miện, huy hiệu quyền.
-        'flex min-w-0 max-w-full items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
+        'flex min-w-0 max-w-full items-center gap-2 sm:gap-3 overflow-x-auto px-3 pt-2 pb-3.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"
@@ -155,6 +159,8 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
         const hasMic = Boolean(m.mic || cap.includes('mic'))
         const hasVe = cap.some((q) => ['but', 'to_sang', 'chu', 'hinh', 'tay', 'xoa'].includes(q))
         const hasLaser = cap.includes('laser')
+        const hasCuon = cap.includes('cuon')
+        const hasDiChuyen = cap.includes('di_chuyen')
 
         const avatar = (
           <Tooltip>
@@ -185,15 +191,17 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                 </span>
               )}
 
-              {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp */}
+              {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp - đặt ở đáy, không che avatar */}
               {!laTrinhChieu && (hasMic || hasVe || hasLaser || cap.length > 0) && (
                 <span
-                  className="absolute -right-1.5 -bottom-1 flex items-center gap-0.5 rounded-full bg-surface-raised px-1 py-0.5 border border-border-default shadow-xs ring-1 ring-canvas"
+                  className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-0.5 rounded-full bg-surface-raised px-1 py-0.5 border border-border-default shadow-xs ring-1 ring-canvas"
                   data-testid={`member-strip-co-quyen-${m.key}`}
                 >
                   {hasMic && <Mic className="size-2.5 text-success" />}
                   {hasVe && <Pen className="size-2.5 text-brand" />}
                   {hasLaser && <MousePointer2 className="size-2.5 text-warning" />}
+                  {hasCuon && <ScrollText className="size-2.5 text-cyan-400" />}
+                  {hasDiChuyen && <Move className="size-2.5 text-purple-400" />}
                 </span>
               )}
             </TooltipTrigger>

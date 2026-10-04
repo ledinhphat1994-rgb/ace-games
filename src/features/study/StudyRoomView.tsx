@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import { useRoom } from '@/hooks/use-room'
 import type { NguoiDung } from '@/lib/api'
 import { SUPPORTED_PLAYBACK_RATES, type SupportedPlaybackRate } from '@shared/protocol/room'
@@ -14,6 +15,7 @@ import {
   DoorClosed,
   Loader2,
   Lock,
+  MessageSquare,
   Play,
   Search,
   ShieldAlert,
@@ -21,6 +23,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { toast } from 'sonner'
 import { useCampusContext } from '@/app/CampusContext'
+import { CampusChatSheet, type DmTargetUser } from '@/components/layout/CampusChatSheet'
 import { FloatingCalculator } from './FloatingCalculator'
 import { SlideUploadModal } from './SlideUploadModal'
 import {
@@ -168,15 +171,18 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setAudioOutputDevice,
     slideState,
     slideAnnotations,
+    slideScroll,
     slideLasers,
     changeSlidePage,
     setSlideTotalPages,
     loadSlideDoc,
+    switchSlideDoc,
     closeSlideDoc,
     sendSlideAnnotation,
     clearSlideAnnotations,
     removeSlideAnnotation,
     sendSlideLaser,
+    sendSlideScroll,
     calculateTargetTime,
     // Learning Session v1
     sessionGoal,
@@ -200,6 +206,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     createPoll,
     votePoll,
     closePoll,
+    movePoll,
     startSession,
     endSession,
   } = useRoom(roomId, nguoiDung.actorKey)
@@ -306,16 +313,44 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   // ── Video volume ─────────────────────────────────────────────────────────
   const [volume, setVolume] = useState(80)
 
-  // ── Form state ───────────────────────────────────────────────────────────
   const [localNotes, setLocalNotes] = useState(sharedNotes.content)
 
+  // ── YouTube search persistence ──────────────────────────────────────────────
+  const STORAGE_KEY_YT_HISTORY = 'c10a7_yt_search_history'
+
+  interface YtSearchHistoryCache {
+    query?: string
+    sort?: 'relevance' | 'upload_date' | 'view_count'
+    results?: { videoId: string; title: string; author: string; duration?: string; publishedTime?: string }[]
+    daTim?: string
+  }
+
+  function getYtCachedHistory(): YtSearchHistoryCache | null {
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_YT_HISTORY)
+      if (!raw) return null
+      return JSON.parse(raw) as YtSearchHistoryCache
+    } catch {
+      return null
+    }
+  }
+
   // ── YouTube unified search / link state ──────────────────────────────────────
-  const [ytSearch, setYtSearch] = useState('')
+  const [ytSearch, setYtSearch] = useState(() => getYtCachedHistory()?.query || '')
   const detectedVideoId = useMemo(() => trichXuatYoutubeId(ytSearch), [ytSearch])
   const [ytSearching, setYtSearching] = useState(false)
-  const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string; duration?: string }[]>([])
-  const [ytDaTim, setYtDaTim] = useState('')
+  const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string; duration?: string; publishedTime?: string }[]>(
+    () => getYtCachedHistory()?.results || [],
+  )
+  const [ytDaTim, setYtDaTim] = useState(() => getYtCachedHistory()?.daTim || '')
   const [ytLoi, setYtLoi] = useState<string | null>(null)
+  const [ytSort, setYtSort] = useState<'relevance' | 'upload_date' | 'view_count'>(() => {
+    const cachedSort = getYtCachedHistory()?.sort
+    return cachedSort === 'relevance' || cachedSort === 'upload_date' || cachedSort === 'view_count'
+      ? cachedSort
+      : 'relevance'
+  })
 
   // Toast notification when pomodoro mode switches on server
   const prevModeRef = useRef(pomodoroState.mode)
@@ -380,7 +415,58 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const tenChuPhong = useMemo(() => members.find((m) => m.key === hostKey)?.ten || 'Chủ phòng', [members, hostKey])
 
   // ── Social & Campus Presence Activity ──────────────────────────────────────
-  const { setActivity, rooms: phongTrenSanh } = useCampusContext()
+  const {
+    setActivity,
+    rooms: phongTrenSanh,
+    messages: campusMessages,
+    myPermissions: campusPermissions,
+    guiChat: guiCampusChat,
+    xoaChat: xoaCampusChat,
+    socialState,
+  } = useCampusContext()
+
+  // ── Floating Chat Sheet State (Đồng bộ với thiết kế toàn campus & game) ────
+  const [moChat, setMoChat] = useState(false)
+  const [activeDmTarget, setActiveDmTarget] = useState<DmTargetUser | null>(null)
+
+  useEffect(() => {
+    const handleOpenChat = () => {
+      setActiveDmTarget(null)
+      setMoChat(true)
+    }
+    window.addEventListener('campus:open-chat', handleOpenChat)
+    return () => window.removeEventListener('campus:open-chat', handleOpenChat)
+  }, [])
+
+  useEffect(() => {
+    const handleOpenDm = (e: Event) => {
+      const ce = e as CustomEvent<DmTargetUser>
+      if (ce.detail) {
+        setActiveDmTarget(ce.detail)
+        setMoChat(true)
+      }
+    }
+    window.addEventListener('campus:open-dm', handleOpenDm)
+    return () => window.removeEventListener('campus:open-dm', handleOpenDm)
+  }, [])
+
+  const [lastReadRoomMsgId, setLastReadRoomMsgId] = useState<number>(0)
+  const highestRoomMsgId = chatMessages.reduce((max, m) => {
+    const id = parseInt(m.id, 10) || 0
+    return id > max ? id : max
+  }, 0)
+
+  useEffect(() => {
+    if (moChat) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setLastReadRoomMsgId(highestRoomMsgId)
+    }
+  }, [moChat, highestRoomMsgId])
+
+  const coTinMoi = !moChat && (
+    chatMessages.some((m) => (parseInt(m.id, 10) || 0) > lastReadRoomMsgId && m.accountId !== nguoiDung.accountId) ||
+    (socialState?.friends?.some((f) => (f.unreadCount ?? 0) > 0) ?? false)
+  )
   const numericRoomId = useMemo(() => {
     const num = parseInt(roomId.replace('phong-', ''), 10)
     return isNaN(num) ? undefined : num
@@ -450,14 +536,11 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     }
     syncMedia({ action: 'load', videoId: vid, title: `Bài giảng (${vid})` })
     syncMedia({ action: 'play' })
-    setYtSearch('')
-    setYtResults([])
-    setYtDaTim('')
     setShowYtPanel(false)
     toast.success('Đã nạp video YouTube lên bảng học chung!')
   }
 
-  const handleSyncMedia = (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => {
+  const handleSyncMedia = (action: 'play' | 'pause' | 'seek' | 'rate' | 'close', time?: number, rate?: number) => {
     if (action === 'play') {
       syncMedia({ action: 'play' })
     } else if (action === 'pause') {
@@ -470,6 +553,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           ? (rate as SupportedPlaybackRate)
           : 1
       syncMedia({ action: 'rate', rate: validRate })
+    } else if (action === 'close') {
+      syncMedia({ action: 'close' })
     }
   }
 
@@ -478,18 +563,29 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setShowUploadModal(false)
   }
 
-  // Kết quả / lỗi hiển thị ngay trong hộp thoại (trước đây vừa toast vừa báo "không có kết quả" khi mới gõ chưa tìm)
-  const doYtSearch = async (q: string) => {
+  // Kết quả / lỗi hiển thị ngay trong hộp thoại (hỗ trợ lọc Liên quan, Mới nhất, Xem nhiều)
+  const doYtSearch = async (q: string, sortMode: 'relevance' | 'upload_date' | 'view_count' = ytSort) => {
     const tuKhoa = q.trim()
     if (!tuKhoa) return
     setYtSearching(true)
     setYtLoi(null)
-    setYtResults([])
     try {
-      const res = await fetch(`/api/yt-search?q=${encodeURIComponent(tuKhoa)}`)
+      const res = await fetch(`/api/yt-search?q=${encodeURIComponent(tuKhoa)}&sort=${sortMode}`)
       if (res.ok) {
-        const data = await res.json() as { videoId: string; title: string; author: string; duration?: string }[]
-        setYtResults(Array.isArray(data) ? data : [])
+        const data = await res.json() as { videoId: string; title: string; author: string; duration?: string; publishedTime?: string }[]
+        const list = Array.isArray(data) ? data : []
+        setYtResults(list)
+        try {
+          localStorage.setItem(
+            STORAGE_KEY_YT_HISTORY,
+            JSON.stringify({
+              query: tuKhoa,
+              sort: sortMode,
+              results: list,
+              daTim: tuKhoa,
+            }),
+          )
+        } catch {}
       } else {
         setYtLoi('Chưa tìm được lúc này. Hãy dán link video trực tiếp.')
       }
@@ -505,8 +601,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     syncMedia({ action: 'load', videoId, title })
     syncMedia({ action: 'play' })
     setShowYtPanel(false)
-    setYtResults([])
-    setYtDaTim('')
     toast.success(`Đang phát: ${title}`)
   }
 
@@ -561,6 +655,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onPageChange={changeSlidePage}
         onUploadSlide={() => setShowUploadModal(true)}
         onCloseDoc={isHost || canModerate ? closeSlideDoc : undefined}
+        onSwitchDoc={isHost || canModerate ? switchSlideDoc : undefined}
         onSetTotalPages={isHost || canModerate ? setSlideTotalPages : undefined}
         slideAnnotations={slideAnnotations}
         onSendSlideAnnotation={sendSlideAnnotation}
@@ -568,6 +663,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onRemoveSlideAnnotation={removeSlideAnnotation}
         slideLasers={slideLasers}
         onSendSlideLaser={sendSlideLaser}
+        slideScroll={slideScroll}
+        onSendSlideScroll={sendSlideScroll}
         mediaState={mediaState}
         canControlMedia={canControlMedia}
         volume={volume}
@@ -613,6 +710,12 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onResolveNotesConflict={resolveNotesConflict}
         onOpenCalculator={() => setShowCalc((v) => !v)}
         onOpenSessionPanel={() => setSessionPanelOpen((v) => !v)}
+        activePoll={activePoll}
+        pollVoteCounts={pollVoteCounts}
+        onCreatePoll={createPoll}
+        onVotePoll={votePoll}
+        onClosePoll={closePoll}
+        onMovePoll={movePoll}
         onLeaveRoom={onLeaveRoom}
         onCloseRoom={isHost || canModerate ? handleCloseRoom : undefined}
       />
@@ -655,13 +758,11 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             </DialogTitle>
           </DialogHeader>
 
-          {/* Thanh tìm kiếm hợp nhất: tìm bài giảng hoặc dán link video */}
+          {/* Thanh tìm kiếm hợp nhất: tìm bài giảng hoặc tìm kiếm bằng link YouTube */}
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              if (detectedVideoId) {
-                void handlePlayVideo(undefined, detectedVideoId)
-              } else {
+              if (ytSearch.trim()) {
                 void doYtSearch(ytSearch)
               }
             }}
@@ -683,12 +784,10 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
               type="submit"
               className="h-12 px-6 rounded-xl font-semibold gap-2 shrink-0 bg-red-600 hover:bg-red-500 text-white cursor-pointer shadow-md transition-all"
               disabled={!ytSearch.trim() || ytSearching || ytDangKiemTra}
-              aria-label={detectedVideoId ? 'Chèn video' : 'Tìm kiếm'}
+              aria-label="Tìm kiếm"
             >
               {ytDangKiemTra || ytSearching ? (
                 <Loader2 className="animate-spin size-4" />
-              ) : detectedVideoId ? (
-                <Play className="size-4 fill-white" />
               ) : (
                 <Search className="size-4" />
               )}
@@ -697,16 +796,64 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   ? 'Đang kiểm tra...'
                   : ytSearching
                     ? 'Đang tìm...'
-                    : detectedVideoId
-                      ? 'Chèn video'
-                      : 'Tìm kiếm'}
+                    : 'Tìm kiếm'}
               </span>
             </Button>
           </form>
 
-          {/* Vùng nội dung: Xem trước khi dán link, hoặc danh sách kết quả dạng lưới */}
+          {/* Bộ lọc sắp xếp YouTube: Liên quan, Mới nhất, Xem nhiều (luôn hiển thị) */}
+          <div className="flex items-center gap-1.5 pt-1 pb-0.5 text-xs">
+            <span className="text-text-tertiary font-medium mr-0.5">Sắp xếp:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setYtSort('relevance')
+                if (ytSearch.trim()) void doYtSearch(ytSearch, 'relevance')
+              }}
+              className={cn(
+                'px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer',
+                ytSort === 'relevance'
+                  ? 'bg-red-600/20 text-red-400 ring-1 ring-red-500/40'
+                  : 'bg-surface-raised/60 text-text-secondary hover:bg-surface-raised hover:text-text-primary',
+              )}
+            >
+              Liên quan
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setYtSort('upload_date')
+                if (ytSearch.trim()) void doYtSearch(ytSearch, 'upload_date')
+              }}
+              className={cn(
+                'px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer',
+                ytSort === 'upload_date'
+                  ? 'bg-red-600/20 text-red-400 ring-1 ring-red-500/40'
+                  : 'bg-surface-raised/60 text-text-secondary hover:bg-surface-raised hover:text-text-primary',
+              )}
+            >
+              Mới nhất
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setYtSort('view_count')
+                if (ytSearch.trim()) void doYtSearch(ytSearch, 'view_count')
+              }}
+              className={cn(
+                'px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer',
+                ytSort === 'view_count'
+                  ? 'bg-red-600/20 text-red-400 ring-1 ring-red-500/40'
+                  : 'bg-surface-raised/60 text-text-secondary hover:bg-surface-raised hover:text-text-primary',
+              )}
+            >
+              Xem nhiều
+            </button>
+          </div>
+
+          {/* Vùng nội dung: danh sách kết quả dạng lưới */}
           <div className="h-[58vh] min-h-[360px] max-h-[560px] flex flex-col min-h-0" data-testid="yt-dialog-body">
-            {detectedVideoId ? (
+            {detectedVideoId && !ytSearching && ytResults.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center p-6 text-center">
                 <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-2xl bg-black shadow-xl border border-white/10 group">
                   <img
@@ -741,10 +888,11 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setYtSearch('')}
+                    onClick={() => void doYtSearch(ytSearch)}
+                    disabled={ytSearching}
                     className="h-10 px-4 rounded-xl cursor-pointer"
                   >
-                    Xoá
+                    Tìm thêm video
                   </Button>
                 </div>
               </div>
@@ -793,6 +941,12 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                           </h4>
                           <div className="mt-2 flex items-center gap-1.5 text-xs text-text-tertiary">
                             <span className="truncate font-medium">{v.author || 'YouTube'}</span>
+                            {v.publishedTime && (
+                              <>
+                                <span>•</span>
+                                <span className="shrink-0 text-text-tertiary/90">{v.publishedTime}</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </button>
@@ -918,6 +1072,54 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onOpenChange={setShowInviteModal}
         roomId={numericRoomId || 1}
         roomTitle={tieuDePhong}
+      />
+
+      {/* ══ Floating Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng ══ */}
+      <button
+        type="button"
+        onClick={() => setMoChat(!moChat)}
+        aria-label={moChat ? 'Đóng trò chuyện' : 'Trò chuyện'}
+        title={moChat ? 'Đóng trò chuyện' : 'Trò chuyện'}
+        data-testid="floating-chat-button"
+        className={cn(
+          'fixed bottom-6 right-6 z-[80] flex items-center justify-center rounded-full text-white cursor-pointer border border-sky-300/30 transition-all duration-300',
+          moChat
+            ? 'size-12 bg-gradient-to-r from-sky-500 to-blue-600 opacity-100 scale-100 shadow-[0_4px_20px_rgba(56,189,248,0.5)]'
+            : cn(
+                'size-9.5 sm:size-10 bg-sky-600/75 shadow-md',
+                coTinMoi ? 'opacity-85' : 'opacity-40',
+                'hover:opacity-100 hover:size-12 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:scale-105 hover:shadow-[0_4px_20px_rgba(56,189,248,0.45)]',
+                'focus-visible:opacity-100 focus-visible:size-12 focus-visible:ring-2 focus-visible:ring-sky-400',
+                'active:scale-95',
+              ),
+        )}
+      >
+        <MessageSquare className={cn('text-white transition-all', moChat ? 'size-5.5' : 'size-4.5 sm:size-5')} />
+        {coTinMoi && !moChat && (
+          <span className="absolute -top-1 -right-1 flex size-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+            <span className="relative inline-flex rounded-full size-3 bg-destructive border-2 border-canvas" />
+          </span>
+        )}
+      </button>
+
+      {/* ══ Unified Resizable Campus & Study Room Chat Sheet ══ */}
+      <CampusChatSheet
+        open={moChat}
+        onOpenChange={setMoChat}
+        messages={campusMessages}
+        myPermissions={campusPermissions}
+        onSendMessage={guiCampusChat}
+        onDeleteMessage={xoaCampusChat}
+        activeDmTarget={activeDmTarget}
+        onSelectDmTarget={setActiveDmTarget}
+        roomChatMessages={chatMessages}
+        onSendRoomChat={async (text) => {
+          sendRoomChat(text)
+          return true
+        }}
+        roomTitle={tieuDePhong}
+        roomMembers={members}
       />
     </div>
   )

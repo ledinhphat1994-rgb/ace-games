@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { BlueprintStudyPattern } from '@/components/ui/blueprint-patterns'
 import { Sparkles, Users, BookOpen, Clock, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQuickStartLock } from './quick-start-controller'
@@ -32,7 +32,7 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
   {
     id: 'solo_focus',
     title: 'Học tập trung',
-    description: 'Phòng học nhỏ tối đa 2 người với Pomodoro và bảng vẽ.',
+    description: 'Phòng học nhỏ tối đa 2 người',
     icon: Clock,
     defaultName: (name) => `Phòng tập trung · ${name}`,
     phamVi: 'truong',
@@ -41,7 +41,7 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
   {
     id: 'group_homework',
     title: 'Nhóm thảo luận bài tập',
-    description: 'Cùng trao đổi kiến thức, giải đề và làm bài tập về nhà.',
+    description: 'Cùng trao đổi kiến thức',
     icon: Users,
     defaultName: (name, className) => className ? `Nhóm ôn bài · ${className}` : `Nhóm bài tập · ${name}`,
     phamVi: 'lop',
@@ -50,7 +50,7 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
   {
     id: 'exam_prep',
     title: 'Ôn thi & Luyện đề',
-    description: 'Phòng học mở toàn trường cho mọi người cùng tham gia.',
+    description: 'Phòng học mở toàn trường',
     icon: BookOpen,
     defaultName: (name) => `Luyện đề thi · ${name}`,
     phamVi: 'truong',
@@ -111,24 +111,33 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
     <Dialog open={open} onOpenChange={(newOpen) => handleOpenChange(newOpen, onOpenChange)}>
       <DialogContent
         showCloseButton={!isInFlight}
-        className="sm:max-w-md bg-[#0c1222] border-border-default text-text-primary p-5 sm:p-6 rounded-2xl shadow-2xl"
+        style={{
+          top: '72px',
+          translate: '-50% 0',
+          transform: 'none',
+          maxHeight: 'min(520px, calc(100svh - 88px))',
+        }}
+        className="w-[min(460px,calc(100vw-2rem))] p-6 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
       >
-        <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/12 text-brand border border-brand/30">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <DialogTitle className="text-base sm:text-lg font-black text-text-primary">
+        {/* Họa tiết Blueprint Study Schematic mờ chìm toàn diện */}
+        <BlueprintStudyPattern className="opacity-80" />
+
+        <DialogHeader className="relative z-10 shrink-0 pb-3 border-b border-sky-500/15">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400">
+              <Sparkles className="size-4" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-white tracking-wide">
               Bắt đầu học nhanh
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-text-secondary">
-            Chọn mục tiêu để hệ thống chuẩn bị phòng học tức thì cho bạn.
+          <DialogDescription className="sr-only">
+            Bắt đầu học nhanh
           </DialogDescription>
         </DialogHeader>
 
-        {/* Templates list */}
-        <div className="space-y-2.5 py-3">
+        {/* Lưới Template chọn mục tiêu: Đồng đều chiều cao, viền 1px dải sáng 2 bên */}
+        <div className="relative z-10 space-y-2.5 py-3 flex-1 overflow-y-auto pr-1">
           {QUICK_TEMPLATES.map((tmpl) => {
             const isSelected = selectedTemplate === tmpl.id
             const Icon = tmpl.icon
@@ -139,72 +148,64 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
                 type="button"
                 disabled={isInFlight}
                 onClick={() => setSelectedTemplate(tmpl.id)}
-                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                className={`w-full h-14 flex items-center gap-3.5 px-4 rounded-xl text-left cursor-pointer transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
                   isSelected
-                    ? 'bg-brand/10 border-brand/35 ring-1 ring-brand/25'
-                    : 'bg-surface/50 border-border-default hover:bg-surface-overlay'
+                    ? 'skeuo-subcard-active-amber text-amber-200'
+                    : 'skeuo-subcard-base text-slate-300 hover:text-white'
                 }`}
               >
                 <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
+                  className={`size-9 shrink-0 rounded-xl flex items-center justify-center border ${
                     isSelected
-                      ? 'bg-brand text-primary-foreground border-brand shadow-md shadow-brand/15'
-                      : 'bg-surface text-text-secondary border-border-default'
+                      ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 shadow-sm'
+                      : 'bg-slate-800/80 text-slate-400 border-slate-700/60'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="size-4" />
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className={`text-xs font-bold ${isSelected ? 'text-brand' : 'text-text-primary'}`}>
-                      {tmpl.title}
-                    </p>
-                    <span className="text-[10px] text-text-secondary font-semibold">
-                      Tối đa {tmpl.sucChua} người
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-text-secondary mt-0.5 leading-snug">
-                    {tmpl.description}
-                  </p>
+                <div className="min-w-0 flex-1 flex items-center justify-between">
+                  <span className={`text-sm font-semibold truncate ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                    {tmpl.title}
+                  </span>
+                  <span className="text-xs text-slate-400 shrink-0 font-medium tabular-nums ml-2">
+                    {tmpl.sucChua} người
+                  </span>
                 </div>
               </button>
             )
           })}
         </div>
 
-        {/* Action Button */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border-default">
-          <Button
+        {/* Footer CTA: Khoảng cách an toàn >= 14px, Nút vàng mật ong 3D Amber */}
+        <div className="relative z-10 shrink-0 pt-4 mt-3 border-t border-sky-500/15 flex items-center justify-end gap-3">
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
             onClick={() => handleOpenChange(false, onOpenChange)}
             disabled={isInFlight}
-            className="text-xs text-text-secondary hover:text-text-primary"
+            className="skeuo-btn-cancel h-10 px-5 text-sm"
           >
             Hủy
-          </Button>
+          </button>
 
-          <Button
+          <button
             type="button"
-            size="sm"
             onClick={handleStart}
             disabled={isInFlight}
-            className="h-9 px-4 rounded-xl text-xs font-bold bg-brand hover:bg-brand-hover text-primary-foreground shadow-md shadow-brand/15 gap-2"
+            className="skeuo-btn-cta-amber h-10 px-6 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isInFlight ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Đang tạo phòng...</span>
+                <Loader2 className="size-4 animate-spin" />
+                <span>Đang tạo phòng…</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5" />
+                <Sparkles className="size-4" />
                 <span>Vào phòng ngay</span>
               </>
             )}
-          </Button>
+          </button>
         </div>
       </DialogContent>
     </Dialog>

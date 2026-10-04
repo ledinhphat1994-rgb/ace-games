@@ -30,16 +30,16 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
       const roomId = await chenPhong('Phòng Alarm Test A')
       const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${roomId}`))
 
-      // Schedule a voice revocation retry in 1 second
-      await (roomStub as any).scheduleVoiceRevocationAlarm(1000)
-      const voiceAlarm = await (roomStub as any).getVoiceRevocationAlarmTime()
-      expect(voiceAlarm).not.toBeNull()
-      expect(voiceAlarm!).toBeLessThan(Date.now() + 3000)
-
-      // Start learning timer for 25 minutes (1500 seconds) via WebSocket
+      // Connect host first via WebSocket
       const cHost = await dangNhapLayCookie('qa.v2.thu1')
       const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
       await host.cho('room.snapshot')
+
+      // Schedule a voice revocation retry in 2 seconds
+      await (roomStub as any).testAddPendingVoiceRevocation('rev_test_a', 'acc:77', 'ses_test_a', Date.now() + 2000)
+      const voiceAlarm = await (roomStub as any).getVoiceRevocationAlarmTime()
+      expect(voiceAlarm).not.toBeNull()
+      expect(voiceAlarm!).toBeLessThan(Date.now() + 4000)
 
       host.gui({
         type: 'session.action',
@@ -47,7 +47,7 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
       })
       await host.cho('session.timer.sync', (g) => g.state.running)
 
-      // Invariant: Alarm MUST remain scheduled for voice retry (~1s), NOT pushed to 25 minutes!
+      // Invariant: Alarm MUST remain scheduled for voice retry (~2s), NOT pushed to 25 minutes!
       const activeAlarm = await (roomStub as any).getVoiceRevocationAlarmTime()
       expect(activeAlarm).not.toBeNull()
       // Active alarm must still be due within ~2-3 seconds, strictly less than 1 minute
@@ -55,6 +55,7 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
       expect(activeAlarm!).toBeLessThan(Date.now() + 1500 * 1000 - 10000)
 
       host.dong()
+      await (roomStub as any).testDeletePendingVoiceRevocation('rev_test_a')
     })
 
     it('B. Learning timer due before voice retry: Expected alarm = Learning timer deadline', async () => {

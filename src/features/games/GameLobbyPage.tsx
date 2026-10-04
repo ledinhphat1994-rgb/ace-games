@@ -3,7 +3,7 @@
 // Trò chơi đơn: Chỉ duy nhất Chơi ngay, không tạo phòng giả, không danh sách bàn rỗng.
 
 import { useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router'
+import { Navigate, useNavigate } from 'react-router'
 import { LogIn, Plus, Search } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { usePhien } from '@/app/phien'
@@ -38,10 +38,9 @@ const chuanHoa = (s: string) =>
     .toLowerCase()
 
 export function GameLobbyPage() {
-  const { gameType } = useParams<{ gameType: string }>()
-  const game = gameType ? GAME_CATALOG_BY_ID[gameType as GameType] : undefined
-  if (!game) return <Navigate to="/arena" replace />
-  return <SanhTroChoi key={game.id} gameType={game.id} />
+  // Sảnh cũ đã được gỡ bỏ hoàn toàn, chuyển hướng toàn bộ sang sảnh chung duy nhất /arena
+  void SanhTroChoi
+  return <Navigate to="/arena" replace />
 }
 
 function SanhTroChoi({ gameType }: { gameType: GameType }) {

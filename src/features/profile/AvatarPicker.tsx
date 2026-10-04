@@ -113,7 +113,7 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: Avat
             </button>
           ))}
         </div>
-        <Button onClick={handleSave} disabled={isSaving || chuaDoi} className="shrink-0">
+        <Button onClick={handleSave} disabled={isSaving || chuaDoi} className="skeuo-btn-cta-amber shrink-0">
           {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
           {isSaving ? 'Đang lưu…' : 'Lưu ảnh đã chọn'}
         </Button>
@@ -161,16 +161,21 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: Avat
         </label>
 
         <div className="flex flex-col justify-center gap-2">
-          <Label htmlFor="avatar-link" className="text-sm font-medium">Hoặc dùng đường link ảnh</Label>
+          <Label htmlFor="avatar-link" className="text-xs font-semibold text-text-secondary">Đường dẫn ảnh trực tiếp</Label>
           <div className="flex gap-2">
             <Input
               id="avatar-link"
               value={customUrl}
               onChange={(e) => setCustomUrl(e.target.value)}
               placeholder="https://…/anh.png"
-              className="flex-1"
+              className="skeuo-input-deep flex-1"
             />
-            <Button variant="outline" onClick={() => void handleApplyCustomUrl()} disabled={!customUrl.trim()} className="shrink-0">
+            <Button
+              variant="outline"
+              onClick={() => void handleApplyCustomUrl()}
+              disabled={!customUrl.trim()}
+              className="skeuo-btn-cancel shrink-0"
+            >
               Dùng link
             </Button>
           </div>

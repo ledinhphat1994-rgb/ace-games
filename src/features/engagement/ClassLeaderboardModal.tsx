@@ -9,8 +9,9 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
 import type { ClassLeaderboardItem } from '@shared/protocol/engagement'
-import { cn, getInitials, tenLop } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 
 interface ClassLeaderboardModalProps {
   open: boolean
@@ -25,16 +26,10 @@ interface LeaderboardResponse {
   items: ClassLeaderboardItem[]
 }
 
-/** "2026-09-22" → "22/9" (không qua new Date để khỏi lệch múi giờ). */
-function ngayNgan(chuoi: string | undefined): string | null {
-  const [, thang, ngay] = (chuoi ?? '').split('-').map(Number)
-  return thang && ngay ? `${ngay}/${thang}` : null
-}
-
 const MAU_HANG: Record<number, string> = {
-  1: 'bg-achievement/20 text-achievement',
-  2: 'bg-text-secondary/15 text-text-primary',
-  3: 'bg-warning/15 text-warning',
+  1: 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-stone-950 font-black shadow-[0_0_10px_rgba(245,158,11,0.6)] ring-1 ring-amber-300',
+  2: 'bg-gradient-to-b from-slate-100 via-slate-200 to-slate-400 text-slate-900 font-black shadow-[0_0_8px_rgba(148,163,184,0.5)] ring-1 ring-slate-200',
+  3: 'bg-gradient-to-b from-orange-200 via-orange-300 to-orange-400 text-orange-950 font-black shadow-[0_0_8px_rgba(249,115,22,0.5)] ring-1 ring-orange-200',
 }
 
 export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardModalProps) {
@@ -51,20 +46,18 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
     enabled: open,
   })
 
-  const tu = ngayNgan(data?.dateRange?.startDate)
-  const den = ngayNgan(data?.dateRange?.endDate)
   const items = data?.items ?? []
   // Xếp hạng giữa những người cùng 0 XP là vô nghĩa: chỉ đánh số người đã có XP trong tuần
   const chuaAiCoXp = items.every((item) => item.weeklyXp <= 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="skeuo-modal-surface sm:max-w-md">
+        <BlueprintCommunityPattern className="opacity-75 pointer-events-none" />
         <DialogHeader>
           <DialogTitle>Bảng xếp hạng tuần</DialogTitle>
-          <DialogDescription>
-            {data?.lopTen ? `${tenLop(data.lopTen)} · ` : ''}XP kiếm được khi học
-            {tu && den ? ` từ ${tu} đến ${den}` : ' trong tuần này'}.
+          <DialogDescription className="sr-only">
+            Bảng xếp hạng điểm kinh nghiệm trong tuần
           </DialogDescription>
         </DialogHeader>
 

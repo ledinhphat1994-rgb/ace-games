@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
 import { doiMatKhau } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -70,15 +71,16 @@ export function DoiMatKhauDialog({ open, onOpenChange }: DoiMatKhauDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={handleDong}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="skeuo-modal-surface sm:max-w-md">
+        <BlueprintCommunityPattern className="opacity-75 pointer-events-none" />
         <DialogHeader>
           <DialogTitle>{khongCanMatKhauCu ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-mat-khau">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1" data-testid="form-mat-khau">
           {!khongCanMatKhauCu && (
-            <div className="space-y-2">
-              <Label htmlFor="dlg-mk-cu" className="text-sm font-medium">
+            <div className="space-y-1.5">
+              <Label htmlFor="dlg-mk-cu" className="text-xs font-semibold text-text-secondary">
                 Mật khẩu hiện tại
               </Label>
               <PasswordInput
@@ -86,13 +88,14 @@ export function DoiMatKhauDialog({ open, onOpenChange }: DoiMatKhauDialogProps) 
                 autoComplete="current-password"
                 value={matKhauCu}
                 onChange={(e) => setMatKhauCu(e.target.value)}
+                className="skeuo-input-deep"
                 required
               />
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="dlg-mk-moi" className="text-sm font-medium">
+          <div className="space-y-1.5">
+            <Label htmlFor="dlg-mk-moi" className="text-xs font-semibold text-text-secondary">
               Mật khẩu mới
             </Label>
             <PasswordInput
@@ -100,12 +103,13 @@ export function DoiMatKhauDialog({ open, onOpenChange }: DoiMatKhauDialogProps) 
               autoComplete="new-password"
               value={matKhauMoi}
               onChange={(e) => setMatKhauMoi(e.target.value)}
+              className="skeuo-input-deep"
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dlg-mk-xac-nhan" className="text-sm font-medium">
+          <div className="space-y-1.5">
+            <Label htmlFor="dlg-mk-xac-nhan" className="text-xs font-semibold text-text-secondary">
               Nhập lại mật khẩu mới
             </Label>
             <PasswordInput
@@ -113,20 +117,26 @@ export function DoiMatKhauDialog({ open, onOpenChange }: DoiMatKhauDialogProps) 
               autoComplete="new-password"
               value={xacNhanMoi}
               onChange={(e) => setXacNhanMoi(e.target.value)}
+              className="skeuo-input-deep"
               required
             />
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-4 border-t border-slate-800/80 mt-2 gap-2.5">
             <Button
               type="button"
               variant="outline"
               onClick={() => handleDong(false)}
               disabled={dangDoiMk}
+              className="skeuo-btn-cancel"
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={dangDoiMk}>
+            <Button
+              type="submit"
+              disabled={dangDoiMk}
+              className="skeuo-btn-cta-amber"
+            >
               {dangDoiMk ? 'Đang cập nhật…' : khongCanMatKhauCu ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
             </Button>
           </DialogFooter>

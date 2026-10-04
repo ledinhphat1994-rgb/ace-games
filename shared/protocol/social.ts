@@ -2,8 +2,11 @@ import { z } from 'zod'
 
 export type PresenceState = 'online' | 'away' | 'offline'
 
+export type ActivityArea = 'home' | 'learn' | 'game' | 'community'
+
 export interface UserActivity {
-  type: 'room' | 'lobby'
+  type: 'room' | 'lobby' | 'home' | 'game' | 'learn' | 'community'
+  area?: ActivityArea
   roomId?: number
   roomTitle?: string
 }
@@ -38,10 +41,18 @@ export interface HoSoNguoiDung {
   tieuDeHoSo: string | null
   /** Tổng XP học tập; cấp độ tính từ đây. */
   totalXp: number
+  /** Tên đăng nhập định danh dùng để tạo tag xác thực duy nhất. */
+  username?: string | null
+  /** Tag người dùng duy nhất để xác thực (ví dụ: @nguyenvanhocsinh). */
+  tag?: string | null
 }
 
 export interface FriendItem extends SocialProfile {
   friendedAt: number
+  unreadCount?: number
+  isCloseFriend?: boolean
+  closeFriendPending?: boolean
+  closeFriendRequestedBy?: number
 }
 
 export interface FriendRequestItem {
@@ -65,7 +76,7 @@ export interface SocialState {
   blockedUsers: BlockedUserItem[]
 }
 
-export type RelationshipStatus = 'self' | 'friend' | 'pending_sent' | 'pending_received' | 'none' | 'blocked'
+export type RelationshipStatus = 'self' | 'friend' | 'close_friend' | 'pending_sent' | 'pending_received' | 'none' | 'blocked'
 
 export interface SearchResultItem extends SocialProfile {
   relationshipStatus: RelationshipStatus
@@ -77,7 +88,8 @@ export const LenhSocial = z.discriminatedUnion('type', [
     type: z.literal('activity.set'),
     activity: z
       .object({
-        type: z.enum(['room', 'lobby']),
+        type: z.enum(['room', 'lobby', 'home', 'game', 'learn', 'community']),
+        area: z.enum(['home', 'learn', 'game', 'community']).optional(),
         roomId: z.number().int().positive().optional(),
         roomTitle: z.string().max(200).optional(),
       })
@@ -104,6 +116,20 @@ export type GoiSocial =
   | { type: 'social.friend_removed'; friendId: number }
   | { type: 'social.blocked'; targetId: number }
   | { type: 'social.direct_message'; message: DirectMessage }
+  | {
+      type: 'social.direct_message_reaction'
+      friendId: number
+      targetId?: number
+      messageId: number
+      reactions: string[]
+      reactionDetails?: import('./campus').ReactionDetail[]
+    }
+  | {
+      type: 'social.direct_message_deleted'
+      messageId: number
+      friendId: number
+      senderId: number
+    }
   | {
       type: 'social.study_invite'
       invitation: {

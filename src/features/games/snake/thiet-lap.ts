@@ -3,7 +3,7 @@
 
 import type { CapDoMay } from '../cap-do-may'
 
-export const SO_MAY_CHON = [4, 6, 8, 12, 16, 20] as const
+export const SO_MAY_CHON = [0, 4, 6, 8, 12, 16] as const
 
 export interface ThietLapRan {
   capDo: CapDoMay

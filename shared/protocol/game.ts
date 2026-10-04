@@ -37,6 +37,17 @@ export interface GameMetaState {
   rematchBy: PlayerSide | null
   /** Bên đi trước của ván hiện tại — đổi luân phiên sau mỗi lần đấu lại cho công bằng. */
   firstTurn: PlayerSide
+  /** Chế độ chơi với AI (PvE) trong phòng: ghế O dành cho AI bot, người thật không được ngồi ghế này. */
+  isPve?: boolean
+}
+
+/** Slug tiếng Việt thân thiện của từng loại trò chơi để tạo link phòng game */
+export const SLUG_TIENG_VIET_GAME: Record<GameType, string> = {
+  chess: 'co-vua',
+  xiangqi: 'co-tuong',
+  caro_15: 'co-caro',
+  solo_memory: 'tri-nho',
+  solo_snake: 'ran-san-moi',
 }
 
 /** Trò chơi đối kháng 1v1 có bàn chơi thời gian thực và hiện trên sảnh. */
@@ -86,10 +97,13 @@ export const LenhGame = z.discriminatedUnion('type', [
     type: z.literal('game.init'),
     gameType: z.enum(CAC_GAME_1V1),
     turnSeconds: z.number().int().min(10).max(120).optional(),
+    isPrivate: z.boolean().optional(),
+    password: z.string().optional(),
   }),
   z.object({
     type: z.literal('game.join'),
     side: z.enum(['X', 'O']).optional(),
+    password: z.string().optional(),
   }),
   z.object({
     type: z.literal('game.move'),
@@ -103,10 +117,15 @@ export const LenhGame = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('game.surrender') }),
   z.object({ type: z.literal('game.rematch') }),
+  z.object({ type: z.literal('game.start') }),
   z.object({ type: z.literal('game.emote'), emote: z.enum(CAC_BIEU_CAM) }),
   z.object({
     type: z.literal('game.set_timer'),
     turnSeconds: z.number().int().min(10).max(180),
+  }),
+  z.object({
+    type: z.literal('game.set_pve'),
+    isPve: z.boolean(),
   }),
 ])
 export type LenhGame = z.infer<typeof LenhGame>
@@ -167,4 +186,6 @@ export interface BanSanh {
   soNguoiXem: number
   turnTimerSeconds: number
   capNhatLuc: number
+  isPrivate?: boolean
+  coMatKhau?: boolean
 }

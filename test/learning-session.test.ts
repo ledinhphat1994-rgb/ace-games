@@ -237,6 +237,118 @@ describe('Learning Session v1 Subsystems (Server Authority & Lifecycle)', () => 
     member.dong()
   })
 
+  it('4b. Quick Poll with countdown timer: durationSeconds and endsAt synced to all participants', async () => {
+    const roomId = await chenPhong('Phòng Bình Chọn Có Đếm Ngược')
+    const cHost = await dangNhapLayCookie('qa.v2.thu1')
+    const cMember = await dangNhapLayCookie('qa.v2.thu2')
+
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+    const member = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cMember)
+    await host.cho('room.snapshot')
+    await member.cho('room.snapshot')
+
+    // Host creates poll with 5 options and 60s countdown
+    host.gui({
+      type: 'session.action',
+      data: {
+        action: 'poll.create',
+        question: 'Chọn phương án tối ưu nhất?',
+        options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D', 'Phương án E'],
+        durationSeconds: 60,
+      },
+    })
+    const gPollCreate = await member.cho('session.poll.sync', (g) => g.poll !== null && !g.poll.closed)
+    expect(gPollCreate.poll?.question).toBe('Chọn phương án tối ưu nhất?')
+    expect(gPollCreate.poll?.options.length).toBe(5)
+    expect(gPollCreate.poll?.durationSeconds).toBe(60)
+    expect(typeof gPollCreate.poll?.endsAt).toBe('number')
+    expect(gPollCreate.poll!.endsAt!).toBeGreaterThan(Date.now())
+
+    // Member votes for option 1
+    const opt1Id = gPollCreate.poll!.options[1].id
+    member.gui({
+      type: 'session.action',
+      data: {
+        action: 'poll.vote',
+        pollId: gPollCreate.poll!.id,
+        optionId: opt1Id,
+      },
+    })
+    const gPollVote = await host.cho(
+      'session.poll.sync',
+      (g) => (g.voteCounts?.[opt1Id] ?? 0) >= 1,
+    )
+    expect(gPollVote.voteCounts?.[opt1Id]).toBe(1)
+
+    // Host closes poll
+    host.gui({
+      type: 'session.action',
+      data: { action: 'poll.close' },
+    })
+    const gPollClose = await member.cho('session.poll.sync', (g) => g.poll?.closed === true)
+    expect(gPollClose.poll?.closed).toBe(true)
+
+    host.dong()
+    member.dong()
+  })
+
+  it('4c. Quick Poll with allowViewOtherAnswers toggle: members receive voteCounts during active poll when enabled', async () => {
+    const roomId = await chenPhong('Phòng Bình Chọn Xem Đáp Án Khác')
+    const cHost = await dangNhapLayCookie('qa.v2.thu1')
+    const cMember = await dangNhapLayCookie('qa.v2.thu2')
+
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+    const member = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cMember)
+    await host.cho('room.snapshot')
+    await member.cho('room.snapshot')
+
+    // Host creates poll with allowViewOtherAnswers: true and correctOptionIndex: 0
+    host.gui({
+      type: 'session.action',
+      data: {
+        action: 'poll.create',
+        question: 'Thủ đô của Việt Nam là gì?',
+        options: ['A. Hà Nội', 'B. Đà Nẵng', 'C. TP.HCM'],
+        durationSeconds: 120,
+        allowViewOtherAnswers: true,
+        correctOptionIndex: 0,
+      },
+    })
+    const gPollCreate = await member.cho('session.poll.sync', (g) => g.poll !== null && !g.poll.closed)
+    expect(gPollCreate.poll?.allowViewOtherAnswers).toBe(true)
+    expect(gPollCreate.poll?.options[0].isCorrect).toBe(true)
+    expect(gPollCreate.poll?.correctOptionId).toBe(gPollCreate.poll?.options[0].id)
+    const opt0Id = gPollCreate.poll!.options[0].id
+
+    // Member votes for option 0
+    member.gui({
+      type: 'session.action',
+      data: {
+        action: 'poll.vote',
+        pollId: gPollCreate.poll!.id,
+        optionId: opt0Id,
+      },
+    })
+
+    // Because allowViewOtherAnswers is true, MEMBER receives voteCounts while poll is still open!
+    const gMemberVoteSync = await member.cho(
+      'session.poll.sync',
+      (g) => g.voteCounts !== null && (g.voteCounts?.[opt0Id] ?? 0) >= 1,
+    )
+    expect(gMemberVoteSync.voteCounts?.[opt0Id]).toBe(1)
+
+    // Host closes poll
+    host.gui({
+      type: 'session.action',
+      data: { action: 'poll.close' },
+    })
+    const gPollClose = await member.cho('session.poll.sync', (g) => g.poll?.closed === true)
+    expect(gPollClose.poll?.closed).toBe(true)
+
+    host.dong()
+    member.dong()
+  })
+
   it('5. Session Lifecycle & Summary: Start, End, Summary Broadcast & D1 Persistence', async () => {
     const roomId = await chenPhong('Phòng Tổng Kết Buổi Học')
     const cHost = await dangNhapLayCookie('qa.v2.thu1')

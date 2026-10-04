@@ -2,7 +2,6 @@
 
 import { ArrowRight, Clock, Eye } from 'lucide-react'
 import type { BanSanh } from '@shared/protocol/game'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
 
@@ -41,7 +40,7 @@ export function TheBanGame({ ban, onVao }: TheBanGameProps) {
 
   return (
     <article
-      className="group flex flex-col gap-3.5 rounded-2xl border border-border-default bg-surface p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md"
+      className="group flex flex-col gap-3.5 rounded-2xl skeuo-subcard-base p-4 transition-colors duration-150 hover:border-sky-400/50"
       data-testid={`ban-${ban.id}`}
     >
       <div className="flex items-start gap-3">
@@ -77,22 +76,28 @@ export function TheBanGame({ ban, onVao }: TheBanGameProps) {
         <p className="flex items-center gap-3 text-xs font-semibold tabular-nums text-text-secondary">
           <span className="inline-flex items-center gap-1" title="Thời gian mỗi lượt">
             <Clock className="size-3.5 text-text-tertiary" />
-            {ban.turnTimerSeconds}s
+            {ban.turnTimerSeconds === 0
+              ? 'Vô hạn'
+              : ban.turnTimerSeconds >= 60 && ban.turnTimerSeconds % 60 === 0
+                ? `${ban.turnTimerSeconds / 60}p`
+                : `${ban.turnTimerSeconds}s`}
           </span>
           <span className="inline-flex items-center gap-1" title="Người xem">
             <Eye className="size-3.5 text-text-tertiary" />
             {ban.soNguoiXem}
           </span>
         </p>
-        <Button
-          size="sm"
-          variant={dangCho ? 'default' : 'outline'}
+        <button
+          type="button"
           onClick={onVao}
-          className="shrink-0 rounded-xl font-semibold"
+          className={cn(
+            'shrink-0 h-8 px-3.5 rounded-xl font-semibold text-xs cursor-pointer transition-colors duration-150 flex items-center gap-1',
+            dangCho ? 'skeuo-btn-cta-amber' : 'skeuo-btn-cancel',
+          )}
         >
-          {dangCho ? 'Vào bàn' : 'Xem'}
-          {dangCho && <ArrowRight className="transition-transform duration-150 group-hover:translate-x-0.5" />}
-        </Button>
+          <span>{dangCho ? 'Vào bàn' : 'Xem'}</span>
+          {dangCho && <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />}
+        </button>
       </div>
     </article>
   )

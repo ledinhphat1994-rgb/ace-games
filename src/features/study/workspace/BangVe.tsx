@@ -13,6 +13,7 @@ import {
   type CongCu,
   type CoVe,
   diemHinh,
+  hopGioiHanNet,
   type LoaiHinh,
 } from './cong-cu'
 
@@ -29,6 +30,8 @@ interface BangVeProps {
   laPhu?: boolean
   /** Mặt vẽ: lớp vẽ tàng hình của video / tài liệu nhúng. Không có = Bảng. Mỗi mặt chỉ thấy và tẩy nét của chính nó. */
   mat?: MatNet
+  /** URL tài liệu hiện hành khi mat === 'tailieu' để nét vẽ gắn với từng tab riêng. */
+  docUrl?: string
   coTheVe: boolean
   /** Chủ phòng / người điều hành tẩy được mọi nét; người khác chỉ tẩy nét của mình. */
   coTheTayMoiNet: boolean
@@ -115,6 +118,7 @@ export function BangVe({
   co,
   laPhu = false,
   mat,
+  docUrl,
   coTheVe,
   coTheTayMoiNet,
   khoaCuaToi,
@@ -131,9 +135,22 @@ export function BangVe({
   const [chuDangGo, setChuDangGo] = useState('')
   const oChuRef = useRef<HTMLTextAreaElement>(null)
 
-  const netCuaMat = strokes.filter((s) => s.mat === mat)
-  const nhanChuot = coTheVe && CONG_CU_VE.has(congCu)
+  const netCuaMat = strokes.filter((s) => s.mat === mat).filter(
+    (s) => !mat || mat !== 'tailieu' || !docUrl || !s.docUrl || s.docUrl === docUrl,
+  )
+  const laDiChuyen = congCu === 'di_chuyen'
+  const nhanChuot = coTheVe && (CONG_CU_VE.has(congCu) || laDiChuyen)
   const doDay = doDayNet('bang', congCu, co)
+
+  const dangKeoRef = useRef(false)
+  const keoNetRef = useRef<WhiteboardStroke | null>(null)
+  const diemBatDauRef = useRef<[number, number] | null>(null)
+  const diemGocNetRef = useRef<[number, number][]>([])
+  const rafKeoRef = useRef<number | null>(null)
+  const offsetKeoRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
+  const [keoNetId, setKeoNetId] = useState<string | null>(null)
+  const [keoOffset, setKeoOffset] = useState<{ dx: number; dy: number } | null>(null)
+  const [netDuocChon, setNetDuocChon] = useState<string | null>(null)
 
   // Ô gõ chữ vừa mở: lấy tiêu điểm nhưng không cuộn trang (Zero CLS).
   useEffect(() => {
@@ -178,6 +195,7 @@ export function BangVe({
         tool: 'text',
         text: noiDung,
         ...(mat ? { mat } : {}),
+        ...(mat === 'tailieu' && docUrl ? { docUrl } : {}),
       })
     }
     setOChu(null)
@@ -188,6 +206,46 @@ export function BangVe({
     if (!nhanChuot) return
     const p = diemTrenBang(e)
     if (!p) return
+
+    if (laDiChuyen) {
+      const coTheDiChuyen = netCuaMat.filter(
+        (s) => coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi) || !s.by,
+      )
+      let trung = null
+      if (netDuocChon) {
+        const daChon = coTheDiChuyen.find((s) => s.id === netDuocChon)
+        if (daChon) {
+          const hop = hopGioiHanNet(daChon, 1)
+          if (hop) {
+            const pad = 12
+            if (p[0] >= hop.minX - pad && p[0] <= hop.maxX + pad && p[1] >= hop.minY - pad && p[1] <= hop.maxY + pad) {
+              trung = daChon
+            }
+          }
+        }
+      }
+      if (!trung) {
+        trung = netDuocCham(p, coTheDiChuyen, 24, 1, true)
+      }
+      if (trung) {
+        dangKeoRef.current = true
+        keoNetRef.current = trung
+        diemBatDauRef.current = p
+        diemGocNetRef.current = trung.points.map(([x, y]) => [x, y])
+        setKeoNetId(trung.id)
+        setNetDuocChon(trung.id)
+        setKeoOffset({ dx: 0, dy: 0 })
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId)
+        } catch {}
+      } else {
+        setNetDuocChon(null)
+        setKeoNetId(null)
+        setKeoOffset(null)
+      }
+      return
+    }
+
     if (congCu === 'chu') {
       // Chặn hành vi mặc định: sau pointerdown trình duyệt dời tiêu điểm về trang, làm ô chữ vừa mở mất tiêu điểm
       // và tự đóng ngay (bấm xuống bảng mà không gõ được chữ).
@@ -222,9 +280,25 @@ export function BangVe({
   }
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!dangVeRef.current) return
     const p = diemTrenBang(e)
     if (!p) return
+
+    if (laDiChuyen) {
+      if (dangKeoRef.current && diemBatDauRef.current && keoNetRef.current) {
+        const dx = p[0] - diemBatDauRef.current[0]
+        const dy = p[1] - diemBatDauRef.current[1]
+        offsetKeoRef.current = { dx, dy }
+        if (!rafKeoRef.current) {
+          rafKeoRef.current = requestAnimationFrame(() => {
+            rafKeoRef.current = null
+            setKeoOffset({ dx, dy })
+          })
+        }
+      }
+      return
+    }
+
+    if (!dangVeRef.current) return
     if (congCu === 'tay') {
       tayTai(p)
       return
@@ -238,6 +312,38 @@ export function BangVe({
   }
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (laDiChuyen) {
+      if (rafKeoRef.current !== null) {
+        cancelAnimationFrame(rafKeoRef.current)
+        rafKeoRef.current = null
+      }
+      const finalOffset = offsetKeoRef.current
+      if (dangKeoRef.current && keoNetRef.current && diemGocNetRef.current.length) {
+        const { dx, dy } = finalOffset
+        if (Math.hypot(dx, dy) >= 2) {
+          const newPoints: [number, number][] = diemGocNetRef.current.map(([x, y]) => [
+            Math.round(Math.max(0, Math.min(BANG_VE_RONG, x + dx)) * 10) / 10,
+            Math.round(Math.max(0, Math.min(BANG_VE_CAO, y + dy)) * 10) / 10,
+          ])
+          onSendStroke({
+            ...keoNetRef.current,
+            points: newPoints,
+            ...(mat === 'tailieu' && docUrl ? { docUrl } : {}),
+          })
+        }
+      }
+      dangKeoRef.current = false
+      keoNetRef.current = null
+      diemBatDauRef.current = null
+      offsetKeoRef.current = { dx: 0, dy: 0 }
+      setKeoNetId(null)
+      setKeoOffset(null)
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {}
+      return
+    }
+
     if (!dangVeRef.current) return
     dangVeRef.current = false
     try {
@@ -260,6 +366,7 @@ export function BangVe({
         v: 2,
         tool: 'shape',
         ...(mat ? { mat } : {}),
+        ...(mat === 'tailieu' && docUrl ? { docUrl } : {}),
       })
       return
     }
@@ -274,6 +381,7 @@ export function BangVe({
       tool: laToSang ? 'highlighter' : 'pen',
       ...(laToSang ? { opacity: DO_MO_TO_SANG } : {}),
       ...(mat ? { mat } : {}),
+      ...(mat === 'tailieu' && docUrl ? { docUrl } : {}),
     })
   }
 
@@ -301,7 +409,20 @@ export function BangVe({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         className={`absolute inset-0 h-full w-full touch-none ${nhanChuot ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        style={{ cursor: congCu === 'tay' ? 'cell' : congCu === 'chu' ? 'text' : nhanChuot ? 'crosshair' : 'default' }}
+        style={{
+          cursor:
+            congCu === 'tay'
+              ? 'cell'
+              : congCu === 'chu'
+                ? 'text'
+                : laDiChuyen
+                  ? dangKeoRef.current
+                    ? 'grabbing'
+                    : 'grab'
+                  : nhanChuot
+                    ? 'crosshair'
+                    : 'default',
+        }}
       >
         {!laPhu && (
           <>
@@ -314,9 +435,41 @@ export function BangVe({
             <rect width={BANG_VE_RONG} height={BANG_VE_CAO} fill="url(#o-bang-ve)" />
           </>
         )}
-        {netCuaMat.map((net) => (
-          <VeNet key={net.id} net={net} />
-        ))}
+        {netCuaMat.map((net) => {
+          const laDangKeo = keoNetId === net.id && keoOffset !== null
+          const dx = laDangKeo ? keoOffset.dx : 0
+          const dy = laDangKeo ? keoOffset.dy : 0
+          const laChon = laDiChuyen && (netDuocChon === net.id || keoNetId === net.id)
+          const hop = laChon ? hopGioiHanNet(net) : null
+          return (
+            <g
+              key={net.id}
+              transform={laDangKeo ? `translate(${dx}, ${dy})` : undefined}
+              filter={laDangKeo ? 'drop-shadow(0 4px 12px rgba(56, 189, 248, 0.45))' : undefined}
+            >
+              <VeNet net={net} />
+              {hop && (
+                <g className="pointer-events-none">
+                  <rect
+                    x={hop.minX - 4}
+                    y={hop.minY - 4}
+                    width={hop.width + 8}
+                    height={hop.height + 8}
+                    fill={laDangKeo ? 'rgba(56, 189, 248, 0.16)' : 'rgba(56, 189, 248, 0.08)'}
+                    stroke="#38bdf8"
+                    strokeWidth={laDangKeo ? 2 : 1.5}
+                    strokeDasharray="4 4"
+                    rx={4}
+                  />
+                  <rect x={hop.minX - 7} y={hop.minY - 7} width={6} height={6} fill="#38bdf8" rx={1} />
+                  <rect x={hop.maxX + 1} y={hop.minY - 7} width={6} height={6} fill="#38bdf8" rx={1} />
+                  <rect x={hop.minX - 7} y={hop.maxY + 1} width={6} height={6} fill="#38bdf8" rx={1} />
+                  <rect x={hop.maxX + 1} y={hop.maxY + 1} width={6} height={6} fill="#38bdf8" rx={1} />
+                </g>
+              )}
+            </g>
+          )
+        })}
         {xemTruoc}
       </svg>
 

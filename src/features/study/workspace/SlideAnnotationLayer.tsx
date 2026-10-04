@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { TiaLaserTrang } from '@/hooks/use-room'
 import { type AnnotationTool, downsampleStrokePoints, hitTestStrokes } from './annotation-geometry'
-import { DO_MO_TO_SANG, diemHinh, doDayNet, type CoVe, type LoaiHinh } from './cong-cu'
+import { DO_MO_TO_SANG, diemHinh, doDayNet, hopGioiHanNet, netDuocCham, type CoVe, type LoaiHinh } from './cong-cu'
 import { LopTiaLaser } from './LopLaserTrinhChieu'
 
 export type { AnnotationTool }
@@ -25,6 +25,8 @@ interface SlideAnnotationLayerProps {
   canAnnotate: boolean
   onSendStroke?: (stroke: SlideAnnotationStroke) => void
   onRemoveStroke?: (strokeId: string) => void
+  /** Kéo nền/hình ảnh khi dùng công cụ Di chuyển */
+  onPanBackground?: (dx: number, dy: number, isDone: boolean) => void
   /** Tia laser của người khác đang trỏ trên tài liệu (lọc theo trang ở đây). */
   lasers?: TiaLaserTrang[]
   onSendLaser?: (point: [number, number] | null, page: number) => void
@@ -33,6 +35,8 @@ interface SlideAnnotationLayerProps {
   /** Tẩy được nét của người khác (chỉ người trình chiếu); người tham gia chỉ tẩy nét của mình. */
   coTheTayMoiNet?: boolean
   khoaCuaToi?: string
+  /** URL tài liệu hiện hành để phân định nét vẽ theo từng tab tài liệu. */
+  docUrl?: string
 }
 
 function getSvgPathFromStroke(stroke: number[][]): string {
@@ -110,6 +114,8 @@ export function SlideAnnotationLayer({
   coLaser = false,
   coTheTayMoiNet = true,
   khoaCuaToi,
+  onPanBackground,
+  docUrl,
 }: SlideAnnotationLayerProps) {
   const isDrawingRef = useRef(false)
   const isErasingRef = useRef(false)
@@ -118,6 +124,19 @@ export function SlideAnnotationLayer({
   const svgRef = useRef<SVGSVGElement>(null)
   const khungRef = useRef<HTMLDivElement>(null)
   const [coKhung, setCoKhung] = useState({ rong: 1, cao: 1 })
+
+  const dangKeoRef = useRef(false)
+  const dangKeoNenRef = useRef(false)
+  const diemBatDauNenRef = useRef<{ x: number; y: number } | null>(null)
+  const keoNetRef = useRef<SlideAnnotationStroke | null>(null)
+  const diemBatDauRef = useRef<[number, number] | null>(null)
+  const diemGocNetRef = useRef<[number, number][]>([])
+  const rafKeoRef = useRef<number | null>(null)
+  const offsetKeoRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
+  const [keoNetId, setKeoNetId] = useState<string | null>(null)
+  const [keoOffset, setKeoOffset] = useState<{ dx: number; dy: number } | null>(null)
+  const [netDuocChon, setNetDuocChon] = useState<string | null>(null)
+
   // Ô gõ chữ: `diem` là toạ độ nét (0..1 theo trang), `left/top` là vị trí ô nhập (px trong khung trang, đã kẹp sát mép).
   const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number; coChuPx?: number } | null>(null)
   const [chuDangGo, setChuDangGo] = useState('')
@@ -139,8 +158,10 @@ export function SlideAnnotationLayer({
     if (oChu) oChuRef.current?.focus({ preventScroll: true })
   }, [oChu])
 
-  // Filter strokes for current page
-  const pageStrokes = strokes.filter((s) => s.page === pageNumber)
+  // Filter strokes for current page and active document
+  const pageStrokes = strokes.filter(
+    (s) => s.page === pageNumber && (!docUrl || !s.docUrl || s.docUrl === docUrl),
+  )
   const tiLeNgang = coKhung.rong / coKhung.cao
 
   // Get normalized [0..1] coordinates from mouse/pointer event relative to SVG
@@ -172,6 +193,7 @@ export function SlideAnnotationLayer({
         color: selectedColor,
         size: coTheoCongCu('text', selectedSize),
         text: noiDung,
+        ...(docUrl ? { docUrl } : {}),
       })
     }
     setOChu(null)
@@ -182,6 +204,63 @@ export function SlideAnnotationLayer({
     if (!canAnnotate) return
     const pt = getNormalizedPoint(e)
     if (!pt) return
+
+    if (activeTool === 'move') {
+      const coTheDiChuyen = pageStrokes.filter(
+        (s) => coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi) || !s.by,
+      )
+      const theoTrang = coTheDiChuyen.map((s) => (s.tool === 'text' ? { ...s, size: s.size / 1000 } : s))
+      let hit: (typeof theoTrang)[number] | null = null
+      if (netDuocChon) {
+        const daChon = theoTrang.find((s) => s.id === netDuocChon)
+        if (daChon) {
+          const hop = hopGioiHanNet(daChon, tiLeNgang)
+          if (hop) {
+            const padX = 12 / (1000 * (tiLeNgang || 1))
+            const padY = 12 / 1000
+            if (
+              pt[0] >= hop.minX - padX &&
+              pt[0] <= hop.maxX + padX &&
+              pt[1] >= hop.minY - padY &&
+              pt[1] <= hop.maxY + padY
+            ) {
+              hit = daChon
+            }
+          }
+        }
+      }
+      if (!hit) {
+        hit = netDuocCham(pt, theoTrang, 0.04, tiLeNgang, true, true)
+      }
+      if (hit) {
+        dangKeoRef.current = true
+        // Giữ nét gốc để không làm biến đổi size hay các trường ban đầu
+        const strokeGoc = pageStrokes.find((s) => s.id === hit.id) || hit
+        keoNetRef.current = strokeGoc
+        diemBatDauRef.current = pt
+        diemGocNetRef.current = strokeGoc.points.map(([x, y]) => [x, y])
+        setKeoNetId(hit.id)
+        setNetDuocChon(hit.id)
+        setKeoOffset({ dx: 0, dy: 0 })
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId)
+        } catch {}
+      } else {
+        setNetDuocChon(null)
+        setKeoNetId(null)
+        setKeoOffset(null)
+        // Khi bấm vào vùng không có nét: cho phép kéo di chuyển nền / hình ảnh
+        if (onPanBackground) {
+          e.preventDefault()
+          dangKeoNenRef.current = true
+          diemBatDauNenRef.current = { x: e.clientX, y: e.clientY }
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId)
+          } catch {}
+        }
+      }
+      return
+    }
 
     if (activeTool === 'text') {
       // Chặn hành vi mặc định: sau pointerdown trình duyệt dời tiêu điểm về trang, làm ô chữ vừa mở tự đóng ngay.
@@ -221,6 +300,27 @@ export function SlideAnnotationLayer({
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!canAnnotate) return
 
+    if (activeTool === 'move') {
+      if (dangKeoRef.current && diemBatDauRef.current && keoNetRef.current) {
+        const pt = getNormalizedPoint(e)
+        if (!pt) return
+        const dx = pt[0] - diemBatDauRef.current[0]
+        const dy = pt[1] - diemBatDauRef.current[1]
+        offsetKeoRef.current = { dx, dy }
+        if (!rafKeoRef.current) {
+          rafKeoRef.current = requestAnimationFrame(() => {
+            rafKeoRef.current = null
+            setKeoOffset({ dx, dy })
+          })
+        }
+      } else if (dangKeoNenRef.current && diemBatDauNenRef.current && onPanBackground) {
+        const dx = e.clientX - diemBatDauNenRef.current.x
+        const dy = e.clientY - diemBatDauNenRef.current.y
+        onPanBackground(dx, dy, false)
+      }
+      return
+    }
+
     if (activeTool === 'eraser') {
       if (isErasingRef.current) {
         const pt = getNormalizedPoint(e)
@@ -242,6 +342,49 @@ export function SlideAnnotationLayer({
   }
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (activeTool === 'move') {
+      if (dangKeoNenRef.current && diemBatDauNenRef.current && onPanBackground) {
+        const dx = e.clientX - diemBatDauNenRef.current.x
+        const dy = e.clientY - diemBatDauNenRef.current.y
+        dangKeoNenRef.current = false
+        diemBatDauNenRef.current = null
+        onPanBackground(dx, dy, true)
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId)
+        } catch {}
+        return
+      }
+      if (rafKeoRef.current !== null) {
+        cancelAnimationFrame(rafKeoRef.current)
+        rafKeoRef.current = null
+      }
+      const finalOffset = offsetKeoRef.current
+      if (dangKeoRef.current && keoNetRef.current && diemGocNetRef.current.length) {
+        const { dx, dy } = finalOffset
+        if (Math.hypot(dx, dy) >= 0.005) {
+          const newPoints: [number, number][] = diemGocNetRef.current.map(([x, y]) => [
+            Math.max(0, Math.min(1, Math.round((x + dx) * 10000) / 10000)),
+            Math.max(0, Math.min(1, Math.round((y + dy) * 10000) / 10000)),
+          ])
+          onSendStroke?.({
+            ...keoNetRef.current,
+            points: newPoints,
+            ...(docUrl ? { docUrl } : {}),
+          })
+        }
+      }
+      dangKeoRef.current = false
+      keoNetRef.current = null
+      diemBatDauRef.current = null
+      offsetKeoRef.current = { dx: 0, dy: 0 }
+      setKeoNetId(null)
+      setKeoOffset(null)
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {}
+      return
+    }
+
     if (activeTool === 'eraser') {
       isErasingRef.current = false
       try {
@@ -273,6 +416,7 @@ export function SlideAnnotationLayer({
         points: downsampleStrokePoints(diemHinh(hinh, a, b, tiLeNgang, DAU_MUI_TEN), 300),
         color: selectedColor,
         size: strokeSize,
+        ...(docUrl ? { docUrl } : {}),
       })
       return
     }
@@ -286,6 +430,7 @@ export function SlideAnnotationLayer({
         color: selectedColor,
         size: strokeSize,
         opacity: activeTool === 'highlighter' ? DO_MO_TO_SANG : 1,
+        ...(docUrl ? { docUrl } : {}),
       })
     }
   }
@@ -326,15 +471,52 @@ export function SlideAnnotationLayer({
           isInteractive ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'
         }`}
         style={{
-          cursor: activeTool === 'text' ? 'text' : isInteractive ? 'crosshair' : 'default',
+          cursor:
+            activeTool === 'text'
+              ? 'text'
+              : activeTool === 'move'
+                ? (dangKeoRef.current || dangKeoNenRef.current)
+                  ? 'grabbing'
+                  : 'grab'
+                : isInteractive
+                  ? 'crosshair'
+                  : 'default',
         }}
       >
         {/* Render committed strokes (chữ vẽ riêng bằng HTML bên dưới) */}
         {pageStrokes
           .filter((s) => s.tool !== 'text')
-          .map((s) => (
-            <NetTrang key={s.id} s={s} caoKhung={coKhung.cao} />
-          ))}
+          .map((s) => {
+            const laDangKeo = keoNetId === s.id && keoOffset !== null
+            const dx = laDangKeo ? keoOffset.dx * 1000 : 0
+            const dy = laDangKeo ? keoOffset.dy * 1000 : 0
+            const laChon = activeTool === 'move' && (netDuocChon === s.id || keoNetId === s.id)
+            const hop = laChon ? hopGioiHanNet(s, tiLeNgang) : null
+            return (
+              <g
+                key={s.id}
+                transform={laDangKeo ? `translate(${dx}, ${dy})` : undefined}
+                filter={laDangKeo ? 'drop-shadow(0 4px 12px rgba(56, 189, 248, 0.45))' : undefined}
+              >
+                <NetTrang s={s} caoKhung={coKhung.cao} />
+                {hop && (
+                  <g className="pointer-events-none">
+                    <rect
+                      x={hop.minX * 1000 - 4}
+                      y={hop.minY * 1000 - 4}
+                      width={hop.width * 1000 + 8}
+                      height={hop.height * 1000 + 8}
+                      fill={laDangKeo ? 'rgba(56, 189, 248, 0.16)' : 'rgba(56, 189, 248, 0.08)'}
+                      stroke="#38bdf8"
+                      strokeWidth={laDangKeo ? 2.5 : 2}
+                      strokeDasharray={laDangKeo ? 'none' : '6 6'}
+                      rx={4}
+                    />
+                  </g>
+                )}
+              </g>
+            )
+          })}
 
         {/* Render currently drawn active stroke */}
         {xemTruoc}
@@ -352,21 +534,30 @@ export function SlideAnnotationLayer({
       {/* Chữ trên trang: HTML theo % vị trí, cỡ chữ theo chiều cao trang — không méo như chữ trong SVG co giãn */}
       {pageStrokes
         .filter((s) => s.tool === 'text' && s.text)
-        .map((s) => (
-          <span
-            key={s.id}
-            className="absolute whitespace-pre-wrap font-semibold leading-snug select-none"
-            style={{
-              left: `${s.points[0][0] * 100}%`,
-              top: `${s.points[0][1] * 100}%`,
-              color: s.color,
-              fontSize: (s.size / 1000) * coKhung.cao,
-              lineHeight: 1.25,
-            }}
-          >
-            {s.text}
-          </span>
-        ))}
+        .map((s) => {
+          const dx = keoNetId === s.id && keoOffset ? keoOffset.dx : 0
+          const dy = keoNetId === s.id && keoOffset ? keoOffset.dy : 0
+          const posX = Math.max(0, Math.min(1, s.points[0][0] + dx)) * 100
+          const posY = Math.max(0, Math.min(1, s.points[0][1] + dy)) * 100
+          const laChon = activeTool === 'move' && (netDuocChon === s.id || keoNetId === s.id)
+          return (
+            <span
+              key={s.id}
+              className={`absolute whitespace-pre-wrap font-semibold leading-snug select-none ${
+                laChon ? 'ring-2 ring-brand ring-offset-2 ring-offset-black/50 rounded-sm' : ''
+              }`}
+              style={{
+                left: `${posX}%`,
+                top: `${posY}%`,
+                color: s.color,
+                fontSize: (s.size / 1000) * coKhung.cao,
+                lineHeight: 1.25,
+              }}
+            >
+              {s.text}
+            </span>
+          )
+        })}
 
       {oChu && (
         <textarea

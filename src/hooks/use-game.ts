@@ -56,6 +56,8 @@ export function useGame(
   myActorKey?: string,
   intendedGameType?: GameType,
   intendedTurnSeconds?: number,
+  intendedIsPrivate?: boolean,
+  intendedPassword?: string,
 ) {
   const loaiBanDau: GameType =
     intendedGameType ??
@@ -146,7 +148,16 @@ export function useGame(
     setTrangThai('dang_ket_noi')
     const giaoThuc = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
-    const ws = new WebSocket(`${giaoThuc}//${host}/ws/game/${encodeURIComponent(gameId)}`)
+    const passParam = intendedPassword || (
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('pass') ||
+          sessionStorage.getItem(`dc_game_pw_${gameId}`) ||
+          localStorage.getItem(`dc_game_pw_${gameId}`) ||
+          ''
+        : ''
+    )
+    const passQuery = passParam ? `?pass=${encodeURIComponent(passParam)}` : ''
+    const ws = new WebSocket(`${giaoThuc}//${host}/ws/game/${encodeURIComponent(gameId)}${passQuery}`)
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -178,17 +189,35 @@ export function useGame(
           // Bàn vừa tạo, chưa ai nhận X/O: người tạo gửi init để ngồi ghế X, áp trò chơi/thời gian lượt đã chọn ở
           // sảnh và đăng bàn lên sảnh (người vào bàn có sẵn không kèm intendedGameType nên không đụng tới).
           if (intendedGameType && nenKhoiTaoBan(goi.meta, intendedGameType)) {
+            const isPrivateInit = Boolean(
+              intendedIsPrivate ||
+              gameId.includes('rieng-tu') ||
+              (typeof window !== 'undefined' && (
+                new URLSearchParams(window.location.search).get('accessMode') === 'password' ||
+                Boolean(sessionStorage.getItem(`dc_game_pw_${gameId}`) || localStorage.getItem(`dc_game_pw_${gameId}`))
+              ))
+            )
+            const passwordInit = intendedPassword || (
+              typeof window !== 'undefined'
+                ? new URLSearchParams(window.location.search).get('pass') ||
+                  sessionStorage.getItem(`dc_game_pw_${gameId}`) ||
+                  localStorage.getItem(`dc_game_pw_${gameId}`) ||
+                  undefined
+                : undefined
+            )
             ws.send(
               JSON.stringify({
                 type: 'game.init',
                 gameType: intendedGameType,
                 turnSeconds: intendedTurnSeconds ?? 30,
+                isPrivate: isPrivateInit,
+                password: passwordInit,
               }),
             )
           } else if (nenTuVaoBan(goi.meta, myActorKey)) {
             // Bàn đang chờ đối thủ mà mình chưa có ghế: vào sảnh bấm "Chơi ngay"/"Vào đấu" hay mở link mời đều là để
             // chơi (bàn chờ không có gì để xem) — ngồi ghế trống luôn, máy chủ quyết định ghế và bắt đầu ván.
-            ws.send(JSON.stringify({ type: 'game.join' }))
+            ws.send(JSON.stringify({ type: 'game.join', password: passParam || undefined }))
           }
           break
         }
@@ -343,6 +372,11 @@ export function useGame(
     gui({ type: 'game.surrender' })
   }, [gui])
 
+  /** Bắt đầu ván đấu (ván mới hoặc đấu lại) */
+  const startGame = useCallback(() => {
+    gui({ type: 'game.start' })
+  }, [gui])
+
   /** Mời đấu lại, hoặc đồng ý khi đối thủ đã mời — máy chủ chỉ mở ván mới khi cả hai cùng muốn. */
   const rematch = useCallback(() => {
     gui({ type: 'game.rematch' })
@@ -362,6 +396,13 @@ export function useGame(
     [gui],
   )
 
+  const datPve = useCallback(
+    (isPve: boolean) => {
+      gui({ type: 'game.set_pve', isPve })
+    },
+    [gui],
+  )
+
   return {
     gameId,
     myActorKey,
@@ -369,6 +410,7 @@ export function useGame(
     daDongBo,
     meta,
     board,
+    thanhVien: thanhVien ?? [],
     spectators,
     coMat,
     mySide,
@@ -384,9 +426,11 @@ export function useGame(
     diCo,
     guiChat,
     surrender,
+    startGame,
     rematch,
     sendEmote,
     datThoiGianSuyNghi,
+    datPve,
   }
 }
 

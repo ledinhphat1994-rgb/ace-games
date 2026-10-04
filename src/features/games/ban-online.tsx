@@ -38,11 +38,24 @@ export function useCheDoBan(online: BanOnline | undefined, initialMode?: PlayMod
     }
   }, [trangThai, daDongBo, coGhe])
 
-  const dangCoVanOnline = coGhe && trangThai === 'playing'
+  const isPve = Boolean(online?.meta.isPve)
+  const isPveRef = useRef(isPve)
+  useEffect(() => {
+    if (isPve !== isPveRef.current) {
+      isPveRef.current = isPve
+      setMode(isPve ? 'ai' : (online ? 'online' : 'pass_and_play'))
+    }
+  }, [isPve, online])
+
+  const dangCoVanOnline = coGhe && trangThai === 'playing' && !isPve
   /** Đổi chế độ; trả về false nếu bị chặn (đang có ván online). */
   const doiCheDo = (moi: PlayMode): boolean => {
     if (mode === 'online' && moi !== 'online' && dangCoVanOnline) {
-      toast.warning('Bạn đang có ván online — hãy đi tiếp hoặc xin thua trước khi đổi chế độ.', {
+      if (online?.mySide === 'X' && moi === 'ai') {
+        setMode(moi)
+        return true
+      }
+      toast.warning('Đang có ván online dở dang', {
         id: 'ban-online-doi-che-do',
       })
       return false
@@ -55,6 +68,7 @@ export function useCheDoBan(online: BanOnline | undefined, initialMode?: PlayMod
     mode,
     doiCheDo,
     laOnline: mode === 'online' && Boolean(online),
+    isPve,
     vanVuaBatDau,
     xoaVanVuaBatDau: () => setVanVuaBatDau(false),
   }

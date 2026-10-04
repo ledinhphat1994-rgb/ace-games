@@ -46,8 +46,8 @@ export function CumPvePvp({
     <div
       data-testid="cum-pve-pvp"
       className={cn(
-        'grid gap-1 rounded-xl bg-surface-raised p-1 border border-border-default text-xs font-semibold shadow-xs shrink-0 h-10 box-border',
-        chiPve ? 'grid-cols-1 w-[132px] sm:w-[144px]' : 'grid-cols-2 w-[220px] sm:w-[240px]',
+        'grid gap-1 rounded-lg bg-surface-raised p-0.5 border border-border-default text-xs font-semibold shadow-xs shrink-0 h-8 box-border',
+        chiPve ? 'grid-cols-1 w-[110px] sm:w-[124px]' : 'grid-cols-2 w-[160px] sm:w-[176px]',
         className,
       )}
     >

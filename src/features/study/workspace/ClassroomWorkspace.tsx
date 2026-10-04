@@ -12,6 +12,7 @@ import type {
   SlideAnnotationStroke,
   ThanhVienPhong,
   WhiteboardStroke,
+  LoaiTaiLieuNap,
 } from '@shared/protocol/room'
 import type { VoiceClientState } from '@/lib/voice-client'
 import type { TrangThaiKetNoiPhong } from '@/hooks/use-room'
@@ -20,13 +21,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
 import { ClassroomTopBar } from './ClassroomTopBar'
+import { ClassInPollModal } from './ClassInPollModal'
 import { MemberStrip } from './MemberStrip'
 import { PresentationStage } from './PresentationStage'
 import type { TiaLaserSanKhau, TiaLaserTrang } from '@/hooks/use-room'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
-import type { QuyenCongCu } from '@shared/protocol/room'
+import type { ActivePoll, QuyenCongCu } from '@shared/protocol/room'
 import {
-  anLop,
   bamLop,
   boCucBanDau,
   cungBoCuc,
@@ -34,6 +35,7 @@ import {
   goLop,
   hienLop,
   lamChinh,
+  lenDauPip,
   theoBoCucTrinhChieu,
   thuNho,
   type BoCuc,
@@ -65,7 +67,8 @@ export interface ClassroomWorkspaceProps {
   slideState?: SlideState | null
   onPageChange?: (newPage: number, step?: number) => void
   onUploadSlide: () => void
-  onCloseDoc?: () => void
+  onCloseDoc?: (loai?: LoaiTaiLieuNap, docUrl?: string) => void
+  onSwitchDoc?: (loai: LoaiTaiLieuNap, docUrl?: string) => void
   onSetTotalPages?: (totalPages: number) => void
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
@@ -73,12 +76,14 @@ export interface ClassroomWorkspaceProps {
   onRemoveSlideAnnotation?: (id: string) => void
   slideLasers?: TiaLaserTrang[]
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
+  slideScroll?: { scrollRatio: number; scrollTop?: number; scrollHeight?: number; docUrl?: string; zoom?: number; panX?: number; panY?: number } | null
+  onSendSlideScroll?: (ratio: number, scrollTop?: number, scrollHeight?: number, docUrl?: string, zoom?: number, panX?: number, panY?: number) => void
   // Video
   mediaState?: MediaState | null
   canControlMedia?: boolean
   volume: number
   onVolumeChange: (vol: number) => void
-  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => void
+  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate' | 'close', time?: number, rate?: number) => void
   onOpenSearchQueue: () => void
   calculateTargetTime: () => number
   // Whiteboard
@@ -115,6 +120,19 @@ export interface ClassroomWorkspaceProps {
   // Secondary Tools
   onOpenCalculator: () => void
   onOpenSessionPanel: () => void
+  // Interactive Poll (ClassIn)
+  activePoll?: ActivePoll | null
+  pollVoteCounts?: Record<string, number> | null
+  onCreatePoll?: (
+    question: string,
+    options: string[],
+    durationSeconds?: number,
+    allowViewOtherAnswers?: boolean,
+    correctOptionIndex?: number,
+  ) => void
+  onVotePoll?: (pollId: string, optionId: string) => void
+  onClosePoll?: () => void
+  onMovePoll?: (x: number, y: number) => void
   // Leave
   onLeaveRoom: () => void
   onCloseRoom?: () => Promise<void>
@@ -141,6 +159,7 @@ export function ClassroomWorkspace({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSwitchDoc,
   onSetTotalPages,
   slideAnnotations,
   onSendSlideAnnotation,
@@ -148,6 +167,8 @@ export function ClassroomWorkspace({
   onRemoveSlideAnnotation,
   slideLasers = [],
   onSendSlideLaser,
+  slideScroll,
+  onSendSlideScroll,
   mediaState,
   canControlMedia = true,
   volume,
@@ -183,6 +204,12 @@ export function ClassroomWorkspace({
   onResolveNotesConflict,
   onOpenCalculator,
   onOpenSessionPanel,
+  activePoll,
+  pollVoteCounts,
+  onCreatePoll,
+  onVotePoll,
+  onClosePoll,
+  onMovePoll,
   onLeaveRoom,
   onCloseRoom,
 }: ClassroomWorkspaceProps) {
@@ -318,8 +345,34 @@ export function ClassroomWorkspace({
     return () => window.removeEventListener('keydown', thoat)
   }, [isFullscreen, laNguoiTrinhChieu])
 
+  const handleCloseDoc = useCallback(
+    (loai?: LoaiTaiLieuNap, docUrl?: string) => {
+      onCloseDoc?.(loai, docUrl)
+      if (!loai && !docUrl) {
+        setBoCuc((bc) => goLop(bc, 'doc'))
+      }
+    },
+    [onCloseDoc],
+  )
+
+  // ClassIn Interactive Poll state
+  const [pollModalOpen, setPollModalOpen] = useState(false)
+  useEffect(() => {
+    if (activePoll && !activePoll.closed) {
+      setPollModalOpen(true)
+    }
+  }, [activePoll?.id])
+
   // Thanh công cụ: di chuyển sát cạnh dưới của bảng trình chiếu; khi không sử dụng sẽ ẩn đi và để lại 1 mũi tên mở rộng.
-  // Đang mở khay (bút, công cụ) thì giữ nguyên.
+  // Đang mở khay (bút, công cụ) hoặc đã ghim (dockPinned) thì giữ cố định.
+  const [dockPinned, setDockPinned] = useState(() => {
+    try {
+      return localStorage.getItem('c10a7_dock_pinned') === 'true'
+    } catch {
+      return false
+    }
+  })
+
   const [dockThuGon, setDockThuGon] = useState(false)
   const [khayDockMo, setKhayDockMo] = useState(false)
   const henThuGonRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -329,17 +382,38 @@ export function ClassroomWorkspace({
   }
   const henThuGon = (ms: number) => {
     huyThuGon()
+    if (dockPinned) return
     henThuGonRef.current = setTimeout(() => setDockThuGon(true), ms)
   }
   const moDock = () => {
     huyThuGon()
     setDockThuGon(false)
   }
+
+  const toggleDockPinned = useCallback(() => {
+    setDockPinned((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('c10a7_dock_pinned', String(next))
+      } catch {}
+      if (next) {
+        moDock()
+      } else {
+        henThuGon(2000)
+      }
+      return next
+    })
+  }, [])
+
   useEffect(() => {
-    henThuGon(3500)
-    if (isFullscreen) henThuGon(2000)
+    if (dockPinned) {
+      moDock()
+    } else {
+      henThuGon(3500)
+      if (isFullscreen) henThuGon(2000)
+    }
     return huyThuGon
-  }, [isFullscreen])
+  }, [isFullscreen, dockPinned])
   const anDock = dockThuGon && !khayDockMo
 
   // Unread chat tracking
@@ -363,6 +437,10 @@ export function ClassroomWorkspace({
     : chatMessages.filter((m) => (parseInt(m.id, 10) || 0) > lastReadMessageId).length
 
   const handleTogglePanel = useCallback((target: ContextPanelView) => {
+    if (target === 'chat') {
+      window.dispatchEvent(new CustomEvent('campus:open-chat'))
+      return
+    }
     setContextPanel((curr) => (curr === target ? 'closed' : target))
   }, [])
 
@@ -374,7 +452,7 @@ export function ClassroomWorkspace({
   const coTheDung = useCallback(
     (c: CongCu) => {
       if (laNguoiTrinhChieu) return true
-      if (c === 'chuot') return true
+      if (c === 'chuot' || c === 'di_chuyen') return true
       const key = nguoiDung.actorKey
       if (!key) return false
       const danhSach = quyenCongCu[key] ?? []
@@ -439,60 +517,70 @@ export function ClassroomWorkspace({
           videoChinh ? 'justify-center sm:[container-type:size]' : ''
         }`}
       >
-        {/* Dominant Center Stage */}
+        {/* Dominant Center Stage (Vùng 3 và Vùng 2 tách biệt, không đụng nhau) */}
         <main
           className={`relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden ${
             videoChinh ? 'sm:max-w-[calc(100cqh*16/9)]' : ''
-          }`}
+          } gap-2`}
         >
-          <PresentationStage
-            boCuc={boCuc}
-            onPhongTo={doiBoCuc(lamChinh)}
-            onThuNho={doiBoCuc(thuNho)}
-            onAn={doiBoCuc(anLop)}
-            onDoiKhung={laNguoiTrinhChieu ? ghiKhung : undefined}
-            onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
-            stageLasers={stageLasers}
-            onSendStageLaser={onSendStageLaser}
-            isHost={isHost}
-            canModerate={canModerate}
-            myActorKey={nguoiDung.actorKey}
-            quyenCongCu={quyenCongCu}
-            congCu={congCu}
-            hinh={hinh}
-            mau={mau}
-            co={co}
-            slideState={slideState}
-            onPageChange={onPageChange}
-            onUploadSlide={onUploadSlide}
-            onCloseDoc={onCloseDoc}
-            onSetTotalPages={onSetTotalPages}
-            mediaState={mediaState}
-            canControlMedia={canControlMedia}
-            volume={volume}
-            onVolumeChange={onVolumeChange}
-            onSyncMedia={onSyncMedia}
-            onOpenSearchQueue={onOpenSearchQueue}
-            calculateTargetTime={calculateTargetTime}
-            whiteboardStrokes={whiteboardStrokes}
-            onSendStroke={onSendStroke}
-            onRemoveStroke={onRemoveStroke}
-            isFullscreen={isFullscreen}
-            onToggleFullscreen={handleToggleFullscreen}
-            isReconnecting={isReconnecting}
-            slideAnnotations={slideAnnotations}
-            onSendSlideAnnotation={onSendSlideAnnotation}
-            onRemoveSlideAnnotation={onRemoveSlideAnnotation}
-            slideLasers={slideLasers}
-            onSendSlideLaser={onSendSlideLaser}
-          />
+          {/* VÙNG 3: Khung trình chiếu riêng biệt, KHÔNG đụng vào Vùng 2 */}
+          <div className="relative flex flex-1 min-h-0 w-full flex-col overflow-hidden">
+            <PresentationStage
+              boCuc={boCuc}
+              onPhongTo={doiBoCuc(lamChinh)}
+              onThuNho={doiBoCuc(thuNho)}
+              onLenDau={doiBoCuc(lenDauPip)}
+              onAn={(id) => {
+                if (id === 'video') onSyncMedia('close')
+                doiBoCuc(goLop)(id)
+              }}
+              onDoiKhung={laNguoiTrinhChieu ? ghiKhung : undefined}
+              onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
+              stageLasers={stageLasers}
+              onSendStageLaser={onSendStageLaser}
+              isHost={isHost}
+              canModerate={canModerate}
+              myActorKey={nguoiDung.actorKey}
+              quyenCongCu={quyenCongCu}
+              congCu={congCu}
+              hinh={hinh}
+              mau={mau}
+              co={co}
+              slideState={slideState}
+              onPageChange={onPageChange}
+              onUploadSlide={onUploadSlide}
+              onCloseDoc={handleCloseDoc}
+              onSwitchDoc={onSwitchDoc}
+              onSetTotalPages={onSetTotalPages}
+              mediaState={mediaState}
+              canControlMedia={canControlMedia}
+              volume={volume}
+              onVolumeChange={onVolumeChange}
+              onSyncMedia={onSyncMedia}
+              onOpenSearchQueue={onOpenSearchQueue}
+              calculateTargetTime={calculateTargetTime}
+              whiteboardStrokes={whiteboardStrokes}
+              onSendStroke={onSendStroke}
+              onRemoveStroke={onRemoveStroke}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={handleToggleFullscreen}
+              isReconnecting={isReconnecting}
+              slideAnnotations={slideAnnotations}
+              onSendSlideAnnotation={onSendSlideAnnotation}
+              onRemoveSlideAnnotation={onRemoveSlideAnnotation}
+              slideLasers={slideLasers}
+              onSendSlideLaser={onSendSlideLaser}
+              slideScroll={slideScroll}
+              onSendSlideScroll={onSendSlideScroll}
+            />
+          </div>
 
-          {/* ── 4. THANH CÔNG CỤ (Vùng 2: sát cạnh dưới sân khấu, khi không dùng tự thu để lại mũi tên mở rộng) ── */}
+          {/* ── 4. THANH CÔNG CỤ (Vùng 2: Chiều cao h-[60px] sm:h-16 giống hệt Vùng 2+, tách rời Vùng 3) ── */}
           <div
             className={
               isFullscreen
                 ? 'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center'
-                : 'pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-2'
+                : 'relative z-30 flex h-[60px] sm:h-16 shrink-0 items-center justify-center'
             }
           >
             {anDock && (
@@ -512,9 +600,11 @@ export function ClassroomWorkspace({
             <div
               className={`transition-[transform,opacity] duration-300 ${
                 anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'
-              } ${isFullscreen ? 'mb-2' : 'mb-0.5'}`}
+              } ${isFullscreen ? 'mb-2' : ''}`}
               onPointerEnter={moDock}
-              onPointerLeave={(e) => henThuGon(e.pointerType === 'touch' ? 2500 : 1500)}
+              onPointerLeave={(e) => {
+                if (!dockPinned) henThuGon(e.pointerType === 'touch' ? 2500 : 1500)
+              }}
               onFocusCapture={moDock}
               data-testid="dock-wrapper"
               data-thu-gon={anDock || undefined}
@@ -533,9 +623,14 @@ export function ClassroomWorkspace({
                   setBoCuc((bc) => bamLop(bc, id))
                 }}
                 coTaiLieu={Boolean(docUrl)}
+                soLuongTaiLieu={slideState?.loadedDocs?.length ?? (slideState?.docUrl ? 1 : 0)}
                 videoDangPhat={videoDangPhat}
                 isHost={isHost}
                 canModerate={canModerate}
+                dockPinned={dockPinned}
+                onTogglePin={toggleDockPinned}
+                onOpenPollModal={() => setPollModalOpen(true)}
+                activePoll={activePoll}
                 congCu={congCu}
                 coTheDung={coTheDung}
                 coTheXoa={coTheXoa}
@@ -575,7 +670,7 @@ export function ClassroomWorkspace({
 
         {/* Single Contextual Right Panel */}
         <ClassroomContextPanel
-          view={contextPanel}
+          view={contextPanel === 'chat' ? 'closed' : contextPanel}
           onClose={() => setContextPanel('closed')}
           nguoiDung={nguoiDung}
           isHost={isHost}
@@ -599,6 +694,21 @@ export function ClassroomWorkspace({
           isReconnecting={isReconnecting}
         />
       </div>
+
+      {onCreatePoll && onVotePoll && onClosePoll && (
+        <ClassInPollModal
+          open={pollModalOpen}
+          onOpenChange={setPollModalOpen}
+          poll={activePoll ?? null}
+          voteCounts={pollVoteCounts ?? null}
+          canControl={isHost || canModerate}
+          currentAccountId={nguoiDung.accountId}
+          onCreatePoll={onCreatePoll}
+          onVote={onVotePoll}
+          onClosePoll={onClosePoll}
+          onMovePoll={onMovePoll}
+        />
+      )}
     </div>
   )
 }

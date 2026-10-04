@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { taoDanhTinhCampus, TEN_CAMPUS } from './campus/danh-tinh'
 import { tenLobbyTheoLoai } from './games/game-lobby-do'
+import { xuLyCapNhatReactions, type ActionReactionInput } from './campus/campus-reactions'
+import { SLUG_TIENG_VIET_GAME, type GameType } from '../shared/protocol/game'
 
 export function isDurableObjectOverloaded(err: unknown): boolean {
   if (!err) return false
@@ -599,7 +601,17 @@ async function vaoPhongGame(request: Request, env: Env, maPhong: string): Promis
   headers.set('X-Actor-Phien-Id', kq.phien.phienId || '')
   headers.set('X-Room-Id', 'game_' + maPhong)
   headers.delete('X-Actor-Avatar')
+  const avatarPhong = avatarThanhVien(kq.taiKhoan.avatar)
+  if (avatarPhong) headers.set('X-Actor-Avatar', encodeURIComponent(avatarPhong))
   headers.set('X-Room-Mode', 'game')
+
+  // Trích xuất mật khẩu bàn nếu có từ query param (?pass=...)
+  try {
+    const pass = new URL(request.url).searchParams.get('pass')
+    if (pass) {
+      headers.set('X-Game-Password', encodeURIComponent(pass))
+    }
+  } catch {}
 
   // Đăng ký phòng game với CampusDO để hỗ trợ thu hồi phiên tập trung
   if (kq.phien.phienId) {
@@ -1774,6 +1786,103 @@ app.get('/api/game/rooms', async (c) => {
 })
 app.all('/api/game/rooms', saiPhuongThuc)
 
+app.post('/api/game/:maPhong/verify-password', async (c) => {
+  const maPhong = c.req.param('maPhong')
+  if (!/^[a-z0-9-]{1,64}$/.test(maPhong)) return loi('Mã phòng không hợp lệ.', 400)
+  const body = (await c.req.json().catch(() => ({}))) as { password?: string }
+  const password = body.password?.trim()
+  if (!password) return loi('Vui lòng nhập mật khẩu.', 400)
+
+  const doId = c.env.ROOMS.idFromName('game_' + maPhong)
+  const roomDO = c.env.ROOMS.get(doId)
+  return roomDO.fetch(
+    new Request('http://internal/internal/game/verify-password', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  )
+})
+
+app.post('/api/game/create', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    gameType?: GameType
+    tieuDe?: string
+    turnTimerSeconds?: number
+    isPrivate?: boolean
+    password?: string
+    soPhong?: number
+  }
+
+  const gameType: GameType = body.gameType || 'chess'
+  const cleanPw = body.password?.trim() || ''
+  const isPrivate = Boolean(body.isPrivate || cleanPw.length >= 4)
+  if (isPrivate && cleanPw.length < 4) {
+    return loi('Mật khẩu phòng tối thiểu 4 ký tự.', 400)
+  }
+
+  const soPhong = body.soPhong && Number.isInteger(body.soPhong) && body.soPhong > 0
+    ? body.soPhong
+    : Math.floor(Math.random() * 89) + 11
+
+  const slug = SLUG_TIENG_VIET_GAME[gameType] || gameType.replace(/_/g, '-')
+  const maBan = isPrivate ? `${slug}-rieng-tu-phong-${soPhong}` : `${slug}-phong-${soPhong}`
+  const hostKey = actorKey(kq.phien)
+  const hostName = kq.taiKhoan.ten || kq.taiKhoan.username
+
+  const doId = c.env.ROOMS.idFromName('game_' + maBan)
+  const roomDO = c.env.ROOMS.get(doId)
+
+  const initRes = await roomDO.fetch(
+    new Request('http://internal/internal/game/create-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomId: maBan,
+        gameType,
+        turnSeconds: body.turnTimerSeconds ?? 30,
+        isPrivate,
+        password: cleanPw || undefined,
+        hostKey,
+        hostName,
+        roomName: body.tieuDe?.trim() || undefined,
+        soPhong,
+      }),
+    }),
+  )
+
+  const initData = (await initRes.json().catch(() => ({}))) as { ok?: boolean; message?: string }
+  if (!initRes.ok || !initData.ok) {
+    return loi(initData.message || 'Không thể tạo bàn đấu.', 500)
+  }
+
+  return c.json({
+    ok: true,
+    roomId: maBan,
+    soPhong,
+    isPrivate,
+    password: cleanPw || undefined,
+  })
+})
+
+app.post('/api/game/:maPhong/cancel', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const maPhong = c.req.param('maPhong')
+  if (!/^[a-z0-9-]{1,64}$/.test(maPhong)) return loi('Mã phòng không hợp lệ.', 400)
+
+  const doId = c.env.ROOMS.idFromName('game_' + maPhong)
+  const roomDO = c.env.ROOMS.get(doId)
+  return roomDO.fetch(
+    new Request('http://internal/internal/game/cancel-room', {
+      method: 'POST',
+    }),
+  )
+})
+
 async function vaoGameLobby(request: Request, env: Env, gameType?: string): Promise<Response> {
   if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)
   if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
@@ -1801,11 +1910,25 @@ app.get('/api/yt-search', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
   const q = (c.req.query('q') ?? '').trim()
-  if (!q || q.length > 200) return c.json([])
+  if (!q || q.length > 500) return c.json([])
+  const sort = (c.req.query('sort') ?? 'relevance').trim()
 
-  // Kết quả tìm kiếm không phụ thuộc người hỏi: giữ 1 giờ trong Cache API để cùng từ khoá không phải đọc lại YouTube (~1s).
-  // v2: kết quả đã bỏ video bị chủ sở hữu chặn nhúng (bản cũ chưa lọc không dùng lại).
-  const khoaCache = new Request(`https://yt-search.cache/v2?q=${encodeURIComponent(q.toLowerCase())}`)
+  const trichXuatId = (s: string): string => {
+    const m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/)
+    if (m) return m[1]
+    if (/^[\w-]{11}$/.test(s)) return s
+    return ''
+  }
+  const detectedVid = trichXuatId(q)
+  const queryStr = detectedVid || q
+
+  let sp = ''
+  // CAISAhAB: Sắp xếp = Ngày tải lên (Upload date) + Loại = Video (toàn thời gian, không bị bó hẹp trong 7 ngày / tuần này như EgIIAw==)
+  if (sort === 'upload_date') sp = '&sp=CAISAhAB'
+  else if (sort === 'view_count') sp = '&sp=CAMSAhAB'
+
+  // Kết quả tìm kiếm theo từ khóa + bộ lọc sắp xếp (giữ 3 phút trong Cache API để từ khoá không bị chậm mà vẫn luôn mới).
+  const khoaCache = new Request(`https://yt-search.cache/v5?q=${encodeURIComponent(queryStr.toLowerCase())}&sort=${encodeURIComponent(sort)}`)
   let cache: Cache | undefined
   try {
     // Ép kiểu: project test nạp thêm lib DOM, nơi CacheStorage không có `.default` như trên Workers.
@@ -1813,57 +1936,218 @@ app.get('/api/yt-search', async (c) => {
   } catch {}
   const daLuu = await cache?.match(khoaCache).catch(() => undefined)
   if (daLuu) {
-    // Kết quả đã lưu vẫn bỏ video mà trình phát trong phòng vừa báo là bị chặn nhúng.
     const cu = (await daLuu.json()) as { videoId: string }[]
     const biChan = await Promise.all(cu.map((v) => daBiChanNhung(v.videoId, cache)))
     return c.json(cu.filter((_, i) => !biChan[i]))
   }
-  const traVe = async (ungVien: { videoId: string; title: string; author: string; duration?: string }[]) => {
-    // Bỏ video chủ sở hữu tắt nhúng (không phát được trong phòng học); lỗi mạng thì vẫn giữ.
-    const nhung = await Promise.all(ungVien.map((v) => kiemTraNhung(v.videoId, { cache })))
-    const ketQua = ungVien.filter((_, i) => nhung[i] !== 'khong').slice(0, 20)
-    if (cache && ketQua.length > 0) {
-      const banLuu = new Response(JSON.stringify(ketQua), {
-        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+  const traVe = async (ungVien: { videoId: string; title: string; author: string; duration?: string; publishedTime?: string }[]) => {
+    // 1. Kiểm tra danh sách đã biết là bị tắt nhúng từ cache (0 subrequest)
+    const biChan = await Promise.all(ungVien.map((v) => daBiChanNhung(v.videoId, cache)))
+    // 2. Chỉ kiểm tra oEmbed cho tối đa 25 video chưa có trong cache để luôn nằm trong hạn mức 50 subrequest của Cloudflare
+    let countOembed = 0
+    const ketQua: typeof ungVien = []
+    for (let i = 0; i < ungVien.length; i++) {
+      if (biChan[i]) continue
+      const v = ungVien[i]
+      if (countOembed < 25) {
+        countOembed++
+        const nhung = await kiemTraNhung(v.videoId, { cache })
+        if (nhung !== 'khong') ketQua.push(v)
+      } else {
+        ketQua.push(v)
+      }
+    }
+
+    // Trả về danh sách nhiều video nhất có thể (tối đa 100 video)
+    const ketQuaCuoi = ketQua.slice(0, 100)
+    if (cache && ketQuaCuoi.length > 0) {
+      const banLuu = new Response(JSON.stringify(ketQuaCuoi), {
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=180' },
       })
       try {
         c.executionCtx.waitUntil(cache.put(khoaCache, banLuu).catch(() => {}))
       } catch {}
     }
-    return c.json(ketQua)
+    return c.json(ketQuaCuoi)
   }
   try {
-    const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept-Language': 'vi,en;q=0.9' },
+    let exactVideoItem: { videoId: string; title: string; author: string; duration?: string; publishedTime?: string } | null = null
+    if (detectedVid) {
+      try {
+        const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${detectedVid}&format=json`, {
+          signal: AbortSignal.timeout(3000),
+        })
+        if (oembedRes.ok) {
+          const odata = (await oembedRes.json()) as { title?: string; author_name?: string }
+          exactVideoItem = {
+            videoId: detectedVid,
+            title: odata.title || `Video YouTube (${detectedVid})`,
+            author: odata.author_name || 'YouTube',
+            duration: undefined,
+            publishedTime: 'Khớp link',
+          }
+        }
+      } catch {}
+    }
+
+    const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(queryStr)}${sp}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'vi,en;q=0.9',
+      },
       signal: AbortSignal.timeout(6000),
     })
-    if (!res.ok) return c.json([])
+    if (!res.ok) {
+      if (exactVideoItem) return await traVe([exactVideoItem])
+      return c.json([])
+    }
     const html = await res.text()
     const match = html.match(/ytInitialData\s*=\s*({.+?});<\/script>/)
     if (match) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = JSON.parse(match[1]) as any
-        const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || []
-        const results: { videoId: string; title: string; author: string; duration?: string }[] = []
-        for (const item of contents) {
-          const v = item?.videoRenderer
-          if (v && typeof v.videoId === 'string') {
-            results.push({
-              videoId: v.videoId,
-              title: v.title?.runs?.[0]?.text || 'Video YouTube',
-              author: v.ownerText?.runs?.[0]?.text || '',
-              duration: v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || undefined,
-            })
-            // Lấy dư để còn đủ 20 sau khi bỏ video bị chặn nhúng.
-            if (results.length >= 30) break
-          }
+        const sections = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || []
+        const results: { videoId: string; title: string; author: string; duration?: string; publishedTime?: string }[] = []
+        if (exactVideoItem) {
+          results.push(exactVideoItem)
         }
-        if (results.length > 0) return await traVe(results)
+
+        let continuationToken: string | undefined
+
+        for (const s of sections) {
+          const token = s?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token
+          if (token && !continuationToken) {
+            continuationToken = token
+          }
+          const contents = s?.itemSectionRenderer?.contents || []
+          for (const item of contents) {
+            if (item.videoRenderer) {
+              const v = item.videoRenderer
+              if (v && typeof v.videoId === 'string' && v.videoId.length === 11 && !results.some((r) => r.videoId === v.videoId)) {
+                results.push({
+                  videoId: v.videoId,
+                  title: v.title?.runs?.[0]?.text || v.title?.simpleText || 'Video YouTube',
+                  author: v.ownerText?.runs?.[0]?.text || '',
+                  duration: v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || undefined,
+                  publishedTime: v.publishedTimeText?.simpleText || undefined,
+                })
+              }
+            } else if (item.lockupViewModel) {
+              const l = item.lockupViewModel
+              const contentId = l.contentId
+              if (
+                typeof contentId === 'string' &&
+                contentId.length === 11 &&
+                !contentId.startsWith('PL') &&
+                !contentId.startsWith('UC') &&
+                !results.some((r) => r.videoId === contentId)
+              ) {
+                const meta = l.metadata?.lockupMetadataViewModel
+                const title = meta?.title?.content
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const rows = meta?.metadata?.contentMetadataViewModel?.metadataRows || []
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const author = rows[0]?.metadataParts?.[0]?.text?.content
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const timePart = rows[1]?.metadataParts?.find((p: any) => p.text?.content?.includes('trước') || p.text?.content?.includes('ago'))
+                const duration = l.contentImage?.thumbnailViewModel?.overlays?.[0]?.thumbnailOverlayBadgeViewModel?.thumbnailBadges?.[0]?.thumbnailBadgeViewModel?.text
+                results.push({
+                  videoId: contentId,
+                  title: title || 'Video YouTube',
+                  author: author || '',
+                  duration: duration || undefined,
+                  publishedTime: timePart?.text?.content || undefined,
+                })
+              }
+            }
+            if (results.length >= 120) break
+          }
+          if (results.length >= 120) break
+        }
+
+        // Tải thêm 1 trang kết quả nếu có token để mở rộng danh sách sang nhiều tuần/tháng/năm
+        if (continuationToken && results.length < 80) {
+          try {
+            const contRes = await fetch('https://www.youtube.com/youtubei/v1/search', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+              body: JSON.stringify({
+                context: {
+                  client: {
+                    clientName: 'WEB',
+                    clientVersion: '2.20240101.00.00',
+                    hl: 'vi',
+                    gl: 'VN',
+                  },
+                },
+                continuation: continuationToken,
+              }),
+              signal: AbortSignal.timeout(3500),
+            })
+            if (contRes.ok) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const contData = (await contRes.json()) as any
+              const actions = contData?.onResponseReceivedCommands || []
+              for (const act of actions) {
+                const appendItems = act?.appendContinuationItemsAction?.continuationItems || []
+                for (const ci of appendItems) {
+                  const subItems = ci?.itemSectionRenderer?.contents || []
+                  for (const item of subItems) {
+                    if (item.videoRenderer) {
+                      const v = item.videoRenderer
+                      if (v && typeof v.videoId === 'string' && v.videoId.length === 11 && !results.some((r) => r.videoId === v.videoId)) {
+                        results.push({
+                          videoId: v.videoId,
+                          title: v.title?.runs?.[0]?.text || v.title?.simpleText || 'Video YouTube',
+                          author: v.ownerText?.runs?.[0]?.text || '',
+                          duration: v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || undefined,
+                          publishedTime: v.publishedTimeText?.simpleText || undefined,
+                        })
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch {}
+        }
+
+        if (results.length > 0) {
+          if (sort === 'upload_date') {
+            const parseUploadMinutesAgo = (text?: string): number => {
+              if (!text) return Number.MAX_SAFE_INTEGER
+              if (text === 'Khớp link') return -1
+              const s = text.toLowerCase()
+              const m = s.match(/(\d+)\s*(giây|phút|giờ|ngày|tuần|tháng|năm|second|minute|hour|day|week|month|year)/)
+              if (!m) return Number.MAX_SAFE_INTEGER
+              const val = parseInt(m[1], 10)
+              const unit = m[2]
+              if (unit.startsWith('giây') || unit.startsWith('second')) return val / 60
+              if (unit.startsWith('phút') || unit.startsWith('minute')) return val
+              if (unit.startsWith('giờ') || unit.startsWith('hour')) return val * 60
+              if (unit.startsWith('ngày') || unit.startsWith('day')) return val * 1440
+              if (unit.startsWith('tuần') || unit.startsWith('week')) return val * 10080
+              if (unit.startsWith('tháng') || unit.startsWith('month')) return val * 43200
+              if (unit.startsWith('năm') || unit.startsWith('year')) return val * 525600
+              return Number.MAX_SAFE_INTEGER
+            }
+            results.sort((a, b) => parseUploadMinutesAgo(a.publishedTime) - parseUploadMinutesAgo(b.publishedTime))
+          }
+          return await traVe(results)
+        }
       } catch {}
     }
-    const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 30)
-    return await traVe(ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' })))
+    const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 60)
+    const fallbackList = ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' }))
+    if (exactVideoItem && !fallbackList.some((r) => r.videoId === exactVideoItem!.videoId)) {
+      fallbackList.unshift(exactVideoItem)
+    }
+    return await traVe(fallbackList)
   } catch { return c.json([]) }
 })
 app.all('/api/yt-search', saiPhuongThuc)
@@ -1904,6 +2188,63 @@ app.route('/api/engagement', engagementApp)
 app.route('/api/notifications', notificationApp)
 app.route('/api/admin', adminRouter)
 app.route('/api/rooms', roomRouter)
+
+app.post('/api/campus/chat/reaction', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const myId = kq.taiKhoan.id
+  const myName = kq.taiKhoan.ten || kq.taiKhoan.username || 'Thành viên'
+
+  let body: ActionReactionInput & { messageId?: number }
+  try {
+    body = await c.req.json()
+  } catch {
+    return loi('Dữ liệu không hợp lệ.', 400)
+  }
+
+  const messageId = Number(body?.messageId)
+  if (!Number.isInteger(messageId) || messageId <= 0) return loi('Mã tin nhắn không hợp lệ.', 400)
+
+  // Lấy dữ liệu reaction hiện tại trong D1
+  const existingRow = await c.env.DB.prepare(
+    "SELECT emojis FROM message_reactions WHERE scope = 'campus' AND message_id = ?1",
+  )
+    .bind(messageId)
+    .first<{ emojis: string }>()
+
+  const updateRes = xuLyCapNhatReactions(existingRow?.emojis, body, { id: myId, name: myName })
+  if (updateRes.loi) {
+    return loi(updateRes.loi, (updateRes.statusCode || 400) as any)
+  }
+
+  const { emojis, details } = updateRes
+  const now = Date.now()
+
+  if (emojis.length > 0 && details.length > 0) {
+    await c.env.DB.prepare(
+      `INSERT INTO message_reactions (scope, message_id, emojis, cap_nhat_luc)
+       VALUES ('campus', ?1, ?2, ?3)
+       ON CONFLICT(scope, message_id) DO UPDATE SET emojis = excluded.emojis, cap_nhat_luc = excluded.cap_nhat_luc`,
+    )
+      .bind(messageId, JSON.stringify({ emojis, details }), now)
+      .run()
+  } else {
+    await c.env.DB.prepare("DELETE FROM message_reactions WHERE scope = 'campus' AND message_id = ?1")
+      .bind(messageId)
+      .run()
+  }
+
+  // Báo CampusDO phát tán realtime tới toàn trường
+  try {
+    const doId = c.env.CAMPUS.idFromName(TEN_CAMPUS)
+    const campusDO = c.env.CAMPUS.get(doId)
+    await campusDO.phatReactionChat(messageId, emojis, details)
+  } catch (err) {
+    console.error('Không phát được reaction qua CampusDO:', err)
+  }
+
+  return c.json({ ok: true, messageId, reactions: emojis, reactionDetails: details })
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket routes

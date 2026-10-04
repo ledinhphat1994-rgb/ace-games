@@ -33,5 +33,8 @@ export default defineConfig(async () => ({
   test: {
     include: ['test/**/*.test.ts'],
     setupFiles: ['./test/setup.ts'],
+    // Giới hạn 50% CPU để máy luôn mát mẻ, không nghẽn tài nguyên khi chạy test
+    maxWorkers: '50%',
+    minWorkers: 1,
   },
 }))

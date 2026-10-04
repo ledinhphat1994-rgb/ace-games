@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Flame, Play, RotateCcw, ShieldCheck } from 'lucide-react'
+import { Flame, Play, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
@@ -23,11 +23,9 @@ const DANH_SACH_THAI_DO_SNAKE: QuickEmoteItem[] = [
 interface SnakeDuelProps {
   onSaveScore?: (score: number) => void
   onBack?: () => void
-  snakeTab?: 'duel' | 'classic'
-  onTabChange?: (tab: 'duel' | 'classic') => void
 }
 
-export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) {
+export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
   // Thiết lập PvE / PvP nhớ theo thiết bị
   const [thietLap, setThietLap] = useState<ThietLapRan>(docThietLap)
   const [mode, setMode] = useState<PlayMode>('ai')
@@ -146,7 +144,7 @@ export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) 
         onBack={onBack}
         title="Rắn Săn Mồi"
         icon={<Flame className="size-4 text-emerald-400" />}
-        badge="ĐỐI KHÁNG"
+        badge={mode === 'pass_and_play' ? (aiCount === 0 ? '100% PVP' : 'PVP + PVE') : (aiCount === 0 ? '100% PVE' : 'PVE')}
         mode={mode}
         onModeChange={(m) => {
           setMode(m)
@@ -154,11 +152,11 @@ export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) 
         }}
         aiLevel={difficulty}
         onAiLevelChange={(capDo) => doiThietLap({ ...thietLap, capDo })}
-        nhanChipPve={`${CAP_DO_MAY[difficulty].nhan} · ${aiCount}`}
+        nhanChipPve={`${CAP_DO_MAY[difficulty].nhan} · ${aiCount === 0 ? '0 Bot (Solo)' : `${aiCount} Máy`}`}
         phuPve={
           <div className="mt-2.5 border-t border-border-subtle pt-2.5">
             <p className="mb-1.5 px-1 text-[11px] font-bold text-text-tertiary">
-              {mode === 'pass_and_play' ? 'Số rắn bot tham gia' : 'Số rắn máy'}
+              Số rắn máy (0: 100% PvE Luyện tập một mình)
             </p>
             <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
           </div>
@@ -168,12 +166,12 @@ export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) 
         phuPvp={
           <div className="space-y-1.5">
             <p className="px-1 text-[11px] font-bold text-text-tertiary">
-              Số rắn bot tham gia cùng
+              Số rắn bot tham gia cùng (0: 100% PvP đối kháng thuần túy)
             </p>
             <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
           </div>
         }
-        nhanChipPvp={`${aiCount} Bot`}
+        nhanChipPvp={aiCount === 0 ? 'Thuần 100% PvP' : `PvP + ${aiCount} Bot`}
         resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}
         resetIcon={isRunning || isGameOver ? <RotateCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
         resetNoiBat={!isRunning && !isGameOver}
@@ -195,31 +193,6 @@ export function SnakeDuel({ onSaveScore, onBack, onTabChange }: SnakeDuelProps) 
         className="w-full shrink-0 px-1"
       />
 
-      {/* ── BỘ CHUYỂN CHẾ ĐỘ ĐỐI KHÁNG | CỔ ĐIỂN CHUẨN DUY NHẤT ── */}
-      {onTabChange && !isFullscreen && (
-        <div className="my-1.5 flex w-full justify-center shrink-0" role="group" aria-label="Chế độ Rắn săn mồi">
-          <div className="flex rounded-xl bg-surface-raised p-0.5 border border-border-default text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => onTabChange('duel')}
-              aria-pressed="true"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs bg-brand text-primary-foreground shadow-xs font-semibold cursor-pointer"
-            >
-              <Flame className="size-3.5" />
-              <span>Đối kháng</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onTabChange('classic')}
-              aria-pressed="false"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-            >
-              <ShieldCheck className="size-3.5" />
-              <span>Cổ điển</span>
-            </button>
-          </div>
-        </div>
-      )}
       {/* ── 2. VÙNG 2: ĐẤU TRƯỜNG RẮN SĂN MỒI MỞ RỘNG 100% KHÔNG GIAN ── */}
       <div className={cn('relative flex items-center justify-center w-full flex-1 h-full min-h-0', !isFullscreen && 'my-auto py-1')}>
         <Wormate3DArena

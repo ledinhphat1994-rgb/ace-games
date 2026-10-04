@@ -5,6 +5,7 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
+import { useTopLayerZIndex } from "@/lib/top-layer"
 
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
@@ -24,17 +25,18 @@ function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
 
 function AlertDialogOverlay({
   className,
+  style,
   ...props
 }: AlertDialogPrimitive.Backdrop.Props) {
   return (
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
-      // Hộp xác nhận luôn phủ mờ phía sau, kể cả khi mở từ trong một ngăn kéo hay hộp thoại khác
       forceRender
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/45 duration-150 supports-backdrop-filter:backdrop-blur-[3px] data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-[100] bg-black/15 duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
+      style={style}
       {...props}
     />
   )
@@ -43,18 +45,26 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  style,
+  onPointerDownCapture,
   ...props
 }: AlertDialogPrimitive.Popup.Props & {
   size?: "default" | "sm"
 }) {
+  const { zIndex, bringToFront } = useTopLayerZIndex(true, 'dialog')
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      <AlertDialogOverlay style={{ zIndex }} />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         data-size={size}
+        style={{ zIndex: zIndex + 1, ...style }}
+        onPointerDownCapture={(e) => {
+          bringToFront()
+          onPointerDownCapture?.(e)
+        }}
         className={cn(
-          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-border-default bg-surface p-5 text-text-primary shadow-2xl shadow-black/50 duration-150 outline-none data-[size=sm]:sm:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "group/alert-dialog-content fixed top-1/2 left-1/2 z-[100] grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-border-default bg-surface p-5 text-text-primary shadow-2xl shadow-black/75 duration-150 outline-none data-[size=sm]:sm:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}

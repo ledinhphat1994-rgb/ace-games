@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 export type HeroicBannerType = 'start' | 'win' | 'lose' | 'draw' | 'check'
@@ -18,17 +18,22 @@ export function GameHeroicBanner({
   title,
   visible,
   onClose,
-  autoDismissMs = 2500,
+  autoDismissMs = 1800,
   className,
 }: GameHeroicBannerProps) {
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
   useEffect(() => {
     if (visible && autoDismissMs > 0) {
       const timer = setTimeout(() => {
-        onClose?.()
+        onCloseRef.current?.()
       }, autoDismissMs)
       return () => clearTimeout(timer)
     }
-  }, [visible, autoDismissMs, onClose])
+  }, [visible, autoDismissMs])
 
   if (!visible || !type) return null
 
@@ -61,9 +66,8 @@ export function GameHeroicBanner({
     <div
       role="alert"
       aria-live="assertive"
-      onClick={() => onClose?.()}
       className={cn(
-        'absolute inset-0 z-40 flex items-center justify-center p-4 cursor-pointer select-none pointer-events-auto transition-all animate-in fade-in duration-200',
+        'absolute inset-0 z-40 flex items-center justify-center p-4 select-none pointer-events-none transition-all animate-in fade-in duration-200',
         className,
       )}
     >

@@ -45,12 +45,25 @@ export interface PhongSanh {
   taoLuc: number
 }
 
+export interface ReactionUser {
+  id: number
+  name: string
+}
+
+export interface ReactionDetail {
+  emoji: string
+  count: number
+  users: ReactionUser[]
+}
+
 export type GoiCampus =
   | {
       type: 'snapshot'
       online: number
       rooms: PhongSanh[]
       chat: TinCampus[]
+      reactions?: Record<number, string[]>
+      reactionDetails?: Record<number, ReactionDetail[]>
       me: { accountId: number; xoaMoiTin: boolean }
       serverNow: number
     }
@@ -59,6 +72,7 @@ export type GoiCampus =
   | { type: 'room.remove'; id: number }
   | { type: 'chat.msg'; message: TinCampus }
   | { type: 'chat.deleted'; id: number }
+  | { type: 'chat.reaction'; msgId: number; reactions: string[]; reactionDetails?: ReactionDetail[] }
   /** Phiên bị đóng từ máy chủ: đăng nhập nơi khác (mặc định) hoặc quản trị viên vừa khoá tài khoản. */
   | { type: 'session.replaced'; reason?: 'tai_khoan_khoa' }
   | GoiAck

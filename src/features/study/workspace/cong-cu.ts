@@ -2,7 +2,7 @@
 // Chọn một lần trên thanh dock, vẽ lên đúng lớp nằm dưới con trỏ.
 
 /** khung: công cụ Hình (chữ nhật, tròn, tam giác, đường thẳng, mũi tên — chọn kiểu trong khay). */
-export type CongCu = 'chuot' | 'but' | 'to_sang' | 'tay' | 'laser' | 'chu' | 'khung'
+export type CongCu = 'chuot' | 'di_chuyen' | 'but' | 'to_sang' | 'tay' | 'laser' | 'chu' | 'khung'
 
 /** Công cụ tạo nét (chặn thao tác bấm xuyên xuống lớp bên dưới khi đang chọn). */
 export const CONG_CU_VE: ReadonlySet<CongCu> = new Set(['but', 'to_sang', 'tay', 'chu', 'khung'])
@@ -144,15 +144,54 @@ export interface NetCoTheCham {
   size?: number
 }
 
+export interface HopGioiHan {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+  width: number
+  height: number
+}
+
+/** Tính khung bao quanh của bất kỳ nét vẽ nào (chữ, hình, bút, dạ quang). */
+export function hopGioiHanNet(net: NetCoTheCham, tiLeNgang = 1): HopGioiHan | null {
+  const diem = net.points
+  if (!diem || !diem.length) return null
+  if (net.tool === 'text' && net.text) {
+    const [x, y] = diem[0]
+    const lines = net.text.split('\n')
+    const maxLen = Math.max(...lines.map((l) => l.length))
+    const cao = (net.size ?? 16) * (lines.length > 1 ? lines.length * 1.25 : 1)
+    const rong = (maxLen * (net.size ?? 16) * 0.58) / tiLeNgang
+    return { minX: x, minY: y, maxX: x + rong, maxY: y + cao, width: Math.max(12, rong), height: Math.max(12, cao) }
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const [x, y] of diem) {
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  const nuaSize = Math.max(2, (net.size ?? 4) / 2)
+  minX -= nuaSize
+  maxX += nuaSize
+  minY -= nuaSize
+  maxY += nuaSize
+  return { minX, minY, maxX, maxY, width: Math.max(12, maxX - minX), height: Math.max(12, maxY - minY) }
+}
+
 /**
  * Nét trên cùng nằm dưới điểm `p` (cùng hệ toạ độ với nét). Chữ được tính theo khung chữ ước lượng.
  * `tiLeNgang` = độ rộng hiển thị của 1 đơn vị x so với 1 đơn vị y (trang tài liệu không vuông).
+ * `chonCaBenTrong` = true khi dùng công cụ Di chuyển để dễ dàng nắm bất kỳ đâu trong sản phẩm (hình, chữ, nét vẽ).
  */
 export function netDuocCham<T extends NetCoTheCham>(
   p: [number, number],
   cacNet: readonly T[],
   nguong: number,
   tiLeNgang = 1,
+  chonCaBenTrong = false,
+  laChuanHoa01 = false,
 ): T | null {
   for (let i = cacNet.length - 1; i >= 0; i--) {
     const net = cacNet[i]
@@ -167,7 +206,16 @@ export function netDuocCham<T extends NetCoTheCham>(
       if (p[0] >= x - nguong && p[0] <= x + rong + nguong && p[1] >= y - nguong && p[1] <= y + cao + nguong) return net
       continue
     }
-    const nguong2 = nguong * nguong
+    if (chonCaBenTrong) {
+      const hop = hopGioiHanNet(net, tiLeNgang)
+      if (hop && p[0] >= hop.minX - nguong && p[0] <= hop.maxX + nguong && p[1] >= hop.minY - nguong && p[1] <= hop.maxY + nguong) {
+        return net
+      }
+    }
+    const effNguong = chonCaBenTrong
+      ? (laChuanHoa01 ? Math.max(nguong, ((net.size ?? 0) / 1000) / 2 + 0.01) : Math.max(nguong, ((net.size ?? 0) / 2) + 8))
+      : nguong
+    const nguong2 = effNguong * effNguong
     if (diem.length === 1) {
       if ((p[0] - diem[0][0]) ** 2 + (p[1] - diem[0][1]) ** 2 <= nguong2) return net
       continue

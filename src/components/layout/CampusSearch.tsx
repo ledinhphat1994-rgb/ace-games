@@ -11,6 +11,7 @@ import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguo
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { BlueprintCommunityPattern } from '@/components/ui/blueprint-patterns'
 export function CampusSearch() {
   const [open, setOpen] = useState(false), [query, setQuery] = useState(''), [debounced, setDebounced] = useState('')
   const [person, setPerson] = useState<NguoiXem | null>(null)
@@ -29,7 +30,7 @@ export function CampusSearch() {
         onClick={() => setOpen(true)}
         data-testid="campus-search-trigger"
         aria-label="Tìm kiếm · Ctrl K"
-        className="hidden md:flex items-center gap-2.5 h-10 w-56 lg:w-72 xl:w-80 rounded-full border border-border-default/70 bg-surface/80 px-3.5 text-xs text-text-tertiary hover:border-brand/40 hover:bg-surface-overlay hover:text-text-secondary transition-all cursor-pointer shadow-xs select-none"
+        className="hidden md:flex items-center gap-2.5 h-10 w-56 lg:w-72 xl:w-80 rounded-full border border-border-default/70 bg-surface/80 px-3.5 text-xs text-text-tertiary hover:border-brand/40 hover:bg-surface-overlay hover:text-text-secondary transition-colors duration-150 cursor-pointer shadow-xs select-none"
       >
         <Search className="size-3.5 text-text-tertiary shrink-0 pointer-events-none" />
         <span className="truncate">Tìm kiếm phòng học, trò chơi, bạn học...</span>
@@ -51,10 +52,11 @@ export function CampusSearch() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="skeuo-modal-surface sm:max-w-xl">
+          <BlueprintCommunityPattern className="opacity-75 pointer-events-none" />
           <DialogHeader>
             <DialogTitle>Tìm kiếm</DialogTitle>
-            <DialogDescription>Phòng học, trò chơi và bạn học.</DialogDescription>
+            <DialogDescription className="sr-only">Phòng học, trò chơi và bạn học.</DialogDescription>
           </DialogHeader>
           <label htmlFor="campus-search-input" className="sr-only">
             Từ khóa tìm kiếm
@@ -64,10 +66,10 @@ export function CampusSearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Bạn muốn tìm gì?"
-            className="h-12"
+            className="skeuo-input-deep h-12"
           />
       <div className="max-h-[55dvh] space-y-5 overflow-y-auto overscroll-contain">
-        <section><h2 className="mb-2 text-xs font-semibold text-text-secondary">Trò chơi</h2>{games.map(game => <button type="button" key={game.id} onClick={() => go('/arena/' + game.id)} className="search-result"><Gamepad2 className="size-4 text-brand" /><span>{game.shortTitle}</span></button>)}{games.length === 0 && <p className="text-sm text-text-secondary">Không tìm thấy trò chơi.</p>}</section>
+        <section><h2 className="mb-2 text-xs font-semibold text-text-secondary">Trò chơi</h2>{games.map(game => <button type="button" key={game.id} onClick={() => go('/arena')} className="search-result"><Gamepad2 className="size-4 text-brand" /><span>{game.shortTitle}</span></button>)}{games.length === 0 && <p className="text-sm text-text-secondary">Không tìm thấy trò chơi.</p>}</section>
         <section><h2 className="mb-2 text-xs font-semibold text-text-secondary">Phòng học</h2>{!nguoiDung ? <Button variant="outline" onClick={() => { setOpen(false); moAuthModal('dang_nhap') }}>Đăng nhập để tìm phòng</Button> : !campusSnapshotReady ? <p className="text-sm text-text-secondary">Đang đồng bộ phòng học…</p> : foundRooms.length === 0 ? <p className="text-sm text-text-secondary">Không có phòng phù hợp.</p> : foundRooms.map(room => <button type="button" key={room.id} className="search-result" onClick={() => go(room.coMatKhau ? '/learn?q=' + encodeURIComponent(room.ten) : '/room/phong-' + room.id)}><BookOpen className="size-4 text-brand" /><span className="min-w-0 break-words">{room.ten}</span></button>)}</section>
         {nguoiDung && debounced.length >= 2 && <section><h2 className="mb-2 text-xs font-semibold text-text-secondary">Bạn học</h2>{people.isPending ? <Loader2 className="size-4 animate-spin" aria-label="Đang tìm bạn học" /> : people.isError ? <Button variant="outline" onClick={() => void people.refetch()}>Thử tìm lại bạn học</Button> : people.data?.length ? people.data.slice(0, 6).map(user => <button type="button" key={user.id} className="search-result" onClick={e => { setPerson({ id: user.id, ten: user.displayName, avatar: user.avatar, vaiTro: user.role, lopTen: user.lopTen, anchorRect: e.currentTarget.getBoundingClientRect() }); setOpen(false) }}><Users className="size-4 text-social" /><span className="min-w-0 break-words">{user.displayName}</span></button>) : <p className="text-sm text-text-secondary">Không tìm thấy bạn học.</p>}</section>}
       </div></DialogContent></Dialog><HoSoNguoiDungDialog nguoi={person} onDong={() => setPerson(null)} /></>

@@ -145,9 +145,9 @@ describe('PQA-C2: Real PDF / Slide Presentation in Central Stage (Items A throug
       expect(canUserPresent(undefined, undefined)).toBe(false)
     })
 
-    it('Student view renders read-only page counter without previous or next buttons', () => {
-      // In DocumentStageView, student receives honest read-only indicator
-      expect(docStageRaw).toContain('/* Student: honest read-only indicator without mutation buttons (Section 4) */')
+    it('Student view does not receive page change controls or mutation buttons', () => {
+      // In DocumentStageView, page controls are strictly gated under canControl (Chỉ hiển thị với chủ phòng canControl)
+      expect(docStageRaw).toContain('{/* Center (Col 2): Căn giữa 50% tuyệt đối — VÙNG 1 & 2 (Chỉ hiển thị với chủ phòng canControl) */}')
     })
 
     it('Student does not receive host document management controls (replace or close)', () => {
@@ -265,16 +265,15 @@ describe('PQA-C2: Real PDF / Slide Presentation in Central Stage (Items A throug
 
     it('renders image viewer with zoom transform and fit styles', () => {
       expect(docStageRaw).toContain('data-testid="doc-image-viewer"')
-      expect(docStageRaw).toContain('transform: `scale(${zoomScale})`')
+      expect(docStageRaw).toMatch(/transform:.*scale\(\$\{zoomScale\}\)/)
       expect(docStageRaw).toContain("maxWidth: fitMode === 'page' ? '100%' : 'none'")
     })
   })
 
   // ── L. Mobile Document Controls Do Not Overflow ───────────────────────────
   describe('L. Mobile Ergonomics & Overflow Protection', () => {
-    it('uses truncate and responsive max-widths on document title', () => {
-      expect(docStageRaw).toContain('max-w-[110px] sm:max-w-[200px]')
-      expect(docStageRaw).toContain('truncate text-xs font-semibold text-white')
+    it('uses truncate on document title to prevent overflow', () => {
+      expect(docStageRaw).toContain('truncate text-xs min-w-0')
     })
 
     it('hides desktop-only fit label and replacement text on mobile', () => {

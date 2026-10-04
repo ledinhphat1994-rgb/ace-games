@@ -47,7 +47,7 @@ interface FloatingVideoPlayerProps {
   canControlMedia?: boolean
   volume: number
   onVolumeChange: (vol: number) => void
-  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => void
+  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate' | 'close', time?: number, rate?: number) => void
   onOpenSearchQueue: () => void
   onClose: () => void
   calculateTargetTime: () => number

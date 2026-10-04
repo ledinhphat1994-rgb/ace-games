@@ -18,8 +18,10 @@ import {
   MicOff,
   Minus,
   MousePointer2,
+  Move,
   Pen,
   PenLine,
+  Pin,
   Shapes,
   SlidersHorizontal,
   Sparkles,
@@ -27,20 +29,29 @@ import {
   Trash2,
   Triangle,
   Type,
+  Vote,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CAC_CO_VE, CAC_HINH, CONG_CU_CO_MAU, MAU_VE, type CongCu, type CoVe, type LoaiHinh } from './cong-cu'
 import { dangHien, type BoCuc, type LopId } from './stage-layout'
+import type { ActivePoll } from '@shared/protocol/room'
 
 export interface ClassroomToolDockProps {
   boCuc: BoCuc
   onBamLop: (id: LopId) => void
   coTaiLieu: boolean
+  /** Số loại tài liệu đã nạp đồng thời (tối đa 3: PPTX, Excel, Word). */
+  soLuongTaiLieu?: number
   videoDangPhat: boolean
   isHost: boolean
   canModerate?: boolean
+  /** Thanh dock được ghim cố định không tự động thu gọn. */
+  dockPinned?: boolean
+  onTogglePin?: () => void
+  onOpenPollModal?: () => void
+  activePoll?: ActivePoll | null
   // Công cụ vẽ chung
   congCu: CongCu
   onChonCongCu: (congCu: CongCu) => void
@@ -168,9 +179,14 @@ export function ClassroomToolDock({
   boCuc,
   onBamLop,
   coTaiLieu,
+  soLuongTaiLieu,
   videoDangPhat,
   isHost,
   canModerate = false,
+  dockPinned = false,
+  onTogglePin,
+  onOpenPollModal,
+  activePoll,
   congCu,
   onChonCongCu,
   hinh,
@@ -217,11 +233,11 @@ export function ClassroomToolDock({
   return (
     <nav
       aria-label="Thanh công cụ trình chiếu"
-      className="flex items-center justify-center px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-30 select-none"
+      className="flex h-[60px] sm:h-16 items-center justify-center px-1 z-30 select-none"
       data-testid="classroom-tool-dock"
     >
       {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}
-      <div className="flex min-w-0 max-w-[calc(100vw-1rem)] items-center gap-1.5 sm:gap-2 rounded-2xl border border-border-default bg-surface/95 p-1.5 shadow-2xl backdrop-blur-xl ring-1 ring-white/[0.04]">
+      <div className="flex h-full min-w-0 max-w-[calc(100vw-1rem)] items-center gap-1.5 sm:gap-2 rounded-2xl border border-border-default bg-surface/95 px-2 py-1 shadow-sm backdrop-blur-xl ring-1 ring-white/[0.04]">
         <div className="flex min-w-0 items-center gap-1 overflow-x-auto touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* ── 0. MIC + CÀI ĐẶT ÂM THANH (mọi người trong phòng) ── */}
         <button
@@ -331,9 +347,16 @@ export function ClassroomToolDock({
                 >
                   <IconLop id={id} className="h-4.5 w-4.5" />
                   <span className={nhanDock}>{ten}</span>
-                  {dangChay[id] && (
+                  {id === 'doc' && soLuongTaiLieu && soLuongTaiLieu > 1 ? (
+                    <span
+                      className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-background/80"
+                      data-testid="dock-doc-count-badge"
+                    >
+                      {soLuongTaiLieu}
+                    </span>
+                  ) : dangChay[id] ? (
                     <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-brand animate-pulse" />
-                  )}
+                  ) : null}
                 </button>
               )
             })}
@@ -356,6 +379,19 @@ export function ClassroomToolDock({
             >
               <MousePointer2 className="h-4.5 w-4.5" />
               <span className={nhanDock}>Chuột</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onChonCongCu('di_chuyen')}
+              aria-pressed={congCu === 'di_chuyen'}
+              title="Di chuyển"
+              aria-label="Di chuyển"
+              data-testid="tool-btn-move"
+              className={`${nutDock} ${congCu === 'di_chuyen' ? dangChon : khongChon}`}
+            >
+              <Move className="h-4.5 w-4.5" />
+              <span className={nhanDock}>Di chuyển</span>
             </button>
 
             {/* Bút: bấm là chọn bút và mở màu / cỡ nét ngay tại chỗ. */}
@@ -460,76 +496,124 @@ export function ClassroomToolDock({
         </div>
 
         {/* ── 2. CÔNG CỤ: dạ quang, chữ, hình, laser (màu / cỡ hiện khi chọn), máy tính, phiên học ── */}
-        <Popover open={moCongCu} onOpenChange={setMoCongCu}>
-          <PopoverTrigger
-            type="button"
-            className={`${nutDock} ${congCuKhay ? dangChon : khongChon}`}
-            title="Công cụ"
-            aria-label="Công cụ"
-            data-testid="dock-btn-secondary-tools"
-          >
-            <IconCongCu className="h-4.5 w-4.5" />
-            <span className={nhanDock}>Công cụ</span>
-            {congCuKhay && CONG_CU_CO_MAU.has(congCu) && (
-              <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: mau }} />
-            )}
-          </PopoverTrigger>
-          <PopoverContent side="top" align="center" sideOffset={10} className={`w-72 ${khayPopover}`} data-testid="dock-tools-tray">
-            {khayDuocDung.length > 0 && (
-              <div className="grid grid-cols-4 gap-1">
-                {khayDuocDung.map(({ id, ten, icon: Icon, testId }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onChonCongCu(id)}
-                    aria-pressed={congCu === id}
-                    title={ten}
-                    data-testid={testId}
-                    className={`${nutKhay} ${congCu === id ? 'bg-brand/15 text-brand ring-1 ring-brand/35' : 'text-text-secondary hover:bg-surface-overlay'}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{ten}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {duocDung('khung') && congCu === 'khung' && (
-              <div className="grid grid-cols-5 gap-1 rounded-xl bg-surface-overlay p-1" data-testid="dock-shape-picker">
-                {CAC_HINH.map(({ id, ten }) => {
-                  const Icon = ICON_HINH[id]
-                  return (
+        {(canControl || khayDuocDung.length > 0) && (
+          <Popover open={moCongCu} onOpenChange={setMoCongCu}>
+            <PopoverTrigger
+              type="button"
+              className={`${nutDock} ${congCuKhay ? dangChon : khongChon}`}
+              title="Công cụ"
+              aria-label="Công cụ"
+              data-testid="dock-btn-secondary-tools"
+            >
+              <IconCongCu className="h-4.5 w-4.5" />
+              <span className={nhanDock}>Công cụ</span>
+              {congCuKhay && CONG_CU_CO_MAU.has(congCu) && (
+                <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: mau }} />
+              )}
+            </PopoverTrigger>
+            <PopoverContent side="top" align="center" sideOffset={10} className={`w-72 ${khayPopover}`} data-testid="dock-tools-tray">
+              {khayDuocDung.length > 0 && (
+                <div className="grid grid-cols-4 gap-1">
+                  {khayDuocDung.map(({ id, ten, icon: Icon, testId }) => (
                     <button
                       key={id}
                       type="button"
-                      onClick={() => onChonHinh(id)}
-                      aria-pressed={hinh === id}
+                      onClick={() => onChonCongCu(id)}
+                      aria-pressed={congCu === id}
                       title={ten}
-                      aria-label={ten}
-                      data-testid={`shape-btn-${id}`}
-                      className={`flex h-8 items-center justify-center rounded-lg cursor-pointer ${hinh === id ? 'bg-surface-overlay text-text-primary' : 'text-text-secondary hover:bg-surface-overlay'}`}
+                      data-testid={testId}
+                      className={`${nutKhay} ${congCu === id ? 'bg-brand/15 text-brand ring-1 ring-brand/35' : 'text-text-secondary hover:bg-surface-overlay'}`}
                     >
                       <Icon className="h-4 w-4" />
+                      <span>{ten}</span>
                     </button>
-                  )
-                })}
+                  ))}
+                </div>
+              )}
+
+              {duocDung('khung') && congCu === 'khung' && (
+                <div className="grid grid-cols-5 gap-1 rounded-xl bg-surface-overlay p-1" data-testid="dock-shape-picker">
+                  {CAC_HINH.map(({ id, ten }) => {
+                    const Icon = ICON_HINH[id]
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onChonHinh(id)}
+                        aria-pressed={hinh === id}
+                        title={ten}
+                        aria-label={ten}
+                        data-testid={`shape-btn-${id}`}
+                        className={`flex h-8 items-center justify-center rounded-lg cursor-pointer ${hinh === id ? 'bg-surface-overlay text-text-primary' : 'text-text-secondary hover:bg-surface-overlay'}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {congCuKhay && duocDung(congCu) && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}
+
+              {/* Tiện ích: Máy tính (cho mọi người được cấp công cụ), Phiên học & Bình chọn (chỉ dành cho chủ phòng) */}
+              <div className={`grid ${canControl ? (onOpenPollModal ? 'grid-cols-3' : 'grid-cols-2') : 'grid-cols-1'} gap-1 ${khayDuocDung.length > 0 ? 'border-t border-border-default pt-2' : ''}`}>
+                <button type="button" onClick={onOpenCalculator} title="Máy tính" className={`${nutKhay} text-text-secondary hover:bg-surface-overlay`} data-testid="tool-btn-calculator">
+                  <CalcIcon className="h-4 w-4 text-brand" />
+                  <span>Máy tính</span>
+                </button>
+                {canControl && (
+                  <button type="button" onClick={onOpenSessionPanel} title="Phiên học" className={`${nutKhay} text-text-secondary hover:bg-surface-overlay`} data-testid="tool-btn-session">
+                    <Clock className="h-4 w-4 text-success" />
+                    <span>Phiên học</span>
+                  </button>
+                )}
+                {canControl && onOpenPollModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoCongCu(false)
+                      onOpenPollModal()
+                    }}
+                    title="Bình chọn (ClassIn)"
+                    className={`${nutKhay} text-text-secondary hover:bg-surface-overlay relative`}
+                    data-testid="tool-btn-poll"
+                  >
+                    <Vote className="h-4 w-4 text-purple-400" />
+                    <span>Bình chọn</span>
+                    {activePoll && !activePoll.closed && (
+                      <span className="absolute right-2 top-2 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
-            )}
+            </PopoverContent>
+          </Popover>
+        )}
 
-            {congCuKhay && duocDung(congCu) && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}
-
-            <div className={`grid grid-cols-4 gap-1 ${khayDuocDung.length > 0 ? 'border-t border-border-default pt-2' : ''}`}>
-              <button type="button" onClick={onOpenCalculator} title="Máy tính" className={`${nutKhay} text-text-secondary hover:bg-surface-overlay`} data-testid="tool-btn-calculator">
-                <CalcIcon className="h-4 w-4 text-brand" />
-                <span>Máy tính</span>
-              </button>
-              <button type="button" onClick={onOpenSessionPanel} title="Phiên học" className={`${nutKhay} text-text-secondary hover:bg-surface-overlay`} data-testid="tool-btn-session">
-                <Clock className="h-4 w-4 text-success" />
-                <span>Phiên học</span>
-              </button>
-            </div>
-          </PopoverContent>
-        </Popover>
+        {onTogglePin && (
+          <>
+            <div className="mx-0.5 sm:mx-1 h-7 w-px bg-border-strong" />
+            <button
+              type="button"
+              onClick={onTogglePin}
+              aria-pressed={dockPinned}
+              title={dockPinned ? 'Bỏ ghim (tự động ẩn)' : 'Ghim cố định thanh công cụ'}
+              aria-label={dockPinned ? 'Bỏ ghim thanh công cụ' : 'Ghim cố định thanh công cụ'}
+              data-testid="dock-btn-pin"
+              className={`${nutDock} ${
+                dockPinned
+                  ? 'bg-brand/20 text-brand ring-1 ring-brand/40 shadow-sm'
+                  : 'text-text-tertiary hover:bg-surface-overlay hover:text-text-primary'
+              }`}
+            >
+              <Pin className={`h-4.5 w-4.5 transition-transform ${dockPinned ? 'fill-brand text-brand rotate-45' : ''}`} />
+              <span className={nhanDock}>{dockPinned ? 'Đã ghim' : 'Ghim'}</span>
+            </button>
+          </>
+        )}
       </div>
     </nav>
   )

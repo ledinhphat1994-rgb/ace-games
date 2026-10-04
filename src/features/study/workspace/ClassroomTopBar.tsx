@@ -17,7 +17,6 @@ import {
   ArrowLeft,
   Crown,
   Loader2,
-  MessageSquare,
   Wifi,
   WifiOff,
   X,
@@ -50,23 +49,15 @@ export function ClassroomTopBar({
   isOnline,
   isReconnecting,
   latencyMs,
-  activePanel,
+  activePanel: _activePanel,
   onTogglePanel,
-  unreadChatCount,
+  unreadChatCount: _unreadChatCount,
   memberStrip,
   onLeaveRoom,
   onCloseRoom,
 }: ClassroomTopBarProps) {
   const [showConfirmClose, setShowConfirmClose] = useState(false)
   const [isClosingRoom, setIsClosingRoom] = useState(false)
-
-  const nutPanel = (dangMo: boolean) =>
-    cn(
-      NUT_KHUNG,
-      dangMo
-        ? 'border-brand/40 bg-brand/12 text-brand'
-        : 'border-border-default/80 bg-surface/60 text-text-secondary hover:bg-surface-raised hover:text-text-primary',
-    )
 
   return (
     <header
@@ -128,25 +119,18 @@ export function ClassroomTopBar({
 
       {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS + CLOSE ROOM ── */}
       <div className="flex flex-1 shrink-0 items-center justify-end gap-2">
-        {/* Chat Drawer Toggle */}
+        {/* Chat Drawer Toggle (sr-only: Chat được kích hoạt qua nút nổi ở góc dưới cùng bên phải) */}
         <button
           type="button"
-          onClick={() => onTogglePanel('chat')}
-          className={nutPanel(activePanel === 'chat')}
+          onClick={() => {
+            onTogglePanel('chat')
+            window.dispatchEvent(new CustomEvent('campus:open-chat'))
+          }}
+          className="sr-only"
           data-testid="topbar-btn-chat"
-          title="Mở chat phòng học"
           aria-label="Mở chat phòng học"
         >
-          <MessageSquare className="size-4" />
-          <span className="hidden sm:inline">Chat</span>
-          {unreadChatCount > 0 && activePanel !== 'chat' && (
-            <span
-              className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-foreground tabular-nums shadow-xs"
-              data-testid="chat-unread-badge"
-            >
-              {Math.min(unreadChatCount, 99)}
-            </span>
-          )}
+          Chat
         </button>
 
         {/* Nút hủy phòng (chỉ dành cho chủ phòng) */}

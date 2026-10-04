@@ -112,6 +112,9 @@ export interface CampusContextValue {
   unfriend: (friendAccountId: number) => Promise<KetQuaThaoTac>
   blockUser: (targetAccountId: number) => Promise<KetQuaThaoTac>
   unblockUser: (targetAccountId: number) => Promise<KetQuaThaoTac>
+  guiLoiMoiBanThan: (targetAccountId: number) => Promise<KetQuaThaoTac>
+  chapNhanBanThan: (targetAccountId: number) => Promise<KetQuaThaoTac>
+  huyBanThan: (targetAccountId: number) => Promise<KetQuaThaoTac>
   setPresenceAway: (away: boolean) => void
   setActivity: (activity: UserActivity | null) => void
 }
@@ -316,6 +319,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           setMessages(goi.chat)
           setMyPermissions(goi.me)
           setCampusSnapshotReady(true)
+          if (goi.reactions && typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('campus:chat_reactions_snapshot', {
+                detail: { reactions: goi.reactions, reactionDetails: goi.reactionDetails },
+              }),
+            )
+          }
           break
 
         case 'online':
@@ -356,6 +366,21 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         case 'chat.deleted': {
           const idXoa = goi.id
           setMessages((prev) => prev.filter((m) => m.id !== idXoa))
+          break
+        }
+
+        case 'chat.reaction': {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('campus:chat_reaction', {
+                detail: {
+                  msgId: goi.msgId,
+                  reactions: goi.reactions,
+                  reactionDetails: goi.reactionDetails,
+                },
+              }),
+            )
+          }
           break
         }
 
@@ -477,6 +502,20 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         case 'social.direct_message': {
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('campus:direct_message', { detail: goi.message }))
+          }
+          break
+        }
+
+        case 'social.direct_message_reaction': {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('campus:direct_message_reaction', { detail: goi }))
+          }
+          break
+        }
+
+        case 'social.direct_message_deleted': {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('campus:direct_message_deleted', { detail: goi }))
           }
           break
         }
@@ -825,6 +864,66 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lamMoiSocialState, mutationLockManager])
 
+  const guiLoiMoiBanThan = useCallback(async (targetAccountId: number): Promise<KetQuaThaoTac> => {
+    const lockKey = `close-friend-request-${targetAccountId}`
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
+    try {
+      const res = await fetch('/api/social/close-friend/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetAccountId }),
+      })
+      const data = (await res.json()) as { ok: boolean; loi?: string }
+      if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể gửi lời mời bạn thân.' }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
+    } catch {
+      return { ok: false, loi: 'Lỗi mạng khi gửi lời mời bạn thân.' }
+    } finally {
+      mutationLockManager.release(lockKey)
+    }
+  }, [lamMoiSocialState, mutationLockManager])
+
+  const chapNhanBanThan = useCallback(async (targetAccountId: number): Promise<KetQuaThaoTac> => {
+    const lockKey = `close-friend-accept-${targetAccountId}`
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
+    try {
+      const res = await fetch('/api/social/close-friend/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetAccountId }),
+      })
+      const data = (await res.json()) as { ok: boolean; loi?: string }
+      if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể chấp nhận bạn thân.' }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
+    } catch {
+      return { ok: false, loi: 'Lỗi mạng khi chấp nhận bạn thân.' }
+    } finally {
+      mutationLockManager.release(lockKey)
+    }
+  }, [lamMoiSocialState, mutationLockManager])
+
+  const huyBanThan = useCallback(async (targetAccountId: number): Promise<KetQuaThaoTac> => {
+    const lockKey = `close-friend-remove-${targetAccountId}`
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
+    try {
+      const res = await fetch('/api/social/close-friend/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetAccountId }),
+      })
+      const data = (await res.json()) as { ok: boolean; loi?: string }
+      if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể huỷ quan hệ bạn thân.' }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
+    } catch {
+      return { ok: false, loi: 'Lỗi mạng khi huỷ bạn thân.' }
+    } finally {
+      mutationLockManager.release(lockKey)
+    }
+  }, [lamMoiSocialState, mutationLockManager])
+
   const datTrangThaiAway = useCallback((away: boolean) => {
     awayRef.current = away
     const ws = wsRef.current
@@ -931,6 +1030,9 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     huyKetBan,
     chanNguoiDung,
     boChanNguoiDung,
+    guiLoiMoiBanThan,
+    chapNhanBanThan,
+    huyBanThan,
     datTrangThaiAway,
     datHoatDong,
 
