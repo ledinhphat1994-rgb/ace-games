@@ -567,6 +567,7 @@ export function XiangqiBoard({
 
   const handleAvatarPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
+    e.stopPropagation()
     isDraggingAvatarRef.current = true
     hasMovedAvatarRef.current = false
     dragStartRef.current = {
@@ -580,6 +581,7 @@ export function XiangqiBoard({
 
   const handleAvatarPointerMove = (e: React.PointerEvent) => {
     if (!isDraggingAvatarRef.current) return
+    e.stopPropagation()
     const dx = e.clientX - dragStartRef.current.startX
     const dy = e.clientY - dragStartRef.current.startY
     if (Math.hypot(dx, dy) > 5) {
@@ -595,6 +597,7 @@ export function XiangqiBoard({
 
   const handleAvatarPointerUp = (e: React.PointerEvent) => {
     if (!isDraggingAvatarRef.current) return
+    e.stopPropagation()
     isDraggingAvatarRef.current = false
     try {
       ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
@@ -2095,7 +2098,7 @@ export function XiangqiBoard({
             )
           })()}
 
-          {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC (ẨN KHI CÓ HEROIC BANNER ĐỂ TRÁNH TRÙNG ĐÈ) */}
+          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC (ẨN KHI CÓ HEROIC BANNER ĐỂ TRÁNH TRÙNG ĐÈ) */}
           {(!isPlaying || isOver) && !activeDlg && !heroicBanner && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
@@ -2103,11 +2106,13 @@ export function XiangqiBoard({
                 id="btn-bat-dau-river"
                 onClick={handleStartGameClick}
                 className="group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-2 border-amber-400/90 text-white flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-all duration-150 shadow-[0_0_24px_rgba(185,28,28,0.6)] cursor-pointer select-none active:scale-95 hover:scale-105"
-                title={`Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`}
-                aria-label="Bắt đầu trận đấu"
+                title={laOnlinePvp && !online?.mySide ? 'Vào bàn thi đấu' : `Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`}
+                aria-label={laOnlinePvp && !online?.mySide ? 'Vào bàn thi đấu' : 'Bắt đầu trận đấu'}
               >
                 <Swords className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-                <span className="text-amber-100 font-black uppercase drop-shadow">BẮT ĐẦU</span>
+                <span className="text-amber-100 font-black uppercase drop-shadow">
+                  {laOnlinePvp && !online?.mySide ? 'VÀO BÀN' : 'BẮT ĐẦU'}
+                </span>
               </button>
             </div>
           )}
@@ -2399,18 +2404,20 @@ export function XiangqiBoard({
                   className="size-full rounded-full pointer-events-none"
                 />
 
-                {/* Đĩa cờ nhỏ thể hiện phe Đỏ / Đen ở góc avatar */}
-                <div
-                  className={cn(
-                    'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
-                    mySide === RED
-                      ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                      : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                  )}
-                  title={mySide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
-                >
-                  {mySide === RED ? '帥' : '將'}
-                </div>
+                {/* Đĩa cờ nhỏ thể hiện phe Đỏ / Đen ở góc avatar (chỉ hiện khi đã vào ghế thi đấu) */}
+                {(!laOnlinePvp || Boolean(online?.mySide)) && (
+                  <div
+                    className={cn(
+                      'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
+                      mySide === RED
+                        ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
+                        : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                    )}
+                    title={mySide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
+                  >
+                    {mySide === RED ? '帥' : '將'}
+                  </div>
+                )}
               </button>
             </div>
 
@@ -2512,18 +2519,20 @@ export function XiangqiBoard({
                 />
               )}
 
-              {/* Đĩa cờ nhỏ thể hiện phe của đối thủ (帥 / 將) */}
-              <div
-                className={cn(
-                  'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
-                  opponentSide === RED
-                    ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                    : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                )}
-                title={opponentSide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
-              >
-                {opponentSide === RED ? '帥' : '將'}
-              </div>
+              {/* Đĩa cờ nhỏ thể hiện phe của đối thủ (帥 / 將) (chỉ hiện khi có đối thủ hoặc đấu máy) */}
+              {(isPveMode || Boolean(opponentMember)) && (
+                <div
+                  className={cn(
+                    'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
+                    opponentSide === RED
+                      ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
+                      : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                  )}
+                  title={opponentSide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
+                >
+                  {opponentSide === RED ? '帥' : '將'}
+                </div>
+              )}
 
               {/* Tên đối thủ ẩn dưới dạng accessibility / selector */}
               <span id="player-black-name" className="sr-only">

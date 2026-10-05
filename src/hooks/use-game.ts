@@ -337,9 +337,17 @@ export function useGame(
 
   const joinGame = useCallback(
     (side?: 'X' | 'O') => {
-      gui({ type: 'game.join', side })
+      const passParam =
+        intendedPassword ||
+        (typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('pass') ||
+            sessionStorage.getItem(`dc_game_pw_${gameId}`) ||
+            localStorage.getItem(`dc_game_pw_${gameId}`) ||
+            ''
+          : '')
+      gui({ type: 'game.join', side, password: passParam || undefined })
     },
-    [gui],
+    [gui, intendedPassword, gameId],
   )
 
   const makeMove = useCallback(
