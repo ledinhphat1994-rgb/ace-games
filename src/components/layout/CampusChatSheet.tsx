@@ -580,7 +580,7 @@ export function CampusChatSheet({
                 aria-label="Tab Toàn trường"
               >
                 <School className="size-3.5 shrink-0" />
-                <span>Toàn trường</span>
+                <span>Trường</span>
                 {coTinNhanMoiCampus && (
                   <span className="size-2 rounded-full bg-destructive animate-pulse" />
                 )}

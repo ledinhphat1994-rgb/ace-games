@@ -32,6 +32,8 @@ export interface NguoiXem {
   vaiTro?: string | null
   avatar?: string | null
   anchorRect?: AnchorRect | null
+  gameElo?: number | null
+  gameName?: string | null
 }
 
 interface HoSoNguoiDungDialogProps {
@@ -273,6 +275,9 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                       <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums text-text-secondary" aria-busy={isPending}>
                         <div className="flex items-baseline gap-2"><dt>Cấp</dt><dd data-testid="ho-so-cap" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : capDo}</dd></div>
                         <div className="flex items-baseline gap-2"><dt>XP</dt><dd data-testid="ho-so-xp" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : (hoSo?.totalXp ?? 0).toLocaleString('vi-VN')}</dd></div>
+                        {nguoi.gameElo !== undefined && nguoi.gameElo !== null && (
+                          <div className="flex items-baseline gap-2"><dt>Elo {nguoi.gameName || 'trò chơi'}</dt><dd data-testid="ho-so-game-elo" className="min-w-4 font-bold text-amber-400">{nguoi.gameElo}</dd></div>
+                        )}
                       </dl>
 
                       {/* Huy hiệu thành tựu nằm sát bên dòng XP */}

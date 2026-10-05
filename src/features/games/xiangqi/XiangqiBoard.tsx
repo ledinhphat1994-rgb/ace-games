@@ -43,8 +43,12 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
+import { layHoSoNguoiDung } from '@/lib/api'
+import { tinhLevel } from '../GameLeaderboard'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import { tenNguoiChoi, useCheDoBan } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
@@ -314,6 +318,7 @@ export function XiangqiBoard({
 
   // Trạng thái chờ đối thủ đồng ý bắt đầu
   const [waitingForStartAccept, setWaitingForStartAccept] = useState(false)
+  const [selectedProfileUser, setSelectedProfileUser] = useState<NguoiXem | null>(null)
 
   interface DialogConfig {
     type: 'draw' | 'resign' | 'win' | 'start' | 'back'
@@ -605,6 +610,62 @@ export function XiangqiBoard({
   const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
   const opponentAvatarUrl = isPveMode ? null : (opponentMember?.avatar || null)
   const myAvatarUrl = nguoiDung?.avatar || null
+
+  // Tài khoản & Hồ sơ để tính toán Cấp độ (Level) và Elo
+  const myAccountId = nguoiDung?.accountId ?? 0
+  const oppAccountId = useMemo(() => {
+    if (opponentMember?.accountId) return opponentMember.accountId
+    if (typeof online?.meta.playerO === 'string' && online.meta.playerO.startsWith('acc:')) {
+      const parsed = Number(online.meta.playerO.replace('acc:', ''))
+      if (Number.isFinite(parsed) && parsed > 0) return parsed
+    }
+    if (typeof online?.meta.playerX === 'string' && online.meta.playerX.startsWith('acc:')) {
+      const parsed = Number(online.meta.playerX.replace('acc:', ''))
+      if (Number.isFinite(parsed) && parsed > 0) return parsed
+    }
+    return 0
+  }, [opponentMember, online?.meta.playerO, online?.meta.playerX])
+
+  const { data: myProfile } = useQuery({
+    queryKey: ['ho-so-nguoi-dung', myAccountId],
+    queryFn: () => (myAccountId ? layHoSoNguoiDung(myAccountId) : null),
+    enabled: Boolean(myAccountId),
+    staleTime: 60_000,
+  })
+
+  const { data: opponentProfile } = useQuery({
+    queryKey: ['ho-so-nguoi-dung', oppAccountId],
+    queryFn: () => (oppAccountId ? layHoSoNguoiDung(oppAccountId) : null),
+    enabled: Boolean(oppAccountId),
+    staleTime: 60_000,
+  })
+
+  // Tính Level & Elo cờ tướng
+  const myLevel = useMemo(() => tinhLevel(myProfile?.totalXp ?? 0), [myProfile?.totalXp])
+  const [myElo, setMyElo] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const key = `dc_xiangqi_elo_${nguoiDung?.accountId ?? 'guest'}`
+        const saved = localStorage.getItem(key)
+        if (saved) {
+          const num = Number(saved)
+          if (Number.isFinite(num) && num > 0) return num
+        }
+      } catch {}
+    }
+    return 1200
+  })
+
+  const opponentLevel = useMemo(() => {
+    if (isPveMode) return 10
+    return tinhLevel(opponentProfile?.totalXp ?? 0)
+  }, [isPveMode, opponentProfile?.totalXp])
+
+  const opponentElo = useMemo(() => {
+    if (isPveMode) return 1500
+    const xpBonus = Math.floor((opponentProfile?.totalXp ?? 0) / 10)
+    return 1200 + Math.min(600, xpBonus)
+  }, [isPveMode, opponentProfile?.totalXp])
 
   // Đảo góc nhìn bàn cờ: nếu online cầm quân Đen hoặc người dùng bấm xoay 180°
   const effectiveFlipped = benCuaToi !== RED ? !isFlippedManual : isFlippedManual
@@ -1192,16 +1253,37 @@ export function XiangqiBoard({
       if (laNguoiThang === true) {
         soundEngine.playVictory()
         setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
+        setMyElo((prev) => {
+          const next = prev + 15
+          try {
+            localStorage.setItem(`dc_xiangqi_elo_${nguoiDung?.accountId ?? 'guest'}`, String(next))
+          } catch {}
+          return next
+        })
       } else if (laNguoiThang === false) {
         soundEngine.playDefeat()
         setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
+        setMyElo((prev) => {
+          const next = Math.max(800, prev - 12)
+          try {
+            localStorage.setItem(`dc_xiangqi_elo_${nguoiDung?.accountId ?? 'guest'}`, String(next))
+          } catch {}
+          return next
+        })
       } else {
         playGameOverSound('draw')
         setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
+        setMyElo((prev) => {
+          const next = prev + 2
+          try {
+            localStorage.setItem(`dc_xiangqi_elo_${nguoiDung?.accountId ?? 'guest'}`, String(next))
+          } catch {}
+          return next
+        })
       }
     }
     wasOverRef.current = isOver
-  }, [laNguoiThang, isOver])
+  }, [laNguoiThang, isOver, nguoiDung?.accountId])
 
   // Cấu hình danh mục công cụ cờ tướng (hiển thị trong Cài đặt và ghim thành các bong bóng quanh Avatar)
   const toolDefinitions: Record<
@@ -1514,8 +1596,8 @@ export function XiangqiBoard({
                     className={cn(
                       'select-none leading-none font-black',
                       fontType === 'han'
-                        ? 'font-han text-base sm:text-lg md:text-[20px] drop-shadow-sm'
-                        : 'text-[11px] sm:text-xs md:text-sm font-extrabold tracking-tight'
+                        ? 'font-han text-2xl sm:text-3xl md:text-[30px] lg:text-[34px] drop-shadow-sm'
+                        : 'text-xs sm:text-sm md:text-base font-extrabold tracking-tight'
                     )}
                   >
                     {fontType === 'han'
@@ -1675,6 +1757,73 @@ export function XiangqiBoard({
           />
         </section>
 
+        {/* ==================== VÙNG 2: BẢNG CHỌN TIN NHẮN CHAT NHANH CỐ ĐỊNH ==================== */}
+        {/* DÙ KÉO AVATAR ĐI ĐÂU TRONG VÙNG 4, BẢNG TIN NHẮN LUÔN CỐ ĐỊNH TẠI VÙNG 2 KHÔNG BỊ TRÔI / ĐÈ BÀN CỜ */}
+        {isQuickMenuOpen && (
+          <aside
+            id="vung-2-quick-chat-container"
+            ref={quickMenuRef}
+            aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
+            className="w-full xl:w-[240px] xl:absolute xl:right-[calc(100%+24px)] xl:top-6 mb-3 xl:mb-0 p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-50 shrink-0 pointer-events-auto"
+          >
+            <div className="flex items-center justify-between pb-1 border-b border-white/10">
+              <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
+              <button
+                type="button"
+                onClick={() => setIsQuickMenuOpen(false)}
+                className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                aria-label="Đóng biểu cảm"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Lưới 8 Emoji cờ tướng gọn gàng */}
+            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+              {[
+                { emoji: '👏', text: 'Hay quá' },
+                { emoji: '🤔', text: 'Đang tính' },
+                { emoji: '☕', text: 'Mời trà' },
+                { emoji: '🤝', text: 'Bắt tay' },
+                { emoji: '🔥', text: 'Chiến nào' },
+                { emoji: '😅', text: 'Toát mồ hôi' },
+                { emoji: '👍', text: 'Đỉnh cao' },
+                { emoji: '⚔️', text: 'Xuất quân' },
+              ].map((item) => (
+                <button
+                  key={item.emoji}
+                  type="button"
+                  onClick={() => handleSendQuickMessage(item.text, item.emoji)}
+                  className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                  title={item.text}
+                >
+                  {item.emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
+            <div className="h-[1px] bg-white/10 my-0.5" />
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                'Nước cờ hay',
+                'Xin chỉ giáo',
+                'Đang tính nước',
+                'Chiến tiếp nào',
+              ].map((msg) => (
+                <button
+                  key={msg}
+                  type="button"
+                  onClick={() => handleSendQuickMessage(msg)}
+                  className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
+                >
+                  {msg}
+                </button>
+              ))}
+            </div>
+          </aside>
+        )}
+
         {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH) ==================== */}
         <aside
           id="vung-2-plus-card"
@@ -1685,72 +1834,15 @@ export function XiangqiBoard({
           }}
           className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
-          {/* BẢNG CHỌN CẢM XÚC NHANH KHI BẤM ICON SMILE: NẰM TRONG VÙNG 4 CÙNG AVATAR, KHÔNG ĐÈ BÀN CỜ */}
-          {isQuickMenuOpen && (
-            <div
-              ref={quickMenuRef}
-              className="pointer-events-auto mb-2 w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0"
-            >
-              <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                <span className="text-[11px] font-bold text-amber-400">Biểu cảm</span>
-                <button
-                  type="button"
-                  onClick={() => setIsQuickMenuOpen(false)}
-                  className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                  aria-label="Đóng biểu cảm"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Lưới 8 Emoji cờ tướng gọn gàng */}
-              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                {[
-                  { emoji: '👏', text: 'Hay quá' },
-                  { emoji: '🤔', text: 'Đang tính' },
-                  { emoji: '☕', text: 'Mời trà' },
-                  { emoji: '🤝', text: 'Bắt tay' },
-                  { emoji: '🔥', text: 'Chiến nào' },
-                  { emoji: '😅', text: 'Toát mồ hôi' },
-                  { emoji: '👍', text: 'Đỉnh cao' },
-                  { emoji: '⚔️', text: 'Xuất quân' },
-                ].map((item) => (
-                  <button
-                    key={item.emoji}
-                    type="button"
-                    onClick={() => handleSendQuickMessage(item.text, item.emoji)}
-                    className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                    title={item.text}
-                  >
-                    {item.emoji}
-                  </button>
-                ))}
-              </div>
-
-              {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
-              <div className="h-[1px] bg-white/10 my-0.5" />
-              <div className="grid grid-cols-2 gap-1">
-                {[
-                  'Nước cờ hay',
-                  'Xin chỉ giáo',
-                  'Đang tính nước',
-                  'Chiến tiếp nào',
-                ].map((msg) => (
-                  <button
-                    key={msg}
-                    type="button"
-                    onClick={() => handleSendQuickMessage(msg)}
-                    className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
-                  >
-                    {msg}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
+            {/* BADGE LEVEL & ELO CỦA TÔI ĐỂ KHÈ NGƯỜI CHƠI KHÁC */}
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-amber-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight mb-1.5 z-20">
+              <span className="text-amber-400 font-extrabold">Lv.{myLevel}</span>
+              <span className="text-white/20">|</span>
+              <span className="text-sky-300 font-extrabold">Elo {myElo}</span>
+            </div>
+
             {/* 1. KHI DÙNG TIN NHẮN NHANH: NỞ SANG TRÁI VÀO VÙNG 4, CÁCH BÀN CỜ AN TOÀN, VƯỢT LÊN TRÊN CÁC BONG BÓNG */}
             {myQuickMessage && (
               <div className="absolute bottom-full mb-14 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
@@ -1807,7 +1899,25 @@ export function XiangqiBoard({
                 e.stopPropagation()
                 if (justToggledPointerUpRef.current) return
                 if (!hasMovedAvatarRef.current) {
-                  setIsSettingsModalOpen(true)
+                  if (laOnline && !online?.mySide) {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const myPlayerAccountId = myAccountId || 1
+                    setSelectedProfileUser({
+                      id: myPlayerAccountId,
+                      ten: myName,
+                      avatar: myAvatarUrl,
+                      gameElo: myElo,
+                      gameName: 'Cờ Tướng',
+                      anchorRect: {
+                        top: rect.top,
+                        left: rect.left,
+                        right: rect.right,
+                        bottom: rect.bottom,
+                      },
+                    })
+                  } else {
+                    setIsSettingsModalOpen(true)
+                  }
                 }
               }}
               className={cn(
@@ -1884,6 +1994,13 @@ export function XiangqiBoard({
         >
           {/* TRUNG TÂM: 1 AVATAR BUBBLE DUY NHẤT CỦA ĐỐI THỦ */}
           <div className="relative flex flex-col items-center">
+            {/* BADGE LEVEL & ELO ĐỐI THỦ ĐỂ KHÈ NGƯỜI CHƠI KHÁC */}
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-sky-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight mb-1.5 z-20">
+              <span className="text-amber-400 font-extrabold">{isPveMode ? 'AI Cấp 10' : `Lv.${opponentLevel}`}</span>
+              <span className="text-white/20">|</span>
+              <span className="text-sky-300 font-extrabold">Elo {opponentElo}</span>
+            </div>
+
             {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ, NỞ SANG PHẢI RA NGOÀI ĐỂ TUYỆT ĐỐI KHÔNG ĐÈ BÀN CỜ */}
             {opponentQuickMessage && (
               <div className="absolute bottom-full mb-2.5 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
@@ -1892,18 +2009,40 @@ export function XiangqiBoard({
               </div>
             )}
 
-            {/* AVATAR TRÒN TRUNG TÂM CỦA ĐỐI THỦ */}
-            <div
+            {/* AVATAR TRÒN TRUNG TÂM CỦA ĐỐI THỦ: BẤM ĐỂ MỞ HỒ SƠ CÁ NHÂN & ELO TRÒ CHƠI */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (isPveMode) {
+                  toast.info('Người chơi AI (Máy) · Cấp độ 10 · Elo 1500')
+                  return
+                }
+                const rect = e.currentTarget.getBoundingClientRect()
+                setSelectedProfileUser({
+                  id: oppAccountId || 1,
+                  ten: opponentName,
+                  avatar: opponentAvatarUrl,
+                  gameElo: opponentElo,
+                  gameName: 'Cờ Tướng',
+                  anchorRect: {
+                    top: rect.top,
+                    left: rect.left,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                  },
+                })
+              }}
               className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-all duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
                 isOpponentTurn
                   ? opponentSide === RED
                     ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
                     : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
-                  : 'border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
+                  : 'border-white/10 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
               )}
-              title={isPveMode ? 'Người chơi AI' : opponentName ? `${opponentName} (Đối thủ)` : 'Đối thủ'}
-              aria-label={isPveMode ? 'Người chơi AI' : opponentName ? `${opponentName} (Đối thủ)` : 'Đối thủ'}
+              title={isPveMode ? 'Người chơi AI (Cấp 10 · Elo 1500)' : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo}) - Bấm để xem hồ sơ`}
+              aria-label={isPveMode ? 'Người chơi AI' : `${opponentName} - Bấm để xem hồ sơ`}
             >
               {isPveMode ? (
                 <div
@@ -1916,14 +2055,14 @@ export function XiangqiBoard({
                 <AnhNguoiDung
                   ten={opponentName}
                   avatar={opponentAvatarUrl}
-                  className="size-full rounded-full"
+                  className="size-full rounded-full pointer-events-none"
                 />
               )}
 
               {/* Đĩa cờ nhỏ thể hiện phe của đối thủ (帥 / 將) */}
               <div
                 className={cn(
-                  'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10',
+                  'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
                   opponentSide === RED
                     ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
                     : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
@@ -1937,7 +2076,7 @@ export function XiangqiBoard({
               <span id="player-black-name" className="sr-only">
                 {opponentName}
               </span>
-            </div>
+            </button>
 
             {/* 2. KHI TỚI LƯỢT: HIỆN THỜI GIAN CHẠY Ở PHÍA DƯỚI AVATAR 1 TÍ */}
             <div
@@ -1998,6 +2137,27 @@ export function XiangqiBoard({
 
             {/* Danh Sách Cài Đặt (Cuộn êm nếu dài) */}
             <div className="p-5 flex flex-col gap-4 text-xs max-h-[75vh] overflow-y-auto pr-3.5">
+              {/* THẺ HỒ SƠ KỲ THỦ HIỂN THỊ ELO & LEVEL (VÙNG 3 TRONG CÀI ĐẶT) */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-sky-950/40 border border-amber-500/30 flex items-center justify-between shadow-inner">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative size-11 rounded-full border-2 border-amber-400/60 p-0.5 shrink-0 shadow-md">
+                    <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-gray-100 truncate">{myName}</div>
+                    <div className="text-[11px] text-amber-300/80 font-medium">Kỳ thủ cờ tướng</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-xs">
+                    Cấp {myLevel}
+                  </span>
+                  <span className="px-3 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-extrabold tracking-wide shadow-xs">
+                    Elo {myElo}
+                  </span>
+                </div>
+              </div>
+
               {/* MỤC 1: GHIM CÔNG CỤ QUANH AVATAR (TIỆN BẤM 1 LẦN ĐỂ SỬ DỤNG) */}
               <div className="flex flex-col gap-2.5 p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
                 <div className="flex items-center justify-between">
@@ -2264,6 +2424,13 @@ export function XiangqiBoard({
       <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
         <GamePlayToolbar mode={mode} onModeChange={handleModeChange} onReset={resetGame} />
       </div>
+      {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
+      {selectedProfileUser && (
+        <HoSoNguoiDungDialog
+          nguoi={selectedProfileUser}
+          onDong={() => setSelectedProfileUser(null)}
+        />
+      )}
     </div>
   )
 }
