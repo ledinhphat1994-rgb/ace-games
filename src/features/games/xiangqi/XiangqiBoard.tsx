@@ -43,7 +43,6 @@ import {
   VolumeX,
   X,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
@@ -299,7 +298,12 @@ export function XiangqiBoard({
   const [heroicBanner, setHeroicBanner] = useState<{
     type: HeroicBannerType
     title?: string
+    subtitle?: string
   } | null>(null)
+
+  const showGameNotice = useCallback((title: string, subtitle?: string) => {
+    setHeroicBanner({ type: 'notice', title, subtitle })
+  }, [])
   const [aiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [playerSide] = useState<Side>(RED)
 
@@ -891,21 +895,21 @@ export function XiangqiBoard({
     if (isOver || isAiThinking) return
 
     if (isPveMode && pos.turn !== playerSide) {
-      toast.info('Đang là lượt đi của máy AI')
+      showGameNotice('LƯỢT MÁY ĐI')
       return
     }
 
     if (laOnlinePvp) {
       if (!online?.mySide) {
-        toast.info('Bấm Vào bàn để tham gia thi đấu')
+        showGameNotice('CHƯA VÀO BÀN')
         return
       }
       if (online.meta.status === 'waiting') {
-        toast.info('Đang chờ đối thủ vào phòng để bắt đầu trận đấu')
+        showGameNotice('CHỜ ĐỐI THỦ')
         return
       }
       if (!toiDenLuotOnline) {
-        toast.info('Đang là lượt đi của đối thủ')
+        showGameNotice('LƯỢT ĐỐI THỦ')
         return
       }
     }
@@ -925,7 +929,7 @@ export function XiangqiBoard({
         executeMove({ from: selectedSq, to: sq })
         return
       }
-      toast.info('Nước đi không hợp lệ theo luật cờ tướng')
+      showGameNotice('NƯỚC ĐI SAI LUẬT')
       return
     }
 
@@ -1001,7 +1005,7 @@ export function XiangqiBoard({
         if (validTargets.includes(targetSq)) {
           executeMove({ from: sq, to: targetSq })
         } else {
-          toast.info('Nước đi không hợp lệ theo luật cờ tướng')
+          showGameNotice('NƯỚC ĐI SAI LUẬT')
         }
       }
     }
@@ -1088,9 +1092,9 @@ export function XiangqiBoard({
     }
 
     if (newMode === 'ai') {
-      toast.info('Chế độ PvE (Đấu với Máy)')
+      showGameNotice('ĐẤU VỚI MÁY')
     } else {
-      toast.info('Chế độ PvP (Đấu Đối Kháng)')
+      showGameNotice('ĐẤU ĐỐI KHÁNG')
     }
   }
 
@@ -1120,7 +1124,7 @@ export function XiangqiBoard({
         }
         if (laOnline && online) {
           online.guiChat(`${PROPOSAL_PREFIX}draw_offer`)
-          toast.info('Đã gửi lời xin hòa tới đối thủ...')
+          showGameNotice('ĐÃ XIN HOÀ')
           return
         }
         // Mô phỏng đối thủ trong chế độ PvP cục bộ / test
@@ -1134,7 +1138,7 @@ export function XiangqiBoard({
           confirmVariant: 'amber',
           onCancel: () => {
             setIncomingDialog(null)
-            toast.info('Đối thủ từ chối hoà cờ, ván đấu tiếp tục!')
+            showGameNotice('TỪ CHỐI HOÀ CỜ')
           },
           onConfirm: () => {
             setIncomingDialog(null)
@@ -1149,7 +1153,7 @@ export function XiangqiBoard({
         })
       },
     })
-  }, [isOver, isPveMode, laOnline, online])
+  }, [isOver, isPveMode, laOnline, online, showGameNotice])
 
   // 2. XIN THUA - Card xác nhận đơn giản, gửi thông báo cho đối thủ
   const handleResign = useCallback(() => {
@@ -1179,7 +1183,7 @@ export function XiangqiBoard({
         }
         if (laOnline && online) {
           online.guiChat(`${PROPOSAL_PREFIX}resign_offer`)
-          toast.info('Đã gửi lời xin thua tới đối thủ...')
+          showGameNotice('ĐÃ XIN THUA')
           return
         }
         // Mô phỏng đối thủ trong chế độ PvP cục bộ (pass & play)
@@ -1195,7 +1199,7 @@ export function XiangqiBoard({
           confirmVariant: 'emerald',
           onCancel: () => {
             setIncomingDialog(null)
-            toast.info('Đối thủ muốn tiếp tục thi đấu, không chấp nhận lời xin thua!')
+            showGameNotice('TỪ CHỐI XIN THUA')
           },
           onConfirm: () => {
             setIncomingDialog(null)
@@ -1210,7 +1214,7 @@ export function XiangqiBoard({
         })
       },
     })
-  }, [isOver, isPveMode, playerSide, pos.turn, laOnline, online])
+  }, [isOver, isPveMode, playerSide, pos.turn, laOnline, online, showGameNotice])
 
   // 3. XIN THẮNG - Card xác nhận đơn giản, gửi thông báo cho đối thủ
   const handleAskForWin = useCallback(() => {
@@ -1238,7 +1242,7 @@ export function XiangqiBoard({
         }
         if (laOnline && online) {
           online.guiChat(`${PROPOSAL_PREFIX}win_offer`)
-          toast.info('Đã gửi lời xin thắng tới đối thủ...')
+          showGameNotice('ĐÃ XIN THẮNG')
           return
         }
         // Mô phỏng đối thủ trong chế độ PvP cục bộ / test
@@ -1252,7 +1256,7 @@ export function XiangqiBoard({
           confirmVariant: 'emerald',
           onCancel: () => {
             setIncomingDialog(null)
-            toast.info('Đối thủ không đồng ý nhường thắng!')
+            showGameNotice('TỪ CHỐI NHƯỜNG THẮNG')
           },
           onConfirm: () => {
             setIncomingDialog(null)
@@ -1267,7 +1271,7 @@ export function XiangqiBoard({
         })
       },
     })
-  }, [isOver, isPveMode, benCuaToi, laOnline, online])
+  }, [isOver, isPveMode, benCuaToi, laOnline, online, showGameNotice])
 
   // 4. BẮT ĐẦU: Xử lý cho cả Online, PvE và PvP cục bộ
   const handleStartGameClick = useCallback(() => {
@@ -1280,11 +1284,11 @@ export function XiangqiBoard({
     if (laOnlinePvp && online) {
       if (!online.mySide) {
         online.joinGame()
-        toast.info('Đã vào bàn đấu')
+        showGameNotice('ĐÃ VÀO BÀN')
         return
       }
       if (!online.meta.playerX || !online.meta.playerO) {
-        toast.info('Chờ đối thủ vào phòng để bắt đầu')
+        showGameNotice('CHỜ ĐỐI THỦ')
         return
       }
       // Gửi lời mời bắt đầu trận đấu để 2 bên cùng xác nhận
@@ -1292,7 +1296,7 @@ export function XiangqiBoard({
       try {
         online.rematch()
       } catch {}
-      toast.info('Đã gửi lời mời bắt đầu trận đấu, chờ đối thủ xác nhận...')
+      showGameNotice('ĐÃ MỜI BẮT ĐẦU')
       return
     }
     // Chế độ PvP cục bộ (pass & play): nếu trận đã kết thúc, hỏi xác nhận đối thủ
@@ -1307,7 +1311,7 @@ export function XiangqiBoard({
         confirmVariant: 'amber',
         onCancel: () => {
           setIncomingDialog(null)
-          toast.info('Chưa sẵn sàng bắt đầu ván mới.')
+          showGameNotice('CHƯA SẴN SÀNG')
         },
         onConfirm: () => {
           setIncomingDialog(null)
@@ -1319,7 +1323,7 @@ export function XiangqiBoard({
     }
     setCustomGameOver(null)
     resetGame()
-  }, [isPveMode, resetGame, laOnlinePvp, online, isOver])
+  }, [isPveMode, resetGame, laOnlinePvp, online, isOver, showGameNotice])
 
   const handleBackLobby = useCallback(() => {
     if (isOver) {
@@ -1378,7 +1382,7 @@ export function XiangqiBoard({
         setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
         playGameStartSound()
       } else if (action === 'start_decline') {
-        toast.info('Đối thủ chưa sẵn sàng bắt đầu.')
+        showGameNotice('CHƯA SẴN SÀNG')
       } else if (action === 'draw_offer') {
         setIncomingDialog({
           type: 'draw',
@@ -1413,7 +1417,7 @@ export function XiangqiBoard({
         setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
         playGameOverSound('draw')
       } else if (action === 'draw_decline') {
-        toast.info('Đối thủ từ chối hoà cờ, ván đấu tiếp tục!')
+        showGameNotice('TỪ CHỐI HOÀ CỜ')
       } else if (action === 'win_offer') {
         setIncomingDialog({
           type: 'win',
@@ -1448,7 +1452,7 @@ export function XiangqiBoard({
         setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
         soundEngine.playVictory()
       } else if (action === 'win_decline') {
-        toast.info('Đối thủ không đồng ý nhường thắng!')
+        showGameNotice('TỪ CHỐI NHƯỜNG THẮNG')
       } else if (action === 'resign_offer') {
         setIncomingDialog({
           type: 'resign',
@@ -1461,7 +1465,7 @@ export function XiangqiBoard({
           onCancel: () => {
             setIncomingDialog(null)
             online.guiChat(`${PROPOSAL_PREFIX}resign_decline`)
-            toast.info('Bạn đã từ chối lời xin thua, tiếp tục thi đấu!')
+            showGameNotice('TIẾP TỤC THI ĐẤU')
           },
           onConfirm: () => {
             setIncomingDialog(null)
@@ -1487,7 +1491,7 @@ export function XiangqiBoard({
           online.surrender()
         } catch {}
       } else if (action === 'resign_decline') {
-        toast.info('Đối thủ muốn tiếp tục thi đấu, không chấp nhận lời xin thua!')
+        showGameNotice('TỪ CHỐI XIN THUA')
       } else if (action === 'resign') {
         setIncomingDialog({
           type: 'resign',
@@ -1499,7 +1503,7 @@ export function XiangqiBoard({
           confirmVariant: 'emerald',
           onCancel: () => {
             setIncomingDialog(null)
-            toast.info('Tiếp tục thi đấu!')
+            showGameNotice('TIẾP TỤC THI ĐẤU')
           },
           onConfirm: () => {
             setIncomingDialog(null)
@@ -1514,7 +1518,7 @@ export function XiangqiBoard({
         })
       }
     }
-  }, [laOnline, online, benCuaToi, resetGame])
+  }, [laOnline, online, benCuaToi, resetGame, showGameNotice])
 
   const winnerOnline: Side | null =
     online && (online.meta.winner === 'X' || online.meta.winner === 'O')
@@ -1690,7 +1694,7 @@ export function XiangqiBoard({
           try {
             localStorage.setItem('xiangqi_show_hints', String(next))
           } catch {}
-          toast.info(next ? 'Đã bật gợi ý nước đi' : 'Đã tắt gợi ý nước đi (Tự do di chuyển)')
+          showGameNotice(next ? 'BẬT GỢI Ý' : 'TẮT GỢI Ý')
           return next
         })
       },
@@ -1756,7 +1760,7 @@ export function XiangqiBoard({
                 try {
                   localStorage.setItem('xiangqi_show_hints', String(next))
                 } catch {}
-                toast.info(next ? 'Đã bật gợi ý nước đi' : 'Đã tắt gợi ý nước đi (Tự do di chuyển)')
+                showGameNotice(next ? 'BẬT GỢI Ý' : 'TẮT GỢI Ý')
                 return next
               })
             }}
@@ -2148,6 +2152,7 @@ export function XiangqiBoard({
           <GameHeroicBanner
             type={heroicBanner?.type ?? null}
             title={heroicBanner?.title}
+            subtitle={heroicBanner?.subtitle}
             visible={Boolean(heroicBanner)}
             autoDismissMs={2200}
             onClose={() => setHeroicBanner(null)}
@@ -2298,7 +2303,7 @@ export function XiangqiBoard({
                   if (!hasMovedAvatarRef.current) {
                     if (laOnline && !online?.mySide) {
                       online?.joinGame()
-                      toast.info('Đã vào bàn đấu')
+                      showGameNotice('ĐÃ VÀO BÀN')
                     } else {
                       setIsSettingsModalOpen(true)
                     }
@@ -2400,7 +2405,7 @@ export function XiangqiBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (isPveMode) {
-                  toast.info('Người chơi AI (Máy) · Cấp độ 10 · Elo 1500')
+                  showGameNotice('AI CẤP 10 · ELO 1500')
                   return
                 }
                 const rect = e.currentTarget.getBoundingClientRect()

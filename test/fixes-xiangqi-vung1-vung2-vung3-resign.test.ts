@@ -87,7 +87,16 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain("subtitle: 'Đối thủ xin thua ván này, bạn có đồng ý không?'")
       expect(xiangqiBoardRaw).toContain("confirmText: 'Đồng ý'")
       expect(xiangqiBoardRaw).toContain("cancelText: 'Chơi tiếp'")
-      expect(xiangqiBoardRaw).toContain('toast.info(\'Đối thủ muốn tiếp tục thi đấu, không chấp nhận lời xin thua!\')')
+      expect(xiangqiBoardRaw).toContain("showGameNotice('TỪ CHỐI XIN THUA')")
+    })
+
+    it('Tất cả thông báo cơ chế game hiển thị chung 1 mẫu GameHeroicBanner ở giữa bàn cờ, không dùng toast Sonner', () => {
+      expect(xiangqiBoardRaw).not.toContain("import { toast } from 'sonner'")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('TỪ CHỐI HOÀ CỜ')")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('TỪ CHỐI XIN THUA')")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('TỪ CHỐI NHƯỜNG THẮNG')")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('NƯỚC ĐI SAI LUẬT')")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('CHƯA SẴN SÀNG')")
     })
 
     it('Kênh chat online hỗ trợ resign_offer, resign_accept và resign_decline', () => {

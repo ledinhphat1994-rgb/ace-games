@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
-export type HeroicBannerType = 'start' | 'win' | 'lose' | 'draw' | 'check'
+export type HeroicBannerType = 'start' | 'win' | 'lose' | 'draw' | 'check' | 'notice'
 
 export interface GameHeroicBannerProps {
   type: HeroicBannerType | null
@@ -16,6 +16,7 @@ export interface GameHeroicBannerProps {
 export function GameHeroicBanner({
   type,
   title,
+  subtitle,
   visible,
   onClose,
   autoDismissMs = 1800,
@@ -58,9 +59,14 @@ export function GameHeroicBanner({
       defaultTitle: 'CHIẾU TƯỚNG',
       gradient: 'from-orange-100 via-rose-300 to-red-600',
     },
+    notice: {
+      defaultTitle: 'THÔNG BÁO',
+      gradient: 'from-amber-100 via-yellow-300 to-amber-500',
+    },
   }[type]
 
   const displayTitle = title || config.defaultTitle
+  const isLongTitle = displayTitle.length > 10
 
   return (
     <div
@@ -72,16 +78,24 @@ export function GameHeroicBanner({
       )}
     >
       <div className="flex flex-col items-center justify-center animate-in zoom-in-75 duration-300">
-        <div className="bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.35)_45%,transparent_75%)] px-10 py-6 sm:px-14 sm:py-8 flex items-center justify-center">
+        <div className="bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.75)_0%,rgba(0,0,0,0.45)_50%,transparent_80%)] px-8 py-5 sm:px-12 sm:py-7 flex flex-col items-center justify-center max-w-[90vw] sm:max-w-[480px]">
           <span
             className={cn(
               // leading + py: chữ tô gradient chỉ hiện trong khung của nó — không chừa chỗ thì dấu (Ắ, Ầ, Ạ…) bị cắt mất.
-              'text-5xl sm:text-6xl md:text-7xl leading-[1.4] py-3 px-1 font-black uppercase tracking-widest text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
+              'leading-[1.35] py-2 px-1 font-black uppercase tracking-wider text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
+              isLongTitle
+                ? 'text-2xl sm:text-3xl md:text-4xl'
+                : 'text-5xl sm:text-6xl md:text-7xl',
               `bg-gradient-to-b ${config.gradient}`,
             )}
           >
             {displayTitle}
           </span>
+          {subtitle && (
+            <p className="mt-1 text-sm sm:text-base font-semibold text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] tracking-wide text-center">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
     </div>
