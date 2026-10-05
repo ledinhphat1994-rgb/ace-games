@@ -504,15 +504,15 @@ export function XiangqiBoard({
     })
   }, [])
 
-  // Tính toán tọa độ (x, y) của các bong bóng nhỏ xoay quanh Avatar (cách đều, không đè bàn cờ và đồng hồ)
+  // Tính toán tọa độ (x, y) của các bong bóng nhỏ xoay quanh Avatar (cách đều, thoáng mắt, không đè avatar và đồng hồ)
   const getBubbleCoordinates = (index: number, total: number) => {
-    const D = 52 // Bán kính từ tâm avatar đến tâm bong bóng
+    const D = 62 // Bán kính từ tâm avatar đến tâm bong bóng (tăng lên 62px để tạo khoảng đệm an toàn >= 12px với mép avatar)
     if (total <= 1) {
-      return { x: -52, y: 0 }
+      return { x: -62, y: 0 }
     }
-    // Góc từ 80° (Đỉnh, hơi lệch phải trong phạm vi chiều ngang avatar) đến 210° (Dưới-Trái, an toàn khỏi đồng hồ)
-    const startAngle = 80
-    const endAngle = 210
+    // Góc từ 85° (Đỉnh, hướng 12 giờ) đến 215° (Dưới-Trái, hướng 7h30, an toàn khỏi đồng hồ và đĩa cờ)
+    const startAngle = 85
+    const endAngle = 215
     const step = (endAngle - startAngle) / (total - 1)
     const angleDeg = startAngle + index * step
     const angleRad = (angleDeg * Math.PI) / 180
@@ -562,7 +562,6 @@ export function XiangqiBoard({
     initY: 0,
   })
   const hasMovedAvatarRef = useRef(false)
-  const justToggledPointerUpRef = useRef(false)
 
   const handleAvatarPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
@@ -603,13 +602,6 @@ export function XiangqiBoard({
       try {
         localStorage.setItem('xiangqi_avatar_pos', JSON.stringify(avatarOffset))
       } catch {}
-    } else {
-      // Click nhẹ (không kéo) -> mở Cài đặt (nơi quản lý công cụ & ghim)
-      justToggledPointerUpRef.current = true
-      setIsSettingsModalOpen(true)
-      setTimeout(() => {
-        justToggledPointerUpRef.current = false
-      }, 300)
     }
   }
 
@@ -1922,10 +1914,10 @@ export function XiangqiBoard({
                   <div
                     id="last-move-from-marker"
                     style={{ left: `${fromX}%`, top: `${fromY}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center border-2 border-dashed border-blue-600/90 bg-blue-600/25 shadow-[0_0_14px_rgba(37,99,235,0.45)]"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center border-2 border-dashed border-amber-600/70 bg-amber-500/15 shadow-[0_0_12px_rgba(217,119,6,0.2)]"
                     title="Vị trí xuất phát của nước cờ vừa đi"
                   >
-                    <div className="size-2 sm:size-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
+                    <div className="size-2 sm:size-2.5 rounded-full border border-amber-600/80 bg-amber-500/40 shadow-[0_0_6px_rgba(217,119,6,0.35)]" />
                   </div>
                 )
               })()}
@@ -1964,7 +1956,7 @@ export function XiangqiBoard({
                     isCaptureTarget && 'piece-targetable',
                     isSelected && 'piece-selected',
                     isBeingDragged && 'opacity-30 scale-95',
-                    isLastMoveDestination && !isSelected && 'ring-2 ring-blue-600/90 shadow-[0_0_14px_rgba(37,99,235,0.65)]'
+                    isLastMoveDestination && !isSelected && 'ring-2 ring-amber-500/80 shadow-[0_0_14px_rgba(245,158,11,0.45)]'
                   )}
                 >
                   <div className="inner-border absolute inset-[2px] sm:inset-[2.5px] rounded-full pointer-events-none" />
@@ -2299,7 +2291,6 @@ export function XiangqiBoard({
                 onPointerCancel={handleAvatarPointerUp}
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (justToggledPointerUpRef.current) return
                   if (!hasMovedAvatarRef.current) {
                     if (laOnline && !online?.mySide) {
                       online?.joinGame()
@@ -2338,16 +2329,6 @@ export function XiangqiBoard({
                 >
                   {mySide === RED ? '帥' : '將'}
                 </div>
-
-                {/* Indicator số lượng bong bóng đã ghim nhỏ ở góc trên nếu có */}
-                {pinnedTools.length > 0 && (
-                  <div
-                    className="absolute -top-1 -right-1 size-4 rounded-full bg-sky-500 text-white flex items-center justify-center shadow-md z-10 text-[9px] font-bold pointer-events-none"
-                    title={`${pinnedTools.length} công cụ đã ghim`}
-                  >
-                    {pinnedTools.length}
-                  </div>
-                )}
               </button>
             </div>
 

@@ -26,25 +26,30 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).not.toContain('xl:top-6')
       expect(xiangqiBoardRaw).toContain("document.getElementById('tool-bubble-emoji')")
     })
+
+    it('Các bong bóng công cụ Vùng 1 duy trì khoảng đệm an toàn D=62px và không có badge số đè lên Avatar', () => {
+      expect(xiangqiBoardRaw).toContain('const D = 62')
+      expect(xiangqiBoardRaw).not.toContain('Indicator số lượng bong bóng đã ghim nhỏ ở góc trên nếu có')
+    })
   })
 
-  describe('Vùng 2: Hiện vị trí trước đó của con cờ đã đi mới nhất (Màu xanh dương đậm)', () => {
+  describe('Vùng 2: Hiện vị trí trước đó của con cờ đã đi mới nhất (Tông Hổ Phách dịu mắt, hòa quyện bàn cờ gỗ)', () => {
     it('XiangqiBoard tính toán effectiveLastMove từ cả nước đi online lẫn ván cục bộ/PvE', () => {
       expect(xiangqiBoardRaw).toContain('effectiveLastMove = useMemo(')
       expect(xiangqiBoardRaw).toContain('online.moves[online.moves.length - 1]')
     })
 
-    it('XiangqiBoard render layer và marker vị trí trước đó (from) với màu xanh dương đậm', () => {
+    it('XiangqiBoard render layer và marker vị trí trước đó (from) với màu hổ phách dịu mắt thay cho màu xanh chói', () => {
       expect(xiangqiBoardRaw).toContain('id="last-move-indicator-layer"')
       expect(xiangqiBoardRaw).toContain('id="last-move-from-marker"')
-      expect(xiangqiBoardRaw).toContain('border-dashed border-blue-600')
-      expect(xiangqiBoardRaw).toContain('bg-blue-600')
+      expect(xiangqiBoardRaw).toContain('border-dashed border-amber-600')
+      expect(xiangqiBoardRaw).toContain('bg-amber-500')
       expect(xiangqiBoardRaw).toContain('Vị trí xuất phát của nước cờ vừa đi')
     })
 
-    it('XiangqiBoard highlight quân cờ ở ô đích (to) với viền ring xanh dương đậm', () => {
+    it('XiangqiBoard highlight quân cờ ở ô đích (to) với viền ring ánh hổ phách dịu mắt', () => {
       expect(xiangqiBoardRaw).toContain('isLastMoveDestination = effectiveLastMove?.to === sq')
-      expect(xiangqiBoardRaw).toContain('isLastMoveDestination && !isSelected && \'ring-2 ring-blue-600')
+      expect(xiangqiBoardRaw).toContain("isLastMoveDestination && !isSelected && 'ring-2 ring-amber-500")
     })
   })
 
