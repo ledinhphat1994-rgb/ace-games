@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   XiangqiPosition,
   type XiangqiMove,
@@ -1825,35 +1826,6 @@ export function XiangqiBoard({
             </span>
           )}
         </div>
-
-        {/* CỤM PHẢI: NÚT BẬT/TẮT GỢI Ý NƯỚC ĐI (HƯỚNG DẪN TỰ DO) */}
-        <div className="ml-auto flex items-center gap-1.5 shrink-0 z-10">
-          <button
-            type="button"
-            id="btn-toggle-hints"
-            onClick={() => {
-              setShowHints((prev) => {
-                const next = !prev
-                try {
-                  localStorage.setItem('xiangqi_show_hints', String(next))
-                } catch {}
-                showGameNotice(next ? 'BẬT GỢI Ý' : 'TẮT GỢI Ý')
-                return next
-              })
-            }}
-            className={cn(
-              'h-8 px-2.5 rounded-lg text-xs gap-1.5 inline-flex items-center font-bold cursor-pointer transition-colors duration-150 border select-none',
-              showHints
-                ? 'bg-sky-500/15 border-sky-500/40 text-sky-300 hover:bg-sky-500/25'
-                : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
-            )}
-            title={showHints ? 'Đang bật gợi ý nước đi (Bấm để tắt)' : 'Đang tắt gợi ý nước đi (Bấm để bật)'}
-            aria-label="Gợi ý nước đi"
-          >
-            {showHints ? <Eye className="size-3.5 text-sky-400" /> : <EyeOff className="size-3.5 text-gray-400" />}
-            <span className="hidden sm:inline">{showHints ? 'Gợi ý: Bật' : 'Gợi ý: Tắt'}</span>
-          </button>
-        </div>
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, KHAI THÁC KHÔNG GIAN, CÓ KHOẢNG THỞ DƯỚI ĐÁY */}
@@ -2246,77 +2218,80 @@ export function XiangqiBoard({
           }}
           className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
-          {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (NẰM NGAY TRÊN NƠI BẤM KÍCH HOẠT, VIEWPORT-CLAMPED) ==================== */}
-          {isQuickMenuOpen && (
-            <div
-              id="vung-2-quick-chat-container"
-              ref={quickMenuRef}
-              aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
-              style={{
-                position: 'fixed',
-                left: `${quickMenuPos.left}px`,
-                top: `${quickMenuPos.top}px`,
-                zIndex: 80,
-              }}
-              className="w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-[60] shrink-0 pointer-events-auto"
-            >
-              <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
-                <button
-                  type="button"
-                  onClick={() => setIsQuickMenuOpen(false)}
-                  className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                  aria-label="Đóng biểu cảm"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Lưới 8 Emoji cờ tướng gọn gàng */}
-              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                {[
-                  { emoji: '👏', text: 'Hay quá' },
-                  { emoji: '🤔', text: 'Đang tính' },
-                  { emoji: '☕', text: 'Mời trà' },
-                  { emoji: '🤝', text: 'Bắt tay' },
-                  { emoji: '🔥', text: 'Chiến nào' },
-                  { emoji: '😅', text: 'Toát mồ hôi' },
-                  { emoji: '👍', text: 'Đỉnh cao' },
-                  { emoji: '⚔️', text: 'Xuất quân' },
-                ].map((item) => (
+          {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (PORTAL LÊN DOCUMENT.BODY ĐỂ ĐỊNH VỊ CHUẨN XÁC THEO VIEWPORT) ==================== */}
+          {isQuickMenuOpen &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <div
+                id="vung-2-quick-chat-container"
+                ref={quickMenuRef}
+                aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
+                style={{
+                  position: 'fixed',
+                  left: `${quickMenuPos.left}px`,
+                  top: `${quickMenuPos.top}px`,
+                  zIndex: 80,
+                }}
+                className="w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-[60] shrink-0 pointer-events-auto"
+              >
+                <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                  <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
                   <button
-                    key={item.emoji}
                     type="button"
-                    onClick={() => handleSendQuickMessage(item.text, item.emoji)}
-                    className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                    title={item.text}
+                    onClick={() => setIsQuickMenuOpen(false)}
+                    className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                    aria-label="Đóng biểu cảm"
                   >
-                    {item.emoji}
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                ))}
-              </div>
+                </div>
 
-              {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
-              <div className="h-[1px] bg-white/10 my-0.5" />
-              <div className="grid grid-cols-2 gap-1">
-                {[
-                  'Nước cờ hay',
-                  'Xin chỉ giáo',
-                  'Đang tính nước',
-                  'Chiến tiếp nào',
-                ].map((msg) => (
-                  <button
-                    key={msg}
-                    type="button"
-                    onClick={() => handleSendQuickMessage(msg)}
-                    className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
-                  >
-                    {msg}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+                {/* Lưới 8 Emoji cờ tướng gọn gàng */}
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                  {[
+                    { emoji: '👏', text: 'Hay quá' },
+                    { emoji: '🤔', text: 'Đang tính' },
+                    { emoji: '☕', text: 'Mời trà' },
+                    { emoji: '🤝', text: 'Bắt tay' },
+                    { emoji: '🔥', text: 'Chiến nào' },
+                    { emoji: '😅', text: 'Toát mồ hôi' },
+                    { emoji: '👍', text: 'Đỉnh cao' },
+                    { emoji: '⚔️', text: 'Xuất quân' },
+                  ].map((item) => (
+                    <button
+                      key={item.emoji}
+                      type="button"
+                      onClick={() => handleSendQuickMessage(item.text, item.emoji)}
+                      className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                      title={item.text}
+                    >
+                      {item.emoji}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
+                <div className="h-[1px] bg-white/10 my-0.5" />
+                <div className="grid grid-cols-2 gap-1">
+                  {[
+                    'Nước cờ hay',
+                    'Xin chỉ giáo',
+                    'Đang tính nước',
+                    'Chiến tiếp nào',
+                  ].map((msg) => (
+                    <button
+                      key={msg}
+                      type="button"
+                      onClick={() => handleSendQuickMessage(msg)}
+                      className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
+                    >
+                      {msg}
+                    </button>
+                  ))}
+                </div>
+              </div>,
+              document.body
+            )}
 
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
@@ -2355,7 +2330,7 @@ export function XiangqiBoard({
                       transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
                     }}
                     className={cn(
-                      'absolute top-1/2 left-1/2 -mt-[17px] -ml-[17px] size-[34px] rounded-full border-2 backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-pointer transition-colors duration-150 z-30 select-none hover:scale-110 active:scale-95 group disabled:opacity-40 disabled:cursor-not-allowed',
+                      'absolute top-1/2 left-1/2 -mt-[17px] -ml-[17px] size-[34px] rounded-full border-2 backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-pointer transition-transform duration-150 z-30 select-none hover:scale-110 group disabled:opacity-40 disabled:cursor-not-allowed',
                       tool.bubbleClassName
                     )}
                     title={`${tool.title} (Bấm 1 lần để sử dụng)`}
@@ -2799,7 +2774,28 @@ export function XiangqiBoard({
                 </label>
               </div>
 
-              {/* MỤC 3: XOAY BÀN CỜ - CHỈ TIÊU ĐỀ, KHÔNG CHÚ THÍCH */}
+              {/* MỤC 3: GỢI Ý NƯỚC ĐI - CHỈ TIÊU ĐỀ, KHÔNG CHÚ THÍCH (ĐƯỢC ĐƯA VÀO CÀI ĐẶT) */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
+                <span className="font-semibold text-gray-200">Gợi ý nước đi</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="btn-toggle-hints"
+                    checked={showHints}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                      setShowHints(next)
+                      try {
+                        localStorage.setItem('xiangqi_show_hints', String(next))
+                      } catch {}
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                </label>
+              </div>
+
+              {/* MỤC 4: XOAY BÀN CỜ - CHỈ TIÊU ĐỀ, KHÔNG CHÚ THÍCH */}
               <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
                 <span className="font-semibold text-gray-200">Xoay bàn cờ</span>
                 <button
