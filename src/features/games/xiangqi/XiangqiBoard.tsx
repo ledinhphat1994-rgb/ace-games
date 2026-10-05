@@ -1060,7 +1060,18 @@ export function XiangqiBoard({
   }, [vanVuaBatDau, xoaVanVuaBatDau])
 
   const handleModeChange = (newMode: PlayMode) => {
-    if (!doiCheDo(newMode)) return
+    if (!doiCheDo(newMode)) {
+      if (laOnlinePvp) {
+        if (online && online.mySide !== 'X') {
+          showGameNotice('CHỈ CHỦ BÀN MỚI ĐỔI ĐƯỢC')
+        } else {
+          showGameNotice('BÀN ĐẤU ONLINE', 'Đang ở phòng thi đấu trực tuyến')
+        }
+      } else {
+        showGameNotice('KHÔNG THỂ ĐỔI CHẾ ĐỘ')
+      }
+      return
+    }
     setSelectedSq(null)
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
@@ -1093,7 +1104,26 @@ export function XiangqiBoard({
   // 1. XIN HÒA - Card xác nhận đơn giản, gửi thông báo tương tự cho đối thủ
   const handleOfferDraw = useCallback(() => {
     setIsXinXoMenuOpen(false)
-    if (isOver) return
+    if (isAiThinking) {
+      showGameNotice('MÁY ĐANG TÍNH NƯỚC')
+      return
+    }
+    if (isOver) {
+      showGameNotice('VÁN ĐÃ KẾT THÚC', 'Nhấn Bắt Đầu để chơi ván mới')
+      return
+    }
+    if (!isPlaying) {
+      showGameNotice('VÁN CHƯA BẮT ĐẦU', 'Nhấn Bắt Đầu ở giữa bàn cờ')
+      return
+    }
+    if (laOnlinePvp && !online?.mySide) {
+      showGameNotice('BẠN ĐANG XEM BÀN ĐẤU')
+      return
+    }
+    if (laOnlinePvp && (!online?.meta.playerX || !online?.meta.playerO)) {
+      showGameNotice('ĐANG CHỜ ĐỐI THỦ')
+      return
+    }
     setCenterDialog({
       type: 'draw',
       icon: 'draw',
@@ -1145,12 +1175,31 @@ export function XiangqiBoard({
         })
       },
     })
-  }, [isOver, isPveMode, laOnline, online, showGameNotice])
+  }, [isOver, isPlaying, isAiThinking, isPveMode, laOnline, laOnlinePvp, online, showGameNotice])
 
   // 2. XIN THUA - Card xác nhận đơn giản, gửi thông báo cho đối thủ
   const handleResign = useCallback(() => {
     setIsXinXoMenuOpen(false)
-    if (isOver) return
+    if (isAiThinking) {
+      showGameNotice('MÁY ĐANG TÍNH NƯỚC')
+      return
+    }
+    if (isOver) {
+      showGameNotice('VÁN ĐÃ KẾT THÚC', 'Nhấn Bắt Đầu để chơi ván mới')
+      return
+    }
+    if (!isPlaying) {
+      showGameNotice('VÁN CHƯA BẮT ĐẦU', 'Nhấn Bắt Đầu ở giữa bàn cờ')
+      return
+    }
+    if (laOnlinePvp && !online?.mySide) {
+      showGameNotice('BẠN ĐANG XEM BÀN ĐẤU')
+      return
+    }
+    if (laOnlinePvp && (!online?.meta.playerX || !online?.meta.playerO)) {
+      showGameNotice('ĐANG CHỜ ĐỐI THỦ')
+      return
+    }
     setCenterDialog({
       type: 'resign',
       icon: 'resign',
@@ -1206,12 +1255,31 @@ export function XiangqiBoard({
         })
       },
     })
-  }, [isOver, isPveMode, playerSide, pos.turn, laOnline, online, showGameNotice])
+  }, [isOver, isPlaying, isAiThinking, isPveMode, playerSide, pos.turn, laOnline, laOnlinePvp, online, showGameNotice])
 
   // 3. XIN THẮNG - Card xác nhận đơn giản, gửi thông báo cho đối thủ
   const handleAskForWin = useCallback(() => {
     setIsXinXoMenuOpen(false)
-    if (isOver) return
+    if (isAiThinking) {
+      showGameNotice('MÁY ĐANG TÍNH NƯỚC')
+      return
+    }
+    if (isOver) {
+      showGameNotice('VÁN ĐÃ KẾT THÚC', 'Nhấn Bắt Đầu để chơi ván mới')
+      return
+    }
+    if (!isPlaying) {
+      showGameNotice('VÁN CHƯA BẮT ĐẦU', 'Nhấn Bắt Đầu ở giữa bàn cờ')
+      return
+    }
+    if (laOnlinePvp && !online?.mySide) {
+      showGameNotice('BẠN ĐANG XEM BÀN ĐẤU')
+      return
+    }
+    if (laOnlinePvp && (!online?.meta.playerX || !online?.meta.playerO)) {
+      showGameNotice('ĐANG CHỜ ĐỐI THỦ')
+      return
+    }
     setCenterDialog({
       type: 'win',
       icon: 'win',
@@ -1263,7 +1331,7 @@ export function XiangqiBoard({
         })
       },
     })
-  }, [isOver, isPveMode, benCuaToi, laOnline, online, showGameNotice])
+  }, [isOver, isPlaying, isAiThinking, isPveMode, benCuaToi, laOnline, laOnlinePvp, online, showGameNotice])
 
   // 4. BẮT ĐẦU: Xử lý cho cả Online, PvE và PvP cục bộ
   const handleStartGameClick = useCallback(() => {
@@ -1597,7 +1665,10 @@ export function XiangqiBoard({
         isQuickMenuOpen && 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
       ),
       renderIcon: (compact) => <Smile className={compact ? 'size-4' : 'size-4.5'} />,
-      onClick: () => setIsQuickMenuOpen((prev) => !prev),
+      onClick: () => {
+        updateQuickMenuPos()
+        setIsQuickMenuOpen((prev) => !prev)
+      },
     },
     mode: {
       id: 'mode',
@@ -1620,8 +1691,18 @@ export function XiangqiBoard({
       bubbleClassName:
         'border-emerald-500/50 bg-[#121a18]/95 text-emerald-400 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 shadow-emerald-500/15',
       renderIcon: (compact) => <UserPlus className={compact ? 'size-4' : 'size-4.5'} />,
-      onClick: () => onInvite?.(),
-      disabled: !onInvite,
+      onClick: () => {
+        if (onInvite) {
+          onInvite()
+        } else {
+          try {
+            navigator.clipboard.writeText(window.location.href)
+            showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
+          } catch {
+            showGameNotice('MỜI BẠN BÈ')
+          }
+        }
+      },
     },
     draw: {
       id: 'draw',
@@ -1630,7 +1711,6 @@ export function XiangqiBoard({
         'border-amber-500/50 bg-[#181614]/95 text-amber-400 hover:border-amber-400 hover:text-amber-300 hover:bg-amber-500/20 shadow-amber-500/15',
       renderIcon: (compact) => <Handshake className={compact ? 'size-4' : 'size-4.5'} />,
       onClick: handleOfferDraw,
-      disabled: isOver || isAiThinking,
     },
     resign: {
       id: 'resign',
@@ -1639,7 +1719,6 @@ export function XiangqiBoard({
         'border-red-500/50 bg-[#1c1214]/95 text-red-400 hover:border-red-400 hover:text-red-300 hover:bg-red-500/20 shadow-red-500/15',
       renderIcon: (compact) => <Flag className={compact ? 'size-4' : 'size-4.5'} />,
       onClick: handleResign,
-      disabled: isOver || isAiThinking,
     },
     win: {
       id: 'win',
@@ -1648,7 +1727,6 @@ export function XiangqiBoard({
         'border-yellow-500/50 bg-[#1a1912]/95 text-yellow-400 hover:border-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/20 shadow-yellow-500/15',
       renderIcon: (compact) => <Crown className={compact ? 'size-4' : 'size-4.5'} />,
       onClick: handleAskForWin,
-      disabled: isOver || isAiThinking,
     },
     flip: {
       id: 'flip',
@@ -1656,7 +1734,13 @@ export function XiangqiBoard({
       bubbleClassName:
         'border-indigo-500/50 bg-[#161424]/95 text-indigo-400 hover:border-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 shadow-indigo-500/15',
       renderIcon: (compact) => <RotateCcw className={compact ? 'size-4' : 'size-4.5'} />,
-      onClick: () => setIsFlippedManual((prev) => !prev),
+      onClick: () => {
+        setIsFlippedManual((prev) => {
+          const next = !prev
+          showGameNotice(next ? 'ĐẢO GÓC NHÌN' : 'GÓC NHÌN CHUẨN')
+          return next
+        })
+      },
     },
     sound: {
       id: 'sound',
@@ -1669,6 +1753,7 @@ export function XiangqiBoard({
         setSoundEnabled((prev) => {
           const next = !prev
           soundEngine.enabled = next
+          showGameNotice(next ? 'ĐÃ BẬT ÂM THANH' : 'ĐÃ TẮT ÂM THANH')
           return next
         })
       },
@@ -2017,8 +2102,8 @@ export function XiangqiBoard({
             )
           })()}
 
-          {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC */}
-          {(!isPlaying || isOver) && !activeDlg && (
+          {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC (ẨN KHI CÓ HEROIC BANNER ĐỂ TRÁNH TRÙNG ĐÈ) */}
+          {(!isPlaying || isOver) && !activeDlg && !heroicBanner && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"

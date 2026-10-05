@@ -118,9 +118,16 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain('const isPlaying = !isOver && (')
     })
 
-    it('Nút Bắt Đầu ở giữa sông luôn sẵn sàng hiển thị khi trận kết thúc và không bị !heroicBanner chặn', () => {
-      expect(xiangqiBoardRaw).toContain('(!isPlaying || isOver) && !activeDlg && (')
+    it('Nút Bắt Đầu ở giữa sông hiển thị khi chưa vào ván/kết thúc và ẩn khi có heroicBanner để tránh đè trùng thông báo giữa bàn cờ (Vùng 2)', () => {
+      expect(xiangqiBoardRaw).toContain('(!isPlaying || isOver) && !activeDlg && !heroicBanner && (')
       expect(xiangqiBoardRaw).toContain('id="btn-bat-dau-river"')
+    })
+
+    it('Vùng 1: Các nút công cụ quanh avatar không bị disable cứng và luôn phản hồi thông báo rõ ràng', () => {
+      expect(xiangqiBoardRaw).toContain("showGameNotice('VÁN CHƯA BẮT ĐẦU'")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('VÁN ĐÃ KẾT THÚC'")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('MÁY ĐANG TÍNH NƯỚC')")
+      expect(xiangqiBoardRaw).toContain("showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT'")
     })
 
     it('Bắt đầu lại ván mới gửi start_offer yêu cầu 2 bên xác nhận đồng thuận mới bắt đầu', () => {
