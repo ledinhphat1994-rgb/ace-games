@@ -28,22 +28,51 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
     })
   })
 
-  describe('Vùng 2: Hiện vị trí trước đó của con cờ đã đi mới nhất', () => {
+  describe('Vùng 2: Hiện vị trí trước đó của con cờ đã đi mới nhất (Màu xanh dương đậm)', () => {
     it('XiangqiBoard tính toán effectiveLastMove từ cả nước đi online lẫn ván cục bộ/PvE', () => {
       expect(xiangqiBoardRaw).toContain('effectiveLastMove = useMemo(')
       expect(xiangqiBoardRaw).toContain('online.moves[online.moves.length - 1]')
     })
 
-    it('XiangqiBoard render layer và marker vị trí trước đó (from) của nước đi mới nhất', () => {
+    it('XiangqiBoard render layer và marker vị trí trước đó (from) với màu xanh dương đậm', () => {
       expect(xiangqiBoardRaw).toContain('id="last-move-indicator-layer"')
       expect(xiangqiBoardRaw).toContain('id="last-move-from-marker"')
-      expect(xiangqiBoardRaw).toContain('border-dashed border-amber-400')
+      expect(xiangqiBoardRaw).toContain('border-dashed border-blue-600')
+      expect(xiangqiBoardRaw).toContain('bg-blue-600')
       expect(xiangqiBoardRaw).toContain('Vị trí xuất phát của nước cờ vừa đi')
     })
 
-    it('XiangqiBoard highlight quân cờ ở ô đích (to) của nước đi mới nhất', () => {
+    it('XiangqiBoard highlight quân cờ ở ô đích (to) với viền ring xanh dương đậm', () => {
       expect(xiangqiBoardRaw).toContain('isLastMoveDestination = effectiveLastMove?.to === sq')
-      expect(xiangqiBoardRaw).toContain('isLastMoveDestination && !isSelected && \'ring-2 ring-amber-400')
+      expect(xiangqiBoardRaw).toContain('isLastMoveDestination && !isSelected && \'ring-2 ring-blue-600')
+    })
+  })
+
+  describe('Cơ chế cờ tướng tự do di chuyển & Bật/Tắt hướng dẫn & Kéo thả quân cờ', () => {
+    it('XiangqiBoard hỗ trợ kéo thả quân cờ trực tiếp trên bàn cờ', () => {
+      expect(xiangqiBoardRaw).toContain('handlePiecePointerDown')
+      expect(xiangqiBoardRaw).toContain('handlePiecePointerMove')
+      expect(xiangqiBoardRaw).toContain('handlePiecePointerUp')
+      expect(xiangqiBoardRaw).toContain('draggingPiece')
+    })
+
+    it('XiangqiBoard hỗ trợ tương tác trên toàn bộ 90 giao điểm bàn cờ', () => {
+      expect(xiangqiBoardRaw).toContain('handleBoardPointerDown')
+      expect(xiangqiBoardRaw).toContain('ref={boardRef}')
+    })
+
+    it('XiangqiBoard cho phép bật/tắt gợi ý nước đi để người chơi tự do di chuyển không bị ép', () => {
+      expect(xiangqiBoardRaw).toContain('showHints')
+      expect(xiangqiBoardRaw).toContain('id="btn-toggle-hints"')
+      expect(xiangqiBoardRaw).toContain('{showHints && (')
+    })
+
+    it('Bảng biểu cảm vung-2-quick-chat-container sử dụng position: fixed và clamp viewport an toàn', () => {
+      expect(xiangqiBoardRaw).toContain('id="vung-2-quick-chat-container"')
+      expect(xiangqiBoardRaw).toContain("position: 'fixed'")
+      expect(xiangqiBoardRaw).toContain('quickMenuPos.left')
+      expect(xiangqiBoardRaw).toContain('quickMenuPos.top')
+      expect(xiangqiBoardRaw).toContain('updateQuickMenuPos')
     })
   })
 

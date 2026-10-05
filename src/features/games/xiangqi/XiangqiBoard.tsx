@@ -27,6 +27,8 @@ import {
   Bot,
   Clock,
   Crown,
+  Eye,
+  EyeOff,
   Flag,
   Handshake,
   Lock,
@@ -264,6 +266,7 @@ export type XiangqiToolId =
   | 'win'
   | 'flip'
   | 'sound'
+  | 'hints'
 
 interface XiangqiBoardProps {
   onBack?: () => void
@@ -356,6 +359,31 @@ export function XiangqiBoard({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isXinXoMenuOpen])
 
+  // Tham chiếu DOM bàn cờ để tính toán toạ độ kéo thả và click toàn diện 90 ô
+  const boardRef = useRef<HTMLElement>(null)
+
+  // Bật/tắt gợi ý nước đi (Hướng dẫn) - Người chơi có thể tắt để tự do suy nghĩ mà không bị ép nhìn gợi ý
+  const [showHints, setShowHints] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('xiangqi_show_hints')
+        if (saved !== null) return saved !== 'false'
+      } catch {}
+    }
+    return true
+  })
+
+  // Trạng thái kéo thả quân cờ trực tiếp trên bàn cờ
+  interface DraggingPieceState {
+    sq: number
+    clientX: number
+    clientY: number
+    startX: number
+    startY: number
+    hasDragged: boolean
+  }
+  const [draggingPiece, setDraggingPiece] = useState<DraggingPieceState | null>(null)
+
   // Menu và tin nhắn cảm xúc nhanh (Vùng 1+ của Bạn, Vùng 3 của Đối thủ)
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const [myQuickMessage, setMyQuickMessage] = useState<{ text: string; emoji?: string } | null>(null)
@@ -364,9 +392,54 @@ export function XiangqiBoard({
   const oppMsgTimerRef = useRef<NodeJS.Timeout | null>(null)
   const quickMenuRef = useRef<HTMLDivElement>(null)
 
+  // Vị trí cố định của Popup Biểu cảm được clamp chặt chẽ trong Viewport
+  const [quickMenuPos, setQuickMenuPos] = useState<{ left: number; top: number }>({ left: 16, top: 16 })
+
+  const updateQuickMenuPos = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const triggerEl =
+      document.getElementById('tool-bubble-emoji') ||
+      document.getElementById('quick-emoji-btn') ||
+      avatarBubbleRef.current
+    if (!triggerEl) return
+    const rect = triggerEl.getBoundingClientRect()
+    const POPUP_W = 240
+    const POPUP_H = 268
+    const PADDING = 12
+
+    // Canh giữa theo chiều ngang của trigger element
+    let left = rect.left + rect.width / 2 - POPUP_W / 2
+    // Clamp chặt chẽ vào chiều ngang màn hình (không bao giờ bị chém mép trái/phải)
+    left = Math.max(PADDING, Math.min(window.innerWidth - POPUP_W - PADDING, left))
+
+    // Chiều dọc: Ưu tiên nằm phía TRÊN trigger element (khoảng cách 10px)
+    let top = rect.top - POPUP_H - 10
+    if (top < PADDING) {
+      // Nếu phía trên không đủ không gian (sát nóc), lật xuống phía DƯỚI
+      top = rect.bottom + 10
+    }
+    // Clamp chặt chẽ chiều dọc
+    top = Math.max(PADDING, Math.min(window.innerHeight - POPUP_H - PADDING, top))
+
+    setQuickMenuPos({ left, top })
+  }, [])
+
   // Trạng thái thời gian vừa thiết lập xong để hiện trong 1.2s rồi tự chuyển sang nút Bắt Đầu
   const [recentlyChangedTime, setRecentlyChangedTime] = useState<number | null>(null)
   const timeChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cập nhật vị trí Popup Biểu cảm khi mở hoặc resize/scroll
+  useEffect(() => {
+    if (isQuickMenuOpen) {
+      updateQuickMenuPos()
+      window.addEventListener('resize', updateQuickMenuPos)
+      window.addEventListener('scroll', updateQuickMenuPos, true)
+      return () => {
+        window.removeEventListener('resize', updateQuickMenuPos)
+        window.removeEventListener('scroll', updateQuickMenuPos, true)
+      }
+    }
+  }, [isQuickMenuOpen, updateQuickMenuPos])
 
   // Đóng menu Cảm xúc nhanh khi nhấp bên ngoài
   useEffect(() => {
@@ -510,6 +583,9 @@ export function XiangqiBoard({
     const newX = dragStartRef.current.initX + dx
     const newY = dragStartRef.current.initY + dy
     setAvatarOffset(clampAvatarPos(newX, newY))
+    if (isQuickMenuOpen) {
+      updateQuickMenuPos()
+    }
   }
 
   const handleAvatarPointerUp = (e: React.PointerEvent) => {
@@ -837,15 +913,19 @@ export function XiangqiBoard({
     const piece = pos.board[sq]
 
     if (selectedSq !== null) {
-      if (validTargets.includes(sq)) {
-        executeMove({ from: selectedSq, to: sq })
+      if (sq === selectedSq) {
+        setSelectedSq(null)
         return
       }
       if (piece > 0 && sideOf(piece) === pos.turn) {
         setSelectedSq(sq)
         return
       }
-      setSelectedSq(null)
+      if (validTargets.includes(sq)) {
+        executeMove({ from: selectedSq, to: sq })
+        return
+      }
+      toast.info('Nước đi không hợp lệ theo luật cờ tướng')
       return
     }
 
@@ -854,6 +934,100 @@ export function XiangqiBoard({
         setDaBatDauVan(true)
       }
       setSelectedSq(sq)
+    }
+  }
+
+  // Bắt đầu kéo quân cờ trực tiếp trên bàn cờ tự do
+  const handlePiecePointerDown = (sq: number, canMove: boolean, e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    if (heroicBanner) setHeroicBanner(null)
+    if (isOver || isAiThinking) return
+
+    // Nếu đã chọn quân cờ trước đó và ô này là mục tiêu hợp lệ -> ăn quân ngay
+    if (selectedSq !== null && validTargets.includes(sq)) {
+      e.stopPropagation()
+      executeMove({ from: selectedSq, to: sq })
+      return
+    }
+
+    if (!canMove) {
+      e.stopPropagation()
+      handleSquareClick(sq)
+      return
+    }
+
+    e.stopPropagation()
+    if (!daBatDauVan) setDaBatDauVan(true)
+    setSelectedSq(sq)
+
+    setDraggingPiece({
+      sq,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      startX: e.clientX,
+      startY: e.clientY,
+      hasDragged: false,
+    })
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const handlePiecePointerMove = (sq: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingPiece || draggingPiece.sq !== sq) return
+    const dx = e.clientX - draggingPiece.startX
+    const dy = e.clientY - draggingPiece.startY
+    const hasDragged = draggingPiece.hasDragged || Math.hypot(dx, dy) > 5
+    setDraggingPiece((prev) => (prev ? { ...prev, clientX: e.clientX, clientY: e.clientY, hasDragged } : null))
+  }
+
+  const handlePiecePointerUp = (sq: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingPiece || draggingPiece.sq !== sq) return
+    try {
+      ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+    } catch {}
+
+    if (draggingPiece.hasDragged && boardRef.current) {
+      const rect = boardRef.current.getBoundingClientRect()
+      const xRatio = (e.clientX - rect.left) / rect.width
+      const yRatio = (e.clientY - rect.top) / rect.height
+      const boardX = xRatio * 900
+      const boardY = yRatio * 1000
+      const c = Math.max(0, Math.min(8, Math.round((boardX - 82) / 92)))
+      const r = Math.max(0, Math.min(9, Math.round((boardY - 86) / 92)))
+      const file = effectiveFlipped ? 8 - c : c
+      const rank = effectiveFlipped ? r : 9 - r
+      const targetSq = rank * 9 + file
+
+      if (targetSq !== sq) {
+        if (validTargets.includes(targetSq)) {
+          executeMove({ from: sq, to: targetSq })
+        } else {
+          toast.info('Nước đi không hợp lệ theo luật cờ tướng')
+        }
+      }
+    }
+    setDraggingPiece(null)
+  }
+
+  // Tương tác click tự do trên toàn bộ 90 giao điểm của bàn cờ
+  const handleBoardPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (isOver || isAiThinking) return
+    const target = e.target as HTMLElement
+    if (target.closest('.piece-disc')) return
+
+    if (!boardRef.current) return
+    const rect = boardRef.current.getBoundingClientRect()
+    const xRatio = (e.clientX - rect.left) / rect.width
+    const yRatio = (e.clientY - rect.top) / rect.height
+    const boardX = xRatio * 900
+    const boardY = yRatio * 1000
+    const c = Math.round((boardX - 82) / 92)
+    const r = Math.round((boardY - 86) / 92)
+
+    if (c >= 0 && c <= 8 && r >= 0 && r <= 9) {
+      const file = effectiveFlipped ? 8 - c : c
+      const rank = effectiveFlipped ? r : 9 - r
+      const targetSq = rank * 9 + file
+      handleSquareClick(targetSq)
     }
   }
 
@@ -1503,6 +1677,24 @@ export function XiangqiBoard({
         })
       },
     },
+    hints: {
+      id: 'hints',
+      title: showHints ? 'Tắt gợi ý' : 'Bật gợi ý',
+      bubbleClassName: showHints
+        ? 'border-sky-500/50 bg-[#121926]/95 text-sky-400 hover:border-sky-400 hover:text-sky-300 hover:bg-sky-500/20 shadow-sky-500/15'
+        : 'border-gray-500/50 bg-[#16161a]/95 text-gray-400 hover:border-gray-400 hover:text-gray-300 hover:bg-white/10 shadow-black/20',
+      renderIcon: (compact) => (showHints ? <Eye className={compact ? 'size-4' : 'size-4.5'} /> : <EyeOff className={compact ? 'size-4' : 'size-4.5'} />),
+      onClick: () => {
+        setShowHints((prev) => {
+          const next = !prev
+          try {
+            localStorage.setItem('xiangqi_show_hints', String(next))
+          } catch {}
+          toast.info(next ? 'Đã bật gợi ý nước đi' : 'Đã tắt gợi ý nước đi (Tự do di chuyển)')
+          return next
+        })
+      },
+    },
   }
 
   return (
@@ -1552,19 +1744,50 @@ export function XiangqiBoard({
             </span>
           )}
         </div>
+
+        {/* CỤM PHẢI: NÚT BẬT/TẮT GỢI Ý NƯỚC ĐI (HƯỚNG DẪN TỰ DO) */}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0 z-10">
+          <button
+            type="button"
+            id="btn-toggle-hints"
+            onClick={() => {
+              setShowHints((prev) => {
+                const next = !prev
+                try {
+                  localStorage.setItem('xiangqi_show_hints', String(next))
+                } catch {}
+                toast.info(next ? 'Đã bật gợi ý nước đi' : 'Đã tắt gợi ý nước đi (Tự do di chuyển)')
+                return next
+              })
+            }}
+            className={cn(
+              'h-8 px-2.5 rounded-lg text-xs gap-1.5 inline-flex items-center font-bold cursor-pointer transition-colors duration-150 border select-none',
+              showHints
+                ? 'bg-sky-500/15 border-sky-500/40 text-sky-300 hover:bg-sky-500/25'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+            )}
+            title={showHints ? 'Đang bật gợi ý nước đi (Bấm để tắt)' : 'Đang tắt gợi ý nước đi (Bấm để bật)'}
+            aria-label="Gợi ý nước đi"
+          >
+            {showHints ? <Eye className="size-3.5 text-sky-400" /> : <EyeOff className="size-3.5 text-gray-400" />}
+            <span className="hidden sm:inline">{showHints ? 'Gợi ý: Bật' : 'Gợi ý: Tắt'}</span>
+          </button>
+        </div>
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, KHAI THÁC KHÔNG GIAN, CÓ KHOẢNG THỞ DƯỚI ĐÁY */}
       <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-1 mb-1">
         {/* 1. MẶT BÀN CỜ TƯỚNG TẬP TRUNG - TỶ LỆ 9:10 CHUẨN XÁC HOÀN HẢO, Ô CỜ VUÔNG VỨC 100% */}
         <section
+          ref={boardRef}
+          onPointerDown={handleBoardPointerDown}
           onClick={() => setSelectedSq(null)}
           style={{
             width: 'min(calc(100vw - 32px), calc(min(73vh, 680px) * 0.9))',
             maxWidth: '612px',
             aspectRatio: '9 / 10',
           }}
-          className="relative max-h-[min(73vh,690px)] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0"
+          className="relative max-h-[min(73vh,690px)] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none"
         >
           {/* SVG VẼ ĐƯỜNG KẺ, CỬU CUNG, SÔNG SỞ HÀ - HÁN GIỚI & DẤU HOA VĂN GÓC */}
           <svg
@@ -1653,32 +1876,34 @@ export function XiangqiBoard({
           </svg>
 
           {/* LAYER CHỨA CÁC ĐIỂM GỢI Ý NƯỚC ĐI VÀ ĂN QUÂN */}
-          <div id="moves-layer" className="absolute inset-0 pointer-events-none z-20">
-            {validTargets.map((toSq) => {
-              const targetFile = fileOf(toSq)
-              const targetRank = rankOf(toSq)
-              const c = effectiveFlipped ? 8 - targetFile : targetFile
-              const r = effectiveFlipped ? targetRank : 9 - targetRank
-              const xPercent = ((82 + c * 92) / 900) * 100
-              const yPercent = ((86 + r * 92) / 1000) * 100
-              const isCapture = pos.board[toSq] > 0
-              return (
-                <div
-                  key={`target-${toSq}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleSquareClick(toSq)
-                  }}
-                  style={{ left: `${xPercent}%`, top: `${yPercent}%`, width: '8.2%', height: '7.38%' }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer pointer-events-auto"
-                >
-                  {isCapture ? <div className="capture-ring" /> : <div className="move-dot" />}
-                </div>
-              )
-            })}
-          </div>
+          {showHints && (
+            <div id="moves-layer" className="absolute inset-0 pointer-events-none z-20">
+              {validTargets.map((toSq) => {
+                const targetFile = fileOf(toSq)
+                const targetRank = rankOf(toSq)
+                const c = effectiveFlipped ? 8 - targetFile : targetFile
+                const r = effectiveFlipped ? targetRank : 9 - targetRank
+                const xPercent = ((82 + c * 92) / 900) * 100
+                const yPercent = ((86 + r * 92) / 1000) * 100
+                const isCapture = pos.board[toSq] > 0
+                return (
+                  <div
+                    key={`target-${toSq}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSquareClick(toSq)
+                    }}
+                    style={{ left: `${xPercent}%`, top: `${yPercent}%`, width: '8.2%', height: '7.38%' }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer pointer-events-auto"
+                  >
+                    {isCapture ? <div className="capture-ring" /> : <div className="move-dot" />}
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
-          {/* LAYER HIỂN THỊ VỊ TRÍ TRƯỚC ĐÓ CỦA CON CỜ ĐÃ ĐI MỚI NHẤT (VÙNG 2) */}
+          {/* LAYER HIỂN THỊ VỊ TRÍ TRƯỚC ĐÓ CỦA CON CỜ ĐÃ ĐI MỚI NHẤT (VÙNG 2: MÀU XANH DƯƠNG ĐẬM) */}
           {effectiveLastMove && (
             <div id="last-move-indicator-layer" className="absolute inset-0 pointer-events-none z-25">
               {(() => {
@@ -1693,10 +1918,10 @@ export function XiangqiBoard({
                   <div
                     id="last-move-from-marker"
                     style={{ left: `${fromX}%`, top: `${fromY}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center border-2 border-dashed border-amber-400/80 bg-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.35)]"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center border-2 border-dashed border-blue-600/90 bg-blue-600/25 shadow-[0_0_14px_rgba(37,99,235,0.45)]"
                     title="Vị trí xuất phát của nước cờ vừa đi"
                   >
-                    <div className="size-2 sm:size-2.5 rounded-full bg-amber-400/90 shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+                    <div className="size-2 sm:size-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
                   </div>
                 )
               })()}
@@ -1714,22 +1939,28 @@ export function XiangqiBoard({
               )
               const canMove = isTurnNow && side === pos.turn
               const isCaptureTarget = selectedSq !== null && validTargets.includes(sq)
+              const isBeingDragged = draggingPiece?.sq === sq && draggingPiece.hasDragged
 
               return (
                 <div
                   key={`piece-${sq}`}
+                  onPointerDown={(e) => handlePiecePointerDown(sq, canMove, e)}
+                  onPointerMove={(e) => handlePiecePointerMove(sq, e)}
+                  onPointerUp={(e) => handlePiecePointerUp(sq, e)}
+                  onPointerCancel={(e) => handlePiecePointerUp(sq, e)}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSquareClick(sq)
                   }}
                   style={{ left: `${xPercent}%`, top: `${yPercent}%` }}
                   className={cn(
-                    'absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center font-bold piece-disc pointer-events-auto select-none shadow-md',
+                    'absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center font-bold piece-disc pointer-events-auto select-none shadow-md touch-none',
                     side === RED ? 'piece-red' : 'piece-black',
-                    canMove && 'piece-movable',
+                    canMove && 'piece-movable cursor-grab active:cursor-grabbing',
                     isCaptureTarget && 'piece-targetable',
                     isSelected && 'piece-selected',
-                    isLastMoveDestination && !isSelected && 'ring-2 ring-amber-400/90 shadow-[0_0_14px_rgba(251,191,36,0.65)]'
+                    isBeingDragged && 'opacity-30 scale-95',
+                    isLastMoveDestination && !isSelected && 'ring-2 ring-blue-600/90 shadow-[0_0_14px_rgba(37,99,235,0.65)]'
                   )}
                 >
                   <div className="inner-border absolute inset-[2px] sm:inset-[2.5px] rounded-full pointer-events-none" />
@@ -1751,6 +1982,44 @@ export function XiangqiBoard({
               )
             })}
           </div>
+
+          {/* QUÂN CỜ ĐANG ĐƯỢC KÉO THẢ NỔI LÊN BÁM THEO CON TRỎ */}
+          {draggingPiece && draggingPiece.hasDragged && (() => {
+            const piece = pos.board[draggingPiece.sq]
+            const side = sideOf(piece) as Side
+            const type = typeOf(piece)
+            return (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: `${draggingPiece.clientX}px`,
+                  top: `${draggingPiece.clientY}px`,
+                  zIndex: 100,
+                  pointerEvents: 'none',
+                }}
+                className={cn(
+                  'w-12 sm:w-14 md:w-16 aspect-square rounded-full flex items-center justify-center font-bold piece-disc select-none -translate-x-1/2 -translate-y-1/2 scale-110 shadow-2xl ring-4 ring-sky-400/50',
+                  side === RED ? 'piece-red' : 'piece-black'
+                )}
+              >
+                <div className="inner-border absolute inset-[2px] sm:inset-[2.5px] rounded-full pointer-events-none" />
+                <span
+                  className={cn(
+                    'select-none leading-none font-black',
+                    fontType === 'han'
+                      ? 'font-han text-2xl sm:text-3xl md:text-[30px] lg:text-[34px] drop-shadow-sm'
+                      : 'text-xs sm:text-sm md:text-base font-extrabold tracking-tight'
+                  )}
+                >
+                  {fontType === 'han'
+                    ? side === RED
+                      ? TEN_QUAN_RED[type]
+                      : TEN_QUAN_BLACK[type]
+                    : TEN_QUAN_TIENG_VIET[type]}
+                </span>
+              </div>
+            )
+          })()}
 
           {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC */}
           {(!isPlaying || isOver) && !activeDlg && (
@@ -1895,13 +2164,19 @@ export function XiangqiBoard({
           }}
           className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
-          {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (NẰM NGAY TRÊN NƠI BẤM KÍCH HOẠT) ==================== */}
+          {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (NẰM NGAY TRÊN NƠI BẤM KÍCH HOẠT, VIEWPORT-CLAMPED) ==================== */}
           {isQuickMenuOpen && (
             <div
               id="vung-2-quick-chat-container"
               ref={quickMenuRef}
               aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
-              className="w-[240px] mb-3 p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-[60] shrink-0 pointer-events-auto"
+              style={{
+                position: 'fixed',
+                left: `${quickMenuPos.left}px`,
+                top: `${quickMenuPos.top}px`,
+                zIndex: 80,
+              }}
+              className="w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-[60] shrink-0 pointer-events-auto"
             >
               <div className="flex items-center justify-between pb-1 border-b border-white/10">
                 <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
@@ -2287,6 +2562,7 @@ export function XiangqiBoard({
                       'settings',
                       'emoji',
                       'mode',
+                      'hints',
                       'invite',
                       'draw',
                       'resign',
