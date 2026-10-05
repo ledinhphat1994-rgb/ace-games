@@ -137,11 +137,18 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain("action === 'start_accept'")
     })
 
-    it('Vùng 1 & Vùng 2: Dải góc bong bóng 60°-180° và đồng hồ mt-3.5 giải phóng đáy avatar, triệt tiêu 100% va chạm', () => {
+    it('Vùng 1 & Vùng 2: Dải góc bong bóng 60°-180°, đồng hồ mt-2.5 và nâng aside xl:bottom-12 giải phóng đáy avatar, triệt tiêu 100% va chạm', () => {
       expect(xiangqiBoardRaw).toContain('const startAngle = 60')
       expect(xiangqiBoardRaw).toContain('const endAngle = 180')
-      expect(xiangqiBoardRaw).toContain('mt-3.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border')
+      expect(xiangqiBoardRaw).toContain('mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border')
+      expect(xiangqiBoardRaw).toContain('xl:bottom-12')
       expect(xiangqiBoardRaw).toContain('onPointerDown={(e) => e.stopPropagation()}')
+    })
+
+    it('Vùng X & Vùng 1: Bỏ qua proposal cũ khi mount tránh báo sai hoà cờ và giữ overflow-hidden tránh thanh trượt', () => {
+      expect(xiangqiBoardRaw).toContain('isFirstMountProposalRef')
+      expect(xiangqiBoardRaw).toContain('lastHandledProposalMsgIdRef')
+      expect(xiangqiBoardRaw).toContain('overflow-hidden')
     })
 
     it('Vùng 3: Avatar đối thủ được đưa ra xa bàn cờ với xl:left-[calc(100%+48px)]', () => {

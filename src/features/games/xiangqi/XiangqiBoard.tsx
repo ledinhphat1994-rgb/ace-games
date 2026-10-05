@@ -1407,12 +1407,32 @@ export function XiangqiBoard({
     })
   }, [isOver, onBack])
 
-  // Lắng nghe các thông báo đề nghị từ đối thủ qua kênh phòng online
+  // Lắng nghe các thông báo đề nghị từ đối thủ qua kênh phòng online (chỉ xử lý tin nhắn mới phát sinh trong phiên)
+  const isFirstMountProposalRef = useRef(true)
+  const lastHandledProposalMsgIdRef = useRef<string | number | null>(null)
+
   useEffect(() => {
     if (!laOnline || !online || !online.chat.length) return
+
+    // Khi vừa vào phòng hoặc tải lại trang, ghi nhận tin nhắn cuối cùng hiện tại để không thực thi lại các tin nhắn cũ từ lịch sử
+    if (isFirstMountProposalRef.current) {
+      isFirstMountProposalRef.current = false
+      const initialLastMsg = online.chat[online.chat.length - 1]
+      if (initialLastMsg) {
+        lastHandledProposalMsgIdRef.current =
+          initialLastMsg.id || (initialLastMsg as any).thoiGian || `${online.chat.length}_${initialLastMsg.text}`
+      }
+      return
+    }
+
     const lastMsg = online.chat[online.chat.length - 1]
     const isFromMe = String(lastMsg?.accountId) === online.myActorKey?.replace(/^acc:/, '')
     if (!lastMsg || isFromMe) return
+
+    // Tránh xử lý lặp lại cùng 1 tin nhắn khi component re-render
+    const msgId = lastMsg.id || (lastMsg as any).thoiGian || `${online.chat.length}_${lastMsg.text}`
+    if (lastHandledProposalMsgIdRef.current === msgId) return
+    lastHandledProposalMsgIdRef.current = msgId
 
     if (lastMsg.text.startsWith(PROPOSAL_PREFIX)) {
       const action = lastMsg.text.slice(PROPOSAL_PREFIX.length).trim()
@@ -1781,7 +1801,7 @@ export function XiangqiBoard({
   }
 
   return (
-    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-y-auto overflow-x-hidden">
+    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, VÙNG 3 SÁT GÓC TRÁI & ĐỒNG HỒ CHÍNH GIỮA */}
       <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         {/* CỤM TRÁI: ĐIỀU HƯỚNG SẢNH, ICON GAME TO RÕ ĐẸP (VÙNG 2) & BADGE RIÊNG TƯ */}
@@ -1830,7 +1850,7 @@ export function XiangqiBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, KHAI THÁC KHÔNG GIAN, CÓ KHOẢNG THỞ DƯỚI ĐÁY */}
-      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-1 pb-6 mb-2">
+      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
         {/* 1. MẶT BÀN CỜ TƯỚNG TẬP TRUNG - TỶ LỆ 9:10 CHUẨN XÁC HOÀN HẢO, Ô CỜ VUÔNG VỨC 100% */}
         <section
           ref={boardRef}
@@ -2217,7 +2237,7 @@ export function XiangqiBoard({
           style={{
             transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
           }}
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-6 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
+          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
           {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (PORTAL LÊN DOCUMENT.BODY ĐỂ ĐỊNH VỊ CHUẨN XÁC THEO VIEWPORT) ==================== */}
           {isQuickMenuOpen &&
@@ -2398,7 +2418,7 @@ export function XiangqiBoard({
             <div
               id="player-desk-clock"
               className={cn(
-                'absolute top-full mt-3.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-30 whitespace-nowrap',
+                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-30 whitespace-nowrap',
                 isPlaying && !isOver && isMyTurn
                   ? 'border-red-500/80 bg-red-950/80 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)] opacity-100 scale-100 translate-y-0'
                   : recentlyChangedTime !== null
