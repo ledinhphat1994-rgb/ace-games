@@ -372,7 +372,9 @@ export function XiangqiBoard({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node
-      const emojiBtn = document.getElementById('quick-emoji-btn')
+      const emojiBtn =
+        document.getElementById('tool-bubble-emoji') ||
+        document.getElementById('quick-emoji-btn')
       if (emojiBtn && (emojiBtn === target || emojiBtn.contains(target))) {
         return
       }
@@ -683,11 +685,14 @@ export function XiangqiBoard({
   const outcome = useMemo(() => pos.outcome(), [pos])
   const inCheck = useMemo(() => pos.inCheck(), [pos])
   const laOnlinePvp = laOnline && !isPveMode
-  const isOver = laOnlinePvp ? online?.meta.status === 'ended' : outcome.over || Boolean(customGameOver?.over)
+  const isCustomOver = Boolean(customGameOver?.over)
+  const isOver = isCustomOver || (laOnlinePvp ? online?.meta.status === 'ended' : outcome.over)
   const toiDenLuotOnline = laOnlinePvp && Boolean(online?.isMyTurn) && pos.turn === benOnline
-  const isPlaying = laOnlinePvp
-    ? online?.meta.status === 'playing'
-    : !isOver && (daBatDauVan || lastMove !== null || isAiThinking)
+  const isPlaying = !isOver && (
+    laOnlinePvp
+      ? online?.meta.status === 'playing'
+      : (daBatDauVan || lastMove !== null || isAiThinking)
+  )
 
   const isMyTurn = isPlaying && (laOnlinePvp ? toiDenLuotOnline : isPveMode ? pos.turn === playerSide : true)
   const isOpponentTurn = isPlaying && !isMyTurn
@@ -1092,7 +1097,9 @@ export function XiangqiBoard({
 
   // 4. BẮT ĐẦU: Xử lý cho cả Online, PvE và PvP cục bộ
   const handleStartGameClick = useCallback(() => {
+    setHeroicBanner(null)
     if (isPveMode) {
+      setCustomGameOver(null)
       resetGame()
       return
     }
@@ -1106,13 +1113,39 @@ export function XiangqiBoard({
         toast.info('Chờ đối thủ vào phòng để bắt đầu')
         return
       }
-      online.startGame()
-      resetGame()
+      // Gửi lời mời bắt đầu trận đấu để 2 bên cùng xác nhận
+      online.guiChat(`${PROPOSAL_PREFIX}start_offer`)
+      try {
+        online.rematch()
+      } catch {}
+      toast.info('Đã gửi lời mời bắt đầu trận đấu, chờ đối thủ xác nhận...')
       return
     }
-    // Chế độ PvP cục bộ (pass & play)
+    // Chế độ PvP cục bộ (pass & play): nếu trận đã kết thúc, hỏi xác nhận đối thủ
+    if (isOver) {
+      setIncomingDialog({
+        type: 'start',
+        icon: 'start',
+        title: 'Bắt Đầu Trận Đấu',
+        subtitle: 'Đối thủ muốn bắt đầu ván mới, bạn có đồng ý không?',
+        cancelText: 'Chưa sẵn sàng',
+        confirmText: 'Đồng ý',
+        confirmVariant: 'amber',
+        onCancel: () => {
+          setIncomingDialog(null)
+          toast.info('Chưa sẵn sàng bắt đầu ván mới.')
+        },
+        onConfirm: () => {
+          setIncomingDialog(null)
+          setCustomGameOver(null)
+          resetGame()
+        },
+      })
+      return
+    }
+    setCustomGameOver(null)
     resetGame()
-  }, [isPveMode, resetGame, laOnlinePvp, online])
+  }, [isPveMode, resetGame, laOnlinePvp, online, isOver])
 
   const handleBackLobby = useCallback(() => {
     if (isOver) {
@@ -1148,7 +1181,7 @@ export function XiangqiBoard({
           type: 'start',
           icon: 'start',
           title: 'Bắt Đầu Trận Đấu',
-          subtitle: 'Đối thủ muốn bắt đầu, bạn có đồng ý không?',
+          subtitle: 'Đối thủ muốn bắt đầu ván mới, bạn có đồng ý không?',
           cancelText: 'Chưa sẵn sàng',
           confirmText: 'Đồng ý',
           confirmVariant: 'amber',
@@ -1159,11 +1192,13 @@ export function XiangqiBoard({
           onConfirm: () => {
             setIncomingDialog(null)
             online.guiChat(`${PROPOSAL_PREFIX}start_accept`)
+            setCustomGameOver(null)
             resetGame()
             online.startGame()
           },
         })
       } else if (action === 'start_accept') {
+        setCustomGameOver(null)
         resetGame()
         online.startGame()
         setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
@@ -1718,7 +1753,7 @@ export function XiangqiBoard({
           </div>
 
           {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC */}
-          {(!isPlaying || isOver) && !heroicBanner && !activeDlg && (
+          {(!isPlaying || isOver) && !activeDlg && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"
@@ -1850,73 +1885,6 @@ export function XiangqiBoard({
           />
         </section>
 
-        {/* ==================== VÙNG 2: BẢNG CHỌN TIN NHẮN CHAT NHANH CỐ ĐỊNH ==================== */}
-        {/* DÙ KÉO AVATAR ĐI ĐÂU TRONG VÙNG 4, BẢNG TIN NHẮN LUÔN CỐ ĐỊNH TẠI VÙNG 2 KHÔNG BỊ TRÔI / ĐÈ BÀN CỜ */}
-        {isQuickMenuOpen && (
-          <aside
-            id="vung-2-quick-chat-container"
-            ref={quickMenuRef}
-            aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
-            className="w-full xl:w-[240px] xl:absolute xl:right-[calc(100%+24px)] xl:top-6 mb-3 xl:mb-0 p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_15px_35px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-50 shrink-0 pointer-events-auto"
-          >
-            <div className="flex items-center justify-between pb-1 border-b border-white/10">
-              <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
-              <button
-                type="button"
-                onClick={() => setIsQuickMenuOpen(false)}
-                className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                aria-label="Đóng biểu cảm"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Lưới 8 Emoji cờ tướng gọn gàng */}
-            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-              {[
-                { emoji: '👏', text: 'Hay quá' },
-                { emoji: '🤔', text: 'Đang tính' },
-                { emoji: '☕', text: 'Mời trà' },
-                { emoji: '🤝', text: 'Bắt tay' },
-                { emoji: '🔥', text: 'Chiến nào' },
-                { emoji: '😅', text: 'Toát mồ hôi' },
-                { emoji: '👍', text: 'Đỉnh cao' },
-                { emoji: '⚔️', text: 'Xuất quân' },
-              ].map((item) => (
-                <button
-                  key={item.emoji}
-                  type="button"
-                  onClick={() => handleSendQuickMessage(item.text, item.emoji)}
-                  className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                  title={item.text}
-                >
-                  {item.emoji}
-                </button>
-              ))}
-            </div>
-
-            {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
-            <div className="h-[1px] bg-white/10 my-0.5" />
-            <div className="grid grid-cols-2 gap-1">
-              {[
-                'Nước cờ hay',
-                'Xin chỉ giáo',
-                'Đang tính nước',
-                'Chiến tiếp nào',
-              ].map((msg) => (
-                <button
-                  key={msg}
-                  type="button"
-                  onClick={() => handleSendQuickMessage(msg)}
-                  className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
-                >
-                  {msg}
-                </button>
-              ))}
-            </div>
-          </aside>
-        )}
-
         {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH) ==================== */}
         <aside
           id="vung-2-plus-card"
@@ -1927,6 +1895,72 @@ export function XiangqiBoard({
           }}
           className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
+          {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (NẰM NGAY TRÊN NƠI BẤM KÍCH HOẠT) ==================== */}
+          {isQuickMenuOpen && (
+            <div
+              id="vung-2-quick-chat-container"
+              ref={quickMenuRef}
+              aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
+              className="w-[240px] mb-3 p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-[60] shrink-0 pointer-events-auto"
+            >
+              <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickMenuOpen(false)}
+                  className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                  aria-label="Đóng biểu cảm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Lưới 8 Emoji cờ tướng gọn gàng */}
+              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                {[
+                  { emoji: '👏', text: 'Hay quá' },
+                  { emoji: '🤔', text: 'Đang tính' },
+                  { emoji: '☕', text: 'Mời trà' },
+                  { emoji: '🤝', text: 'Bắt tay' },
+                  { emoji: '🔥', text: 'Chiến nào' },
+                  { emoji: '😅', text: 'Toát mồ hôi' },
+                  { emoji: '👍', text: 'Đỉnh cao' },
+                  { emoji: '⚔️', text: 'Xuất quân' },
+                ].map((item) => (
+                  <button
+                    key={item.emoji}
+                    type="button"
+                    onClick={() => handleSendQuickMessage(item.text, item.emoji)}
+                    className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                    title={item.text}
+                  >
+                    {item.emoji}
+                  </button>
+                ))}
+              </div>
+
+              {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
+              <div className="h-[1px] bg-white/10 my-0.5" />
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  'Nước cờ hay',
+                  'Xin chỉ giáo',
+                  'Đang tính nước',
+                  'Chiến tiếp nào',
+                ].map((msg) => (
+                  <button
+                    key={msg}
+                    type="button"
+                    onClick={() => handleSendQuickMessage(msg)}
+                    className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
+                  >
+                    {msg}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
             {/* KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BONG BÓNG */}

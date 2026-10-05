@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import xiangqiBoardRaw from '../src/features/games/xiangqi/XiangqiBoard.tsx?raw'
 
 describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước đó Vùng 2, Xác nhận Xin Thua 2 chiều Vùng 3', () => {
-  describe('Vùng 1: Xóa badge Level & Elo trên avatar của người chơi', () => {
+  describe('Vùng 1: Xóa badge Level & Elo trên avatar của người chơi & Vị trí bảng biểu cảm tin nhanh chuẩn xác', () => {
     it('XiangqiBoard không còn badge Level & Elo lơ lửng trên avatar cá nhân của người chơi', () => {
       expect(xiangqiBoardRaw).not.toContain('bottom-[calc(100%+46px)] left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95')
       expect(xiangqiBoardRaw).not.toContain('BADGE LEVEL & ELO CỦA TÔI')
@@ -18,6 +18,13 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain('THẺ HỒ SƠ KỲ THỦ HIỂN THỊ ELO & LEVEL')
       expect(xiangqiBoardRaw).toContain('Cấp {myLevel}')
       expect(xiangqiBoardRaw).toContain('Elo {myElo}')
+    })
+
+    it('Bảng Biểu cảm & Tin nhanh nằm ngay trên cụm avatar/bong bóng kích hoạt, z-[60], không bị bay lên xl:top-6', () => {
+      expect(xiangqiBoardRaw).toContain('id="vung-2-quick-chat-container"')
+      expect(xiangqiBoardRaw).toContain('z-[60]')
+      expect(xiangqiBoardRaw).not.toContain('xl:top-6')
+      expect(xiangqiBoardRaw).toContain("document.getElementById('tool-bubble-emoji')")
     })
   })
 
@@ -40,9 +47,8 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
     })
   })
 
-  describe('Vùng 3: Logic xác nhận Xin Thua 2 chiều nhất quán', () => {
+  describe('Vùng 3 & Kết thúc ván: Logic xác nhận 2 chiều cho Xin Thua, Xin Hòa, Xin Thắng và Bắt Đầu Lại', () => {
     it('handleResign không tự ý gọi online.surrender() hoặc setGameOver trước khi đối thủ xác nhận', () => {
-      // Khi bấm Xin thua, chỉ gửi đề nghị resign_offer, không gọi online.surrender() ngay
       expect(xiangqiBoardRaw).toContain("online.guiChat(`${PROPOSAL_PREFIX}resign_offer`)")
       expect(xiangqiBoardRaw).not.toContain("online.surrender()\n          online.guiChat(`${PROPOSAL_PREFIX}resign`)")
     })
@@ -63,10 +69,22 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain("action === 'resign_decline'")
     })
 
-    it('Lớp phủ backdrop của center-board-dialog trong suốt nhẹ bg-black/10 không che mờ xung quanh', () => {
-      expect(xiangqiBoardRaw).toContain('id="center-board-dialog"')
-      expect(xiangqiBoardRaw).toContain('bg-black/10 animate-in fade-in')
-      expect(xiangqiBoardRaw).not.toContain('bg-black/60 backdrop-blur-[3px]')
+    it('isOver và isPlaying dựa trên isCustomOver để trận đấu kết thúc ngay lập tức khi 2 bên đồng thuận', () => {
+      expect(xiangqiBoardRaw).toContain('const isCustomOver = Boolean(customGameOver?.over)')
+      expect(xiangqiBoardRaw).toContain('const isOver = isCustomOver || (laOnlinePvp ? online?.meta.status === \'ended\' : outcome.over)')
+      expect(xiangqiBoardRaw).toContain('const isPlaying = !isOver && (')
+    })
+
+    it('Nút Bắt Đầu ở giữa sông luôn sẵn sàng hiển thị khi trận kết thúc và không bị !heroicBanner chặn', () => {
+      expect(xiangqiBoardRaw).toContain('(!isPlaying || isOver) && !activeDlg && (')
+      expect(xiangqiBoardRaw).toContain('id="btn-bat-dau-river"')
+    })
+
+    it('Bắt đầu lại ván mới gửi start_offer yêu cầu 2 bên xác nhận đồng thuận mới bắt đầu', () => {
+      expect(xiangqiBoardRaw).toContain("online.guiChat(`${PROPOSAL_PREFIX}start_offer`)")
+      expect(xiangqiBoardRaw).toContain("online.guiChat(`${PROPOSAL_PREFIX}start_accept`)")
+      expect(xiangqiBoardRaw).toContain("action === 'start_offer'")
+      expect(xiangqiBoardRaw).toContain("action === 'start_accept'")
     })
   })
 })
