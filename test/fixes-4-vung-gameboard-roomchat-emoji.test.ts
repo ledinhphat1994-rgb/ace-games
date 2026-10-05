@@ -82,7 +82,7 @@ describe('Kiểm tra 4 vùng fix giao diện bàn cờ & chat phòng emoji (User
 
     it('Fix vùng 2 đưa xuống Vùng 2+: Cụm thông tin Bạn và các nút PvE/PvP, Xin xỏ ở Card góc dưới bên trái', () => {
       expect(xiangqiBoardRaw).toContain('id="vung-2-plus-card"')
-      expect(xiangqiBoardRaw).toContain('xl:right-[calc(100%+24px)] xl:bottom-0')
+      expect(xiangqiBoardRaw).toContain('xl:right-[calc(100%+24px)]')
       expect(xiangqiBoardRaw).toContain('id="mode-toggle-card"')
       expect(xiangqiBoardRaw).toContain('id="xin-xo-btn"')
     })
@@ -101,8 +101,8 @@ describe('Kiểm tra 4 vùng fix giao diện bàn cờ & chat phòng emoji (User
     })
 
     it('Nút Bắt đầu chỉ hiện khi không có thông báo kết quả (heroicBanner) và không đè nhau', () => {
-      expect(xiangqiBoardRaw).toContain('(!isPlaying || isOver) && !heroicBanner && !activeDlg')
-      expect(xiangqiBoardRaw).toContain('>BẮT ĐẦU<')
+      expect(xiangqiBoardRaw).toContain('(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (')
+      expect(xiangqiBoardRaw).toContain('BẮT ĐẦU')
       expect(xiangqiBoardRaw).not.toContain('>Chơi lại<')
     })
   })

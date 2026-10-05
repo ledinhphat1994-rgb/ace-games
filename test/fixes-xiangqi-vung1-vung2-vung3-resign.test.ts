@@ -118,8 +118,8 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain('const isPlaying = !isOver && (')
     })
 
-    it('Nút Bắt Đầu ở giữa sông hiển thị khi chưa vào ván/kết thúc và ẩn khi có heroicBanner để tránh đè trùng thông báo giữa bàn cờ (Vùng 2)', () => {
-      expect(xiangqiBoardRaw).toContain('(!isPlaying || isOver) && !activeDlg && !heroicBanner && (')
+    it('Nút Bắt Đầu ở giữa sông chỉ hiển thị khi chưa vào ván, ẩn khi đang chơi hoặc kết thúc để tránh đè trùng thông báo giữa bàn cờ (Vùng 2)', () => {
+      expect(xiangqiBoardRaw).toContain('(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (')
       expect(xiangqiBoardRaw).toContain('id="btn-bat-dau-river"')
     })
 
@@ -153,6 +153,17 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
 
     it('Vùng 3: Avatar đối thủ được đưa ra xa bàn cờ với xl:left-[calc(100%+48px)]', () => {
       expect(xiangqiBoardRaw).toContain('xl:left-[calc(100%+48px)]')
+    })
+
+    it('Xóa tất cả nút Dùng trong modal Cài Đặt Trận Đấu theo yêu cầu', () => {
+      expect(xiangqiBoardRaw).not.toContain('Nút dùng ngay từ modal')
+      expect(xiangqiBoardRaw).not.toContain('>Dùng</button>')
+    })
+
+    it('Move dots và tương tác cờ tướng có onPointerDown riêng và không bị reset bởi board section', () => {
+      expect(xiangqiBoardRaw).toContain('key={`target-${toSq}`}')
+      expect(xiangqiBoardRaw).toContain('justDraggedRef')
+      expect(xiangqiBoardRaw).not.toContain('ref={boardRef}\n          onPointerDown={handleBoardPointerDown}\n          onClick={() => setSelectedSq(null)}')
     })
   })
 })

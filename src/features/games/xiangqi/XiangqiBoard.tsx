@@ -388,6 +388,7 @@ export function XiangqiBoard({
     hasDragged: boolean
   }
   const [draggingPiece, setDraggingPiece] = useState<DraggingPieceState | null>(null)
+  const justDraggedRef = useRef(false)
 
   // Menu và tin nhắn cảm xúc nhanh (Vùng 1+ của Bạn, Vùng 3 của Đối thủ)
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
@@ -793,6 +794,17 @@ export function XiangqiBoard({
     }, [isOver, pos.turn]),
   })
 
+  const isPlayerTimedOut = isOver && (
+    customGameOver?.reason?.includes('hết giờ')
+      ? customGameOver.reason.includes(mySide === RED ? 'Bên Đỏ' : 'Bên Đen')
+      : clock.timeRemaining === 0 && isMyTurn
+  )
+  const isOpponentTimedOut = isOver && (
+    customGameOver?.reason?.includes('hết giờ')
+      ? customGameOver.reason.includes(opponentSide === RED ? 'Bên Đỏ' : 'Bên Đen')
+      : clock.timeRemaining === 0 && isOpponentTurn
+  )
+
   const handleSelectTime = useCallback(
     (sec: number) => {
       clock.proposeTime(sec)
@@ -913,23 +925,30 @@ export function XiangqiBoard({
 
     const piece = pos.board[sq]
 
+    // 1. ĐÃ CHỌN 1 QUÂN TRƯỚC ĐÓ:
     if (selectedSq !== null) {
+      // Nhấp lại chính quân đang chọn -> Hủy chọn
       if (sq === selectedSq) {
         setSelectedSq(null)
         return
       }
-      if (piece > 0 && sideOf(piece) === pos.turn) {
-        setSelectedSq(sq)
-        return
-      }
+      // Nhấp vào ô đích hợp lệ (kể cả ô trống hay ăn quân đối phương) -> Đi cờ / Ăn cờ ngay lập tức
       if (validTargets.includes(sq)) {
         executeMove({ from: selectedSq, to: sq })
         return
       }
-      showGameNotice('NƯỚC ĐI SAI LUẬT')
+      // Nhấp vào quân khác cùng phe mình -> Chuyển chọn sang quân mới ngay
+      if (piece > 0 && sideOf(piece) === pos.turn) {
+        setSelectedSq(sq)
+        return
+      }
+      // Nhấp vào ô bất kỳ không hợp lệ -> Hủy chọn
+      setSelectedSq(null)
       return
     }
 
+    // 2. CHƯA CHỌN QUÂN NÀO:
+    // Chỉ cho phép chọn quân của phe đang tới lượt
     if (piece > 0 && sideOf(piece) === pos.turn) {
       if (!daBatDauVan) {
         setDaBatDauVan(true)
@@ -938,28 +957,15 @@ export function XiangqiBoard({
     }
   }
 
-  // Bắt đầu kéo quân cờ trực tiếp trên bàn cờ tự do
+  // Bắt đầu kéo quân cờ trực tiếp trên bàn cờ tự do (chỉ kích hoạt kéo thả khi rê chuột)
   const handlePiecePointerDown = (sq: number, canMove: boolean, e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
     if (heroicBanner) setHeroicBanner(null)
     if (isOver || isAiThinking) return
 
-    // Nếu đã chọn quân cờ trước đó và ô này là mục tiêu hợp lệ -> ăn quân ngay
-    if (selectedSq !== null && validTargets.includes(sq)) {
-      e.stopPropagation()
-      executeMove({ from: selectedSq, to: sq })
-      return
-    }
-
     if (!canMove) {
-      e.stopPropagation()
-      handleSquareClick(sq)
       return
     }
-
-    e.stopPropagation()
-    if (!daBatDauVan) setDaBatDauVan(true)
-    setSelectedSq(sq)
 
     setDraggingPiece({
       sq,
@@ -969,7 +975,6 @@ export function XiangqiBoard({
       startY: e.clientY,
       hasDragged: false,
     })
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   const handlePiecePointerMove = (sq: number, e: React.PointerEvent<HTMLDivElement>) => {
@@ -977,6 +982,11 @@ export function XiangqiBoard({
     const dx = e.clientX - draggingPiece.startX
     const dy = e.clientY - draggingPiece.startY
     const hasDragged = draggingPiece.hasDragged || Math.hypot(dx, dy) > 5
+    if (!draggingPiece.hasDragged && hasDragged) {
+      try {
+        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      } catch {}
+    }
     setDraggingPiece((prev) => (prev ? { ...prev, clientX: e.clientX, clientY: e.clientY, hasDragged } : null))
   }
 
@@ -986,23 +996,26 @@ export function XiangqiBoard({
       ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
     } catch {}
 
-    if (draggingPiece.hasDragged && boardRef.current) {
-      const rect = boardRef.current.getBoundingClientRect()
-      const xRatio = (e.clientX - rect.left) / rect.width
-      const yRatio = (e.clientY - rect.top) / rect.height
-      const boardX = xRatio * 900
-      const boardY = yRatio * 1000
-      const c = Math.max(0, Math.min(8, Math.round((boardX - 82) / 92)))
-      const r = Math.max(0, Math.min(9, Math.round((boardY - 86) / 92)))
-      const file = effectiveFlipped ? 8 - c : c
-      const rank = effectiveFlipped ? r : 9 - r
-      const targetSq = rank * 9 + file
+    if (draggingPiece.hasDragged) {
+      justDraggedRef.current = true
+      if (boardRef.current) {
+        const rect = boardRef.current.getBoundingClientRect()
+        const xRatio = (e.clientX - rect.left) / rect.width
+        const yRatio = (e.clientY - rect.top) / rect.height
+        const boardX = xRatio * 900
+        const boardY = yRatio * 1000
+        const c = Math.max(0, Math.min(8, Math.round((boardX - 82) / 92)))
+        const r = Math.max(0, Math.min(9, Math.round((boardY - 86) / 92)))
+        const file = effectiveFlipped ? 8 - c : c
+        const rank = effectiveFlipped ? r : 9 - r
+        const targetSq = rank * 9 + file
 
-      if (targetSq !== sq) {
-        if (validTargets.includes(targetSq)) {
-          executeMove({ from: sq, to: targetSq })
-        } else {
-          showGameNotice('NƯỚC ĐI SAI LUẬT')
+        if (targetSq !== sq) {
+          if (validTargets.includes(targetSq)) {
+            executeMove({ from: sq, to: targetSq })
+          } else {
+            showGameNotice('NƯỚC ĐI SAI LUẬT')
+          }
         }
       }
     }
@@ -1822,6 +1835,21 @@ export function XiangqiBoard({
             <span>Sảnh</span>
           </button>
 
+          {/* Nút Đấu lại khi ván kết thúc (isOver) */}
+          {isOver && (
+            <button
+              type="button"
+              id="game-rematch-btn"
+              onClick={handleStartGameClick}
+              className="h-8 px-3 rounded-lg text-xs gap-1.5 inline-flex items-center font-bold text-amber-200 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 cursor-pointer transition-colors duration-150 shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+              title="Chơi ván mới"
+              aria-label="Chơi ván mới"
+            >
+              <Swords className="size-3.5 text-amber-400" />
+              <span>Đấu lại</span>
+            </button>
+          )}
+
           {/* VÙNG 2: ICON GAME CỜ TƯỚNG TO RÕ, ĐẲNG CẤP & SỐ PHÒNG */}
           {roomName && (
             <div
@@ -1858,7 +1886,6 @@ export function XiangqiBoard({
         <section
           ref={boardRef}
           onPointerDown={handleBoardPointerDown}
-          onClick={() => setSelectedSq(null)}
           style={{
             width: 'min(calc(100vw - 32px), calc(min(73vh, 680px) * 0.9))',
             maxWidth: '612px',
@@ -2027,6 +2054,10 @@ export function XiangqiBoard({
                   onPointerCancel={(e) => handlePiecePointerUp(sq, e)}
                   onClick={(e) => {
                     e.stopPropagation()
+                    if (justDraggedRef.current) {
+                      justDraggedRef.current = false
+                      return
+                    }
                     handleSquareClick(sq)
                   }}
                   style={{ left: `${xPercent}%`, top: `${yPercent}%` }}
@@ -2098,8 +2129,8 @@ export function XiangqiBoard({
             )
           })()}
 
-          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC (ẨN KHI CÓ HEROIC BANNER ĐỂ TRÁNH TRÙNG ĐÈ) */}
-          {(!isPlaying || isOver) && !activeDlg && !heroicBanner && (
+          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN (ẨN KHI ĐANG CHƠI, KẾT THÚC HOẶC CÓ HEROIC BANNER ĐỂ TRÁNH TRÙNG ĐÈ) */}
+          {(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"
@@ -2425,22 +2456,37 @@ export function XiangqiBoard({
             <div
               id="player-desk-clock"
               className={cn(
-                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-30 whitespace-nowrap',
-                isPlaying && !isOver && isMyTurn
-                  ? 'border-red-500/80 bg-red-950/80 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)] opacity-100 scale-100 translate-y-0'
-                  : recentlyChangedTime !== null
-                    ? 'border-white/10 bg-[#161a22]/80 text-white opacity-100 scale-100 translate-y-0'
-                    : 'border-white/10 bg-[#161a22]/80 text-gray-300 opacity-0 pointer-events-none -translate-y-1'
+                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-30 whitespace-nowrap opacity-100 scale-100 translate-y-0',
+                isPlayerTimedOut
+                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                  : isPlaying && !isOver && isMyTurn
+                    ? 'border-red-500/80 bg-red-950/80 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                    : isOver && laNguoiThang === true
+                      ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                      : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
               title="Thời gian chơi của Bạn"
             >
-              <Clock className={cn('w-3 h-3 shrink-0', isPlaying && !isOver && isMyTurn ? 'text-red-400' : 'text-gray-400')} />
+              <Clock
+                className={cn(
+                  'w-3 h-3 shrink-0',
+                  isPlayerTimedOut || (isPlaying && !isOver && isMyTurn)
+                    ? 'text-red-400'
+                    : isOver && laNguoiThang === true
+                      ? 'text-emerald-400'
+                      : 'text-gray-400'
+                )}
+              />
               <span>
-                {isPlaying && !isOver
-                  ? isMyTurn
-                    ? formatClockTime(clock.timeRemaining)
-                    : formatClockTime(clock.turnSeconds)
-                  : formatClockTime(recentlyChangedTime || clock.turnSeconds)}
+                {isPlayerTimedOut
+                  ? '00:00'
+                  : isPlaying && !isOver
+                    ? isMyTurn
+                      ? formatClockTime(clock.timeRemaining)
+                      : formatClockTime(clock.turnSeconds)
+                    : isOver
+                      ? formatClockTime(isMyTurn ? clock.timeRemaining : clock.turnSeconds)
+                      : formatClockTime(recentlyChangedTime || clock.turnSeconds)}
               </span>
             </div>
           </div>
@@ -2544,18 +2590,39 @@ export function XiangqiBoard({
             <div
               id="opponent-desk-clock"
               className={cn(
-                'absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-20 whitespace-nowrap',
-                isPlaying && !isOver && isOpponentTurn
-                  ? 'border-sky-400/80 bg-sky-950/80 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)] opacity-100 scale-100 translate-y-0'
-                  : 'border-white/10 bg-[#161a22]/80 text-gray-300 opacity-0 pointer-events-none -translate-y-1'
+                'absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-20 whitespace-nowrap opacity-100 scale-100 translate-y-0',
+                isOpponentTimedOut
+                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                  : isPlaying && !isOver && isOpponentTurn
+                    ? 'border-sky-400/80 bg-sky-950/80 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
+                    : isOver && laNguoiThang === false
+                      ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                      : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
               title="Thời gian chơi của Đối thủ"
             >
-              <Clock className="w-3 h-3 text-sky-400 shrink-0" />
+              <Clock
+                className={cn(
+                  'w-3 h-3 shrink-0',
+                  isOpponentTimedOut
+                    ? 'text-red-400'
+                    : isPlaying && !isOver && isOpponentTurn
+                      ? 'text-sky-400'
+                      : isOver && laNguoiThang === false
+                        ? 'text-emerald-400'
+                        : 'text-gray-400'
+                )}
+              />
               <span>
-                {isPlaying && !isOver && isOpponentTurn
-                  ? formatClockTime(clock.timeRemaining)
-                  : formatClockTime(clock.turnSeconds)}
+                {isOpponentTimedOut
+                  ? '00:00'
+                  : isPlaying && !isOver
+                    ? isOpponentTurn
+                      ? formatClockTime(clock.timeRemaining)
+                      : formatClockTime(clock.turnSeconds)
+                    : isOver
+                      ? formatClockTime(isOpponentTurn ? clock.timeRemaining : clock.turnSeconds)
+                      : formatClockTime(clock.turnSeconds)}
               </span>
             </div>
           </div>
@@ -2665,29 +2732,6 @@ export function XiangqiBoard({
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          {/* Nút dùng ngay từ modal */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (toolId !== 'settings') {
-                                tool.onClick()
-                                if (
-                                  toolId === 'draw' ||
-                                  toolId === 'resign' ||
-                                  toolId === 'win' ||
-                                  toolId === 'invite' ||
-                                  toolId === 'emoji'
-                                ) {
-                                  setIsSettingsModalOpen(false)
-                                }
-                              }
-                            }}
-                            disabled={tool.disabled || toolId === 'settings'}
-                            className="px-2 py-1 rounded-md text-[11px] font-medium bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            Dùng
-                          </button>
-
                           {/* Nút Ghim vào cụm bong bóng quanh avatar */}
                           <button
                             type="button"
