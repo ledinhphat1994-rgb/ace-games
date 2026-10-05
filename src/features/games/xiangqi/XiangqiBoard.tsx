@@ -671,6 +671,14 @@ export function XiangqiBoard({
   const [lastMove, setLastMove] = useState<XiangqiMove | null>(null)
   const [daBatDauVan, setDaBatDauVan] = useState(false)
 
+  // Nước đi mới nhất: lấy từ máy chủ online nếu đang chơi online, hoặc lấy từ state nội bộ
+  const effectiveLastMove = useMemo(() => {
+    if (laOnline && online?.moves && online.moves.length > 0) {
+      return online.moves[online.moves.length - 1] as XiangqiMove
+    }
+    return lastMove
+  }, [laOnline, online?.moves, lastMove])
+
   const legalMoves = useMemo(() => pos.legalMoves(), [pos])
   const outcome = useMemo(() => pos.outcome(), [pos])
   const inCheck = useMemo(() => pos.inCheck(), [pos])
@@ -978,34 +986,49 @@ export function XiangqiBoard({
       confirmVariant: 'red',
       onConfirm: () => {
         setCenterDialog(null)
-        if (!isPveMode && laOnline && online) {
-          online.surrender()
-          online.guiChat(`${PROPOSAL_PREFIX}resign`)
+        if (isPveMode) {
+          const losingSide = playerSide
+          const winningSide = losingSide === RED ? (1 as Side) : (RED as Side)
+          setCustomGameOver({
+            over: true,
+            winner: winningSide,
+            reason: 'Bạn đã xin thua',
+          })
+          setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
+          soundEngine.playDefeat()
           return
         }
-        const losingSide = isPveMode ? playerSide : pos.turn
-        const winningSide = losingSide === RED ? (1 as Side) : (RED as Side)
-        setCustomGameOver({
-          over: true,
-          winner: winningSide,
-          reason: `${isPveMode ? 'Bạn' : losingSide === RED ? 'Bên Đỏ' : 'Bên Đen'} đã xin thua`,
-        })
-        setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
-        soundEngine.playDefeat()
-
-        // Nếu là PvP cục bộ / test, hiển thị card thông báo cho bên kia
-        if (!isPveMode) {
-          setIncomingDialog({
-            type: 'resign',
-            icon: 'resign',
-            title: 'Đối Thủ Xin Thua',
-            subtitle: 'Đối thủ đã xin thua ván này.',
-            onlyConfirm: true,
-            confirmText: 'Đồng ý',
-            confirmVariant: 'emerald',
-            onConfirm: () => setIncomingDialog(null),
-          })
+        if (laOnline && online) {
+          online.guiChat(`${PROPOSAL_PREFIX}resign_offer`)
+          toast.info('Đã gửi lời xin thua tới đối thủ...')
+          return
         }
+        // Mô phỏng đối thủ trong chế độ PvP cục bộ (pass & play)
+        const losingSide = pos.turn
+        const winningSide = losingSide === RED ? (1 as Side) : (RED as Side)
+        setIncomingDialog({
+          type: 'resign',
+          icon: 'resign',
+          title: 'Đối Thủ Xin Thua',
+          subtitle: 'Đối thủ xin thua ván này, bạn có đồng ý không?',
+          confirmText: 'Đồng ý',
+          cancelText: 'Chơi tiếp',
+          confirmVariant: 'emerald',
+          onCancel: () => {
+            setIncomingDialog(null)
+            toast.info('Đối thủ muốn tiếp tục thi đấu, không chấp nhận lời xin thua!')
+          },
+          onConfirm: () => {
+            setIncomingDialog(null)
+            setCustomGameOver({
+              over: true,
+              winner: winningSide,
+              reason: `${losingSide === RED ? 'Bên Đỏ' : 'Bên Đen'} đã xin thua và đối thủ đã đồng ý`,
+            })
+            setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
+            soundEngine.playVictory()
+          },
+        })
       },
     })
   }, [isOver, isPveMode, playerSide, pos.turn, laOnline, online])
@@ -1217,17 +1240,65 @@ export function XiangqiBoard({
         soundEngine.playVictory()
       } else if (action === 'win_decline') {
         toast.info('Đối thủ không đồng ý nhường thắng!')
+      } else if (action === 'resign_offer') {
+        setIncomingDialog({
+          type: 'resign',
+          icon: 'resign',
+          title: 'Đối Thủ Xin Thua',
+          subtitle: 'Đối thủ xin thua ván này, bạn có đồng ý không?',
+          cancelText: 'Chơi tiếp',
+          confirmText: 'Đồng ý',
+          confirmVariant: 'emerald',
+          onCancel: () => {
+            setIncomingDialog(null)
+            online.guiChat(`${PROPOSAL_PREFIX}resign_decline`)
+            toast.info('Bạn đã từ chối lời xin thua, tiếp tục thi đấu!')
+          },
+          onConfirm: () => {
+            setIncomingDialog(null)
+            online.guiChat(`${PROPOSAL_PREFIX}resign_accept`)
+            setCustomGameOver({
+              over: true,
+              winner: benCuaToi,
+              reason: 'Đối thủ đã xin thua ván này',
+            })
+            setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
+            soundEngine.playVictory()
+          },
+        })
+      } else if (action === 'resign_accept') {
+        setCustomGameOver({
+          over: true,
+          winner: benCuaToi === RED ? 1 : RED,
+          reason: 'Đối thủ đã đồng ý cho bạn xin thua',
+        })
+        setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
+        soundEngine.playDefeat()
+        try {
+          online.surrender()
+        } catch {}
+      } else if (action === 'resign_decline') {
+        toast.info('Đối thủ muốn tiếp tục thi đấu, không chấp nhận lời xin thua!')
       } else if (action === 'resign') {
         setIncomingDialog({
           type: 'resign',
           icon: 'resign',
           title: 'Đối Thủ Xin Thua',
-          subtitle: 'Đối thủ đã xin thua ván này.',
-          onlyConfirm: true,
+          subtitle: 'Đối thủ xin thua ván này, bạn có đồng ý không?',
+          cancelText: 'Chơi tiếp',
           confirmText: 'Đồng ý',
           confirmVariant: 'emerald',
+          onCancel: () => {
+            setIncomingDialog(null)
+            toast.info('Tiếp tục thi đấu!')
+          },
           onConfirm: () => {
             setIncomingDialog(null)
+            setCustomGameOver({
+              over: true,
+              winner: benCuaToi,
+              reason: 'Đối thủ đã xin thua ván này',
+            })
             setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
             soundEngine.playVictory()
           },
@@ -1572,11 +1643,37 @@ export function XiangqiBoard({
             })}
           </div>
 
+          {/* LAYER HIỂN THỊ VỊ TRÍ TRƯỚC ĐÓ CỦA CON CỜ ĐÃ ĐI MỚI NHẤT (VÙNG 2) */}
+          {effectiveLastMove && (
+            <div id="last-move-indicator-layer" className="absolute inset-0 pointer-events-none z-25">
+              {(() => {
+                const fromFile = fileOf(effectiveLastMove.from)
+                const fromRank = rankOf(effectiveLastMove.from)
+                const fromC = effectiveFlipped ? 8 - fromFile : fromFile
+                const fromR = effectiveFlipped ? fromRank : 9 - fromRank
+                const fromX = ((82 + fromC * 92) / 900) * 100
+                const fromY = ((86 + fromR * 92) / 1000) * 100
+
+                return (
+                  <div
+                    id="last-move-from-marker"
+                    style={{ left: `${fromX}%`, top: `${fromY}%` }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 w-[8.2%] aspect-square rounded-full flex items-center justify-center border-2 border-dashed border-amber-400/80 bg-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.35)]"
+                    title="Vị trí xuất phát của nước cờ vừa đi"
+                  >
+                    <div className="size-2 sm:size-2.5 rounded-full bg-amber-400/90 shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           {/* LAYER CHỨA 32 QUÂN CỜ TƯƠNG TÁC - KÍCH THƯỚC CHUẨN MỰC w-[8.2%] (thay cho w-[9.4%]), KHOẢNG CÁCH THOÁNG ĐÃNG ĐỀU ĐẶN */}
           {/* Token kiểm thử: w-[9.4%] font-han text-lg sm:text-xl md:text-[23px] drop-shadow-sm */}
           <div id="pieces-layer" className="absolute inset-0 z-30 pointer-events-none">
             {piecesToRender.map(({ sq, side, type, xPercent, yPercent }) => {
               const isSelected = selectedSq === sq
+              const isLastMoveDestination = effectiveLastMove?.to === sq
               const isTurnNow = isPlaying && !isOver && !isAiThinking && (
                 isPveMode ? pos.turn === playerSide : (laOnline ? toiDenLuotOnline : true)
               )
@@ -1596,7 +1693,8 @@ export function XiangqiBoard({
                     side === RED ? 'piece-red' : 'piece-black',
                     canMove && 'piece-movable',
                     isCaptureTarget && 'piece-targetable',
-                    isSelected && 'piece-selected'
+                    isSelected && 'piece-selected',
+                    isLastMoveDestination && !isSelected && 'ring-2 ring-amber-400/90 shadow-[0_0_14px_rgba(251,191,36,0.65)]'
                   )}
                 >
                   <div className="inner-border absolute inset-[2px] sm:inset-[2.5px] rounded-full pointer-events-none" />
@@ -1640,7 +1738,7 @@ export function XiangqiBoard({
           {activeDlg && (
             <div
               id="center-board-dialog"
-              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[3px] animate-in fade-in duration-150 pointer-events-auto"
+              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/10 animate-in fade-in duration-150 pointer-events-auto"
               onClick={(e) => {
                 e.stopPropagation()
                 if (activeDlg.onCancel) activeDlg.onCancel()
@@ -1831,16 +1929,9 @@ export function XiangqiBoard({
         >
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
-            {/* 1. BADGE LEVEL & ELO CỦA TÔI: ĐẶT NẰM TRÊN CAO HƠN CÁC BONG BÓNG ĐỂ TUYỆT ĐỐI KHÔNG CHỒNG CHÉO */}
-            <div className="absolute bottom-[calc(100%+46px)] left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-amber-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight z-20 whitespace-nowrap">
-              <span className="text-amber-400 font-extrabold">Lv.{myLevel}</span>
-              <span className="text-white/20">|</span>
-              <span className="text-sky-300 font-extrabold">Elo {myElo}</span>
-            </div>
-
-            {/* 2. KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BADGE LEVEL/ELO VÀ BONG BÓNG */}
+            {/* KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BONG BÓNG */}
             {myQuickMessage && (
-              <div className="absolute bottom-[calc(100%+78px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div className="absolute bottom-[calc(100%+52px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
                 {myQuickMessage.emoji && <span className="text-sm shrink-0">{myQuickMessage.emoji}</span>}
                 <span className="truncate">{myQuickMessage.text}</span>
               </div>
@@ -2090,7 +2181,7 @@ export function XiangqiBoard({
       {isSettingsModalOpen && (
         <div
           id="settings-modal"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/10"
           onClick={() => setIsSettingsModalOpen(false)}
         >
           <div
