@@ -151,6 +151,13 @@ export function nutHanhDongOnline(online: BanOnline, moXinThua: () => void): Nut
       onClick: () => online.rematch(),
     }
   }
+  if (meta.status === 'waiting' && meta.playerX && meta.playerO) {
+    return {
+      label: 'Bắt đầu',
+      icon: <Swords className="size-3.5 text-amber-400" />,
+      onClick: () => online.startGame(),
+    }
+  }
   return { label: 'Mời bạn', icon: <Link2 className="size-3.5" />, onClick: () => void saoChepLinkBan(online.gameId) }
 }
 

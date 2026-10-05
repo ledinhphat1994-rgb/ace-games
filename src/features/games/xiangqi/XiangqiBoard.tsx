@@ -29,7 +29,6 @@ import {
   Crown,
   Flag,
   Handshake,
-  Loader2,
   Lock,
   Pin,
   RotateCcw,
@@ -316,8 +315,6 @@ export function XiangqiBoard({
     reason: string
   } | null>(null)
 
-  // Trạng thái chờ đối thủ đồng ý bắt đầu
-  const [waitingForStartAccept, setWaitingForStartAccept] = useState(false)
   const [selectedProfileUser, setSelectedProfileUser] = useState<NguoiXem | null>(null)
 
   interface DialogConfig {
@@ -430,9 +427,9 @@ export function XiangqiBoard({
 
   // Tính toán tọa độ (x, y) của các bong bóng nhỏ xoay quanh Avatar (cách đều, không đè bàn cờ và đồng hồ)
   const getBubbleCoordinates = (index: number, total: number) => {
-    const D = 60 // Bán kính từ tâm avatar đến tâm bong bóng
+    const D = 52 // Bán kính từ tâm avatar đến tâm bong bóng
     if (total <= 1) {
-      return { x: -42, y: -42 }
+      return { x: -52, y: 0 }
     }
     // Góc từ 80° (Đỉnh, hơi lệch phải trong phạm vi chiều ngang avatar) đến 210° (Dưới-Trái, an toàn khỏi đồng hồ)
     const startAngle = 80
@@ -677,22 +674,23 @@ export function XiangqiBoard({
   const legalMoves = useMemo(() => pos.legalMoves(), [pos])
   const outcome = useMemo(() => pos.outcome(), [pos])
   const inCheck = useMemo(() => pos.inCheck(), [pos])
-  const isOver = laOnline ? online?.meta.status === 'ended' : outcome.over || Boolean(customGameOver?.over)
-  const toiDenLuotOnline = laOnline && Boolean(online?.isMyTurn) && pos.turn === benOnline
-  const isPlaying = laOnline
+  const laOnlinePvp = laOnline && !isPveMode
+  const isOver = laOnlinePvp ? online?.meta.status === 'ended' : outcome.over || Boolean(customGameOver?.over)
+  const toiDenLuotOnline = laOnlinePvp && Boolean(online?.isMyTurn) && pos.turn === benOnline
+  const isPlaying = laOnlinePvp
     ? online?.meta.status === 'playing'
     : !isOver && (daBatDauVan || lastMove !== null || isAiThinking)
 
-  const isMyTurn = isPlaying && pos.turn === mySide
-  const isOpponentTurn = isPlaying && pos.turn === opponentSide
+  const isMyTurn = isPlaying && (laOnlinePvp ? toiDenLuotOnline : isPveMode ? pos.turn === playerSide : true)
+  const isOpponentTurn = isPlaying && !isMyTurn
   const activeDlg = centerDialog || incomingDialog
 
   const clock = useGameClock({
-    isOnline: laOnline,
+    isOnline: laOnlinePvp,
     isPlaying,
-    isMyTurn: laOnline ? toiDenLuotOnline : pos.turn === playerSide,
+    isMyTurn,
     turnKey: `${pos.turn}-${lastMove?.from ?? ''}-${lastMove?.to ?? ''}`,
-    online,
+    online: isPveMode ? undefined : online,
     onTimeout: useCallback(() => {
       if (isOver) return
       const benThua = pos.turn
@@ -768,7 +766,8 @@ export function XiangqiBoard({
       } else {
         soundEngine.playMove()
       }
-      if (laOnline) {
+      setDaBatDauVan(true)
+      if (laOnlinePvp) {
         online?.diCo(move)
         setSelectedSq(null)
         return
@@ -778,7 +777,7 @@ export function XiangqiBoard({
       setLastMove(move)
       setSelectedSq(null)
     },
-    [laOnline, online, pos.board, posTaiCho]
+    [laOnlinePvp, online, pos.board, posTaiCho]
   )
 
   // AI phản hồi tự động ở chế độ PvE
@@ -800,13 +799,27 @@ export function XiangqiBoard({
     if (heroicBanner) {
       setHeroicBanner(null)
     }
-    if (!isPlaying && !laOnline) {
-      toast.info('Bấm BẮT ĐẦU để chơi')
+    if (isOver || isAiThinking) return
+
+    if (isPveMode && pos.turn !== playerSide) {
+      toast.info('Đang là lượt đi của máy AI')
       return
     }
-    if (isOver || isAiThinking) return
-    if (isPveMode && pos.turn !== playerSide) return
-    if (!isPveMode && laOnline && !toiDenLuotOnline) return
+
+    if (laOnlinePvp) {
+      if (!online?.mySide) {
+        toast.info('Bấm Vào bàn để tham gia thi đấu')
+        return
+      }
+      if (online.meta.status === 'waiting') {
+        toast.info('Đang chờ đối thủ vào phòng để bắt đầu trận đấu')
+        return
+      }
+      if (!toiDenLuotOnline) {
+        toast.info('Đang là lượt đi của đối thủ')
+        return
+      }
+    }
 
     const piece = pos.board[sq]
 
@@ -824,17 +837,22 @@ export function XiangqiBoard({
     }
 
     if (piece > 0 && sideOf(piece) === pos.turn) {
+      if (!daBatDauVan) {
+        setDaBatDauVan(true)
+      }
       setSelectedSq(sq)
     }
   }
 
   const resetGame = useCallback(() => {
-    setPos(XiangqiPosition.fromFen())
+    const newPos = XiangqiPosition.fromFen()
+    setPos(newPos)
     setSelectedSq(null)
     setLastMove(null)
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
+    setIsAiThinking(false)
     setDaBatDauVan(true)
     setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
     playGameStartSound()
@@ -864,13 +882,28 @@ export function XiangqiBoard({
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
+    setIsAiThinking(false)
+    setLastMove(null)
+    setCenterDialog(null)
+    setIncomingDialog(null)
+
+    if (newMode === 'ai' || newMode === 'pass_and_play') {
+      const fresh = XiangqiPosition.fromFen()
+      setPos(fresh)
+      setDaBatDauVan(true)
+    }
+
     if (online) {
       online.datPve(newMode === 'ai')
+      if (newMode !== 'ai' && online.meta.playerX && online.meta.playerO && online.meta.status !== 'playing') {
+        online.startGame()
+      }
     }
+
     if (newMode === 'ai') {
-      toast.info('Chế độ PvE')
+      toast.info('Chế độ PvE (Đấu với Máy)')
     } else {
-      toast.info('Chế độ PvP')
+      toast.info('Chế độ PvP (Đấu Đối Kháng)')
     }
   }
 
@@ -1034,52 +1067,29 @@ export function XiangqiBoard({
     })
   }, [isOver, isPveMode, benCuaToi, laOnline, online])
 
-  // 4. BẮT ĐẦU (VÙNG 1+): Bấm Bắt đầu gửi thông báo cho bên kia, bên kia đồng ý thì có thể chơi
+  // 4. BẮT ĐẦU: Xử lý cho cả Online, PvE và PvP cục bộ
   const handleStartGameClick = useCallback(() => {
     if (isPveMode) {
       resetGame()
       return
     }
-    if (laOnline && online) {
-      if (!opponentMember) {
-        toast.info('Chờ đối thủ vào phòng')
+    if (laOnlinePvp && online) {
+      if (!online.mySide) {
+        online.joinGame()
+        toast.info('Đã vào bàn đấu')
         return
       }
-      setWaitingForStartAccept(true)
-      online.guiChat(`${PROPOSAL_PREFIX}start_offer`)
+      if (!online.meta.playerX || !online.meta.playerO) {
+        toast.info('Chờ đối thủ vào phòng để bắt đầu')
+        return
+      }
+      online.startGame()
+      resetGame()
       return
     }
-    // Chế độ PvP cục bộ / test: hiện card xác nhận cho đối thủ
-    setIncomingDialog({
-      type: 'start',
-      icon: 'start',
-      title: 'Bắt Đầu Trận Đấu',
-      subtitle: 'Đối thủ muốn bắt đầu, bạn có đồng ý không?',
-      confirmText: 'Đồng ý',
-      cancelText: 'Chưa sẵn sàng',
-      confirmVariant: 'amber',
-      onCancel: () => {
-        setIncomingDialog(null)
-        setWaitingForStartAccept(false)
-        toast.info('Đối thủ từ chối')
-      },
-      onConfirm: () => {
-        setIncomingDialog(null)
-        setWaitingForStartAccept(false)
-        resetGame()
-      },
-    })
-  }, [isPveMode, resetGame, laOnline, online, opponentMember])
-
-  const handleCancelStartOffer = useCallback(() => {
-    setWaitingForStartAccept(false)
-    if (laOnline && online) {
-      online.guiChat(`${PROPOSAL_PREFIX}start_decline`)
-    }
-    if (incomingDialog?.type === 'start') {
-      setIncomingDialog(null)
-    }
-  }, [laOnline, online, incomingDialog])
+    // Chế độ PvP cục bộ (pass & play)
+    resetGame()
+  }, [isPveMode, resetGame, laOnlinePvp, online])
 
   const handleBackLobby = useCallback(() => {
     if (isOver) {
@@ -1131,13 +1141,11 @@ export function XiangqiBoard({
           },
         })
       } else if (action === 'start_accept') {
-        setWaitingForStartAccept(false)
         resetGame()
         online.startGame()
         setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
         playGameStartSound()
       } else if (action === 'start_decline') {
-        setWaitingForStartAccept(false)
         toast.info('Đối thủ chưa sẵn sàng bắt đầu.')
       } else if (action === 'draw_offer') {
         setIncomingDialog({
@@ -1611,33 +1619,20 @@ export function XiangqiBoard({
             })}
           </div>
 
-          {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN */}
+          {/* NÚT BẮT ĐẦU Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN HOẶC KẾT THÚC */}
           {(!isPlaying || isOver) && !heroicBanner && !activeDlg && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
-              {waitingForStartAccept ? (
-                <button
-                  type="button"
-                  id="btn-bat-dau-river"
-                  onClick={handleCancelStartOffer}
-                  className="px-6 py-2.5 rounded-full bg-amber-950/90 border-2 border-amber-400 text-amber-300 font-bold text-sm tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.5)] cursor-pointer backdrop-blur-sm animate-pulse select-none"
-                  title="Đang đợi đối thủ chấp nhận (Bấm để hủy)"
-                >
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
-                  <span>ĐANG MỜI ĐỐI THỦ...</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  id="btn-bat-dau-river"
-                  onClick={handleStartGameClick}
-                  className="group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-2 border-amber-400/90 text-white flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-all duration-150 shadow-[0_0_24px_rgba(185,28,28,0.6)] cursor-pointer select-none active:scale-95 hover:scale-105"
-                  title={`Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`}
-                  aria-label="Bắt đầu trận đấu"
-                >
-                  <Swords className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-                  <span className="text-amber-100 font-black uppercase drop-shadow">BẮT ĐẦU</span>
-                </button>
-              )}
+              <button
+                type="button"
+                id="btn-bat-dau-river"
+                onClick={handleStartGameClick}
+                className="group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-2 border-amber-400/90 text-white flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-all duration-150 shadow-[0_0_24px_rgba(185,28,28,0.6)] cursor-pointer select-none active:scale-95 hover:scale-105"
+                title={`Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`}
+                aria-label="Bắt đầu trận đấu"
+              >
+                <Swords className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                <span className="text-amber-100 font-black uppercase drop-shadow">BẮT ĐẦU</span>
+              </button>
             </div>
           )}
 
@@ -1836,136 +1831,126 @@ export function XiangqiBoard({
         >
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
-            {/* BADGE LEVEL & ELO CỦA TÔI ĐỂ KHÈ NGƯỜI CHƠI KHÁC */}
-            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-amber-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight mb-1.5 z-20">
+            {/* 1. BADGE LEVEL & ELO CỦA TÔI: ĐẶT NẰM TRÊN CAO HƠN CÁC BONG BÓNG ĐỂ TUYỆT ĐỐI KHÔNG CHỒNG CHÉO */}
+            <div className="absolute bottom-[calc(100%+46px)] left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-amber-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight z-20 whitespace-nowrap">
               <span className="text-amber-400 font-extrabold">Lv.{myLevel}</span>
               <span className="text-white/20">|</span>
               <span className="text-sky-300 font-extrabold">Elo {myElo}</span>
             </div>
 
-            {/* 1. KHI DÙNG TIN NHẮN NHANH: NỞ SANG TRÁI VÀO VÙNG 4, CÁCH BÀN CỜ AN TOÀN, VƯỢT LÊN TRÊN CÁC BONG BÓNG */}
+            {/* 2. KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BADGE LEVEL/ELO VÀ BONG BÓNG */}
             {myQuickMessage && (
-              <div className="absolute bottom-full mb-14 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div className="absolute bottom-[calc(100%+78px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
                 {myQuickMessage.emoji && <span className="text-sm shrink-0">{myQuickMessage.emoji}</span>}
                 <span className="truncate">{myQuickMessage.text}</span>
               </div>
             )}
 
-            {/* 2. CÁC BONG BÓNG CÔNG CỤ ĐƯỢC GHIM QUANH AVATAR (TIỆN BẤM 1 LẦN ĐỂ SỬ DỤNG) */}
-            {pinnedTools.map((toolId, index) => {
-              const pos = getBubbleCoordinates(index, pinnedTools.length)
-              const tool = toolDefinitions[toolId]
-              if (!tool) return null
-              const buttonId =
-                toolId === 'mode'
-                  ? 'mode-toggle-card'
-                  : toolId === 'draw'
-                    ? 'xin-xo-btn'
-                    : `tool-bubble-${toolId}`
-              return (
-                <button
-                  key={toolId}
-                  type="button"
-                  id={buttonId}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    tool.onClick()
-                  }}
-                  disabled={tool.disabled}
-                  style={{
-                    transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
-                  }}
-                  className={cn(
-                    'absolute top-1/2 left-1/2 -mt-[17px] -ml-[17px] size-[34px] rounded-full border-2 backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-pointer transition-colors duration-150 z-30 select-none hover:scale-110 active:scale-95 group disabled:opacity-40 disabled:cursor-not-allowed',
-                    tool.bubbleClassName
-                  )}
-                  title={`${tool.title} (Bấm 1 lần để sử dụng)`}
-                  aria-label={tool.title}
-                >
-                  {tool.renderIcon(true)}
-                  <div className="absolute inset-0 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                </button>
-              )
-            })}
+            {/* 3. VÙNG AVATAR VÀ CÁC BONG BÓNG CÔNG CỤ ĐỒNG TÂM 100% */}
+            <div className="relative flex items-center justify-center">
+              {/* CÁC BONG BÓNG CÔNG CỤ ĐƯỢC GHIM QUANH AVATAR (TIỆN BẤM 1 LẦN ĐỂ SỬ DỤNG) */}
+              {pinnedTools.map((toolId, index) => {
+                const pos = getBubbleCoordinates(index, pinnedTools.length)
+                const tool = toolDefinitions[toolId]
+                if (!tool) return null
+                const buttonId =
+                  toolId === 'mode'
+                    ? 'mode-toggle-card'
+                    : toolId === 'draw'
+                      ? 'xin-xo-btn'
+                      : `tool-bubble-${toolId}`
+                return (
+                  <button
+                    key={toolId}
+                    type="button"
+                    id={buttonId}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      tool.onClick()
+                    }}
+                    disabled={tool.disabled}
+                    style={{
+                      transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
+                    }}
+                    className={cn(
+                      'absolute top-1/2 left-1/2 -mt-[17px] -ml-[17px] size-[34px] rounded-full border-2 backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-pointer transition-colors duration-150 z-30 select-none hover:scale-110 active:scale-95 group disabled:opacity-40 disabled:cursor-not-allowed',
+                      tool.bubbleClassName
+                    )}
+                    title={`${tool.title} (Bấm 1 lần để sử dụng)`}
+                    aria-label={tool.title}
+                  >
+                    {tool.renderIcon(true)}
+                    <div className="absolute inset-0 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  </button>
+                )
+              })}
 
-            {/* 3. AVATAR TRÒN TRUNG TÂM (GIỮ KÉO TỰ DO TRONG VÙNG 4 HOẶC CLICK ĐỂ MỞ CÀI ĐẶT & GHIM CÔNG CỤ) */}
-            <button
-              type="button"
-              onPointerDown={handleAvatarPointerDown}
-              onPointerMove={handleAvatarPointerMove}
-              onPointerUp={handleAvatarPointerUp}
-              onPointerCancel={handleAvatarPointerUp}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (justToggledPointerUpRef.current) return
-                if (!hasMovedAvatarRef.current) {
-                  if (laOnline && !online?.mySide) {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    const myPlayerAccountId = myAccountId || 1
-                    setSelectedProfileUser({
-                      id: myPlayerAccountId,
-                      ten: myName,
-                      avatar: myAvatarUrl,
-                      gameElo: myElo,
-                      gameName: 'Cờ Tướng',
-                      anchorRect: {
-                        top: rect.top,
-                        left: rect.left,
-                        right: rect.right,
-                        bottom: rect.bottom,
-                      },
-                    })
-                  } else {
-                    setIsSettingsModalOpen(true)
+              {/* AVATAR TRÒN TRUNG TÂM (GIỮ KÉO TỰ DO TRONG VÙNG 4 HOẶC CLICK ĐỂ MỞ CÀI ĐẶT & GHIM CÔNG CỤ) */}
+              <button
+                type="button"
+                onPointerDown={handleAvatarPointerDown}
+                onPointerMove={handleAvatarPointerMove}
+                onPointerUp={handleAvatarPointerUp}
+                onPointerCancel={handleAvatarPointerUp}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (justToggledPointerUpRef.current) return
+                  if (!hasMovedAvatarRef.current) {
+                    if (laOnline && !online?.mySide) {
+                      online?.joinGame()
+                      toast.info('Đã vào bàn đấu')
+                    } else {
+                      setIsSettingsModalOpen(true)
+                    }
                   }
-                }
-              }}
-              className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 cursor-grab active:cursor-grabbing shadow-xl flex items-center justify-center outline-none group hover:scale-105 select-none touch-none',
-                isMyTurn
-                  ? mySide === RED
-                    ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
-                    : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
-                  : 'border-sky-500/40 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
-              )}
-              title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ)` : 'Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ'}
-              aria-label={myName ? `${myName} - Cài đặt & ghim công cụ` : 'Cài đặt & ghim công cụ'}
-            >
-              <AnhNguoiDung
-                ten={myName}
-                avatar={myAvatarUrl}
-                className="size-full rounded-full pointer-events-none"
-              />
-
-              {/* Đĩa cờ nhỏ thể hiện phe Đỏ / Đen ở góc avatar */}
-              <div
+                }}
                 className={cn(
-                  'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
-                  mySide === RED
-                    ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                    : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 cursor-grab active:cursor-grabbing shadow-xl flex items-center justify-center outline-none group hover:scale-105 select-none touch-none',
+                  isMyTurn
+                    ? mySide === RED
+                      ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
+                      : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
+                    : 'border-sky-500/40 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
                 )}
-                title={mySide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
+                title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ)` : 'Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ'}
+                aria-label={myName ? `${myName} - Cài đặt & ghim công cụ` : 'Cài đặt & ghim công cụ'}
               >
-                {mySide === RED ? '帥' : '將'}
-              </div>
+                <AnhNguoiDung
+                  ten={myName}
+                  avatar={myAvatarUrl}
+                  className="size-full rounded-full pointer-events-none"
+                />
 
-              {/* Indicator số lượng bong bóng đã ghim nhỏ ở góc trên nếu có */}
-              {pinnedTools.length > 0 && (
+                {/* Đĩa cờ nhỏ thể hiện phe Đỏ / Đen ở góc avatar */}
                 <div
-                  className="absolute -top-1 -right-1 size-4 rounded-full bg-sky-500 text-white flex items-center justify-center shadow-md z-10 text-[9px] font-bold pointer-events-none"
-                  title={`${pinnedTools.length} công cụ đã ghim`}
+                  className={cn(
+                    'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
+                    mySide === RED
+                      ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
+                      : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                  )}
+                  title={mySide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
                 >
-                  {pinnedTools.length}
+                  {mySide === RED ? '帥' : '將'}
                 </div>
-              )}
-            </button>
+
+                {/* Indicator số lượng bong bóng đã ghim nhỏ ở góc trên nếu có */}
+                {pinnedTools.length > 0 && (
+                  <div
+                    className="absolute -top-1 -right-1 size-4 rounded-full bg-sky-500 text-white flex items-center justify-center shadow-md z-10 text-[9px] font-bold pointer-events-none"
+                    title={`${pinnedTools.length} công cụ đã ghim`}
+                  >
+                    {pinnedTools.length}
+                  </div>
+                )}
+              </button>
+            </div>
 
             {/* 4. KHI TỚI LƯỢT: HIỆN THỜI GIAN CHẠY Ở PHÍA DƯỚI AVATAR 1 TÍ */}
             <div
               id="player-desk-clock"
               className={cn(
-                'absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-20 whitespace-nowrap',
+                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-20 whitespace-nowrap',
                 isPlaying && !isOver && isMyTurn
                   ? 'border-red-500/80 bg-red-950/80 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)] opacity-100 scale-100 translate-y-0'
                   : recentlyChangedTime !== null
