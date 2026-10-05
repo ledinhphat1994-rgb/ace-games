@@ -100,7 +100,7 @@ export function GameBoardView({
         ) : undefined
       }
     >
-      <div className="game-stage relative flex min-w-0 w-full flex-1 flex-col items-center h-full overflow-hidden">
+      <div className="game-stage relative flex min-w-0 w-full flex-1 flex-col items-center h-full overflow-y-auto overflow-x-hidden">
         <BlueprintArcadePattern className="opacity-20 pointer-events-none" />
         {meta.gameType === 'chess' ? (
           <ChessBoard

@@ -1781,7 +1781,7 @@ export function XiangqiBoard({
   }
 
   return (
-    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden">
+    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-y-auto overflow-x-hidden">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, VÙNG 3 SÁT GÓC TRÁI & ĐỒNG HỒ CHÍNH GIỮA */}
       <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         {/* CỤM TRÁI: ĐIỀU HƯỚNG SẢNH, ICON GAME TO RÕ ĐẸP (VÙNG 2) & BADGE RIÊNG TƯ */}
@@ -1830,7 +1830,7 @@ export function XiangqiBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, KHAI THÁC KHÔNG GIAN, CÓ KHOẢNG THỞ DƯỚI ĐÁY */}
-      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-1 mb-1">
+      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-1 pb-6 mb-2">
         {/* 1. MẶT BÀN CỜ TƯỚNG TẬP TRUNG - TỶ LỆ 9:10 CHUẨN XÁC HOÀN HẢO, Ô CỜ VUÔNG VỨC 100% */}
         <section
           ref={boardRef}
@@ -2217,7 +2217,7 @@ export function XiangqiBoard({
           style={{
             transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
           }}
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
+          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-6 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
           {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (PORTAL LÊN DOCUMENT.BODY ĐỂ ĐỊNH VỊ CHUẨN XÁC THEO VIEWPORT) ==================== */}
           {isQuickMenuOpen &&
