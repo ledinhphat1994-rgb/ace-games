@@ -511,9 +511,10 @@ export function XiangqiBoard({
     if (total <= 1) {
       return { x: -62, y: 0 }
     }
-    // Góc từ 85° (Đỉnh, hướng 12 giờ) đến 215° (Dưới-Trái, hướng 7h30, an toàn khỏi đồng hồ và đĩa cờ)
-    const startAngle = 85
-    const endAngle = 215
+    // Góc từ 60° (Phía trên bên phải, hướng 2 giờ) đến 180° (Sườn trái ngang tầm tâm avatar, hướng 9 giờ)
+    // Toàn bộ bong bóng nằm ở nửa trên và sườn trái (y <= 0), hoàn toàn giải phóng khu vực đáy dưới avatar cho đồng hồ
+    const startAngle = 60
+    const endAngle = 180
     const step = (endAngle - startAngle) / (total - 1)
     const angleDeg = startAngle + index * step
     const angleRad = (angleDeg * Math.PI) / 180
@@ -2321,6 +2322,7 @@ export function XiangqiBoard({
                     key={toolId}
                     type="button"
                     id={buttonId}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation()
                       tool.onClick()
@@ -2396,7 +2398,7 @@ export function XiangqiBoard({
             <div
               id="player-desk-clock"
               className={cn(
-                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-20 whitespace-nowrap',
+                'absolute top-full mt-3.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-all duration-200 select-none shadow-md z-30 whitespace-nowrap',
                 isPlaying && !isOver && isMyTurn
                   ? 'border-red-500/80 bg-red-950/80 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)] opacity-100 scale-100 translate-y-0'
                   : recentlyChangedTime !== null
@@ -2421,7 +2423,7 @@ export function XiangqiBoard({
         <aside
           id="vung-2-plus-desk"
           aria-label="Thông tin đối thủ"
-          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+24px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+48px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
         >
           {/* TRUNG TÂM: 1 AVATAR BUBBLE DUY NHẤT CỦA ĐỐI THỦ */}
           <div className="relative flex flex-col items-center">
