@@ -82,7 +82,7 @@ export function GameHeroicBanner({
           <span
             className={cn(
               // leading + py: chữ tô gradient chỉ hiện trong khung của nó — không chừa chỗ thì dấu (Ắ, Ầ, Ạ…) bị cắt mất.
-              'leading-[1.35] py-2 px-1 font-black uppercase tracking-wider text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
+              'leading-[1.4] py-3 px-1 font-black uppercase tracking-wider text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
               isLongTitle
                 ? 'text-2xl sm:text-3xl md:text-4xl'
                 : 'text-5xl sm:text-6xl md:text-7xl',

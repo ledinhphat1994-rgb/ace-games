@@ -3,6 +3,10 @@ import { Bot, Brain, Sparkles, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
+import { GameDrawModal } from '../GameDrawModal'
+import { useGameClock } from '../use-game-clock'
+import { TIME_PRESETS } from '../GameClockWidget'
+import { toast } from 'sonner'
 import {
   GameQuickEmote,
   GameOpponentBubble,
@@ -10,6 +14,13 @@ import {
   type QuickEmoteItem,
   type ActiveEmoteBubble,
 } from '../GameQuickEmote'
+
+function formatClockTime(sec: number): string {
+  const safe = Math.max(0, Math.floor(sec))
+  const m = Math.floor(safe / 60)
+  const s = safe % 60
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
 
 const DANH_SACH_THAI_DO_MEMORY: QuickEmoteItem[] = [
   { id: 'smart', emoji: '🧠', label: 'Siêu trí nhớ', quote: 'Nhớ hết vị trí rồi!' },
@@ -113,9 +124,10 @@ import { tinhDiemKetThucMemory } from './memoryScore'
 interface MemoryGameProps {
   onSaveScore?: (score: number) => void
   onBack?: () => void
+  initialTurnSeconds?: number
 }
 
-export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
+export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGameProps) {
   const [mode, setMode] = useState<MemoryMode>('pve')
   const [difficulty, setDifficulty] = useState<MemoryDifficulty>('medium')
   const [cards, setCards] = useState<CardItem[]>(() => xaoBai())
@@ -132,11 +144,78 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
   const [surrenderAttempts, setSurrenderAttempts] = useState(0)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
 
+  // ─ Xử lý Xin hòa chuẩn thi đấu (Offer Draw) ─
+  const [isDrawAgreed, setIsDrawAgreed] = useState(false)
+  const [isDrawModalOpen, setIsDrawModalOpen] = useState(false)
+  const [drawModalType, setDrawModalType] = useState<'offer' | 'incoming'>('offer')
+
   // Biểu cảm thoại người chơi và đối thủ
   const [playerBubble, setPlayerBubble] = useState<ActiveEmoteBubble | null>(null)
   const [opponentBubble, setOpponentBubble] = useState<ActiveEmoteBubble | null>(null)
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const isGameOver = matched.length === cards.length || surrenderWinner !== null || isDrawAgreed
+
+  const scheduleAiTurnRef = useRef<(matched: number[]) => void>(() => {})
+
+  const handleTimeout = useCallback(() => {
+    if (isGameOver) return
+    playSound('miss', muted)
+    setFlipped([])
+    setIsLocked(false)
+    toast.warning(`Lượt của ${turn === 1 ? 'Bạn' : mode === 'pve' ? 'Máy AI' : 'Người chơi 2'} đã hết thời gian!`)
+    if (turn === 1) {
+      setTurn(2)
+      if (mode === 'pve') {
+        scheduleAiTurnRef.current(matched)
+      }
+    } else {
+      setIsAiThinking(false)
+      setTurn(1)
+    }
+  }, [isGameOver, muted, turn, mode, matched])
+
+  const clock = useGameClock({
+    isOnline: false,
+    isPlaying: !isGameOver,
+    turnKey: `${turn}-${totalMoves}-${matched.length}`,
+    onTimeout: handleTimeout,
+  })
+
+  useEffect(() => {
+    if (initialTurnSeconds && initialTurnSeconds > 0) {
+      clock.proposeTime(initialTurnSeconds)
+    }
+  }, [initialTurnSeconds])
+
+  const handleOfferDraw = useCallback(() => {
+    if (isGameOver || isAiThinking) return
+    setDrawModalType('offer')
+    setIsDrawModalOpen(true)
+  }, [isGameOver, isAiThinking])
+
+  const handleConfirmDraw = useCallback(() => {
+    if (drawModalType === 'offer') {
+      if (mode === 'pve') {
+        setIsDrawAgreed(true)
+        playSound('match', muted)
+        toast.info('Máy AI đã đồng ý hòa!')
+        return
+      }
+      setDrawModalType('incoming')
+      setIsDrawModalOpen(true)
+    } else {
+      setIsDrawAgreed(true)
+      playSound('match', muted)
+      toast.info('Hai bên đồng thuận hòa ván đấu!')
+    }
+  }, [drawModalType, mode, muted])
+
+  const handleDeclineDraw = useCallback(() => {
+    setIsDrawModalOpen(false)
+    toast.info('Đã từ chối hòa ván đấu')
+  }, [])
 
   const handleQuickEmote = (att: QuickEmoteItem) => {
     setPlayerBubble({ emoji: att.emoji, quote: att.quote, sender: 'player' })
@@ -192,6 +271,8 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
     setIsLocked(false)
     setIsAiThinking(false)
     setSurrenderWinner(null)
+    setIsDrawAgreed(false)
+    setIsDrawModalOpen(false)
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setPlayerBubble(null)
@@ -204,7 +285,6 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
   useEffect(() => { score1Ref.current = score1 }, [score1])
   useEffect(() => { score2Ref.current = score2 }, [score2])
 
-  const scheduleAiTurnRef = useRef<(matched: number[]) => void>(() => {})
   const evaluateTurnRef = useRef<(c1: number, c2: number, activeTurn: 1 | 2, currentMatched: number[]) => void>(() => {})
 
   // Đánh giá nước đi (Trúng -> Cộng điểm & tiếp tục; Trật -> Chuyển lượt sang phe kia)
@@ -403,16 +483,16 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
     [cards, difficulty, evaluateTurn, flipped, isAiThinking, isLocked, matched, mode, muted, turn],
   )
 
-  const isGameOver = matched.length === cards.length || surrenderWinner !== null
-
   const isWinner =
-    surrenderWinner !== null
-      ? surrenderWinner
-      : score1 > score2
-        ? true
-        : score2 > score1
-          ? false
-          : null
+    isDrawAgreed
+      ? null
+      : surrenderWinner !== null
+        ? surrenderWinner
+        : score1 > score2
+          ? true
+          : score2 > score1
+            ? false
+            : null
 
   const winnerTitle =
     isWinner === true
@@ -455,9 +535,21 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
       </div>
       <div
         className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-colors duration-150',
+          turn === 2 && !isGameOver
+            ? clock.timeRemaining <= 5 && clock.timeRemaining > 0
+              ? 'border-rose-500/80 bg-rose-500/20 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse'
+              : 'border-violet-500/60 bg-violet-500/10 text-violet-400 shadow-sm animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {formatClockTime(turn === 2 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}
+      </div>
+      <div
+        className={cn(
           'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
           turn === 2 && !isGameOver
-            ? 'border-violet-500/60 bg-violet-500/10 text-violet-400 shadow-sm animate-pulse'
+            ? 'border-violet-500/60 bg-violet-500/10 text-violet-400 shadow-sm'
             : 'border-border-default bg-surface-overlay/60 text-text-secondary',
         )}
       >
@@ -473,9 +565,21 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
       <div
         className={cn(
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-colors duration-150',
+          turn === 1 && !isGameOver
+            ? clock.timeRemaining <= 5 && clock.timeRemaining > 0
+              ? 'border-rose-500/80 bg-rose-500/20 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse'
+              : 'border-emerald-500/60 bg-emerald-500/10 text-emerald-400 shadow-sm animate-pulse'
+            : 'border-border-default bg-surface-overlay/60 text-text-secondary',
+        )}
+      >
+        {formatClockTime(turn === 1 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}
+      </div>
+      <div
+        className={cn(
           'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
           turn === 1 && !isGameOver
-            ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-400 shadow-sm animate-pulse'
+            ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-400 shadow-sm'
             : 'border-border-default bg-surface-overlay/60 text-text-secondary',
         )}
       >
@@ -524,6 +628,8 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         resetLabel={isGameOver ? 'Ván mới' : 'Xin thua'}
         resetDisabled={!isGameOver && surrenderAttempts >= 3}
         surrenderAttempts={surrenderAttempts}
+        onOfferDraw={handleOfferDraw}
+        offerDrawDisabled={isGameOver || isAiThinking}
         activeSide={turn === 1 ? 'red' : 'black'}
         turnLabel=""
         hideCenterTurn={true}
@@ -531,6 +637,9 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         playerSlot={playerSlotContent}
         showRoomChat={false}
         showRankings={false}
+        turnSeconds={clock.myPendingProposal ?? clock.turnSeconds}
+        onTurnSecondsChange={clock.proposeTime}
+        timePresets={TIME_PRESETS}
         rightSlot={
           <GameQuickEmote
             emotes={DANH_SACH_THAI_DO_MEMORY}
@@ -653,6 +762,16 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
           setSurrenderAttempts((prev) => Math.min(prev + 1, 3))
           setIsSurrenderModalOpen(false)
         }}
+      />
+
+      {/* Modal Đề nghị hòa chuẩn thi đấu */}
+      <GameDrawModal
+        open={isDrawModalOpen}
+        onClose={() => setIsDrawModalOpen(false)}
+        type={drawModalType}
+        onConfirm={handleConfirmDraw}
+        onDecline={handleDeclineDraw}
+        theme="violet"
       />
     </div>
   )

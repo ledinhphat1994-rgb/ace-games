@@ -10,11 +10,12 @@ interface SoloGameStageProps {
   onSaveScore: (score: number) => void
   /** Gọi khi máy chủ đã chấm xong một ván Rắn săn mồi (để làm mới bảng xếp hạng). */
   onSnakeSettled?: () => void
+  initialTurnSeconds?: number
 }
 
-export function SoloGameStage({ gameType, onBack, onSaveScore }: SoloGameStageProps) {
+export function SoloGameStage({ gameType, onBack, onSaveScore, initialTurnSeconds }: SoloGameStageProps) {
   if (gameType === 'solo_memory') {
-    return <MemoryGame onSaveScore={onSaveScore} onBack={onBack} />
+    return <MemoryGame onSaveScore={onSaveScore} onBack={onBack} initialTurnSeconds={initialTurnSeconds} />
   }
 
   // Rắn săn mồi hiện đại: Hỗ trợ 100% PvE, PvP + PvE, hoặc 100% PvP

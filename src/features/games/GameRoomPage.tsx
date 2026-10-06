@@ -74,7 +74,15 @@ export function GameRoomPage() {
 
   // Trò chơi đơn không có bàn WebSocket: dựng khu chơi riêng thay vì bàn đối kháng.
   if (intendedGameType && laTroChoiDon(intendedGameType)) {
-    return <SoloGamePage gameType={intendedGameType as SoloGameType} onLeave={roiBan} />
+    const turnParam = searchParams.get('turn')
+    const turnVal = turnParam ? Number(turnParam) : undefined
+    return (
+      <SoloGamePage
+        gameType={intendedGameType as SoloGameType}
+        onLeave={roiBan}
+        initialTurnSeconds={Number.isFinite(turnVal) ? turnVal : undefined}
+      />
+    )
   }
 
   // Nếu phòng riêng tư chưa được mở khóa mật khẩu -> hiển thị giao diện nhập mật khẩu

@@ -30,6 +30,8 @@ import {
   useCheDoBan,
 } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
+import { GameDrawModal } from '../GameDrawModal'
+import { toast } from 'sonner'
 import { TIME_PRESETS } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
@@ -267,6 +269,103 @@ export function ChessBoard({
   })
 
   useScreenWakeLock(isPlaying)
+
+  // ─ Xử lý Xin hòa chuẩn thi đấu (Offer Draw) ─
+  const [isDrawModalOpen, setIsDrawModalOpen] = useState(false)
+  const [drawModalType, setDrawModalType] = useState<'offer' | 'incoming'>('offer')
+  const isDrawOfferedByMe = Boolean(laOnline && online?.mySide && online.meta.drawOfferBy === online.mySide)
+  const isDrawOfferedByOpponent = Boolean(laOnline && online?.mySide && online.meta.drawOfferBy && online.meta.drawOfferBy !== online.mySide)
+
+  // Nhận tín hiệu xin hòa từ đối thủ online qua server meta
+  useEffect(() => {
+    if (isDrawOfferedByOpponent && !isOver) {
+      setDrawModalType('incoming')
+      setIsDrawModalOpen(true)
+    }
+  }, [isDrawOfferedByOpponent, isOver])
+
+  // Lắng nghe tín hiệu hòa qua chat hệ thống
+  useEffect(() => {
+    if (!online?.chat || online.chat.length === 0) return
+    const lastMsg = online.chat[online.chat.length - 1]
+    if (lastMsg && typeof lastMsg.text === 'string' && lastMsg.text.startsWith('[SYS_CHESS_PROP]:')) {
+      const action = lastMsg.text.replace('[SYS_CHESS_PROP]:', '').trim()
+      const isFromMe = String(lastMsg.accountId) === online.myActorKey?.replace(/^acc:/, '')
+      if (action === 'draw_offer' && !isFromMe && !isOver) {
+        setDrawModalType('incoming')
+        setIsDrawModalOpen(true)
+      } else if (action === 'draw_accept') {
+        setIsDrawModalOpen(false)
+        setCustomGameOver({
+          over: true,
+          winner: null,
+          reason: 'Hai bên đồng thuận hòa cờ',
+        })
+        setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+        playGameOverSound('draw')
+      } else if (action === 'draw_decline' && !isFromMe) {
+        toast.info('Đối thủ đã từ chối đề nghị hòa')
+      }
+    }
+  }, [online?.chat, online?.myActorKey, isOver])
+
+  const handleOfferDraw = useCallback(() => {
+    if (isOver || isAiThinking || !isPlaying) return
+    setDrawModalType('offer')
+    setIsDrawModalOpen(true)
+  }, [isOver, isAiThinking, isPlaying])
+
+  const handleConfirmDraw = useCallback(() => {
+    if (drawModalType === 'offer') {
+      if (mode === 'ai') {
+        setCustomGameOver({
+          over: true,
+          winner: null,
+          reason: 'Máy AI đồng ý hòa cờ',
+        })
+        setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+        playGameOverSound('draw')
+        return
+      }
+      if (laOnline && online) {
+        try {
+          online.offerDraw?.()
+        } catch {}
+        online.guiChat('[SYS_CHESS_PROP]:draw_offer')
+        toast.info('Đã gửi đề nghị hòa cờ, chờ đối thủ xác nhận...')
+        return
+      }
+      // Chế độ 2 người cùng máy: chuyển cho người chơi còn lại xác nhận
+      setDrawModalType('incoming')
+      setIsDrawModalOpen(true)
+    } else {
+      // Chấp nhận hòa từ đối thủ
+      if (laOnline && online) {
+        try {
+          online.offerDraw?.()
+        } catch {}
+        online.guiChat('[SYS_CHESS_PROP]:draw_accept')
+      }
+      setCustomGameOver({
+        over: true,
+        winner: null,
+        reason: 'Hai bên đồng thuận hòa cờ',
+      })
+      setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+      playGameOverSound('draw')
+    }
+  }, [drawModalType, mode, laOnline, online])
+
+  const handleDeclineDraw = useCallback(() => {
+    setIsDrawModalOpen(false)
+    if (laOnline && online) {
+      try {
+        online.declineDraw?.()
+      } catch {}
+      online.guiChat('[SYS_CHESS_PROP]:draw_decline')
+    }
+    toast.info('Đã từ chối hòa cờ')
+  }, [laOnline, online])
 
   // Tính toán số quân ăn được của 2 bên
   const captured = useMemo(() => {
@@ -628,13 +727,15 @@ export function ChessBoard({
       )}
       <div
         className={cn(
-          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-colors duration-150',
           pos.turn !== mauCuaToi && isPlaying
-            ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)] animate-pulse'
+            ? clock.timeRemaining <= 10 && clock.timeRemaining > 0
+              ? 'border-rose-500/80 bg-rose-500/20 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse'
+              : 'border-rose-500/60 bg-rose-500/15 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)] animate-pulse'
             : 'border-border-default bg-surface-overlay/60 text-text-secondary',
         )}
       >
-        {formatClockTime(clock.timeRemaining)}
+        {formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}
       </div>
       <div className="absolute top-full mt-2 left-0 z-50 pointer-events-none">
         <GameOpponentBubble bubble={bongDoiThu} theme="amber" />
@@ -646,13 +747,15 @@ export function ChessBoard({
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
       <div
         className={cn(
-          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-colors duration-150',
           pos.turn === mauCuaToi && isPlaying
-            ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)] animate-pulse'
+            ? clock.timeRemaining <= 10 && clock.timeRemaining > 0
+              ? 'border-rose-500/80 bg-rose-500/20 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse'
+              : 'border-cyan-500/60 bg-cyan-500/15 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)] animate-pulse'
             : 'border-border-default bg-surface-overlay/60 text-text-secondary',
         )}
       >
-        {formatClockTime(clock.timeRemaining)}
+        {formatClockTime(pos.turn === mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}
       </div>
       {captured.enemyCaptured.length > 0 && (
         <div className="hidden md:flex items-center gap-0.5 mr-0.5">
@@ -701,6 +804,8 @@ export function ChessBoard({
         resetIcon={nutOnline?.icon}
         resetDisabled={nutOnline ? nutOnline.disabled : (!isOver && surrenderAttempts >= 3)}
         surrenderAttempts={nutOnline ? undefined : surrenderAttempts}
+        onOfferDraw={handleOfferDraw}
+        offerDrawDisabled={isDrawOfferedByMe || isOver || isAiThinking || !isPlaying}
         activeSide={isOver ? (winnerColor === WHITE ? 'red' : 'black') : (pos.turn === WHITE ? 'red' : 'black')}
         turnLabel={`Lượt: ${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'}`}
         isAiThinking={isAiThinking}
@@ -1038,6 +1143,16 @@ export function ChessBoard({
           setSurrenderAttempts((prev) => Math.min(prev + 1, 3))
           setIsSurrenderModalOpen(false)
         }}
+      />
+
+      {/* Modal Đề nghị hòa chuẩn thi đấu */}
+      <GameDrawModal
+        open={isDrawModalOpen}
+        onClose={() => setIsDrawModalOpen(false)}
+        type={drawModalType}
+        onConfirm={handleConfirmDraw}
+        onDecline={handleDeclineDraw}
+        theme="amber"
       />
     </div>
   )

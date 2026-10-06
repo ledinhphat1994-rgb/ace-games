@@ -2326,7 +2326,7 @@ export function XiangqiBoard({
           })()}
 
           {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI / VÙNG 2) */}
-          {!isPlaying && !activeDlg && !heroicBanner && (!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO)) && (
+          {((!isPlaying && !isOver) && !activeDlg && !heroicBanner && (!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO)) || (isOver && !isPlaying && !activeDlg && !heroicBanner)) && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"

@@ -12,6 +12,8 @@ import {
   useCheDoBan,
 } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
+import { GameDrawModal } from '../GameDrawModal'
+import { toast } from 'sonner'
 import { TIME_PRESETS } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
@@ -307,6 +309,91 @@ export function CaroBoard({
 
   useScreenWakeLock(isPlaying)
 
+  // ─ Xử lý Xin hòa chuẩn thi đấu (Offer Draw) ─
+  const [isDrawModalOpen, setIsDrawModalOpen] = useState(false)
+  const [drawModalType, setDrawModalType] = useState<'offer' | 'incoming'>('offer')
+  const isDrawOfferedByMe = Boolean(laOnline && online?.mySide && online.meta.drawOfferBy === online.mySide)
+  const isDrawOfferedByOpponent = Boolean(laOnline && online?.mySide && online.meta.drawOfferBy && online.meta.drawOfferBy !== online.mySide)
+
+  // Nhận tín hiệu xin hòa từ đối thủ online qua server meta
+  useEffect(() => {
+    if (isDrawOfferedByOpponent && !winner) {
+      setDrawModalType('incoming')
+      setIsDrawModalOpen(true)
+    }
+  }, [isDrawOfferedByOpponent, winner])
+
+  // Lắng nghe tín hiệu hòa qua chat hệ thống
+  useEffect(() => {
+    if (!online?.chat || online.chat.length === 0) return
+    const lastMsg = online.chat[online.chat.length - 1]
+    if (lastMsg && typeof lastMsg.text === 'string' && lastMsg.text.startsWith('[SYS_CARO_PROP]:')) {
+      const action = lastMsg.text.replace('[SYS_CARO_PROP]:', '').trim()
+      const isFromMe = String(lastMsg.accountId) === online.myActorKey?.replace(/^acc:/, '')
+      if (action === 'draw_offer' && !isFromMe && !winner) {
+        setDrawModalType('incoming')
+        setIsDrawModalOpen(true)
+      } else if (action === 'draw_accept') {
+        setIsDrawModalOpen(false)
+        setWinner('draw')
+        setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+        playGameOverSound('draw')
+      } else if (action === 'draw_decline' && !isFromMe) {
+        toast.info('Đối thủ đã từ chối đề nghị hòa')
+      }
+    }
+  }, [online?.chat, online?.myActorKey, winner])
+
+  const handleOfferDraw = useCallback(() => {
+    if (winner || isAiThinking || !isPlaying) return
+    setDrawModalType('offer')
+    setIsDrawModalOpen(true)
+  }, [winner, isAiThinking, isPlaying])
+
+  const handleConfirmDraw = useCallback(() => {
+    if (drawModalType === 'offer') {
+      if (mode === 'ai') {
+        setWinner('draw')
+        setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+        playGameOverSound('draw')
+        return
+      }
+      if (laOnline && online) {
+        try {
+          online.offerDraw?.()
+        } catch {}
+        online.guiChat('[SYS_CARO_PROP]:draw_offer')
+        toast.info('Đã gửi đề nghị hòa cờ, chờ đối thủ xác nhận...')
+        return
+      }
+      // Chế độ 2 người cùng máy:
+      setDrawModalType('incoming')
+      setIsDrawModalOpen(true)
+    } else {
+      // Chấp nhận hòa từ đối thủ
+      if (laOnline && online) {
+        try {
+          online.offerDraw?.()
+        } catch {}
+        online.guiChat('[SYS_CARO_PROP]:draw_accept')
+      }
+      setWinner('draw')
+      setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+      playGameOverSound('draw')
+    }
+  }, [drawModalType, mode, laOnline, online])
+
+  const handleDeclineDraw = useCallback(() => {
+    setIsDrawModalOpen(false)
+    if (laOnline && online) {
+      try {
+        online.declineDraw?.()
+      } catch {}
+      online.guiChat('[SYS_CARO_PROP]:draw_decline')
+    }
+    toast.info('Đã từ chối hòa cờ')
+  }, [laOnline, online])
+
   // Âm thanh khi đối thủ đi cờ trên bàn online
   const prevNuocOnlineRef = useRef(nuocOnline ? `${nuocOnline.x}-${nuocOnline.y}` : '')
   useEffect(() => {
@@ -370,13 +457,15 @@ export function CaroBoard({
       </div>
       <div
         className={cn(
-          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-colors duration-150',
           currentTurn !== playerSide && isPlaying && !winner
-            ? 'border-rose-500/60 bg-rose-500/10 text-rose-500 shadow-sm animate-pulse'
+            ? clock.timeRemaining <= 10 && clock.timeRemaining > 0
+              ? 'border-rose-500/80 bg-rose-500/20 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse'
+              : 'border-rose-500/60 bg-rose-500/10 text-rose-500 shadow-sm animate-pulse'
             : 'border-border-default bg-surface-overlay/60 text-text-secondary',
         )}
       >
-        {formatClockTime(clock.timeRemaining)}
+        {formatClockTime(currentTurn !== playerSide && isPlaying && !winner ? clock.timeRemaining : clock.turnSeconds)}
       </div>
       <div className="absolute top-full mt-2 left-0 z-50 pointer-events-none">
         <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
@@ -388,13 +477,15 @@ export function CaroBoard({
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
       <div
         className={cn(
-          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-all',
+          'px-1.5 sm:px-2 py-0.5 rounded-md border font-mono text-[11px] sm:text-xs font-bold tracking-wider shrink-0 transition-colors duration-150',
           currentTurn === playerSide && isPlaying && !winner
-            ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-400 shadow-sm animate-pulse'
+            ? clock.timeRemaining <= 10 && clock.timeRemaining > 0
+              ? 'border-rose-500/80 bg-rose-500/20 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)] animate-pulse'
+              : 'border-cyan-500/60 bg-cyan-500/10 text-cyan-400 shadow-sm animate-pulse'
             : 'border-border-default bg-surface-overlay/60 text-text-secondary',
         )}
       >
-        {formatClockTime(clock.timeRemaining)}
+        {formatClockTime(currentTurn === playerSide && isPlaying && !winner ? clock.timeRemaining : clock.turnSeconds)}
       </div>
       <div className="flex flex-col min-w-0 text-right">
         <span className="text-[11px] sm:text-xs font-bold text-text-primary truncate max-w-[65px] sm:max-w-[85px]">
@@ -436,6 +527,8 @@ export function CaroBoard({
         resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
         resetIcon={nutOnline?.icon}
         resetDisabled={nutOnline?.disabled}
+        onOfferDraw={handleOfferDraw}
+        offerDrawDisabled={isDrawOfferedByMe || Boolean(winner) || isAiThinking || !isPlaying}
         activeSide={winner ? (winner === 'X' ? 'red' : 'black') : (currentTurn === 'X' ? 'red' : 'black')}
         turnLabel={`Lượt: ${currentTurn === 'X' ? 'Quân X (Đi trước)' : 'Quân O'}`}
         isAiThinking={isAiThinking}
@@ -692,6 +785,16 @@ export function CaroBoard({
           setIsSurrenderModalOpen(false)
           setIsAiThinking(false)
         }}
+      />
+
+      {/* Modal Đề nghị hòa chuẩn thi đấu */}
+      <GameDrawModal
+        open={isDrawModalOpen}
+        onClose={() => setIsDrawModalOpen(false)}
+        type={drawModalType}
+        onConfirm={handleConfirmDraw}
+        onDecline={handleDeclineDraw}
+        theme="cyan"
       />
     </div>
   )

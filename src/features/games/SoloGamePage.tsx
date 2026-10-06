@@ -5,9 +5,10 @@ import { SoloGameStage, type SoloGameType } from './SoloGameStage'
 interface SoloGamePageProps {
   gameType: SoloGameType
   onLeave: () => void
+  initialTurnSeconds?: number
 }
 
-export function SoloGamePage({ gameType, onLeave }: SoloGamePageProps) {
+export function SoloGamePage({ gameType, onLeave, initialTurnSeconds }: SoloGamePageProps) {
   const queryClient = useQueryClient()
 
   const lamMoiBangXepHang = useCallback(() => {
@@ -39,6 +40,7 @@ export function SoloGamePage({ gameType, onLeave }: SoloGamePageProps) {
         onBack={onLeave}
         onSaveScore={(score) => void luuDiem(score)}
         onSnakeSettled={lamMoiBangXepHang}
+        initialTurnSeconds={initialTurnSeconds}
       />
     </div>
   )
