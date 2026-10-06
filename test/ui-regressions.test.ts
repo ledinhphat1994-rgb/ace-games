@@ -13,13 +13,13 @@ describe('Khách chưa đăng nhập không thấy số liệu giả', () => {
     expect(appHeaderRaw).toMatch(/\{nguoiDung && \(\s*<ConnectionIndicator/)
   })
 
-  it('trang Học tập không nói "chưa có phòng" và không hiện số 0 với khách', () => {
+  it('trang Học tập hiển thị sảnh phòng khám phá đồng bộ với Game, yêu cầu đăng nhập khi tương tác', () => {
     // Số phòng chỉ hiện với người đã đăng nhập (mẫu sảnh chung chỉ hiện số khi danh sách đã sẵn sàng).
     expect(learningPageRaw).toContain("nguoiDung && lobbyState.status === 'ready'")
     expect(learningPageRaw).toContain('danhSachPhongLoc.length')
     // Số liệu tổng chỉ Quản trị trường thấy (ThongKeHocTap tự ẩn với người khác), và chỉ khi sảnh đã sẵn sàng.
     expect(learningPageRaw).toContain("<ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />")
-    expect(learningPageRaw).toContain('Đăng nhập để xem phòng đang mở')
+    expect(learningPageRaw).toContain('PLATFORM_DEFAULT_STUDY_ROOMS')
     expect(learningPageRaw).toContain("moAuthModal('dang_nhap')")
   })
 })

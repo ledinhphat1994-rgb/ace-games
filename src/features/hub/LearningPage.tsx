@@ -39,6 +39,100 @@ import { cn } from '@/lib/utils'
 
 export { LEARNING_OCCUPANCY_METRIC_CONFIG }
 
+// Danh sách phòng học mẫu chuẩn nền tảng hiển thị cho khách và người dùng khám phá sảnh
+export const PLATFORM_DEFAULT_STUDY_ROOMS: PhongSanh[] = [
+  {
+    id: 1,
+    ten: 'Ôn tập chuyên đề thi THPT: Toán & Ngữ văn',
+    moTa: 'Phòng học nhóm tự do cùng giáo viên bộ môn và bạn bè.',
+    monHoc: 'toan',
+    phamVi: 'truong',
+    lopId: null,
+    lopTen: null,
+    chuPhongTen: 'Thầy Mai',
+    coMatKhau: false,
+    sucChua: 30,
+    soNguoi: 12,
+    dangPhat: 'Bài giảng: Đồ thị hàm số bậc hai',
+    taoLuc: 1727740800000,
+  },
+  {
+    id: 2,
+    ten: 'Chuyên đề Ngữ Văn 10: Nghị luận văn học & Đọc hiểu',
+    moTa: 'Phân tích văn bản tác phẩm và luyện viết đoạn văn ngắn.',
+    monHoc: 'ngu-van',
+    phamVi: 'lop',
+    lopId: 1,
+    lopTen: '10A7',
+    chuPhongTen: 'Cô Phạm Thúy Linh',
+    coMatKhau: false,
+    sucChua: 25,
+    soNguoi: 8,
+    dangPhat: null,
+    taoLuc: 1727744400000,
+  },
+  {
+    id: 3,
+    ten: 'Luyện giao tiếp & Từ vựng Tiếng Anh 10',
+    moTa: 'Thực hành phát âm, đàm thoại và làm bài tập trắc nghiệm nhanh.',
+    monHoc: 'tieng-anh',
+    phamVi: 'truong',
+    lopId: null,
+    lopTen: null,
+    chuPhongTen: 'Nguyễn Minh Anh',
+    coMatKhau: false,
+    sucChua: 20,
+    soNguoi: 6,
+    dangPhat: 'IELTS Speaking & Vocabulary',
+    taoLuc: 1727748000000,
+  },
+  {
+    id: 4,
+    ten: 'Giải bài tập Vật Lí 10: Động học chất điểm',
+    moTa: 'Thảo luận phương pháp giải các bài toán chuyển động thẳng đều.',
+    monHoc: 'vat-li',
+    phamVi: 'lop',
+    lopId: 1,
+    lopTen: '10A7',
+    chuPhongTen: 'Trần Văn Cường',
+    coMatKhau: false,
+    sucChua: 20,
+    soNguoi: 5,
+    dangPhat: null,
+    taoLuc: 1727751600000,
+  },
+  {
+    id: 5,
+    ten: 'Hóa học 10: Cấu tạo nguyên tử & Bảng tuần hoàn',
+    moTa: 'Học nhóm ôn thi học kỳ và làm thí nghiệm ảo mô phỏng.',
+    monHoc: 'hoa-hoc',
+    phamVi: 'truong',
+    lopId: null,
+    lopTen: null,
+    chuPhongTen: 'Lê Hoàng Nam',
+    coMatKhau: false,
+    sucChua: 20,
+    soNguoi: 4,
+    dangPhat: null,
+    taoLuc: 1727755200000,
+  },
+  {
+    id: 6,
+    ten: 'Thực hành Tin học 10: Lập trình Python cơ bản',
+    moTa: 'Cùng code thuật toán, sửa lỗi và chia sẻ dự án cá nhân.',
+    monHoc: 'tin-hoc',
+    phamVi: 'truong',
+    lopId: null,
+    lopTen: null,
+    chuPhongTen: 'Lê An',
+    coMatKhau: false,
+    sucChua: 25,
+    soNguoi: 9,
+    dangPhat: 'Python căn bản cho học sinh THPT',
+    taoLuc: 1727758800000,
+  },
+]
+
 export function LearningPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -64,37 +158,49 @@ export function LearningPage() {
   const [moTaoPhong, setMoTaoPhong] = useState(false)
   const [moVaoBangMa, setMoVaoBangMa] = useState(false)
 
+  // Kết hợp phòng thực tế với phòng mẫu chuẩn nền tảng để khách vãng lai và học sinh luôn khám phá được sảnh
+  const allStudyRooms = useMemo(() => {
+    const liveIds = new Set(rooms.map((r) => r.id))
+    const merged = [...rooms]
+    for (const d of PLATFORM_DEFAULT_STUDY_ROOMS) {
+      if (!liveIds.has(d.id)) {
+        merged.push(d)
+      }
+    }
+    return merged
+  }, [rooms])
+
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
 
   const roomFriendsMap = useMemo(
     () =>
-      buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers, {
+      buildRoomFriendsMap(allStudyRooms, friends, presenceMap, blockedUsers, {
         presenceReady,
         connectionStatus: trangThai,
       }),
-    [rooms, friends, presenceMap, blockedUsers, presenceReady, trangThai],
+    [allStudyRooms, friends, presenceMap, blockedUsers, presenceReady, trangThai],
   )
 
   const lobbyState = useMemo(
-    () => deriveLobbyState({ trangThai, campusSnapshotReady, rooms }),
-    [trangThai, campusSnapshotReady, rooms],
+    () => deriveLobbyState({ trangThai, campusSnapshotReady, rooms: allStudyRooms }),
+    [trangThai, campusSnapshotReady, allStudyRooms],
   )
 
   const danhSachPhongLoc = useMemo(
-    () => sortDiscoveryRooms(filterLobbyRooms(rooms, tuKhoa), roomFriendsMap),
-    [rooms, tuKhoa, roomFriendsMap],
+    () => sortDiscoveryRooms(filterLobbyRooms(allStudyRooms, tuKhoa), roomFriendsMap),
+    [allStudyRooms, tuKhoa, roomFriendsMap],
   )
 
   const activeFriendStudy = useMemo(
     () =>
       deriveActiveFriendStudy({
-        rooms,
+        rooms: allStudyRooms,
         roomFriendsMap,
         presenceReady,
         trangThai,
       }),
-    [rooms, roomFriendsMap, presenceReady, trangThai],
+    [allStudyRooms, roomFriendsMap, presenceReady, trangThai],
   )
 
   const datTuKhoa = (giaTri: string) => {
@@ -103,6 +209,10 @@ export function LearningPage() {
   }
 
   const xuLyVaoPhong = (room: PhongSanh) => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
     if (room.soNguoi >= room.sucChua) {
       toast.error('Phòng học đã đầy')
       return
@@ -123,8 +233,8 @@ export function LearningPage() {
   }
 
   const quickJoinRoom = useMemo(
-    () => deriveQuickJoinRoom({ lobbyStatus: lobbyState.status, rooms, roomFriendsMap }),
-    [lobbyState.status, rooms, roomFriendsMap],
+    () => deriveQuickJoinRoom({ lobbyStatus: lobbyState.status, rooms: allStudyRooms, roomFriendsMap }),
+    [lobbyState.status, allStudyRooms, roomFriendsMap],
   )
 
   // Danh sách các Slide tự chạy cho Hero Banner Sảnh học tập (VÙNG 6)
@@ -359,18 +469,7 @@ export function LearningPage() {
               </div>
             )}
 
-            {!nguoiDung ? (
-              <div data-testid="learning-empty-rooms">
-                <EmptyState
-                  icon={BookOpen}
-                  title="Đăng nhập để xem phòng đang mở"
-                  action={{
-                    label: 'Đăng nhập',
-                    onClick: () => moAuthModal('dang_nhap'),
-                  }}
-                />
-              </div>
-            ) : lobbyState.status === 'ready' && danhSachPhongLoc.length === 0 ? (
+            {lobbyState.status === 'ready' && danhSachPhongLoc.length === 0 ? (
               <div data-testid="learning-empty-rooms">
                 <EmptyState
                   icon={BookOpen}
