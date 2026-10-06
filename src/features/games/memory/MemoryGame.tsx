@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Bot,
@@ -11,10 +11,17 @@ import {
   User,
   Users,
   X,
+  Settings,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
+import { layHoSoNguoiDung } from '@/lib/api'
+import { tinhLevel } from '@/features/games/GameLeaderboard'
 import { cn } from '@/lib/utils'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
@@ -38,15 +45,15 @@ function formatClockTime(sec: number): string {
 }
 
 function getBubbleCoordinates(index: number, total: number) {
-  const startAngle = -140
-  const endAngle = 50
+  const startAngle = 55
+  const endAngle = 185
   const angleStep = total > 1 ? (endAngle - startAngle) / (total - 1) : 0
   const angleDeg = startAngle + index * angleStep
   const angleRad = (angleDeg * Math.PI) / 180
-  const radius = 54
+  const radius = 66
   return {
     x: Math.round(Math.cos(angleRad) * radius),
-    y: Math.round(Math.sin(angleRad) * radius),
+    y: Math.round(-Math.sin(angleRad) * radius),
   }
 }
 
@@ -183,11 +190,151 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ─ Giới hạn và kéo thả tự do Avatar người chơi trong Khung 1 ─
+  const VUNG_4_BOUNDS = {
+    MIN_X: -135,
+    MAX_X: 0,
+    MIN_Y: -240,
+    MAX_Y: 10,
+  } as const
+
+  const clampAvatarPos = (x: number, y: number) => ({
+    x: Math.max(VUNG_4_BOUNDS.MIN_X, Math.min(VUNG_4_BOUNDS.MAX_X, x)),
+    y: Math.max(VUNG_4_BOUNDS.MIN_Y, Math.min(VUNG_4_BOUNDS.MAX_Y, y)),
+  })
+
+  const [avatarOffset, setAvatarOffset] = useState<{ x: number; y: number }>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('memory_avatar_pos')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+            return clampAvatarPos(parsed.x, parsed.y)
+          }
+        }
+      } catch {}
+    }
+    return { x: 0, y: 0 }
+  })
+
+  const currentOffsetRef = useRef(avatarOffset)
+  currentOffsetRef.current = avatarOffset
+  const isDraggingAvatarRef = useRef(false)
+  const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
+    startX: 0,
+    startY: 0,
+    initX: 0,
+    initY: 0,
+  })
+  const hasMovedAvatarRef = useRef(false)
+
+  const handleAvatarPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    isDraggingAvatarRef.current = true
+    hasMovedAvatarRef.current = false
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: currentOffsetRef.current.x,
+      initY: currentOffsetRef.current.y,
+    }
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const handleAvatarPointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingAvatarRef.current) return
+    e.stopPropagation()
+    const dx = e.clientX - dragStartRef.current.startX
+    const dy = e.clientY - dragStartRef.current.startY
+    if (Math.hypot(dx, dy) > 5) {
+      hasMovedAvatarRef.current = true
+    }
+    const newX = dragStartRef.current.initX + dx
+    const newY = dragStartRef.current.initY + dy
+    const clamped = clampAvatarPos(newX, newY)
+    currentOffsetRef.current = clamped
+    setAvatarOffset(clamped)
+  }
+
+  const handleAvatarPointerUp = (e: React.PointerEvent) => {
+    if (!isDraggingAvatarRef.current) return
+    e.stopPropagation()
+    isDraggingAvatarRef.current = false
+    try {
+      ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+    } catch {}
+
+    if (hasMovedAvatarRef.current) {
+      try {
+        localStorage.setItem('memory_avatar_pos', JSON.stringify(currentOffsetRef.current))
+      } catch {}
+    }
+  }
+
   const { nguoiDung } = usePhien()
   const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
   const myAvatarUrl = nguoiDung?.avatar || ''
   const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false)
   const [emoteAnchorEl, setEmoteAnchorEl] = useState<HTMLElement | null>(null)
+  const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
+
+  const [selectedProfileUser, setSelectedProfileUser] = useState<NguoiXem | null>(null)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [customMinutesInput, setCustomMinutesInput] = useState<number>(10)
+
+  const myAccountId = nguoiDung?.accountId ?? 0
+  const { data: myProfile } = useQuery({
+    queryKey: ['ho-so-nguoi-dung', myAccountId],
+    queryFn: () => (myAccountId ? layHoSoNguoiDung(myAccountId) : null),
+    enabled: Boolean(myAccountId),
+    staleTime: 60_000,
+  })
+
+  const myLevel = useMemo(() => tinhLevel(myProfile?.totalXp ?? 0), [myProfile?.totalXp])
+  const [myElo] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const key = `dc_memory_elo_${nguoiDung?.accountId ?? 'guest'}`
+        const saved = localStorage.getItem(key)
+        if (saved) {
+          const num = Number(saved)
+          if (Number.isFinite(num) && num > 0) return num
+        }
+      } catch {}
+    }
+    return 1500
+  })
+
+  const updateQuickMenuPos = useCallback((anchor?: HTMLElement | null) => {
+    const el = anchor || emoteAnchorEl || document.getElementById('tool-bubble-emote')
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const POPUP_W = 280
+    const POPUP_H = 175
+    const padding = 12
+
+    let left = rect.left + rect.width / 2 - POPUP_W / 2
+    const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
+    const boardEl = document.querySelector('section[aria-label*="Bàn chơi"]') || document.querySelector('section')
+    const maxSafeRight = boardEl ? boardEl.getBoundingClientRect().left - 12 : window.innerWidth - 12
+    left = Math.max(minSafeLeft, Math.min(maxSafeRight - POPUP_W, left))
+    if (left + POPUP_W > window.innerWidth - 12) {
+      left = window.innerWidth - POPUP_W - 12
+    }
+
+    let top = rect.top - POPUP_H - padding
+    if (top < 12) {
+      top = rect.bottom + padding
+    }
+    top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
+
+    setQuickMenuPos({ left, top })
+  }, [emoteAnchorEl])
 
   const isGameOver = matched.length === cards.length || surrenderWinner !== null || isDrawAgreed
 
@@ -222,6 +369,14 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
       clock.proposeTime(initialTurnSeconds)
     }
   }, [initialTurnSeconds])
+
+  const handleSelectTime = useCallback(
+    (sec: number) => {
+      clock.proposeTime(sec)
+      setCustomMinutesInput(Math.round(sec / 60))
+    },
+    [clock]
+  )
 
   const handleOfferDraw = useCallback(() => {
     if (isGameOver || isAiThinking) return
@@ -578,7 +733,9 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
       title: 'Biểu cảm & Tin nhanh',
       icon: <Smile className="size-4 text-violet-400" />,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
-        setEmoteAnchorEl(e.currentTarget)
+        const el = e.currentTarget
+        setEmoteAnchorEl(el)
+        updateQuickMenuPos(el)
         setIsEmotePickerOpen((prev) => !prev)
       },
       className: 'border-violet-400/50 bg-[#161a24]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
@@ -819,7 +976,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
 
           {/* NÚT BẮT ĐẦU / ĐẤU LẠI Ở GIỮA BÀN CHƠI */}
           {isGameOver && (
-            <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center gap-3 animate-in fade-in duration-200">
+            <div className="absolute inset-0 z-40 bg-black/10 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-150">
               <div
                 className={cn(
                   'px-4 py-1.5 rounded-full border text-xs font-black tracking-wider uppercase shadow-lg',
@@ -848,12 +1005,18 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         <aside
           id="vung-4-plus-desk"
           aria-label="Thông tin người chơi"
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+48px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-30 shrink-0 pointer-events-auto"
+          style={{
+            transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
+          }}
+          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
           <div className="relative flex flex-col items-center mb-8">
-            {/* Bong bóng chat người chơi */}
+            {/* Bong bóng chat người chơi (đặt phía trên cụm nút công cụ, không đè nút, sidebar hay bàn chơi) */}
             {playerBubble && (
-              <div className="absolute bottom-[calc(100%+52px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-violet-400 text-xs font-bold text-violet-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div
+                style={{ bottom: '126px' }}
+                className="absolute left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-violet-400 text-xs font-bold text-violet-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150 z-40 select-none pointer-events-none max-w-[200px]"
+              >
                 {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
                 <span className="truncate">{playerBubble.quote}</span>
               </div>
@@ -868,6 +1031,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                     key={tool.id}
                     type="button"
                     id={`tool-bubble-${tool.id}`}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={tool.onClick}
                     disabled={tool.disabled}
                     style={{
@@ -885,15 +1049,27 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                 )
               })}
 
-              {/* Avatar người chơi tròn */}
-              <div
+              {/* Avatar người chơi tròn (Nhấn giữ kéo tự do mượt mà chuẩn cờ tướng, click để mở cài đặt & hồ sơ) */}
+              <button
+                type="button"
+                onPointerDown={handleAvatarPointerDown}
+                onPointerMove={handleAvatarPointerMove}
+                onPointerUp={handleAvatarPointerUp}
+                onPointerCancel={handleAvatarPointerUp}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!hasMovedAvatarRef.current) {
+                    setIsSettingsModalOpen(true)
+                  }
+                }}
                 className={cn(
-                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-grab active:cursor-grabbing touch-none hover:scale-105 group',
                   turn === 1 && !isGameOver
                     ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.7)] ring-4 ring-emerald-400/20'
-                    : 'border-violet-500/40 bg-[#121620]/90'
+                    : 'border-violet-500/40 hover:border-violet-400 bg-[#121620]/90'
                 )}
-                title={`${myName} (Bạn)`}
+                title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & thông tin người chơi)` : 'Nhấn giữ kéo tự do, click để mở cài đặt'}
+                aria-label={myName ? `${myName} - Cài đặt & thông tin người chơi` : 'Cài đặt & thông tin người chơi'}
               >
                 <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
                 <div
@@ -902,7 +1078,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                 >
                   {score1}
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Đồng hồ đếm ngược người chơi */}
@@ -928,7 +1104,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         <aside
           id="vung-2-plus-desk"
           aria-label="Thông tin đối thủ"
-          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+48px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+24px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
         >
           <div className="relative flex flex-col items-center">
             {/* Badge Elo & Level */}
@@ -948,28 +1124,49 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
 
             {/* Bong bóng chat đối thủ */}
             {opponentBubble && (
-              <div className="absolute -top-11 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-violet-400 text-xs font-bold text-violet-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div className="absolute -top-11 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-violet-400 text-xs font-bold text-violet-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
                 {opponentBubble.emoji && <span className="text-sm shrink-0">{opponentBubble.emoji}</span>}
                 <span className="truncate">{opponentBubble.quote}</span>
               </div>
             )}
 
-            {/* Avatar đối thủ */}
-            <div
+            {/* Avatar đối thủ (Bấm để xem thông tin) */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (mode === 'pve') {
+                  toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 3' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 2' : 'AI Trí Nhớ · Cấp 1')
+                  return
+                }
+                const rect = e.currentTarget.getBoundingClientRect()
+                setSelectedProfileUser({
+                  id: 2,
+                  ten: 'Người chơi 2',
+                  gameName: 'Trí Nhớ',
+                  anchorRect: {
+                    top: rect.top,
+                    left: rect.left,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                  },
+                })
+              }}
               className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
                 turn === 2 && !isGameOver
                   ? 'border-violet-400 shadow-[0_0_20px_rgba(167,139,250,0.7)] ring-4 ring-violet-400/20'
-                  : 'border-violet-500/40 bg-[#121620]/90'
+                  : 'border-violet-500/40 hover:border-violet-400 bg-[#121620]/90'
               )}
-              title={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+              title={mode === 'pve' ? 'Máy AI Trí Nhớ - Bấm để xem thông tin' : 'Người chơi 2 - Bấm để xem thông tin'}
+              aria-label={mode === 'pve' ? 'Thông tin Máy AI' : 'Người chơi 2'}
             >
               {mode === 'pve' ? (
-                <div className="size-full rounded-full bg-violet-950/60 flex items-center justify-center text-violet-300">
+                <div className="size-full rounded-full bg-violet-950/60 flex items-center justify-center text-violet-300 pointer-events-none">
                   <Bot className="size-7" />
                 </div>
               ) : (
-                <div className="size-full rounded-full bg-slate-800 flex items-center justify-center text-violet-300">
+                <div className="size-full rounded-full bg-slate-800 flex items-center justify-center text-violet-300 pointer-events-none">
                   <User className="size-7" />
                 </div>
               )}
@@ -979,7 +1176,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               >
                 {score2}
               </div>
-            </div>
+            </button>
 
             {/* Đồng hồ đếm ngược đối thủ */}
             <div
@@ -1074,27 +1271,35 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         theme="violet"
       />
 
-      {/* Portal Popover Biểu cảm & Tin nhanh */}
-      {isEmotePickerOpen && emoteAnchorEl && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-transparent"
-          onClick={() => setIsEmotePickerOpen(false)}
-        >
+      {/* Portal Popover Biểu cảm & Tin nhanh - Mở NGAY TẠI ICON AVATAR VÙNG 1 */}
+      {isEmotePickerOpen && createPortal(
+        <>
           <div
-            className="w-80 max-w-[90vw] p-3 rounded-2xl bg-[#121622]/95 border-2 border-violet-400/60 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+            className="fixed inset-0 z-[70] bg-transparent"
+            onClick={() => setIsEmotePickerOpen(false)}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              left: `${quickMenuPos.left}px`,
+              top: `${quickMenuPos.top}px`,
+              zIndex: 80,
+            }}
+            className="w-72 max-w-[90vw] p-3 rounded-2xl bg-[#121622]/98 border-2 border-violet-400/60 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
               <span className="text-xs font-bold text-violet-300">Biểu cảm & Tin nhanh</span>
               <button
                 type="button"
                 onClick={() => setIsEmotePickerOpen(false)}
-                className="size-6 rounded-md hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white"
+                className="size-5 rounded-md hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer"
+                aria-label="Đóng biểu cảm"
               >
-                <X className="size-4" />
+                <X className="size-3.5" />
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {DANH_SACH_THAI_DO_MEMORY.map((item) => (
                 <button
                   key={item.id}
@@ -1103,17 +1308,211 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                     handleQuickEmote(item)
                     setIsEmotePickerOpen(false)
                   }}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 hover:bg-violet-500/20 border border-white/5 hover:border-violet-400/40 transition-colors group cursor-pointer"
+                  className="flex flex-col items-center gap-0.5 p-1.5 rounded-xl bg-white/5 hover:bg-violet-500/20 border border-white/5 hover:border-violet-400/40 transition-colors group cursor-pointer"
                   title={item.quote}
                 >
-                  <span className="text-2xl group-hover:scale-110 transition-transform">{item.emoji}</span>
-                  <span className="text-[10px] text-gray-300 font-medium truncate w-full text-center">{item.label}</span>
+                  <span className="text-xl group-hover:scale-110 transition-transform">{item.emoji}</span>
+                  <span className="text-[9px] text-gray-300 font-medium truncate w-full text-center">{item.label}</span>
                 </button>
               ))}
             </div>
           </div>
-        </div>,
+        </>,
         document.body
+      )}
+
+      {/* MODAL CÀI ĐẶT TRẬN ĐẤU KHI BẤM VÀO AVATAR NGƯỜI CHƠI (CHUẨN CỜ TƯỚNG) */}
+      {isSettingsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 select-none p-4"
+          onClick={() => setIsSettingsModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-[420px] rounded-2xl bg-[#121622]/95 border-2 border-violet-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl p-5 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-4 text-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* TIÊU ĐỀ MODAL */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2 font-bold text-gray-100 text-base">
+                <Settings className="w-5 h-5 text-violet-400" />
+                <span>Cài Đặt Trận Đấu</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSettingsModalOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Đóng cài đặt"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {/* THẺ HỒ SƠ KỲ THỦ: CLICK MỞ HỒ SƠ NGƯỜI DÙNG */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setSelectedProfileUser({
+                    id: myAccountId,
+                    ten: myName,
+                    avatar: myAvatarUrl,
+                    gameElo: myElo,
+                    gameName: 'Trí Nhớ',
+                    anchorRect: {
+                      top: rect.top,
+                      left: rect.left,
+                      right: rect.right,
+                      bottom: rect.bottom,
+                    },
+                  })
+                }}
+                className="p-3.5 rounded-xl bg-gradient-to-r from-violet-950/40 via-slate-900 to-slate-900 border-2 border-violet-500/30 hover:border-violet-400/60 transition-colors duration-150 flex items-center justify-between shadow-inner cursor-pointer group"
+                title="Bấm để xem hồ sơ người chơi & thành tựu"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative size-11 rounded-full border-2 border-violet-400/60 p-0.5 shrink-0 shadow-md">
+                    <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-gray-100 truncate group-hover:text-violet-300 transition-colors">{myName}</div>
+                    <div className="text-[11px] text-violet-300/80 font-medium">Người chơi trí nhớ</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2.5 py-1 rounded-lg bg-violet-500/15 border-2 border-violet-500/30 text-violet-300 text-xs font-bold shadow-xs">
+                    Cấp {myLevel}
+                  </span>
+                  <span className="px-3 py-1 rounded-lg bg-amber-500/15 border-2 border-amber-500/30 text-amber-300 text-xs font-extrabold tracking-wide shadow-xs">
+                    Elo {myElo}
+                  </span>
+                </div>
+              </div>
+
+              {/* MỤC 1: CÔNG CỤ CHỈNH THỜI GIAN VÁN ĐẤU */}
+              <div className="flex flex-col gap-2.5 p-3.5 bg-white/[0.03] border-2 border-white/5 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-gray-200">Thời gian mỗi bên:</span>
+                  <span className="font-bold text-violet-400">
+                    {Math.round((clock.myPendingProposal ?? clock.turnSeconds) / 60)} phút
+                  </span>
+                </div>
+
+                {/* Các nút chọn nhanh thời gian thi đấu */}
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                  {[3, 5, 8, 15].map((m) => {
+                    const sec = m * 60
+                    const isSelected = (clock.myPendingProposal ?? clock.turnSeconds) === sec
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        id={`time-btn-${m}`}
+                        onClick={() => handleSelectTime(sec)}
+                        className={cn(
+                          'py-1.5 rounded-lg border-2 text-gray-300 font-medium transition-colors duration-150 cursor-pointer text-center text-xs',
+                          isSelected
+                            ? 'border-violet-500 bg-violet-500/20 text-violet-300 font-semibold'
+                            : 'border-white/10 hover:border-violet-400/50'
+                        )}
+                      >
+                        {m} Phút
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* CARD TÙY CHỈNH THỜI GIAN: 1 HÀNG TINH GỌN CHUẨN RULE 9 */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <span className="text-xs font-semibold text-gray-200">Tùy chỉnh thời gian:</span>
+                  <div className="flex items-center gap-1.5 bg-[#10141c] px-2 py-1 rounded-lg border-2 border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.max(1, customMinutesInput - 1)
+                        handleSelectTime(val * 60)
+                      }}
+                      className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded font-bold cursor-pointer transition-colors duration-150 text-xs"
+                      aria-label="Giảm 1 phút"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={customMinutesInput}
+                      onChange={(e) => {
+                        const val = Math.max(1, Math.min(120, Number(e.target.value) || 1))
+                        handleSelectTime(val * 60)
+                      }}
+                      className="w-8 text-center bg-transparent font-bold text-violet-300 text-xs focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-[10px] text-gray-400 font-medium">phút</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = Math.min(120, customMinutesInput + 1)
+                        handleSelectTime(val * 60)
+                      }}
+                      className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded font-bold cursor-pointer transition-colors duration-150 text-xs"
+                      aria-label="Tăng 1 phút"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* MỤC 2: CÀI ĐẶT ÂM THANH */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border-2 border-white/5 rounded-xl">
+                <div className="flex items-center gap-2">
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-violet-400" /> : <VolumeX className="w-4 h-4 text-gray-400" />}
+                  <span className="font-semibold text-gray-200">Âm thanh</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSoundEnabled((prev) => !prev)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg border-2 text-xs font-semibold cursor-pointer transition-colors duration-150',
+                    soundEnabled
+                      ? 'border-violet-500 bg-violet-500/20 text-violet-300'
+                      : 'border-white/10 bg-white/5 text-gray-400'
+                  )}
+                >
+                  {soundEnabled ? 'Đang bật' : 'Đang tắt'}
+                </button>
+              </div>
+
+              {/* MỤC 3: ĐẶT LẠI VÁN ĐẤU */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border-2 border-white/5 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="font-semibold text-gray-200">Đặt lại ván chơi</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetGame()
+                    setIsSettingsModalOpen(false)
+                  }}
+                  className="px-3 py-1.5 rounded-lg border-2 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold cursor-pointer transition-colors duration-150"
+                >
+                  Chơi lại
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
+      {selectedProfileUser && (
+        <HoSoNguoiDungDialog
+          nguoi={selectedProfileUser}
+          onDong={() => setSelectedProfileUser(null)}
+        />
       )}
     </div>
   )

@@ -417,24 +417,25 @@ export function XiangqiBoard({
       document.getElementById('quick-emoji-btn') ||
       avatarBubbleRef.current
     if (!triggerEl) return
-    const rect = triggerEl.getBoundingClientRect()
+    const asideEl = document.getElementById('vung-2-plus-card')
+    const asideRect = asideEl ? asideEl.getBoundingClientRect() : triggerEl.getBoundingClientRect()
+    const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
+    const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
     const POPUP_W = 240
     const POPUP_H = 268
-    const PADDING = 12
+    const PADDING = 16
 
-    // Canh giữa theo chiều ngang của trigger element
-    let left = rect.left + rect.width / 2 - POPUP_W / 2
-    // Clamp chặt chẽ vào chiều ngang màn hình (không bao giờ bị chém mép trái/phải)
-    left = Math.max(PADDING, Math.min(window.innerWidth - POPUP_W - PADDING, left))
+    const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
+    const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
 
-    // Chiều dọc: Ưu tiên nằm phía TRÊN trigger element (khoảng cách 10px)
-    let top = rect.top - POPUP_H - 10
-    if (top < PADDING) {
-      // Nếu phía trên không đủ không gian (sát nóc), lật xuống phía DƯỚI
-      top = rect.bottom + 10
+    let left = asideRect.left + (asideRect.width - POPUP_W) / 2
+    left = Math.max(minSafeLeft, Math.min(maxSafeRight - POPUP_W, left))
+
+    let top = asideRect.top - POPUP_H - PADDING
+    if (top < 12) {
+      top = asideRect.bottom + PADDING
     }
-    // Clamp chặt chẽ chiều dọc
-    top = Math.max(PADDING, Math.min(window.innerHeight - POPUP_H - PADDING, top))
+    top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
 
     setQuickMenuPos({ left, top })
   }, [])
@@ -517,14 +518,12 @@ export function XiangqiBoard({
 
   // Tính toán tọa độ (x, y) của các bong bóng nhỏ xoay quanh Avatar (cách đều, thoáng mắt, không đè avatar và đồng hồ)
   const getBubbleCoordinates = (index: number, total: number) => {
-    const D = 62 // Bán kính từ tâm avatar đến tâm bong bóng (tăng lên 62px để tạo khoảng đệm an toàn >= 12px với mép avatar)
+    const D = 66 // Bán kính từ tâm avatar đến tâm bong bóng (66px để khoảng cách giữa 2 nút kề >= 37px, không đè nhau)
     if (total <= 1) {
-      return { x: -62, y: 0 }
+      return { x: -66, y: 0 }
     }
-    // Góc từ 60° (Phía trên bên phải, hướng 2 giờ) đến 180° (Sườn trái ngang tầm tâm avatar, hướng 9 giờ)
-    // Toàn bộ bong bóng nằm ở nửa trên và sườn trái (y <= 0), hoàn toàn giải phóng khu vực đáy dưới avatar cho đồng hồ
-    const startAngle = 60
-    const endAngle = 180
+    const startAngle = 55
+    const endAngle = 185
     const step = (endAngle - startAngle) / (total - 1)
     const angleDeg = startAngle + index * step
     const angleRad = (angleDeg * Math.PI) / 180
@@ -536,11 +535,11 @@ export function XiangqiBoard({
 
   const avatarBubbleRef = useRef<HTMLDivElement>(null)
 
-  // Bounding box di chuyển Avatar trong Vùng 4 (không ra ngoài, tuyệt đối không chạm/đè bàn cờ)
+  // Bounding box di chuyển Avatar trong Khung 1 (không ra ngoài, tuyệt đối không chạm/đè bàn cờ)
   const VUNG_4_BOUNDS = {
-    MIN_X: -200,
+    MIN_X: -135,
     MAX_X: 0,
-    MIN_Y: -200,
+    MIN_Y: -240,
     MAX_Y: 10,
   } as const
 
@@ -566,6 +565,8 @@ export function XiangqiBoard({
     return { x: 0, y: 0 }
   })
 
+  const currentOffsetRef = useRef(avatarOffset)
+  currentOffsetRef.current = avatarOffset
   const isDraggingAvatarRef = useRef(false)
   const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
     startX: 0,
@@ -583,10 +584,12 @@ export function XiangqiBoard({
     dragStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      initX: avatarOffset.x,
-      initY: avatarOffset.y,
+      initX: currentOffsetRef.current.x,
+      initY: currentOffsetRef.current.y,
     }
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {}
   }
 
   const handleAvatarPointerMove = (e: React.PointerEvent) => {
@@ -599,7 +602,9 @@ export function XiangqiBoard({
     }
     const newX = dragStartRef.current.initX + dx
     const newY = dragStartRef.current.initY + dy
-    setAvatarOffset(clampAvatarPos(newX, newY))
+    const clamped = clampAvatarPos(newX, newY)
+    currentOffsetRef.current = clamped
+    setAvatarOffset(clamped)
     if (isQuickMenuOpen) {
       updateQuickMenuPos()
     }
@@ -615,7 +620,7 @@ export function XiangqiBoard({
 
     if (hasMovedAvatarRef.current) {
       try {
-        localStorage.setItem('xiangqi_avatar_pos', JSON.stringify(avatarOffset))
+        localStorage.setItem('xiangqi_avatar_pos', JSON.stringify(currentOffsetRef.current))
       } catch {}
     }
   }
@@ -2621,9 +2626,12 @@ export function XiangqiBoard({
 
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
-            {/* KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BONG BÓNG */}
+            {/* KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BONG BÓNG (đặt phía trên cụm nút công cụ, không đè nút, sidebar hay bàn cờ) */}
             {myQuickMessage && (
-              <div className="absolute bottom-[calc(100%+52px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div
+                style={{ bottom: '126px' }}
+                className="absolute left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150 z-40 select-none pointer-events-none max-w-[200px]"
+              >
                 {myQuickMessage.emoji && <span className="text-sm shrink-0">{myQuickMessage.emoji}</span>}
                 <span className="truncate">{myQuickMessage.text}</span>
               </div>
@@ -2788,7 +2796,7 @@ export function XiangqiBoard({
 
             {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ, NỞ SANG PHẢI RA NGOÀI ĐỂ TUYỆT ĐỐI KHÔNG ĐÈ BÀN CỜ */}
             {hasOpponent && opponentQuickMessage && (
-              <div className="absolute bottom-full mb-2.5 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div className="absolute bottom-full mb-2.5 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
                 {opponentQuickMessage.emoji && <span className="text-sm shrink-0">{opponentQuickMessage.emoji}</span>}
                 <span className="truncate">{opponentQuickMessage.text}</span>
               </div>
