@@ -1676,20 +1676,22 @@ export class RoomDO extends DurableObject<Env> {
         }
 
         if (this.gameMeta.playerX && this.gameMeta.playerO) {
-          const van = batDauVan(this.gameMeta, now)
-          this.gameMeta = van.meta
-          this.gameBoard = van.board
-          this.gameMoves = []
-          if (this.env?.ANALYTICS_DB) {
-            recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
-              event: 'game.session_started',
-              actorId: att.accountId || null,
-              sessionId: att.phienId || null,
-              roomId: this.parseNumericRoomId(),
-              properties: {
-                gameType: this.gameMeta.gameType,
-              },
-            })
+          if (goi.autoStart !== false) {
+            const van = batDauVan(this.gameMeta, now)
+            this.gameMeta = van.meta
+            this.gameBoard = van.board
+            this.gameMoves = []
+            if (this.env?.ANALYTICS_DB) {
+              recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+                event: 'game.session_started',
+                actorId: att.accountId || null,
+                sessionId: att.phienId || null,
+                roomId: this.parseNumericRoomId(),
+                properties: {
+                  gameType: this.gameMeta.gameType,
+                },
+              })
+            }
           }
         }
         this.luuGameState()

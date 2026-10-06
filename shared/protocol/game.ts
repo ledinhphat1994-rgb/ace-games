@@ -104,6 +104,7 @@ export const LenhGame = z.discriminatedUnion('type', [
     type: z.literal('game.join'),
     side: z.enum(['X', 'O']).optional(),
     password: z.string().optional(),
+    autoStart: z.boolean().optional(),
   }),
   z.object({
     type: z.literal('game.move'),

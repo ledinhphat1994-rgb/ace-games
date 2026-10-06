@@ -215,9 +215,8 @@ export function useGame(
               }),
             )
           } else if (nenTuVaoBan(goi.meta, myActorKey)) {
-            // Bàn đang chờ đối thủ mà mình chưa có ghế: vào sảnh bấm "Chơi ngay"/"Vào đấu" hay mở link mời đều là để
-            // chơi (bàn chờ không có gì để xem) — ngồi ghế trống luôn, máy chủ quyết định ghế và bắt đầu ván.
-            ws.send(JSON.stringify({ type: 'game.join', password: passParam || undefined }))
+            // Bàn đang chờ đối thủ mà mình chưa có ghế: tự động vào ghế nhưng chưa bắt đầu ván (chờ 2 bên sẵn sàng).
+            ws.send(JSON.stringify({ type: 'game.join', password: passParam || undefined, autoStart: false }))
           }
           break
         }
@@ -345,7 +344,7 @@ export function useGame(
             localStorage.getItem(`dc_game_pw_${gameId}`) ||
             ''
           : '')
-      gui({ type: 'game.join', side, password: passParam || undefined })
+      gui({ type: 'game.join', side, password: passParam || undefined, autoStart: false })
     },
     [gui, intendedPassword, gameId],
   )
