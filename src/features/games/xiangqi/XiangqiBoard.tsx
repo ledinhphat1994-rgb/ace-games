@@ -344,6 +344,15 @@ export function XiangqiBoard({
   // Popup thông báo nhận được từ đối thủ (Đối thủ xin hòa, xin thắng, xin thua, mời bắt đầu)
   const [incomingDialog, setIncomingDialog] = useState<DialogConfig | null>(null)
 
+  // Ghi nhận phía đối thủ của lời mời bắt đầu trận mà người chơi đã TỪ CHỐI (ngăn popup hiện lại liên tục)
+  const declinedRematchSideRef = useRef<string | null>(null)
+
+  // Ghi nhận người chơi đã bấm "Sẵn sàng ngay" và đang chờ chuyển sang playing (ngăn flicker/nháy kép)
+  const hasAcceptedStartRef = useRef<boolean>(false)
+
+  // Ghi nhận các ID tin nhắn chat start_offer đã được xử lý (tránh lặp lại popup từ tin nhắn cũ)
+  const handledStartProposalMsgIdsRef = useRef<Set<string>>(new Set())
+
   const xinXoRef = useRef<HTMLDivElement>(null)
 
   // Đóng menu Xin xỏ khi nhấp bên ngoài
@@ -1094,6 +1103,8 @@ export function XiangqiBoard({
     if (online?.meta.status === 'playing') {
       setHasOfferedStart(false)
       setIncomingDialog(null)
+      declinedRematchSideRef.current = null
+      hasAcceptedStartRef.current = false
     }
   }, [online?.meta.status])
 
@@ -1102,6 +1113,17 @@ export function XiangqiBoard({
     if (!laOnlinePvp || !online || online.meta.status === 'playing') {
       return
     }
+
+    // Nếu người chơi đã bấm "Sẵn sàng ngay" và đang chờ server chuyển sang playing: TUYỆT ĐỐI KHÔNG mở lại dialog
+    if (hasAcceptedStartRef.current) {
+      return
+    }
+
+    // Nếu người chơi đã bấm "Chưa sẵn sàng" (hoặc đóng) cho lời mời từ phía đối thủ này: TUYỆT ĐỐI KHÔNG mở lại dialog
+    if (online.meta.rematchBy && declinedRematchSideRef.current === online.meta.rematchBy) {
+      return
+    }
+
     if (isOfferedByOpponent) {
       setIncomingDialog({
         type: 'start',
@@ -1112,6 +1134,7 @@ export function XiangqiBoard({
         confirmText: 'Sẵn sàng ngay',
         confirmVariant: 'amber',
         onCancel: () => {
+          declinedRematchSideRef.current = online.meta.rematchBy || null
           setIncomingDialog(null)
           online.guiChat(`${PROPOSAL_PREFIX}start_decline`)
           try {
@@ -1120,6 +1143,7 @@ export function XiangqiBoard({
           showGameNotice('CHƯA SẴN SÀNG')
         },
         onConfirm: () => {
+          hasAcceptedStartRef.current = true
           setIncomingDialog(null)
           setHasOfferedStart(false)
           online.guiChat(`${PROPOSAL_PREFIX}start_accept`)
@@ -1130,10 +1154,19 @@ export function XiangqiBoard({
           playGameStartSound()
         },
       })
-    } else if (online.meta.rematchBy === null && incomingDialog?.type === 'start') {
-      setIncomingDialog(null)
+    } else if (online.meta.rematchBy === null) {
+      declinedRematchSideRef.current = null
+      hasAcceptedStartRef.current = false
+      setIncomingDialog((prev) => (prev?.type === 'start' ? null : prev))
     }
-  }, [laOnlinePvp, online, isOfferedByOpponent, incomingDialog?.type, resetGame, showGameNotice])
+  }, [
+    laOnlinePvp,
+    online?.meta.status,
+    online?.meta.rematchBy,
+    isOfferedByOpponent,
+    resetGame,
+    showGameNotice,
+  ])
 
   // Lắng nghe khi đối thủ xin hòa (dựa trên trạng thái máy chủ drawOfferBy)
   useEffect(() => {
@@ -1165,10 +1198,10 @@ export function XiangqiBoard({
           } catch {}
         },
       })
-    } else if (!online.meta.drawOfferBy && incomingDialog?.type === 'draw') {
-      setIncomingDialog(null)
+    } else if (!online.meta.drawOfferBy) {
+      setIncomingDialog((prev) => (prev?.type === 'draw' ? null : prev))
     }
-  }, [laOnlinePvp, online, isDrawOfferedByOpponent, incomingDialog?.type, showGameNotice])
+  }, [laOnlinePvp, online?.meta.status, online?.meta.drawOfferBy, isDrawOfferedByOpponent, showGameNotice])
 
   const handleModeChange = (newMode: PlayMode) => {
     if (!doiCheDo(newMode)) {
@@ -1470,6 +1503,8 @@ export function XiangqiBoard({
       }
       // Nếu đối thủ đã mời trước đó -> bấm xác nhận ngay để vào trận
       if (isOfferedByOpponent || incomingDialog?.type === 'start') {
+        hasAcceptedStartRef.current = true
+        declinedRematchSideRef.current = null
         setIncomingDialog(null)
         setHasOfferedStart(false)
         online.guiChat(`${PROPOSAL_PREFIX}start_accept`)
@@ -1481,6 +1516,7 @@ export function XiangqiBoard({
         return
       }
       // Gửi lời mời bắt đầu trận đấu để 2 bên cùng xác nhận
+      declinedRematchSideRef.current = null
       setHasOfferedStart(true)
       online.rematch()
       online.guiChat(`${PROPOSAL_PREFIX}start_offer`)
@@ -1574,8 +1610,19 @@ export function XiangqiBoard({
     if (lastMsg.text.startsWith(PROPOSAL_PREFIX)) {
       const action = lastMsg.text.slice(PROPOSAL_PREFIX.length).trim()
       if (action === 'start_offer') {
+        const msgKey = String(msgId)
+        if (handledStartProposalMsgIdsRef.current.has(msgKey)) {
+          return
+        }
+
+        if (hasAcceptedStartRef.current) {
+          return
+        }
+
         if (hasOfferedStart) {
           // Cả hai bên đều đã bấm sẵn sàng -> tự động bắt đầu ván ngay lập tức
+          handledStartProposalMsgIdsRef.current.add(msgKey)
+          hasAcceptedStartRef.current = true
           setHasOfferedStart(false)
           setIncomingDialog(null)
           online.guiChat(`${PROPOSAL_PREFIX}start_accept`)
@@ -1586,6 +1633,12 @@ export function XiangqiBoard({
           playGameStartSound()
           return
         }
+
+        // Nếu người chơi đã bấm "Chưa sẵn sàng" cho đợt mời này từ phía đối thủ
+        if (online.meta.rematchBy && declinedRematchSideRef.current === online.meta.rematchBy) {
+          return
+        }
+
         setIncomingDialog({
           type: 'start',
           icon: 'start',
@@ -1595,10 +1648,18 @@ export function XiangqiBoard({
           confirmText: 'Sẵn sàng ngay',
           confirmVariant: 'amber',
           onCancel: () => {
+            handledStartProposalMsgIdsRef.current.add(msgKey)
+            declinedRematchSideRef.current = online.meta.rematchBy || null
             setIncomingDialog(null)
             online.guiChat(`${PROPOSAL_PREFIX}start_decline`)
+            try {
+              online.declineRematch?.()
+            } catch {}
+            showGameNotice('CHƯA SẴN SÀNG')
           },
           onConfirm: () => {
+            handledStartProposalMsgIdsRef.current.add(msgKey)
+            hasAcceptedStartRef.current = true
             setIncomingDialog(null)
             setHasOfferedStart(false)
             online.guiChat(`${PROPOSAL_PREFIX}start_accept`)
@@ -2371,7 +2432,7 @@ export function XiangqiBoard({
               }}
             >
               <div
-                className="relative w-full max-w-[320px] bg-[#161a24] border border-amber-500/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-5 flex flex-col items-center text-center animate-in zoom-in-95 duration-150 select-none"
+                className="relative w-full max-w-[320px] bg-[#161a24] border border-amber-500/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-5 flex flex-col items-center text-center animate-in fade-in duration-150 select-none"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Nút đóng X ở góc */}
@@ -2384,7 +2445,7 @@ export function XiangqiBoard({
                       setIncomingDialog(null)
                     }
                   }}
-                  className="absolute top-3 right-3 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  className="absolute top-3 right-3 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors duration-150 cursor-pointer"
                   aria-label="Đóng"
                 >
                   <X className="w-4 h-4" />
@@ -2438,7 +2499,7 @@ export function XiangqiBoard({
                               setIncomingDialog(null)
                             }
                       }
-                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold border border-white/10 transition cursor-pointer active:scale-95"
+                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold border border-white/10 transition-colors duration-150 cursor-pointer"
                     >
                       {activeDlg.cancelText || 'Chơi tiếp'}
                     </button>
@@ -2448,7 +2509,7 @@ export function XiangqiBoard({
                     id="dialog-confirm-btn"
                     onClick={activeDlg.onConfirm}
                     className={cn(
-                      'w-full py-2.5 rounded-xl text-xs font-bold transition shadow-lg cursor-pointer active:scale-95',
+                      'w-full py-2.5 rounded-xl text-xs font-bold transition-colors duration-150 shadow-lg cursor-pointer',
                       activeDlg.confirmVariant === 'red'
                         ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
                         : activeDlg.confirmVariant === 'emerald'
