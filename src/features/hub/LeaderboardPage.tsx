@@ -294,31 +294,40 @@ export function LeaderboardPage() {
   return (
     <div className="space-y-6 sm:space-y-8 pb-12" data-testid="leaderboard-page">
       {/* ── 1. Cyber Hero Banner (Bảng xếp hạng & Vinh danh) ── */}
-      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/25 bg-[#040e29] p-8 sm:p-12 lg:p-16 shadow-[0_0_40px_rgba(245,158,11,0.15)] group select-none">
-        {/* Full-width Background Image & Gradients */}
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-r from-[#0d0903] via-[#1a1205] to-[#0a0702] p-8 sm:p-12 lg:p-16 shadow-[0_0_40px_rgba(245,158,11,0.18)] select-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.18),rgba(255,255,255,0))]" />
+
+        {/* Artwork anime podium vinh danh cùng chủ đề, đặt ở nửa phải */}
+        <div className="absolute right-0 top-0 bottom-0 w-3/5 lg:w-1/2 pointer-events-none overflow-hidden select-none">
           <img
-            src="/assets/banners/leaderboard_hero_cyber.jpg"
+            src="/assets/cyber_mockups/leaderboard_podium.webp"
             alt="Bảng xếp hạng Digital Campus"
-            className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+            className="w-full h-full object-cover object-[center_top] opacity-85 lg:opacity-95 mix-blend-lighten"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#040e29] via-[#040e29]/85 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#040e29]/90 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0d0903] via-[#0d0903]/90 via-30% to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0a0702] via-[#0a0702]/95 to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold text-amber-400 backdrop-blur-md mb-4">
-            <Trophy className="size-3.5" />
-            <span>Vinh danh thành tích học tập & kỷ lục trò chơi</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-bold text-amber-400 backdrop-blur-md mb-4 shadow-sm">
+            <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="tracking-wider uppercase">BẢNG XẾP HẠNG TOÀN TRƯỜNG</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase drop-shadow-md leading-[1.2]">
-            Bảng xếp hạng Digital Campus
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+            Tôn vinh nỗ lực,
+            <br />
+            chinh phục đỉnh cao.
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200">
+              Vinh danh thành tích học sinh toàn trường.
+            </span>
           </h1>
 
-          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-            Vinh danh thành tích học tập và kỷ lục trò chơi trên toàn trường. Dữ liệu được tính toán và xác thực tự động theo thời gian thực.
-          </p>
+          <div className="mt-4 flex items-center gap-2 text-sm text-slate-300 leading-relaxed max-w-xl">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Xác thực máy chủ tự động · Cập nhật thời gian thực</span>
+          </div>
 
           <div className="mt-8 flex items-center gap-4">
             <Button
@@ -326,7 +335,7 @@ export function LeaderboardPage() {
               size="sm"
               onClick={handleRefresh}
               disabled={isLoading || isRefetching}
-              className="h-11 gap-2 rounded-xl border-amber-500/40 bg-amber-500/15 px-5 text-sm font-bold text-amber-300 hover:bg-amber-500/25 hover:text-white active:scale-95 transition-all cursor-pointer shadow-md"
+              className="h-11 gap-2 rounded-xl border-amber-500/40 bg-amber-500/15 px-5 text-sm font-bold text-amber-300 hover:bg-amber-500/25 hover:text-white transition-colors cursor-pointer shadow-md"
               title="Làm mới bảng xếp hạng"
               aria-label="Làm mới bảng xếp hạng"
             >
@@ -359,10 +368,10 @@ export function LeaderboardPage() {
                 aria-selected={isActive}
                 onClick={() => setCategory(cat.id)}
                 className={cn(
-                  'flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                  'flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold transition-colors duration-150 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand border',
                   isActive
-                    ? 'bg-brand/15 text-brand border border-brand/40 shadow-xs'
-                    : 'border border-border-default bg-surface text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 shadow-xs'
+                    : 'border-border-default/80 bg-surface text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                 )}
               >
                 <span>{cat.icon}</span>
@@ -474,10 +483,13 @@ export function LeaderboardPage() {
       {!isLoading && !isError && showPodium && top1 && top2 && top3 && (
         <section
           aria-label="Top 3 dẫn đầu"
-          className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-500/10 via-surface to-surface p-4 sm:p-6 overflow-hidden"
+          className="relative rounded-2xl border border-amber-500/25 bg-gradient-to-b from-amber-500/10 via-surface to-surface p-4 sm:p-6 overflow-hidden shadow-xs"
           data-testid="leaderboard-podium"
         >
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end max-w-xl mx-auto pt-4 sm:pt-6">
+          {/* Ambient golden aura spotlight */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-[radial-gradient(circle,rgba(245,158,11,0.14)_0%,transparent_70%)] pointer-events-none select-none" />
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end max-w-2xl sm:max-w-3xl mx-auto pt-4 sm:pt-6 relative z-10">
             {/* ── #2 Silver (Left) ── */}
             <div className="flex flex-col items-center text-center min-w-0">
               <button
@@ -498,15 +510,15 @@ export function LeaderboardPage() {
                     ten={top2.name}
                     avatar={top2.avatar}
                     className={cn(
-                      'size-12 sm:size-16 ring-2 ring-slate-400/80 ring-offset-2 ring-offset-surface shadow-md',
+                      'size-13 sm:size-18 ring-3 ring-slate-300 ring-offset-2 ring-offset-surface shadow-[0_0_16px_rgba(203,213,225,0.25)]',
                       top2.isCurrentUser && 'ring-brand',
                     )}
                   />
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex size-5 sm:size-6 items-center justify-center rounded-full bg-slate-300 dark:bg-slate-400 text-slate-900 font-black text-[11px] sm:text-xs shadow-sm">
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex size-5 sm:size-6 items-center justify-center rounded-full bg-slate-300 text-slate-900 font-black text-[11px] sm:text-xs shadow-sm ring-2 ring-surface">
                     2
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm font-semibold text-text-primary truncate w-full group-hover:text-brand transition-colors">
+                <p className="text-xs sm:text-sm font-semibold text-text-primary line-clamp-2 leading-tight break-words h-8 sm:h-9 flex items-center justify-center text-center w-full group-hover:text-amber-400 transition-colors">
                   {top2.name}
                 </p>
                 {top2.isCurrentUser && (
@@ -522,9 +534,13 @@ export function LeaderboardPage() {
                 </p>
               </button>
 
-              <div className="mt-3 w-full h-20 sm:h-24 rounded-t-xl bg-gradient-to-t from-slate-500/20 via-slate-400/10 to-surface-raised border-t border-slate-400/30 flex flex-col items-center justify-center">
-                <Medal className="size-4 sm:size-5 text-slate-400 mb-1" />
-                <span className="text-base sm:text-lg font-black text-slate-500 dark:text-slate-400">#2</span>
+              <div className="mt-3 w-full h-24 sm:h-30 rounded-t-xl bg-gradient-to-t from-slate-400/30 via-slate-400/15 to-surface-raised border-t-2 border-slate-300 flex flex-col items-center justify-center shadow-[0_-4px_16px_rgba(203,213,225,0.18)] relative overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
+                <Medal className="size-4 sm:size-5 text-slate-300 mb-0.5" />
+                <span className="text-lg sm:text-xl font-black text-slate-400 dark:text-slate-200 tabular-nums">#2</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Á quân
+                </span>
               </div>
             </div>
 
@@ -543,21 +559,21 @@ export function LeaderboardPage() {
                 )}
                 title={top1.accountId ? `Xem hồ sơ của ${top1.name}` : top1.name}
               >
-                <Crown className="size-5 sm:size-6 text-amber-500 mb-1 animate-pulse" />
+                <Crown className="size-5 sm:size-6 text-amber-500 mb-1 animate-pulse drop-shadow-sm" />
                 <div className="relative mb-2 shrink-0">
                   <AnhNguoiDung
                     ten={top1.name}
                     avatar={top1.avatar}
                     className={cn(
-                      'size-14 sm:size-20 ring-3 ring-amber-400 ring-offset-2 ring-offset-surface shadow-lg',
+                      'size-16 sm:size-22 ring-4 ring-amber-400 ring-offset-2 ring-offset-surface shadow-[0_0_24px_rgba(245,158,11,0.4)]',
                       top1.isCurrentUser && 'ring-brand',
                     )}
                   />
-                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex size-6 sm:size-7 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-md">
+                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 flex size-6 sm:size-7 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-md ring-2 ring-surface">
                     1
                   </span>
                 </div>
-                <p className="text-xs sm:text-base font-black text-text-primary truncate w-full group-hover:text-brand transition-colors">
+                <p className="text-xs sm:text-base font-black text-text-primary line-clamp-2 leading-tight break-words h-9 sm:h-10 flex items-center justify-center text-center w-full group-hover:text-amber-400 transition-colors">
                   {top1.name}
                 </p>
                 {top1.isCurrentUser && (
@@ -573,9 +589,10 @@ export function LeaderboardPage() {
                 </p>
               </button>
 
-              <div className="mt-3 w-full h-28 sm:h-34 rounded-t-2xl bg-gradient-to-t from-amber-500/25 via-amber-500/10 to-surface-raised border-t border-amber-400/50 flex flex-col items-center justify-center shadow-xs">
-                <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">#1</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">
+              <div className="mt-3 w-full h-32 sm:h-40 rounded-t-2xl bg-gradient-to-t from-amber-500/35 via-amber-500/15 to-surface-raised border-t-2 border-amber-400 flex flex-col items-center justify-center shadow-[0_-4px_24px_rgba(245,158,11,0.3)] relative overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
+                <span className="text-2xl sm:text-3xl font-black text-amber-500 dark:text-amber-400 tabular-nums">#1</span>
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-500/90 dark:text-amber-400/90">
                   Quán quân
                 </span>
               </div>
@@ -601,15 +618,15 @@ export function LeaderboardPage() {
                     ten={top3.name}
                     avatar={top3.avatar}
                     className={cn(
-                      'size-12 sm:size-16 ring-2 ring-amber-700/80 ring-offset-2 ring-offset-surface shadow-md',
+                      'size-13 sm:size-18 ring-3 ring-amber-600 ring-offset-2 ring-offset-surface shadow-[0_0_16px_rgba(180,83,9,0.25)]',
                       top3.isCurrentUser && 'ring-brand',
                     )}
                   />
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex size-5 sm:size-6 items-center justify-center rounded-full bg-amber-700 text-white font-black text-[11px] sm:text-xs shadow-sm">
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex size-5 sm:size-6 items-center justify-center rounded-full bg-amber-700 text-white font-black text-[11px] sm:text-xs shadow-sm ring-2 ring-surface">
                     3
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm font-semibold text-text-primary truncate w-full group-hover:text-brand transition-colors">
+                <p className="text-xs sm:text-sm font-semibold text-text-primary line-clamp-2 leading-tight break-words h-8 sm:h-9 flex items-center justify-center text-center w-full group-hover:text-amber-400 transition-colors">
                   {top3.name}
                 </p>
                 {top3.isCurrentUser && (
@@ -625,9 +642,13 @@ export function LeaderboardPage() {
                 </p>
               </button>
 
-              <div className="mt-3 w-full h-16 sm:h-20 rounded-t-xl bg-gradient-to-t from-amber-800/20 via-amber-800/10 to-surface-raised border-t border-amber-700/30 flex flex-col items-center justify-center">
-                <Medal className="size-4 sm:size-5 text-amber-700 mb-1" />
-                <span className="text-base sm:text-lg font-black text-amber-800 dark:text-amber-600">#3</span>
+              <div className="mt-3 w-full h-18 sm:h-24 rounded-t-xl bg-gradient-to-t from-amber-800/35 via-amber-800/15 to-surface-raised border-t-2 border-amber-600 flex flex-col items-center justify-center shadow-[0_-4px_16px_rgba(180,83,9,0.18)] relative overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                <Medal className="size-4 sm:size-5 text-amber-600 mb-0.5" />
+                <span className="text-lg sm:text-xl font-black text-amber-700 dark:text-amber-500 tabular-nums">#3</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600/90 dark:text-amber-500/90">
+                  Quý quân
+                </span>
               </div>
             </div>
           </div>
@@ -746,26 +767,33 @@ export function LeaderboardPage() {
                 Quy tắc tính điểm
               </h3>
             </div>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Điểm thi đua học tập và kỷ lục trò chơi được ghi nhận từ hoạt động thực tế trên nền tảng. Hệ thống tự động kiểm tra tính hợp lệ qua cơ chế xác thực máy chủ (Server-Authoritative).
-            </p>
-            <div className="pt-2 text-[11px] text-text-tertiary border-t border-border-subtle flex items-center justify-between">
-              <span>Chu kỳ cập nhật:</span>
-              <span className="font-semibold text-text-secondary">Thời gian thực</span>
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between text-xs py-1.5 border-b border-border-subtle/60">
+                <span className="text-text-tertiary">Xác thực kỷ lục</span>
+                <span className="font-semibold text-text-primary">Máy chủ tự động</span>
+              </div>
+              <div className="flex items-center justify-between text-xs py-1.5 border-b border-border-subtle/60">
+                <span className="text-text-tertiary">Chu kỳ cập nhật</span>
+                <span className="font-semibold text-emerald-400">Thời gian thực</span>
+              </div>
+              <div className="flex items-center justify-between text-xs py-1.5">
+                <span className="text-text-tertiary">Phạm vi tính điểm</span>
+                <span className="font-semibold text-text-primary">Toàn trường &amp; Lớp</span>
+              </div>
             </div>
           </div>
 
           {/* Card: Thành tích của bạn */}
           {nguoiDung && (
-            <div className="rounded-2xl border border-brand/25 bg-gradient-to-br from-surface to-brand/5 p-5 shadow-xs space-y-3">
-              <div className="flex items-center gap-2.5 text-brand">
+            <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-500/5 p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2.5 text-amber-400">
                 <Medal className="size-4" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
                   Thành tích của bạn
                 </h3>
               </div>
               <div className="flex items-center gap-3">
-                <AnhNguoiDung ten={nguoiDung.ten || nguoiDung.username} avatar={nguoiDung.avatar} className="size-11 ring-2 ring-brand/30" />
+                <AnhNguoiDung ten={nguoiDung.ten || nguoiDung.username} avatar={nguoiDung.avatar} className="size-11 ring-2 ring-amber-400/40" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-text-primary truncate">
                     {nguoiDung.ten || nguoiDung.username}
@@ -779,7 +807,7 @@ export function LeaderboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/me')}
-                className="w-full h-8 text-xs font-semibold rounded-xl border-brand/30 text-brand hover:bg-brand/10 gap-1.5 cursor-pointer"
+                className="w-full h-8 text-xs font-semibold rounded-xl border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1.5 cursor-pointer"
               >
                 <span>Xem hồ sơ & huy hiệu</span>
                 <ArrowRight className="size-3" />
@@ -796,37 +824,31 @@ export function LeaderboardPage() {
               <button
                 type="button"
                 onClick={() => navigate('/learn')}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-default/60 hover:border-brand/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-default/60 hover:border-amber-500/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
                     <BookOpen className="size-4" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-text-primary group-hover:text-brand transition-colors truncate">
-                      Vào phòng học tập
-                    </p>
-                    <p className="text-[11px] text-text-tertiary truncate">+XP khi hoàn thành phiên học</p>
-                  </div>
+                  <span className="text-xs font-semibold text-text-primary group-hover:text-amber-400 transition-colors truncate">
+                    Vào phòng học tập
+                  </span>
                 </div>
-                <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-brand transition-colors" />
+                <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-amber-400 transition-colors" />
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/arena')}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-border-default/60 hover:border-violet-500/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-default/60 hover:border-violet-500/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400">
                     <Gamepad2 className="size-4" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-text-primary group-hover:text-violet-400 transition-colors truncate">
-                      Đấu trường trò chơi
-                    </p>
-                    <p className="text-[11px] text-text-tertiary truncate">Ghi điểm kỷ lục Cờ, Caro, Rắn</p>
-                  </div>
+                  <span className="text-xs font-semibold text-text-primary group-hover:text-violet-400 transition-colors truncate">
+                    Đấu trường trò chơi
+                  </span>
                 </div>
                 <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-violet-400 transition-colors" />
               </button>
