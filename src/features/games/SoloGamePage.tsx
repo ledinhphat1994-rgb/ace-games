@@ -4,11 +4,21 @@ import { SoloGameStage, type SoloGameType } from './SoloGameStage'
 
 interface SoloGamePageProps {
   gameType: SoloGameType
+  roomId?: string
+  myActorKey?: string
+  myActorName?: string
   onLeave: () => void
   initialTurnSeconds?: number
 }
 
-export function SoloGamePage({ gameType, onLeave, initialTurnSeconds }: SoloGamePageProps) {
+export function SoloGamePage({
+  gameType,
+  roomId,
+  myActorKey,
+  myActorName,
+  onLeave,
+  initialTurnSeconds,
+}: SoloGamePageProps) {
   const queryClient = useQueryClient()
 
   const lamMoiBangXepHang = useCallback(() => {
@@ -37,6 +47,9 @@ export function SoloGamePage({ gameType, onLeave, initialTurnSeconds }: SoloGame
     <div className="game-stage flex min-w-0 w-full flex-col rounded-3xl border border-border-default bg-surface/95 backdrop-blur-2xl p-2.5 sm:p-4 shadow-2xl">
       <SoloGameStage
         gameType={gameType}
+        roomId={roomId}
+        myActorKey={myActorKey}
+        myActorName={myActorName}
         onBack={onLeave}
         onSaveScore={(score) => void luuDiem(score)}
         onSnakeSettled={lamMoiBangXepHang}

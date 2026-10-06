@@ -84,6 +84,9 @@ export function GameRoomPage() {
     return (
       <SoloGamePage
         gameType={intendedGameType as SoloGameType}
+        roomId={gameId}
+        myActorKey={actorKey}
+        myActorName={actorName}
         onLeave={roiBan}
         initialTurnSeconds={Number.isFinite(turnVal) ? turnVal : undefined}
       />

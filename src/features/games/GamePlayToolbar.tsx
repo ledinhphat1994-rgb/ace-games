@@ -476,7 +476,8 @@ export function GamePlayToolbar({
       </div>
 
       {/* ── HÀNG 2: CARD 3 (THỜI GIAN, ĐỒNG HỒ & LƯỢT ĐI) CĂN GIỮA NẰM NGAY TRÊN BÀN CỜ ── */}
-      <div className="w-full flex items-center justify-center pt-0.5">
+      {(!hideCenterTurn || Boolean(opponentSlot || nutThoiGian || rightSlot || playerSlot || showRoomChat || showRankings)) && (
+        <div className="w-full flex items-center justify-center pt-0.5">
         <div
           ref={centerScrollRef}
           onPointerDown={batDauKeo}
@@ -574,6 +575,7 @@ export function GamePlayToolbar({
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

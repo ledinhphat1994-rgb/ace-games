@@ -5,6 +5,9 @@ export type SoloGameType = 'solo_memory' | 'solo_snake'
 
 interface SoloGameStageProps {
   gameType: SoloGameType
+  roomId?: string
+  myActorKey?: string
+  myActorName?: string
   onBack?: () => void
   /** Lưu kỷ lục cho Trí nhớ / Rắn. */
   onSaveScore: (score: number) => void
@@ -13,14 +16,25 @@ interface SoloGameStageProps {
   initialTurnSeconds?: number
 }
 
-export function SoloGameStage({ gameType, onBack, onSaveScore, initialTurnSeconds }: SoloGameStageProps) {
+export function SoloGameStage({
+  gameType,
+  roomId,
+  myActorKey,
+  myActorName,
+  onBack,
+  onSaveScore,
+  initialTurnSeconds,
+}: SoloGameStageProps) {
   if (gameType === 'solo_memory') {
     return <MemoryGame onSaveScore={onSaveScore} onBack={onBack} initialTurnSeconds={initialTurnSeconds} />
   }
 
-  // Rắn săn mồi hiện đại: Hỗ trợ 100% PvE, PvP + PvE, hoặc 100% PvP
+  // Rắn săn mồi: Mặc định PvE tự thay thế bot khi có người chơi vào, PvP đối kháng thuần người chơi
   return (
     <SnakeDuel
+      roomId={roomId}
+      myActorKey={myActorKey}
+      myActorName={myActorName}
       onSaveScore={onSaveScore}
       onBack={onBack}
     />
