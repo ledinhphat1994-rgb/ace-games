@@ -118,6 +118,7 @@ export const LenhGame = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('game.surrender') }),
   z.object({ type: z.literal('game.rematch') }),
+  z.object({ type: z.literal('game.decline_rematch') }),
   z.object({ type: z.literal('game.start') }),
   z.object({ type: z.literal('game.emote'), emote: z.enum(CAC_BIEU_CAM) }),
   z.object({

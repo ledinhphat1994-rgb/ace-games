@@ -389,6 +389,11 @@ export function useGame(
     gui({ type: 'game.rematch' })
   }, [gui])
 
+  /** Từ chối lời mời bắt đầu hoặc đấu lại. */
+  const declineRematch = useCallback(() => {
+    gui({ type: 'game.decline_rematch' })
+  }, [gui])
+
   const sendEmote = useCallback(
     (emote: BieuCam) => {
       gui({ type: 'game.emote', emote })
@@ -435,6 +440,7 @@ export function useGame(
     surrender,
     startGame,
     rematch,
+    declineRematch,
     sendEmote,
     datThoiGianSuyNghi,
     datPve,

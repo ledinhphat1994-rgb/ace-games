@@ -207,6 +207,45 @@ describe('Bàn cờ tướng online qua RoomDO', () => {
     expect((await x.cho('error')).message).toBe('Nước đi không hợp lệ.')
     dong()
   })
+
+  it('xác nhận 2 bên trước khi bắt đầu và xử lý từ chối game.decline_rematch', async () => {
+    const ma = taoMaBan('xiangqi')
+    const x = await moBan(ma, await dangNhapLayCookie('qa.v2.thu1'))
+    await x.cho('game.snapshot')
+    x.gui({ type: 'game.init', gameType: 'xiangqi', turnSeconds: 30 })
+    await x.cho('game.sync', (g) => g.meta.playerX === 'acc:1')
+
+    const oo = await moBan(ma, await dangNhapLayCookie('qa.v2.thu2'))
+    await oo.cho('game.snapshot')
+    oo.gui({ type: 'game.join', autoStart: false })
+
+    // Cả hai người đã ngồi vào ghế nhưng ván vẫn ở trạng thái chờ (waiting)
+    const choBan = await x.cho('game.sync', (g) => Boolean(g.meta.playerO))
+    expect(choBan.meta.status).toBe('waiting')
+    expect(choBan.meta.rematchBy).toBeNull()
+
+    // Người chơi X bấm sẵn sàng
+    x.gui({ type: 'game.rematch' })
+    const syncSanSang = await oo.cho('game.sync', (g) => g.meta.rematchBy === 'X')
+    expect(syncSanSang.meta.status).toBe('waiting')
+    expect(syncSanSang.meta.rematchBy).toBe('X')
+
+    // Người chơi O từ chối (chưa sẵn sàng)
+    oo.gui({ type: 'game.decline_rematch' })
+    const syncTuChoi = await x.cho('game.sync', (g) => g.meta.rematchBy === null)
+    expect(syncTuChoi.meta.status).toBe('waiting')
+    expect(syncTuChoi.meta.rematchBy).toBeNull()
+
+    // Người chơi X mời lại, người chơi O chấp nhận (sẵn sàng ngay)
+    x.gui({ type: 'game.rematch' })
+    await oo.cho('game.sync', (g) => g.meta.rematchBy === 'X')
+    oo.gui({ type: 'game.rematch' })
+    const syncBatDau = await x.cho('game.sync', (g) => g.meta.status === 'playing')
+    expect(syncBatDau.meta.status).toBe('playing')
+    expect(syncBatDau.meta.rematchBy).toBeNull()
+
+    ;[x, oo].forEach((k) => k.dong())
+  })
 })
 
 describe('Biểu cảm và chat phòng game', () => {

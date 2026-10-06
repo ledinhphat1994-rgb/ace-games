@@ -1817,6 +1817,15 @@ export class RoomDO extends DurableObject<Env> {
         return
       }
 
+      case 'game.decline_rematch': {
+        const side = this.gheCua(att.key)
+        if (!side) return
+        this.gameMeta = { ...this.gameMeta, rematchBy: null }
+        this.luuGameState()
+        this.phatTrangThaiGame(now)
+        return
+      }
+
       case 'game.emote': {
         if (!this.choPhepBieuCam(att.key, now)) {
           this.guiLoiGame(ws, 'Bạn gửi biểu cảm hơi nhanh, chờ một chút nhé.')
