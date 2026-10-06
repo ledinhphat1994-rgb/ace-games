@@ -304,9 +304,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
   // Trạng thái đã làm sạch sảnh để người dùng kiểm thử phòng riêng biệt
   const [sanhDaXoaPhong, setSanhDaXoaPhong] = useState<boolean>(() => {
     try {
-      return sessionStorage.getItem('dc_lobby_cleared') !== 'false'
+      return sessionStorage.getItem('dc_lobby_cleared') === 'true'
     } catch {
-      return true
+      return false
     }
   })
 
@@ -637,13 +637,16 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
     // Nếu phòng có mật khẩu và người dùng không phải chủ phòng
     const laChuPhong = Boolean(nguoiDung && (room.tenChu === nguoiDung.ten || room.tenChu === nguoiDung.username))
-    if ((room.coMatKhau || room.isPrivate) && !laChuPhong) {
+    const savedPw = room.matKhau || sessionStorage.getItem(`dc_game_pw_${room.id}`) || localStorage.getItem(`dc_game_pw_${room.id}`) || ''
+    if ((room.coMatKhau || room.isPrivate) && !laChuPhong && !savedPw) {
       setPhongCanNhapMatKhau(room)
       setMatKhauVaoPhong('')
       setLoiVaoPhong(null)
       return
     }
-    navigate(`/game/${encodeURIComponent(room.id)}?gameType=${room.gameType}&sanh=arena`)
+    const pwQuery = (room.coMatKhau || room.isPrivate) && savedPw ? `&accessMode=password&pass=${encodeURIComponent(savedPw)}` : ''
+    const turnQuery = room.turnTimerSeconds ? `&turn=${room.turnTimerSeconds}` : ''
+    navigate(`/game/${encodeURIComponent(room.id)}?gameType=${room.gameType}&sanh=arena${turnQuery}${pwQuery}`)
   }
 
   // Xác nhận mật khẩu vào bàn riêng tư
@@ -689,6 +692,28 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       return
     }
     const maBan = taoMaBan(gameChon)
+    const numMatch = maBan.match(/\d+/)
+    const soPhongTao = numMatch ? parseInt(numMatch[0], 10) : Math.floor(Math.random() * 89) + 11
+    const banMoiItem: PhongGameItem = {
+      id: maBan,
+      gameType: gameChon,
+      tenChu: nguoiDung ? (nguoiDung.ten || nguoiDung.username) : 'Tôi',
+      tenKhach: null,
+      trangThai: 'waiting',
+      soNguoiXem: 0,
+      turnTimerSeconds: 30,
+      soPhong: soPhongTao,
+      isPrivate: false,
+      coMatKhau: false,
+    }
+    setLocalCreatedRooms((prev) => {
+      const next = [banMoiItem, ...prev.filter((r) => r.id !== maBan)]
+      try {
+        sessionStorage.setItem('dc_my_game_rooms', JSON.stringify(next))
+        localStorage.setItem('dc_my_game_rooms', JSON.stringify(next))
+      } catch {}
+      return next
+    })
     navigate(`/game/${encodeURIComponent(maBan)}?gameType=${gameChon}&turn=30&sanh=arena`)
   }
 
@@ -876,6 +901,31 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       }
 
       const maBanThucTe = data.roomId
+      const soPhongTao = soPhongMoi
+
+      const banMoiItem: PhongGameItem = {
+        id: maBanThucTe,
+        gameType: gameTypeThucTe,
+        tieuDe: tieuDeBan,
+        tenChu: nguoiDung ? (nguoiDung.ten || nguoiDung.username) : 'Tôi',
+        tenKhach: null,
+        trangThai: 'waiting',
+        soNguoiXem: 0,
+        turnTimerSeconds: turnLuu,
+        soPhong: soPhongTao,
+        isPrivate,
+        coMatKhau: isPrivate,
+        matKhau: cleanPw || undefined,
+      }
+
+      setLocalCreatedRooms((prev) => {
+        const next = [banMoiItem, ...prev.filter((r) => r.id !== maBanThucTe)]
+        try {
+          sessionStorage.setItem('dc_my_game_rooms', JSON.stringify(next))
+          localStorage.setItem('dc_my_game_rooms', JSON.stringify(next))
+        } catch {}
+        return next
+      })
 
       if (isPrivate) {
         sessionStorage.setItem(`dc_game_pw_${maBanThucTe}`, cleanPw)

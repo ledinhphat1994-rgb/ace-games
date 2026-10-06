@@ -1622,7 +1622,12 @@ export class RoomDO extends DurableObject<Env> {
         this.isPrivateGame = isRiengTu
         if (goi.password) this.gamePassword = goi.password
         if (isRiengTu) this.luuMeta('is_private_game', '1')
-        if (goi.password) this.luuMeta('game_password', goi.password)
+        this.isGameRoom = true
+        this.hostKey = att.key
+        if ((goi as { isPersistent?: boolean }).isPersistent) {
+          this.isPersistentLobbyRoom = true
+          this.luuMeta('persistent_lobby_room', '1')
+        }
         this.gameMeta = {
           ...DEFAULT_GAME_META,
           gameType: goi.gameType,
@@ -1659,15 +1664,20 @@ export class RoomDO extends DurableObject<Env> {
           return
         }
         // Ghế của người đã rời bàn (không còn kết nối nào) coi như trống: không ghép người mới với một người
-        // vắng mặt để rồi người đó bị xử thua vì hết giờ.
+        // vắng mặt để rồi người đó bị xử thua vì hết giờ. Trừ khi là bàn persistent của chủ phòng đang chờ đối thủ.
+        const laBanPersistentCuaHost = (this.isPersistentLobbyRoom || Boolean(this.hostKey)) && this.gameMeta.status === 'waiting'
         if (this.gameMeta.playerX && !this.hasConnectedActor(this.gameMeta.playerX)) {
-          this.gameMeta = { ...this.gameMeta, playerX: null, playerXName: null }
+          if (!laBanPersistentCuaHost || this.gameMeta.playerX !== this.hostKey) {
+            this.gameMeta = { ...this.gameMeta, playerX: null, playerXName: null }
+          }
         }
         if (this.gameMeta.playerO && !this.hasConnectedActor(this.gameMeta.playerO)) {
           this.gameMeta = { ...this.gameMeta, playerO: null, playerOName: null }
         }
-        // Ghế X (chủ bàn, tên hiện trên sảnh) luôn được lấp trước.
-        if (!this.gameMeta.playerX) {
+        // Ghế X (chủ bàn, tên hiện trên sảnh) luôn được lấp trước hoặc dành cho host.
+        if (att.key === this.hostKey) {
+          this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
+        } else if (!this.gameMeta.playerX) {
           this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
         } else if (!this.gameMeta.playerO) {
           this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
@@ -4660,7 +4670,7 @@ export class RoomDO extends DurableObject<Env> {
     const ban: BanSanh = {
       id: this.gameRoomId,
       gameType: this.gameMeta.gameType,
-      tenChu: this.gameMeta.playerXName,
+      tenChu: this.gameMeta.playerXName || (this.hostKey ? 'Chủ phòng' : null),
       tenKhach: this.gameMeta.playerOName,
       trangThai: this.gameMeta.status,
       soNguoiXem: this.demNguoiXemGame(boQua),
@@ -4693,8 +4703,9 @@ export class RoomDO extends DurableObject<Env> {
       return
     }
     // Nếu bàn được tạo từ sảnh và đang chờ đối thủ (status === 'waiting'),
-    // giữ bàn trên sảnh để người khác thấy và vào tham gia!
-    if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && this.gameMeta.playerX) {
+    // giữ bàn trên sảnh để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
+    if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && (this.gameMeta.playerX || this.hostKey)) {
+      this.baoLobby(vuaRoi)
       return
     }
     for (const lobby of this.cacSanhGame()) {
