@@ -118,9 +118,11 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain('const isPlaying = !isOver && (')
     })
 
-    it('Nút Bắt Đầu ở giữa sông chỉ hiển thị khi chưa vào ván, ẩn khi đang chơi hoặc kết thúc để tránh đè trùng thông báo giữa bàn cờ (Vùng 2)', () => {
-      expect(xiangqiBoardRaw).toContain('(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (')
+    it('Nút Bắt Đầu / Đấu Lại ở giữa sông (Vùng 2) hiển thị khi chưa vào ván hoặc sau khi kết thúc ván, và gỡ bỏ nút đấu lại ở header Vùng 1', () => {
+      expect(xiangqiBoardRaw).toContain('!isPlaying && !activeDlg && !heroicBanner && (')
       expect(xiangqiBoardRaw).toContain('id="btn-bat-dau-river"')
+      expect(xiangqiBoardRaw).toContain("'ĐẤU LẠI'")
+      expect(xiangqiBoardRaw).not.toContain('id="game-rematch-btn"')
     })
 
     it('Vùng 1: Các nút công cụ quanh avatar không bị disable cứng và luôn phản hồi thông báo rõ ràng', () => {

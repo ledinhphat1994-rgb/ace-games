@@ -1985,21 +1985,6 @@ export function XiangqiBoard({
             <span>Sảnh</span>
           </button>
 
-          {/* Nút Đấu lại khi ván kết thúc (isOver) */}
-          {isOver && (
-            <button
-              type="button"
-              id="game-rematch-btn"
-              onClick={handleStartGameClick}
-              className="h-8 px-3 rounded-lg text-xs gap-1.5 inline-flex items-center font-bold text-amber-200 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 cursor-pointer transition-colors duration-150 shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
-              title="Chơi ván mới"
-              aria-label="Chơi ván mới"
-            >
-              <Swords className="size-3.5 text-amber-400" />
-              <span>Đấu lại</span>
-            </button>
-          )}
-
           {/* VÙNG 2: ICON GAME CỜ TƯỚNG TO RÕ, ĐẲNG CẤP & SỐ PHÒNG */}
           {roomName && (
             <div
@@ -2279,61 +2264,93 @@ export function XiangqiBoard({
             )
           })()}
 
-          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN. KHI ĐÃ NGỒI GHẾ CHỜ ĐỐI THỦ: GIỮ SẠCH BÀN CỜ, KHÔNG HIỆN NÚT TRÙNG LẶP */}
-          {(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO)) && (
+          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI / VÙNG 2) */}
+          {!isPlaying && !activeDlg && !heroicBanner && (!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO)) && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"
                 id="btn-bat-dau-river"
+                data-testid="btn-bat-dau-river"
                 onClick={handleStartGameClick}
                 disabled={laOnlinePvp && Boolean(online?.mySide) && (isOfferedByMe || hasOfferedStart)}
                 className={cn(
-                  'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 text-white flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none shadow-[0_0_24px_rgba(185,28,28,0.6)] cursor-pointer active:scale-95 hover:scale-105',
+                  'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
                   (isOfferedByMe || hasOfferedStart)
                     ? 'bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 border-amber-300 animate-pulse text-amber-100 shadow-[0_0_24px_rgba(245,158,11,0.5)] cursor-default hover:scale-100'
                     : isOfferedByOpponent
                       ? 'bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 border-emerald-300 animate-pulse text-white shadow-[0_0_24px_rgba(16,185,129,0.5)] hover:from-emerald-600 hover:to-emerald-600'
-                      : 'bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-amber-400/90'
+                      : isOver
+                        ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)]'
+                        : 'bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-amber-400/90 text-white shadow-[0_0_24px_rgba(185,28,28,0.6)]'
                 )}
                 title={
-                  laOnlinePvp && !online?.mySide
-                    ? 'Vào bàn thi đấu'
-                    : (isOfferedByMe || hasOfferedStart)
-                      ? 'Đang chờ đối thủ xác nhận...'
+                  isOver
+                    ? (isOfferedByMe || hasOfferedStart)
+                      ? 'Đang chờ đối thủ xác nhận đấu lại...'
                       : isOfferedByOpponent
-                        ? 'Đối thủ đã sẵn sàng! Bấm để vào trận ngay'
-                        : mySide === RED
-                          ? `Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`
-                          : `Sẵn sàng thi đấu (${formatClockTime(clock.turnSeconds)})`
+                        ? 'Đối thủ mời đấu lại! Bấm để đấu ván mới'
+                        : 'Đấu lại ván mới'
+                    : laOnlinePvp && !online?.mySide
+                      ? 'Vào bàn thi đấu'
+                      : (isOfferedByMe || hasOfferedStart)
+                        ? 'Đang chờ đối thủ xác nhận...'
+                        : isOfferedByOpponent
+                          ? 'Đối thủ đã sẵn sàng! Bấm để vào trận ngay'
+                          : mySide === RED
+                            ? `Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`
+                            : `Sẵn sàng thi đấu (${formatClockTime(clock.turnSeconds)})`
                 }
                 aria-label={
-                  laOnlinePvp && !online?.mySide
-                    ? 'Vào bàn thi đấu'
-                    : (isOfferedByMe || hasOfferedStart)
+                  isOver
+                    ? (isOfferedByMe || hasOfferedStart)
                       ? 'Đang chờ đối thủ'
                       : isOfferedByOpponent
-                        ? 'Sẵn sàng ngay'
-                        : mySide === RED
-                          ? 'Bắt đầu'
-                          : 'Sẵn sàng'
+                        ? 'Đồng ý đấu lại'
+                        : 'Đấu lại'
+                    : laOnlinePvp && !online?.mySide
+                      ? 'Vào bàn thi đấu'
+                      : (isOfferedByMe || hasOfferedStart)
+                        ? 'Đang chờ đối thủ'
+                        : isOfferedByOpponent
+                          ? 'Sẵn sàng ngay'
+                          : mySide === RED
+                            ? 'Bắt đầu'
+                            : 'Sẵn sàng'
                 }
               >
                 <Swords
                   className={cn(
                     'w-5 h-5 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]',
-                    (isOfferedByMe || hasOfferedStart) ? 'text-amber-200 animate-spin' : 'text-amber-300 group-hover:rotate-12'
+                    (isOfferedByMe || hasOfferedStart)
+                      ? 'text-amber-200 animate-spin'
+                      : isOver && !isOfferedByOpponent
+                        ? 'text-stone-950 group-hover:rotate-12'
+                        : 'text-amber-300 group-hover:rotate-12'
                   )}
                 />
-                <span className="text-amber-100 font-black uppercase drop-shadow">
-                  {laOnlinePvp && !online?.mySide
-                    ? 'VÀO BÀN'
-                    : (isOfferedByMe || hasOfferedStart)
+                <span
+                  className={cn(
+                    'font-black uppercase drop-shadow',
+                    isOver && !isOfferedByOpponent && !(isOfferedByMe || hasOfferedStart)
+                      ? 'text-stone-950'
+                      : 'text-amber-100'
+                  )}
+                >
+                  {isOver
+                    ? (isOfferedByMe || hasOfferedStart)
                       ? 'ĐÃ SẴN SÀNG'
                       : isOfferedByOpponent
-                        ? 'SẴN SÀNG NGAY'
-                        : mySide === RED
-                          ? 'BẮT ĐẦU'
-                          : 'SẴN SÀNG'}
+                        ? 'ĐỒNG Ý ĐẤU LẠI'
+                        : 'ĐẤU LẠI'
+                    : laOnlinePvp && !online?.mySide
+                      ? 'VÀO BÀN'
+                      : (isOfferedByMe || hasOfferedStart)
+                        ? 'ĐÃ SẴN SÀNG'
+                        : isOfferedByOpponent
+                          ? 'SẴN SÀNG NGAY'
+                          : mySide === RED
+                            ? 'BẮT ĐẦU'
+                            : 'SẴN SÀNG'}
                 </span>
               </button>
             </div>
