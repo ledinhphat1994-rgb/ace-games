@@ -287,30 +287,38 @@ export function CommunityPage() {
 
   return (
     <div data-testid="community-social-hub" className="space-y-6">
-      {/* ── CYBER HERO BANNER (MATCHING MOCKUP 4 - DOUBLED HEIGHT) ── */}
-      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-violet-500/25 bg-gradient-to-r from-[#0d1424] via-[#151c36] to-[#0b1020] p-8 sm:p-12 lg:p-16 shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(139,92,246,0.18),rgba(255,255,255,0))]" />
+      {/* ── CYBER HERO BANNER ── */}
+      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-emerald-500/25 bg-gradient-to-r from-[#031d1a] via-[#052e27] to-[#021310] p-8 sm:p-12 lg:p-16 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.18),rgba(255,255,255,0))]" />
 
-        {/* Background graphic from mockups */}
-        <div className="absolute right-0 top-0 bottom-0 w-2/5 opacity-40 lg:opacity-75 pointer-events-none overflow-hidden select-none">
+        {/* Artwork nhóm bạn trẻ anime kết nối vui tươi, đặt ở nửa phải */}
+        <div className="absolute right-0 top-0 bottom-0 w-3/5 lg:w-1/2 pointer-events-none overflow-hidden select-none">
           <img
-            src="/assets/cyber_mockups/community_hero_bg.webp"
+            src="/assets/cyber_mockups/community_hero_banner.webp"
             alt=""
-            className="w-full h-full object-cover object-left mix-blend-screen"
+            className="w-full h-full object-cover object-[right_top] opacity-80 lg:opacity-90 mix-blend-lighten"
           />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#031d1a] via-[#031d1a]/90 via-30% to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#021310] via-[#021310] to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-xs font-semibold text-violet-400 backdrop-blur-md mb-4">
-            <Users className="size-3.5" />
-            <span>Không gian kết nối & trao đổi trực tuyến</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-400 backdrop-blur-md mb-4 shadow-sm">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="tracking-wider uppercase">CỘNG ĐỒNG HỌC SINH</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase drop-shadow-md leading-[1.2]">
-            Cộng đồng Digital Campus
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+            Kết nối bạn bè,
+            <br />
+            cùng nhau tiến bước.
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400">
+              Học tập thông minh &amp; Trò chuyện tức thì.
+            </span>
           </h1>
 
-          <div className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
+          <div className="mt-4 flex items-center gap-2 text-sm text-slate-300 leading-relaxed max-w-xl">
             {moTaTrucTiep}
           </div>
 
@@ -320,7 +328,7 @@ export function CommunityPage() {
                 <Button
                   data-testid="community-find-friends-cta"
                   onClick={() => openDrawerTab('search')}
-                  className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:brightness-110 shadow-lg shadow-cyan-500/20 border-0 h-11 px-6 rounded-xl cursor-pointer text-sm"
+                  className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.35)] border-0 h-11 px-6 rounded-xl cursor-pointer text-sm"
                 >
                   <Search className="size-4" />
                   <span>Tìm bạn học</span>
@@ -329,7 +337,7 @@ export function CommunityPage() {
                   data-testid="community-open-chat-cta"
                   onClick={handleOpenChat}
                   variant="outline"
-                  className="gap-2 border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:text-white h-11 px-5 rounded-xl cursor-pointer text-sm"
+                  className="gap-2 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white h-11 px-5 rounded-xl cursor-pointer text-sm"
                 >
                   <MessageSquare className="size-4" />
                   <span>Trò chuyện trường</span>
@@ -337,10 +345,17 @@ export function CommunityPage() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => moAuthModal('dang_nhap')} className="h-11 px-5 rounded-xl text-sm">
+                <Button
+                  variant="outline"
+                  onClick={() => moAuthModal('dang_nhap')}
+                  className="h-11 px-5 rounded-xl text-sm font-semibold text-white border-white/30 hover:bg-white/10 hover:text-white cursor-pointer"
+                >
                   Đăng nhập
                 </Button>
-                <Button onClick={() => moAuthModal('dang_ky')} className="bg-brand text-brand-foreground hover:bg-brand/90 h-11 px-6 rounded-xl text-sm font-bold">
+                <Button
+                  onClick={() => moAuthModal('dang_ky')}
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 h-11 px-6 rounded-xl text-sm font-bold shadow-[0_0_20px_rgba(16,185,129,0.35)] cursor-pointer"
+                >
                   Đăng ký
                 </Button>
               </div>
@@ -351,26 +366,26 @@ export function CommunityPage() {
 
       {/* ── AREA A: LIGHTWEIGHT SOCIAL OVERVIEW ── */}
       {nguoiDung && (
-        <div data-testid="community-social-overview" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-violet-500/20 backdrop-blur-sm shadow-xs min-w-0 hover:border-violet-500/40 transition-colors">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400 border border-violet-500/25">
+        <div data-testid="community-social-overview" className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-surface/90 border border-border-default/80 hover:border-violet-500/40 backdrop-blur-md shadow-xs transition-colors">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400 border border-violet-500/25">
               <Users className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-text-secondary truncate">Bạn bè</p>
-              <p className="text-lg font-bold text-text-primary tabular-nums leading-tight">
+              <p className="text-xs font-medium text-text-secondary truncate">Bạn bè</p>
+              <p className="text-xl font-black text-text-primary tabular-nums leading-tight mt-0.5">
                 {coDuLieu ? friends.length : '—'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-emerald-500/20 backdrop-blur-sm shadow-xs min-w-0 hover:border-emerald-500/40 transition-colors">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-surface/90 border border-border-default/80 hover:border-emerald-500/40 backdrop-blur-md shadow-xs transition-colors">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
               <Radio className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-text-secondary truncate">Trực tuyến</p>
-              <p className="text-lg font-bold text-emerald-400 tabular-nums leading-tight">
+              <p className="text-xs font-medium text-text-secondary truncate">Trực tuyến</p>
+              <p className="text-xl font-black text-emerald-400 tabular-nums leading-tight mt-0.5">
                 {presenceReady ? totalActive : '…'}
               </p>
             </div>
@@ -382,14 +397,14 @@ export function CommunityPage() {
               else openDrawerTab('requests')
             }}
             className={cn(
-              'flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border transition-colors cursor-pointer min-w-0 backdrop-blur-sm',
+              'flex items-center gap-3.5 p-4 rounded-2xl bg-surface/90 border transition-colors cursor-pointer min-w-0 backdrop-blur-md shadow-xs',
               incomingRequests.length > 0
                 ? 'border-social/40 bg-social-muted/30 hover:bg-social-muted/50'
-                : 'border-border-default hover:border-border-subtle shadow-xs',
+                : 'border-border-default/80 hover:border-social/40',
             )}
           >
             <div className={cn(
-              'flex size-10 shrink-0 items-center justify-center rounded-xl border',
+              'flex size-11 shrink-0 items-center justify-center rounded-xl border',
               incomingRequests.length > 0
                 ? 'bg-social/20 text-social border-social/40'
                 : 'bg-surface-overlay text-text-secondary border-border-default',
@@ -397,9 +412,9 @@ export function CommunityPage() {
               <UserPlus className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-text-secondary truncate">Lời mời kết bạn</p>
-              <div className="flex items-center gap-1.5">
-                <span className="text-lg font-bold text-text-primary tabular-nums leading-tight">
+              <p className="text-xs font-medium text-text-secondary truncate">Lời mời kết bạn</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-xl font-black text-text-primary tabular-nums leading-tight">
                   {incomingRequests.length}
                 </span>
                 {incomingRequests.length > 0 && (
@@ -409,13 +424,13 @@ export function CommunityPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-surface/80 border border-cyan-500/20 backdrop-blur-sm shadow-xs min-w-0 hover:border-cyan-500/40 transition-colors">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand border border-brand/25">
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-surface/90 border border-border-default/80 hover:border-sky-500/40 backdrop-blur-md shadow-xs transition-colors">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400 border border-sky-500/25">
               <DoorOpen className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-text-secondary truncate">Trong phòng học</p>
-              <p className="text-lg font-bold text-brand tabular-nums leading-tight">
+              <p className="text-xs font-medium text-text-secondary truncate">Trong phòng học</p>
+              <p className="text-xl font-black text-sky-400 tabular-nums leading-tight mt-0.5">
                 {presenceReady ? presenceView.inRoom.length : '…'}
               </p>
             </div>
@@ -452,14 +467,14 @@ export function CommunityPage() {
             AREA B: FRIENDS & CONNECTIONS WORKSPACE
         ══════════════════════════════════════════════════════════ */}
         <div data-testid="community-friends-workspace" className="min-w-0 space-y-4">
-          {/* Quick Interaction / Status Prompt (Mockup 4) */}
+          {/* Quick Interaction / Status Prompt */}
           {nguoiDung && (
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-surface via-surface-raised to-surface shadow-xs">
+            <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-surface via-surface-raised to-surface shadow-xs">
               <div className="relative shrink-0">
                 {nguoiDung.avatar ? (
-                  <img src={nguoiDung.avatar} alt="" className="size-9 rounded-full object-cover ring-2 ring-brand/30" />
+                  <img src={nguoiDung.avatar} alt="" className="size-9 rounded-full object-cover ring-2 ring-emerald-500/30" />
                 ) : (
-                  <div className="flex size-9 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
                     {getInitials(nguoiDung.ten || nguoiDung.username)}
                   </div>
                 )}
@@ -474,25 +489,26 @@ export function CommunityPage() {
               <Button
                 size="sm"
                 onClick={handleOpenChat}
-                className="h-9 px-3 gap-1.5 bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 text-xs font-semibold rounded-xl cursor-pointer"
+                className="h-9 px-3.5 gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 text-xs font-semibold rounded-xl cursor-pointer"
               >
                 <MessageSquare className="size-3.5" />
                 <span className="hidden sm:inline">Kênh trường</span>
               </Button>
             </div>
           )}
+
           {/* FILTER TOOLBAR */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-surface border border-border-default shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-2xl bg-surface border border-border-default/80 shadow-xs">
             {/* Segmented Filter Tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
               <button
                 type="button"
                 data-testid="community-friends-tab-all"
                 onClick={() => setFilterTab('all')}
                 className={cn(
-                  'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0',
+                  'px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0 cursor-pointer',
                   filterTab === 'all'
-                    ? 'bg-brand/15 text-brand border border-brand/25'
+                    ? 'bg-brand/15 text-brand border border-brand/25 shadow-xs'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-transparent',
                 )}
               >
@@ -503,9 +519,9 @@ export function CommunityPage() {
                 data-testid="community-friends-tab-online"
                 onClick={() => setFilterTab('online')}
                 className={cn(
-                  'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0',
+                  'px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0 cursor-pointer',
                   filterTab === 'online'
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shadow-xs'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-transparent',
                 )}
               >
@@ -516,9 +532,9 @@ export function CommunityPage() {
                 data-testid="community-friends-tab-requests"
                 onClick={() => setFilterTab('requests')}
                 className={cn(
-                  'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0 relative',
+                  'px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0 relative cursor-pointer',
                   filterTab === 'requests'
-                    ? 'bg-social/15 text-social border border-social/25'
+                    ? 'bg-social/15 text-social border border-social/25 shadow-xs'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-transparent',
                 )}
               >
@@ -529,9 +545,9 @@ export function CommunityPage() {
                   type="button"
                   onClick={() => setFilterTab('blocked')}
                   className={cn(
-                    'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0',
+                    'px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0 cursor-pointer',
                     filterTab === 'blocked'
-                      ? 'bg-destructive/15 text-destructive border border-destructive/25'
+                      ? 'bg-destructive/15 text-destructive border border-destructive/25 shadow-xs'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-transparent',
                   )}
                 >
@@ -540,27 +556,38 @@ export function CommunityPage() {
               )}
             </div>
 
-            {/* In-list Search Filter */}
-            <div className="relative flex-1 sm:max-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary" />
-              <Input
-                data-testid="community-search-input"
-                type="text"
-                placeholder="Lọc bạn bè..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="h-8 pl-8 pr-3 text-xs rounded-xl bg-surface-overlay border-border-default focus-visible:ring-1 focus-visible:ring-brand"
-              />
-              {searchFilter && (
-                <button
-                  type="button"
-                  onClick={() => setSearchFilter('')}
-                  aria-label="Xoá tìm kiếm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 size-4 text-text-tertiary hover:text-text-primary rounded-full flex items-center justify-center"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
+            {/* In-list Search Filter & Add Friend Button */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-52">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary" />
+                <Input
+                  data-testid="community-search-input"
+                  type="text"
+                  placeholder="Lọc bạn bè..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="h-8.5 pl-8.5 pr-7 text-xs rounded-xl bg-surface-overlay border-border-default focus-visible:ring-1 focus-visible:ring-brand"
+                />
+                {searchFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilter('')}
+                    aria-label="Xoá tìm kiếm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-4 text-text-tertiary hover:text-text-primary rounded-full flex items-center justify-center cursor-pointer"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+              <Button
+                size="sm"
+                onClick={() => openDrawerTab('search')}
+                className="h-8.5 gap-1.5 px-3 text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 rounded-xl cursor-pointer shrink-0"
+                title="Tìm và kết bạn mới"
+              >
+                <UserPlus className="size-3.5" />
+                <span className="hidden sm:inline">Thêm bạn</span>
+              </Button>
             </div>
           </div>
 
@@ -862,15 +889,15 @@ export function CommunityPage() {
                                 title={`Nhắn tin cho ${friend.displayName}`}
                                 data-testid={`community-dm-btn-${friend.username}`}
                                 onClick={() => handleOpenDM(friend)}
-                                className="h-8 size-8 p-0"
+                                className="h-8.5 size-8.5 p-0 rounded-xl border-border-default/80 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
                               >
-                                <MessageSquare className="size-3.5 text-text-secondary" />
+                                <MessageSquare className="size-3.5" />
                               </Button>
                               <Button
                                 size="xs"
                                 data-testid={`join-room-btn-${friend.username}`}
                                 onClick={() => navigate(`/room/phong-${roomId}`)}
-                                className="h-8 gap-1.5 px-2.5 text-xs font-semibold bg-brand text-brand-foreground hover:bg-brand/90"
+                                className="h-8.5 gap-1.5 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-xs cursor-pointer"
                               >
                                 <DoorOpen className="size-3.5" />
                                 <span>Vào phòng</span>
@@ -900,7 +927,7 @@ export function CommunityPage() {
                           meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
                           action={
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className={cn('text-xs font-medium', isAway ? 'text-warning' : 'text-success')}>
+                              <span className={cn('text-xs font-medium px-2 py-0.5 rounded-lg border', isAway ? 'text-amber-400 bg-amber-500/10 border-amber-500/25' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25')}>
                                 {isAway ? 'Tạm vắng' : 'Trực tuyến'}
                               </span>
                               <Button
@@ -910,7 +937,7 @@ export function CommunityPage() {
                                 title={`Nhắn tin cho ${friend.displayName}`}
                                 data-testid={`community-dm-btn-${friend.username}`}
                                 onClick={() => handleOpenDM(friend)}
-                                className="h-8 size-8 p-0"
+                                className="h-8.5 size-8.5 p-0 rounded-xl border-border-default/80 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer"
                               >
                                 <MessageSquare className="size-3.5 text-text-secondary" />
                               </Button>
@@ -945,7 +972,7 @@ export function CommunityPage() {
                               title={`Nhắn tin cho ${friend.displayName}`}
                               data-testid={`community-dm-btn-${friend.username}`}
                               onClick={() => handleOpenDM(friend)}
-                              className="h-8 size-8 p-0 text-text-tertiary hover:text-text-primary"
+                              className="h-8.5 size-8.5 p-0 text-text-tertiary hover:text-text-primary rounded-xl cursor-pointer"
                             >
                               <MessageSquare className="size-3.5" />
                             </Button>
@@ -977,17 +1004,17 @@ export function CommunityPage() {
           {nguoiDung ? (
             <div className="overflow-hidden rounded-2xl border border-border-default bg-surface shadow-xs">
               {/* Profile Card Header */}
-              <div className="relative p-5 pb-4 bg-gradient-to-b from-brand/10 via-surface to-surface border-b border-border-subtle">
+              <div className="relative p-5 pb-4 bg-gradient-to-b from-emerald-500/10 via-surface to-surface border-b border-border-subtle">
                 <div className="flex items-start justify-between gap-3">
                   <div className="relative shrink-0">
                     {nguoiDung.avatar ? (
                       <img
                         src={nguoiDung.avatar}
                         alt=""
-                        className="size-14 rounded-2xl object-cover ring-2 ring-brand/30 shadow-sm"
+                        className="size-14 rounded-2xl object-cover ring-2 ring-emerald-500/30 shadow-sm"
                       />
                     ) : (
-                      <div className="flex size-14 items-center justify-center rounded-2xl bg-brand/20 text-brand text-lg font-bold ring-2 ring-brand/30 shadow-sm">
+                      <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 text-lg font-bold ring-2 ring-emerald-500/30 shadow-sm">
                         {getInitials(nguoiDung.ten || nguoiDung.username)}
                       </div>
                     )}
@@ -998,7 +1025,7 @@ export function CommunityPage() {
                     size="xs"
                     variant="outline"
                     onClick={() => navigate('/me')}
-                    className="gap-1.5 h-8 px-2.5 text-xs font-semibold rounded-xl border-border-default hover:border-brand/40"
+                    className="gap-1.5 h-8 px-2.5 text-xs font-semibold rounded-xl border-border-default hover:border-emerald-500/40 hover:text-emerald-400 cursor-pointer"
                   >
                     <Pencil className="size-3 text-text-secondary" />
                     <span>Sửa hồ sơ</span>
@@ -1019,7 +1046,7 @@ export function CommunityPage() {
                         ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
                         : nguoiDung.role === 'teacher'
                           ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'bg-brand/15 text-brand border border-brand/25',
+                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
                     )}>
                       {nguoiDung.isSchoolAdmin ? (
                         <Shield className="size-3" />
@@ -1065,7 +1092,7 @@ export function CommunityPage() {
                 </div>
 
                 <div className="p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 text-xs text-brand mb-0.5">
+                  <div className="flex items-center justify-center gap-1 text-xs text-emerald-400 mb-0.5">
                     <Zap className="size-3.5" />
                     <span className="text-[11px] font-medium text-text-tertiary">Điểm XP</span>
                   </div>
@@ -1094,7 +1121,7 @@ export function CommunityPage() {
                   <button
                     type="button"
                     onClick={() => navigate('/me')}
-                    className="text-xs font-semibold text-brand hover:underline"
+                    className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer"
                   >
                     Xem tất cả
                   </button>
@@ -1128,7 +1155,7 @@ export function CommunityPage() {
           ) : (
             /* Guest Identity Prompt */
             <div className="rounded-2xl border border-border-default bg-surface p-5 text-center space-y-3 shadow-xs">
-              <div className="flex size-12 mx-auto items-center justify-center rounded-2xl bg-brand/15 text-brand">
+              <div className="flex size-12 mx-auto items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400">
                 <User className="size-6" />
               </div>
               <h3 className="text-sm font-bold text-text-primary">Tham gia Digital Campus</h3>
@@ -1137,7 +1164,7 @@ export function CommunityPage() {
               </p>
               <Button
                 onClick={() => moAuthModal('dang_nhap')}
-                className="w-full h-9 text-xs font-bold rounded-xl bg-brand text-brand-foreground hover:bg-brand/90"
+                className="w-full h-9 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
               >
                 Đăng nhập ngay
               </Button>
@@ -1145,7 +1172,7 @@ export function CommunityPage() {
           )}
 
           {/* Canonical Discovery & Connect Card */}
-          <div className="rounded-2xl border border-border-default bg-surface p-4 space-y-2.5 shadow-xs">
+          <div className="rounded-2xl border border-border-default/80 bg-surface p-4 space-y-2.5 shadow-xs">
             <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
               Kết nối nhanh
             </span>
@@ -1153,14 +1180,14 @@ export function CommunityPage() {
               <button
                 type="button"
                 onClick={() => openDrawerTab('search')}
-                className="flex items-center justify-between w-full p-2.5 rounded-xl hover:bg-surface-overlay text-left transition-colors group"
+                className="flex items-center justify-between w-full p-2.5 rounded-xl hover:bg-surface-overlay text-left transition-colors group cursor-pointer"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-social/15 text-social">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
                     <UserPlus className="size-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-text-primary group-hover:text-brand transition-colors truncate">
+                    <p className="text-xs font-semibold text-text-primary group-hover:text-emerald-400 transition-colors truncate">
                       Tìm kiếm bạn học
                     </p>
                     <p className="text-[11px] text-text-tertiary truncate">Qua họ tên hoặc mã tài khoản</p>
@@ -1171,14 +1198,14 @@ export function CommunityPage() {
               <button
                 type="button"
                 onClick={handleOpenChat}
-                className="flex items-center justify-between w-full p-2.5 rounded-xl hover:bg-surface-overlay text-left transition-colors group"
+                className="flex items-center justify-between w-full p-2.5 rounded-xl hover:bg-surface-overlay text-left transition-colors group cursor-pointer"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-400">
                     <MessageSquare className="size-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-text-primary group-hover:text-brand transition-colors truncate">
+                    <p className="text-xs font-semibold text-text-primary group-hover:text-teal-400 transition-colors truncate">
                       Kênh trò chuyện trường
                     </p>
                     <p className="text-[11px] text-text-tertiary truncate">Thảo luận cùng bạn học toàn trường</p>
@@ -1264,24 +1291,24 @@ function DongBanBe({
   const cham = MAU_CHAM_TRANG_THAI[trangThai]
 
   return (
-    <li data-testid={testId} className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface-raised/30 transition-colors">
+    <li data-testid={testId} className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface-raised/50 transition-colors">
       <button
         type="button"
         onClick={(event) => onXem(friend, event.currentTarget.getBoundingClientRect())}
         aria-label={'Xem thông tin ' + friend.displayName}
-        className="flex min-h-11 min-w-0 grow basis-48 items-center gap-3 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+        className="flex min-h-11 min-w-0 grow basis-48 items-center gap-3 rounded-xl text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none cursor-pointer group"
       >
         <div className="relative shrink-0">
           {friend.avatar ? (
             <img
               src={friend.avatar}
               alt=""
-              className={cn('size-10 rounded-full object-cover', ngoaiTuyen && 'opacity-60 grayscale')}
+              className={cn('size-10 rounded-full object-cover group-hover:ring-2 group-hover:ring-emerald-500/40 transition-all', ngoaiTuyen && 'opacity-60 grayscale')}
             />
           ) : (
             <div
               className={cn(
-                'flex size-10 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
+                'flex size-10 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary group-hover:ring-2 group-hover:ring-emerald-500/40 transition-all',
                 ngoaiTuyen && 'opacity-70',
               )}
             >
@@ -1291,7 +1318,7 @@ function DongBanBe({
           {cham && <span className={cn('absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface', cham)} />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className={cn('text-sm font-semibold truncate', ngoaiTuyen ? 'text-text-secondary' : 'text-text-primary')}>
+          <p className={cn('text-sm font-semibold truncate group-hover:text-emerald-400 transition-colors', ngoaiTuyen ? 'text-text-secondary' : 'text-text-primary')}>
             {friend.displayName}
           </p>
           <p className="text-xs truncate text-text-tertiary">{meta}</p>
@@ -1306,7 +1333,7 @@ function DongBanBe({
           title={`Nhắn tin cho ${friend.displayName}`}
           data-testid={`community-dm-btn-${friend.username}`}
           onClick={() => onDM(friend)}
-          className="h-8 size-8 p-0 shrink-0 text-text-secondary hover:text-text-primary"
+          className="h-8.5 size-8.5 p-0 shrink-0 text-text-secondary hover:text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10 rounded-xl cursor-pointer"
         >
           <MessageSquare className="size-3.5" />
         </Button>
