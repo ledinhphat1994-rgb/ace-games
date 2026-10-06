@@ -293,17 +293,17 @@ export function LeaderboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12" data-testid="leaderboard-page">
-      {/* ── 1. Cyber Hero Banner (Matching Mockup 5 - DOUBLED HEIGHT) ── */}
-      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-r from-[#040e29] via-[#091538] to-[#040e29] p-8 sm:p-12 lg:p-16 shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.18),rgba(255,255,255,0))]" />
-
-        {/* Background graphic from mockups */}
-        <div className="absolute right-0 top-0 bottom-0 w-2/5 opacity-50 lg:opacity-85 pointer-events-none overflow-hidden select-none">
+      {/* ── 1. Cyber Hero Banner (Bảng xếp hạng & Vinh danh) ── */}
+      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/25 bg-[#040e29] p-8 sm:p-12 lg:p-16 shadow-[0_0_40px_rgba(245,158,11,0.15)] group select-none">
+        {/* Full-width Background Image & Gradients */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <img
-            src="/assets/cyber_mockups/leaderboard_hero_bg.webp"
-            alt=""
-            className="w-full h-full object-cover object-left mix-blend-screen crisp-image"
+            src="/assets/banners/leaderboard_hero_cyber.jpg"
+            alt="Bảng xếp hạng Digital Campus"
+            className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
           />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#040e29] via-[#040e29]/85 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#040e29]/90 via-transparent to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-2xl">

@@ -174,7 +174,7 @@ export function HomePage() {
         </>
       ),
       desc: 'Không gian học nhóm tương tác với bảng vẽ trực tiếp, tài liệu ôn thi chuẩn SGK và video bài giảng đồng bộ cùng bạn học.',
-      bgImage: '/assets/cyber_mockups/classroom_hero_bg.webp',
+      bgImage: '/assets/banners/learning_hero_cyber.jpg',
       gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
       primaryAction: {
         label: 'Vào sảnh học tập',
@@ -203,7 +203,7 @@ export function HomePage() {
         </>
       ),
       desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 với bạn bè hoặc rèn luyện cùng AI đa cấp độ, xác thực máy chủ Cloudflare chống gian lận.',
-      bgImage: '/assets/cyber_mockups/game_hero_bg.webp',
+      bgImage: '/assets/banners/game_pvp_hero.jpg',
       gradient: 'from-[#14062a] via-[#14062a]/85 to-transparent',
       primaryAction: {
         label: 'Vào Đấu trường game',
@@ -244,6 +244,35 @@ export function HomePage() {
         label: 'Kênh trò chuyện trường',
         action: 'open_chat' as const,
         icon: MessageSquare,
+      },
+    },
+    {
+      id: 'leaderboard',
+      badge: 'BẢNG VINH DANH • DIGITAL CAMPUS',
+      title: (
+        <>
+          Vinh Danh Thành Tích,
+          <br />
+          Khẳng Định Bản Lĩnh.
+          <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500">
+            Bảng Vàng Danh Dự Toàn Trường.
+          </span>
+        </>
+      ),
+      desc: 'Tôn vinh học sinh tiêu biểu, kỳ thủ xuất sắc và kỷ lục điểm số các trò chơi trí tuệ theo thời gian thực.',
+      bgImage: '/assets/banners/leaderboard_hero_cyber.jpg',
+      gradient: 'from-[#1c1204] via-[#1c1204]/85 to-transparent',
+      primaryAction: {
+        label: 'Xem Bảng vinh danh',
+        to: '/leaderboard',
+        icon: Trophy,
+        className: 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-stone-950 font-bold',
+      },
+      secondaryAction: {
+        label: 'Vào Đấu trường game',
+        to: '/arena',
+        icon: Gamepad2,
       },
     },
   ], [nguoiDung])

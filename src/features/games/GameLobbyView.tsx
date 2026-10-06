@@ -928,7 +928,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         badge: 'THI ĐẤU ĐỐI KHÁNG 1V1 • XẾP HẠNG ELO',
         title: 'Tranh Tài Cao Thủ, Khẳng Định Bản Lĩnh',
         desc: 'Hệ thống ghép trận thời gian thực, bảng xếp hạng Elo chuẩn quốc tế và xác thực máy chủ chống gian lận.',
-        bgImage: '/assets/games/game_hero_clean.jpg',
+        bgImage: '/assets/banners/game_pvp_hero.jpg',
         gradient: 'from-[#031535] via-[#031535]/85 to-transparent',
       },
       {

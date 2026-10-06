@@ -137,7 +137,7 @@ export function LearningPage() {
       badge: 'PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN',
       title: 'Sảnh Học Tập Trực Tuyến',
       desc: 'Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.',
-      bgImage: '/assets/cyber_mockups/learning_hero_bg.webp',
+      bgImage: '/assets/banners/learning_hero_cyber.jpg',
       gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
     },
     {
