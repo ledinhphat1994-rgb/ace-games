@@ -44,6 +44,7 @@ import { formatLastSeen } from '@/features/hub/social-semantics'
 import { guiReactionTinNhanRieng, guiTinNhanRieng, layTinNhanRieng, xoaTinNhanRieng } from '@/lib/api'
 import { useTopLayerZIndex } from '@/lib/top-layer'
 import { cn } from '@/lib/utils'
+import { GameInviteBubble, parseGameInvite } from '@/components/chat/GameInviteBubble'
 import type { ReactionDetail } from '@shared/protocol/campus'
 import type { DirectMessage } from '@shared/protocol/social'
 
@@ -924,7 +925,17 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
                               laCuaMinh ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised',
                             )}
                           >
-                            <p className="whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word]">{msg.noiDung}</p>
+                            {(() => {
+                              const invite = parseGameInvite(msg.noiDung)
+                              if (invite) {
+                                return <GameInviteBubble invite={invite} isMe={laCuaMinh} />
+                              }
+                              return (
+                                <p className="whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word]">
+                                  {msg.noiDung}
+                                </p>
+                              )
+                            })()}
 
                             {/* Dòng thời gian và icon thả emoji (ở góc phải dưới bubble chuẩn quốc tế) */}
                             <div className="mt-1 flex items-center justify-end gap-1.5 pt-0.5 select-none relative">

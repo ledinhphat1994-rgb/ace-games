@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn, getInitials } from '@/lib/utils'
 import { layTinNhanRieng, guiTinNhanRieng } from '@/lib/api'
 import { CampusChatDrawer } from '@/features/hub/CampusChatDrawer'
+import { GameInviteBubble, parseGameInvite } from '@/components/chat/GameInviteBubble'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { NutQuanHe } from '@/components/social/NutQuanHe'
@@ -1117,21 +1118,26 @@ function HopChatRieng11({
         ) : (
           messages.map((m) => {
             const isMe = m.senderId === myId
+            const invite = parseGameInvite(m.noiDung)
             return (
               <div
                 key={m.id}
                 className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}
               >
-                <div
-                  className={cn(
-                    'px-3 py-1.5 text-xs max-w-[85%] break-words shadow-sm',
-                    isMe
-                      ? 'bg-brand/20 border border-brand/35 text-brand rounded-2xl rounded-tr-xs'
-                      : 'bg-surface-overlay border border-border-default text-text-primary rounded-2xl rounded-tl-xs',
-                  )}
-                >
-                  {m.noiDung}
-                </div>
+                {invite ? (
+                  <GameInviteBubble invite={invite} isMe={isMe} />
+                ) : (
+                  <div
+                    className={cn(
+                      'px-3 py-1.5 text-xs max-w-[85%] break-words shadow-sm',
+                      isMe
+                        ? 'bg-brand/20 border border-brand/35 text-brand rounded-2xl rounded-tr-xs'
+                        : 'bg-surface-overlay border border-border-default text-text-primary rounded-2xl rounded-tl-xs',
+                    )}
+                  >
+                    {m.noiDung}
+                  </div>
+                )}
                 <span className="text-[9px] text-text-tertiary mt-0.5 px-1 font-mono">
                   {new Date(m.taoLuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                 </span>

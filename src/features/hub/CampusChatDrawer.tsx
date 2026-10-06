@@ -20,6 +20,7 @@ import { ArrowDown, Copy, EyeOff, Lightbulb, Loader2, MessageSquare, MoreVertica
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { GameInviteBubble, parseGameInvite } from '@/components/chat/GameInviteBubble'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1060,7 +1061,17 @@ export function CampusChatDrawer({
                                 laCuaMinh ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised',
                               )}
                             >
-                              <p className="whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word]">{msg.noiDung}</p>
+                              {(() => {
+                                const invite = parseGameInvite(msg.noiDung)
+                                if (invite) {
+                                  return <GameInviteBubble invite={invite} isMe={laCuaMinh} />
+                                }
+                                return (
+                                  <p className="whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word]">
+                                    {msg.noiDung}
+                                  </p>
+                                )
+                              })()}
 
                               {/* Dòng thời gian, icon thả emoji và nút xóa (sắp xếp hợp lý ở góc phải dưới bubble) */}
                               <div className="mt-1 flex items-center justify-end gap-1.5 pt-0.5 select-none relative">
