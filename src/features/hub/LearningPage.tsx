@@ -40,7 +40,7 @@ import { cn } from '@/lib/utils'
 export { LEARNING_OCCUPANCY_METRIC_CONFIG }
 
 // Danh sách phòng học mẫu chuẩn nền tảng hiển thị cho khách và người dùng khám phá sảnh
-export const PLATFORM_DEFAULT_STUDY_ROOMS: PhongSanh[] = [
+const PLATFORM_DEFAULT_STUDY_ROOMS: PhongSanh[] = [
   {
     id: 1,
     ten: 'Ôn tập chuyên đề thi THPT: Toán & Ngữ văn',
