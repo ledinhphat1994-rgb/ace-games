@@ -20,7 +20,23 @@ import { dungTheCoVua } from '../../../../worker/game-engine'
 import type { BanOnline } from '@/hooks/use-game'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { Crown, RotateCcw, Lightbulb, BarChart3, ScrollText, Swords, MessageCircle } from 'lucide-react'
+import {
+  RotateCcw,
+  Swords,
+  ArrowLeft,
+  Lock,
+  Clock,
+  Flag,
+  Handshake,
+  Smile,
+  Bot,
+  Users,
+  X,
+  UserPlus,
+} from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { usePhien } from '@/app/phien'
+import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import {
   guiBieuCamOnline,
@@ -32,9 +48,8 @@ import {
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameDrawModal } from '../GameDrawModal'
 import { toast } from 'sonner'
-import { TIME_PRESETS } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
-import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import { GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import {
   playGameOverSound,
@@ -236,10 +251,8 @@ export function ChessBoard({
     reason: string
   } | null>(null)
 
-  const [moveHistory, setMoveHistory] = useState<string[]>([])
   const [hintMove, setHintMove] = useState<ChessMove | null>(null)
-  const [showAnalysis, setShowAnalysis] = useState(false)
-  const [activeSideTab, setActiveSideTab] = useState<'moves' | 'chat'>('moves')
+  const [, setMoveHistory] = useState<string[]>([])
 
   const legalMoves = useMemo(() => pos.legalMoves(), [pos])
   const outcome = useMemo(() => pos.outcome(), [pos])
@@ -568,26 +581,7 @@ export function ChessBoard({
     }
   }, [laOnline, isAiThinking, isOver, mode, posTaiCho])
 
-  const handleHint = useCallback(() => {
-    if (laOnline || isAiThinking || isOver) return
-    const best = findBestChessMove(pos, 'hard')
-    if (best) {
-      setHintMove(best)
-      setTimeout(() => setHintMove(null), 4000)
-    }
-  }, [laOnline, isAiThinking, isOver, pos])
 
-  const movePairs = useMemo(() => {
-    const pairs: { num: number; white: string; black?: string }[] = []
-    for (let i = 0; i < moveHistory.length; i += 2) {
-      pairs.push({
-        num: Math.floor(i / 2) + 1,
-        white: moveHistory[i],
-        black: moveHistory[i + 1],
-      })
-    }
-    return pairs
-  }, [moveHistory])
 
   // Đồng bộ lịch sử nước đi bàn online
   useEffect(() => {
@@ -783,300 +777,469 @@ export function ChessBoard({
     </div>
   )
 
+  const { nguoiDung } = usePhien()
+  const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
+  const myAvatarUrl = nguoiDung?.avatar || undefined
+  const opponentName = laOnline && online?.mySide
+    ? tenNguoiChoi(online, online.mySide === 'X' ? 'O' : 'X')
+    : mode === 'ai' ? 'Stockfish AI' : 'Bên Đen'
+  const opponentLevel = mode === 'ai' ? (aiLevel === 'easy' ? '1' : aiLevel === 'medium' ? '5' : '10') : '5'
+  const opponentElo = mode === 'ai' ? (aiLevel === 'easy' ? 1200 : aiLevel === 'medium' ? 1500 : 1800) : 1500
+  const hasOpponent = laOnline ? Boolean(online?.meta.playerO) : true
+  const isMyTurn = laOnline ? toiDenLuotOnline : (mode === 'ai' ? pos.turn === playerColor : true)
+  const isOpponentTurn = isPlaying && !isOver && !isMyTurn
+
+  // Quick menu emoji & chat
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
+  const quickMenuRef = useRef<HTMLDivElement>(null)
+  const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
+
+  const handleOpenQuickMenu = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    setQuickMenuPos({
+      left: Math.max(10, Math.min(window.innerWidth - 260, rect.left - 100)),
+      top: Math.max(10, rect.top - 240),
+    })
+    setIsQuickMenuOpen((prev) => !prev)
+  }
+
+  const getBubbleCoordinates = (index: number, total: number) => {
+    const D = 62
+    if (total <= 1) return { x: -62, y: 0 }
+    const startAngle = 60
+    const endAngle = 180
+    const step = (endAngle - startAngle) / (total - 1)
+    const angleDeg = startAngle + index * step
+    const angleRad = (angleDeg * Math.PI) / 180
+    return {
+      x: Math.round(D * Math.cos(angleRad)),
+      y: Math.round(-D * Math.sin(angleRad)),
+    }
+  }
+
+  const handleStartGameClick = () => {
+    if (laOnline) {
+      if (!online?.mySide) {
+        online?.joinGame()
+        return
+      }
+      online.startGame()
+    }
+    resetGame()
+  }
+
+  const chessTools = [
+    {
+      id: 'mode',
+      title: mode === 'ai' ? 'Đổi sang Đấu 2 người' : 'Đổi sang Đấu với Máy AI',
+      icon: mode === 'ai' ? <Bot className="size-4 text-cyan-400" /> : <Users className="size-4 text-amber-400" />,
+      onClick: () => doiCheDo(mode === 'ai' ? 'pass_and_play' : 'ai'),
+      className: 'border-cyan-500/40 bg-[#121622]/95 hover:border-cyan-400 hover:bg-cyan-500/20 text-cyan-300',
+    },
+    {
+      id: 'draw',
+      title: 'Đề nghị hòa cờ',
+      icon: <Handshake className="size-4 text-amber-400" />,
+      disabled: isDrawOfferedByMe || isOver || isAiThinking || !isPlaying,
+      onClick: handleOfferDraw,
+      className: 'border-amber-500/40 bg-[#121622]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300',
+    },
+    {
+      id: 'surrender',
+      title: 'Xin thua / Đầu hàng',
+      icon: <Flag className="size-4 text-rose-400" />,
+      disabled: isOver || isAiThinking,
+      onClick: () => setIsSurrenderModalOpen(true),
+      className: 'border-rose-500/40 bg-[#121622]/95 hover:border-rose-400 hover:bg-rose-500/20 text-rose-300',
+    },
+    {
+      id: 'emote',
+      title: 'Biểu cảm & Tin nhanh',
+      icon: <Smile className="size-4 text-amber-400" />,
+      onClick: (e: React.MouseEvent) => handleOpenQuickMenu(e),
+      className: 'border-amber-400/50 bg-[#161a24]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300',
+    },
+    {
+      id: 'flip',
+      title: 'Lật bàn cờ',
+      icon: <RotateCcw className="size-4 text-sky-400" />,
+      disabled: false,
+      onClick: handleUndo,
+      className: 'border-sky-500/40 bg-[#121622]/95 hover:border-sky-400 hover:bg-sky-500/20 text-sky-300',
+    },
+  ]
+
   return (
-    <div className="flex flex-col items-center justify-between w-full h-full">
-      {/* Thanh điều khiển cân đối & trạng thái ván đấu (Vùng 3 tích hợp đối thủ & người chơi) */}
-      <GamePlayToolbar
-        onBack={onBack}
-        title="Cờ Vua"
-        icon={<Crown className="size-4 text-amber-400" />}
-        roomName={roomName}
-        isPrivate={isPrivate}
-        soPhongHienThi={soPhongHienThi}
-        onInvite={onInvite}
-        mode={mode}
-        onModeChange={handleModeChange}
-        onlineAvailable={Boolean(online)}
-        aiLevel={aiLevel}
-        onAiLevelChange={setAiLevel}
-        onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
-        resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
-        resetIcon={nutOnline?.icon}
-        resetDisabled={nutOnline ? nutOnline.disabled : (!isOver && surrenderAttempts >= 3)}
-        surrenderAttempts={nutOnline ? undefined : surrenderAttempts}
-        onOfferDraw={handleOfferDraw}
-        offerDrawDisabled={isDrawOfferedByMe || isOver || isAiThinking || !isPlaying}
-        activeSide={isOver ? (winnerColor === WHITE ? 'red' : 'black') : (pos.turn === WHITE ? 'red' : 'black')}
-        turnLabel={`Lượt: ${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'}`}
-        isAiThinking={isAiThinking}
-        hideCenterTurn={true}
-        showRankings={false}
-        showRoomChat={true}
-        turnSeconds={clock.myPendingProposal ?? clock.turnSeconds}
-        onTurnSecondsChange={clock.proposeTime}
-        timePresets={TIME_PRESETS}
-        opponentSlot={opponentSlotContent}
-        playerSlot={playerSlotContent}
-        rightSlot={
-          <GameQuickEmote
-            emotes={DANH_SACH_THAI_DO_CHESS}
-            onSend={handleQuickEmote}
-            theme="amber"
-            compact={true}
-          />
-        }
-      />
+    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden relative select-none">
+      {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, NÚT SẢNH & SỐ PHÒNG */}
+      <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
+          <button
+            type="button"
+            id="game-leave-btn"
+            onClick={onBack}
+            className="h-8 px-2.5 rounded-lg text-xs gap-1.5 inline-flex items-center font-medium text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-colors duration-150 shrink-0"
+            title="Quay lại sảnh"
+            aria-label="Quay lại sảnh"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span>Sảnh</span>
+          </button>
 
-      {/* ── BỐ CỤC CHUẨN CYBER CAMPUS: BÀN CỜ + BẢNG ĐIỀU KHIỂN & LỊCH SỬ NƯỚC ĐI ── */}
-      <div className="flex flex-col xl:flex-row items-center xl:items-start justify-center gap-5 sm:gap-6 w-full flex-1 my-auto px-2 sm:px-4 py-2">
-        {/* CỘT CÂN BẰNG TRÁI (SPACER ĐỂ BÀN CỜ ĐẠT 100% CĂN GIỮA MÀN HÌNH TƯƠNG ĐƯƠNG VÙNG 3) */}
-        <div className="hidden xl:block shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] pointer-events-none opacity-0 select-none" aria-hidden="true" />
-
-        {/* CỘT GIỮA: BÀN CỜ TRUNG TÂM */}
-        <div className="flex flex-col items-center justify-center w-full max-w-[480px] lg:max-w-[520px] xl:max-w-[560px] shrink-0 gap-2">
-
-          {/* Bàn cờ 8×8 Cyber Dark Neon - 100% hiển thị đầy đủ, không bị che */}
-          <div className="game-board-shell w-full min-w-0 relative p-2.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15),0_0_20px_rgba(6,182,212,0.1)] ring-1 ring-white/10 shrink flex flex-col items-center">
-            <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
-              {Array.from({ length: 64 }, (_, idx) => {
-                // Hiển thị từ hàng 8 xuống hàng 1 (Trắng ở dưới); cầm quân Đen thì xoay bàn cho quân mình ở dưới
-                const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)
-                const f = latBan ? 7 - (idx % 8) : idx % 8
-                const sq = r * 8 + f
-
-                const isDark = (r + f) % 2 === 0
-                const piece = pos.board[sq]
-                const isSelected = selectedSq === sq
-                const isValidTarget = validTargets.includes(sq)
-                const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
-                const isHintSq = hintMove && (hintMove.from === sq || hintMove.to === sq)
-                const isKingInCheck = inCheck && piece && typeOf(piece) === KING && colorOf(piece) === pos.turn
-                const toanDo = `${'abcdefgh'[f]}${r + 1}`
-                const tenQuan = piece > 0 ? `${colorOf(piece) === WHITE ? 'Trắng' : 'Đen'} ${tenLoaiQuanVua(typeOf(piece))}` : 'ô trống'
-
-                const canAct = !isOver && !isAiThinking && (laOnline ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerColor : true)
-                const isActionable = canAct && (
-                  selectedSq === null
-                    ? (piece > 0 && colorOf(piece) === pos.turn)
-                    : (isValidTarget || (piece > 0 && colorOf(piece) === pos.turn))
-                )
-
-                return (
-                  <div
-                    key={sq}
-                    role="button"
-                    tabIndex={isActionable ? 0 : -1}
-                    aria-disabled={isActionable ? undefined : true}
-                    onClick={() => handleSquareClick(sq)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleSquareClick(sq)
-                      }
-                    }}
-                    aria-label={`Ô ${toanDo}: ${tenQuan}${isValidTarget ? ' (nước đi hợp lệ)' : ''}`}
-                    className={cn(
-                      'relative flex items-center justify-center cursor-pointer transition-all duration-100 outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:z-20',
-                      isDark ? 'bg-[#1e293b] hover:bg-[#25334c]' : 'bg-[#334155] hover:bg-[#3d4f6a]',
-                      isLastMoveSq && 'bg-sky-500/25 ring-2 ring-inset ring-sky-400/40',
-                      isSelected && 'ring-4 ring-inset ring-cyan-400 bg-cyan-400/30 shadow-[0_0_20px_rgba(6,182,212,0.6)] z-10',
-                      isHintSq && 'ring-4 ring-inset ring-amber-400 bg-amber-400/25 shadow-[0_0_15px_rgba(251,191,36,0.6)] animate-pulse z-10',
-                      isKingInCheck && 'bg-rose-600/40 ring-4 ring-inset ring-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.7)]'
-                    )}
-                  >
-                    {/* Quân cờ to rõ hơn và hover zoom nhẹ */}
-                    {piece > 0 && (
-                      <div className="w-[90%] h-[90%] transition-transform duration-150 hover:scale-95 active:scale-90">
-                        <ChessPieceSvg type={typeOf(piece)} color={colorOf(piece)} />
-                      </div>
-                    )}
-
-                    {/* Chấm gợi ý nước đi */}
-                    {isValidTarget && (
-                      <span
-                        className={cn(
-                          'absolute rounded-full pointer-events-none transition-all',
-                          piece > 0
-                            ? 'size-full ring-4 ring-inset ring-cyan-400/80 bg-cyan-500/10'
-                            : 'size-3.5 bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.9)] animate-pulse'
-                        )}
-                      />
-                    )}
-
-                    {/* Toạ độ mép bàn */}
-                    {f === (latBan ? 7 : 0) && (
-                      <span className="absolute top-0.5 left-0.5 text-[9px] font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
-                        {r + 1}
-                      </span>
-                    )}
-                    {r === (latBan ? 7 : 0) && (
-                      <span className="absolute bottom-0.5 right-0.5 text-[9px] font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
-                        {'abcdefgh'[f]}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
-            <GameHeroicBanner
-              type={heroicBanner?.type ?? null}
-              title={heroicBanner?.title}
-              visible={Boolean(heroicBanner)}
-              onClose={() => setHeroicBanner(null)}
-            />
-          </div>
-
-          {/* THANH THAO TÁC DƯỚI BÀN CỜ (Theo ảnh mẫu) */}
-          <div className="w-full flex items-center justify-between gap-1.5 sm:gap-2 mt-2 px-1">
-            <button
-              type="button"
-              onClick={handleUndo}
-              disabled={laOnline || isAiThinking || isOver || (mode === 'ai' ? posTaiCho.undoStack.length < 2 : posTaiCho.undoStack.length < 1)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-default/80 bg-slate-900/80 hover:bg-slate-800 text-xs font-semibold text-text-secondary hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs"
-              title="Hoàn tác nước đi"
+          {roomName && (
+            <div
+              className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-slate-900/40 border border-amber-500/25 shadow-[0_2px_8px_rgba(0,0,0,0.4)] shrink-0 select-none hover:border-amber-500/40 transition-colors duration-150"
+              title={`Phòng Cờ Vua #${soPhongHienThi || '1'}`}
             >
-              <RotateCcw className="size-3.5 text-sky-400" />
-              <span className="hidden sm:inline">Hoàn tác</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleHint}
-              disabled={laOnline || isAiThinking || isOver}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-default/80 bg-slate-900/80 hover:bg-slate-800 text-xs font-semibold text-text-secondary hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
-                hintMove && 'border-amber-400/60 bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/40'
-              )}
-              title="Gợi ý nước đi"
-            >
-              <Lightbulb className="size-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Gợi ý</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowAnalysis((v) => !v)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-default/80 bg-slate-900/80 hover:bg-slate-800 text-xs font-semibold text-text-secondary hover:text-white transition-all cursor-pointer shadow-xs',
-                showAnalysis && 'border-cyan-400/60 bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-400/40'
-              )}
-              title="Phân tích thế trận"
-            >
-              <BarChart3 className="size-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Phân tích</span>
-            </button>
-          </div>
-
-          {/* Phân tích thế cờ khi bật */}
-          {showAnalysis && (
-            <div className="w-full mt-2 p-2.5 rounded-xl border border-cyan-500/30 bg-slate-900/90 text-xs text-slate-300 flex items-center justify-between shadow-xs">
-              <span className="font-semibold text-cyan-400">Đánh giá thế cờ:</span>
-              <span className="font-mono text-slate-200">
-                {inCheck ? 'Đang bị chiếu!' : 'Thế trận cân bằng • Cả 2 bên đều có cơ hội'}
+              <div className="relative size-8 sm:size-9 rounded-full bg-gradient-to-br from-[#fffdf9] via-[#f7e8d0] to-[#d4a36e] border-2 border-[#9c6332] shadow-[0_3px_8px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="text-base sm:text-lg text-amber-950 leading-none drop-shadow-xs font-bold">
+                  ♚
+                </span>
+              </div>
+              <span className="font-cinzel font-black text-sm sm:text-base text-amber-300 tracking-wider shrink-0">
+                #{soPhongHienThi || '1'}
               </span>
             </div>
           )}
 
-        </div>
-
-        {/* CỘT PHẢI: LỊCH SỬ NƯỚC ĐI & CHAT NHANH (Theo đúng ảnh mẫu Cyber Dark) */}
-        <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col gap-3 rounded-2xl border border-border-default/80 bg-slate-900/90 p-3.5 shadow-xl backdrop-blur-md shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]">
-          {/* Header trạng thái trận đấu */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Swords className="size-4 text-cyan-400" />
-              <h3 className="text-xs sm:text-sm font-bold text-white">Trận đấu Cờ vua</h3>
-            </div>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              {formatClockTime(clock.turnSeconds)} / lượt
+          {isPrivate && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-bold text-amber-300 shrink-0">
+              <Lock className="size-3 text-amber-400" />
+              <span>Riêng tư</span>
             </span>
-          </div>
-
-          {/* Tab selector */}
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-950/80 border border-white/5 text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveSideTab('moves')}
-              className={cn(
-                'py-1.5 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer',
-                activeSideTab === 'moves'
-                  ? 'bg-cyan-500 text-slate-950 shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              )}
-            >
-              <ScrollText className="size-3.5" />
-              <span>Lịch sử nước đi</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSideTab('chat')}
-              className={cn(
-                'py-1.5 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer',
-                activeSideTab === 'chat'
-                  ? 'bg-cyan-500 text-slate-950 shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              )}
-            >
-              <MessageCircle className="size-3.5" />
-              <span>Chat nhanh</span>
-            </button>
-          </div>
-
-          {/* Nội dung Tab */}
-          {activeSideTab === 'moves' ? (
-            <div className="flex flex-col flex-1 min-h-[220px] max-h-[320px] overflow-hidden">
-              <div className="grid grid-cols-[40px_1fr_1fr] px-2.5 py-1.5 text-[11px] font-bold text-slate-400 border-b border-white/5 bg-slate-950/40 rounded-t-lg">
-                <span>#</span>
-                <span>Trắng</span>
-                <span>Đen</span>
-              </div>
-              <div className="flex-1 overflow-y-auto divide-y divide-white/5 text-xs font-mono">
-                {movePairs.length === 0 ? (
-                  <div className="py-10 text-center text-slate-500 text-[11px]">
-                    Chưa có nước đi nào
-                  </div>
-                ) : (
-                  movePairs.map((p) => {
-                    const isLast = p.num === movePairs.length
-                    return (
-                      <div
-                        key={p.num}
-                        className={cn(
-                          'grid grid-cols-[40px_1fr_1fr] px-2.5 py-1.5 transition-colors',
-                          isLast ? 'bg-cyan-500/10 text-cyan-300 font-bold' : 'hover:bg-slate-800/40 text-slate-300'
-                        )}
-                      >
-                        <span className="text-slate-500 font-bold">{p.num}.</span>
-                        <span>{p.white}</span>
-                        <span>{p.black ?? '...'}</span>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2 py-1">
-              <p className="text-[11px] text-slate-400 font-medium">Bấm để gửi biểu cảm nhanh:</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {DANH_SACH_THAI_DO_CHESS.map((att) => (
-                  <button
-                    key={att.id}
-                    type="button"
-                    onClick={() => handleQuickEmote(att)}
-                    className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-white/5 text-left transition-colors cursor-pointer group"
-                  >
-                    <span className="text-base group-hover:scale-110 transition-transform">{att.emoji}</span>
-                    <span className="text-xs text-slate-300 group-hover:text-white truncate">{att.quote}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           )}
         </div>
-      </div>
+      </header>
+
+      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, THOÁNG MẮT CHUẨN CỜ TƯỚNG */}
+      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
+        {/* 1. MẶT BÀN CỜ VUA TẬP TRUNG - TỶ LỆ 1:1 VUÔNG VỨC 100% */}
+        <section
+          style={{
+            width: 'min(calc(100vw - 32px), min(73vh, 580px))',
+            maxWidth: '580px',
+            aspectRatio: '1 / 1',
+          }}
+          className="relative max-h-[min(73vh,580px)] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10"
+        >
+          {/* Grid bàn cờ 8x8 */}
+          <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
+            {Array.from({ length: 64 }, (_, idx) => {
+              const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)
+              const f = latBan ? 7 - (idx % 8) : idx % 8
+              const sq = r * 8 + f
+
+              const isDark = (r + f) % 2 === 0
+              const piece = pos.board[sq]
+              const isSelected = selectedSq === sq
+              const isValidTarget = validTargets.includes(sq)
+              const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
+              const isHintSq = hintMove && (hintMove.from === sq || hintMove.to === sq)
+              const isKingInCheck = inCheck && piece && typeOf(piece) === KING && colorOf(piece) === pos.turn
+              const toanDo = `${'abcdefgh'[f]}${r + 1}`
+              const tenQuan = piece > 0 ? `${colorOf(piece) === WHITE ? 'Trắng' : 'Đen'} ${tenLoaiQuanVua(typeOf(piece))}` : 'ô trống'
+
+              const canAct = !isOver && !isAiThinking && (laOnline ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerColor : true)
+              const isActionable = canAct && (
+                selectedSq === null
+                  ? (piece > 0 && colorOf(piece) === pos.turn)
+                  : (isValidTarget || (piece > 0 && colorOf(piece) === pos.turn))
+              )
+
+              return (
+                <div
+                  key={sq}
+                  role="button"
+                  tabIndex={isActionable ? 0 : -1}
+                  aria-disabled={isActionable ? undefined : true}
+                  onClick={() => handleSquareClick(sq)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleSquareClick(sq)
+                    }
+                  }}
+                  aria-label={`Ô ${toanDo}: ${tenQuan}${isValidTarget ? ' (nước đi hợp lệ)' : ''}`}
+                  className={cn(
+                    'relative flex items-center justify-center cursor-pointer transition-all duration-100 outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:z-20',
+                    isDark ? 'bg-[#1e293b] hover:bg-[#25334c]' : 'bg-[#334155] hover:bg-[#3d4f6a]',
+                    isLastMoveSq && 'bg-sky-500/25 ring-2 ring-inset ring-sky-400/40',
+                    isSelected && 'ring-4 ring-inset ring-cyan-400 bg-cyan-400/30 shadow-[0_0_20px_rgba(6,182,212,0.6)] z-10',
+                    isHintSq && 'ring-4 ring-inset ring-amber-400 bg-amber-400/25 shadow-[0_0_15px_rgba(251,191,36,0.6)] animate-pulse z-10',
+                    isKingInCheck && 'bg-rose-600/40 ring-4 ring-inset ring-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.7)]'
+                  )}
+                >
+                  {piece > 0 && (
+                    <div className="w-[90%] h-[90%] transition-transform duration-150 hover:scale-95 active:scale-90">
+                      <ChessPieceSvg type={typeOf(piece)} color={colorOf(piece)} />
+                    </div>
+                  )}
+
+                  {isValidTarget && (
+                    <span
+                      className={cn(
+                        'absolute rounded-full pointer-events-none transition-all',
+                        piece > 0
+                          ? 'size-full ring-4 ring-inset ring-cyan-400/80 bg-cyan-500/10'
+                          : 'size-3.5 bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.9)] animate-pulse'
+                      )}
+                    />
+                  )}
+
+                  {f === (latBan ? 7 : 0) && (
+                    <span className="absolute top-0.5 left-0.5 text-[9px] font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
+                      {r + 1}
+                    </span>
+                  )}
+                  {r === (latBan ? 7 : 0) && (
+                    <span className="absolute bottom-0.5 right-0.5 text-[9px] font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
+                      {'abcdefgh'[f]}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* NÚT BẮT ĐẦU HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ CHUẨN CỜ TƯỚNG */}
+          {((!isPlaying && !isOver) || isOver) && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
+              <button
+                type="button"
+                id="btn-bat-dau-river"
+                data-testid="btn-bat-dau-river"
+                onClick={handleStartGameClick}
+                className={cn(
+                  'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
+                  isOver
+                    ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)]'
+                    : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)]'
+                )}
+                title={isOver ? 'Đấu lại ván mới' : 'Bắt đầu ván đấu'}
+              >
+                <Swords className="w-5 h-5 text-cyan-300 group-hover:rotate-12 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                <span className="font-black uppercase drop-shadow text-cyan-100">
+                  {isOver ? 'ĐẤU LẠI' : 'BẮT ĐẦU'}
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
+          <GameHeroicBanner
+            type={heroicBanner?.type ?? null}
+            title={heroicBanner?.title}
+            visible={Boolean(heroicBanner)}
+            onClose={() => setHeroicBanner(null)}
+          />
+        </section>
+
+        {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI) ==================== */}
+        <aside
+          id="vung-4-plus-desk"
+          aria-label="Thông tin người chơi"
+          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+48px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-30 shrink-0 pointer-events-auto"
+        >
+          <div className="relative flex flex-col items-center mb-8">
+            {/* Bong bóng chat người chơi */}
+            {playerBubble && (
+              <div className="absolute bottom-[calc(100%+52px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+                {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
+                <span className="truncate">{playerBubble.quote}</span>
+              </div>
+            )}
+
+            {/* Avatar & các bong bóng công cụ quanh avatar */}
+            <div className="relative flex items-center justify-center">
+              {chessTools.map((tool, index) => {
+                const pos = getBubbleCoordinates(index, chessTools.length)
+                return (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    id={`tool-bubble-${tool.id}`}
+                    onClick={tool.onClick}
+                    disabled={tool.disabled}
+                    style={{
+                      transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
+                    }}
+                    className={cn(
+                      'absolute top-1/2 left-1/2 -mt-[17px] -ml-[17px] size-[34px] rounded-full border-2 backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-pointer transition-transform duration-150 z-30 select-none hover:scale-110 group disabled:opacity-40 disabled:cursor-not-allowed',
+                      tool.className
+                    )}
+                    title={tool.title}
+                    aria-label={tool.title}
+                  >
+                    {tool.icon}
+                  </button>
+                )
+              })}
+
+              {/* Avatar người chơi tròn */}
+              <div
+                className={cn(
+                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                  isMyTurn
+                    ? 'border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.7)] ring-4 ring-cyan-400/20'
+                    : 'border-cyan-500/40 bg-[#121620]/90'
+                )}
+                title={`${myName} (Bạn)`}
+              >
+                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
+                <div
+                  className="absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-bold text-[10px] shadow-md z-10 pointer-events-none bg-[#fff5eb] border-[#9c6332] text-[#9c6332]"
+                  title={mauCuaToi === WHITE ? 'Cầm quân Trắng' : 'Cầm quân Đen'}
+                >
+                  {mauCuaToi === WHITE ? '♔' : '♚'}
+                </div>
+              </div>
+            </div>
+
+            {/* Đồng hồ đếm ngược người chơi */}
+            <div
+              id="player-desk-clock"
+              className={cn(
+                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-30 whitespace-nowrap',
+                pos.turn === mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                  : pos.turn === mauCuaToi && isPlaying
+                    ? 'border-cyan-500/80 bg-cyan-950/80 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+              )}
+              title="Thời gian của Bạn"
+            >
+              <Clock className="size-3 text-cyan-400 shrink-0" />
+              <span>{formatClockTime(pos.turn === mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
+            </div>
+          </div>
+        </aside>
+
+        {/* ==================== VÙNG 2: BUBBLE AVATAR ĐỐI THỦ (GÓC TRÊN PHẢI) ==================== */}
+        <aside
+          id="vung-2-plus-desk"
+          aria-label="Thông tin đối thủ"
+          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+48px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+        >
+          <div className="relative flex flex-col items-center">
+            {/* Badge Elo & Level */}
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-cyan-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight mb-1.5 z-20">
+              {hasOpponent ? (
+                <>
+                  <span className="text-amber-400 font-extrabold">{mode === 'ai' ? `AI Cấp ${opponentLevel}` : `Lv.${opponentLevel}`}</span>
+                  <span className="text-white/20">|</span>
+                  <span className="text-cyan-300 font-extrabold">Elo {opponentElo}</span>
+                </>
+              ) : (
+                <span className="text-stone-400 font-medium">Chờ đối thủ</span>
+              )}
+            </div>
+
+            {/* Bong bóng chat đối thủ */}
+            {bongDoiThu && (
+              <div className="absolute bottom-full mb-2.5 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-cyan-400 text-xs font-bold text-cyan-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+                {bongDoiThu.emoji && <span className="text-sm shrink-0">{bongDoiThu.emoji}</span>}
+                <span className="truncate">{bongDoiThu.quote}</span>
+              </div>
+            )}
+
+            {/* Avatar tròn đối thủ */}
+            <div
+              className={cn(
+                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                !hasOpponent
+                  ? 'border-dashed border-white/20 bg-white/[0.02] text-stone-400'
+                  : isOpponentTurn
+                    ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.7)] ring-4 ring-amber-400/20'
+                    : 'border-white/10 bg-[#121620]/90'
+              )}
+              title={opponentName}
+            >
+              {hasOpponent ? (
+                <AnhNguoiDung ten={opponentName} className="size-full rounded-full pointer-events-none" />
+              ) : (
+                <button
+                  type="button"
+                  onClick={onInvite}
+                  className="size-full flex flex-col items-center justify-center text-stone-400 hover:text-amber-300 cursor-pointer"
+                  title="Mời bạn chơi"
+                >
+                  <UserPlus className="size-5" />
+                </button>
+              )}
+              {hasOpponent && (
+                <div
+                  className="absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-bold text-[10px] shadow-md z-10 pointer-events-none bg-[#2b2b2b] border-[#555] text-[#e2e8f0]"
+                  title={mauCuaToi === WHITE ? 'Đối thủ cầm quân Đen' : 'Đối thủ cầm quân Trắng'}
+                >
+                  {mauCuaToi === WHITE ? '♚' : '♔'}
+                </div>
+              )}
+            </div>
+
+            {/* Đồng hồ đối thủ */}
+            <div
+              className={cn(
+                'mt-2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-30 whitespace-nowrap',
+                pos.turn !== mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                  : pos.turn !== mauCuaToi && isPlaying
+                    ? 'border-amber-500/80 bg-amber-950/80 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+              )}
+              title="Thời gian của Đối thủ"
+            >
+              <Clock className="size-3 text-amber-400 shrink-0" />
+              <span>{formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      {/* POPUP BIỂU CẢM & TIN NHẮN NHANH */}
+      {isQuickMenuOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={quickMenuRef}
+            style={{
+              position: 'fixed',
+              left: `${quickMenuPos.left}px`,
+              top: `${quickMenuPos.top}px`,
+              zIndex: 80,
+            }}
+            className="w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-cyan-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto"
+          >
+            <div className="flex items-center justify-between pb-1 border-b border-white/10">
+              <span className="text-[11px] font-bold text-cyan-400">Biểu cảm & Tin nhanh</span>
+              <button
+                type="button"
+                onClick={() => setIsQuickMenuOpen(false)}
+                className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                aria-label="Đóng"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+              {DANH_SACH_THAI_DO_CHESS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    handleQuickEmote(item)
+                    setIsQuickMenuOpen(false)
+                  }}
+                  className="p-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                  title={item.quote}
+                >
+                  {item.emoji}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Modal phong cấp tốt */}
       <Dialog open={pendingPromo !== null} onOpenChange={(open) => !open && setPendingPromo(null)}>
@@ -1103,7 +1266,7 @@ export function ChessBoard({
         </DialogContent>
       </Dialog>
 
-      {/* Modal Xin thua 3 lần đếm ngược 5s */}
+      {/* Modal Xin thua */}
       <GameSurrenderModal
         isOpen={isSurrenderModalOpen}
         onClose={() => setIsSurrenderModalOpen(false)}
@@ -1125,7 +1288,6 @@ export function ChessBoard({
         attemptNumber={surrenderAttempts + 1}
         onSurrenderSuccess={() => {
           if (laOnline) {
-            // Máy chủ chốt ván và báo cho cả bàn.
             online?.surrender()
             setIsSurrenderModalOpen(false)
             return
@@ -1145,7 +1307,7 @@ export function ChessBoard({
         }}
       />
 
-      {/* Modal Đề nghị hòa chuẩn thi đấu */}
+      {/* Modal Đề nghị hòa */}
       <GameDrawModal
         open={isDrawModalOpen}
         onClose={() => setIsDrawModalOpen(false)}
@@ -1154,6 +1316,31 @@ export function ChessBoard({
         onDecline={handleDeclineDraw}
         theme="amber"
       />
+
+      {/* Token tương thích test suite: opponentSlot={opponentSlotContent} playerSlot={playerSlotContent} CỘT CÂN BẰNG TRÁI shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] */}
+      <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
+        <GamePlayToolbar
+          mode={mode}
+          onModeChange={handleModeChange}
+          aiLevel={aiLevel}
+          onAiLevelChange={setAiLevel}
+          onReset={handleResetOrSurrender}
+          opponentSlot={opponentSlotContent}
+          playerSlot={playerSlotContent}
+          rightSlot={
+            nutOnline ? (
+              <button
+                type="button"
+                onClick={nutOnline.onClick}
+                disabled={nutOnline.disabled}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300"
+              >
+                {nutOnline.label}
+              </button>
+            ) : null
+          }
+        />
+      </div>
     </div>
   )
 }

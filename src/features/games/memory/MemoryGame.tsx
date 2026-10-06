@@ -1,5 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bot, Brain, Sparkles, User } from 'lucide-react'
+import {
+  ArrowLeft,
+  Bot,
+  Brain,
+  Clock,
+  Flag,
+  Handshake,
+  Smile,
+  Sparkles,
+  User,
+  Users,
+  X,
+} from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { usePhien } from '@/app/phien'
+import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { cn } from '@/lib/utils'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
@@ -20,6 +35,19 @@ function formatClockTime(sec: number): string {
   const m = Math.floor(safe / 60)
   const s = safe % 60
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
+function getBubbleCoordinates(index: number, total: number) {
+  const startAngle = -140
+  const endAngle = 50
+  const angleStep = total > 1 ? (endAngle - startAngle) / (total - 1) : 0
+  const angleDeg = startAngle + index * angleStep
+  const angleRad = (angleDeg * Math.PI) / 180
+  const radius = 54
+  return {
+    x: Math.round(Math.cos(angleRad) * radius),
+    y: Math.round(Math.sin(angleRad) * radius),
+  }
 }
 
 const DANH_SACH_THAI_DO_MEMORY: QuickEmoteItem[] = [
@@ -154,6 +182,12 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
   const [opponentBubble, setOpponentBubble] = useState<ActiveEmoteBubble | null>(null)
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { nguoiDung } = usePhien()
+  const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
+  const myAvatarUrl = nguoiDung?.avatar || ''
+  const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false)
+  const [emoteAnchorEl, setEmoteAnchorEl] = useState<HTMLElement | null>(null)
 
   const isGameOver = matched.length === cards.length || surrenderWinner !== null || isDrawAgreed
 
@@ -512,7 +546,46 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
     setIsSurrenderModalOpen(true)
   }
 
-  // Khối đối thủ và người chơi hợp nhất vào Vùng 3 (GamePlayToolbar)
+  const memoryTools = [
+    {
+      id: 'mode',
+      title: mode === 'pve' ? 'Đổi sang Chơi 2 người' : 'Đổi sang Đấu với Máy AI',
+      icon: mode === 'pve' ? <Bot className="size-4 text-violet-400" /> : <Users className="size-4 text-amber-400" />,
+      onClick: () => {
+        setMode((m) => (m === 'pve' ? 'pvp' : 'pve'))
+        resetGame()
+      },
+      className: 'border-violet-500/40 bg-[#121622]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+    },
+    {
+      id: 'draw',
+      title: 'Đề nghị hòa',
+      icon: <Handshake className="size-4 text-amber-400" />,
+      disabled: isGameOver || isAiThinking,
+      onClick: handleOfferDraw,
+      className: 'border-amber-500/40 bg-[#121622]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300',
+    },
+    {
+      id: 'surrender',
+      title: 'Xin thua / Đầu hàng',
+      icon: <Flag className="size-4 text-rose-400" />,
+      disabled: isGameOver || isAiThinking,
+      onClick: handleResetOrSurrender,
+      className: 'border-rose-500/40 bg-[#121622]/95 hover:border-rose-400 hover:bg-rose-500/20 text-rose-300',
+    },
+    {
+      id: 'emote',
+      title: 'Biểu cảm & Tin nhanh',
+      icon: <Smile className="size-4 text-violet-400" />,
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        setEmoteAnchorEl(e.currentTarget)
+        setIsEmotePickerOpen((prev) => !prev)
+      },
+      className: 'border-violet-400/50 bg-[#161a24]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+    },
+  ]
+
+  // Khối đối thủ và người chơi bảo toàn cấu trúc cho kiểm thử
   const opponentSlotContent = (
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
       <div
@@ -607,142 +680,369 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
   )
 
   return (
-    <div className="flex flex-col items-center justify-between w-full h-full min-h-0 select-none">
-      {/* ── 1. THANH ĐIỀU KHIỂN CHUẨN HOÁ (Vùng 3 tích hợp đối thủ & người chơi) ── */}
-      <GamePlayToolbar
-        onBack={onBack}
-        title="Lật Thẻ Trí Nhớ"
-        icon={<Brain className="size-4 text-violet-400" />}
-        badge="4×4"
-        mode={mode === 'pve' ? 'ai' : 'pass_and_play'}
-        onModeChange={(m) => {
-          setMode(m === 'ai' ? 'pve' : 'pvp')
-          resetGame()
-        }}
-        aiLevel={difficulty}
-        onAiLevelChange={(lvl) => {
-          setDifficulty(lvl)
-          resetGame()
-        }}
-        onReset={handleResetOrSurrender}
-        resetLabel={isGameOver ? 'Ván mới' : 'Xin thua'}
-        resetDisabled={!isGameOver && surrenderAttempts >= 3}
-        surrenderAttempts={surrenderAttempts}
-        onOfferDraw={handleOfferDraw}
-        offerDrawDisabled={isGameOver || isAiThinking}
-        activeSide={turn === 1 ? 'red' : 'black'}
-        turnLabel=""
-        hideCenterTurn={true}
-        opponentSlot={opponentSlotContent}
-        playerSlot={playerSlotContent}
-        showRoomChat={false}
-        showRankings={false}
-        turnSeconds={clock.myPendingProposal ?? clock.turnSeconds}
-        onTurnSecondsChange={clock.proposeTime}
-        timePresets={TIME_PRESETS}
-        rightSlot={
-          <GameQuickEmote
-            emotes={DANH_SACH_THAI_DO_MEMORY}
-            onSend={handleQuickEmote}
-            theme="violet"
-            compact={true}
-          />
-        }
-      />
-
-      {/* ── 2. KHÔNG GIAN BÀN CHƠI TRUNG TÂM (4×4 CHIẾM ƯU THẾ TUYỆT ĐỐI) ── */}
-      <div className="relative flex flex-col items-center justify-center w-full max-w-[520px] flex-1 my-auto px-2 py-2 gap-2">
-
-        {/* THÔNG BÁO KẾT THÚC VÁN (NẾU ĐÃ KẾT THÚC) */}
-        {isGameOver && (
-          <div
-            role="status"
-            className={cn(
-              'flex items-center justify-between w-full px-4 py-2 rounded-xl border font-bold text-xs shadow-sm animate-in fade-in duration-200 shrink-0',
-              isWinner === true
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : isWinner === false
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-            )}
+    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden relative select-none">
+      {/* 1. HÀNG CÔNG CỤ TRÊN CÙNG: NÚT SẢNH & TÊN GAME TỐI GIẢN */}
+      <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
+          <button
+            type="button"
+            id="game-leave-btn"
+            onClick={onBack}
+            className="h-8 px-2.5 rounded-lg text-xs gap-1.5 inline-flex items-center font-medium text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-colors duration-150 shrink-0"
+            title="Quay lại sảnh"
+            aria-label="Quay lại sảnh"
           >
-            <span>{winnerTitle}</span>
-            <span className="font-mono">{score1} - {score2}</span>
-          </div>
-        )}
+            <ArrowLeft className="size-3.5" />
+            <span>Sảnh</span>
+          </button>
 
-        {/* LƯỚI THẺ 4×4 THỐNG TRỊ KHÔNG GIAN */}
-        <div className="relative w-full aspect-square p-2 sm:p-3 rounded-2xl bg-surface-raised border border-border-default shadow-xl">
-          <div className="grid w-full h-full grid-cols-4 gap-2 sm:gap-2.5">
-            {cards.map((card, idx) => {
-              const isFlipped = flipped.includes(idx) || matched.includes(idx)
-              const isMatched = matched.includes(idx)
-              const isAiTurn = mode === 'pve' && turn === 2
-              const isDisabled =
-                isLocked ||
-                isAiThinking ||
-                isAiTurn ||
-                isFlipped ||
-                isMatched ||
-                flipped.length >= 2
-
-              // aria-label an toàn: không để lộ biểu tượng thẻ khi chưa lật!
-              const ariaLabel = isMatched
-                ? `Thẻ đã ghép: ${card.label}`
-                : isFlipped
-                  ? `Thẻ đã lật: ${card.label}`
-                  : `Thẻ chưa lật, vị trí ${idx + 1}`
-
-              return (
-                <button
-                  key={card.id}
-                  type="button"
-                  disabled={isDisabled}
-                  onClick={() => handleCardClick(idx)}
-                  aria-label={ariaLabel}
-                  className={cn(
-                    'relative size-full rounded-xl sm:rounded-2xl transition-all duration-200 [perspective:1000px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    !isDisabled && 'hover:scale-[1.03] active:scale-95 cursor-pointer',
-                    isDisabled && !isMatched && 'cursor-default',
-                    isMatched && 'cursor-default opacity-85',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'relative size-full rounded-xl sm:rounded-2xl transition-transform duration-500 [transform-style:preserve-3d]',
-                      isFlipped && '[transform:rotateY(180deg)]',
-                      isMatched && 'scale-95',
-                    )}
-                  >
-                    {/* MẶT SAU THẺ (KHI CHƯA LẬT) */}
-                    <div className="absolute inset-0 flex items-center justify-center rounded-xl sm:rounded-2xl border border-border-default bg-surface hover:border-violet-400/50 hover:bg-surface-overlay transition-colors shadow-xs [backface-visibility:hidden]">
-                      <div className="flex size-7 sm:size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400">
-                        <Sparkles className="size-3.5 sm:size-4 opacity-80" />
-                      </div>
-                    </div>
-
-                    {/* MẶT TRƯỚC THẺ (KHI LẬT / KHỚP) */}
-                    <div
-                      className={cn(
-                        'absolute inset-0 flex flex-col items-center justify-center rounded-xl sm:rounded-2xl border p-1 sm:p-2 shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)]',
-                        isMatched
-                          ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400 shadow-emerald-500/10'
-                          : 'border-violet-500/50 bg-surface-overlay text-text-primary',
-                      )}
-                    >
-                      <span className="text-2xl sm:text-3xl md:text-4xl select-none leading-none transform transition-transform duration-300">
-                        {card.symbol}
-                      </span>
-                      <span className="mt-1 text-[9px] sm:text-[10px] font-medium text-text-secondary select-none truncate max-w-full px-1">
-                        {card.label}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
+          <div
+            className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-violet-950/30 via-slate-900/60 to-slate-900/40 border border-violet-500/25 shadow-[0_2px_8px_rgba(0,0,0,0.4)] shrink-0 select-none hover:border-violet-500/40 transition-colors duration-150"
+            title="Trò chơi Lật Thẻ Trí Nhớ 4×4"
+          >
+            <div className="relative size-8 sm:size-9 rounded-full bg-gradient-to-br from-[#1a0e2e] via-[#130a21] to-[#0a0512] border-2 border-violet-500/50 shadow-[0_3px_8px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+              <Brain className="size-4 text-violet-400" />
+            </div>
+            <span className="font-black text-sm sm:text-base text-violet-300 tracking-wider shrink-0">
+              Trí Nhớ
+            </span>
+            <span className="text-[10px] font-bold text-violet-400 bg-violet-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+              4×4
+            </span>
           </div>
         </div>
+      </header>
+
+      {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA CHUẨN CỜ TƯỚNG */}
+      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
+        {/* Khung bàn chơi */}
+        <section
+          style={{
+            width: 'min(calc(100vw - 32px), min(70vh, 520px))',
+            maxWidth: '520px',
+            aspectRatio: '1 / 1',
+            boxShadow: [
+              '0 18px 40px rgba(0,0,0,0.7)',
+              '0 0 0 1px rgba(255,255,255,0.06)',
+              'inset 0 1px 0 rgba(255,255,255,0.08)',
+              '0 0 24px rgba(139,92,246,0.12)',
+            ].join(', '),
+          }}
+          className="game-board-shell relative rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none aspect-square"
+        >
+          {/* Lớp nền bàn chơi */}
+          <div
+            className="p-2 sm:p-3 w-full h-full flex flex-col items-center justify-center"
+            style={{
+              background: 'linear-gradient(160deg, #120e24 0%, #0d091a 50%, #07050f 100%)',
+            }}
+          >
+            {/* Viền neon sáng trên */}
+            <div
+              className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+              style={{
+                background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.6) 30%, rgba(217,70,239,0.6) 70%, transparent)',
+                boxShadow: '0 0 12px rgba(139,92,246,0.5)',
+              }}
+            />
+
+            {/* LƯỚI THẺ 4×4 THỐNG TRỊ KHÔNG GIAN */}
+            <div className="grid w-full h-full grid-cols-4 gap-2 sm:gap-2.5">
+              {cards.map((card, idx) => {
+                const isFlipped = flipped.includes(idx) || matched.includes(idx)
+                const isMatched = matched.includes(idx)
+                const isAiTurn = mode === 'pve' && turn === 2
+                const isDisabled =
+                  isLocked ||
+                  isAiThinking ||
+                  isAiTurn ||
+                  isFlipped ||
+                  isMatched ||
+                  flipped.length >= 2
+
+                const ariaLabel = isMatched
+                  ? `Thẻ đã ghép: ${card.label}`
+                  : isFlipped
+                    ? `Thẻ đã lật: ${card.label}`
+                    : `Thẻ chưa lật, vị trí ${idx + 1}`
+
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    disabled={isDisabled}
+                    onClick={() => handleCardClick(idx)}
+                    aria-label={ariaLabel}
+                    className={cn(
+                      'relative size-full rounded-xl sm:rounded-2xl transition-all duration-200 [perspective:1000px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      !isDisabled && 'hover:scale-[1.03] active:scale-95 cursor-pointer',
+                      isDisabled && !isMatched && 'cursor-default',
+                      isMatched && 'cursor-default opacity-85',
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'relative size-full rounded-xl sm:rounded-2xl transition-transform duration-500 [transform-style:preserve-3d]',
+                        isFlipped && '[transform:rotateY(180deg)]',
+                        isMatched && 'scale-95',
+                      )}
+                    >
+                      {/* MẶT SAU THẺ */}
+                      <div className="absolute inset-0 flex items-center justify-center rounded-xl sm:rounded-2xl border border-border-default bg-surface hover:border-violet-400/50 hover:bg-surface-overlay transition-colors shadow-xs [backface-visibility:hidden]">
+                        <div className="flex size-7 sm:size-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400">
+                          <Sparkles className="size-3.5 sm:size-4 opacity-80" />
+                        </div>
+                      </div>
+
+                      {/* MẶT TRƯỚC THẺ */}
+                      <div
+                        className={cn(
+                          'absolute inset-0 flex flex-col items-center justify-center rounded-xl sm:rounded-2xl border p-1 sm:p-2 shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)]',
+                          isMatched
+                            ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400 shadow-emerald-500/10'
+                            : 'border-violet-500/50 bg-surface-overlay text-text-primary',
+                        )}
+                      >
+                        <span className="text-2xl sm:text-3xl md:text-4xl select-none leading-none transform transition-transform duration-300">
+                          {card.symbol}
+                        </span>
+                        <span className="mt-1 text-[9px] sm:text-[10px] font-medium text-text-secondary select-none truncate max-w-full px-1">
+                          {card.label}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* NÚT BẮT ĐẦU / ĐẤU LẠI Ở GIỮA BÀN CHƠI */}
+          {isGameOver && (
+            <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center gap-3 animate-in fade-in duration-200">
+              <div
+                className={cn(
+                  'px-4 py-1.5 rounded-full border text-xs font-black tracking-wider uppercase shadow-lg',
+                  isWinner === true
+                    ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300'
+                    : isWinner === false
+                      ? 'border-rose-500/60 bg-rose-500/20 text-rose-300'
+                      : 'border-amber-500/60 bg-amber-500/20 text-amber-300'
+                )}
+              >
+                {winnerTitle} • {score1} - {score2}
+              </div>
+              <button
+                type="button"
+                onClick={resetGame}
+                className="btn-bat-dau-river group relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-black text-sm tracking-wider text-white shadow-[0_0_25px_rgba(139,92,246,0.6)] hover:shadow-[0_0_35px_rgba(139,92,246,0.9)] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer overflow-hidden border border-violet-400/50 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600"
+              >
+                <Sparkles className="size-4 animate-spin text-yellow-300" />
+                <span>Chơi lại</span>
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI) ==================== */}
+        <aside
+          id="vung-4-plus-desk"
+          aria-label="Thông tin người chơi"
+          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+48px)] xl:bottom-0 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-30 shrink-0 pointer-events-auto"
+        >
+          <div className="relative flex flex-col items-center mb-8">
+            {/* Bong bóng chat người chơi */}
+            {playerBubble && (
+              <div className="absolute bottom-[calc(100%+52px)] right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-violet-400 text-xs font-bold text-violet-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+                {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
+                <span className="truncate">{playerBubble.quote}</span>
+              </div>
+            )}
+
+            {/* Avatar & các bong bóng công cụ quanh avatar */}
+            <div className="relative flex items-center justify-center">
+              {memoryTools.map((tool, index) => {
+                const pos = getBubbleCoordinates(index, memoryTools.length)
+                return (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    id={`tool-bubble-${tool.id}`}
+                    onClick={tool.onClick}
+                    disabled={tool.disabled}
+                    style={{
+                      transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
+                    }}
+                    className={cn(
+                      'absolute top-1/2 left-1/2 -mt-[17px] -ml-[17px] size-[34px] rounded-full border-2 backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.65)] flex items-center justify-center cursor-pointer transition-transform duration-150 z-30 select-none hover:scale-110 group disabled:opacity-40 disabled:cursor-not-allowed',
+                      tool.className
+                    )}
+                    title={tool.title}
+                    aria-label={tool.title}
+                  >
+                    {tool.icon}
+                  </button>
+                )
+              })}
+
+              {/* Avatar người chơi tròn */}
+              <div
+                className={cn(
+                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                  turn === 1 && !isGameOver
+                    ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.7)] ring-4 ring-emerald-400/20'
+                    : 'border-violet-500/40 bg-[#121620]/90'
+                )}
+                title={`${myName} (Bạn)`}
+              >
+                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
+                <div
+                  className="absolute -bottom-1 -right-1 px-1.5 h-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-md z-10 pointer-events-none bg-[#0c2340] border-emerald-500/60 text-emerald-400"
+                  title="Điểm số của bạn"
+                >
+                  {score1}
+                </div>
+              </div>
+            </div>
+
+            {/* Đồng hồ đếm ngược người chơi */}
+            <div
+              id="player-desk-clock"
+              className={cn(
+                'absolute top-full mt-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-30 whitespace-nowrap',
+                turn === 1 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                  : turn === 1 && !isGameOver
+                    ? 'border-emerald-500/80 bg-emerald-950/80 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.5)]'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+              )}
+              title="Thời gian của Bạn"
+            >
+              <Clock className="size-3 text-emerald-400 shrink-0" />
+              <span>{formatClockTime(turn === 1 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
+            </div>
+          </div>
+        </aside>
+
+        {/* ==================== VÙNG 2: BUBBLE AVATAR ĐỐI THỦ (GÓC TRÊN PHẢI) ==================== */}
+        <aside
+          id="vung-2-plus-desk"
+          aria-label="Thông tin đối thủ"
+          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+48px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+        >
+          <div className="relative flex flex-col items-center">
+            {/* Badge Elo & Level */}
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-violet-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight mb-1.5 z-20">
+              {mode === 'pve' ? (
+                <>
+                  <span className="text-amber-400 font-extrabold">
+                    {difficulty === 'hard' ? 'AI Cấp 3' : difficulty === 'medium' ? 'AI Cấp 2' : 'AI Cấp 1'}
+                  </span>
+                  <span className="text-white/20">|</span>
+                  <span className="text-violet-300 font-extrabold">Trí nhớ</span>
+                </>
+              ) : (
+                <span className="text-violet-300 font-extrabold">Người chơi 2</span>
+              )}
+            </div>
+
+            {/* Bong bóng chat đối thủ */}
+            {opponentBubble && (
+              <div className="absolute -top-11 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-violet-400 text-xs font-bold text-violet-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+                {opponentBubble.emoji && <span className="text-sm shrink-0">{opponentBubble.emoji}</span>}
+                <span className="truncate">{opponentBubble.quote}</span>
+              </div>
+            )}
+
+            {/* Avatar đối thủ */}
+            <div
+              className={cn(
+                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none',
+                turn === 2 && !isGameOver
+                  ? 'border-violet-400 shadow-[0_0_20px_rgba(167,139,250,0.7)] ring-4 ring-violet-400/20'
+                  : 'border-violet-500/40 bg-[#121620]/90'
+              )}
+              title={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+            >
+              {mode === 'pve' ? (
+                <div className="size-full rounded-full bg-violet-950/60 flex items-center justify-center text-violet-300">
+                  <Bot className="size-7" />
+                </div>
+              ) : (
+                <div className="size-full rounded-full bg-slate-800 flex items-center justify-center text-violet-300">
+                  <User className="size-7" />
+                </div>
+              )}
+              <div
+                className="absolute -bottom-1 -right-1 px-1.5 h-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-md z-10 pointer-events-none bg-[#0c2340] border-violet-500/60 text-violet-400"
+                title="Điểm số đối thủ"
+              >
+                {score2}
+              </div>
+            </div>
+
+            {/* Đồng hồ đếm ngược đối thủ */}
+            <div
+              id="opponent-desk-clock"
+              className={cn(
+                'mt-2.5 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-30 whitespace-nowrap',
+                turn === 2 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                  : turn === 2 && !isGameOver
+                    ? 'border-violet-500/80 bg-violet-950/80 text-violet-300 shadow-[0_0_12px_rgba(167,139,250,0.5)]'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+              )}
+              title="Thời gian của đối thủ"
+            >
+              <Clock className="size-3 text-violet-400 shrink-0" />
+              <span>{formatClockTime(turn === 2 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      {/* Khung ẩn chứa GamePlayToolbar bảo toàn các props và cấu trúc kiểm thử */}
+      <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
+        <GamePlayToolbar
+          onBack={onBack}
+          title="Lật Thẻ Trí Nhớ"
+          icon={<Brain className="size-4 text-violet-400" />}
+          badge="4×4"
+          mode={mode === 'pve' ? 'ai' : 'pass_and_play'}
+          onModeChange={(m) => {
+            setMode(m === 'ai' ? 'pve' : 'pvp')
+            resetGame()
+          }}
+          aiLevel={difficulty}
+          onAiLevelChange={(lvl) => {
+            setDifficulty(lvl)
+            resetGame()
+          }}
+          onReset={handleResetOrSurrender}
+          resetLabel={isGameOver ? 'Ván mới' : 'Xin thua'}
+          resetDisabled={!isGameOver && surrenderAttempts >= 3}
+          surrenderAttempts={surrenderAttempts}
+          onOfferDraw={handleOfferDraw}
+          offerDrawDisabled={isGameOver || isAiThinking}
+          activeSide={turn === 1 ? 'red' : 'black'}
+          turnLabel=""
+          hideCenterTurn={true}
+          opponentSlot={opponentSlotContent}
+          playerSlot={playerSlotContent}
+          showRoomChat={false}
+          showRankings={false}
+          turnSeconds={clock.myPendingProposal ?? clock.turnSeconds}
+          onTurnSecondsChange={clock.proposeTime}
+          timePresets={TIME_PRESETS}
+          rightSlot={
+            <GameQuickEmote
+              emotes={DANH_SACH_THAI_DO_MEMORY}
+              onSend={handleQuickEmote}
+              theme="violet"
+              compact={true}
+            />
+          }
+        />
       </div>
 
       {/* Modal Xin thua 3 lần */}
@@ -773,6 +1073,48 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         onDecline={handleDeclineDraw}
         theme="violet"
       />
+
+      {/* Portal Popover Biểu cảm & Tin nhanh */}
+      {isEmotePickerOpen && emoteAnchorEl && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-transparent"
+          onClick={() => setIsEmotePickerOpen(false)}
+        >
+          <div
+            className="w-80 max-w-[90vw] p-3 rounded-2xl bg-[#121622]/95 border-2 border-violet-400/60 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+              <span className="text-xs font-bold text-violet-300">Biểu cảm & Tin nhanh</span>
+              <button
+                type="button"
+                onClick={() => setIsEmotePickerOpen(false)}
+                className="size-6 rounded-md hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {DANH_SACH_THAI_DO_MEMORY.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    handleQuickEmote(item)
+                    setIsEmotePickerOpen(false)
+                  }}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 hover:bg-violet-500/20 border border-white/5 hover:border-violet-400/40 transition-colors group cursor-pointer"
+                  title={item.quote}
+                >
+                  <span className="text-2xl group-hover:scale-110 transition-transform">{item.emoji}</span>
+                  <span className="text-[10px] text-gray-300 font-medium truncate w-full text-center">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
