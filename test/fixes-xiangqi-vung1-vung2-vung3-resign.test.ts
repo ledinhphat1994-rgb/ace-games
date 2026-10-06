@@ -166,16 +166,18 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).not.toContain('ref={boardRef}\n          onPointerDown={handleBoardPointerDown}\n          onClick={() => setSelectedSq(null)}')
     })
 
-    it('Phương án 1: Đồng bộ trạng thái sẵn sàng qua server rematchBy và dialog xác nhận đối thủ', () => {
+    it('Phương án 1: Đồng bộ trạng thái sẵn sàng qua server rematchBy và dialog xác nhận đối thủ, không trùng chữ Chờ Đối Thủ ở giữa bàn', () => {
       expect(xiangqiBoardRaw).toContain('isOfferedByMe = Boolean(laOnlinePvp && online?.mySide && online.meta.rematchBy === online.mySide)')
       expect(xiangqiBoardRaw).toContain('isOfferedByOpponent = Boolean(laOnlinePvp && online?.mySide && online.meta.rematchBy && online.meta.rematchBy !== online.mySide)')
       expect(xiangqiBoardRaw).toContain("title: 'Bắt Đầu Trận Đấu'")
       expect(xiangqiBoardRaw).toContain("subtitle: 'Đối thủ đã sẵn sàng và mời bắt đầu, bạn có đồng ý không?'")
       expect(xiangqiBoardRaw).toContain("confirmText: 'Sẵn sàng ngay'")
       expect(xiangqiBoardRaw).toContain("cancelText: 'Chưa sẵn sàng'")
-      expect(xiangqiBoardRaw).toContain('CHỜ ĐỐI THỦ')
       expect(xiangqiBoardRaw).toContain('ĐÃ SẴN SÀNG')
       expect(xiangqiBoardRaw).toContain('SẴN SÀNG NGAY')
+      // Giữa bàn cờ không render nút "CHỜ ĐỐI THỦ" khi đã ngồi ghế để giữ sạch sông và tránh trùng lặp
+      expect(xiangqiBoardRaw).toContain('(!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO))')
+      expect(xiangqiBoardRaw).not.toContain("? 'CHỜ ĐỐI THỦ'")
     })
 
     it('Vùng 1: Khi chưa có đối thủ, hiển thị slot chờ Chờ đối thủ kèm UserPlus, không tạo initials giả và không link nhầm tài khoản của chủ phòng', () => {

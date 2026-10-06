@@ -926,7 +926,6 @@ export function XiangqiBoard({
         return
       }
       if (online.meta.status === 'waiting') {
-        showGameNotice('CHỜ ĐỐI THỦ')
         return
       }
       if (!toiDenLuotOnline) {
@@ -1423,7 +1422,6 @@ export function XiangqiBoard({
         return
       }
       if (!online.meta.playerX || !online.meta.playerO) {
-        showGameNotice('CHỜ ĐỐI THỦ')
         return
       }
       if (isOfferedByMe || hasOfferedStart) {
@@ -2229,36 +2227,32 @@ export function XiangqiBoard({
             )
           })()}
 
-          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN (ẨN KHI ĐANG CHƠI, KẾT THÚC HOẶC CÓ HEROIC BANNER ĐỂ TRÁNH TRÙNG ĐÈ) */}
-          {(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (
+          {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI) KHI CHƯA VÀO VÁN. KHI ĐÃ NGỒI GHẾ CHỜ ĐỐI THỦ: GIỮ SẠCH BÀN CỜ, KHÔNG HIỆN NÚT TRÙNG LẶP */}
+          {(!isPlaying && !isOver) && !activeDlg && !heroicBanner && (!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO)) && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"
                 id="btn-bat-dau-river"
                 onClick={handleStartGameClick}
-                disabled={laOnlinePvp && Boolean(online?.mySide) && (!online?.meta.playerO || isOfferedByMe || hasOfferedStart)}
+                disabled={laOnlinePvp && Boolean(online?.mySide) && (isOfferedByMe || hasOfferedStart)}
                 className={cn(
                   'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 text-white flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none shadow-[0_0_24px_rgba(185,28,28,0.6)] cursor-pointer active:scale-95 hover:scale-105',
                   (isOfferedByMe || hasOfferedStart)
                     ? 'bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 border-amber-300 animate-pulse text-amber-100 shadow-[0_0_24px_rgba(245,158,11,0.5)] cursor-default hover:scale-100'
                     : isOfferedByOpponent
                       ? 'bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 border-emerald-300 animate-pulse text-white shadow-[0_0_24px_rgba(16,185,129,0.5)] hover:from-emerald-600 hover:to-emerald-600'
-                      : laOnlinePvp && Boolean(online?.mySide) && !online?.meta.playerO
-                        ? 'bg-gradient-to-r from-stone-800 to-slate-800 border-white/20 text-gray-400 opacity-80 cursor-not-allowed hover:scale-100'
-                        : 'bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-amber-400/90'
+                      : 'bg-gradient-to-r from-red-800 via-amber-900 to-red-800 hover:from-red-700 hover:via-amber-800 hover:to-red-700 border-amber-400/90'
                 )}
                 title={
                   laOnlinePvp && !online?.mySide
                     ? 'Vào bàn thi đấu'
-                    : laOnlinePvp && !online?.meta.playerO
-                      ? 'Đang chờ đối thủ vào bàn...'
-                      : (isOfferedByMe || hasOfferedStart)
-                        ? 'Đang chờ đối thủ xác nhận...'
-                        : isOfferedByOpponent
-                          ? 'Đối thủ đã sẵn sàng! Bấm để vào trận ngay'
-                          : mySide === RED
-                            ? `Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`
-                            : `Sẵn sàng thi đấu (${formatClockTime(clock.turnSeconds)})`
+                    : (isOfferedByMe || hasOfferedStart)
+                      ? 'Đang chờ đối thủ xác nhận...'
+                      : isOfferedByOpponent
+                        ? 'Đối thủ đã sẵn sàng! Bấm để vào trận ngay'
+                        : mySide === RED
+                          ? `Bắt đầu trận đấu (${formatClockTime(clock.turnSeconds)})`
+                          : `Sẵn sàng thi đấu (${formatClockTime(clock.turnSeconds)})`
                 }
                 aria-label={
                   laOnlinePvp && !online?.mySide
@@ -2281,15 +2275,13 @@ export function XiangqiBoard({
                 <span className="text-amber-100 font-black uppercase drop-shadow">
                   {laOnlinePvp && !online?.mySide
                     ? 'VÀO BÀN'
-                    : laOnlinePvp && !online?.meta.playerO
-                      ? 'CHỜ ĐỐI THỦ'
-                      : (isOfferedByMe || hasOfferedStart)
-                        ? 'ĐÃ SẴN SÀNG'
-                        : isOfferedByOpponent
-                          ? 'SẴN SÀNG NGAY'
-                          : mySide === RED
-                            ? 'BẮT ĐẦU'
-                            : 'SẴN SÀNG'}
+                    : (isOfferedByMe || hasOfferedStart)
+                      ? 'ĐÃ SẴN SÀNG'
+                      : isOfferedByOpponent
+                        ? 'SẴN SÀNG NGAY'
+                        : mySide === RED
+                          ? 'BẮT ĐẦU'
+                          : 'SẴN SÀNG'}
                 </span>
               </button>
             </div>
@@ -2681,7 +2673,7 @@ export function XiangqiBoard({
                       navigator.clipboard.writeText(window.location.href)
                       showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
                     } catch {
-                      showGameNotice('CHỜ ĐỐI THỦ')
+                      showGameNotice('MỜI BẠN BÈ')
                     }
                   }
                   return
