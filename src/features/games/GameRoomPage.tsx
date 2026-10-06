@@ -51,6 +51,11 @@ export function GameRoomPage() {
     return null
   }
 
+  // Khách chưa đăng nhập không được vào bàn chơi: hiển thị Cổng đăng nhập vào bàn
+  if (!nguoiDung) {
+    return <CongLinkPhong loai="ban" />
+  }
+
   // Rời bàn / trò chơi: quay về sảnh của đúng trò đó (vào từ sảnh có ?sanh=, bàn vừa tạo có ?gameType=).
   const sanhParam = searchParams.get('sanh')
   const actorKey = nguoiDung?.actorKey

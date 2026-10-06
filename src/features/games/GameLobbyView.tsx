@@ -310,6 +310,15 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
   })
 
+  // Kiểm tra đăng nhập trước khi thực hiện các hành động tương tác trong sảnh
+  const canDangNhap = (viec: () => void) => () => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
+    viec()
+  }
+
   // Đặt lại / Xóa tất cả các bàn đấu test
   const datLaiTatCaPhong = async () => {
     // Hủy các bàn của mình trên máy chủ nếu có
@@ -631,7 +640,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Hành động vào bàn trực tiếp không qua sảnh phụ
   const vaoBanTrucTiep = (room: PhongGameItem) => {
-    if (!nguoiDung && !room.isVip) {
+    if (!nguoiDung) {
       moAuthModal('dang_nhap')
       return
     }
@@ -686,6 +695,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Thực hiện vào bàn nhanh theo loại game đã chọn (link 100% tiếng Việt)
   const thucHienVaoGameNhanh = (gameChon: GameType) => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
     const banCho = sortedRooms.find((r) => r.gameType === gameChon && r.trangThai === 'waiting' && !r.coMatKhau && !r.isPrivate)
     if (banCho) {
       vaoBanTrucTiep(banCho)
@@ -752,6 +765,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     daKichHoatLongPressRef.current = false
     longPressTimerRef.current = setTimeout(() => {
       daKichHoatLongPressRef.current = true
+      if (!nguoiDung) {
+        moAuthModal('dang_nhap')
+        return
+      }
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         try { navigator.vibrate(40) } catch {}
       }
@@ -774,10 +791,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
 
     if (!nguoiDung) {
-      toast.info('Bạn đang chơi chế độ luyện tập — đăng nhập để lưu điểm Elo vào bảng xếp hạng.', {
-        id: 'khach-choi-ngay',
-        action: { label: 'Đăng nhập', onClick: () => moAuthModal('dang_nhap') },
-      })
+      moAuthModal('dang_nhap')
+      return
     }
 
     if (!cacGameGhiNho.length) {
@@ -816,6 +831,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Lưu và chơi ngay từ popup
   const luuVaChoiNgay = () => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
     if (cacGameDangChon.length === 0) {
       toast.error('Vui lòng chọn ít nhất 1 trò chơi để chơi ngay.')
       return
@@ -1147,6 +1166,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   onPointerCancel={onQuickPlayPointerUp}
                   onContextMenu={(e) => {
                     e.preventDefault()
+                    if (!nguoiDung) {
+                      moAuthModal('dang_nhap')
+                      return
+                    }
                     setMoPopupChoiNgay(true)
                   }}
                   className="h-8 px-3 rounded-lg border-border-default text-xs font-semibold cursor-pointer hover:bg-surface-raised gap-1.5 select-none active:scale-95 transition-all"
@@ -1171,7 +1194,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={datLaiTatCaPhong}
+                    onClick={canDangNhap(datLaiTatCaPhong)}
                     className="h-8 px-2.5 rounded-lg border-border-default/80 hover:bg-surface-raised text-text-tertiary hover:text-amber-400 text-xs font-semibold cursor-pointer gap-1 transition-colors"
                     title="Xóa tất cả phòng test để làm sạch sảnh"
                   >
@@ -1183,7 +1206,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 <Button
                   data-testid="create-table-btn"
                   size="sm"
-                  onClick={() => setMoTaoBanModal(true)}
+                  onClick={canDangNhap(() => setMoTaoBanModal(true))}
                   className="h-8 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold shadow-xs cursor-pointer"
                 >
                   <Plus className="size-3.5 mr-1" />
@@ -1246,7 +1269,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   </div>
                   <Button
                     size="sm"
-                    onClick={() => setMoTaoBanModal(true)}
+                    onClick={canDangNhap(() => setMoTaoBanModal(true))}
                     className="h-8 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold"
                   >
                     <Plus className="size-3.5 mr-1" />
