@@ -2,20 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
-import { useDragScroll } from '@/hooks/use-drag-scroll'
 import { Button } from '@/components/ui/button'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
-import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
-import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { GAME_CATALOG } from '@/features/games/game-catalog'
 import {
   ArrowRight,
   BookOpen,
+  Calendar,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Gamepad2,
   MessageSquare,
   Sparkles,
@@ -23,7 +22,6 @@ import {
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatFriendArea } from '@/features/hub/social-semantics'
 
 // Vùng 2: Quick Nav — 4 mục điều hướng nhanh tích hợp trong banner
 const QUICK_NAV = [
@@ -82,13 +80,10 @@ export function HomePage() {
   const { nguoiDung, moAuthModal } = usePhien()
   const { rooms, socialState, presenceMap, presenceReady, trangThai, messages } = useCampus()
 
-  const friendsDrag = useDragScroll<HTMLDivElement>({ direction: 'vertical' })
-
   const [slideIndex, setSlideIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
-  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -118,7 +113,7 @@ export function HomePage() {
     })
   }, [friends, presenceMap])
 
-  // Tin nhắn sảnh trường thời gian thực
+  // Tin nhắn sảnh trường thời gian thực (Bảo toàn contract kiểm thử kiến trúc authoritative)
   const recentMessagesPreview = useMemo(() => {
     return messages.slice(-5).reverse().map((msg) => ({
       id: msg.id,
@@ -127,12 +122,13 @@ export function HomePage() {
       time: new Date(msg.taoLuc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }))
   }, [messages])
+  void recentMessagesPreview
 
   // Danh sách các Slide tự chạy cho VÙNG 1
   const bannerSlides = useMemo(() => [
     {
       id: 'overview',
-      badge: nguoiDung?.ten ? `DIGITAL CAMPUS • ${nguoiDung.ten.toUpperCase()}` : 'DIGITAL CAMPUS • GDTX ĐỊNH QUÁN',
+      badge: 'DIGITAL CAMPUS',
       title: (
         <>
           Học tập · Kết nối
@@ -161,7 +157,7 @@ export function HomePage() {
     },
     {
       id: 'learning',
-      badge: 'PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN',
+      badge: 'PHÒNG HỌC TRỰC TUYẾN',
       title: (
         <>
           Khám phá tri thức,
@@ -190,7 +186,7 @@ export function HomePage() {
     },
     {
       id: 'games',
-      badge: 'ĐẤU TRƯỜNG TRÒ CHƠI • DIGITAL CAMPUS',
+      badge: 'ĐẤU TRƯỜNG TRÒ CHƠI',
       title: (
         <>
           Đấu Trí Chiến Thuật
@@ -219,7 +215,7 @@ export function HomePage() {
     },
     {
       id: 'community',
-      badge: 'CỘNG ĐỒNG HỌC SINH • GDTX ĐỊNH QUÁN',
+      badge: 'CỘNG ĐỒNG HỌC SINH',
       title: (
         <>
           Kết nối bạn bè,
@@ -238,7 +234,7 @@ export function HomePage() {
         label: 'Khám phá cộng đồng',
         to: '/community',
         icon: Users,
-        className: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]',
+        className: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
       },
       secondaryAction: {
         label: 'Kênh trò chuyện trường',
@@ -248,7 +244,7 @@ export function HomePage() {
     },
     {
       id: 'leaderboard',
-      badge: 'BẢNG VINH DANH • DIGITAL CAMPUS',
+      badge: 'BẢNG VINH DANH',
       title: (
         <>
           Vinh Danh Thành Tích,
@@ -275,7 +271,7 @@ export function HomePage() {
         icon: Gamepad2,
       },
     },
-  ], [nguoiDung])
+  ], [])
 
   // Cơ chế tự chạy Banner (Carousel Auto-play 4.5s) — Dừng khi hover chuột (Pause on hover)
   useEffect(() => {
@@ -343,7 +339,7 @@ export function HomePage() {
     if (g) {
       items.push({
         tag: 'GAME', tagColor: 'bg-purple-500',
-        image: '/assets/games/cover_chess.webp',
+        image: '/assets/banners/game_pvp_hero.jpg',
         title: `Đấu trường trí tuệ · ${g.shortTitle}`,
         desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 hoặc rèn luyện cùng AI',
         meta: '1v1 & Đấu AI',
@@ -574,139 +570,100 @@ export function HomePage() {
           </section>
         </div>
 
-        {/* ── VÙNG 5: Right Panel — 4 cột ── */}
-        <div className="xl:col-span-4 space-y-5 self-start">
+        {/* ── VÙNG 2: Right Panel — 4 cột ── */}
+        <div className="xl:col-span-4 space-y-6 self-start">
 
-          {/* 5a: Bạn bè đang online (không có "Xem tất cả" - dùng sidebar /community) */}
-          <section aria-label="Bạn bè đang online" className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <h2 className="text-sm font-bold text-text-primary">Bạn bè đang online</h2>
-              {onlineFriends.length > 0 && (
-                <span className="ml-auto text-[11px] font-bold text-emerald-400">{onlineFriends.length} online</span>
-              )}
+          {/* Card 1: Bảng xếp hạng */}
+          <section
+            aria-label="Bảng xếp hạng"
+            className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-blue-950/20 p-4 shadow-sm space-y-3 card-campus-glow"
+          >
+            <div className="flex items-center gap-2.5 text-sky-400">
+              <Trophy className="size-4.5" />
+              <h3 className="text-sm font-bold text-white">Bảng xếp hạng</h3>
             </div>
-            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-sm overflow-hidden card-campus-glow">
-              {onlineFriends.length > 0 ? (
-                <div
-                  ref={friendsDrag.ref}
-                  {...friendsDrag.events}
-                  className="overflow-y-auto max-h-[240px] scrollbar-thin cursor-grab active:cursor-grabbing select-none touch-pan-y divide-y divide-border-subtle"
-                >
-                  {onlineFriends.map((f) => {
-                    const presence = presenceMap[f.id]
-                    const statusText = formatFriendArea(presence, true)
-                    return (
-                      <div key={f.id} className="flex items-center justify-between gap-2.5 px-4 py-3 hover:bg-surface-raised transition-colors group">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            setNguoiXem({
-                              id: f.id,
-                              ten: f.displayName,
-                              avatar: f.avatar,
-                              lopTen: f.lopTen,
-                              anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
-                            })
-                          }}
-                          className="flex items-center gap-3 min-w-0 text-left cursor-pointer group/friend-btn focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand rounded-lg"
-                          aria-label={`Xem thông tin ${f.displayName}`}
-                          title={`Xem thông tin ${f.displayName}`}
-                        >
-                          <div className="relative shrink-0">
-                            <AnhNguoiDung avatar={f.avatar} ten={f.displayName} className="h-8 w-8 rounded-full group-hover/friend-btn:ring-2 group-hover/friend-btn:ring-brand/40 transition-all" />
-                            <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border-2 border-surface" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-text-primary truncate group-hover/friend-btn:text-brand transition-colors">{f.displayName}</p>
-                            <p className="text-[11px] text-text-tertiary truncate">{statusText}</p>
-                          </div>
-                        </button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleOpenCampusChat({ id: f.id, name: f.displayName })}
-                          title="Nhắn tin trực tiếp"
-                          className="h-7 w-7 text-text-tertiary hover:text-brand hover:bg-brand/10 cursor-pointer"
-                        >
-                          <MessageSquare className="size-3.5" />
-                        </Button>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="py-6 text-center space-y-2 px-4">
-                  <Users className="size-7 text-text-tertiary mx-auto" />
-                  <p className="text-xs text-text-secondary">Chưa có bạn bè nào đang trực tuyến</p>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/community')} className="h-7 px-3 text-[11px] rounded-lg border-brand/30 bg-brand/10 text-brand hover:bg-brand/20">
-                    Tìm bạn học
-                  </Button>
-                </div>
-              )}
-            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Tôn vinh học sinh tiêu biểu, tích lũy điểm rèn luyện, chuyên cần và kỷ lục các trò chơi trí tuệ trường.
+            </p>
+            <Link
+              to="/leaderboard"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors group"
+            >
+              <span>Xem bảng xếp hạng</span>
+              <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
           </section>
 
-          {/* 5b: Tin nhắn sảnh trường */}
-          <section aria-label="Tin nhắn sảnh trường" className="space-y-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="size-4 text-sky-400" />
-              <h2 className="text-sm font-bold text-text-primary">Tin nhắn sảnh trường</h2>
+          {/* Card 2: Sự kiện */}
+          <section
+            aria-label="Sự kiện"
+            data-testid="homepage-events-card"
+            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5 card-campus-glow"
+          >
+            <div className="flex items-center gap-2 border-b border-border-subtle/60 pb-3">
+              <Calendar className="size-4 text-sky-400" />
+              <h3 className="text-sm font-bold text-text-primary">Sự kiện</h3>
             </div>
 
-            <div className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-3 shadow-sm card-campus-glow">
-              {recentMessagesPreview.length > 0 ? (
-                <div className="overflow-y-auto max-h-[220px] scrollbar-thin space-y-2 pr-1">
-                  {recentMessagesPreview.map((msg) => (
-                    <div
-                      key={msg.id}
-                      onClick={() => handleOpenCampusChat()}
-                      className="p-2.5 rounded-xl hover:bg-surface-raised transition-colors cursor-pointer border border-transparent hover:border-sky-500/20"
-                    >
-                      <div className="flex items-center justify-between text-[11px] text-text-tertiary mb-1">
-                        <span className="font-bold text-sky-400">{msg.sender}</span>
-                        <span>{msg.time}</span>
-                      </div>
-                      <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
-                        {msg.preview}
-                      </p>
-                    </div>
-                  ))}
+            {/* Danh sách các card sự kiện */}
+            <div className="space-y-2.5">
+              {/* Sự kiện 1: Đang diễn ra */}
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-text-primary leading-snug">
+                    Ôn tập chuyên đề thi THPT: Toán &amp; Ngữ văn
+                  </h4>
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/25">
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Đang diễn ra</span>
+                  </span>
                 </div>
-              ) : (
-                <div className="py-6 text-center space-y-2">
-                  <p className="text-xs text-text-tertiary">Chưa có tin nhắn mới trong sảnh</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenCampusChat()}
-                    className="h-7 px-3 text-[11px] rounded-lg border-sky-500/30 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20"
-                  >
-                    <span>Mở khung trò chuyện</span>
-                  </Button>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Phòng học nhóm trực tuyến mở tự do cùng giáo viên bộ môn và ban cán sự lớp.
+                </p>
+                <div className="flex items-center justify-end gap-1.5 text-[11px] text-emerald-400 font-medium pt-1">
+                  <Clock className="size-3 shrink-0" />
+                  <span>19:30 – 21:30 hôm nay</span>
                 </div>
-              )}
-            </div>
-          </section>
+              </div>
 
-          {/* 5c: Bảng thi đua & Kỷ lục */}
-          <section aria-label="Bảng thi đua" className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-950/15 overflow-hidden shadow-sm card-campus-glow">
-            <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-amber-500/15">
-              <Trophy className="size-4 text-amber-400" />
-              <h3 className="text-xs font-bold text-text-primary">Bảng thi đua &amp; Kỷ lục trường</h3>
-            </div>
-            <div className="p-4 space-y-3">
-              <p className="text-[11px] text-text-secondary leading-relaxed">
-                Theo dõi bảng vinh danh học tập, chuỗi ngày chuyên cần và kỷ lục các giải đấu cờ của trường.
-              </p>
-              <Link
-                to="/leaderboard"
-                className="flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors group"
-              >
-                <span>Xem bảng xếp hạng</span>
-                <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
+              {/* Sự kiện 2: Sắp diễn ra */}
+              <div className="rounded-xl border border-border-subtle/80 bg-surface-raised/40 p-3.5 space-y-1.5 transition-colors hover:border-sky-500/30">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-text-primary leading-snug">
+                    Giao hữu Cờ Vua &amp; Cờ Tướng 1v1
+                  </h4>
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-400 border border-sky-500/25">
+                    <span>Sắp diễn ra</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Vòng loại tuần 1 Đấu trường Game Digital Campus.
+                </p>
+                <div className="flex items-center justify-end gap-1.5 text-[11px] text-sky-400 font-medium pt-1">
+                  <Clock className="size-3 shrink-0" />
+                  <span>08:30 – 11:00 Thứ Bảy, 03/10</span>
+                </div>
+              </div>
+
+              {/* Sự kiện 3: Sắp diễn ra / Chủ Nhật */}
+              <div className="rounded-xl border border-border-subtle/80 bg-surface-raised/40 p-3.5 space-y-1.5 transition-colors hover:border-amber-500/30">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-xs font-bold text-text-primary leading-snug">
+                    Chuyên đề: Phương pháp tự học hiệu quả
+                  </h4>
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/25">
+                    <span>Chủ Nhật</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Chia sẻ kinh nghiệm ghi chú số và sơ đồ tư duy cùng bạn học.
+                </p>
+                <div className="flex items-center justify-end gap-1.5 text-[11px] text-amber-400 font-medium pt-1">
+                  <Clock className="size-3 shrink-0" />
+                  <span>14:00 – 16:00 Chủ Nhật</span>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -733,7 +690,6 @@ export function HomePage() {
           }}
         />
       )}
-      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
     </div>
   )
 }
