@@ -175,5 +175,12 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain('CHỜ ĐỐI THỦ')
       expect(xiangqiBoardRaw).toContain('ĐÃ SẴN SÀNG')
     })
+
+    it('Vùng 1: Khi chưa có đối thủ, hiển thị slot chờ Chờ đối thủ kèm UserPlus, không tạo initials giả và không link nhầm tài khoản của chủ phòng', () => {
+      expect(xiangqiBoardRaw).toContain('const hasOpponent = useMemo(')
+      expect(xiangqiBoardRaw).toContain('Chờ đối thủ</span>')
+      expect(xiangqiBoardRaw).toContain('if (!laOnline || !hasOpponent) return 0')
+      expect(xiangqiBoardRaw).not.toContain("online?.meta.playerOName : online?.meta.playerXName) || 'Đang chờ đối thủ...'")
+    })
   })
 })

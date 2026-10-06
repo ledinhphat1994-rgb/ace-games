@@ -667,21 +667,32 @@ export function XiangqiBoard({
   const mySide: Side = benCuaToi
   const opponentSide: Side = mySide === RED ? BLACK : RED
 
-  // Thành viên đối thủ khi chơi online
-  const opponentMember = useMemo(() => {
-    if (!online) return null
-    const oppActorKey = online.mySide === 'X' ? online.meta.playerO : online.meta.playerX
-    return online.thanhVien.find((m) => m.key === oppActorKey) || null
-  }, [online])
-
   // Xác định rõ đang ở chế độ PVE / AI (chủ phòng bật hoặc ván chọn đấu máy)
   const isPveMode = mode === 'ai'
+
+  // Xác định có đối thủ thực sự hay chưa
+  const hasOpponent = useMemo(() => {
+    if (isPveMode) return true
+    if (laOnline) {
+      const oppActorKey = online?.mySide === 'X' ? online?.meta.playerO : online?.meta.playerX
+      return Boolean(oppActorKey)
+    }
+    return true // local pvp / pass & play
+  }, [isPveMode, laOnline, online?.mySide, online?.meta.playerO, online?.meta.playerX])
+
+  // Thành viên đối thủ khi chơi online
+  const opponentMember = useMemo(() => {
+    if (!online || !hasOpponent) return null
+    const oppActorKey = online.mySide === 'X' ? online.meta.playerO : online.meta.playerX
+    if (!oppActorKey) return null
+    return online.thanhVien.find((m) => m.key === oppActorKey) || null
+  }, [online, hasOpponent])
 
   // Tên và avatar đối thủ
   const opponentName = isPveMode
     ? 'Người chơi AI'
     : laOnline
-      ? (online?.mySide === 'X' ? online?.meta.playerOName : online?.meta.playerXName) || 'Đang chờ đối thủ...'
+      ? (online?.mySide === 'X' ? online?.meta.playerOName : online?.meta.playerXName) || ''
       : 'Kỳ Thủ Khách'
 
   const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
@@ -691,17 +702,15 @@ export function XiangqiBoard({
   // Tài khoản & Hồ sơ để tính toán Cấp độ (Level) và Elo
   const myAccountId = nguoiDung?.accountId ?? 0
   const oppAccountId = useMemo(() => {
+    if (!laOnline || !hasOpponent) return 0
     if (opponentMember?.accountId) return opponentMember.accountId
-    if (typeof online?.meta.playerO === 'string' && online.meta.playerO.startsWith('acc:')) {
-      const parsed = Number(online.meta.playerO.replace('acc:', ''))
-      if (Number.isFinite(parsed) && parsed > 0) return parsed
-    }
-    if (typeof online?.meta.playerX === 'string' && online.meta.playerX.startsWith('acc:')) {
-      const parsed = Number(online.meta.playerX.replace('acc:', ''))
+    const oppActorKey = online?.mySide === 'X' ? online?.meta.playerO : online?.meta.playerX
+    if (typeof oppActorKey === 'string' && oppActorKey.startsWith('acc:')) {
+      const parsed = Number(oppActorKey.replace('acc:', ''))
       if (Number.isFinite(parsed) && parsed > 0) return parsed
     }
     return 0
-  }, [opponentMember, online?.meta.playerO, online?.meta.playerX])
+  }, [laOnline, hasOpponent, opponentMember, online?.mySide, online?.meta.playerO, online?.meta.playerX])
 
   const { data: myProfile } = useQuery({
     queryKey: ['ho-so-nguoi-dung', myAccountId],
@@ -2583,24 +2592,43 @@ export function XiangqiBoard({
           <div className="relative flex flex-col items-center">
             {/* BADGE LEVEL & ELO ĐỐI THỦ ĐỂ KHÈ NGƯỜI CHƠI KHÁC */}
             <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#121622]/95 border border-sky-400/40 shadow-[0_4px_12px_rgba(0,0,0,0.6)] backdrop-blur-md select-none text-[10px] font-bold tracking-tight mb-1.5 z-20">
-              <span className="text-amber-400 font-extrabold">{isPveMode ? 'AI Cấp 10' : `Lv.${opponentLevel}`}</span>
-              <span className="text-white/20">|</span>
-              <span className="text-sky-300 font-extrabold">Elo {opponentElo}</span>
+              {hasOpponent ? (
+                <>
+                  <span className="text-amber-400 font-extrabold">{isPveMode ? 'AI Cấp 10' : `Lv.${opponentLevel}`}</span>
+                  <span className="text-white/20">|</span>
+                  <span className="text-sky-300 font-extrabold">Elo {opponentElo}</span>
+                </>
+              ) : (
+                <span className="text-stone-400 font-medium">Chờ đối thủ</span>
+              )}
             </div>
 
             {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ, NỞ SANG PHẢI RA NGOÀI ĐỂ TUYỆT ĐỐI KHÔNG ĐÈ BÀN CỜ */}
-            {opponentQuickMessage && (
+            {hasOpponent && opponentQuickMessage && (
               <div className="absolute bottom-full mb-2.5 left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
                 {opponentQuickMessage.emoji && <span className="text-sm shrink-0">{opponentQuickMessage.emoji}</span>}
                 <span className="truncate">{opponentQuickMessage.text}</span>
               </div>
             )}
 
-            {/* AVATAR TRÒN TRUNG TÂM CỦA ĐỐI THỦ: BẤM ĐỂ MỞ HỒ SƠ CÁ NHÂN & ELO TRÒ CHƠI */}
+            {/* AVATAR TRÒN TRUNG TÂM CỦA ĐỐI THỦ: BẤM ĐỂ MỞ HỒ SƠ CÁ NHÂN & ELO TRÒ CHƠI HOẶC MỜI BẠN KHI CHƯA CÓ ĐỐI THỦ */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
+                if (!hasOpponent) {
+                  if (onInvite) {
+                    onInvite()
+                  } else {
+                    try {
+                      navigator.clipboard.writeText(window.location.href)
+                      showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
+                    } catch {
+                      showGameNotice('CHỜ ĐỐI THỦ')
+                    }
+                  }
+                  return
+                }
                 if (isPveMode) {
                   showGameNotice('AI CẤP 10 · ELO 1500')
                   return
@@ -2621,17 +2649,35 @@ export function XiangqiBoard({
                 })
               }}
               className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-all duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
-                isOpponentTurn
-                  ? opponentSide === RED
-                    ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
-                    : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
-                  : 'border-white/10 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
+                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
+                !hasOpponent
+                  ? 'border-dashed border-white/20 bg-white/[0.02] hover:border-amber-400/60 hover:bg-white/5 text-stone-400 hover:text-amber-300'
+                  : isOpponentTurn
+                    ? opponentSide === RED
+                      ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
+                      : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
+                    : 'border-white/10 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
               )}
-              title={isPveMode ? 'Người chơi AI (Cấp 10 · Elo 1500)' : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo}) - Bấm để xem hồ sơ`}
-              aria-label={isPveMode ? 'Người chơi AI' : `${opponentName} - Bấm để xem hồ sơ`}
+              title={
+                !hasOpponent
+                  ? 'Đang chờ đối thủ vào bàn - Bấm để mời hoặc sao chép liên kết'
+                  : isPveMode
+                    ? 'Người chơi AI (Cấp 10 · Elo 1500)'
+                    : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo}) - Bấm để xem hồ sơ`
+              }
+              aria-label={
+                !hasOpponent
+                  ? 'Đang chờ đối thủ vào bàn'
+                  : isPveMode
+                    ? 'Người chơi AI'
+                    : `${opponentName} - Bấm để xem hồ sơ`
+              }
             >
-              {isPveMode ? (
+              {!hasOpponent ? (
+                <div className="size-full rounded-full flex flex-col items-center justify-center">
+                  <UserPlus className="size-5 sm:size-6 text-stone-400 group-hover:text-amber-300 transition-colors duration-150" />
+                </div>
+              ) : isPveMode ? (
                 <div
                   className="size-full rounded-full flex items-center justify-center bg-sky-950/60"
                   title="Người chơi AI"
@@ -2646,24 +2692,23 @@ export function XiangqiBoard({
                 />
               )}
 
-              {/* Đĩa cờ nhỏ thể hiện phe của đối thủ (帥 / 將) (chỉ hiện khi có đối thủ hoặc đấu máy) */}
-              {(isPveMode || Boolean(opponentMember)) && (
-                <div
-                  className={cn(
-                    'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
-                    opponentSide === RED
-                      ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                      : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                  )}
-                  title={opponentSide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
-                >
-                  {opponentSide === RED ? '帥' : '將'}
-                </div>
-              )}
+              {/* Đĩa cờ nhỏ thể hiện phe của đối thủ (帥 / 將) */}
+              <div
+                className={cn(
+                  'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
+                  !hasOpponent && 'opacity-60',
+                  opponentSide === RED
+                    ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
+                    : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                )}
+                title={opponentSide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
+              >
+                {opponentSide === RED ? '帥' : '將'}
+              </div>
 
               {/* Tên đối thủ ẩn dưới dạng accessibility / selector */}
               <span id="player-black-name" className="sr-only">
-                {opponentName}
+                {hasOpponent ? opponentName : 'Đang chờ đối thủ'}
               </span>
             </button>
 
@@ -2672,38 +2717,44 @@ export function XiangqiBoard({
               id="opponent-desk-clock"
               className={cn(
                 'absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-cinzel text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-20 whitespace-nowrap opacity-100 scale-100 translate-y-0',
-                isOpponentTimedOut
-                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
-                  : isPlaying && !isOver && isOpponentTurn
-                    ? 'border-sky-400/80 bg-sky-950/80 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
-                    : isOver && laNguoiThang === false
-                      ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
-                      : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+                !hasOpponent
+                  ? 'border-white/10 bg-[#121620]/60 text-stone-500 opacity-60'
+                  : isOpponentTimedOut
+                    ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                    : isPlaying && !isOver && isOpponentTurn
+                      ? 'border-sky-400/80 bg-sky-950/80 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
+                      : isOver && laNguoiThang === false
+                        ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                        : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
-              title="Thời gian chơi của Đối thủ"
+              title={hasOpponent ? 'Thời gian chơi của Đối thủ' : 'Chờ đối thủ vào bàn'}
             >
               <Clock
                 className={cn(
                   'w-3 h-3 shrink-0',
-                  isOpponentTimedOut
-                    ? 'text-red-400'
-                    : isPlaying && !isOver && isOpponentTurn
-                      ? 'text-sky-400'
-                      : isOver && laNguoiThang === false
-                        ? 'text-emerald-400'
-                        : 'text-gray-400'
+                  !hasOpponent
+                    ? 'text-stone-500'
+                    : isOpponentTimedOut
+                      ? 'text-red-400'
+                      : isPlaying && !isOver && isOpponentTurn
+                        ? 'text-sky-400'
+                        : isOver && laNguoiThang === false
+                          ? 'text-emerald-400'
+                          : 'text-gray-400'
                 )}
               />
               <span>
-                {isOpponentTimedOut
-                  ? '00:00'
-                  : isPlaying && !isOver
-                    ? isOpponentTurn
-                      ? formatClockTime(clock.timeRemaining)
-                      : formatClockTime(clock.turnSeconds)
-                    : isOver
-                      ? formatClockTime(isOpponentTurn ? clock.timeRemaining : clock.turnSeconds)
-                      : formatClockTime(clock.turnSeconds)}
+                {!hasOpponent
+                  ? '--:--'
+                  : isOpponentTimedOut
+                    ? '00:00'
+                    : isPlaying && !isOver
+                      ? isOpponentTurn
+                        ? formatClockTime(clock.timeRemaining)
+                        : formatClockTime(clock.turnSeconds)
+                      : isOver
+                        ? formatClockTime(isOpponentTurn ? clock.timeRemaining : clock.turnSeconds)
+                        : formatClockTime(clock.turnSeconds)}
               </span>
             </div>
           </div>
