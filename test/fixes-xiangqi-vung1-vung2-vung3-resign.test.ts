@@ -186,5 +186,15 @@ describe('Kiểm tra 3 vùng fix Cờ Tướng: Xóa Vùng 1, Vị trí trước
       expect(xiangqiBoardRaw).toContain('if (!laOnline || !hasOpponent) return 0')
       expect(xiangqiBoardRaw).not.toContain("online?.meta.playerOName : online?.meta.playerXName) || 'Đang chờ đối thủ...'")
     })
+
+    it('Đồng bộ hòa cờ qua server game.draw, triệt tiêu timeout và bảo đảm kết quả HOÀ CỜ thay vì BẠN THUA', () => {
+      expect(xiangqiBoardRaw).toContain('isDrawOfferedByMe = Boolean(laOnlinePvp && online?.mySide && online.meta.drawOfferBy === online.mySide)')
+      expect(xiangqiBoardRaw).toContain('isDrawOfferedByOpponent = Boolean(laOnlinePvp && online?.mySide && online.meta.drawOfferBy && online.meta.drawOfferBy !== online.mySide)')
+      expect(xiangqiBoardRaw).toContain("online.offerDraw?.()")
+      expect(xiangqiBoardRaw).toContain("online.declineDraw?.()")
+      expect(xiangqiBoardRaw).toContain("const isDrawOnline = Boolean(online?.meta.status === 'ended' && (online.meta.winner === 'draw' || online.meta.endReason === 'draw'))")
+      expect(xiangqiBoardRaw).toContain('const isDraw = isDrawOnline || isCustomDraw || isEngineDraw')
+      expect(xiangqiBoardRaw).toContain('const laNguoiThang = isOver && !isDraw && winnerSide !== null && winnerSide !== undefined ? winnerSide === benCuaToi : null')
+    })
   })
 })

@@ -137,6 +137,7 @@ const DEFAULT_GAME_META: GameMetaState = {
   scoreO: 0,
   endReason: null,
   rematchBy: null,
+  drawOfferBy: null,
   firstTurn: 'X',
   isPve: false,
 }
@@ -1735,7 +1736,7 @@ export class RoomDO extends DurableObject<Env> {
           } else if (this.gameBoard.every((row) => row.every((c) => c !== null))) {
             this.gameMeta = ketThucVan(this.gameMeta, 'draw', 'normal')
           } else {
-            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+            this.gameMeta = { ...this.gameMeta, drawOfferBy: null, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
           }
         } else if (laCoNuoc(this.gameMeta.gameType)) {
           if (goi.from === undefined || goi.to === undefined) {
@@ -1763,7 +1764,7 @@ export class RoomDO extends DurableObject<Env> {
               'normal',
             )
           } else {
-            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+            this.gameMeta = { ...this.gameMeta, drawOfferBy: null, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
           }
         } else {
           this.guiLoiGame(ws, 'Trò chơi này không có bàn đối kháng.')
@@ -1789,18 +1790,57 @@ export class RoomDO extends DurableObject<Env> {
         return
       }
 
+      case 'game.draw': {
+        const side = this.gheCua(att.key)
+        if (this.gameMeta.status !== 'playing' || !side) return
+        if (this.gameMeta.drawOfferBy === benKia(side)) {
+          this.gameMeta = ketThucVan(this.gameMeta, 'draw', 'draw')
+          this.gameMeta = { ...this.gameMeta, drawOfferBy: null }
+          this.luuGameState()
+          this.baoLobby()
+          this.phatTrangThaiGame(now)
+          await this.reconcileRoomAlarm()
+          return
+        }
+        this.gameMeta = { ...this.gameMeta, drawOfferBy: side }
+        this.luuGameState()
+        this.phatTrangThaiGame(now)
+        return
+      }
+
+      case 'game.decline_draw': {
+        const side = this.gheCua(att.key)
+        if (!side) return
+        if (this.gameMeta.drawOfferBy) {
+          this.gameMeta = { ...this.gameMeta, drawOfferBy: null }
+          this.luuGameState()
+          this.phatTrangThaiGame(now)
+        }
+        return
+      }
+
       case 'game.start':
       case 'game.rematch': {
         const side = this.gheCua(att.key)
         if (!side) {
-          this.guiLoiGame(ws, 'Chỉ hai người chơi của bàn mới thao tác được.')
+          this.guiLoiGame(
+            ws,
+            goi.type === 'game.rematch'
+              ? 'Chỉ hai người chơi của bàn mới đấu lại được.'
+              : 'Chỉ hai người chơi của bàn mới thao tác được.',
+          )
           return
         }
         if (!this.gameMeta.playerX || !this.gameMeta.playerO) {
           this.guiLoiGame(ws, 'Cần đủ 2 người chơi để bắt đầu ván đấu.')
           return
         }
-        if (this.gameMeta.status === 'playing') return
+        if (this.gameMeta.status === 'playing') {
+          if (goi.type === 'game.rematch') {
+            this.guiLoiGame(ws, 'Ván này chưa kết thúc.')
+          }
+          return
+        }
         if (goi.type === 'game.start' || this.gameMeta.rematchBy === benKia(side)) {
           const firstTurn = this.gameMeta.status === 'ended' ? benKia(this.gameMeta.firstTurn) : this.gameMeta.firstTurn
           const van = batDauVan({ ...this.gameMeta, firstTurn }, now)
@@ -3386,17 +3426,17 @@ export class RoomDO extends DurableObject<Env> {
       if (laChuPhongRoi) {
         if (uniqueActorsConLai.size >= 1) {
           if (this.isGameRoom) {
-            // Bàn game: nếu còn playerO thì đôn playerO lên làm chủ phòng/chủ bàn mới (playerX), hoặc người còn lại bất kỳ
-            const newHost =
-              (this.gameMeta.playerO && uniqueActorsConLai.get(this.gameMeta.playerO)) ||
-              [...uniqueActorsConLai.values()][0]
+            // Bàn game: nếu còn playerO thì đôn playerO lên làm chủ bàn mới (playerX).
+            // Nếu chỉ còn khán giả, chuyển quyền quản lý phòng (hostKey) nhưng giữ ghế chơi trống cho người chơi mới.
+            const playerOConLai = this.gameMeta.playerO ? uniqueActorsConLai.get(this.gameMeta.playerO) : undefined
+            const newHost = playerOConLai || [...uniqueActorsConLai.values()][0]
             if (newHost) {
               this.hostKey = newHost.key
               this.luuMeta('host_key', this.hostKey)
               this.gameMeta = {
                 ...this.gameMeta,
-                playerX: newHost.key,
-                playerXName: newHost.ten,
+                playerX: playerOConLai ? playerOConLai.key : null,
+                playerXName: playerOConLai ? playerOConLai.ten : null,
                 playerO: null,
                 playerOName: null,
                 status: 'waiting',

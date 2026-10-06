@@ -775,6 +775,8 @@ export function XiangqiBoard({
   const laOnlinePvp = laOnline && !isPveMode
   const isOfferedByMe = Boolean(laOnlinePvp && online?.mySide && online.meta.rematchBy === online.mySide)
   const isOfferedByOpponent = Boolean(laOnlinePvp && online?.mySide && online.meta.rematchBy && online.meta.rematchBy !== online.mySide)
+  const isDrawOfferedByMe = Boolean(laOnlinePvp && online?.mySide && online.meta.drawOfferBy === online.mySide)
+  const isDrawOfferedByOpponent = Boolean(laOnlinePvp && online?.mySide && online.meta.drawOfferBy && online.meta.drawOfferBy !== online.mySide)
   const isCustomOver = Boolean(customGameOver?.over)
   const isOver = isCustomOver || (laOnlinePvp ? online?.meta.status === 'ended' : outcome.over)
   const toiDenLuotOnline = laOnlinePvp && Boolean(online?.isMyTurn) && pos.turn === benOnline
@@ -1133,6 +1135,41 @@ export function XiangqiBoard({
     }
   }, [laOnlinePvp, online, isOfferedByOpponent, incomingDialog?.type, resetGame, showGameNotice])
 
+  // Lắng nghe khi đối thủ xin hòa (dựa trên trạng thái máy chủ drawOfferBy)
+  useEffect(() => {
+    if (!laOnlinePvp || !online || online.meta.status !== 'playing') {
+      return
+    }
+    if (isDrawOfferedByOpponent) {
+      setIncomingDialog({
+        type: 'draw',
+        icon: 'draw',
+        title: 'Đối Thủ Xin Hòa',
+        subtitle: 'Đối thủ xin hòa ván này, bạn có đồng ý không?',
+        cancelText: 'Chơi tiếp',
+        confirmText: 'Đồng ý',
+        confirmVariant: 'amber',
+        onCancel: () => {
+          setIncomingDialog(null)
+          online.guiChat(`${PROPOSAL_PREFIX}draw_decline`)
+          try {
+            online.declineDraw?.()
+          } catch {}
+          showGameNotice('TỪ CHỐI HOÀ CỜ')
+        },
+        onConfirm: () => {
+          setIncomingDialog(null)
+          online.guiChat(`${PROPOSAL_PREFIX}draw_accept`)
+          try {
+            online.offerDraw?.()
+          } catch {}
+        },
+      })
+    } else if (!online.meta.drawOfferBy && incomingDialog?.type === 'draw') {
+      setIncomingDialog(null)
+    }
+  }, [laOnlinePvp, online, isDrawOfferedByOpponent, incomingDialog?.type, showGameNotice])
+
   const handleModeChange = (newMode: PlayMode) => {
     if (!doiCheDo(newMode)) {
       if (laOnlinePvp) {
@@ -1219,8 +1256,11 @@ export function XiangqiBoard({
           return
         }
         if (laOnline && online) {
+          try {
+            online.offerDraw?.()
+          } catch {}
           online.guiChat(`${PROPOSAL_PREFIX}draw_offer`)
-          showGameNotice('ĐÃ XIN HOÀ')
+          showGameNotice('ĐÃ XIN HOÀ', 'Đang chờ đối thủ xác nhận...')
           return
         }
         // Mô phỏng đối thủ trong chế độ PvP cục bộ / test
@@ -1591,27 +1631,22 @@ export function XiangqiBoard({
           onCancel: () => {
             setIncomingDialog(null)
             online.guiChat(`${PROPOSAL_PREFIX}draw_decline`)
+            try {
+              online.declineDraw?.()
+            } catch {}
           },
           onConfirm: () => {
             setIncomingDialog(null)
             online.guiChat(`${PROPOSAL_PREFIX}draw_accept`)
-            setCustomGameOver({
-              over: true,
-              winner: null,
-              reason: 'Hai bên đồng thuận hoà cờ',
-            })
-            setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
-            playGameOverSound('draw')
+            try {
+              online.offerDraw?.()
+            } catch {}
           },
         })
       } else if (action === 'draw_accept') {
-        setCustomGameOver({
-          over: true,
-          winner: null,
-          reason: 'Đối thủ đã đồng ý hoà cờ',
-        })
-        setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
-        playGameOverSound('draw')
+        try {
+          online.offerDraw?.()
+        } catch {}
       } else if (action === 'draw_decline') {
         showGameNotice('TỪ CHỐI HOÀ CỜ')
       } else if (action === 'win_offer') {
@@ -1637,6 +1672,9 @@ export function XiangqiBoard({
             })
             setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
             soundEngine.playDefeat()
+            try {
+              online.surrender()
+            } catch {}
           },
         })
       } else if (action === 'win_accept') {
@@ -1716,12 +1754,25 @@ export function XiangqiBoard({
     }
   }, [laOnline, online, benCuaToi, resetGame, showGameNotice])
 
+  const isDrawOnline = Boolean(online?.meta.status === 'ended' && (online.meta.winner === 'draw' || online.meta.endReason === 'draw'))
+  const isCustomDraw = Boolean(customGameOver?.over && customGameOver.winner === null)
+  const isEngineDraw = Boolean(outcome.over && outcome.winner === null)
+  const isDraw = isDrawOnline || isCustomDraw || isEngineDraw
+
   const winnerOnline: Side | null =
     online && (online.meta.winner === 'X' || online.meta.winner === 'O')
       ? (mauQuanCua(online.meta.firstTurn, online.meta.winner) as Side)
       : null
-  const winnerSide = laOnline ? winnerOnline : outcome.over ? outcome.winner : customGameOver?.winner
-  const laNguoiThang = isOver && winnerSide !== null && winnerSide !== undefined ? winnerSide === benCuaToi : null
+  const winnerSide = customGameOver?.over
+    ? customGameOver.winner
+    : isDraw
+      ? null
+      : laOnline
+        ? winnerOnline
+        : outcome.over
+          ? outcome.winner
+          : null
+  const laNguoiThang = isOver && !isDraw && winnerSide !== null && winnerSide !== undefined ? winnerSide === benCuaToi : null
 
   // Banner & âm thanh khi bị chiếu tướng
   const prevInCheckRef = useRef(inCheck)
@@ -1842,11 +1893,12 @@ export function XiangqiBoard({
     },
     draw: {
       id: 'draw',
-      title: 'Xin hòa',
+      title: isDrawOfferedByMe ? 'Đã xin hòa' : 'Xin hòa',
       bubbleClassName:
         'border-amber-500/50 bg-[#181614]/95 text-amber-400 hover:border-amber-400 hover:text-amber-300 hover:bg-amber-500/20 shadow-amber-500/15',
       renderIcon: (compact) => <Handshake className={compact ? 'size-4' : 'size-4.5'} />,
       onClick: handleOfferDraw,
+      disabled: isDrawOfferedByMe,
     },
     resign: {
       id: 'resign',
@@ -2600,9 +2652,11 @@ export function XiangqiBoard({
                   ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
                   : isPlaying && !isOver && isMyTurn
                     ? 'border-red-500/80 bg-red-950/80 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                    : isOver && laNguoiThang === true
-                      ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
-                      : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+                    : isOver && isDraw
+                      ? 'border-amber-500/60 bg-amber-950/60 text-amber-300'
+                      : isOver && laNguoiThang === true
+                        ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                        : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
               title="Thời gian chơi của Bạn"
             >
@@ -2611,9 +2665,11 @@ export function XiangqiBoard({
                   'w-3 h-3 shrink-0',
                   isPlayerTimedOut || (isPlaying && !isOver && isMyTurn)
                     ? 'text-red-400'
-                    : isOver && laNguoiThang === true
-                      ? 'text-emerald-400'
-                      : 'text-gray-400'
+                    : isOver && isDraw
+                      ? 'text-amber-400'
+                      : isOver && laNguoiThang === true
+                        ? 'text-emerald-400'
+                        : 'text-gray-400'
                 )}
               />
               <span>
@@ -2772,9 +2828,11 @@ export function XiangqiBoard({
                     ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
                     : isPlaying && !isOver && isOpponentTurn
                       ? 'border-sky-400/80 bg-sky-950/80 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
-                      : isOver && laNguoiThang === false
-                        ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
-                        : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+                      : isOver && isDraw
+                        ? 'border-amber-500/60 bg-amber-950/60 text-amber-300'
+                        : isOver && laNguoiThang === false
+                          ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                          : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
               title={hasOpponent ? 'Thời gian chơi của Đối thủ' : 'Chờ đối thủ vào bàn'}
             >
@@ -2787,9 +2845,11 @@ export function XiangqiBoard({
                       ? 'text-red-400'
                       : isPlaying && !isOver && isOpponentTurn
                         ? 'text-sky-400'
-                        : isOver && laNguoiThang === false
-                          ? 'text-emerald-400'
-                          : 'text-gray-400'
+                        : isOver && isDraw
+                          ? 'text-amber-400'
+                          : isOver && laNguoiThang === false
+                            ? 'text-emerald-400'
+                            : 'text-gray-400'
                 )}
               />
               <span>

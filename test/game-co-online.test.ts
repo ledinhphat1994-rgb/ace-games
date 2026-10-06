@@ -246,6 +246,41 @@ describe('Bàn cờ tướng online qua RoomDO', () => {
 
     ;[x, oo].forEach((k) => k.dong())
   })
+
+  it('đồng thuận hòa cờ qua game.draw triệt tiêu nguy cơ timeout và xử lý từ chối game.decline_draw', async () => {
+    const { x, o: den, dong } = await banDangChoi('xiangqi')
+
+    // Người chơi X bấm xin hòa
+    x.gui({ type: 'game.draw' })
+    const syncOffer = await den.cho('game.sync', (g) => g.meta.drawOfferBy === 'X')
+    expect(syncOffer.meta.status).toBe('playing')
+    expect(syncOffer.meta.drawOfferBy).toBe('X')
+
+    // Người chơi O từ chối xin hòa
+    den.gui({ type: 'game.decline_draw' })
+    const syncDecline = await x.cho('game.sync', (g) => g.meta.drawOfferBy === null)
+    expect(syncDecline.meta.status).toBe('playing')
+    expect(syncDecline.meta.drawOfferBy).toBeNull()
+
+    // Người chơi X gửi lại lời xin hòa
+    x.gui({ type: 'game.draw' })
+    await den.cho('game.sync', (g) => g.meta.drawOfferBy === 'X')
+
+    // Người chơi O đồng ý xin hòa bằng cách cũng gửi game.draw
+    den.gui({ type: 'game.draw' })
+    const syncDraw = await x.cho('game.sync', (g) => g.meta.status === 'ended')
+    expect(syncDraw.meta.status).toBe('ended')
+    expect(syncDraw.meta.winner).toBe('draw')
+    expect(syncDraw.meta.endReason).toBe('draw')
+    expect(syncDraw.meta.drawOfferBy).toBeNull()
+    expect(syncDraw.meta.turnTimerEndsAt).toBe(0)
+
+    const syncDrawDen = await den.cho('game.sync', (g) => g.meta.status === 'ended')
+    expect(syncDrawDen.meta.winner).toBe('draw')
+    expect(syncDrawDen.meta.endReason).toBe('draw')
+
+    dong()
+  })
 })
 
 describe('Biểu cảm và chat phòng game', () => {

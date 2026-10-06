@@ -32,6 +32,7 @@ export function ketThucVan(meta: GameMetaState, winner: PlayerSide | 'draw', lyD
     winLine: lyDo === 'normal' ? meta.winLine : null,
     endReason: lyDo,
     rematchBy: null,
+    drawOfferBy: null,
     turnTimerEndsAt: 0,
   }
   if (winner !== 'draw') {
@@ -52,6 +53,7 @@ export function batDauVan(meta: GameMetaState, now: number): { meta: GameMetaSta
     winLine: null,
     endReason: null,
     rematchBy: null,
+    drawOfferBy: null,
     turnTimerEndsAt: meta.turnTimerSeconds > 0 ? now + meta.turnTimerSeconds * 1000 : 0,
   }
   return { meta: moi, board }

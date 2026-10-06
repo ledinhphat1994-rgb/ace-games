@@ -12,8 +12,8 @@ export type PlayerSide = 'X' | 'O'
 export type GameStatus = 'waiting' | 'playing' | 'ended'
 export type BoardCell = PlayerSide | null
 
-/** Vì sao ván kết thúc: xếp đủ hàng / kín bàn (`normal`), một bên đầu hàng, hoặc bên tới lượt hết giờ. */
-export type LyDoKetThucVan = 'normal' | 'surrender' | 'timeout'
+/** Vì sao ván kết thúc: xếp đủ hàng / kín bàn (`normal`), một bên đầu hàng, hai bên xin hòa (`draw`), hoặc bên tới lượt hết giờ. */
+export type LyDoKetThucVan = 'normal' | 'surrender' | 'timeout' | 'draw'
 
 export interface GameMetaState {
   gameType: GameType
@@ -35,6 +35,8 @@ export interface GameMetaState {
   endReason: LyDoKetThucVan | null
   /** Người chơi đã bấm "Đấu lại" và đang chờ người kia đồng ý; ván mới chỉ bắt đầu khi cả hai cùng muốn. */
   rematchBy: PlayerSide | null
+  /** Người chơi đã bấm "Xin hòa" và đang chờ người kia đồng ý; ván hòa khi cả hai cùng đồng thuận. */
+  drawOfferBy?: PlayerSide | null
   /** Bên đi trước của ván hiện tại — đổi luân phiên sau mỗi lần đấu lại cho công bằng. */
   firstTurn: PlayerSide
   /** Chế độ chơi với AI (PvE) trong phòng: ghế O dành cho AI bot, người thật không được ngồi ghế này. */
@@ -117,6 +119,8 @@ export const LenhGame = z.discriminatedUnion('type', [
     promo: z.number().int().min(2).max(5).optional(),
   }),
   z.object({ type: z.literal('game.surrender') }),
+  z.object({ type: z.literal('game.draw') }),
+  z.object({ type: z.literal('game.decline_draw') }),
   z.object({ type: z.literal('game.rematch') }),
   z.object({ type: z.literal('game.decline_rematch') }),
   z.object({ type: z.literal('game.start') }),

@@ -48,6 +48,7 @@ const DEFAULT_META: GameMetaState = {
   scoreO: 0,
   endReason: null,
   rematchBy: null,
+  drawOfferBy: null,
   firstTurn: 'X',
 }
 
@@ -394,6 +395,16 @@ export function useGame(
     gui({ type: 'game.decline_rematch' })
   }, [gui])
 
+  /** Xin hòa hoặc chấp nhận hòa cờ khi đối thủ đã xin hòa. */
+  const offerDraw = useCallback(() => {
+    gui({ type: 'game.draw' })
+  }, [gui])
+
+  /** Từ chối lời xin hòa của đối thủ. */
+  const declineDraw = useCallback(() => {
+    gui({ type: 'game.decline_draw' })
+  }, [gui])
+
   const sendEmote = useCallback(
     (emote: BieuCam) => {
       gui({ type: 'game.emote', emote })
@@ -441,6 +452,8 @@ export function useGame(
     startGame,
     rematch,
     declineRematch,
+    offerDraw,
+    declineDraw,
     sendEmote,
     datThoiGianSuyNghi,
     datPve,
