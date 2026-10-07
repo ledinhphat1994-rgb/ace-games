@@ -120,8 +120,8 @@ describe('Kiểm tra 4 vùng fix giao diện bàn cờ & chat phòng emoji (User
       expect(appShellRaw).toContain("overflow-hidden")
     })
 
-    it('XiangqiBoard có bàn cờ to hơn (max-h-[min(73vh,690px)]), xích lên trên và sửa lỗi hiệu ứng hover/click', () => {
-      expect(xiangqiBoardRaw).toContain("max-h-[min(73vh,690px)]")
+    it('XiangqiBoard có bàn cờ to hơn (game-board-xiangqi), xích lên trên và sửa lỗi hiệu ứng hover/click', () => {
+      expect(xiangqiBoardRaw).toContain("game-board-xiangqi")
       expect(xiangqiBoardRaw).toContain("piece-movable")
       expect(xiangqiBoardRaw).toContain("daBatDauVan")
       expect(xiangqiBoardRaw).toContain("justify-start")

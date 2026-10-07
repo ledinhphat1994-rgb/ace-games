@@ -210,7 +210,7 @@ export function SnakeDeluxe({ onBack, onTabChange, onSettled }: SnakeDeluxeProps
       )}
 
       {/* ── 2. VÙNG TRÒ CHƠI PHASER CỔ ĐIỂN ── */}
-      <div className="my-auto flex w-full min-w-0 flex-col items-center justify-center py-2" style={KICH_THUOC_BAN_DON}>
+      <div className="game-board-snake my-auto flex w-full min-w-0 flex-col items-center justify-center py-2" style={KICH_THUOC_BAN_DON}>
         {loadError && (
           <p role="alert" className="w-full mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-center text-sm text-destructive">
             {loadError}

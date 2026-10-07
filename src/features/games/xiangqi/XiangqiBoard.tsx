@@ -2221,11 +2221,9 @@ export function XiangqiBoard({
           ref={boardRef}
           onPointerDown={handleBoardPointerDown}
           style={{
-            width: 'min(calc(100vw - 20px), min(calc((100dvh - 215px) * 0.9), 480px))',
-            maxWidth: '612px',
             aspectRatio: '9 / 10',
           }}
-          className="relative max-h-[min(calc(100dvh-215px),533px)] xl:max-h-[min(73vh,690px)] xl:w-[min(calc(100vw-32px),calc(min(73vh,680px)*0.9))] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none"
+          className="game-board-xiangqi relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none"
         >
           {/* SVG VẼ ĐƯỜNG KẺ, CỬU CUNG, SÔNG SỞ HÀ - HÁN GIỚI & DẤU HOA VĂN GÓC */}
           <svg
@@ -2410,7 +2408,7 @@ export function XiangqiBoard({
                     className={cn(
                       'select-none leading-none font-black',
                       fontType === 'han'
-                        ? 'font-han text-2xl sm:text-3xl md:text-[30px] lg:text-[34px] drop-shadow-sm'
+                        ? 'font-han text-2xl sm:text-3xl md:text-[30px] lg:text-[34px] xl:text-[38px] drop-shadow-sm'
                         : 'text-xs sm:text-sm md:text-base font-extrabold tracking-tight'
                     )}
                   >
@@ -2440,7 +2438,7 @@ export function XiangqiBoard({
                   pointerEvents: 'none',
                 }}
                 className={cn(
-                  'w-12 sm:w-14 md:w-16 aspect-square rounded-full flex items-center justify-center font-bold piece-disc select-none -translate-x-1/2 -translate-y-1/2 scale-110 shadow-2xl ring-4 ring-sky-400/50',
+                  'w-12 sm:w-14 md:w-16 xl:w-20 aspect-square rounded-full flex items-center justify-center font-bold piece-disc select-none -translate-x-1/2 -translate-y-1/2 scale-110 shadow-2xl ring-4 ring-sky-400/50',
                   side === RED ? 'piece-red' : 'piece-black'
                 )}
               >
@@ -2449,7 +2447,7 @@ export function XiangqiBoard({
                   className={cn(
                     'select-none leading-none font-black',
                     fontType === 'han'
-                      ? 'font-han text-2xl sm:text-3xl md:text-[30px] lg:text-[34px] drop-shadow-sm'
+                      ? 'font-han text-2xl sm:text-3xl md:text-[30px] lg:text-[34px] xl:text-[38px] drop-shadow-sm'
                       : 'text-xs sm:text-sm md:text-base font-extrabold tracking-tight'
                   )}
                 >
@@ -2474,7 +2472,7 @@ export function XiangqiBoard({
                 onClick={handleStartGameClick}
                 disabled={laOnlinePvp && Boolean(online?.mySide) && (isOfferedByMe || hasOfferedStart)}
                 className={cn(
-                  'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
+                  'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
                   (isOfferedByMe || hasOfferedStart)
                     ? 'bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 border-amber-300 animate-pulse text-amber-100 shadow-[0_0_24px_rgba(245,158,11,0.5)] cursor-default hover:scale-100'
                     : isOfferedByOpponent

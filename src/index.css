@@ -1071,11 +1071,82 @@ body { min-width: 280px; }
 }
 
 /* Tối đa hóa kích thước bàn cờ và căn giữa hoàn hảo khi phóng to toàn màn hình */
-.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-shell {
-  width: min(100%, calc((100dvh - 4.5rem) * 0.9));
-  max-height: calc(100dvh - 4.5rem) !important;
+.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-shell,
+.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-xiangqi,
+.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-chess,
+.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-caro,
+.game-stage:is(:fullscreen, :-webkit-full-screen) .game-board-memory {
+  width: min(calc(100vw - 32px), calc((100dvh - 3.5rem) * 0.9), 840px);
+  max-height: calc(100dvh - 3.5rem) !important;
   flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KÍCH THƯỚC BÀN GAME TRÊN PC DESKTOP & MOBILE (Tối ưu không gian, Zero CLS)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Bàn Cờ Tướng (Tỷ lệ 9:10) */
+.game-board-xiangqi {
+  width: min(calc(100vw - 20px), min(calc((100dvh - 215px) * 0.9), 480px));
+  max-height: min(calc(100dvh - 215px), 533px);
+  aspect-ratio: 9 / 10;
+}
+@media (min-width: 1280px) {
+  .game-board-xiangqi {
+    width: min(calc((100dvh - 84px) * 0.9), min(calc(100vw - 560px), 740px));
+    max-height: min(calc(100dvh - 84px), 822px);
+  }
+}
+
+/* 2. Bàn Cờ Vua (Tỷ lệ 1:1) */
+.game-board-chess {
+  width: min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px));
+  max-height: min(calc(100dvh - 215px), 480px);
+  aspect-ratio: 1 / 1;
+}
+@media (min-width: 1280px) {
+  .game-board-chess {
+    width: min(calc(100dvh - 84px), min(calc(100vw - 560px), 740px));
+    max-height: min(calc(100dvh - 84px), 740px);
+  }
+}
+
+/* 3. Bàn Cờ Caro (Tỷ lệ 1:1, lưới 15x15) */
+.game-board-caro {
+  width: min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px));
+  max-height: min(calc(100dvh - 215px), 480px);
+  aspect-ratio: 1 / 1;
+}
+@media (min-width: 1280px) {
+  .game-board-caro {
+    width: min(calc(100dvh - 84px), min(calc(100vw - 560px), 760px));
+    max-height: min(calc(100dvh - 84px), 760px);
+  }
+}
+
+/* 4. Trò chơi Lật Thẻ Trí Nhớ (Tỷ lệ 1:1, lưới 4x4) */
+.game-board-memory {
+  width: min(calc(100vw - 32px), min(70vh, 520px));
+  max-height: min(70vh, 520px);
+  aspect-ratio: 1 / 1;
+}
+@media (min-width: 1280px) {
+  .game-board-memory {
+    width: min(calc(100dvh - 84px), min(calc(100vw - 560px), 720px));
+    max-height: min(calc(100dvh - 84px), 720px);
+  }
+}
+
+/* 5. Khu vực Rắn Cổ Điển (Phaser Canvas) */
+.game-board-snake {
+  width: min(100%, 460px);
+}
+@media (min-width: 1280px) {
+  .game-board-snake {
+    width: min(100%, min(calc(100dvh - 12rem), 660px));
+  }
+}
+
 
 /* Layout spacing, shadows and motion tokens */
 :root {

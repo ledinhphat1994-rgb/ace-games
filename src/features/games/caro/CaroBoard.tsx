@@ -969,8 +969,6 @@ export function CaroBoard({
         {/* Khung bàn cờ phẳng to hơn */}
         <section
           style={{
-            width: 'min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px))',
-            maxWidth: '580px',
             aspectRatio: '1 / 1',
             boxShadow: [
               '0 18px 40px rgba(0,0,0,0.7)',
@@ -979,7 +977,7 @@ export function CaroBoard({
               '0 0 24px rgba(6,182,212,0.12)',
             ].join(', '),
           }}
-          className="game-board-shell relative max-h-[min(calc(100dvh-215px),480px)] xl:max-h-[min(73vh,580px)] xl:w-[min(calc(100vw-32px),min(73vh,580px))] rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none"
+          className="game-board-caro game-board-shell relative rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none"
         >
           {/* Lớp bề mặt bàn cờ - padding tối ưu để ô cờ đạt kích thước lớn nhất */}
           <div
@@ -1158,7 +1156,7 @@ export function CaroBoard({
                 data-testid="btn-bat-dau-river"
                 onClick={handleStartGameClick}
                 className={cn(
-                  'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
+                  'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
                   winner
                     ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)]'
                     : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)]'

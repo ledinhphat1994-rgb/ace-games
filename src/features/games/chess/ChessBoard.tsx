@@ -1242,11 +1242,9 @@ export function ChessBoard({
         {/* 1. MẶT BÀN CỜ VUA TẬP TRUNG - TỶ LỆ 1:1 VUÔNG VỨC 100% */}
         <section
           style={{
-            width: 'min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px))',
-            maxWidth: '580px',
             aspectRatio: '1 / 1',
           }}
-          className="relative max-h-[min(calc(100dvh-215px),480px)] xl:max-h-[min(73vh,580px)] xl:w-[min(calc(100vw-32px),min(73vh,580px))] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10"
+          className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10"
         >
           {/* Grid bàn cờ 8x8 */}
           <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
@@ -1313,12 +1311,12 @@ export function ChessBoard({
                   )}
 
                   {f === (latBan ? 7 : 0) && (
-                    <span className="absolute top-0.5 left-0.5 text-[9px] font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
+                    <span className="absolute top-0.5 left-0.5 text-[9px] sm:text-[10px] xl:text-xs font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
                       {r + 1}
                     </span>
                   )}
                   {r === (latBan ? 7 : 0) && (
-                    <span className="absolute bottom-0.5 right-0.5 text-[9px] font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
+                    <span className="absolute bottom-0.5 right-0.5 text-[9px] sm:text-[10px] xl:text-xs font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
                       {'abcdefgh'[f]}
                     </span>
                   )}
@@ -1336,7 +1334,7 @@ export function ChessBoard({
                 data-testid="btn-bat-dau-river"
                 onClick={handleStartGameClick}
                 className={cn(
-                  'group relative px-6 sm:px-8 py-2.5 sm:py-3 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
+                  'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
                   isOver
                     ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)]'
                     : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)]'

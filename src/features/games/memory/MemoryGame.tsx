@@ -875,8 +875,6 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         {/* Khung bàn chơi */}
         <section
           style={{
-            width: 'min(calc(100vw - 32px), min(70vh, 520px))',
-            maxWidth: '520px',
             aspectRatio: '1 / 1',
             boxShadow: [
               '0 18px 40px rgba(0,0,0,0.7)',
@@ -885,7 +883,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               '0 0 24px rgba(139,92,246,0.12)',
             ].join(', '),
           }}
-          className="game-board-shell relative rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none aspect-square"
+          className="game-board-memory game-board-shell relative rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none aspect-square"
         >
           {/* Lớp nền bàn chơi */}
           <div
@@ -960,10 +958,10 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                             : 'border-violet-500/50 bg-surface-overlay text-text-primary',
                         )}
                       >
-                        <span className="text-2xl sm:text-3xl md:text-4xl select-none leading-none transform transition-transform duration-300">
+                        <span className="text-2xl sm:text-3xl md:text-4xl xl:text-5xl select-none leading-none transform transition-transform duration-300">
                           {card.symbol}
                         </span>
-                        <span className="mt-1 text-[9px] sm:text-[10px] font-medium text-text-secondary select-none truncate max-w-full px-1">
+                        <span className="mt-1 text-[9px] sm:text-[10px] xl:text-xs font-medium text-text-secondary select-none truncate max-w-full px-1">
                           {card.label}
                         </span>
                       </div>
@@ -992,7 +990,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               <button
                 type="button"
                 onClick={resetGame}
-                className="btn-bat-dau-river group relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-black text-sm tracking-wider text-white shadow-[0_0_25px_rgba(139,92,246,0.6)] hover:shadow-[0_0_35px_rgba(139,92,246,0.9)] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer overflow-hidden border border-violet-400/50 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600"
+                className="btn-bat-dau-river group relative inline-flex items-center justify-center gap-2 px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full font-black text-sm sm:text-base xl:text-lg tracking-wider text-white shadow-[0_0_25px_rgba(139,92,246,0.6)] hover:shadow-[0_0_35px_rgba(139,92,246,0.9)] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer overflow-hidden border border-violet-400/50 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600"
               >
                 <Sparkles className="size-4 animate-spin text-yellow-300" />
                 <span>Chơi lại</span>
