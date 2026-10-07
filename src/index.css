@@ -80,20 +80,30 @@
 }
 
 html {
-  scroll-behavior: smooth;
-  scrollbar-gutter: stable;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
+@media (min-width: 1024px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:has(:target) {
+    scroll-behavior: smooth;
+  }
+}
 
 body {
   margin: 0;
   min-height: 100svh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 /* ─── Global Speed & Tactile Responsiveness ─────────────────── */
-html,
-body,
 button,
 a,
 [role="button"],
@@ -103,6 +113,47 @@ select,
 textarea {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Tách tầng GPU riêng biệt cho thanh điều hướng cố định (tránh repaint khi cuộn trang) */
+header.sticky,
+header[class*="sticky"],
+nav.fixed,
+nav[class*="fixed"] {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ─── Mobile Performance & Zero-Jank Scroll Optimization ─── */
+@media (max-width: 1024px) {
+  /* Tắt Gaussian blur đa lớp ngốn GPU trên mobile/tablet khi cuộn trang (giữ tốc độ 60/120fps mượt mà) */
+  .glass,
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Tắt animation lặp vô tận gây thức tỉnh GPU liên tục khi cuộn trên mobile */
+  .animate-ping {
+    animation: none !important;
+    display: none !important;
+  }
+  .animate-pulse {
+    animation: none !important;
+    opacity: 0.85 !important;
+  }
+}
+
+/* Bật GPU Virtualization cho danh sách phòng và thẻ nội dung dài (Zero Layout Churn) */
+[data-testid="game-rooms-list"] > article,
+[data-testid="game-rooms-list"] > div,
+[data-testid="rooms-grid"] > article,
+.virtual-content-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
 }
 
 /* Hardware accelerated smooth drag / momentum surfaces */
@@ -2160,11 +2211,36 @@ input[type='number'] {
   border: 1px solid rgba(56, 189, 248, 0.20);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.875rem;
+  color: #f8fafc;
   box-shadow:
     0 0 16px -2px rgba(56, 189, 248, 0.10),
     inset 0 1px 1px rgba(255, 255, 255, 0.04),
     0 4px 12px rgba(0, 0, 0, 0.4);
   transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
+}
+.skeuo-subcard-base,
+.skeuo-subcard-active-amber,
+.skeuo-subcard-active-cyan,
+.skeuo-subcard-active-purple {
+  color: #f8fafc;
+}
+.skeuo-subcard-base .text-text-primary,
+.skeuo-subcard-active-amber .text-text-primary,
+.skeuo-subcard-active-cyan .text-text-primary,
+.skeuo-subcard-active-purple .text-text-primary {
+  color: #f8fafc;
+}
+.skeuo-subcard-base .text-text-secondary,
+.skeuo-subcard-active-amber .text-text-secondary,
+.skeuo-subcard-active-cyan .text-text-secondary,
+.skeuo-subcard-active-purple .text-text-secondary {
+  color: #cbd5e1;
+}
+.skeuo-subcard-base .text-text-tertiary,
+.skeuo-subcard-active-amber .text-text-tertiary,
+.skeuo-subcard-active-cyan .text-text-tertiary,
+.skeuo-subcard-active-purple .text-text-tertiary {
+  color: #94a3b8;
 }
 .skeuo-subcard-base:hover {
   border-color: rgba(56, 189, 248, 0.40);

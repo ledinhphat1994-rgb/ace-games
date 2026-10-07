@@ -62,14 +62,18 @@ export function DraggableBubble({ id, label, icon, actions, suspended = false, b
   }, [open, dragging, hovered, keyboardFocused, suspended])
 
   useEffect(() => {
-    const resize = () => setPosition(previous => constrain(previous))
-    window.addEventListener('resize', resize)
-    window.visualViewport?.addEventListener('resize', resize)
-    window.visualViewport?.addEventListener('scroll', resize)
+    const resize = () => {
+      setPosition((previous) => {
+        const next = constrain(previous)
+        if (next.x === previous.x && next.y === previous.y) return previous
+        return next
+      })
+    }
+    window.addEventListener('resize', resize, { passive: true })
+    window.visualViewport?.addEventListener('resize', resize, { passive: true })
     return () => {
       window.removeEventListener('resize', resize)
       window.visualViewport?.removeEventListener('resize', resize)
-      window.visualViewport?.removeEventListener('scroll', resize)
     }
   }, [])
 

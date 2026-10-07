@@ -41,7 +41,7 @@ export function AppHeader({
   onMoAuthModal,
 }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 w-full pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-surface/95 backdrop-blur-md">
+    <header className="sticky top-0 z-30 w-full pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-surface/95 backdrop-blur-md">
       <div className="flex h-16 w-full items-center justify-between gap-3 sm:gap-6 px-3 sm:px-6">
         {/* ── Left Area: Brand Logo (VÙNG 4: Topbar dài hết chiều ngang chứa logo và chữ Digital Campus) + Desktop Search ── */}
         <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">

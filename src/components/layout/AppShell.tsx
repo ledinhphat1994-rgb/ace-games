@@ -224,7 +224,7 @@ export function AppShell({ children }: AppShellProps) {
           {/* 2. Main Content Container */}
         <main
           className={cn(
-            'w-full flex-1 transition-all',
+            'w-full flex-1',
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
               : isGameRoom

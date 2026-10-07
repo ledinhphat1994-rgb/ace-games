@@ -311,9 +311,14 @@ export function BlueprintGlobalBackground({
     <div
       aria-hidden="true"
       className={cn(
-        'fixed inset-0 pointer-events-none select-none z-0 overflow-hidden',
+        'fixed inset-0 pointer-events-none select-none z-0 overflow-hidden transform-gpu will-change-transform',
         className,
       )}
+      style={{
+        transform: 'translate3d(0, 0, 0)',
+        backfaceVisibility: 'hidden',
+        contain: 'strict',
+      }}
     >
       {/* 1. Dải sáng ambient cyber đa sắc nhẹ nhàng */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[650px] bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.11),transparent_70%)]" />
