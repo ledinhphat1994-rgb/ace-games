@@ -44,7 +44,7 @@ export function SoloGamePage({
   )
 
   return (
-    <div className="game-stage flex min-w-0 w-full flex-col rounded-3xl border border-border-default bg-surface/95 backdrop-blur-2xl p-2.5 sm:p-4 shadow-2xl">
+    <div className="game-stage flex min-w-0 w-full flex-col rounded-2xl border border-border-default bg-slate-950 p-2 sm:p-3 shadow-xl">
       <SoloGameStage
         gameType={gameType}
         roomId={roomId}

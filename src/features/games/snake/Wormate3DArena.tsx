@@ -1,6 +1,6 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Check, Crown, MousePointer2, Play, RotateCcw, Swords, Trophy, Users } from 'lucide-react'
+import { Bot, Check, Crown, Play, RotateCcw, Swords, Trophy, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls } from './SnakeTouchControls'
 
@@ -185,12 +185,14 @@ function CuteSnakeLogo({ className }: { className?: string }) {
 
 export interface Wormate3DArenaProps {
   difficulty?: 'easy' | 'medium' | 'hard'
+  onDifficultyChange?: (difficulty: 'easy' | 'medium' | 'hard') => void
   aiCount?: number
   isRunning: boolean
   isGameOver: boolean
   isFullscreen?: boolean
   restartKey?: number
   mode?: 'ai' | 'pass_and_play'
+  onModeChange?: (mode: 'ai' | 'pass_and_play') => void
   playerEmote?: { emoji: string; quote: string } | null
   onScoreUpdate: (score: number, length: number) => void
   onGameOver: (winner: boolean, reason: string, finalScore?: number) => void
@@ -209,19 +211,21 @@ export interface Wormate3DArenaProps {
 
 export function Wormate3DArena({
   difficulty = 'medium',
+  onDifficultyChange,
   aiCount = 6,
   isRunning,
   isGameOver,
   isFullscreen = false,
   restartKey = 0,
   mode = 'ai',
+  onModeChange,
   playerEmote,
   onScoreUpdate,
   onGameOver,
   onOpponentUpdate,
   onOpponentEmote,
   onStartGame,
-  realPlayerCount = 1,
+  realPlayerCount: _realPlayerCount = 1,
   pvpTargetCount = 2,
   onPvpTargetCountChange,
   isHost = true,
@@ -1090,9 +1094,9 @@ export function Wormate3DArena({
     <div
       ref={containerRef}
       className={cn(
-        'snake-arena relative flex flex-col items-center justify-center w-full rounded-xl border border-border-default bg-canvas overflow-hidden select-none',
+        'snake-arena relative flex flex-col items-center justify-center w-full rounded-xl bg-slate-950 overflow-hidden select-none',
         isFullscreen
-          ? 'h-full flex-1 min-h-0 border-none rounded-none'
+          ? 'h-full flex-1 min-h-0 rounded-none'
           : 'h-[clamp(280px,calc(100dvh-16rem),640px)]'
       )}
     >
@@ -1191,171 +1195,238 @@ export function Wormate3DArena({
         </div>
       )}
 
-      {/* Màn sẵn sàng: PvE hoặc PvP */}
+      {/* Màn sẵn sàng: PvE hoặc PvP — Cố định 100% kích thước và vị trí toạ độ khi cấu hình */}
       {!isRunning && !isGameOver && (
         <div
           data-testid="ran-man-san-sang"
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 sm:gap-5 rounded-2xl bg-slate-950/80 p-3 sm:p-6 text-center backdrop-blur-sm animate-in fade-in duration-200"
+          className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-4 bg-transparent select-none"
         >
-          {mode === 'ai' ? (
-            /* ── CHẾ ĐỘ PVE: MẶC ĐỊNH BÙ RẮN MÁY CHO TỐI ĐA 6 NGƯỜI ── */
-            <div className="flex flex-col items-center justify-center gap-3 sm:gap-5 max-w-md w-full">
-              <div className="relative flex items-center justify-center py-2">
-                <span aria-hidden className="absolute size-36 rounded-full bg-emerald-400/30 blur-2xl motion-safe:animate-hao-quang-tho" />
-                <span className="relative motion-safe:animate-troi-lo-lung drop-shadow-[0_10px_24px_rgb(0_0_0/0.55)]">
-                  <CuteSnakeLogo className="size-16 sm:size-24" />
-                </span>
-              </div>
-              <span className="pt-1 text-2xl leading-[1.35] font-black tracking-[0.18em] text-emerald-300 uppercase [text-shadow:0_0_20px_rgb(52_211_153/0.55)] sm:text-3xl">
-                Rắn Săn Mồi
-              </span>
-              <div className="flex items-center gap-2 text-xs font-bold text-text-secondary">
-                <span className="px-2.5 py-1 rounded-full border-2 border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
-                  PvE · {realPlayerCount}/6 Người ({aiCount} Máy)
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-medium text-text-secondary flex-wrap justify-center">
-                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/10 bg-white/[0.04] px-2.5 py-1">
-                  <MousePointer2 className="size-3 text-brand" />
-                  Lái
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/10 bg-white/[0.04] px-2.5 py-1">
-                  <kbd className="font-mono text-[10px] font-bold text-amber-300">Space</kbd>
-                  Tăng tốc
-                </span>
-              </div>
-
-              {/* Nút BẮT ĐẦU PvE */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={onStartGame}
-                  className="inline-flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-colors duration-150 cursor-pointer"
-                >
-                  <Play className="size-5 fill-white text-white drop-shadow animate-pulse" />
-                  <span>BẮT ĐẦU NGAY</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ── CHẾ ĐỘ PVP: 100% NGƯỜI CHƠI THẬT + BẮT ĐẦU KHI ĐỦ SỐ LƯỢNG HOẶC XÁC NHẬN SẴN SÀNG ── */
-            <div className="flex flex-col items-center justify-center gap-3 max-w-lg w-full p-4 sm:p-6 rounded-2xl border-2 border-sky-500/30 bg-surface/90 shadow-2xl">
-              <div className="flex items-center gap-2 text-sky-400">
-                <Swords className="size-6 text-sky-400" />
-                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-text-primary">
-                  Đấu Trường Rắn PvP
+          <div className="w-[min(460px,calc(100vw-2rem))] h-[440px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-5 flex flex-col justify-between overflow-hidden">
+            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển chế độ PvE/PvP */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 h-10 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                {mode === 'ai' ? (
+                  <CuteSnakeLogo className="size-5 shrink-0" />
+                ) : (
+                  <Swords className="size-5 text-sky-400 shrink-0" />
+                )}
+                <h2 className="text-base font-bold text-white tracking-wide truncate">
+                  {mode === 'ai' ? 'Rắn Săn Mồi' : 'Đấu Trường Rắn'}
                 </h2>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-sky-500/30 bg-sky-500/10 text-sky-300 text-xs font-bold">
-                <Users className="size-3.5" />
-                <span>100% Đối kháng người chơi</span>
-              </div>
 
-              {/* Bộ chọn số lượng người mong muốn (chủ phòng chọn) */}
-              {isHost && (
-                <div className="w-full space-y-1.5 pt-1">
-                  <p className="text-[11px] font-bold text-text-tertiary">Số lượng yêu cầu</p>
-                  <div className="grid grid-cols-4 gap-2">
+              {onModeChange && (
+                <div className="flex items-center p-0.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onModeChange('ai')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
+                      mode === 'ai'
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
+                        : 'border-transparent text-slate-300 hover:text-white',
+                    )}
+                  >
+                    PvE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onModeChange('pass_and_play')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
+                      mode === 'pass_and_play'
+                        ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
+                        : 'border-transparent text-slate-300 hover:text-white',
+                    )}
+                  >
+                    PvP
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Nội dung trung tâm: Cố định chính xác h-[270px] cho cả PvE lẫn PvP */}
+            <div className="flex flex-col justify-between h-[270px] py-2 shrink-0">
+              {mode === 'ai' ? (
+                /* CHẾ ĐỘ PVE: 1 hàng chọn độ khó + 6 slot đồng bộ */
+                <>
+                  <div className="grid grid-cols-3 gap-2 h-9 shrink-0">
+                    {(['easy', 'medium', 'hard'] as const).map((capDo) => (
+                      <button
+                        key={capDo}
+                        type="button"
+                        onClick={() => onDifficultyChange?.(capDo)}
+                        className={cn(
+                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
+                          difficulty === capDo
+                            ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-black'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
+                        )}
+                      >
+                        <span>{capDo === 'easy' ? 'Dễ' : capDo === 'medium' ? 'Vừa' : 'Khó'}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 h-[190px] content-between shrink-0">
+                    {Array.from({ length: 6 }).map((_, idx) => {
+                      if (idx === 0) {
+                        return (
+                          <div
+                            key="pve-player"
+                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-emerald-500/40 bg-slate-800/90 text-xs"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Crown className="size-3.5 text-amber-400 shrink-0" />
+                              <span className="font-bold text-white truncate">Bạn</span>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shrink-0">
+                              Sẵn sàng
+                            </span>
+                          </div>
+                        )
+                      }
+                      return (
+                        <div
+                          key={`pve-bot-${idx}`}
+                          className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700/80 bg-slate-800/60 text-xs"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Bot className="size-3.5 text-slate-400 shrink-0" />
+                            <span className="font-medium text-slate-200 truncate">Máy #{idx}</span>
+                          </div>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-slate-400 shrink-0">
+                            Tự động
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              ) : (
+                /* CHẾ ĐỘ PVP: 1 hàng chọn số lượng người + 6 slot cố định toạ độ */
+                <>
+                  <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
                     {[2, 3, 4, 6].map((num) => (
                       <button
                         key={num}
                         type="button"
+                        disabled={!isHost}
                         onClick={() => onPvpTargetCountChange?.(num)}
                         className={cn(
-                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 cursor-pointer',
+                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
                           pvpTargetCount === num
-                            ? 'border-brand bg-brand/20 text-brand font-black'
-                            : 'border-border-default text-text-secondary hover:bg-surface-raised hover:text-text-primary',
+                            ? 'border-sky-500 bg-sky-500/20 text-sky-400 font-black'
+                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
+                          !isHost && 'opacity-80 cursor-default',
                         )}
                       >
-                        {num} Người
+                        <span>{num} Người</span>
                       </button>
                     ))}
                   </div>
-                </div>
+
+                  <div className="grid grid-cols-2 gap-2 h-[190px] content-between shrink-0">
+                    {Array.from({ length: 6 }).map((_, idx) => {
+                      const isActiveTarget = idx < pvpTargetCount
+                      const member = pvpMembersList[idx]
+
+                      if (!isActiveTarget) {
+                        return (
+                          <div
+                            key={`pvp-locked-${idx}`}
+                            className="h-11 flex items-center justify-center px-3 rounded-xl border-2 border-dashed border-slate-700/40 bg-slate-900/40 text-xs font-medium text-slate-500"
+                          >
+                            <span>Khóa</span>
+                          </div>
+                        )
+                      }
+
+                      if (member) {
+                        return (
+                          <div
+                            key={member.id}
+                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700 bg-slate-800/90 text-xs"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {member.isHost ? (
+                                <Crown className="size-3.5 text-amber-400 shrink-0" />
+                              ) : (
+                                <Users className="size-3.5 text-slate-400 shrink-0" />
+                              )}
+                              <span className="font-bold text-white truncate">{member.name}</span>
+                            </div>
+                            <span
+                              className={cn(
+                                'text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0',
+                                member.ready
+                                  ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                                  : 'border-amber-500/40 bg-amber-500/20 text-amber-300',
+                              )}
+                            >
+                              {member.ready ? 'Sẵn sàng' : 'Chờ'}
+                            </span>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div
+                          key={`pvp-empty-${idx}`}
+                          className="h-11 flex items-center justify-center px-3 rounded-xl border-2 border-dashed border-slate-700/70 bg-slate-800/40 text-xs font-semibold text-slate-400"
+                        >
+                          <span>Trống</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
               )}
-
-              {/* Danh sách thành viên trong phòng */}
-              <div className="w-full space-y-1.5 pt-1">
-                <p className="text-[11px] font-bold text-text-tertiary">Thành viên phòng</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {pvpMembersList.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between p-2 rounded-xl border-2 border-border-default bg-surface-raised text-xs"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {m.isHost ? (
-                          <Crown className="size-3.5 text-amber-400 shrink-0" />
-                        ) : (
-                          <Users className="size-3.5 text-text-tertiary shrink-0" />
-                        )}
-                        <span className="font-bold text-text-primary truncate">{m.name}</span>
-                      </div>
-                      <span
-                        className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.5 rounded-md border-2 shrink-0',
-                          m.ready
-                            ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                            : 'border-amber-500/40 bg-amber-500/15 text-amber-300',
-                        )}
-                      >
-                        {m.ready ? 'Sẵn sàng' : 'Chờ'}
-                      </span>
-                    </div>
-                  ))}
-                  {Array.from({ length: Math.max(0, pvpTargetCount - pvpMembersList.length) }).map((_, idx) => (
-                    <div
-                      key={`empty-${idx}`}
-                      className="flex items-center justify-center p-2 rounded-xl border-2 border-dashed border-border-subtle bg-surface/50 text-[11px] text-text-tertiary"
-                    >
-                      <span>Trống</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Nút hành động Bắt đầu / Sẵn sàng */}
-              <div className="w-full pt-3 flex gap-2">
-                {!isHost && onToggleReady && (
-                  <button
-                    type="button"
-                    onClick={onToggleReady}
-                    className={cn(
-                      'flex-1 h-11 rounded-xl border-2 font-bold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-1.5',
-                      isReady
-                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
-                        : 'border-border-default bg-surface hover:bg-surface-raised text-text-primary',
-                    )}
-                  >
-                    <Check className="size-4" />
-                    <span>{isReady ? 'Đã sẵn sàng' : 'Sẵn sàng'}</span>
-                  </button>
-                )}
-
-                {isHost && (
-                  <button
-                    type="button"
-                    onClick={onStartGame}
-                    disabled={!canStartPvp}
-                    className={cn(
-                      'w-full h-11 rounded-xl border-2 font-black text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2',
-                      canStartPvp
-                        ? 'border-emerald-400 bg-gradient-to-r from-emerald-500 via-teal-500 to-brand text-white shadow-lg shadow-emerald-500/30'
-                        : 'border-border-default bg-surface text-text-tertiary cursor-not-allowed opacity-60',
-                    )}
-                  >
-                    <Play className="size-4 fill-current" />
-                    <span>
-                      {canStartPvp
-                        ? 'Bắt đầu ngay'
-                        : `Chờ (${pvpMembersList.length}/${pvpTargetCount}) hoặc sẵn sàng`}
-                    </span>
-                  </button>
-                )}
-              </div>
             </div>
-          )}
+
+            {/* Footer CTA: Cố định h-11 tại đáy card, cách xa phần trên */}
+            <div className="pt-2 h-11 shrink-0">
+              {mode === 'ai' ? (
+                <button
+                  type="button"
+                  onClick={onStartGame}
+                  className="w-full h-11 rounded-xl border-2 border-emerald-500 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
+                >
+                  <Play className="size-4 fill-current" />
+                  <span>BẮT ĐẦU NGAY</span>
+                </button>
+              ) : !isHost && onToggleReady ? (
+                <button
+                  type="button"
+                  onClick={onToggleReady}
+                  className={cn(
+                    'w-full h-11 rounded-xl border-2 font-bold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-1.5',
+                    isReady
+                      ? 'border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                      : 'border-border-default bg-surface hover:bg-surface-raised text-text-primary',
+                  )}
+                >
+                  <Check className="size-4" />
+                  <span>{isReady ? 'Đã sẵn sàng' : 'Sẵn sàng'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onStartGame}
+                  disabled={!canStartPvp}
+                  className={cn(
+                    'w-full h-11 rounded-xl border-2 font-bold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2',
+                    canStartPvp
+                      ? 'border-emerald-500 bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                      : 'border-border-default bg-surface-raised text-text-tertiary cursor-not-allowed opacity-50',
+                  )}
+                >
+                  <Play className="size-4 fill-current" />
+                  <span>BẮT ĐẦU NGAY</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
