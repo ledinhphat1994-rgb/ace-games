@@ -739,6 +739,15 @@ export function CaroBoard({
     const menuHeight = 150
     const padding = 16
 
+    if (window.innerWidth < 1280) {
+      setQuickMenuPos({
+        left: Math.max(12, (window.innerWidth - menuWidth) / 2),
+        top: Math.max(70, window.innerHeight - menuHeight - 110),
+      })
+      setIsQuickMenuOpen((prev) => !prev)
+      return
+    }
+
     // Giới hạn chiều ngang: không bị sidebar che (>= 248px trên desktop) và không đè lên bàn cờ
     const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
     const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
@@ -861,10 +870,106 @@ export function CaroBoard({
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA CHUẨN CỜ TƯỚNG */}
       <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
+        {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!hasOpponent) {
+                  if (onInvite) onInvite()
+                  else {
+                    try {
+                      navigator.clipboard.writeText(window.location.href)
+                      toast.success('Đã sao chép liên kết mời bạn bè')
+                    } catch {
+                      toast.info('Mời bạn bè vào phòng')
+                    }
+                  }
+                  return
+                }
+                if (mode === 'ai') {
+                  toast.info(`Caro Master AI · Cấp ${opponentLevel} · Elo ${opponentElo}`)
+                  return
+                }
+                const rect = e.currentTarget.getBoundingClientRect()
+                setSelectedProfileUser({
+                  id: oppAccountId || 2,
+                  ten: opponentName,
+                  avatar: opponentAvatarUrl,
+                  gameElo: opponentElo,
+                  gameName: 'Cờ Caro',
+                  anchorRect: {
+                    top: rect.top,
+                    left: rect.left,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                  },
+                })
+              }}
+              className={cn(
+                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                !hasOpponent
+                  ? 'border-dashed border-white/20 bg-white/5 text-stone-400'
+                  : isOpponentTurn
+                    ? 'border-rose-400 ring-2 ring-rose-400/30'
+                    : 'border-white/15 bg-[#121620]'
+              )}
+              title={
+                !hasOpponent
+                  ? 'Chạm để mời bạn bè'
+                  : mode === 'ai'
+                    ? `AI Cấp ${opponentLevel}`
+                    : opponentName
+              }
+            >
+              <AnhNguoiDung ten={opponentName} avatar={opponentAvatarUrl} className="size-full rounded-full pointer-events-none" />
+              {hasOpponent && (
+                <div
+                  className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#0c2340] border-cyan-500/60 text-cyan-400"
+                  title={playerSide === 'X' ? 'Cầm quân O' : 'Cầm quân X'}
+                >
+                  {playerSide === 'X' ? 'O' : 'X'}
+                </div>
+              )}
+            </button>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                {opponentName}
+              </span>
+              <span className="text-[10px] text-amber-300 font-semibold leading-none">
+                {mode === 'ai' ? `AI Cấp ${opponentLevel}` : `Lv.${opponentLevel} · Elo ${opponentElo}`}
+              </span>
+            </div>
+            {bongDoiThu && (
+              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-cyan-400/50 text-[11px] font-bold text-cyan-300 truncate max-w-[100px]">
+                {bongDoiThu.emoji} {bongDoiThu.quote}
+              </div>
+            )}
+          </div>
+
+          {/* Đồng hồ đối thủ trên mobile */}
+          <div
+            className={cn(
+              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              isOpponentTurn && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                : isOpponentTurn && isPlaying
+                  ? 'border-cyan-500/80 bg-cyan-950/80 text-cyan-300'
+                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+            )}
+            title="Thời gian đối thủ"
+          >
+            <Clock className="size-3 text-cyan-400 shrink-0" />
+            <span>{formatClockTime(isOpponentTurn && isPlaying && !winner ? clock.timeRemaining : clock.turnSeconds)}</span>
+          </div>
+        </div>
+
         {/* Khung bàn cờ phẳng to hơn */}
         <section
           style={{
-            width: 'min(calc(100vw - 32px), min(73vh, 580px))',
+            width: 'min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px))',
             maxWidth: '580px',
             aspectRatio: '1 / 1',
             boxShadow: [
@@ -874,7 +979,7 @@ export function CaroBoard({
               '0 0 24px rgba(6,182,212,0.12)',
             ].join(', '),
           }}
-          className="game-board-shell relative rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none"
+          className="game-board-shell relative max-h-[min(calc(100dvh-215px),480px)] xl:max-h-[min(73vh,580px)] xl:w-[min(calc(100vw-32px),min(73vh,580px))] rounded-2xl overflow-hidden shrink board-surface flex items-center justify-center select-none touch-none"
         >
           {/* Lớp bề mặt bàn cờ - padding tối ưu để ô cờ đạt kích thước lớn nhất */}
           <div
@@ -1077,14 +1182,107 @@ export function CaroBoard({
           />
         </section>
 
-        {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI) ==================== */}
+        {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE (< xl): NẰM DƯỚI BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mt-1 select-none z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (laOnlinePvp && !banOnline?.mySide) {
+                  banOnline?.joinGame()
+                  toast.info('Đã vào bàn thi đấu')
+                } else {
+                  setIsSettingsModalOpen(true)
+                }
+              }}
+              className={cn(
+                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                isMyTurn
+                  ? 'border-cyan-400 ring-2 ring-cyan-400/30'
+                  : 'border-white/15 bg-[#121620]'
+              )}
+              title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
+            >
+              <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
+              {(!laOnlinePvp || Boolean(banOnline?.mySide)) && (
+                <div
+                  className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#0c2340] border-cyan-500/60 text-cyan-400"
+                  title={playerSide === 'X' ? 'Cầm quân X' : 'Cầm quân O'}
+                >
+                  {playerSide}
+                </div>
+              )}
+            </button>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                {myName || 'Bạn'}
+              </span>
+              <span className="text-[10px] text-cyan-300 font-semibold leading-none">
+                Lv.{myLevel} · Elo {myElo}
+              </span>
+            </div>
+            {playerBubble && (
+              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-cyan-400/50 text-[11px] font-bold text-cyan-300 truncate max-w-[100px]">
+                {playerBubble.emoji} {playerBubble.quote}
+              </div>
+            )}
+          </div>
+
+          {/* Đồng hồ người chơi trên mobile */}
+          <div
+            className={cn(
+              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              currentTurn === playerSide && isPlaying && !winner && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                : currentTurn === playerSide && isPlaying && !winner
+                  ? 'border-cyan-500/80 bg-cyan-950/80 text-cyan-300'
+                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+            )}
+            title="Thời gian của Bạn"
+          >
+            <Clock className="size-3 text-cyan-400 shrink-0" />
+            <span>{formatClockTime(currentTurn === playerSide && isPlaying && !winner ? clock.timeRemaining : clock.turnSeconds)}</span>
+          </div>
+        </div>
+
+        {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20">
+          {caroTools.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              onClick={tool.onClick}
+              disabled={tool.disabled}
+              className={cn(
+                'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                tool.className
+              )}
+              title={tool.title}
+              aria-label={tool.title}
+            >
+              {tool.icon}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-cyan-400 text-gray-300 hover:text-cyan-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+            title="Cài đặt"
+            aria-label="Cài đặt"
+          >
+            <Settings className="size-4" />
+          </button>
+        </div>
+
+        {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI - DESKTOP XL DUY NHẤT) ==================== */}
         <aside
           id="vung-4-plus-desk"
           aria-label="Thông tin người chơi"
           style={{
             transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
           }}
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
+          className="hidden xl:flex xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex-col items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
           <div className="relative flex flex-col items-center mb-8">
             {/* Bong bóng chat người chơi (đặt phía trên cụm nút công cụ, không đè nút, sidebar hay bàn cờ) */}
@@ -1181,11 +1379,11 @@ export function CaroBoard({
           </div>
         </aside>
 
-        {/* ==================== VÙNG 2: BUBBLE AVATAR ĐỐI THỦ (GÓC TRÊN PHẢI) ==================== */}
+        {/* ==================== VÙNG 2: BUBBLE AVATAR ĐỐI THỦ (DESKTOP XL DUY NHẤT) ==================== */}
         <aside
           id="vung-2-plus-desk"
           aria-label="Thông tin đối thủ"
-          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+24px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+          className="hidden xl:flex xl:absolute xl:left-[calc(100%+24px)] xl:top-0 xl:w-[250px] flex-col items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
         >
           <div className="relative flex flex-col items-center">
             {/* Badge Elo & Level */}

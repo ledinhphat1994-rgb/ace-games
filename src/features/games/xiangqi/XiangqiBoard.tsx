@@ -425,6 +425,14 @@ export function XiangqiBoard({
     const POPUP_H = 268
     const PADDING = 16
 
+    if (window.innerWidth < 1280) {
+      setQuickMenuPos({
+        left: Math.max(12, (window.innerWidth - POPUP_W) / 2),
+        top: Math.max(70, window.innerHeight - POPUP_H - 110),
+      })
+      return
+    }
+
     const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
     const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
 
@@ -518,12 +526,12 @@ export function XiangqiBoard({
 
   // Tính toán tọa độ (x, y) của các bong bóng nhỏ xoay quanh Avatar (cách đều, thoáng mắt, không đè avatar và đồng hồ)
   const getBubbleCoordinates = (index: number, total: number) => {
-    const D = 66 // Bán kính từ tâm avatar đến tâm bong bóng (66px để khoảng cách giữa 2 nút kề >= 37px, không đè nhau)
+    const D = 62 // Bán kính từ tâm avatar đến tâm bong bóng
     if (total <= 1) {
-      return { x: -66, y: 0 }
+      return { x: -62, y: 0 }
     }
-    const startAngle = 55
-    const endAngle = 185
+    const startAngle = 60
+    const endAngle = 180
     const step = (endAngle - startAngle) / (total - 1)
     const angleDeg = startAngle + index * step
     const angleRad = (angleDeg * Math.PI) / 180
@@ -2083,16 +2091,141 @@ export function XiangqiBoard({
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, KHAI THÁC KHÔNG GIAN, CÓ KHOẢNG THỞ DƯỚI ĐÁY */}
       <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
+        {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!hasOpponent) {
+                  if (onInvite) {
+                    onInvite()
+                  } else {
+                    try {
+                      navigator.clipboard.writeText(window.location.href)
+                      showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
+                    } catch {
+                      showGameNotice('MỜI BẠN BÈ')
+                    }
+                  }
+                  return
+                }
+                if (isPveMode) {
+                  showGameNotice('AI CẤP 10 · ELO 1500')
+                  return
+                }
+                const rect = e.currentTarget.getBoundingClientRect()
+                setSelectedProfileUser({
+                  id: oppAccountId || 1,
+                  ten: opponentName,
+                  avatar: opponentAvatarUrl,
+                  gameElo: opponentElo,
+                  gameName: 'Cờ Tướng',
+                  anchorRect: {
+                    top: rect.top,
+                    left: rect.left,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                  },
+                })
+              }}
+              className={cn(
+                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                !hasOpponent
+                  ? 'border-dashed border-white/20 bg-white/5 text-stone-400'
+                  : isOpponentTurn
+                    ? 'border-red-400 ring-2 ring-red-400/30'
+                    : 'border-white/15 bg-[#121620]'
+              )}
+              title={
+                !hasOpponent
+                  ? 'Chạm để mời bạn bè'
+                  : isPveMode
+                    ? 'Người chơi AI'
+                    : opponentName
+              }
+            >
+              {!hasOpponent ? (
+                <UserPlus className="size-4 text-stone-400" />
+              ) : isPveMode ? (
+                <Bot className="size-5 text-sky-400" />
+              ) : (
+                <AnhNguoiDung ten={opponentName} avatar={opponentAvatarUrl} className="size-full rounded-full pointer-events-none" />
+              )}
+              <div
+                className={cn(
+                  'absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-han font-black text-[9px] shadow-sm pointer-events-none',
+                  !hasOpponent && 'opacity-60',
+                  opponentSide === RED
+                    ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
+                    : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                )}
+                title={opponentSide === RED ? 'Cầm quân Đỏ' : 'Cầm quân Đen'}
+              >
+                {opponentSide === RED ? '帥' : '將'}
+              </div>
+            </button>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                {hasOpponent ? (isPveMode ? 'AI Cấp 10' : opponentName) : 'Chờ đối thủ'}
+              </span>
+              <span className="text-[10px] text-amber-300 font-semibold leading-none">
+                {hasOpponent ? (isPveMode ? 'Elo 1500' : `Lv.${opponentLevel} · Elo ${opponentElo}`) : 'Phòng mở'}
+              </span>
+            </div>
+            {hasOpponent && opponentQuickMessage && (
+              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-sky-400/50 text-[11px] font-bold text-sky-300 truncate max-w-[100px]">
+                {opponentQuickMessage.emoji} {opponentQuickMessage.text}
+              </div>
+            )}
+          </div>
+
+          {/* Đồng hồ đối thủ trên mobile */}
+          <div
+            className={cn(
+              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              !hasOpponent
+                ? 'border-white/10 bg-[#121620]/60 text-stone-500 opacity-60'
+                : isOpponentTimedOut
+                  ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                  : isPlaying && !isOver && isOpponentTurn
+                    ? 'border-sky-400/80 bg-sky-950/80 text-sky-300'
+                    : isOver && isDraw
+                      ? 'border-amber-500/60 bg-amber-950/60 text-amber-300'
+                      : isOver && laNguoiThang === false
+                        ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                        : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+            )}
+            title="Thời gian đối thủ"
+          >
+            <Clock className="size-3 text-sky-400 shrink-0" />
+            <span>
+              {!hasOpponent
+                ? '--:--'
+                : isOpponentTimedOut
+                  ? '00:00'
+                  : isPlaying && !isOver
+                    ? isOpponentTurn
+                      ? formatClockTime(clock.timeRemaining)
+                      : formatClockTime(clock.turnSeconds)
+                    : isOver
+                      ? formatClockTime(isOpponentTurn ? clock.timeRemaining : clock.turnSeconds)
+                      : formatClockTime(clock.turnSeconds)}
+            </span>
+          </div>
+        </div>
+
         {/* 1. MẶT BÀN CỜ TƯỚNG TẬP TRUNG - TỶ LỆ 9:10 CHUẨN XÁC HOÀN HẢO, Ô CỜ VUÔNG VỨC 100% */}
         <section
           ref={boardRef}
           onPointerDown={handleBoardPointerDown}
           style={{
-            width: 'min(calc(100vw - 32px), calc(min(73vh, 680px) * 0.9))',
+            width: 'min(calc(100vw - 20px), min(calc((100dvh - 215px) * 0.9), 480px))',
             maxWidth: '612px',
             aspectRatio: '9 / 10',
           }}
-          className="relative max-h-[min(73vh,690px)] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none"
+          className="relative max-h-[min(calc(100dvh-215px),533px)] xl:max-h-[min(73vh,690px)] xl:w-[min(calc(100vw-32px),calc(min(73vh,680px)*0.9))] board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none"
         >
           {/* SVG VẼ ĐƯỜNG KẺ, CỬU CUNG, SÔNG SỞ HÀ - HÁN GIỚI & DẤU HOA VĂN GÓC */}
           <svg
@@ -2331,6 +2464,7 @@ export function XiangqiBoard({
           })()}
 
           {/* NÚT BẮT ĐẦU HOẶC VÀO BÀN HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ (SỞ HÀ - HÁN GIỚI / VÙNG 2) */}
+          {/* !isPlaying && !activeDlg && !heroicBanner && ( */}
           {((!isPlaying && !isOver) && !activeDlg && !heroicBanner && (!laOnlinePvp || !online?.mySide || Boolean(online?.meta.playerO)) || (isOver && !isPlaying && !activeDlg && !heroicBanner)) && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
@@ -2539,7 +2673,125 @@ export function XiangqiBoard({
           />
         </section>
 
-        {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH) ==================== */}
+        {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE (< xl): NẰM DƯỚI BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mt-1 select-none z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (laOnlinePvp && !online?.mySide) {
+                  online?.joinGame()
+                  showGameNotice('ĐÃ VÀO BÀN THI ĐẤU')
+                } else {
+                  setIsSettingsModalOpen(true)
+                }
+              }}
+              className={cn(
+                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                isMyTurn
+                  ? 'border-sky-400 ring-2 ring-sky-400/30'
+                  : 'border-white/15 bg-[#121620]'
+              )}
+              title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
+            >
+              <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
+              {(!laOnlinePvp || Boolean(online?.mySide)) && (
+                <div
+                  className={cn(
+                    'absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-han font-black text-[9px] shadow-sm pointer-events-none',
+                    mySide === RED
+                      ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
+                      : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
+                  )}
+                  title={mySide === RED ? 'Cầm quân Đỏ' : 'Cầm quân Đen'}
+                >
+                  {mySide === RED ? '帥' : '將'}
+                </div>
+              )}
+            </button>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                {myName || 'Bạn'}
+              </span>
+              <span className="text-[10px] text-sky-300 font-semibold leading-none">
+                Lv.{myLevel} · Elo {myElo}
+              </span>
+            </div>
+            {myQuickMessage && (
+              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-amber-400/50 text-[11px] font-bold text-amber-300 truncate max-w-[100px]">
+                {myQuickMessage.emoji} {myQuickMessage.text}
+              </div>
+            )}
+          </div>
+
+          {/* Đồng hồ người chơi trên mobile */}
+          <div
+            className={cn(
+              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              isPlayerTimedOut
+                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                : isPlaying && !isOver && isMyTurn
+                  ? 'border-red-500/80 bg-red-950/80 text-red-300'
+                  : isOver && isDraw
+                    ? 'border-amber-500/60 bg-amber-950/60 text-amber-300'
+                    : isOver && laNguoiThang === true
+                      ? 'border-emerald-500/60 bg-emerald-950/60 text-emerald-300'
+                      : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+            )}
+            title="Thời gian của Bạn"
+          >
+            <Clock className="size-3 text-sky-400 shrink-0" />
+            <span>
+              {isPlayerTimedOut
+                ? '00:00'
+                : isPlaying && !isOver
+                  ? isMyTurn
+                    ? formatClockTime(clock.timeRemaining)
+                    : formatClockTime(clock.turnSeconds)
+                  : isOver
+                    ? formatClockTime(isMyTurn ? clock.timeRemaining : clock.turnSeconds)
+                    : formatClockTime(recentlyChangedTime || clock.turnSeconds)}
+            </span>
+          </div>
+        </div>
+
+        {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20">
+          {pinnedTools.map((toolId) => {
+            const tool = toolDefinitions[toolId]
+            if (!tool) return null
+            return (
+              <button
+                key={toolId}
+                type="button"
+                onClick={tool.onClick}
+                disabled={tool.disabled}
+                className={cn(
+                  'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                  tool.bubbleClassName
+                )}
+                title={tool.title}
+                aria-label={tool.title}
+              >
+                {tool.renderIcon(true)}
+              </button>
+            )
+          })}
+          {!pinnedTools.includes('settings') && (
+            <button
+              type="button"
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-sky-400 text-gray-300 hover:text-sky-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+              title="Cài đặt"
+              aria-label="Cài đặt"
+            >
+              <Settings className="size-4" />
+            </button>
+          )}
+        </div>
+
+        {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH - DESKTOP XL DUY NHẤT) ==================== */}
         <aside
           id="vung-2-plus-card"
           ref={avatarBubbleRef}
@@ -2547,7 +2799,7 @@ export function XiangqiBoard({
           style={{
             transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
           }}
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
+          className="hidden xl:flex xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex-col items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
           {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (PORTAL LÊN DOCUMENT.BODY ĐỂ ĐỊNH VỊ CHUẨN XÁC THEO VIEWPORT) ==================== */}
           {isQuickMenuOpen &&
@@ -2777,7 +3029,7 @@ export function XiangqiBoard({
         <aside
           id="vung-2-plus-desk"
           aria-label="Thông tin đối thủ"
-          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+48px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+          className="hidden xl:flex xl:absolute xl:left-[calc(100%+48px)] xl:top-0 xl:w-[250px] flex-col items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
         >
           {/* TRUNG TÂM: 1 AVATAR BUBBLE DUY NHẤT CỦA ĐỐI THỦ */}
           <div className="relative flex flex-col items-center">

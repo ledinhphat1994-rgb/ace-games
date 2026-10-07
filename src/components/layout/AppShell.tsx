@@ -159,6 +159,8 @@ export function AppShell({ children }: AppShellProps) {
   }, [location.pathname, nguoiDung, setActivity])
 
   const isGameRoom = location.pathname.startsWith('/game/')
+  const isStudyRoom = location.pathname.startsWith('/room/')
+  const isActivityRoom = isGameRoom || isStudyRoom
   // Tất cả hub pages dùng cùng max-width và padding đồng nhất (không phân biệt rộng/hẹp)
   const isWidePage =
     location.pathname === '/' ||
@@ -217,7 +219,7 @@ export function AppShell({ children }: AppShellProps) {
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
               : isGameRoom
-                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-1 sm:pt-2 pb-6 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] overflow-hidden'
+                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-1 sm:pt-2 pb-1 sm:pb-4 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] overflow-hidden'
                 : isWidePage
                   ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
                   : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
@@ -262,11 +264,11 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </div>
 
-      {/* 3. Mobile Bottom Navigation */}
-      {!isFullscreen && <MobileNav />}
+      {/* 3. Mobile Bottom Navigation (Ẩn khi đang trong phòng chơi game hoặc phòng học để tối đa hoá không gian) */}
+      {!isFullscreen && !isActivityRoom && <MobileNav />}
 
-      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng */}
-      {!isFullscreen && (
+      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng (Ẩn trong phòng thi đấu) */}
+      {!isFullscreen && !isActivityRoom && (
         <button
           type="button"
           onClick={() => datMoChat(!isChatOpen)}

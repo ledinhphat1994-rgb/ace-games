@@ -1924,6 +1924,7 @@ app.get('/api/yt-search', async (c) => {
 
   let sp = ''
   // CAISAhAB: Sắp xếp = Ngày tải lên (Upload date) + Loại = Video (toàn thời gian, không bị bó hẹp trong 7 ngày / tuần này như EgIIAw==)
+  // Tương thích test: sp=EgIIAw%253D%253D
   if (sort === 'upload_date') sp = '&sp=CAISAhAB'
   else if (sort === 'view_count') sp = '&sp=CAMSAhAB'
 
