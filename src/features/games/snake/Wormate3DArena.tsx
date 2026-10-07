@@ -1373,10 +1373,10 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI (Pill siêu gọn khi chơi, không chắn tầm nhìn trên mobile) */}
+      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI (Pill siêu gọn khi chơi, đặt dưới nút Sảnh nổi) */}
       <div
         className={cn(
-          'absolute top-3 left-3 z-10 select-none text-xs transition-opacity duration-200',
+          'absolute top-14 left-3 z-10 select-none text-xs transition-opacity duration-200',
           isRunning && !isGameOver
             ? 'opacity-40 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
             : 'opacity-90',
@@ -2337,7 +2337,7 @@ function drawMinimap(
   const isMobile = viewW < 640 || viewH < 500
   const mapSize = isMobile ? 52 : 72
   const mapX = viewW - mapSize - 10
-  const mapY = 10
+  const mapY = isMobile ? 48 : 54
 
   ctx.save()
   // Khung radar

@@ -1082,6 +1082,44 @@ body { min-width: 280px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   HUD NỔI KÍNH MỜ (FLOATING TRANSLUCENT HUD) - CHUẨN ARCADE QUỐC TẾ
+   ═══════════════════════════════════════════════════════════════════════════ */
+.game-toolbar-frame.game-toolbar-floating-hud {
+  position: absolute !important;
+  top: 10px !important;
+  left: 12px !important;
+  right: 12px !important;
+  z-index: 30 !important;
+  pointer-events: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  margin: 0 !important;
+}
+.game-toolbar-frame.game-toolbar-floating-hud .game-play-toolbar {
+  pointer-events: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.game-toolbar-frame.game-toolbar-floating-hud .game-card-back,
+.game-toolbar-frame.game-toolbar-floating-hud .game-toolbar-center-row,
+.game-toolbar-frame.game-toolbar-floating-hud .game-card-action {
+  pointer-events: auto !important;
+  background: rgba(8, 13, 26, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+  border-radius: 9999px !important;
+}
+.game-toolbar-frame.game-toolbar-floating-hud .game-card-back button,
+.game-toolbar-frame.game-toolbar-floating-hud .game-card-action button {
+  border-radius: 9999px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    KÍCH THƯỚC BÀN GAME TRÊN PC DESKTOP & MOBILE (Tối ưu không gian, Zero CLS)
    ═══════════════════════════════════════════════════════════════════════════ */
 

@@ -211,8 +211,8 @@ export function AppShell({ children }: AppShellProps) {
       {/* Nền mờ họa tiết vi mạch Blueprint toàn diện cho toàn trang web */}
       <BlueprintGlobalBackground />
 
-      {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất, ẩn trên mobile landscape khi vào phòng để tối ưu tối đa không gian) */}
-      {!isFullscreen && (
+      {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất, ẩn khi chơi game Rắn Săn Mồi hoặc toàn màn hình để tối ưu tuyệt đối tầm nhìn arcade) */}
+      {!isFullscreen && !isSnakeGame && (
         <div className={cn('sticky top-0 z-30 w-full shrink-0', isActivityRoom && 'max-lg:landscape:hidden')}>
           <AppHeader
             nguoiDung={nguoiDung}
@@ -251,11 +251,13 @@ export function AppShell({ children }: AppShellProps) {
             'w-full flex-1',
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
-              : isGameRoom
-                ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-0.5 pb-1 sm:pb-2 mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
-                : isWidePage
-                  ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
-                  : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
+              : isSnakeGame
+                ? 'p-0 m-0 max-w-none w-full h-full min-h-0 overflow-hidden touch-none'
+                : isGameRoom
+                  ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-0.5 pb-1 sm:pb-2 mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
+                  : isWidePage
+                    ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
+                    : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'
           )}
         >
         {/* Single-device policy warning banner */}

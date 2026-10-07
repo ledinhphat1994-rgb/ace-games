@@ -198,13 +198,14 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     <div
       ref={fullscreenContainerRef}
       className={cn(
-        'flex flex-col items-center justify-between w-full h-full flex-1 min-h-0 transition-colors duration-150',
-        isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-2 bg-surface justify-center overflow-hidden'
+        'relative flex items-center justify-center w-full h-full flex-1 min-h-0 overflow-hidden touch-none select-none overscroll-none transition-colors duration-150',
+        isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-0 bg-surface justify-center overflow-hidden'
       )}
     >
-      {/* ── 1. THANH CÔNG CỤ VÙNG 2: XÓA 2 NÚT PVE/PVP CẠNH SẢNH, TẠO NÚT CHẾ ĐỘ CHƠI Ở GIỮA CÙNG HÀNG ── */}
+      {/* ── 1. THANH CÔNG CỤ VÙNG 2: DẠNG HUD NỔI TRONG SUỐT (FLOATING TRANSLUCENT HUD) CHUẨN QUỐC TẾ ── */}
       {/* Hỗ trợ chế độ chơi: 100% PVE, PVP + PVE, và 100% PVP */}
       <GamePlayToolbar
+        floatingHud={true}
         onBack={handleBackRoom}
         title="Rắn Săn Mồi"
         icon={<Flame className="size-4 text-emerald-400" />}
@@ -272,7 +273,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
       />
 
       {/* ── 2. ĐẤU TRƯỜNG RẮN SĂN MỒI ── */}
-      <div className={cn('relative flex items-center justify-center w-full flex-1 h-full min-h-0 overflow-hidden touch-none select-none overscroll-none', !isFullscreen && 'py-0.5 sm:py-1')}>
+      <div className="relative flex items-center justify-center w-full flex-1 h-full min-h-0 overflow-hidden touch-none select-none overscroll-none">
         <Wormate3DArena
           difficulty={difficulty}
           onDifficultyChange={(capDo) => doiThietLap({ ...thietLap, capDo })}

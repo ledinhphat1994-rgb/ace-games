@@ -75,6 +75,8 @@ interface GamePlayToolbarProps {
   onOfferDraw?: () => void
   offerDrawDisabled?: boolean
   className?: string
+  /** Hiển thị dạng HUD nổi trong suốt (Floating Translucent HUD) trực tiếp trên mặt game thay vì thanh cứng */
+  floatingHud?: boolean
 }
 
 export function GamePlayToolbar({
@@ -126,6 +128,7 @@ export function GamePlayToolbar({
   onOfferDraw,
   offerDrawDisabled = false,
   className,
+  floatingHud = false,
 }: GamePlayToolbarProps) {
   const [internalFullscreen, setInternalFullscreen] = useState(false)
   useEffect(() => {
@@ -363,7 +366,7 @@ export function GamePlayToolbar({
 
   // ── CHẾ ĐỘ THƯỜNG: BỐ TRÍ ĐỦ 5 CARD RÕ RÀNG, MẠCH LẠC KHÔNG BAO GIỜ ĐÈ NHAU ──
   return (
-    <div className="game-toolbar-frame w-full min-w-0 shrink-0 select-none flex flex-col gap-2 pb-1">
+    <div className={cn("game-toolbar-frame w-full min-w-0 shrink-0 select-none flex flex-col gap-2 pb-1", floatingHud && "game-toolbar-floating-hud")}>
       {/* ── HÀNG 1: CARD 1 (QUAY LẠI SẢNH) + CARD 2 (PVP/PVE) ────── CARD 4 (HÒA/THUA) + CARD 5 (PHÓNG TO) ── */}
       <div
         data-testid="game-play-toolbar"
