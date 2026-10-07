@@ -9,7 +9,7 @@ const indexCssRaw = ((env as any).INDEX_CSS ?? '') as string
 describe('Chuẩn Quốc Tế Arcade: Tràn viền 100% màn hình & HUD nổi kính mờ cho Rắn Săn Mồi', () => {
   it('AppShell: Ẩn hoàn toàn AppHeader khi chơi Rắn Săn Mồi để giải phóng góc nhìn 360 độ', () => {
     expect(appShellRaw).toContain('!isFullscreen && !isSnakeGame')
-    expect(appShellRaw).toContain("isSnakeGame\n                ? 'p-0 m-0 max-w-none w-full h-full min-h-0 overflow-hidden touch-none'")
+    expect(appShellRaw).toContain("isSnakeGame\n                ? 'flex flex-col p-0 m-0 max-w-none w-full h-full min-h-0 overflow-hidden touch-none'")
   })
 
   it('SoloGamePage: Xóa toàn bộ viền và padding cứng cho solo_snake để chiếm trọn toàn màn hình', () => {

@@ -198,7 +198,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     <div
       ref={fullscreenContainerRef}
       className={cn(
-        'relative flex items-center justify-center w-full h-full flex-1 min-h-0 overflow-hidden touch-none select-none overscroll-none transition-colors duration-150',
+        'relative flex flex-col items-center justify-center w-full h-full flex-1 min-h-0 overflow-hidden touch-none select-none overscroll-none transition-colors duration-150',
         isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-0 bg-surface justify-center overflow-hidden'
       )}
     >
@@ -273,7 +273,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
       />
 
       {/* ── 2. ĐẤU TRƯỜNG RẮN SĂN MỒI ── */}
-      <div className="relative flex items-center justify-center w-full flex-1 h-full min-h-0 overflow-hidden touch-none select-none overscroll-none">
+      <div className="relative flex flex-col items-center justify-center w-full flex-1 h-full min-h-0 overflow-hidden touch-none select-none overscroll-none">
         <Wormate3DArena
           difficulty={difficulty}
           onDifficultyChange={(capDo) => doiThietLap({ ...thietLap, capDo })}

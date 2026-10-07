@@ -250,9 +250,9 @@ export function AppShell({ children }: AppShellProps) {
           className={cn(
             'w-full flex-1',
             isFullscreen
-              ? 'p-0 m-0 max-w-none w-full h-screen'
+              ? 'flex flex-col p-0 m-0 max-w-none w-full h-screen'
               : isSnakeGame
-                ? 'p-0 m-0 max-w-none w-full h-full min-h-0 overflow-hidden touch-none'
+                ? 'flex flex-col p-0 m-0 max-w-none w-full h-full min-h-0 overflow-hidden touch-none'
                 : isGameRoom
                   ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-0.5 pb-1 sm:pb-2 mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
                   : isWidePage
