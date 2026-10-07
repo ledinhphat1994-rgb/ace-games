@@ -183,14 +183,37 @@ export function AppShell({ children }: AppShellProps) {
       location.pathname.includes('ran-san-moi') ||
       location.search.includes('snake'))
 
+  useEffect(() => {
+    if (!isGameRoom) return
+    const prevBodyOverflow = document.body.style.overflow
+    const prevBodyOverscroll = document.body.style.overscrollBehavior
+    const prevBodyTouchAction = document.body.style.touchAction
+    const prevHtmlOverflow = document.documentElement.style.overflow
+    const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+    document.body.style.touchAction = 'none'
+    document.documentElement.style.overflow = 'hidden'
+    document.documentElement.style.overscrollBehavior = 'none'
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow
+      document.body.style.overscrollBehavior = prevBodyOverscroll
+      document.body.style.touchAction = prevBodyTouchAction
+      document.documentElement.style.overflow = prevHtmlOverflow
+      document.documentElement.style.overscrollBehavior = prevHtmlOverscroll
+    }
+  }, [isGameRoom])
+
   return (
-    <div className="min-h-svh bg-canvas text-foreground flex flex-col relative overflow-x-clip">
+    <div className={cn('bg-canvas text-foreground flex flex-col relative overflow-x-clip', isGameRoom ? 'h-svh max-h-svh overflow-hidden touch-none select-none' : 'min-h-svh')}>
       {/* Nền mờ họa tiết vi mạch Blueprint toàn diện cho toàn trang web */}
       <BlueprintGlobalBackground />
 
       {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất, ẩn trên mobile landscape khi vào phòng để tối ưu tối đa không gian) */}
       {!isFullscreen && (
-        <div className={cn('sticky top-0 z-50 w-full', isActivityRoom && 'max-lg:landscape:hidden')}>
+        <div className={cn('sticky top-0 z-30 w-full shrink-0', isActivityRoom && 'max-lg:landscape:hidden')}>
           <AppHeader
             nguoiDung={nguoiDung}
             trangThai={trangThai}
@@ -208,7 +231,7 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Main Content Layout with Desktop Left Sidebar (Under Header) */}
-      <div className="flex-1 flex min-w-0 relative">
+      <div className={cn('flex-1 flex min-w-0 relative', isGameRoom && 'h-full min-h-0 overflow-hidden')}>
         {/* Desktop Left Sidebar (Fixed under Topbar, ẩn trong phòng rắn để sân chơi chiếm trọn vùng 1) */}
         {!isFullscreen && !isSnakeGame && <AppSidebar className="hidden lg:flex" />}
 
@@ -217,6 +240,7 @@ export function AppShell({ children }: AppShellProps) {
         <div
           className={cn(
             'flex-1 flex flex-col min-w-0',
+            isGameRoom && 'h-full min-h-0 overflow-hidden',
             !isFullscreen && !isSnakeGame && 'lg:ml-[240px] xl:ml-[256px]',
             !isFullscreen && isGameRoom && !isSnakeGame && 'lg:mr-[240px] xl:mr-[256px]'
           )}
@@ -228,7 +252,7 @@ export function AppShell({ children }: AppShellProps) {
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
               : isGameRoom
-                ? 'w-full flex-1 px-1 sm:px-3 pt-1 pb-1 sm:pb-2 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden'
+                ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-0.5 pb-1 sm:pb-2 mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
                 : isWidePage
                   ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
                   : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'

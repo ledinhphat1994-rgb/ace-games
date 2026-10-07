@@ -224,7 +224,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
             onClick={() => setIsConfigOpen((prev) => !prev)}
             data-testid="nut-che-do-choi"
             className={cn(
-              'h-8 px-2.5 rounded-xl border-border-default bg-surface/90 backdrop-blur-md text-text-primary hover:bg-surface-raised font-bold text-xs gap-1.5 shadow-xs cursor-pointer transition-colors duration-150 flex items-center shrink-0',
+              'h-8 px-2 sm:px-2.5 rounded-xl border-border-default bg-surface/90 backdrop-blur-md text-text-primary hover:bg-surface-raised font-bold text-xs gap-1 sm:gap-1.5 shadow-xs cursor-pointer transition-colors duration-150 flex items-center shrink-0 w-auto min-w-0',
               isConfigOpen && 'border-emerald-500/60 bg-surface-raised',
             )}
             title="Chế độ chơi"
@@ -272,7 +272,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
       />
 
       {/* ── 2. ĐẤU TRƯỜNG RẮN SĂN MỒI ── */}
-      <div className={cn('relative flex items-center justify-center w-full flex-1 h-full min-h-0', !isFullscreen && 'py-0.5 sm:py-1')}>
+      <div className={cn('relative flex items-center justify-center w-full flex-1 h-full min-h-0 overflow-hidden touch-none select-none overscroll-none', !isFullscreen && 'py-0.5 sm:py-1')}>
         <Wormate3DArena
           difficulty={difficulty}
           onDifficultyChange={(capDo) => doiThietLap({ ...thietLap, capDo })}

@@ -8,9 +8,9 @@ const ARENA_SIZE = 2400
 const INITIAL_SEGMENT_COUNT = 18
 const BASE_SPEED = 3.6
 const BOOST_SPEED = 7.0
-const SEGMENT_SPACING = 9
-const MIN_RADIUS = 15
-const MAX_RADIUS = 32
+const SEGMENT_SPACING = 7.5
+const MIN_RADIUS = 11.5
+const MAX_RADIUS = 24
 const TOTAL_FOOD_COUNT = 180
 
 export type PastryType = 'donut' | 'cupcake' | 'cake' | 'cookie' | 'candy' | 'burger' | 'croissant'
@@ -414,11 +414,33 @@ export function Wormate3DArena({
   const [muted] = useState(false)
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([])
   const [playerRank, setPlayerRank] = useState(1)
-  const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(false)
+  const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768
+    }
+    return false
+  })
   const [player2Score, setPlayer2Score] = useState(0)
   const [playerStats, setPlayerStats] = useState({ score: 0, length: INITIAL_SEGMENT_COUNT })
   const [roundResult, setRoundResult] = useState<{ restartKey: number; winner: boolean; reason: string } | null>(null)
   const finalResult = roundResult?.restartKey === restartKey ? roundResult : null
+
+  // Chặn tuyệt đối hành vi cuộn trang mobile khi chạm và vuốt trên canvas chơi game
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const preventScroll = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault()
+    }
+    canvas.addEventListener('touchstart', preventScroll, { passive: false })
+    canvas.addEventListener('touchmove', preventScroll, { passive: false })
+    canvas.addEventListener('touchend', preventScroll, { passive: false })
+    return () => {
+      canvas.removeEventListener('touchstart', preventScroll)
+      canvas.removeEventListener('touchmove', preventScroll)
+      canvas.removeEventListener('touchend', preventScroll)
+    }
+  }, [])
 
   // Tự động đo kích thước container để canvas chiếm trọn không gian (Zero CLS)
   useEffect(() => {
@@ -503,19 +525,19 @@ export function Wormate3DArena({
     const types: PastryType[] = ['donut', 'cupcake', 'cake', 'cookie', 'candy', 'burger', 'croissant']
     const type = types[Math.floor(Math.random() * types.length)]
     let points = 10
-    let r = 13
+    let r = 8.5
     if (type === 'donut' || type === 'cupcake') {
       points = 15
-      r = 15
-    } else if (type === 'cake') {
-      points = 25
-      r = 17
-    } else if (type === 'burger') {
-      points = 30
-      r = 18
+      r = 10
     } else if (type === 'croissant') {
       points = 20
-      r = 16
+      r = 10.5
+    } else if (type === 'cake') {
+      points = 25
+      r = 11.5
+    } else if (type === 'burger') {
+      points = 30
+      r = 12
     }
 
     const margin = 80
@@ -1077,8 +1099,11 @@ export function Wormate3DArena({
       ctx.clearRect(0, 0, w, h)
 
       ctx.save()
-      // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài sâu như Wormate.io
-      const zoom = Math.max(0.72, 1 - (player.length - INITIAL_SEGMENT_COUNT) * 0.0022)
+      // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài sâu như Wormate.io (Góc nhìn rộng thoáng trên mobile)
+      const isMobileScreen = w < 640 || h < 640
+      const startZoom = isMobileScreen ? 0.52 : 0.78
+      const minZoom = isMobileScreen ? 0.38 : 0.55
+      const zoom = Math.max(minZoom, startZoom - (player.length - INITIAL_SEGMENT_COUNT) * 0.0016)
       ctx.translate(w / 2, h / 2)
       ctx.scale(zoom, zoom)
       ctx.translate(-eng.camX, -eng.camY)
@@ -1425,28 +1450,23 @@ export function Wormate3DArena({
         )}
       </div>
 
-      {/* HUD thông số người chơi ở đỉnh trung tâm (Thoáng đãng, không che khuất ngón tay và joystick) */}
+      {/* HUD thông số người chơi ở đỉnh trung tâm (Thoáng đãng, không che khuất tầm nhìn) */}
       {isRunning && !isGameOver && (
-        <div className="snake-hud absolute top-3.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/40 border border-white/10 text-xs shadow-none select-none pointer-events-none transition-opacity">
-          <div className="flex items-center gap-1.5 text-brand font-bold">
-            <span className="size-2 rounded-full bg-brand animate-pulse" />
-            <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {playerStats.score}đ</span>
-          </div>
-          {mode === 'pass_and_play' && (
-            <>
-              <div className="h-3 w-px bg-white/15" />
-              <div className="flex items-center gap-1.5 text-rose-300 font-bold">
-                <span className="size-2 rounded-full bg-rose-400" />
-                <span className="font-mono text-xs">P2: {player2Score}đ</span>
-              </div>
-            </>
+        <div className="snake-hud absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-950/40 border border-white/10 text-xs shadow-none select-none pointer-events-none transition-opacity">
+          {mode === 'pass_and_play' ? (
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-brand font-bold">P1: {playerStats.score}đ</span>
+              <span className="text-white/20">|</span>
+              <span className="text-rose-400 font-bold">P2: {player2Score}đ</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono font-bold text-brand">{playerStats.score}đ</span>
+              <span className="text-white/30 text-[10px]">·</span>
+              <span className="text-[10px] text-slate-300 font-mono">{playerStats.length} đốt</span>
+            </div>
           )}
-          <div className="h-3 w-px bg-white/15 hidden sm:block" />
-          <div className="text-[10px] text-slate-400 hidden sm:block">
-            {mode === 'pass_and_play'
-              ? 'P1: Chuột + Space | P2: WASD + Shift'
-              : 'Giữ Chuột hoặc Space để Tăng Tốc'}
-          </div>
         </div>
       )}
 
@@ -1889,49 +1909,45 @@ export function Wormate3DArena({
         </div>
       )}
 
-      {/* Overlay Kết thúc ván (Game Over) */}
+      {/* Overlay Kết thúc ván (Game Over) - Tinh gọn, không phụ đề, vừa vặn cả ngang và dọc */}
       {isGameOver && (
         <button
           type="button"
           onClick={onStartGame}
           aria-label="Chơi lại"
           data-testid="ran-man-ket-thuc"
-          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-3 sm:p-6 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none">
-          <div className="size-16 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 shadow-xl shadow-rose-500/30 mb-3">
-            <div className="size-full bg-slate-950 rounded-2xl flex items-center justify-center text-3xl">
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-3 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+        >
+          <div className="size-11 sm:size-13 rounded-xl bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 shadow-lg shadow-rose-500/25 mb-2">
+            <div className="size-full bg-slate-950 rounded-[10px] flex items-center justify-center text-xl sm:text-2xl">
               {finalResult?.winner ? '👑' : '💥'}
             </div>
           </div>
-          <h3 className="text-xl font-black uppercase text-white tracking-wider">
-            {finalResult?.winner ? 'BẠN ĐẠT TOP 1' : 'BẠN THUA'}
+          <h3 className="text-base sm:text-lg font-black uppercase text-white tracking-wider">
+            {finalResult?.winner ? 'TOP 1' : 'KẾT THÚC'}
           </h3>
-          <p className="mt-1 text-xs text-rose-300 max-w-xs leading-relaxed">
-            {finalResult?.reason || 'Đâm trúng đối thủ trong đấu trường!'}
-          </p>
 
-          {/* Thống kê ván */}
-          <div className="grid grid-cols-2 gap-3 my-4 w-full max-w-64 p-3 rounded-xl bg-white/5 border border-white/10">
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-black font-mono text-brand">
+          {/* Thống kê ván gọn gàng */}
+          <div className="grid grid-cols-2 gap-2 my-2.5 w-full max-w-56 p-2 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-base font-black font-mono text-brand">
                 {playerStats.score}đ
               </span>
-              <span className="text-[10px] text-text-tertiary">Điểm ngọt ngào</span>
             </div>
-            <div className="flex flex-col items-center">
-              <span className="text-lg font-black font-mono text-amber-300">
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-base font-black font-mono text-amber-300">
                 {playerStats.length} đốt
               </span>
-              <span className="text-[10px] text-text-tertiary">Độ dài sâu</span>
             </div>
           </div>
 
-          {/* Nút CHƠI LẠI to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
+          {/* Nút CHƠI LẠI tinh gọn, chống tràn viền */}
           <div className="pt-1">
             <span
-              className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-emerald-500/30 ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-150 cursor-pointer"
             >
-              <RotateCcw className="size-5 text-white drop-shadow" />
-              <span>CHƠI LẠI NGAY</span>
+              <RotateCcw className="size-4 text-white drop-shadow" />
+              <span>CHƠI LẠI</span>
             </span>
           </div>
         </button>
@@ -2121,15 +2137,17 @@ function draw3DWorm(
     ctx.restore()
   }
 
-  // Tên hiển thị trên đầu sâu
-  ctx.save()
-  ctx.font = 'bold 11px sans-serif'
-  ctx.fillStyle = worm.isPlayer ? '#38bdf8' : '#ffffff'
-  ctx.textAlign = 'center'
-  ctx.shadowColor = 'rgba(0,0,0,0.8)'
-  ctx.shadowBlur = 4
-  ctx.fillText(worm.name, worm.x, worm.y - worm.radius - 8)
-  ctx.restore()
+  // Không vẽ tên trên đầu sâu để màn hình thoáng đãng, chỉ vẽ nhãn P2 khi chơi 2 người đối kháng
+  if (worm.id === 'player2') {
+    ctx.save()
+    ctx.font = 'bold 10px sans-serif'
+    ctx.fillStyle = '#fb7185'
+    ctx.textAlign = 'center'
+    ctx.shadowColor = 'rgba(0,0,0,0.8)'
+    ctx.shadowBlur = 4
+    ctx.fillText('P2', worm.x, worm.y - worm.radius - 6)
+    ctx.restore()
+  }
 }
 
 // ── VƯƠNG MIỆN HOÀNG GIA DÀNH CHO TOP 1 WORMATE ──

@@ -1022,9 +1022,14 @@ body { min-width: 280px; }
 }
 .game-toolbar-frame .game-play-toolbar button > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .game-toolbar-frame [data-testid="che-do-pve"],
-.game-toolbar-frame [data-testid="che-do-pvp"] { border: 1px solid var(--border-default); }
+.game-toolbar-frame .game-play-toolbar .game-toolbar-center-row button { width: auto; min-width: 36px; padding-inline: 8px; gap: 4px; }
 .game-toolbar-frame .game-toolbar-fixed-right { min-width: 44px; }
 .game-toolbar-frame .game-toolbar-turn { flex-shrink: 0; min-width: 0; }
+@container game-toolbar (max-width: 30rem) {
+  .game-toolbar-frame .game-play-toolbar .game-toolbar-center-row button > span:first-of-type {
+    display: none;
+  }
+}
 @container game-toolbar (max-width: 20rem) {
   .game-toolbar-frame .game-play-toolbar { gap: 4px; }
   .game-toolbar-frame .game-toolbar-scrollable-center { gap: 2px; padding-inline: 0; }
