@@ -250,6 +250,7 @@ export function CampusChatSheet({
 
   // VÙNG 2: THANH SEARCH TÌM KIẾM THEO TAB ACTIVE
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
 
   // Khả năng co giãn khung chat trên Desktop (các cạnh và góc)
@@ -480,13 +481,13 @@ export function CampusChatSheet({
         }
         className={cn(
           'gap-0 p-0 z-[70] shadow-2xl overflow-hidden flex flex-col',
-          'top-3 right-3 left-3 bottom-[136px] max-h-[calc(100vh-148px)] rounded-2xl border border-border-default',
+          'top-2.5 right-2.5 left-2.5 bottom-[max(0.625rem,env(safe-area-inset-bottom))] max-h-[calc(100dvh-20px)] rounded-2xl border border-border-default',
           'sm:top-auto sm:right-4 sm:bottom-[84px] sm:left-auto',
           'sm:rounded-2xl sm:border sm:border-border-default',
           'sm:w-[480px] md:w-[500px] lg:w-[520px]',
           'sm:min-w-[360px] sm:max-w-[calc(100vw-24px)] sm:min-h-[400px] sm:max-h-[calc(100vh-96px)]',
           'sm:shadow-[-8px_12px_32px_rgba(0,0,0,0.45)]',
-          '[&_[data-slot=sheet-close]]:size-9',
+          '[&_[data-slot=sheet-close]]:size-8 sm:[&_[data-slot=sheet-close]]:size-9',
         )}
       >
         <SheetHeader className="sr-only">
@@ -531,10 +532,10 @@ export function CampusChatSheet({
 
         <div className="flex flex-col h-full w-full min-h-0 bg-surface">
           {/* ════════════════════════════════════════════════════════════════════════════════
-              VÙNG X: CÁC TAB (Bạn bè, Toàn trường, Phòng) & NÚT ĐÓNG TÁCH BIỆT
+              VÙNG X: CÁC TAB (Bạn bè, Toàn trường, Phòng) & NÚT TÌM KIẾM + NÚT ĐÓNG
               ════════════════════════════════════════════════════════════════════════════════ */}
-          <div className="shrink-0 p-2 border-b border-border-subtle bg-surface flex items-center gap-2">
-            <div className="flex-1 grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-surface-raised border border-border-subtle/60">
+          <div className="shrink-0 px-2.5 py-1.5 sm:p-2 border-b border-border-subtle bg-surface flex items-center gap-1.5 sm:gap-2">
+            <div className="flex-1 grid grid-cols-3 gap-1 p-0.5 sm:p-1 rounded-xl bg-surface-raised border border-border-subtle/60">
               {/* Tab 1: Bạn bè */}
               <button
                 type="button"
@@ -543,7 +544,7 @@ export function CampusChatSheet({
                   setSearchQuery('')
                 }}
                 className={cn(
-                  'h-8.5 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
+                  'h-7.5 sm:h-8.5 rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
                   activeTab === 'ban_be'
                     ? 'border-brand/40 bg-brand/12 text-brand'
                     : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
@@ -554,8 +555,11 @@ export function CampusChatSheet({
                 <Users className="size-3.5 shrink-0" />
                 <span>Bạn bè</span>
                 {onlineFriendsCount > 0 && (
-                  <span className="px-1 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 tabular-nums">
-                    {onlineFriendsCount}
+                  <span
+                    data-testid="friends-count-badge"
+                    className="px-1 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 tabular-nums"
+                  >
+                    {onlineFriendsCount}{friends.length > 0 ? `/${friends.length}` : ''}
                   </span>
                 )}
                 {hasUnreadFriends && (
@@ -571,7 +575,7 @@ export function CampusChatSheet({
                   setSearchQuery('')
                 }}
                 className={cn(
-                  'h-8.5 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
+                  'h-7.5 sm:h-8.5 rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
                   activeTab === 'toan_truong'
                     ? 'border-brand/40 bg-brand/12 text-brand'
                     : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
@@ -594,7 +598,7 @@ export function CampusChatSheet({
                   setSearchQuery('')
                 }}
                 className={cn(
-                  'h-8.5 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
+                  'h-7.5 sm:h-8.5 rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
                   activeTab === 'phong'
                     ? 'border-brand/40 bg-brand/12 text-brand'
                     : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
@@ -614,60 +618,83 @@ export function CampusChatSheet({
               </button>
             </div>
 
-            {/* Nút đóng SheetClose độc lập bên phải - không đè lên tab Phòng */}
-            <SheetClose
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-9 shrink-0 text-text-secondary hover:text-text-primary hover:bg-surface-overlay rounded-xl border border-border-subtle/60 cursor-pointer"
-                  title="Đóng chat"
-                  aria-label="Đóng chat"
-                />
-              }
-            >
-              <X className="size-4" />
-              <span className="sr-only">Đóng</span>
-            </SheetClose>
+            {/* Cụm công cụ bên phải: Nút bật tìm kiếm & Nút đóng */}
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  setSearchOpen((prev) => !prev)
+                  if (searchOpen) setSearchQuery('')
+                }}
+                className={cn(
+                  'size-8 sm:size-9 shrink-0 text-text-secondary hover:text-text-primary hover:bg-surface-overlay rounded-xl border border-border-subtle/60 cursor-pointer transition-colors',
+                  (searchOpen || searchQuery) && 'text-brand bg-brand/12 border-brand/40',
+                )}
+                title={searchOpen ? 'Ẩn tìm kiếm' : 'Tìm kiếm'}
+                aria-label="Tìm kiếm"
+              >
+                <Search className="size-3.5 sm:size-4" />
+              </Button>
+
+              <SheetClose
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-8 sm:size-9 shrink-0 text-text-secondary hover:text-text-primary hover:bg-surface-overlay rounded-xl border border-border-subtle/60 cursor-pointer"
+                    title="Đóng chat"
+                    aria-label="Đóng chat"
+                  />
+                }
+              >
+                <X className="size-3.5 sm:size-4" />
+                <span className="sr-only">Đóng</span>
+              </SheetClose>
+            </div>
           </div>
 
           {/* ════════════════════════════════════════════════════════════════════════════════
-              VÙNG 2: THANH SEARCH TÌM KIẾM MỌI THỨ Ở TAB ACTIVE
+              VÙNG 2: THANH SEARCH TÌM KIẾM (Thu gọn mặc định, mở ra khi người dùng cần)
               ════════════════════════════════════════════════════════════════════════════════ */}
-          <div className="shrink-0 px-3 py-2 border-b border-border-subtle bg-surface">
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  activeTab === 'ban_be'
-                    ? 'Tìm bạn bè…'
-                    : activeTab === 'toan_truong'
-                      ? 'Tìm tin nhắn toàn trường…'
-                      : 'Tìm tin nhắn trong phòng…'
-                }
-                aria-label={
-                  activeTab === 'ban_be'
-                    ? 'Tìm bạn bè'
-                    : activeTab === 'toan_truong'
-                      ? 'Tìm tin nhắn toàn trường'
-                      : 'Tìm tin nhắn trong phòng'
-                }
-                className="h-8.5 pl-9 pr-8 text-xs bg-surface-raised border-border-subtle rounded-xl"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-full cursor-pointer"
-                  aria-label="Xóa tìm kiếm"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
+          {(searchOpen || searchQuery) && (
+            <div className="shrink-0 px-3 py-1.5 border-b border-border-subtle bg-surface animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
+                <Input
+                  autoFocus
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={
+                    activeTab === 'ban_be'
+                      ? 'Tìm bạn bè…'
+                      : activeTab === 'toan_truong'
+                        ? 'Tìm tin nhắn toàn trường…'
+                        : 'Tìm tin nhắn trong phòng…'
+                  }
+                  aria-label={
+                    activeTab === 'ban_be'
+                      ? 'Tìm bạn bè'
+                      : activeTab === 'toan_truong'
+                        ? 'Tìm tin nhắn toàn trường'
+                        : 'Tìm tin nhắn trong phòng'
+                  }
+                  className="h-8 pl-9 pr-8 text-xs bg-surface-raised border-border-subtle rounded-xl"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-full cursor-pointer"
+                    aria-label="Xóa tìm kiếm"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ════════════════════════════════════════════════════════════════════════════════
               VÙNG 3: NỘI DUNG NHẮN TIN / DANH SÁCH BẠN BÈ
@@ -726,7 +753,7 @@ export function CampusChatSheet({
                     data-testid="friends-count-badge"
                     className="text-[11px] text-text-tertiary font-normal"
                   >
-                    {onlineFriendsCount} trực tuyến / {friends.length} bạn
+                    <span className="text-emerald-400 font-semibold">{onlineFriendsCount}</span> trực tuyến / {friends.length} bạn
                   </span>
                 </div>
 
@@ -760,7 +787,7 @@ export function CampusChatSheet({
                             'w-full flex items-center gap-3 rounded-xl p-2.5 text-left transition-colors cursor-pointer group',
                             isCoMat
                               ? 'text-text-primary hover:bg-surface-raised opacity-100'
-                              : 'text-text-secondary hover:bg-surface-raised opacity-75 hover:opacity-100',
+                              : 'text-text-secondary hover:bg-surface-raised opacity-60 hover:opacity-90',
                           )}
                         >
                           <div

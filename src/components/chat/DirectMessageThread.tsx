@@ -805,8 +805,8 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
           onScroll={xuLyCuon}
           role="log"
           aria-label={`Tin nhắn với ${target.displayName}`}
-          className="styled-scrollbar h-full overflow-y-auto overscroll-contain px-4 py-3"
-          style={{ overflowAnchor: 'none' }}
+          className="styled-scrollbar h-full overflow-y-auto overscroll-contain px-3 py-2 sm:px-4 sm:py-3 touch-pan-y"
+          style={{ overflowAnchor: 'none', WebkitOverflowScrolling: 'touch' }}
         >
           {isLoading ? (
             <div className="flex h-full flex-col items-center justify-center py-10 text-center text-text-tertiary">
@@ -1173,7 +1173,7 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
       {/* 4. Khung soạn tin nhắn */}
       <form
         onSubmit={handleSend}
-        className="shrink-0 border-t border-border-subtle bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        className="shrink-0 border-t border-border-subtle bg-surface p-2.5 sm:p-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
       >
         <div className="flex items-center gap-2">
           {/* Nút chèn biểu cảm */}

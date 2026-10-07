@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 import type { TinCampus } from '@shared/protocol/campus'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
 import { ArrowDown, Copy, EyeOff, Lightbulb, Loader2, MessageSquare, MoreVertical, SendHorizontal, Smile, Sparkles, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { GameInviteBubble, parseGameInvite } from '@/components/chat/GameInviteBubble'
@@ -175,6 +175,134 @@ function loadSavedCampusReactions(): Record<number, string[]> {
   }
 }
 
+interface CampusChatInputBarProps {
+  onSendMessage: (text: string) => Promise<KetQuaThaoTac>
+  placeholder?: string
+  hideInput?: boolean
+}
+
+function CampusChatInputBar({
+  onSendMessage,
+  placeholder,
+  hideInput,
+}: CampusChatInputBarProps) {
+  const [noiDung, setNoiDung] = useState('')
+  const [dangGui, setDangGui] = useState(false)
+  const [moPickerEmoji, setMoPickerEmoji] = useState(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const xuLyGui = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const text = noiDung.trim()
+    if (!text || dangGui) return
+
+    setDangGui(true)
+    const kq = await onSendMessage(text)
+    setDangGui(false)
+
+    if (kq.ok) {
+      setNoiDung((hienTai) => (hienTai.trim() === text ? '' : hienTai))
+    } else {
+      toast.error(kq.loi || 'Không gửi được tin nhắn')
+    }
+  }
+
+  if (hideInput) return null
+
+  const conLai = CHAT_CAMPUS.TOI_DA_KY_TU - noiDung.length
+
+  return (
+    <form
+      onSubmit={xuLyGui}
+      className="shrink-0 border-t border-border-subtle p-2.5 sm:p-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
+    >
+      <div className="flex items-end gap-1.5 sm:gap-2">
+        {/* Nút chèn biểu cảm Emoji */}
+        <Popover open={moPickerEmoji} onOpenChange={setMoPickerEmoji}>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-9 sm:size-10 shrink-0 mb-0.5 text-text-tertiary hover:text-text-primary hover:bg-surface-overlay cursor-pointer"
+                title="Chèn biểu cảm emoji"
+                aria-label="Chèn biểu cảm emoji"
+                data-testid="chat-emoji-trigger"
+              >
+                <Smile className="size-4.5 sm:size-5" />
+              </Button>
+            }
+          />
+          <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0c1322] border-border-default shadow-2xl rounded-xl z-[150]">
+            <div className="grid grid-cols-6 gap-1">
+              {DANH_SACH_EMOJI.map((em) => (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => {
+                    setNoiDung((prev) => (prev + em).slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))
+                    setMoPickerEmoji(false)
+                    inputRef.current?.focus()
+                  }}
+                  className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-surface-overlay transition-colors active:scale-95 cursor-pointer"
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <div className="relative min-w-0 flex-1">
+          <input
+            ref={inputRef}
+            type="text"
+            value={noiDung}
+            onChange={(e) => setNoiDung(e.target.value.slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))}
+            placeholder={placeholder}
+            aria-label="Nội dung tin nhắn"
+            maxLength={CHAT_CAMPUS.TOI_DA_KY_TU}
+            autoComplete="off"
+            className={cn(
+              'h-9 sm:h-10 w-full rounded-xl border border-border-subtle bg-surface-raised px-3 sm:px-3.5 text-sm leading-normal text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-none transition-colors',
+              conLai <= 50 && 'pr-12',
+            )}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                xuLyGui()
+              }
+            }}
+          />
+          {conLai <= 50 && (
+            <span
+              aria-live="polite"
+              className={cn(
+                'pointer-events-none absolute bottom-2 sm:bottom-2.5 right-3 text-[11px] tabular-nums',
+                conLai <= 10 ? 'text-warning' : 'text-text-tertiary',
+              )}
+            >
+              {conLai}
+            </span>
+          )}
+        </div>
+        <Button
+          type="submit"
+          size="icon"
+          className="size-9 sm:size-10 shrink-0 mb-0.5 rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 transition-colors cursor-pointer"
+          disabled={!noiDung.trim() || dangGui}
+          aria-label="Gửi tin nhắn"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {dangGui ? <Loader2 className="animate-spin" /> : <SendHorizontal className="size-4 sm:size-5" />}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 export function CampusChatDrawer({
   messages,
   myPermissions,
@@ -189,15 +317,12 @@ export function CampusChatDrawer({
   roomId,
 }: CampusChatDrawerProps) {
   const { nguoiDung } = usePhien()
-  const [noiDung, setNoiDung] = useState('')
-  const [dangGui, setDangGui] = useState(false)
   const [idDangXoa, setIdDangXoa] = useState<number | null>(null)
   const [tinCanXoa, setTinCanXoa] = useState<TinCampus | null>(null)
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
   const [bayGio, setBayGio] = useState(() => Date.now())
   const khungRef = useRef<HTMLDivElement | null>(null)
   const daCuonLanDau = useRef(false)
-  const inputRef = useRef<HTMLInputElement | null>(null)
   const oDayRef = useRef(true)
   const [oDay, setODay] = useState(true)
 
@@ -242,8 +367,6 @@ export function CampusChatDrawer({
     }
     return loadSavedCampusReactionCounts()
   })
-  const [moPickerEmoji, setMoPickerEmoji] = useState(false)
-
   // Cập nhật reactions khi đổi room
   useEffect(() => {
     try {
@@ -547,7 +670,7 @@ export function CampusChatDrawer({
     requestAnimationFrame(() => {
       const khung = khungRef.current
       if (khung && (oDayRef.current || msgId === idTinCuoi)) {
-        khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+        khung.scrollTop = khung.scrollHeight
       }
     })
   }
@@ -687,7 +810,7 @@ export function CampusChatDrawer({
     requestAnimationFrame(() => {
       const khung = khungRef.current
       if (khung && (oDayRef.current || msgId === idTinCuoi)) {
-        khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+        khung.scrollTop = khung.scrollHeight
       }
     })
   }
@@ -844,7 +967,7 @@ export function CampusChatDrawer({
       if (newHeight !== prevHeight) {
         prevHeight = newHeight
         if (oDayRef.current) {
-          khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+          khung.scrollTop = khung.scrollHeight
         }
       }
     })
@@ -854,8 +977,8 @@ export function CampusChatDrawer({
   }, [])
 
   // Chỉ cuộn bên trong khung tin (không đụng tới cuộn trang). Lần đầu nhảy thẳng xuống cuối; về sau chỉ bám theo
-  // tin mới hoặc khi reactions thay đổi khi người dùng đang ở cuối hoặc vừa tự gửi — đang đọc tin cũ thì không kéo họ đi.
-  useLayoutEffect(() => {
+  // tin mới nếu người dùng đang ở cuối hoặc vừa tự gửi — đang đọc tin cũ thì không kéo họ đi.
+  useEffect(() => {
     const khung = khungRef.current
     if (!khung || idTinCuoi === null) return
     if (!daCuonLanDau.current) {
@@ -864,9 +987,9 @@ export function CampusChatDrawer({
       return
     }
     if (oDayRef.current || tinCuoiCuaMinh) {
-      khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+      khung.scrollTop = khung.scrollHeight
     }
-  }, [idTinCuoi, tinCuoiCuaMinh, reactions, reactionCounts])
+  }, [idTinCuoi, tinCuoiCuaMinh])
 
   const xuLyCuon = () => {
     const khung = khungRef.current
@@ -880,24 +1003,6 @@ export function CampusChatDrawer({
   const cuonXuongCuoi = () => {
     const khung = khungRef.current
     if (khung) khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
-  }
-
-  const xuLyGui = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    const text = noiDung.trim()
-    if (!text || dangGui) return
-
-    // Ô nhập không bị khoá khi đang gửi để giữ nguyên con trỏ; chỉ xoá nếu nội dung vẫn là tin vừa gửi.
-    setDangGui(true)
-    const kq = await onSendMessage(text)
-    setDangGui(false)
-
-    if (kq.ok) {
-      setNoiDung((hienTai) => (hienTai.trim() === text ? '' : hienTai))
-
-    } else {
-      toast.error(kq.loi || 'Không gửi được tin nhắn')
-    }
   }
 
   const xacNhanXoa = async () => {
@@ -915,7 +1020,6 @@ export function CampusChatDrawer({
     }
   }
 
-  const conLai = CHAT_CAMPUS.TOI_DA_KY_TU - noiDung.length
   const xoaHoTinNguoiKhac = tinCanXoa !== null && tinCanXoa.accountId !== myPermissions?.accountId
   const hienThiMessages = hopLeMessages.filter((m: TinCampus) => !hiddenMsgIds.has(m.id))
 
@@ -934,8 +1038,8 @@ export function CampusChatDrawer({
           onScroll={xuLyCuon}
           role="log"
           aria-label="Tin nhắn toàn trường"
-          className="h-full overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3 styled-scrollbar"
-          style={{ overflowAnchor: 'none' }}
+          className="h-full overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-2 sm:px-4 sm:py-3 styled-scrollbar touch-pan-y"
+          style={{ overflowAnchor: 'none', WebkitOverflowScrolling: 'touch' }}
         >
           {hienThiMessages.length === 0 ? (
             <div className="flex min-h-full flex-col items-center justify-center py-10 text-center">
@@ -1268,96 +1372,11 @@ export function CampusChatDrawer({
         )}
       </div>
 
-      {!hideInput && (
-        <form
-          onSubmit={xuLyGui}
-          className="shrink-0 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-        >
-          <div className="flex items-end gap-2">
-            {/* Nút chèn biểu cảm Emoji */}
-            <Popover open={moPickerEmoji} onOpenChange={setMoPickerEmoji}>
-              <PopoverTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-10 shrink-0 mb-0.5 text-text-tertiary hover:text-text-primary hover:bg-surface-overlay cursor-pointer"
-                    title="Chèn biểu cảm emoji"
-                    aria-label="Chèn biểu cảm emoji"
-                    data-testid="chat-emoji-trigger"
-                  >
-                    <Smile className="size-5" />
-                  </Button>
-                }
-              />
-              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0c1322] border-border-default shadow-2xl rounded-xl z-[150]">
-                <div className="grid grid-cols-6 gap-1">
-                  {DANH_SACH_EMOJI.map((em) => (
-                    <button
-                      key={em}
-                      type="button"
-                      onClick={() => {
-                        setNoiDung((prev) => (prev + em).slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))
-                        setMoPickerEmoji(false)
-                        inputRef.current?.focus()
-                      }}
-                      className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-surface-overlay transition-colors active:scale-95 cursor-pointer"
-                    >
-                      {em}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <div className="relative min-w-0 flex-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={noiDung}
-                onChange={(e) => setNoiDung(e.target.value.slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))}
-                placeholder={placeholder}
-                aria-label="Nội dung tin nhắn"
-                maxLength={CHAT_CAMPUS.TOI_DA_KY_TU}
-                autoComplete="off"
-                className={cn(
-                  'h-10 w-full rounded-xl border border-border-subtle bg-surface-raised px-3.5 text-sm leading-normal text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-none transition-colors',
-                  conLai <= 50 && 'pr-12',
-                )}
-                onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing) return
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    xuLyGui()
-                  }
-                }}
-              />
-              {conLai <= 50 && (
-                <span
-                  aria-live="polite"
-                  className={cn(
-                    'pointer-events-none absolute bottom-2.5 right-3 text-[11px] tabular-nums',
-                    conLai <= 10 ? 'text-warning' : 'text-text-tertiary',
-                  )}
-                >
-                  {conLai}
-                </span>
-              )}
-            </div>
-            <Button
-              type="submit"
-              size="icon"
-              className="size-10 shrink-0 mb-0.5 rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 transition-colors cursor-pointer"
-              disabled={!noiDung.trim() || dangGui}
-              aria-label="Gửi tin nhắn"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              {dangGui ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
-            </Button>
-          </div>
-        </form>
-      )}
+      <CampusChatInputBar
+        onSendMessage={onSendMessage}
+        placeholder={placeholder}
+        hideInput={hideInput}
+      />
 
       <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
 

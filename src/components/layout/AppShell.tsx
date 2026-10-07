@@ -310,6 +310,7 @@ export function AppShell({ children }: AppShellProps) {
           data-testid="floating-chat-button"
           className={cn(
             'fixed z-[80] flex items-center justify-center rounded-full text-white cursor-pointer transition-colors duration-150',
+            isChatOpen && 'max-sm:hidden',
             isActivityRoom
               ? 'bottom-2.5 right-2.5 sm:bottom-5 sm:right-5'
               : 'bottom-20 right-4 sm:bottom-6 sm:right-6',

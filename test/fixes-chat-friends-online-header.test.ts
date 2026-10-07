@@ -28,22 +28,23 @@ describe('Kiểm tra Vùng 1 & Vùng 2 khung Trò chuyện (CampusChatSheet)', (
     })
   })
 
-  describe('Vùng 2: Text "Học tập" sáng rõ hơn dòng thông tin phòng bên dưới nó', () => {
-    it('Dòng tiêu đề "Học tập" được hiển thị sáng rõ, nổi bật với text-sm font-bold text-text-primary', () => {
-      expect(campusChatSheetRaw).toContain('<h2 className="text-sm font-bold text-text-primary block truncate">')
-      expect(campusChatSheetRaw).toContain("{activeConversation.roomType === 'game' ? 'Game' : 'Học tập'}")
+  describe('Vùng 2: Thanh Tab phân tách rõ ràng Bạn bè, Toàn trường và Phòng', () => {
+    it('Tab Phòng hiển thị Gamepad2 khi trong phòng game và GraduationCap khi trong phòng học', () => {
+      expect(campusChatSheetRaw).toContain("inRoomInfo?.type === 'game'")
+      expect(campusChatSheetRaw).toContain('<Gamepad2')
+      expect(campusChatSheetRaw).toContain('<GraduationCap')
     })
 
-    it('Dòng phía dưới "Phòng #id · tiêu đề" có cỡ chữ nhỏ hơn và màu nhạt hơn (text-xs text-text-secondary)', () => {
-      expect(campusChatSheetRaw).toContain('<p className="text-xs font-normal text-text-secondary flex items-center gap-1.5 truncate mt-0.5">')
-      expect(campusChatSheetRaw).toContain('<span>Phòng #{activeConversation.id}</span>')
+    it('Tab Trường và Bạn bè hiển thị icon tương ứng với chỉ báo rõ nét', () => {
+      expect(campusChatSheetRaw).toContain('<Users className="size-3.5 shrink-0"')
+      expect(campusChatSheetRaw).toContain('<School className="size-3.5 shrink-0"')
     })
   })
 
-  describe('Vùng 3: Icon Trò chuyện tăng bề ngang hơn, to hơn', () => {
-    it('Icon MessageSquare ở header có kích thước rộng hơn (w-6), cao hơn (h-5) và preserveAspectRatio="none"', () => {
-      expect(campusChatSheetRaw).toContain('preserveAspectRatio="none"')
-      expect(campusChatSheetRaw).toContain('w-6 h-5 text-brand shrink-0')
+  describe('Vùng 3: Khung chat nổi mobile được tối ưu không gian và mượt mà', () => {
+    it('Sử dụng kích thước tối ưu trên mobile với safe area', () => {
+      expect(campusChatSheetRaw).toContain('max-h-[calc(100dvh-20px)]')
+      expect(campusChatSheetRaw).toContain('bottom-[max(0.625rem,env(safe-area-inset-bottom))]')
     })
   })
 })
