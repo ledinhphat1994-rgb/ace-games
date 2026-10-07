@@ -182,21 +182,23 @@ export function AppShell({ children }: AppShellProps) {
       {/* Nền mờ họa tiết vi mạch Blueprint toàn diện cho toàn trang web */}
       <BlueprintGlobalBackground />
 
-      {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất) */}
+      {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất, ẩn trên mobile landscape khi vào phòng để tối ưu tối đa không gian) */}
       {!isFullscreen && (
-        <AppHeader
-          nguoiDung={nguoiDung}
-          trangThai={trangThai}
-          onlineCount={onlineCount}
-          latencyMs={latencyMs}
-          coTinNhanMoi={coTinNhanMoi}
-          onDoDoTre={doDoTre}
-          onKetNoiLai={ketNoiLai}
-          onDangXuat={() => void dangXuat()}
-          onToggleChat={() => datMoChat(!isChatOpen)}
-          onLamMoiPhien={lamMoiPhien}
-          onMoAuthModal={moAuthModal}
-        />
+        <div className={cn('sticky top-0 z-50 w-full', isActivityRoom && 'max-sm:landscape:hidden')}>
+          <AppHeader
+            nguoiDung={nguoiDung}
+            trangThai={trangThai}
+            onlineCount={onlineCount}
+            latencyMs={latencyMs}
+            coTinNhanMoi={coTinNhanMoi}
+            onDoDoTre={doDoTre}
+            onKetNoiLai={ketNoiLai}
+            onDangXuat={() => void dangXuat()}
+            onToggleChat={() => datMoChat(!isChatOpen)}
+            onLamMoiPhien={lamMoiPhien}
+            onMoAuthModal={moAuthModal}
+          />
+        </div>
       )}
 
       {/* Main Content Layout with Desktop Left Sidebar (Under Header) */}
@@ -219,7 +221,7 @@ export function AppShell({ children }: AppShellProps) {
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
               : isGameRoom
-                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-1 sm:pt-2 pb-1 sm:pb-4 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] overflow-hidden'
+                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-1 sm:pt-2 pb-1 sm:pb-4 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] max-sm:landscape:h-[100dvh] max-sm:landscape:max-h-[100dvh] max-sm:landscape:p-0 overflow-hidden'
                 : isWidePage
                   ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
                   : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'

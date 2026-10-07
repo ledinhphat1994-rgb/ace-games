@@ -1,8 +1,8 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bot, Check, Crown, Lock, Play, RotateCcw, Swords, Trophy, Users, X } from 'lucide-react'
+import { Bot, Check, ChevronDown, ChevronUp, Crown, Lock, Play, RotateCcw, Swords, Trophy, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SnakeTouchControls } from './SnakeTouchControls'
+import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 
 const ARENA_SIZE = 2400
 const INITIAL_SEGMENT_COUNT = 18
@@ -48,6 +48,7 @@ interface Worm {
   isAlive: boolean
   aiTarget?: { x: number; y: number }
   aiDecisionTimer: number
+  invulnerableTimer?: number
 }
 
 interface CrumbParticle {
@@ -262,6 +263,7 @@ export function Wormate3DArena({
   const [muted] = useState(false)
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([])
   const [playerRank, setPlayerRank] = useState(1)
+  const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(false)
   const [player2Score, setPlayer2Score] = useState(0)
   const [playerStats, setPlayerStats] = useState({ score: 0, length: INITIAL_SEGMENT_COUNT })
   const [roundResult, setRoundResult] = useState<{ restartKey: number; winner: boolean; reason: string } | null>(null)
@@ -416,6 +418,7 @@ export function Wormate3DArena({
       isBoosting: false,
       isAlive: true,
       aiDecisionTimer: 0,
+      invulnerableTimer: 2.0,
     }
 
     let player2Worm: Worm | null = null
@@ -445,6 +448,7 @@ export function Wormate3DArena({
         isBoosting: false,
         isAlive: true,
         aiDecisionTimer: 0,
+        invulnerableTimer: 2.0,
       }
     }
 
@@ -454,25 +458,27 @@ export function Wormate3DArena({
 
     for (let idx = 0; idx < countToSpawn; idx++) {
       const palette = COLOR_PALETTES[(idx + 2) % COLOR_PALETTES.length]
-      const angle = (idx * Math.PI * 2) / Math.max(1, countToSpawn)
-      const dist = 380 + Math.random() * 550
-      const ax = startX + Math.cos(angle) * dist
-      const ay = startY + Math.sin(angle) * dist
+      // Lệch góc để không bot nào sinh ra ngay trên trục x=0 (hướng bơi thẳng của người chơi)
+      const spawnAngle = ((idx + 0.6) * Math.PI * 2) / Math.max(1, countToSpawn)
+      const dist = 650 + Math.random() * 450
+      const ax = startX + Math.cos(spawnAngle) * dist
+      const ay = startY + Math.sin(spawnAngle) * dist
 
+      // Hướng bơi ban đầu của bot vuông góc với tâm để bơi vòng quanh
+      const botInitialAngle = spawnAngle + Math.PI * 0.5 + (Math.random() - 0.5) * 0.4
       const aHistory: { x: number; y: number }[] = []
       const segCount = INITIAL_SEGMENT_COUNT + Math.floor(Math.random() * 8)
       for (let s = 0; s < segCount * SEGMENT_SPACING; s++) {
-        aHistory.push({ x: ax - Math.cos(angle) * s, y: ay - Math.sin(angle) * s })
+        aHistory.push({ x: ax - Math.cos(botInitialAngle) * s, y: ay - Math.sin(botInitialAngle) * s })
       }
-
       aiWorms.push({
         id: `ai_${idx}`,
         name: AI_NAMES[idx % AI_NAMES.length],
         isPlayer: false,
         x: ax,
         y: ay,
-        angle: angle + Math.PI,
-        targetAngle: angle + Math.PI,
+        angle: botInitialAngle,
+        targetAngle: botInitialAngle,
         speed: BASE_SPEED * (0.92 + (difficulty === 'hard' ? 0.08 : 0)),
         radius: MIN_RADIUS,
         length: segCount,
@@ -568,6 +574,10 @@ export function Wormate3DArena({
 
       // ── 1. LOGIC CẬP NHẬT TRẠNG THÁI ──
       if (isRunning && !isGameOver && player.isAlive) {
+        if (player.invulnerableTimer && player.invulnerableTimer > 0) {
+          player.invulnerableTimer = Math.max(0, player.invulnerableTimer - dt)
+        }
+
         // Tốc độ tăng tốc khi giữ chuột / phím Space
         const isBoosting = eng.keys.boost
         player.isBoosting = isBoosting && player.score > 5
@@ -732,8 +742,9 @@ export function Wormate3DArena({
             }
           }
 
-          // Kiểm tra va chạm đầu người chơi với thân AI -> Người chơi chết!
-          if (player.isAlive && ai.isAlive) {
+          // Kiểm tra va chạm đầu người chơi với thân AI -> Người chơi chết! (Bảo vệ bất tử khi vừa xuất hiện)
+          const isPlayerProtected = Boolean(player.invulnerableTimer && player.invulnerableTimer > 0)
+          if (player.isAlive && ai.isAlive && !isPlayerProtected) {
             for (let sIdx = 4; sIdx < ai.history.length; sIdx += 3) {
               const seg = ai.history[sIdx]
               if (Math.hypot(player.x - seg.x, player.y - seg.y) < player.radius + ai.radius * 0.75) {
@@ -857,11 +868,11 @@ export function Wormate3DArena({
           }
         }
 
-        // Cập nhật Bảng Xếp Hạng thời gian thực cho Vùng 3
+        // Cập nhật Bảng Xếp Hạng thời gian thực cho Vùng 3 (Throttle 400ms để giữ 60fps mượt mà trên mobile)
         const allWorms = [player, ...(eng.player2 ? [eng.player2] : []), ...eng.aiWorms]
         const sorted = [...allWorms].sort((a, b) => b.score - a.score)
         const pRank = sorted.findIndex((w) => w.id === player.id) + 1
-        if (currentTime - lastHudUpdate >= 120) {
+        if (currentTime - lastHudUpdate >= 400) {
           lastHudUpdate = currentTime
           setPlayerStats({ score: Math.floor(player.score), length: player.length })
           setPlayerRank(pRank)
@@ -915,6 +926,16 @@ export function Wormate3DArena({
       ctx.scale(zoom, zoom)
       ctx.translate(-eng.camX, -eng.camY)
 
+      // Vùng nhìn Viewport camera để CULLING (loại bỏ vật thể ngoài màn hình giúp mobile nhẹ mượt)
+      const halfViewW = (w / 2) / zoom + 80
+      const halfViewH = (h / 2) / zoom + 80
+      const viewBounds = {
+        minX: eng.camX - halfViewW,
+        maxX: eng.camX + halfViewW,
+        minY: eng.camY - halfViewH,
+        maxY: eng.camY + halfViewH,
+      }
+
       // Nền đấu trường Cyber Grid ngọt ngào
       ctx.fillStyle = '#080d1a'
       ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE)
@@ -939,23 +960,29 @@ export function Wormate3DArena({
       }
       ctx.stroke()
 
-      // Hàng rào neon bảo vệ đấu trường
-      ctx.lineWidth = 12
-      ctx.strokeStyle = '#ef4444'
-      ctx.shadowColor = '#ef4444'
-      ctx.shadowBlur = 18
+      // Hàng rào neon bảo vệ đấu trường (Vẽ 2 lớp stroke thay cho shadowBlur để đạt 60fps trên mobile)
+      ctx.lineWidth = 16
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.25)'
       ctx.strokeRect(0, 0, ARENA_SIZE, ARENA_SIZE)
-      ctx.shadowColor = 'transparent'
+      ctx.lineWidth = 6
+      ctx.strokeStyle = '#ef4444'
+      ctx.strokeRect(0, 0, ARENA_SIZE, ARENA_SIZE)
 
-      // Vẽ các món bánh kẹo & đồ ngọt (Pastries)
+      // Vẽ các món bánh kẹo & đồ ngọt (Pastries) kèm Viewport Culling
       for (const f of eng.foods) {
         f.rotation += f.rotSpeed
         f.pulse += 0.05
+        if (f.x < viewBounds.minX || f.x > viewBounds.maxX || f.y < viewBounds.minY || f.y > viewBounds.maxY) {
+          continue
+        }
         drawPastryItem(ctx, f)
       }
 
-      // Vẽ các hạt bụi bánh ngọt
+      // Vẽ các hạt bụi bánh ngọt kèm Viewport Culling
       for (const cr of eng.crumbs) {
+        if (cr.x < viewBounds.minX || cr.x > viewBounds.maxX || cr.y < viewBounds.minY || cr.y > viewBounds.maxY) {
+          continue
+        }
         ctx.beginPath()
         ctx.arc(cr.x, cr.y, cr.r, 0, Math.PI * 2)
         ctx.fillStyle = cr.color
@@ -969,14 +996,14 @@ export function Wormate3DArena({
       allLivingWorms.sort((a, b) => b.score - a.score)
       const topWormId = allLivingWorms[0]?.id
 
-      // Vẽ AI Worms
+      // Vẽ AI Worms kèm Viewport Culling
       eng.aiWorms.forEach((ai) => {
-        if (ai.isAlive) draw3DWorm(ctx, ai, ai.id === topWormId)
+        if (ai.isAlive) draw3DWorm(ctx, ai, ai.id === topWormId, viewBounds)
       })
 
       // Vẽ Người chơi 1 (Sâu 3D)
       if (player.isAlive) {
-        draw3DWorm(ctx, player, player.id === topWormId)
+        draw3DWorm(ctx, player, player.id === topWormId, viewBounds)
 
         // Vẽ biểu cảm nổi trên đầu Người chơi 1 nếu có
         if (callbacks.current.playerEmote) {
@@ -998,7 +1025,7 @@ export function Wormate3DArena({
 
       // Vẽ Người chơi 2 (Chế độ PvP)
       if (eng.player2 && eng.player2.isAlive) {
-        draw3DWorm(ctx, eng.player2, eng.player2.id === topWormId)
+        draw3DWorm(ctx, eng.player2, eng.player2.id === topWormId, viewBounds)
       }
 
       ctx.restore()
@@ -1114,7 +1141,7 @@ export function Wormate3DArena({
         'snake-arena relative flex flex-col items-center justify-center w-full rounded-xl bg-slate-950 overflow-hidden select-none',
         isFullscreen
           ? 'h-full flex-1 min-h-0 rounded-none'
-          : 'h-[clamp(280px,calc(100dvh-16rem),640px)]'
+          : 'h-[clamp(280px,calc(100dvh-16rem),640px)] landscape:h-[clamp(260px,calc(100dvh-4.5rem),620px)]',
       )}
     >
       {/* Canvas Game 3D theo kích thước vùng chứa */}
@@ -1131,60 +1158,92 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI HIỆN TẠI (Làm mờ, không cản trở góc nhìn game) */}
-      <div className="absolute top-3.5 left-3.5 z-10 select-none pointer-events-none w-[min(65%,15rem)] p-1.5 sm:p-2.5 rounded-2xl bg-slate-950/45 backdrop-blur-md border border-white/10 shadow-xl text-xs transition-opacity duration-300">
-        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
-          <div className="flex items-center gap-1.5 font-black text-[11px] text-amber-300 uppercase tracking-wider">
-            <Trophy className="size-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Bảng Xếp Hạng</span><span className="sm:hidden">Top</span>
-          </div>
-          <span className="text-[9px] font-mono font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded-full">
-            {leaderboard.length} sâu
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-1 max-h-48 overflow-hidden">
-          {leaderboard.slice(0, 6).map((entry, index) => {
-            const isTop1 = index === 0
-            return (
-              <div
-                key={entry.id}
-                className={cn(
-                  'flex items-center justify-between px-2 py-1 rounded-lg text-[11px] transition-colors',
-                  entry.isPlayer
-                    ? 'bg-brand/20 border border-brand/35 text-brand font-bold shadow-sm'
-                    : 'text-slate-300 font-medium',
-                  !entry.isAlive && 'opacity-40 line-through',
-                )}
-              >
-                <div className="flex items-center gap-1.5 truncate max-w-[130px]">
-                  <span className={cn('font-mono font-black text-[10px] w-4', isTop1 ? 'text-amber-400' : 'text-slate-400')}>
-                    {isTop1 ? '👑' : `#${index + 1}`}
-                  </span>
-                  <span className="truncate">{entry.name}</span>
-                </div>
-                <span className={cn('font-mono font-bold text-[10px] tabular-nums', entry.isPlayer ? 'text-brand' : 'text-slate-300')}>
-                  {entry.score}đ
-                </span>
+      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI HIỆN TẠI (Làm mờ siêu thực, không cản trở góc nhìn game) */}
+      <div
+        className={cn(
+          'absolute top-3.5 left-3.5 z-10 select-none text-xs transition-opacity duration-200',
+          isRunning && !isGameOver
+            ? 'opacity-20 hover:opacity-95 active:opacity-95'
+            : 'opacity-90',
+        )}
+      >
+        {isLeaderboardCollapsed ? (
+          <button
+            type="button"
+            onClick={() => setIsLeaderboardCollapsed(false)}
+            title="Mở bảng xếp hạng"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/40 border border-white/10 text-amber-300 font-bold text-[10px] shadow-sm cursor-pointer hover:bg-slate-900/80 transition-colors pointer-events-auto"
+          >
+            <Trophy className="size-3 text-amber-400" />
+            <span>#{playerRank} {playerStats.score}đ</span>
+            <ChevronDown className="size-3 text-slate-400" />
+          </button>
+        ) : (
+          <div className="w-[min(60%,13rem)] p-1.5 sm:p-2 rounded-xl bg-slate-950/25 border border-white/5 shadow-none pointer-events-none">
+            <div className="flex items-center justify-between pb-1 mb-1 border-b border-white/10">
+              <div className="flex items-center gap-1 font-black text-[10px] text-amber-300/80 uppercase tracking-wider">
+                <Trophy className="size-3 text-amber-400/80" />
+                <span>Top</span>
               </div>
-            )
-          })}
-        </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-mono text-slate-400/70 bg-white/5 px-1 py-0.2 rounded-full">
+                  {leaderboard.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsLeaderboardCollapsed(true)}
+                  title="Thu gọn"
+                  className="p-0.5 text-slate-400 hover:text-white cursor-pointer pointer-events-auto rounded transition-colors"
+                >
+                  <ChevronUp className="size-3" />
+                </button>
+              </div>
+            </div>
 
-        {/* Vị trí của bạn nếu không nằm trong top 6 */}
-        {playerRank > 6 && (
-          <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-2 py-0.5 rounded-lg bg-brand/15 text-brand text-[10px] font-bold">
-            <span>#{playerRank} Bạn (Sâu 3D)</span>
-            <span className="font-mono">{playerStats.score}đ</span>
+            <div className="flex flex-col gap-0.5 max-h-36 overflow-hidden">
+              {leaderboard.slice(0, 4).map((entry, index) => {
+                const isTop1 = index === 0
+                return (
+                  <div
+                    key={entry.id}
+                    className={cn(
+                      'flex items-center justify-between px-1.5 py-0.5 rounded text-[10px] transition-colors',
+                      entry.isPlayer
+                        ? 'text-brand font-bold bg-brand/10'
+                        : 'text-slate-300/80 font-medium',
+                      !entry.isAlive && 'opacity-35 line-through',
+                    )}
+                  >
+                    <div className="flex items-center gap-1 truncate max-w-[100px]">
+                      <span className={cn('font-mono font-black text-[9px] w-3.5', isTop1 ? 'text-amber-400' : 'text-slate-400/60')}>
+                        {isTop1 ? '👑' : `#${index + 1}`}
+                      </span>
+                      <span className="truncate">{entry.name}</span>
+                    </div>
+                    <span className={cn('font-mono font-bold text-[9px] tabular-nums', entry.isPlayer ? 'text-brand' : 'text-slate-300/80')}>
+                      {entry.score}đ
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Vị trí của bạn nếu không nằm trong top 4 */}
+            {playerRank > 4 && (
+              <div className="mt-0.5 pt-0.5 border-t border-white/5 flex items-center justify-between px-1.5 py-0.5 rounded text-brand text-[9px] font-bold bg-brand/10">
+                <span className="truncate max-w-[90px]">#{playerRank} Bạn</span>
+                <span className="font-mono tabular-nums">{playerStats.score}đ</span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* HUD thông số người chơi ở góc dưới bên trái */}
+      {/* HUD thông số người chơi ở đỉnh trung tâm (Thoáng đãng, không che khuất ngón tay và joystick) */}
       {isRunning && !isGameOver && (
-        <div className="snake-hud absolute bottom-3.5 left-3.5 z-10 flex items-center pointer-coarse:bottom-40 gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/10 text-xs shadow-md select-none pointer-events-none">
+        <div className="snake-hud absolute top-3.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/40 border border-white/10 text-xs shadow-none select-none pointer-events-none transition-opacity">
           <div className="flex items-center gap-1.5 text-brand font-bold">
-            <span className="size-2 rounded-full bg-brand" />
+            <span className="size-2 rounded-full bg-brand animate-pulse" />
             <span className="font-mono text-xs">{mode === 'pass_and_play' ? 'P1' : 'Bạn'}: {playerStats.score}đ</span>
           </div>
           {mode === 'pass_and_play' && (
@@ -1199,16 +1258,65 @@ export function Wormate3DArena({
           <div className="h-3 w-px bg-white/15 hidden sm:block" />
           <div className="text-[10px] text-slate-400 hidden sm:block">
             {mode === 'pass_and_play'
-              ? 'P1: Chuột + Space | P2: Phím WASD + Shift'
-              : 'Giữ Chuột hoặc phím Space để Tăng Tốc'}
+              ? 'P1: Chuột + Space | P2: WASD + Shift'
+              : 'Giữ Chuột hoặc Space để Tăng Tốc'}
           </div>
         </div>
       )}
 
+      {/* Nút điều khiển cảm ứng Mobile: Tối ưu 2 tay cho cả màn hình Dọc và Ngang */}
       {isRunning && !isGameOver && (
-        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 hidden justify-between gap-2 pointer-coarse:flex">
-          <div className="pointer-events-auto"><SnakeTouchControls player={1} onSteer={angle => { engineRef.current.player.targetAngle = angle }} onBoost={boost => { engineRef.current.keys.boost = boost }} /></div>
-          {mode === 'pass_and_play' && <div className="pointer-events-auto"><SnakeTouchControls player={2} onSteer={angle => { if (engineRef.current.player2) engineRef.current.player2.targetAngle = angle }} onBoost={boost => { engineRef.current.keys.p2Boost = boost }} /></div>}
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 hidden justify-between items-end gap-2 pointer-coarse:flex">
+          {mode === 'ai' ? (
+            <>
+              {/* Tay TRÁI: Joystick lái rắn mượt mà 120Hz */}
+              <div className="pointer-events-auto">
+                <SnakeJoystick
+                  player={1}
+                  onSteer={(angle) => {
+                    engineRef.current.player.targetAngle = angle
+                  }}
+                />
+              </div>
+
+              {/* Tay PHẢI: Nút Tăng Tốc Tia Sét to rõ, dễ bấm */}
+              <div className="pointer-events-auto">
+                <SnakeBoostButton
+                  player={1}
+                  size="large"
+                  onBoost={(boost) => {
+                    engineRef.current.keys.boost = boost
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Chế độ đối kháng 2 người trên 1 thiết bị */}
+              <div className="pointer-events-auto">
+                <SnakeTouchControls
+                  player={1}
+                  onSteer={(angle) => {
+                    engineRef.current.player.targetAngle = angle
+                  }}
+                  onBoost={(boost) => {
+                    engineRef.current.keys.boost = boost
+                  }}
+                />
+              </div>
+              <div className="pointer-events-auto">
+                <SnakeTouchControls
+                  player={2}
+                  onSteer={(angle) => {
+                    if (engineRef.current.player2) engineRef.current.player2.targetAngle = angle
+                  }}
+                  onBoost={(boost) => {
+                    engineRef.current.keys.p2Boost = boost
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1647,9 +1755,28 @@ export function Wormate3DArena({
 }
 
 // ── HÀM VẼ ĐỒ HOẠ SÂU 3D WORMATE.IO ──
-function draw3DWorm(ctx: CanvasRenderingContext2D, worm: Worm, isLeader: boolean = false) {
+function draw3DWorm(
+  ctx: CanvasRenderingContext2D,
+  worm: Worm,
+  isLeader: boolean = false,
+  viewBounds?: { minX: number; maxX: number; minY: number; maxY: number }
+) {
   const history = worm.history
   if (history.length < 2) return
+
+  // 1. Whole-worm Viewport Culling:
+  // Nếu cả con sâu nằm hoàn toàn ngoài tầm nhìn camera thì bỏ qua toàn bộ!
+  if (viewBounds) {
+    const margin = worm.radius * 2 + worm.length * SEGMENT_SPACING
+    if (
+      worm.x < viewBounds.minX - margin ||
+      worm.x > viewBounds.maxX + margin ||
+      worm.y < viewBounds.minY - margin ||
+      worm.y > viewBounds.maxY + margin
+    ) {
+      return
+    }
+  }
 
   // Vẽ các đốt thân từ đuôi lên đầu (đầu sẽ đè lên thân)
   const totalSegments = worm.length
@@ -1657,6 +1784,20 @@ function draw3DWorm(ctx: CanvasRenderingContext2D, worm: Worm, isLeader: boolean
     const histIdx = Math.min(history.length - 1, i * SEGMENT_SPACING)
     const seg = history[histIdx]
     if (!seg) continue
+
+    // 2. Per-segment Viewport Culling:
+    // Đốt thân nào nằm ngoài màn hình camera thì bỏ qua không vẽ gradient!
+    if (viewBounds) {
+      const segMargin = worm.radius * 2
+      if (
+        seg.x < viewBounds.minX - segMargin ||
+        seg.x > viewBounds.maxX + segMargin ||
+        seg.y < viewBounds.minY - segMargin ||
+        seg.y > viewBounds.maxY + segMargin
+      ) {
+        continue
+      }
+    }
 
     const isHead = i === 0
     const segRadius = isHead ? worm.radius * 1.08 : worm.radius * (0.8 + 0.2 * (1 - i / totalSegments))
@@ -2008,13 +2149,15 @@ function drawMinimap(
     }
   })
 
-  // Vị trí người chơi
+  // Vị trí người chơi (Vẽ 2 vòng để tạo hiệu ứng phát sáng nhẹ mà không dùng shadowBlur)
   if (eng.player.isAlive) {
     ctx.beginPath()
-    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, 3, 0, Math.PI * 2)
+    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, 4.5, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = '#38bdf8'
-    ctx.shadowColor = '#38bdf8'
-    ctx.shadowBlur = 4
     ctx.fill()
   }
 
