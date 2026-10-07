@@ -267,8 +267,8 @@ export function AppShell({ children }: AppShellProps) {
       {/* 3. Mobile Bottom Navigation (Ẩn khi đang trong phòng chơi game hoặc phòng học để tối đa hoá không gian) */}
       {!isFullscreen && !isActivityRoom && <MobileNav />}
 
-      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng (Ẩn trong phòng thi đấu) */}
-      {!isFullscreen && !isActivityRoom && (
+      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng (Nhỏ gọn & mờ tinh tế khi vào phòng hoạt động) */}
+      {!isFullscreen && (
         <button
           type="button"
           onClick={() => datMoChat(!isChatOpen)}
@@ -276,23 +276,40 @@ export function AppShell({ children }: AppShellProps) {
           title={isChatOpen ? 'Đóng trò chuyện' : 'Trò chuyện toàn trường'}
           data-testid="floating-chat-button"
           className={cn(
-            'fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[80] flex items-center justify-center rounded-full text-white cursor-pointer border border-sky-300/30 transition-all duration-300',
+            'fixed z-[80] flex items-center justify-center rounded-full text-white cursor-pointer transition-colors duration-150',
+            isActivityRoom
+              ? 'bottom-2.5 right-2.5 sm:bottom-5 sm:right-5'
+              : 'bottom-20 right-4 sm:bottom-6 sm:right-6',
             isChatOpen
-              ? 'size-12 bg-gradient-to-r from-sky-500 to-blue-600 opacity-100 scale-100 shadow-[0_4px_20px_rgba(56,189,248,0.5)]'
+              ? cn(
+                  isActivityRoom ? 'size-10 sm:size-11' : 'size-12',
+                  'bg-gradient-to-r from-sky-500 to-blue-600 border border-sky-300/40 opacity-100 shadow-[0_4px_20px_rgba(56,189,248,0.5)]',
+                )
               : cn(
-                  'size-9.5 sm:size-10 bg-sky-600/75 shadow-md',
-                  coTinNhanMoi ? 'opacity-85' : 'opacity-40',
-                  'hover:opacity-100 hover:size-12 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:scale-105 hover:shadow-[0_4px_20px_rgba(56,189,248,0.45)]',
-                  'focus-visible:opacity-100 focus-visible:size-12 focus-visible:ring-2 focus-visible:ring-sky-400',
+                  isActivityRoom
+                    ? 'size-8 sm:size-9 bg-sky-950/70 border border-sky-400/25 shadow-sm backdrop-blur-xs opacity-35 hover:opacity-100 hover:bg-sky-600/80 hover:border-sky-300/50'
+                    : 'size-9.5 sm:size-10 bg-sky-600/75 border border-sky-300/30 shadow-md',
+                  !isActivityRoom && (coTinNhanMoi ? 'opacity-85' : 'opacity-40'),
+                  !isActivityRoom && 'hover:opacity-100 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:shadow-[0_4px_20px_rgba(56,189,248,0.45)]',
+                  'focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-sky-400',
                   'active:scale-95',
                 ),
           )}
         >
-          <MessageSquare className={cn('text-white transition-all', isChatOpen ? 'size-5.5' : 'size-4.5 sm:size-5')} />
+          <MessageSquare
+            className={cn(
+              'text-white transition-transform',
+              isChatOpen
+                ? 'size-5'
+                : isActivityRoom
+                  ? 'size-3.5 sm:size-4'
+                  : 'size-4.5 sm:size-5',
+            )}
+          />
           {coTinNhanMoi && !isChatOpen && (
-            <span className="absolute -top-1 -right-1 flex size-3">
+            <span className="absolute -top-1 -right-1 flex size-2.5 sm:size-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-              <span className="relative inline-flex rounded-full size-3 bg-destructive border-2 border-canvas" />
+              <span className="relative inline-flex rounded-full size-2.5 sm:size-3 bg-destructive border border-canvas" />
             </span>
           )}
         </button>
