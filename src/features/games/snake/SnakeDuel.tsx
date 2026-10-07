@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Flame, Play, RotateCcw } from 'lucide-react'
+import { Flame, Gamepad2, Lock, Play, RotateCcw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
@@ -54,6 +55,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   const [pvpTargetCount, setPvpTargetCount] = useState<number>(2)
   const [sanSangMap, setSanSangMap] = useState<Record<string, boolean>>({})
 
+  // Cấu hình PvE: Mặc định 6 rắn, tùy chỉnh tối đa 50 rắn cùng lúc
+  const [pveCapacity, setPveCapacity] = useState<number>(MAX_CAPACITY)
+  const [isConfigOpen, setIsConfigOpen] = useState(false)
+  const [hasConfirmedPlay, setHasConfirmedPlay] = useState(false)
+
   // Host là người đầu tiên
   const isHost = realMembers.length > 0 ? realMembers[0].id === myKey : true
   const myReady = sanSangMap[myKey] ?? isHost
@@ -63,10 +69,10 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   }
 
   // Số người thật trong phòng
-  const soNguoiThat = Math.min(MAX_CAPACITY, realMembers.length)
+  const soNguoiThat = Math.min(pveCapacity, realMembers.length)
 
-  // PvE: Mặc định có PvE, mỗi người chơi thật vào sẽ thay thế 1 bot máy cho tới tối đa 6 người
-  const soBotPve = Math.max(0, MAX_CAPACITY - soNguoiThat)
+  // PvE: Mặc định có PvE, mỗi người chơi thật vào sẽ thay thế 1 bot máy cho tới tối đa số rắn
+  const soBotPve = Math.max(0, pveCapacity - soNguoiThat)
 
   // PvP: 100% đối kháng thuần túy người chơi thật (0 bot)
   const aiCount = mode === 'ai' ? soBotPve : 0
@@ -81,6 +87,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   const difficulty = thietLap.capDo
   const [isRunning, setIsRunning] = useState(false)
   const [isGameOver, setIsGameOver] = useState(false)
+
+  // Lưu ý quan trọng: chế độ pve và pvp khi đã xác nhận chơi thành công thì không thay đổi được cho tới khi hủy phòng
+  const isSessionLocked = hasConfirmedPlay || isRunning
 
   // Chỉ số người chơi
   const [playerScore, setPlayerScore] = useState(0)
@@ -153,10 +162,23 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
 
   const handleStartGame = () => {
     if (mode === 'pass_and_play' && !canStartPvp && isHost) return
+    setHasConfirmedPlay(true)
     setIsGameOver(false)
     setIsRunning(true)
     setPlayerScore(0)
     setRestartKey((k) => k + 1)
+  }
+
+  const handleHuyPhong = () => {
+    setHasConfirmedPlay(false)
+    setIsRunning(false)
+    setIsGameOver(false)
+    setIsConfigOpen(false)
+  }
+
+  const handleBackRoom = () => {
+    setHasConfirmedPlay(false)
+    onBack?.()
   }
 
   const handleGameOver = (winner: boolean, _reason?: string, finalScore = playerScore) => {
@@ -180,18 +202,51 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-2 bg-surface justify-center overflow-hidden'
       )}
     >
-      {/* ── 1. THANH CÔNG CỤ VÙNG 2: BỎ BIỂU TƯỢNG CẢM XÚC NHANH, GỌN GÀNG CHỈ DÙNG TIÊU ĐỀ ── */}
+      {/* ── 1. THANH CÔNG CỤ VÙNG 2: XÓA 2 NÚT PVE/PVP CẠNH SẢNH, TẠO NÚT CHẾ ĐỘ CHƠI Ở GIỮA CÙNG HÀNG ── */}
       {/* Hỗ trợ chế độ chơi: 100% PVE, PVP + PVE, và 100% PVP */}
       <GamePlayToolbar
-        onBack={onBack}
+        onBack={handleBackRoom}
         title="Rắn Săn Mồi"
         icon={<Flame className="size-4 text-emerald-400" />}
         mode={mode}
         onModeChange={(m) => {
-          setMode(m)
-          setIsRunning(false)
-          setIsGameOver(false)
+          if (!isSessionLocked) {
+            setMode(m)
+            setIsRunning(false)
+            setIsGameOver(false)
+          }
         }}
+        hideModeSelector={true}
+        centerRowSlot={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsConfigOpen((prev) => !prev)}
+            data-testid="nut-che-do-choi"
+            className={cn(
+              'h-8 px-2.5 rounded-xl border-border-default bg-surface/90 backdrop-blur-md text-text-primary hover:bg-surface-raised font-bold text-xs gap-1.5 shadow-xs cursor-pointer transition-colors duration-150 flex items-center shrink-0',
+              isConfigOpen && 'border-emerald-500/60 bg-surface-raised',
+            )}
+            title="Chế độ chơi"
+            aria-label="Chế độ chơi"
+          >
+            <Gamepad2 className="size-3.5 text-emerald-400 shrink-0" />
+            <span>Chế độ chơi</span>
+            <span
+              className={cn(
+                'px-1.5 py-0.2 rounded-md text-[10px] font-bold border-2 shrink-0 transition-colors duration-150',
+                mode === 'ai'
+                  ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                  : 'border-sky-500/40 bg-sky-500/20 text-sky-300',
+              )}
+            >
+              {mode === 'ai' ? 'PvE' : 'PvP'}
+            </span>
+            {isSessionLocked && (
+              <Lock className="size-3 text-amber-400 shrink-0" />
+            )}
+          </Button>
+        }
         aiLevel={difficulty}
         onAiLevelChange={(capDo) => doiThietLap({ ...thietLap, capDo })}
         phuPve={
@@ -227,10 +282,26 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           isFullscreen={isFullscreen}
           restartKey={restartKey}
           mode={mode === 'pass_and_play' ? 'pass_and_play' : 'ai'}
-          onModeChange={setMode}
+          onModeChange={(m) => {
+            if (!isSessionLocked) {
+              setMode(m)
+              setIsRunning(false)
+              setIsGameOver(false)
+            }
+          }}
+          pveCapacity={pveCapacity}
+          onPveCapacityChange={(count) => {
+            if (!isSessionLocked) setPveCapacity(count)
+          }}
+          isSessionLocked={isSessionLocked}
+          onHuyPhong={handleHuyPhong}
+          isConfigOpen={isConfigOpen}
+          onCloseConfig={() => setIsConfigOpen(false)}
           realPlayerCount={soNguoiThat}
           pvpTargetCount={pvpTargetCount}
-          onPvpTargetCountChange={setPvpTargetCount}
+          onPvpTargetCountChange={(count) => {
+            if (!isSessionLocked) setPvpTargetCount(count)
+          }}
           isHost={isHost}
           canStartPvp={canStartPvp}
           isReady={myReady}

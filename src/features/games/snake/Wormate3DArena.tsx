@@ -1,6 +1,6 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bot, Check, Crown, Play, RotateCcw, Swords, Trophy, Users } from 'lucide-react'
+import { Bot, Check, Crown, Lock, Play, RotateCcw, Swords, Trophy, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls } from './SnakeTouchControls'
 
@@ -207,11 +207,17 @@ export interface Wormate3DArenaProps {
   isReady?: boolean
   onToggleReady?: () => void
   pvpMembersList?: { id: string; name: string; isHost: boolean; ready: boolean }[]
+  pveCapacity?: number
+  onPveCapacityChange?: (count: number) => void
+  isSessionLocked?: boolean
+  onHuyPhong?: () => void
+  isConfigOpen?: boolean
+  onCloseConfig?: () => void
 }
 
 export function Wormate3DArena({
   difficulty = 'medium',
-  onDifficultyChange,
+  onDifficultyChange: _onDifficultyChange,
   aiCount = 6,
   isRunning,
   isGameOver,
@@ -233,7 +239,18 @@ export function Wormate3DArena({
   isReady = true,
   onToggleReady,
   pvpMembersList = [],
+  pveCapacity = 6,
+  onPveCapacityChange,
+  isSessionLocked = false,
+  onHuyPhong,
+  isConfigOpen = false,
+  onCloseConfig,
 }: Wormate3DArenaProps) {
+  const [isCustomPve, setIsCustomPve] = useState(false)
+  const [isCustomPvp, setIsCustomPvp] = useState(false)
+  const isPveCustomActive = isCustomPve || (pveCapacity !== 6 && pveCapacity !== 12 && pveCapacity !== 24)
+  const isPvpCustomActive = isCustomPvp || (pvpTargetCount !== 2 && pvpTargetCount !== 4 && pvpTargetCount !== 8)
+
   const callbacks = useRef({ onScoreUpdate, onGameOver, onOpponentUpdate, onOpponentEmote, playerEmote })
   useEffect(() => {
     callbacks.current = { onScoreUpdate, onGameOver, onOpponentUpdate, onOpponentEmote, playerEmote }
@@ -1195,8 +1212,8 @@ export function Wormate3DArena({
         </div>
       )}
 
-      {/* Màn sẵn sàng: PvE hoặc PvP — Cố định 100% kích thước và vị trí toạ độ khi cấu hình */}
-      {!isRunning && !isGameOver && (
+      {/* Màn cấu hình / sẵn sàng: PvE hoặc PvP — Cố định 100% kích thước và vị trí toạ độ khi cấu hình */}
+      {((!isRunning && !isGameOver) || isConfigOpen) && (
         <div
           data-testid="ran-man-san-sang"
           className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-4 bg-transparent select-none"
@@ -1215,66 +1232,149 @@ export function Wormate3DArena({
                 </h2>
               </div>
 
-              {onModeChange && (
-                <div className="flex items-center p-0.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onModeChange && (
+                  <div className="flex items-center p-0.5 rounded-lg border-2 border-slate-700 bg-slate-800 text-xs font-bold shrink-0">
+                    <button
+                      type="button"
+                      disabled={isSessionLocked}
+                      onClick={() => !isSessionLocked && onModeChange('ai')}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
+                        mode === 'ai'
+                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
+                          : 'border-transparent text-slate-300 hover:text-white',
+                        isSessionLocked && 'opacity-60 cursor-not-allowed',
+                      )}
+                    >
+                      PvE
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSessionLocked}
+                      onClick={() => !isSessionLocked && onModeChange('pass_and_play')}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
+                        mode === 'pass_and_play'
+                          ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
+                          : 'border-transparent text-slate-300 hover:text-white',
+                        isSessionLocked && 'opacity-60 cursor-not-allowed',
+                      )}
+                    >
+                      PvP
+                    </button>
+                    {isSessionLocked && (
+                      <span className="px-1 flex items-center" title="Đã khóa chế độ cho tới khi hủy phòng">
+                        <Lock className="size-3 text-amber-400" />
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {isSessionLocked && onHuyPhong && (
                   <button
                     type="button"
-                    onClick={() => onModeChange('ai')}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
-                      mode === 'ai'
-                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
-                        : 'border-transparent text-slate-300 hover:text-white',
-                    )}
+                    onClick={onHuyPhong}
+                    className="h-8 px-2 rounded-lg border-2 border-rose-500/40 bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 text-xs font-bold transition-colors duration-150 cursor-pointer"
+                    title="Hủy phòng"
                   >
-                    PvE
+                    Hủy phòng
                   </button>
+                )}
+
+                {isRunning && onCloseConfig && (
                   <button
                     type="button"
-                    onClick={() => onModeChange('pass_and_play')}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
-                      mode === 'pass_and_play'
-                        ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
-                        : 'border-transparent text-slate-300 hover:text-white',
-                    )}
+                    onClick={onCloseConfig}
+                    className="size-8 rounded-lg border-2 border-slate-700 bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition-colors duration-150 cursor-pointer"
+                    title="Đóng"
                   >
-                    PvP
+                    <X className="size-4" />
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Nội dung trung tâm: Cố định chính xác h-[270px] cho cả PvE lẫn PvP */}
             <div className="flex flex-col justify-between h-[270px] py-2 shrink-0">
               {mode === 'ai' ? (
-                /* CHẾ ĐỘ PVE: 1 hàng chọn độ khó + 6 slot đồng bộ */
+                /* CHẾ ĐỘ PVE: 1 hàng chọn số lượng rắn (presets + stepper tối đa 50) + danh sách slot tự động thay thế */
                 <>
-                  <div className="grid grid-cols-3 gap-2 h-9 shrink-0">
-                    {(['easy', 'medium', 'hard'] as const).map((capDo) => (
+                  <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
+                    {[6, 12, 24].map((num) => (
                       <button
-                        key={capDo}
+                        key={num}
                         type="button"
-                        onClick={() => onDifficultyChange?.(capDo)}
+                        disabled={isSessionLocked}
+                        onClick={() => {
+                          setIsCustomPve(false)
+                          onPveCapacityChange?.(num)
+                        }}
                         className={cn(
                           'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
-                          difficulty === capDo
+                          !isPveCustomActive && pveCapacity === num
                             ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-black'
                             : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
+                          isSessionLocked && 'opacity-60 cursor-not-allowed',
                         )}
                       >
-                        <span>{capDo === 'easy' ? 'Dễ' : capDo === 'medium' ? 'Vừa' : 'Khó'}</span>
+                        <span>{num} Rắn</span>
                       </button>
                     ))}
+
+                    {/* Card Tùy chỉnh: Khi chọn thì hiển thị stepper inline trên cùng 1 hàng h-9 (Rule 9) */}
+                    {isPveCustomActive ? (
+                      <div className="h-9 rounded-xl border-2 border-emerald-500 bg-emerald-500/20 text-emerald-300 flex items-center justify-between px-1">
+                        <button
+                          type="button"
+                          disabled={isSessionLocked || pveCapacity <= 2}
+                          onClick={() => onPveCapacityChange?.(Math.max(2, pveCapacity - 1))}
+                          className="size-6 rounded flex items-center justify-center font-black hover:bg-emerald-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          -
+                        </button>
+                        <span className="font-bold text-xs font-mono">{pveCapacity}</span>
+                        <button
+                          type="button"
+                          disabled={isSessionLocked || pveCapacity >= 50}
+                          onClick={() => onPveCapacityChange?.(Math.min(50, pveCapacity + 1))}
+                          className="size-6 rounded flex items-center justify-center font-black hover:bg-emerald-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isSessionLocked}
+                        onClick={() => {
+                          setIsCustomPve(true)
+                          if (pveCapacity === 6 || pveCapacity === 12 || pveCapacity === 24) {
+                            onPveCapacityChange?.(10)
+                          }
+                        }}
+                        className={cn(
+                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
+                          'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
+                          isSessionLocked && 'opacity-60 cursor-not-allowed',
+                        )}
+                      >
+                        <span>Tùy chỉnh</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 h-[190px] content-between shrink-0">
-                    {Array.from({ length: 6 }).map((_, idx) => {
+                  {/* Danh sách slot: Người chơi thật tự động thay thế máy khi vào */}
+                  <div
+                    className="grid grid-cols-2 gap-2 max-h-[190px] h-[190px] overflow-y-auto pr-0.5 content-start shrink-0"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {Array.from({ length: pveCapacity }).map((_, idx) => {
                       if (idx === 0) {
                         return (
                           <div
                             key="pve-player"
-                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-emerald-500/40 bg-slate-800/90 text-xs"
+                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-emerald-500/40 bg-slate-800/90 text-xs shrink-0"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <Crown className="size-3.5 text-amber-400 shrink-0" />
@@ -1286,10 +1386,30 @@ export function Wormate3DArena({
                           </div>
                         )
                       }
+
+                      const realMember = pvpMembersList[idx]
+                      if (realMember) {
+                        // Người chơi thật vào sẽ thay thế bot máy
+                        return (
+                          <div
+                            key={realMember.id || `pve-real-${idx}`}
+                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-emerald-500/40 bg-slate-800/90 text-xs shrink-0"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Users className="size-3.5 text-emerald-400 shrink-0" />
+                              <span className="font-bold text-white truncate">{realMember.name}</span>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shrink-0">
+                              Sẵn sàng
+                            </span>
+                          </div>
+                        )
+                      }
+
                       return (
                         <div
                           key={`pve-bot-${idx}`}
-                          className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700/80 bg-slate-800/60 text-xs"
+                          className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700/80 bg-slate-800/60 text-xs shrink-0"
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
                             <Bot className="size-3.5 text-slate-400 shrink-0" />
@@ -1304,49 +1424,85 @@ export function Wormate3DArena({
                   </div>
                 </>
               ) : (
-                /* CHẾ ĐỘ PVP: 1 hàng chọn số lượng người + 6 slot cố định toạ độ */
+                /* CHẾ ĐỘ PVP: 1 hàng chọn số lượng người (presets + stepper tối đa 50) + slot thuần người chơi thật */
                 <>
                   <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
-                    {[2, 3, 4, 6].map((num) => (
+                    {[2, 4, 8].map((num) => (
                       <button
                         key={num}
                         type="button"
-                        disabled={!isHost}
-                        onClick={() => onPvpTargetCountChange?.(num)}
+                        disabled={isSessionLocked || !isHost}
+                        onClick={() => {
+                          setIsCustomPvp(false)
+                          onPvpTargetCountChange?.(num)
+                        }}
                         className={cn(
                           'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
-                          pvpTargetCount === num
+                          !isPvpCustomActive && pvpTargetCount === num
                             ? 'border-sky-500 bg-sky-500/20 text-sky-400 font-black'
                             : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
-                          !isHost && 'opacity-80 cursor-default',
+                          (!isHost || isSessionLocked) && 'opacity-60 cursor-not-allowed',
                         )}
                       >
                         <span>{num} Người</span>
                       </button>
                     ))}
+
+                    {/* Card Tùy chỉnh: Khi chọn thì hiển thị stepper inline trên cùng 1 hàng h-9 (Rule 9) */}
+                    {isPvpCustomActive ? (
+                      <div className="h-9 rounded-xl border-2 border-sky-500 bg-sky-500/20 text-sky-300 flex items-center justify-between px-1">
+                        <button
+                          type="button"
+                          disabled={isSessionLocked || !isHost || pvpTargetCount <= 2}
+                          onClick={() => onPvpTargetCountChange?.(Math.max(2, pvpTargetCount - 1))}
+                          className="size-6 rounded flex items-center justify-center font-black hover:bg-sky-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          -
+                        </button>
+                        <span className="font-bold text-xs font-mono">{pvpTargetCount}</span>
+                        <button
+                          type="button"
+                          disabled={isSessionLocked || !isHost || pvpTargetCount >= 50}
+                          onClick={() => onPvpTargetCountChange?.(Math.min(50, pvpTargetCount + 1))}
+                          className="size-6 rounded flex items-center justify-center font-black hover:bg-sky-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isSessionLocked || !isHost}
+                        onClick={() => {
+                          setIsCustomPvp(true)
+                          if (pvpTargetCount === 2 || pvpTargetCount === 4 || pvpTargetCount === 8) {
+                            onPvpTargetCountChange?.(6)
+                          }
+                        }}
+                        className={cn(
+                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
+                          'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
+                          (!isHost || isSessionLocked) && 'opacity-60 cursor-not-allowed',
+                        )}
+                      >
+                        <span>Tùy chỉnh</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 h-[190px] content-between shrink-0">
-                    {Array.from({ length: 6 }).map((_, idx) => {
-                      const isActiveTarget = idx < pvpTargetCount
+                  {/* Danh sách slot PvP: 100% người chơi thật (0 bot) */}
+                  <div
+                    className="grid grid-cols-2 gap-2 max-h-[190px] h-[190px] overflow-y-auto pr-0.5 content-start shrink-0"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {Array.from({ length: pvpTargetCount }).map((_, idx) => {
                       const member = pvpMembersList[idx]
-
-                      if (!isActiveTarget) {
-                        return (
-                          <div
-                            key={`pvp-locked-${idx}`}
-                            className="h-11 flex items-center justify-center px-3 rounded-xl border-2 border-dashed border-slate-700/40 bg-slate-900/40 text-xs font-medium text-slate-500"
-                          >
-                            <span>Khóa</span>
-                          </div>
-                        )
-                      }
 
                       if (member) {
                         return (
                           <div
-                            key={member.id}
-                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700 bg-slate-800/90 text-xs"
+                            key={member.id || `pvp-member-${idx}`}
+                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700 bg-slate-800/90 text-xs shrink-0"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               {member.isHost ? (
@@ -1360,8 +1516,8 @@ export function Wormate3DArena({
                               className={cn(
                                 'text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0',
                                 member.ready
-                                  ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
-                                  : 'border-amber-500/40 bg-amber-500/20 text-amber-300',
+                                    ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                                    : 'border-amber-500/40 bg-amber-500/20 text-amber-300',
                               )}
                             >
                               {member.ready ? 'Sẵn sàng' : 'Chờ'}
@@ -1373,7 +1529,7 @@ export function Wormate3DArena({
                       return (
                         <div
                           key={`pvp-empty-${idx}`}
-                          className="h-11 flex items-center justify-center px-3 rounded-xl border-2 border-dashed border-slate-700/70 bg-slate-800/40 text-xs font-semibold text-slate-400"
+                          className="h-11 flex items-center justify-center px-3 rounded-xl border-2 border-dashed border-slate-700/70 bg-slate-800/40 text-xs font-semibold text-slate-400 shrink-0"
                         >
                           <span>Trống</span>
                         </div>
@@ -1386,7 +1542,16 @@ export function Wormate3DArena({
 
             {/* Footer CTA: Cố định h-11 tại đáy card, cách xa phần trên */}
             <div className="pt-2 h-11 shrink-0">
-              {mode === 'ai' ? (
+              {isRunning && onCloseConfig ? (
+                <button
+                  type="button"
+                  onClick={onCloseConfig}
+                  className="w-full h-11 rounded-xl border-2 border-emerald-500 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
+                >
+                  <Play className="size-4 fill-current" />
+                  <span>TIẾP TỤC CHƠI</span>
+                </button>
+              ) : mode === 'ai' ? (
                 <button
                   type="button"
                   onClick={onStartGame}

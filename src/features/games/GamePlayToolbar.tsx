@@ -42,6 +42,8 @@ interface GamePlayToolbarProps {
   hideCenterTurn?: boolean
   /** Slot nội dung bổ sung bên phải thanh toolbar (ví dụ nút Biểu cảm nhanh) */
   rightSlot?: React.ReactNode
+  /** Slot nội dung ở giữa cùng hàng với Sảnh và Phóng to (Hàng 1) */
+  centerRowSlot?: React.ReactNode
   /** Nút toàn màn hình tùy biến */
   onToggleFullscreen?: () => void
   isFullscreen?: boolean
@@ -107,6 +109,7 @@ export function GamePlayToolbar({
   outcomeNotice,
   hideCenterTurn = false,
   rightSlot,
+  centerRowSlot,
   onToggleFullscreen,
   isFullscreen,
   hideFullscreen = false,
@@ -444,6 +447,13 @@ export function GamePlayToolbar({
             </Button>
           )}
         </div>
+
+        {/* Nhóm giữa cùng hàng: Nút Chế độ chơi hoặc slot trung tâm Hàng 1 */}
+        {centerRowSlot && (
+          <div className="game-toolbar-center-row flex items-center justify-center min-w-0 shrink-0">
+            {centerRowSlot}
+          </div>
+        )}
 
         {/* Nhóm phải: Card 4 (Hòa / Thua) & Card 5 (Phóng to) */}
         <div className="game-toolbar-fixed-right flex items-center justify-end gap-1.5 sm:gap-2 min-w-0 shrink-0">
