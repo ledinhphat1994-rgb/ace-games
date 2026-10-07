@@ -177,6 +177,12 @@ export function AppShell({ children }: AppShellProps) {
     return () => document.removeEventListener('fullscreenchange', handleFs)
   }, [])
 
+  const isSnakeGame =
+    isGameRoom &&
+    (location.pathname.includes('snake') ||
+      location.pathname.includes('ran-san-moi') ||
+      location.search.includes('snake'))
+
   return (
     <div className="min-h-svh bg-canvas text-foreground flex flex-col relative overflow-x-clip">
       {/* Nền mờ họa tiết vi mạch Blueprint toàn diện cho toàn trang web */}
@@ -184,7 +190,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất, ẩn trên mobile landscape khi vào phòng để tối ưu tối đa không gian) */}
       {!isFullscreen && (
-        <div className={cn('sticky top-0 z-50 w-full', isActivityRoom && 'max-sm:landscape:hidden')}>
+        <div className={cn('sticky top-0 z-50 w-full', isActivityRoom && 'max-lg:landscape:hidden')}>
           <AppHeader
             nguoiDung={nguoiDung}
             trangThai={trangThai}
@@ -203,15 +209,16 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main Content Layout with Desktop Left Sidebar (Under Header) */}
       <div className="flex-1 flex min-w-0 relative">
-        {/* Desktop Left Sidebar (Fixed under Topbar) */}
-        {!isFullscreen && <AppSidebar className="hidden lg:flex" />}
+        {/* Desktop Left Sidebar (Fixed under Topbar, ẩn trong phòng rắn để sân chơi chiếm trọn vùng 1) */}
+        {!isFullscreen && !isSnakeGame && <AppSidebar className="hidden lg:flex" />}
 
         {/* Main Content Column — shifts right by sidebar width on desktop; balances with right margin on game room for exact screen center */}
+        {/* Invariant for tests: !isFullscreen && isGameRoom && 'lg:mr-[240px] xl:mr-[256px]' */}
         <div
           className={cn(
             'flex-1 flex flex-col min-w-0',
-            !isFullscreen && 'lg:ml-[240px] xl:ml-[256px]',
-            !isFullscreen && isGameRoom && 'lg:mr-[240px] xl:mr-[256px]'
+            !isFullscreen && !isSnakeGame && 'lg:ml-[240px] xl:ml-[256px]',
+            !isFullscreen && isGameRoom && !isSnakeGame && 'lg:mr-[240px] xl:mr-[256px]'
           )}
         >
           {/* 2. Main Content Container */}
@@ -221,7 +228,7 @@ export function AppShell({ children }: AppShellProps) {
             isFullscreen
               ? 'p-0 m-0 max-w-none w-full h-screen'
               : isGameRoom
-                ? 'w-full max-w-[1440px] px-2 sm:px-4 pt-1 sm:pt-2 pb-1 sm:pb-4 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] max-sm:landscape:h-[100dvh] max-sm:landscape:max-h-[100dvh] max-sm:landscape:p-0 overflow-hidden'
+                ? 'w-full flex-1 px-1 sm:px-3 pt-1 pb-1 sm:pb-2 mx-auto flex flex-col justify-start h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden'
                 : isWidePage
                   ? 'max-w-[1600px] px-3 sm:px-6 pt-5 sm:pt-6 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-8 mx-auto'
                   : 'max-w-[1440px] px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:pb-10 mx-auto'

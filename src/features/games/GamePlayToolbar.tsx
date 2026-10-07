@@ -455,9 +455,8 @@ export function GamePlayToolbar({
           </div>
         )}
 
-        {/* Nhóm phải: Card 4 (Hòa / Thua) & Card 5 (Phóng to) */}
-        <div className="game-toolbar-fixed-right flex items-center justify-end gap-1.5 sm:gap-2 min-w-0 shrink-0">
-          {/* Card 4: Hòa / Thua */}
+        {/* Nhóm phải: Card Hành động thống nhất (Hòa / Thua / Chơi lại & Toàn màn hình) */}
+        <div className="game-toolbar-fixed-right flex items-center justify-end min-w-0 shrink-0">
           <div className="game-card-action flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-xl border border-border-default bg-surface/90 backdrop-blur-md shadow-xs shrink-0">
             {!isOver && onOfferDraw && (
               <Button
@@ -474,14 +473,8 @@ export function GamePlayToolbar({
               </Button>
             )}
             {!hideReset && nutReset}
+            {!hideFullscreen && nutFullscreen}
           </div>
-
-          {/* Card 5: Phóng to */}
-          {!hideFullscreen && (
-            <div className="game-card-fullscreen flex items-center p-1 sm:p-1.5 rounded-xl border border-border-default bg-surface/90 backdrop-blur-md shadow-xs shrink-0">
-              {nutFullscreen}
-            </div>
-          )}
         </div>
       </div>
 

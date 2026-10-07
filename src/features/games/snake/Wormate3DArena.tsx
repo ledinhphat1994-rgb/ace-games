@@ -61,6 +61,40 @@ interface CrumbParticle {
   alpha: number
 }
 
+export interface BushLeaf {
+  ox: number
+  oy: number
+  r: number
+}
+
+export interface BushBerry {
+  ox: number
+  oy: number
+  r: number
+  color: string
+}
+
+export interface Bush {
+  id: number
+  x: number
+  y: number
+  r: number
+  foliageColor: string
+  foliageLight: string
+  leaves: BushLeaf[]
+  berries: BushBerry[]
+}
+
+interface Firefly {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  r: number
+  color: string
+  phase: number
+}
+
 export interface LeaderboardItem {
   id: string
   name: string
@@ -105,6 +139,123 @@ const COLOR_PALETTES = [
   { c1: '#84cc16', c2: '#65a30d', cDark: '#365314', stripe: '#e11d48' }, // Watermelon
   { c1: '#8b5cf6', c2: '#6d28d9', cDark: '#4c1d95', stripe: '#fde047' }, // Amethyst & Gold
 ]
+
+function createBushes(): Bush[] {
+  const bushes: Bush[] = []
+  const count = 32
+  const berryColors = ['#f43f5e', '#fbbf24', '#f472b6', '#38bdf8', '#a855f7']
+  for (let i = 0; i < count; i++) {
+    let bx = 160 + Math.random() * (ARENA_SIZE - 320)
+    let by = 160 + Math.random() * (ARENA_SIZE - 320)
+    // Tránh khu vực xuất hiện của người chơi ở tâm sân
+    if (Math.hypot(bx - ARENA_SIZE / 2, by - ARENA_SIZE / 2) < 280) {
+      bx += bx > ARENA_SIZE / 2 ? 340 : -340
+    }
+    const r = 44 + Math.random() * 32
+    const leafCount = 6 + Math.floor(Math.random() * 3)
+    const leaves: BushLeaf[] = []
+    for (let j = 0; j < leafCount; j++) {
+      const a = (j * Math.PI * 2) / leafCount + (Math.random() - 0.5) * 0.35
+      const dist = (0.35 + Math.random() * 0.35) * r
+      leaves.push({
+        ox: Math.cos(a) * dist,
+        oy: Math.sin(a) * dist,
+        r: r * (0.44 + Math.random() * 0.2),
+      })
+    }
+    const berryCount = 3 + Math.floor(Math.random() * 4)
+    const berries: BushBerry[] = []
+    for (let k = 0; k < berryCount; k++) {
+      berries.push({
+        ox: (Math.random() - 0.5) * r * 1.05,
+        oy: (Math.random() - 0.5) * r * 1.05,
+        r: 2.2 + Math.random() * 1.8,
+        color: berryColors[Math.floor(Math.random() * berryColors.length)],
+      })
+    }
+    bushes.push({
+      id: i,
+      x: bx,
+      y: by,
+      r,
+      foliageColor: i % 2 === 0 ? '#047857' : '#065f46',
+      foliageLight: i % 2 === 0 ? '#10b981' : '#059669',
+      leaves,
+      berries,
+    })
+  }
+  return bushes
+}
+
+function createFireflies(): Firefly[] {
+  const f: Firefly[] = []
+  const colors = ['#6ee7b7', '#38bdf8', '#fef08a', '#c084fc']
+  for (let i = 0; i < 26; i++) {
+    f.push({
+      x: Math.random() * ARENA_SIZE,
+      y: Math.random() * ARENA_SIZE,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: (Math.random() - 0.5) * 0.6,
+      r: 1.8 + Math.random() * 1.6,
+      color: colors[i % colors.length],
+      phase: Math.random() * Math.PI * 2,
+    })
+  }
+  return f
+}
+
+function drawBush(ctx: CanvasRenderingContext2D, bush: Bush, time: number) {
+  ctx.save()
+  ctx.translate(bush.x, bush.y)
+
+  // Hiệu ứng đung đưa tự nhiên theo gió
+  const sway = Math.sin(time * 0.0018 + bush.id * 1.5) * 0.03
+  ctx.rotate(sway)
+
+  // 1. Bóng đổ bụi rậm
+  ctx.beginPath()
+  ctx.arc(0, bush.r * 0.12, bush.r * 0.95, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(2, 24, 15, 0.45)'
+  ctx.fill()
+
+  // 2. Tán lá vòm cây bồng bềnh (Bán trong suốt để thấy rắn trườn xuyên qua)
+  ctx.globalAlpha = 0.84
+
+  // Tán nền lá đậm
+  ctx.beginPath()
+  ctx.arc(0, 0, bush.r * 0.75, 0, Math.PI * 2)
+  bush.leaves.forEach((lf) => {
+    ctx.moveTo(lf.ox + lf.r, lf.oy)
+    ctx.arc(lf.ox, lf.oy, lf.r, 0, Math.PI * 2)
+  })
+  ctx.fillStyle = bush.foliageColor
+  ctx.fill()
+
+  // Tán lá lớp trên sáng hơn tạo khối 3D mềm mại
+  ctx.beginPath()
+  ctx.arc(0, -bush.r * 0.1, bush.r * 0.6, 0, Math.PI * 2)
+  bush.leaves.forEach((lf) => {
+    ctx.moveTo(lf.ox * 0.85 + lf.r * 0.8, lf.oy * 0.85 - bush.r * 0.06)
+    ctx.arc(lf.ox * 0.85, lf.oy * 0.85 - bush.r * 0.06, lf.r * 0.8, 0, Math.PI * 2)
+  })
+  ctx.fillStyle = bush.foliageLight
+  ctx.fill()
+
+  // 3. Quả dại / hoa rừng phát sáng tô điểm
+  ctx.globalAlpha = 0.95
+  bush.berries.forEach((b) => {
+    ctx.beginPath()
+    ctx.arc(b.ox, b.oy, b.r, 0, Math.PI * 2)
+    ctx.fillStyle = b.color
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(b.ox - b.r * 0.3, b.oy - b.r * 0.3, b.r * 0.35, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+  })
+
+  ctx.restore()
+}
 
 // Web Audio sound synthesizer for crunchy nom-nom and boost sounds
 function playWormSound(type: 'nom' | 'bonus' | 'boost' | 'crash', muted: boolean) {
@@ -321,6 +472,8 @@ export function Wormate3DArena({
       p2Left: boolean
       p2Right: boolean
     }
+    bushes: Bush[]
+    fireflies: Firefly[]
     animFrame: number | null
     nextFoodId: number
   }>({
@@ -329,6 +482,8 @@ export function Wormate3DArena({
     aiWorms: [],
     foods: [],
     crumbs: [],
+    bushes: [],
+    fireflies: [],
     camX: ARENA_SIZE / 2,
     camY: ARENA_SIZE / 2,
     keys: {
@@ -500,6 +655,8 @@ export function Wormate3DArena({
       aiWorms,
       foods,
       crumbs: [],
+      bushes: createBushes(),
+      fireflies: createFireflies(),
       camX: startX,
       camY: startY,
       keys: {
@@ -1028,6 +1185,37 @@ export function Wormate3DArena({
         draw3DWorm(ctx, eng.player2, eng.player2.id === topWormId, viewBounds)
       }
 
+      // Vẽ các bụi rậm (Bushes) thiên nhiên với tán lá bồng bềnh phủ trên sân
+      if (eng.bushes) {
+        for (const b of eng.bushes) {
+          if (b.x + b.r < viewBounds.minX || b.x - b.r > viewBounds.maxX || b.y + b.r < viewBounds.minY || b.y - b.r > viewBounds.maxY) {
+            continue
+          }
+          drawBush(ctx, b, currentTime)
+        }
+      }
+
+      // Cập nhật và vẽ các đom đóm / hạt sáng sinh thái lơ lửng trong sân chơi
+      if (eng.fireflies) {
+        for (const fl of eng.fireflies) {
+          fl.x += fl.vx
+          fl.y += fl.vy
+          if (fl.x < 0) fl.x = ARENA_SIZE
+          if (fl.x > ARENA_SIZE) fl.x = 0
+          if (fl.y < 0) fl.y = ARENA_SIZE
+          if (fl.y > ARENA_SIZE) fl.y = 0
+
+          if (fl.x >= viewBounds.minX && fl.x <= viewBounds.maxX && fl.y >= viewBounds.minY && fl.y <= viewBounds.maxY) {
+            ctx.beginPath()
+            ctx.arc(fl.x, fl.y, fl.r, 0, Math.PI * 2)
+            ctx.fillStyle = fl.color
+            ctx.globalAlpha = Math.max(0.15, 0.45 + Math.sin(currentTime * 0.003 + fl.phase) * 0.35)
+            ctx.fill()
+            ctx.globalAlpha = 1
+          }
+        }
+      }
+
       ctx.restore()
 
       // ── 3. VẼ RADAR / MINIMAP GÓC PHẢI DƯỚI ──
@@ -1138,10 +1326,8 @@ export function Wormate3DArena({
     <div
       ref={containerRef}
       className={cn(
-        'snake-arena relative flex flex-col items-center justify-center w-full rounded-xl bg-slate-950 overflow-hidden select-none',
-        isFullscreen
-          ? 'h-full flex-1 min-h-0 rounded-none'
-          : 'h-[clamp(280px,calc(100dvh-16rem),640px)] landscape:h-[clamp(260px,calc(100dvh-4.5rem),620px)]',
+        'snake-arena relative flex flex-col items-center justify-center w-full flex-1 h-full min-h-0 rounded-xl bg-slate-950 overflow-hidden select-none',
+        isFullscreen && 'rounded-none',
       )}
     >
       {/* Canvas Game 3D theo kích thước vùng chứa */}
@@ -1158,12 +1344,12 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI HIỆN TẠI (Làm mờ siêu thực, không cản trở góc nhìn game) */}
+      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI (Nhỏ gọn thanh mảnh, siêu mờ để nhìn xuyên thấu đường đi của rắn) */}
       <div
         className={cn(
-          'absolute top-3.5 left-3.5 z-10 select-none text-xs transition-opacity duration-200',
+          'absolute top-3 left-3 z-10 select-none text-xs transition-opacity duration-200',
           isRunning && !isGameOver
-            ? 'opacity-20 hover:opacity-95 active:opacity-95'
+            ? 'opacity-25 hover:opacity-95 active:opacity-95 focus-within:opacity-95'
             : 'opacity-90',
         )}
       >
@@ -1172,21 +1358,21 @@ export function Wormate3DArena({
             type="button"
             onClick={() => setIsLeaderboardCollapsed(false)}
             title="Mở bảng xếp hạng"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/40 border border-white/10 text-amber-300 font-bold text-[10px] shadow-sm cursor-pointer hover:bg-slate-900/80 transition-colors pointer-events-auto"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/20 border border-white/5 text-amber-300 font-bold text-[10px] shadow-none cursor-pointer hover:bg-slate-900/60 transition-colors pointer-events-auto"
           >
-            <Trophy className="size-3 text-amber-400" />
+            <Trophy className="size-2.5 text-amber-400" />
             <span>#{playerRank} {playerStats.score}đ</span>
-            <ChevronDown className="size-3 text-slate-400" />
+            <ChevronDown className="size-2.5 text-slate-400" />
           </button>
         ) : (
-          <div className="w-[min(60%,13rem)] p-1.5 sm:p-2 rounded-xl bg-slate-950/25 border border-white/5 shadow-none pointer-events-none">
-            <div className="flex items-center justify-between pb-1 mb-1 border-b border-white/10">
-              <div className="flex items-center gap-1 font-black text-[10px] text-amber-300/80 uppercase tracking-wider">
-                <Trophy className="size-3 text-amber-400/80" />
-                <span>Top</span>
+          <div className="w-32 sm:w-36 p-1 sm:p-1.5 rounded-xl bg-slate-950/20 border border-white/5 shadow-none pointer-events-none">
+            <div className="flex items-center justify-between pb-0.5 mb-0.5 border-b border-white/5">
+              <div className="flex items-center gap-1 font-black text-[9px] text-amber-300/80 uppercase tracking-wider">
+                <Trophy className="size-2.5 text-amber-400/80" />
+                <span>Top 3</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[9px] font-mono text-slate-400/70 bg-white/5 px-1 py-0.2 rounded-full">
+                <span className="text-[8px] font-mono text-slate-400/60 bg-white/5 px-1 py-0.2 rounded-full">
                   {leaderboard.length}
                 </span>
                 <button
@@ -1195,32 +1381,32 @@ export function Wormate3DArena({
                   title="Thu gọn"
                   className="p-0.5 text-slate-400 hover:text-white cursor-pointer pointer-events-auto rounded transition-colors"
                 >
-                  <ChevronUp className="size-3" />
+                  <ChevronUp className="size-2.5" />
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-0.5 max-h-36 overflow-hidden">
-              {leaderboard.slice(0, 4).map((entry, index) => {
+            <div className="flex flex-col gap-0.5">
+              {leaderboard.slice(0, 3).map((entry, index) => {
                 const isTop1 = index === 0
                 return (
                   <div
                     key={entry.id}
                     className={cn(
-                      'flex items-center justify-between px-1.5 py-0.5 rounded text-[10px] transition-colors',
+                      'flex items-center justify-between px-1 py-0.5 rounded text-[9px] transition-colors',
                       entry.isPlayer
                         ? 'text-brand font-bold bg-brand/10'
-                        : 'text-slate-300/80 font-medium',
-                      !entry.isAlive && 'opacity-35 line-through',
+                        : 'text-slate-300/70 font-medium',
+                      !entry.isAlive && 'opacity-30 line-through',
                     )}
                   >
-                    <div className="flex items-center gap-1 truncate max-w-[100px]">
-                      <span className={cn('font-mono font-black text-[9px] w-3.5', isTop1 ? 'text-amber-400' : 'text-slate-400/60')}>
+                    <div className="flex items-center gap-1 truncate max-w-[75px]">
+                      <span className={cn('font-mono font-black text-[8px] w-3', isTop1 ? 'text-amber-400' : 'text-slate-400/50')}>
                         {isTop1 ? '👑' : `#${index + 1}`}
                       </span>
                       <span className="truncate">{entry.name}</span>
                     </div>
-                    <span className={cn('font-mono font-bold text-[9px] tabular-nums', entry.isPlayer ? 'text-brand' : 'text-slate-300/80')}>
+                    <span className={cn('font-mono font-bold text-[8px] tabular-nums', entry.isPlayer ? 'text-brand' : 'text-slate-300/70')}>
                       {entry.score}đ
                     </span>
                   </div>
@@ -1228,10 +1414,10 @@ export function Wormate3DArena({
               })}
             </div>
 
-            {/* Vị trí của bạn nếu không nằm trong top 4 */}
-            {playerRank > 4 && (
-              <div className="mt-0.5 pt-0.5 border-t border-white/5 flex items-center justify-between px-1.5 py-0.5 rounded text-brand text-[9px] font-bold bg-brand/10">
-                <span className="truncate max-w-[90px]">#{playerRank} Bạn</span>
+            {/* Vị trí của bạn nếu không nằm trong top 3 */}
+            {playerRank > 3 && (
+              <div className="mt-0.5 pt-0.5 border-t border-white/5 flex items-center justify-between px-1 py-0.5 rounded text-brand text-[8px] font-bold bg-brand/10">
+                <span className="truncate max-w-[70px]">#{playerRank} Bạn</span>
                 <span className="font-mono tabular-nums">{playerStats.score}đ</span>
               </div>
             )}
@@ -2121,7 +2307,7 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
 function drawMinimap(
   ctx: CanvasRenderingContext2D,
   viewW: number,
-  eng: { player: Worm; aiWorms: Worm[] }
+  eng: { player: Worm; aiWorms: Worm[]; bushes?: Bush[] }
 ) {
   const mapSize = 68
   const mapX = viewW - mapSize - 10
@@ -2138,6 +2324,16 @@ function drawMinimap(
   ctx.stroke()
 
   const scale = mapSize / ARENA_SIZE
+
+  // Vị trí các bụi rậm trên Minimap
+  if (eng.bushes) {
+    eng.bushes.forEach((b) => {
+      ctx.beginPath()
+      ctx.arc(mapX + b.x * scale, mapY + b.y * scale, 1.6, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.45)'
+      ctx.fill()
+    })
+  }
 
   // Vị trí AI
   eng.aiWorms.forEach((ai) => {
