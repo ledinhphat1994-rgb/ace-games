@@ -18,8 +18,8 @@ describe('Mở rộng kích thước bàn cờ & game trên màn hình PC deskto
 
     // Media query mở rộng desktop
     expect(indexCssRaw).toContain('@media (min-width: 1280px)')
-    expect(indexCssRaw).toContain('width: min(calc((100dvh - 84px) * 0.9), min(calc(100vw - 560px), 740px));')
-    expect(indexCssRaw).toContain('max-height: min(calc(100dvh - 84px), 822px);')
+    expect(indexCssRaw).toContain('width: min(calc((100dvh - 160px) * 0.9), min(calc(100vw - 560px), 720px));')
+    expect(indexCssRaw).toContain('max-height: min(calc(100dvh - 160px), 800px);')
   })
 
   it('XiangqiBoard: sử dụng class game-board-xiangqi, xóa width clamp 480px ở inline style', () => {
