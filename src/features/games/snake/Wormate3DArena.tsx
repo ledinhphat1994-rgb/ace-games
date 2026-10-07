@@ -8,10 +8,10 @@ const ARENA_SIZE = 2400
 const INITIAL_SEGMENT_COUNT = 18
 const BASE_SPEED = 3.6
 const BOOST_SPEED = 7.0
-const SEGMENT_SPACING = 5.2
-const MIN_RADIUS = 8.5
-const MAX_RADIUS = 18.0
-const TOTAL_FOOD_COUNT = 180
+const SEGMENT_SPACING = 5.8
+const MIN_RADIUS = 11.5
+const MAX_RADIUS = 24.0
+const TOTAL_FOOD_COUNT = 200
 
 export type PastryType = 'donut' | 'cupcake' | 'cake' | 'cookie' | 'candy' | 'burger' | 'croissant'
 
@@ -525,19 +525,19 @@ export function Wormate3DArena({
     const types: PastryType[] = ['donut', 'cupcake', 'cake', 'cookie', 'candy', 'burger', 'croissant']
     const type = types[Math.floor(Math.random() * types.length)]
     let points = 10
-    let r = 5.8
+    let r = 7.8
     if (type === 'donut' || type === 'cupcake') {
       points = 15
-      r = 6.8
+      r = 9.0
     } else if (type === 'croissant') {
       points = 20
-      r = 7.2
+      r = 9.6
     } else if (type === 'cake') {
       points = 25
-      r = 7.8
+      r = 10.2
     } else if (type === 'burger') {
       points = 30
-      r = 8.4
+      r = 11.0
     }
 
     const margin = 80
@@ -797,8 +797,8 @@ export function Wormate3DArena({
           player.history.pop()
         }
 
-        // Bán kính nở to dần theo số điểm (Mảnh mai, thanh thoát chuẩn Wormate/Slither)
-        player.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(player.score / 150))
+        // Bán kính nở to dần theo số điểm (Cân đối, cuốn hút chuẩn Wormate)
+        player.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(player.score / 120))
 
         // Va chạm viền đấu trường
         if (
@@ -902,7 +902,7 @@ export function Wormate3DArena({
             if (d < ai.radius + f.r) {
               ai.score += f.points
               ai.length += 1
-              ai.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(ai.score / 150))
+              ai.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(ai.score / 120))
               eng.foods.splice(fIdx, 1)
               eng.foods.push(createFood(eng.nextFoodId++))
             }
@@ -1100,11 +1100,11 @@ export function Wormate3DArena({
       ctx.clearRect(0, 0, w, h)
 
       ctx.save()
-      // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài sâu như Wormate.io (Góc nhìn rộng thoáng trên mobile)
+      // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài sâu như Wormate.io (Góc nhìn rõ nét, hấp dẫn, cuốn hút)
       const isMobileScreen = w < 640 || h < 640
-      const startZoom = isMobileScreen ? 0.38 : 0.64
-      const minZoom = isMobileScreen ? 0.25 : 0.44
-      const zoom = Math.max(minZoom, startZoom - (player.length - INITIAL_SEGMENT_COUNT) * 0.0013)
+      const startZoom = isMobileScreen ? 0.54 : 0.72
+      const minZoom = isMobileScreen ? 0.38 : 0.50
+      const zoom = Math.max(minZoom, startZoom - (player.length - INITIAL_SEGMENT_COUNT) * 0.001)
       ctx.translate(w / 2, h / 2)
       ctx.scale(zoom, zoom)
       ctx.translate(-eng.camX, -eng.camY)
@@ -1478,7 +1478,7 @@ export function Wormate3DArena({
 
       {/* Nút điều khiển cảm ứng Mobile: Tối ưu 2 tay cho cả màn hình Dọc và Ngang */}
       {isRunning && !isGameOver && (
-        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 hidden justify-between items-end gap-2 pointer-coarse:flex">
+        <div className="pointer-events-none absolute inset-x-4 sm:inset-x-6 bottom-7 sm:bottom-9 z-10 hidden justify-between items-end gap-3 pointer-coarse:flex pb-[env(safe-area-inset-bottom,0px)]">
           {mode === 'ai' ? (
             <>
               {/* Tay TRÁI: Joystick lái rắn mượt mà 120Hz */}
@@ -2008,7 +2008,7 @@ function draw3DWorm(
     }
 
     const isHead = i === 0
-    const segRadius = isHead ? worm.radius * 1.08 : worm.radius * (0.8 + 0.2 * (1 - i / totalSegments))
+    const segRadius = isHead ? worm.radius * 1.12 : worm.radius * (0.8 + 0.2 * (1 - i / totalSegments))
 
     // Màu xen kẽ như kẹo ngọt
     const isStripe = i % 2 === 0
@@ -2335,9 +2335,9 @@ function drawMinimap(
   eng: { player: Worm; aiWorms: Worm[]; bushes?: Bush[] }
 ) {
   const isMobile = viewW < 640 || viewH < 500
-  const mapSize = isMobile ? 44 : 64
-  const mapX = viewW - mapSize - 8
-  const mapY = 8
+  const mapSize = isMobile ? 52 : 72
+  const mapX = viewW - mapSize - 10
+  const mapY = 10
 
   ctx.save()
   // Khung radar

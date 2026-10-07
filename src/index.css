@@ -949,9 +949,6 @@ body { min-width: 280px; }
   .game-play-toolbar { row-gap: 0.5rem; }
   .game-play-toolbar button { min-height: 40px; }
 }
-@media (pointer: coarse) {
-  .snake-arena .snake-hud { bottom: 10rem; }
-}
 
 [data-slot="dialog-content"] {
   top: calc(var(--visible-viewport-top, 0px) + var(--visible-viewport-height, 100dvh) / 2);

@@ -19,7 +19,7 @@ export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps
     const x = e.clientX - rect.left - rect.width / 2
     const y = e.clientY - rect.top - rect.height / 2
     const distance = Math.hypot(x, y)
-    const scale = distance > 28 ? 28 / distance : 1
+    const scale = distance > 34 ? 34 / distance : 1
     const finalX = Math.round(x * scale)
     const finalY = Math.round(y * scale)
 
@@ -52,8 +52,8 @@ export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps
       aria-label={'Lái rắn P' + player}
       data-testid={'snake-joystick-p' + player}
       className={cn(
-        'relative flex size-20 touch-none select-none items-center justify-center rounded-full border bg-slate-950/70 shadow-xl outline-none focus-visible:ring-2 focus-visible:ring-brand backdrop-blur-xs',
-        player === 1 ? 'border-brand/40' : 'border-rose-300/40',
+        'relative flex size-24 sm:size-26 touch-none select-none items-center justify-center rounded-full border-2 bg-slate-950/80 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand backdrop-blur-sm ring-1 ring-white/10 active:border-brand/70 transition-colors',
+        player === 1 ? 'border-brand/50' : 'border-rose-400/50',
         className,
       )}
       onPointerDown={(e) => {
@@ -67,15 +67,19 @@ export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps
       onPointerCancel={release}
       onLostPointerCapture={release}
     >
-      <span className="absolute text-[10px] font-bold text-white/50">P{player}</span>
+      <span className="absolute text-[10px] font-bold text-white/35 pointer-events-none">P{player}</span>
       <span
         ref={thumbRef}
         className={cn(
-          'pointer-events-none size-9 rounded-full border border-white/40 shadow-lg will-change-transform',
-          player === 1 ? 'bg-brand/50' : 'bg-rose-400/50',
+          'pointer-events-none size-11 sm:size-12 rounded-full border border-white/60 shadow-xl will-change-transform flex items-center justify-center',
+          player === 1
+            ? 'bg-gradient-to-tr from-brand to-emerald-400/80 shadow-brand/30'
+            : 'bg-gradient-to-tr from-rose-500 to-amber-400/80 shadow-rose-500/30',
         )}
         style={{ transform: 'translate3d(0px, 0px, 0)' }}
-      />
+      >
+        <span className="size-2 rounded-full bg-white/80" />
+      </span>
     </div>
   )
 }
@@ -102,11 +106,11 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       aria-label={'Tăng tốc P' + player}
       data-testid={'snake-boost-p' + player}
       className={cn(
-        'flex touch-none items-center justify-center rounded-full border shadow-xl outline-none transition-colors duration-100 cursor-pointer select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-white',
-        isLarge ? 'size-14 sm:size-16' : 'size-11',
+        'flex touch-none items-center justify-center rounded-full border-2 shadow-2xl outline-none transition-all duration-150 cursor-pointer select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 backdrop-blur-sm ring-1 ring-white/10',
+        isLarge ? 'size-18 sm:size-20' : 'size-13',
         boosting
-          ? 'border-amber-300 bg-amber-400/50 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.6)]'
-          : 'border-amber-400/40 bg-slate-950/80 text-amber-300 hover:bg-slate-900',
+          ? 'border-amber-300 bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 shadow-[0_0_28px_rgba(251,191,36,0.8)] scale-95'
+          : 'border-amber-400/60 bg-slate-950/85 text-amber-300 hover:bg-slate-900 hover:border-amber-300 active:border-amber-300',
         className,
       )}
       onPointerDown={(e) => {
@@ -127,7 +131,7 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       onKeyUp={stopBoost}
       onBlur={stopBoost}
     >
-      <Zap className={cn('fill-current', isLarge ? 'size-6 sm:size-7' : 'size-5')} />
+      <Zap className={cn('fill-current transition-transform duration-100', isLarge ? (boosting ? 'size-9 sm:size-10 scale-110' : 'size-8 sm:size-9') : 'size-6')} />
     </button>
   )
 }
