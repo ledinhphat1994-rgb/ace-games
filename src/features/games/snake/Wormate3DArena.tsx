@@ -8,9 +8,9 @@ const ARENA_SIZE = 2400
 const INITIAL_SEGMENT_COUNT = 18
 const BASE_SPEED = 3.6
 const BOOST_SPEED = 7.0
-const SEGMENT_SPACING = 7.5
-const MIN_RADIUS = 11.5
-const MAX_RADIUS = 24
+const SEGMENT_SPACING = 5.2
+const MIN_RADIUS = 8.5
+const MAX_RADIUS = 18.0
 const TOTAL_FOOD_COUNT = 180
 
 export type PastryType = 'donut' | 'cupcake' | 'cake' | 'cookie' | 'candy' | 'burger' | 'croissant'
@@ -151,7 +151,7 @@ function createBushes(): Bush[] {
     if (Math.hypot(bx - ARENA_SIZE / 2, by - ARENA_SIZE / 2) < 280) {
       bx += bx > ARENA_SIZE / 2 ? 340 : -340
     }
-    const r = 44 + Math.random() * 32
+    const r = 32 + Math.random() * 24
     const leafCount = 6 + Math.floor(Math.random() * 3)
     const leaves: BushLeaf[] = []
     for (let j = 0; j < leafCount; j++) {
@@ -416,9 +416,9 @@ export function Wormate3DArena({
   const [playerRank, setPlayerRank] = useState(1)
   const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
-      return window.innerWidth < 768
+      return window.innerWidth < 1024
     }
-    return false
+    return true
   })
   const [player2Score, setPlayer2Score] = useState(0)
   const [playerStats, setPlayerStats] = useState({ score: 0, length: INITIAL_SEGMENT_COUNT })
@@ -525,19 +525,19 @@ export function Wormate3DArena({
     const types: PastryType[] = ['donut', 'cupcake', 'cake', 'cookie', 'candy', 'burger', 'croissant']
     const type = types[Math.floor(Math.random() * types.length)]
     let points = 10
-    let r = 8.5
+    let r = 5.8
     if (type === 'donut' || type === 'cupcake') {
       points = 15
-      r = 10
+      r = 6.8
     } else if (type === 'croissant') {
       points = 20
-      r = 10.5
+      r = 7.2
     } else if (type === 'cake') {
       points = 25
-      r = 11.5
+      r = 7.8
     } else if (type === 'burger') {
       points = 30
-      r = 12
+      r = 8.4
     }
 
     const margin = 80
@@ -797,8 +797,8 @@ export function Wormate3DArena({
           player.history.pop()
         }
 
-        // Bán kính nở to dần theo số điểm
-        player.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(player.score / 120))
+        // Bán kính nở to dần theo số điểm (Mảnh mai, thanh thoát chuẩn Wormate/Slither)
+        player.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(player.score / 150))
 
         // Va chạm viền đấu trường
         if (
@@ -902,6 +902,7 @@ export function Wormate3DArena({
             if (d < ai.radius + f.r) {
               ai.score += f.points
               ai.length += 1
+              ai.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(ai.score / 150))
               eng.foods.splice(fIdx, 1)
               eng.foods.push(createFood(eng.nextFoodId++))
             }
@@ -1101,9 +1102,9 @@ export function Wormate3DArena({
       ctx.save()
       // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài sâu như Wormate.io (Góc nhìn rộng thoáng trên mobile)
       const isMobileScreen = w < 640 || h < 640
-      const startZoom = isMobileScreen ? 0.52 : 0.78
-      const minZoom = isMobileScreen ? 0.38 : 0.55
-      const zoom = Math.max(minZoom, startZoom - (player.length - INITIAL_SEGMENT_COUNT) * 0.0016)
+      const startZoom = isMobileScreen ? 0.38 : 0.64
+      const minZoom = isMobileScreen ? 0.25 : 0.44
+      const zoom = Math.max(minZoom, startZoom - (player.length - INITIAL_SEGMENT_COUNT) * 0.0013)
       ctx.translate(w / 2, h / 2)
       ctx.scale(zoom, zoom)
       ctx.translate(-eng.camX, -eng.camY)
@@ -1243,8 +1244,8 @@ export function Wormate3DArena({
 
       ctx.restore()
 
-      // ── 3. VẼ RADAR / MINIMAP GÓC PHẢI DƯỚI ──
-      drawMinimap(ctx, w, eng)
+      // ── 3. VẼ RADAR / MINIMAP GÓC PHẢI TRÊN (Thu nhỏ gọn gàng, trong suốt trên mobile) ──
+      drawMinimap(ctx, w, h, eng)
 
       animationFrame = requestAnimationFrame(loop)
     }
@@ -1341,6 +1342,9 @@ export function Wormate3DArena({
     e.currentTarget.setPointerCapture(e.pointerId)
     handlePointerMove(e)
     if (e.pointerType !== 'touch') engineRef.current.keys.boost = true
+    if (!isLeaderboardCollapsed && dimensions.width < 640) {
+      setIsLeaderboardCollapsed(true)
+    }
   }
 
   const handlePointerUp = () => {
@@ -1369,12 +1373,12 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI (Nhỏ gọn thanh mảnh, siêu mờ để nhìn xuyên thấu đường đi của rắn) */}
+      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI (Pill siêu gọn khi chơi, không chắn tầm nhìn trên mobile) */}
       <div
         className={cn(
           'absolute top-3 left-3 z-10 select-none text-xs transition-opacity duration-200',
           isRunning && !isGameOver
-            ? 'opacity-25 hover:opacity-95 active:opacity-95 focus-within:opacity-95'
+            ? 'opacity-40 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
             : 'opacity-90',
         )}
       >
@@ -1383,28 +1387,30 @@ export function Wormate3DArena({
             type="button"
             onClick={() => setIsLeaderboardCollapsed(false)}
             title="Mở bảng xếp hạng"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/20 border border-white/5 text-amber-300 font-bold text-[10px] shadow-none cursor-pointer hover:bg-slate-900/60 transition-colors pointer-events-auto"
+            className="flex items-center gap-1.5 h-6 px-2 rounded-full bg-slate-950/60 backdrop-blur-xs border border-white/10 text-amber-300 font-bold text-[10px] shadow-xs cursor-pointer hover:bg-slate-900/80 active:scale-95 transition-all pointer-events-auto"
           >
-            <Trophy className="size-2.5 text-amber-400" />
-            <span>#{playerRank} {playerStats.score}đ</span>
-            <ChevronDown className="size-2.5 text-slate-400" />
+            <Trophy className="size-2.5 text-amber-400 shrink-0" />
+            <span>#{playerRank}</span>
+            <span className="text-white/20">·</span>
+            <span className="font-mono text-slate-200">{playerStats.score}đ</span>
+            <ChevronDown className="size-2.5 text-slate-400 shrink-0" />
           </button>
         ) : (
-          <div className="w-32 sm:w-36 p-1 sm:p-1.5 rounded-xl bg-slate-950/20 border border-white/5 shadow-none pointer-events-none">
-            <div className="flex items-center justify-between pb-0.5 mb-0.5 border-b border-white/5">
-              <div className="flex items-center gap-1 font-black text-[9px] text-amber-300/80 uppercase tracking-wider">
-                <Trophy className="size-2.5 text-amber-400/80" />
+          <div className="w-28 sm:w-34 p-1 sm:p-1.5 rounded-xl bg-slate-950/80 backdrop-blur-sm border border-white/10 shadow-lg pointer-events-auto">
+            <div className="flex items-center justify-between pb-0.5 mb-0.5 border-b border-white/10">
+              <div className="flex items-center gap-1 font-black text-[9px] text-amber-300 uppercase tracking-wider">
+                <Trophy className="size-2.5 text-amber-400" />
                 <span>Top 3</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[8px] font-mono text-slate-400/60 bg-white/5 px-1 py-0.2 rounded-full">
+                <span className="text-[8px] font-mono text-slate-400 bg-white/10 px-1 py-0.2 rounded-full">
                   {leaderboard.length}
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsLeaderboardCollapsed(true)}
                   title="Thu gọn"
-                  className="p-0.5 text-slate-400 hover:text-white cursor-pointer pointer-events-auto rounded transition-colors"
+                  className="p-0.5 text-slate-400 hover:text-white cursor-pointer rounded transition-colors"
                 >
                   <ChevronUp className="size-2.5" />
                 </button>
@@ -1418,20 +1424,20 @@ export function Wormate3DArena({
                   <div
                     key={entry.id}
                     className={cn(
-                      'flex items-center justify-between px-1 py-0.5 rounded text-[9px] transition-colors',
+                      'flex items-center justify-between px-1 py-0.5 rounded text-[8px] transition-colors',
                       entry.isPlayer
                         ? 'text-brand font-bold bg-brand/10'
-                        : 'text-slate-300/70 font-medium',
+                        : 'text-slate-300/80 font-medium',
                       !entry.isAlive && 'opacity-30 line-through',
                     )}
                   >
-                    <div className="flex items-center gap-1 truncate max-w-[75px]">
-                      <span className={cn('font-mono font-black text-[8px] w-3', isTop1 ? 'text-amber-400' : 'text-slate-400/50')}>
+                    <div className="flex items-center gap-1 truncate max-w-[68px]">
+                      <span className={cn('font-mono font-black text-[8px] w-3 shrink-0', isTop1 ? 'text-amber-400' : 'text-slate-400/50')}>
                         {isTop1 ? '👑' : `#${index + 1}`}
                       </span>
                       <span className="truncate">{entry.name}</span>
                     </div>
-                    <span className={cn('font-mono font-bold text-[8px] tabular-nums', entry.isPlayer ? 'text-brand' : 'text-slate-300/70')}>
+                    <span className={cn('font-mono font-bold text-[8px] tabular-nums shrink-0', entry.isPlayer ? 'text-brand' : 'text-slate-300/80')}>
                       {entry.score}đ
                     </span>
                   </div>
@@ -1441,8 +1447,8 @@ export function Wormate3DArena({
 
             {/* Vị trí của bạn nếu không nằm trong top 3 */}
             {playerRank > 3 && (
-              <div className="mt-0.5 pt-0.5 border-t border-white/5 flex items-center justify-between px-1 py-0.5 rounded text-brand text-[8px] font-bold bg-brand/10">
-                <span className="truncate max-w-[70px]">#{playerRank} Bạn</span>
+              <div className="mt-0.5 pt-0.5 border-t border-white/10 flex items-center justify-between px-1 py-0.5 rounded text-brand text-[8px] font-bold bg-brand/10">
+                <span className="truncate max-w-[62px]">#{playerRank} Bạn</span>
                 <span className="font-mono tabular-nums">{playerStats.score}đ</span>
               </div>
             )}
@@ -1916,38 +1922,38 @@ export function Wormate3DArena({
           onClick={onStartGame}
           aria-label="Chơi lại"
           data-testid="ran-man-ket-thuc"
-          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-3 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-2 sm:p-3 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
         >
-          <div className="size-11 sm:size-13 rounded-xl bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 shadow-lg shadow-rose-500/25 mb-2">
-            <div className="size-full bg-slate-950 rounded-[10px] flex items-center justify-center text-xl sm:text-2xl">
+          <div className="size-10 sm:size-12 rounded-xl bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 shadow-lg shadow-rose-500/25 mb-1.5 sm:mb-2">
+            <div className="size-full bg-slate-950 rounded-[10px] flex items-center justify-center text-lg sm:text-2xl">
               {finalResult?.winner ? '👑' : '💥'}
             </div>
           </div>
-          <h3 className="text-base sm:text-lg font-black uppercase text-white tracking-wider">
+          <h3 className="text-sm sm:text-base font-black uppercase text-white tracking-wider">
             {finalResult?.winner ? 'TOP 1' : 'KẾT THÚC'}
           </h3>
 
           {/* Thống kê ván gọn gàng */}
-          <div className="grid grid-cols-2 gap-2 my-2.5 w-full max-w-56 p-2 rounded-xl bg-white/5 border border-white/10">
+          <div className="grid grid-cols-2 gap-2 my-2 w-full max-w-52 sm:max-w-56 p-1.5 sm:p-2 rounded-xl bg-white/5 border border-white/10">
             <div className="flex flex-col items-center justify-center">
-              <span className="text-base font-black font-mono text-brand">
+              <span className="text-sm sm:text-base font-black font-mono text-brand">
                 {playerStats.score}đ
               </span>
             </div>
             <div className="flex flex-col items-center justify-center">
-              <span className="text-base font-black font-mono text-amber-300">
+              <span className="text-sm sm:text-base font-black font-mono text-amber-300">
                 {playerStats.length} đốt
               </span>
             </div>
           </div>
 
           {/* Nút CHƠI LẠI tinh gọn, chống tràn viền */}
-          <div className="pt-1">
+          <div className="pt-0.5">
             <span
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-emerald-500/30 ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-150 cursor-pointer"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-brand hover:bg-brand-hover text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-emerald-500/30 ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-150 cursor-pointer"
             >
-              <RotateCcw className="size-4 text-white drop-shadow" />
-              <span>CHƠI LẠI</span>
+              <RotateCcw className="size-3.5 sm:size-4 text-white drop-shadow" />
+              <span>CHƠI LẠI NGAY</span>
             </span>
           </div>
         </button>
@@ -1983,7 +1989,7 @@ function draw3DWorm(
   // Vẽ các đốt thân từ đuôi lên đầu (đầu sẽ đè lên thân)
   const totalSegments = worm.length
   for (let i = totalSegments - 1; i >= 0; i--) {
-    const histIdx = Math.min(history.length - 1, i * SEGMENT_SPACING)
+    const histIdx = Math.min(history.length - 1, Math.round(i * SEGMENT_SPACING))
     const seg = history[histIdx]
     if (!seg) continue
 
@@ -2325,19 +2331,21 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
 function drawMinimap(
   ctx: CanvasRenderingContext2D,
   viewW: number,
+  viewH: number,
   eng: { player: Worm; aiWorms: Worm[]; bushes?: Bush[] }
 ) {
-  const mapSize = 68
-  const mapX = viewW - mapSize - 10
-  const mapY = 10
+  const isMobile = viewW < 640 || viewH < 500
+  const mapSize = isMobile ? 44 : 64
+  const mapX = viewW - mapSize - 8
+  const mapY = 8
 
   ctx.save()
   // Khung radar
   ctx.beginPath()
   ctx.arc(mapX + mapSize / 2, mapY + mapSize / 2, mapSize / 2, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(8, 13, 26, 0.75)'
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
-  ctx.lineWidth = 1.5
+  ctx.fillStyle = 'rgba(8, 13, 26, 0.45)'
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)'
+  ctx.lineWidth = 1
   ctx.fill()
   ctx.stroke()
 
@@ -2347,8 +2355,8 @@ function drawMinimap(
   if (eng.bushes) {
     eng.bushes.forEach((b) => {
       ctx.beginPath()
-      ctx.arc(mapX + b.x * scale, mapY + b.y * scale, 1.6, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(16, 185, 129, 0.45)'
+      ctx.arc(mapX + b.x * scale, mapY + b.y * scale, isMobile ? 1.0 : 1.5, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.35)'
       ctx.fill()
     })
   }
@@ -2357,7 +2365,7 @@ function drawMinimap(
   eng.aiWorms.forEach((ai) => {
     if (ai.isAlive) {
       ctx.beginPath()
-      ctx.arc(mapX + ai.x * scale, mapY + ai.y * scale, 2, 0, Math.PI * 2)
+      ctx.arc(mapX + ai.x * scale, mapY + ai.y * scale, isMobile ? 1.4 : 2, 0, Math.PI * 2)
       ctx.fillStyle = '#f97316'
       ctx.fill()
     }
@@ -2366,11 +2374,11 @@ function drawMinimap(
   // Vị trí người chơi (Vẽ 2 vòng để tạo hiệu ứng phát sáng nhẹ mà không dùng shadowBlur)
   if (eng.player.isAlive) {
     ctx.beginPath()
-    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, 4.5, 0, Math.PI * 2)
+    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, isMobile ? 3.0 : 4.0, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(56, 189, 248, 0.35)'
     ctx.fill()
     ctx.beginPath()
-    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, 2.5, 0, Math.PI * 2)
+    ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, isMobile ? 1.8 : 2.4, 0, Math.PI * 2)
     ctx.fillStyle = '#38bdf8'
     ctx.fill()
   }
