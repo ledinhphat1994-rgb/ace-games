@@ -77,7 +77,7 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
       data-testid={`game-room-card-${room.id}`}
       onClick={onVao}
       className={cn(
-        'group relative flex flex-col justify-between gap-3.5 rounded-2xl p-4 transition-colors duration-150 cursor-pointer select-none',
+        'group relative flex flex-col justify-between gap-3.5 rounded-2xl p-4 transition-colors duration-150 cursor-pointer select-none h-full min-h-[168px]',
         isVip
           ? 'skeuo-subcard-active-amber'
           : hasFriends
@@ -156,8 +156,8 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
       </div>
 
       {/* ── Hàng dưới cùng: Trạng thái / Đồng hồ / Người xem + Nút hành động ── */}
-      <div className="mt-auto flex items-center justify-between gap-3 pt-2.5 border-t border-border-subtle/70">
-        <div className="flex items-center gap-3 text-xs text-text-secondary">
+      <div className="mt-auto flex items-center justify-between gap-2 sm:gap-3 pt-2.5 border-t border-border-subtle/70">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs text-text-secondary min-w-0 flex-wrap">
           {/* Trạng thái ván đấu */}
           {dangCho ? (
             <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400">

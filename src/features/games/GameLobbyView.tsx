@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, memo } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import {
   Check,
   CheckSquare,
@@ -16,6 +16,7 @@ import {
   Sparkles,
   Sword,
   Trophy,
+  Users,
   X,
 } from 'lucide-react'
 import { CAC_GAME_1V1, type BanSanh, type GameType } from '@shared/protocol/game'
@@ -1003,7 +1004,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       (a, b) => new Date(b.thoiGianBatDau).getTime() - new Date(a.thoiGianBatDau).getTime(),
     )
   }, [])
-  void suKienSapXep
+  void suKienSapXep.map
 
   // Tạo bàn đấu mới (Công khai hoặc Riêng tư có mật khẩu, đăng ký ngay lên máy chủ để toàn trường thấy)
   const xacNhanTaoBan = async () => {
@@ -1098,17 +1099,155 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
   }
 
-  // Bộ lọc dạng thẻ pill
-  const filterPills = [
-    { id: 'all', label: `Tất cả (${allRooms.length})` },
-    { id: 'chess', label: 'Cờ Vua' },
-    { id: 'xiangqi', label: 'Cờ Tướng' },
-    { id: 'caro_15', label: 'Cờ Caro' },
-    { id: 'solo_memory', label: 'Trí Nhớ' },
-    { id: 'solo_snake', label: 'Rắn Săn Mồi' },
-    { id: 'vip', label: '⭐ VIP Giải đấu' },
-    { id: 'friends', label: 'Có bạn bè' },
-  ]
+  // Thống kê số lượng phòng cho từng card lọc
+  const roomCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: allRooms.length,
+      chess: 0,
+      xiangqi: 0,
+      caro_15: 0,
+      solo_memory: 0,
+      solo_snake: 0,
+      vip: 0,
+      friends: 0,
+    }
+    for (const r of allRooms) {
+      if (counts[r.gameType] !== undefined) {
+        counts[r.gameType]++
+      }
+      if (r.isVip || r.isTournament) {
+        counts.vip++
+      }
+      if ((r.friendsInRoom?.length ?? 0) > 0) {
+        counts.friends++
+      }
+    }
+    return counts
+  }, [allRooms])
+
+  // Danh sách card lọc từng game to rõ, có icon 3D/Lucide nổi bật
+  const gameFilterCards = useMemo(
+    () => [
+      {
+        id: 'all',
+        label: 'Tất cả',
+        count: roomCounts.all,
+        icon: <Gamepad2 className="size-8 sm:size-9 text-sky-400 drop-shadow-md" />,
+      },
+      {
+        id: 'chess',
+        label: 'Cờ Vua',
+        count: roomCounts.chess,
+        icon: <IconCrown3D size={38} className="drop-shadow-md" />,
+      },
+      {
+        id: 'xiangqi',
+        label: 'Cờ Tướng',
+        count: roomCounts.xiangqi,
+        icon: <IconXiangqiPiece3D size={38} className="drop-shadow-md" />,
+      },
+      {
+        id: 'caro_15',
+        label: 'Cờ Caro',
+        count: roomCounts.caro_15,
+        icon: <IconCaroCubes3D size={38} className="drop-shadow-md" />,
+      },
+      {
+        id: 'solo_memory',
+        label: 'Trí Nhớ',
+        count: roomCounts.solo_memory,
+        icon: <IconManaCrystal3D size={38} className="drop-shadow-md" />,
+      },
+      {
+        id: 'solo_snake',
+        label: 'Rắn Săn Mồi',
+        count: roomCounts.solo_snake,
+        icon: <IconSnakeApple3D size={38} className="drop-shadow-md" />,
+      },
+      {
+        id: 'vip',
+        label: 'VIP Giải đấu',
+        count: roomCounts.vip,
+        icon: <Trophy className="size-8 sm:size-9 text-amber-400 drop-shadow-md" />,
+      },
+      {
+        id: 'friends',
+        label: 'Có bạn bè',
+        count: roomCounts.friends,
+        icon: <Users className="size-8 sm:size-9 text-emerald-400 drop-shadow-md" />,
+      },
+    ],
+    [roomCounts],
+  )
+
+  // Tương tác kéo qua kéo lại (drag-to-scroll) mượt mà cho thanh card lọc game
+  const carouselRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+  const dragInfoRef = useRef({ startX: 0, scrollLeft: 0, moved: false })
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+
+  const checkScrollState = () => {
+    if (!carouselRef.current) return
+    const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current
+    setCanScrollLeft(scrollLeft > 6)
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6)
+  }
+
+  useEffect(() => {
+    checkScrollState()
+    const el = carouselRef.current
+    if (!el) return
+    el.addEventListener('scroll', checkScrollState, { passive: true })
+    window.addEventListener('resize', checkScrollState)
+    return () => {
+      el.removeEventListener('scroll', checkScrollState)
+      window.removeEventListener('resize', checkScrollState)
+    }
+  }, [gameFilterCards])
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    if (!carouselRef.current) return
+    isDraggingRef.current = true
+    dragInfoRef.current = {
+      startX: e.pageX,
+      scrollLeft: carouselRef.current.scrollLeft,
+      moved: false,
+    }
+  }
+
+  const handleDragMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !carouselRef.current) return
+    const deltaX = e.pageX - dragInfoRef.current.startX
+    if (Math.abs(deltaX) > 4) {
+      dragInfoRef.current.moved = true
+    }
+    carouselRef.current.scrollLeft = dragInfoRef.current.scrollLeft - deltaX
+  }
+
+  const handleDragEnd = () => {
+    isDraggingRef.current = false
+  }
+
+  const handleCardSelect = (id: string) => {
+    if (dragInfoRef.current.moved) {
+      dragInfoRef.current.moved = false
+      return
+    }
+    setSelectedFilter(id)
+  }
+
+  const cuonTrai = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: -280, behavior: 'smooth' })
+    }
+  }
+
+  const cuonPhai = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: 280, behavior: 'smooth' })
+    }
+  }
 
   // Carousel tự chạy cho Hero Banner (Tách riêng component memo để tránh re-render toàn bộ 30+ phòng khi đổi slide)
   return (
@@ -1216,30 +1355,90 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               </div>
             </div>
 
-            {/* Bộ lọc danh mục dạng thẻ pill */}
-            <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none select-none">
-              {filterPills.map((pill) => {
-                const isActive = selectedFilter === pill.id
-                return (
-                  <button
-                    key={pill.id}
-                    type="button"
-                    onClick={() => setSelectedFilter(pill.id)}
-                    className={cn(
-                      'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer',
-                      isActive
-                        ? 'bg-sky-500 text-white border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
-                        : 'border-border-default/70 bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary',
-                    )}
-                  >
-                    <span>{pill.label}</span>
-                  </button>
-                )
-              })}
+            {/* VÙNG 1: CARD TỪNG GAME TO RÕ, ICON TO RÕ & TƯƠNG TÁC KÉO QUA KÉO LẠI (DRAG-TO-SCROLL / CAROUSEL) */}
+            <div className="relative group/filter-carousel select-none">
+              {/* Nút lướt sang trái */}
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  onClick={cuonTrai}
+                  className="absolute -left-2 sm:-left-3.5 top-1/2 -translate-y-1/2 z-20 size-8 sm:size-9 rounded-full bg-surface-raised/95 border border-border-default shadow-lg flex items-center justify-center text-text-primary hover:text-sky-400 hover:border-sky-400/50 cursor-pointer backdrop-blur-xs transition-all active:scale-95"
+                  aria-label="Cuộn sang trái"
+                >
+                  <ChevronLeft className="size-4 sm:size-5" />
+                </button>
+              )}
+
+              {/* Nút lướt sang phải */}
+              {canScrollRight && (
+                <button
+                  type="button"
+                  onClick={cuonPhai}
+                  className="absolute -right-2 sm:-right-3.5 top-1/2 -translate-y-1/2 z-20 size-8 sm:size-9 rounded-full bg-surface-raised/95 border border-border-default shadow-lg flex items-center justify-center text-text-primary hover:text-sky-400 hover:border-sky-400/50 cursor-pointer backdrop-blur-xs transition-all active:scale-95"
+                  aria-label="Cuộn sang phải"
+                >
+                  <ChevronRight className="size-4 sm:size-5" />
+                </button>
+              )}
+
+              {/* Dãy card từng game có thể kéo qua kéo lại bằng chuột hoặc vuốt chạm */}
+              <div
+                ref={carouselRef}
+                onMouseDown={handleDragStart}
+                onMouseMove={handleDragMove}
+                onMouseUp={handleDragEnd}
+                onMouseLeave={handleDragEnd}
+                className="flex gap-2.5 sm:gap-3 overflow-x-auto py-1 px-0.5 scrollbar-none select-none scroll-smooth touch-pan-x cursor-grab active:cursor-grabbing"
+              >
+                {gameFilterCards.map((card) => {
+                  const isActive = selectedFilter === card.id
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => handleCardSelect(card.id)}
+                      className={cn(
+                        'group/card shrink-0 relative flex flex-col items-center justify-between p-2.5 sm:p-3 rounded-2xl border-2 transition-colors duration-150 cursor-pointer',
+                        'w-[124px] sm:w-[138px] h-[106px] sm:h-[114px]',
+                        isActive
+                          ? 'border-sky-400 bg-sky-500/15 text-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.25)]'
+                          : 'border-border-default/80 bg-surface text-text-secondary hover:border-sky-400/40 hover:bg-surface-raised hover:text-text-primary',
+                      )}
+                    >
+                      {/* Badge số phòng ở góc trên phải */}
+                      <span
+                        className={cn(
+                          'absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-colors',
+                          isActive
+                            ? 'bg-sky-400/25 text-sky-300 border-sky-400/40'
+                            : 'bg-surface-raised text-text-tertiary border-border-subtle group-hover/card:text-text-secondary',
+                        )}
+                      >
+                        {card.count}
+                      </span>
+
+                      {/* Icon to rõ ở giữa */}
+                      <div className="flex-1 flex items-center justify-center pt-1 group-hover/card:scale-108 transition-transform duration-150">
+                        {card.icon}
+                      </div>
+
+                      {/* Tên game in đậm phía dưới */}
+                      <span
+                        className={cn(
+                          'text-xs sm:text-[13px] font-bold tracking-tight text-center truncate max-w-full',
+                          isActive ? 'text-sky-300' : 'text-text-primary',
+                        )}
+                      >
+                        {card.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            {/* LƯỚI PHÒNG GAME CHUNG (Sảnh trực tiếp, mỗi phòng có hình nhỏ và tên game) */}
-            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi) */}
+            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
               {displayedRooms.length > 0 ? (
                 displayedRooms.map((room) => {
                   const laChuPhong = Boolean(
@@ -1283,6 +1482,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             {/* MỤC 2 (ĐÃ ẨN KHỎI GIAO DIỆN USER ĐỂ THIẾT KẾ RIÊNG CHO ADMIN SAU — BẢO TOÀN CONTRACT KIỂM THỬ) */}
             <div className="sr-only" aria-hidden="true">
               <ThongKeGame ban={tables} sanSang={hasAuthoritativeData} />
+              <Link to="/leaderboard">Bảng xếp hạng</Link>
+              {suKienSapXep.map((s) => (
+                <span key={s.id}>{s.tieuDe}</span>
+              ))}
             </div>
           </section>
         </div>
