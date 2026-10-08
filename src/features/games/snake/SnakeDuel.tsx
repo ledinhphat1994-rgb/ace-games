@@ -301,13 +301,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         />
       </div>
 
-      {/* ── 2. CỤM NÚT THAO TÁC NHANH GÓC PHẢI DƯỚI CÙNG (SÁT NÚT TĂNG TỐC VÀ SÁT NÚT TIN NHẮN NỔI) ── */}
+      {/* ── 2. CỤM NÚT THAO TÁC NHANH GÓC PHẢI DƯỚI CÙNG (VÙNG 2: SÁT MÉP DƯỚI, CÁCH ĐỀU NHAU, ICON TO RÕ) ── */}
       <div
         className={cn(
-          'snake-quick-actions absolute z-30 flex items-center gap-1 sm:gap-1.5 pointer-events-auto select-none transition-all pb-[env(safe-area-inset-bottom,0px)]',
-          isFullscreen
-            ? 'bottom-2 right-2 sm:bottom-3 sm:right-3'
-            : 'bottom-2 right-12 sm:bottom-3 sm:right-14'
+          'snake-quick-actions absolute z-30 flex items-center gap-2 sm:gap-2.5 pointer-events-auto select-none transition-all pb-[env(safe-area-inset-bottom,0px)]',
+          'bottom-2 right-13 sm:bottom-2.5 sm:right-15'
         )}
         data-testid="snake-quick-actions"
       >
@@ -317,9 +315,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           title="Sảnh (Q)"
           aria-label="Sảnh"
           data-testid="nut-nhanh-sanh"
-          className="size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150"
+          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="size-5" />
         </button>
 
         <button
@@ -329,11 +327,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           aria-label="Cài đặt"
           data-testid="nut-che-do-choi"
           className={cn(
-            'size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150',
-            isConfigOpen && 'border-emerald-400/80 bg-emerald-950/70',
+            'size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150',
+            isConfigOpen && 'border-emerald-400 bg-emerald-950/80',
           )}
         >
-          <Gamepad2 className="size-4" />
+          <Gamepad2 className="size-5" />
         </button>
 
         <button
@@ -342,9 +340,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           title="Chơi lại (R)"
           aria-label="Chơi lại"
           data-testid="nut-nhanh-choi-lai"
-          className="size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150"
+          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
-          <RotateCcw className="size-4" />
+          <RotateCcw className="size-5" />
         </button>
 
         <button
@@ -353,9 +351,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           title={isFullscreen ? 'Thu nhỏ (F)' : 'Toàn màn hình (F)'}
           aria-label={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
           data-testid="nut-nhanh-toan-man-hinh"
-          className="size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150"
+          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
-          {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
         </button>
       </div>
     </div>

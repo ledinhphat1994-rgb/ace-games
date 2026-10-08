@@ -476,12 +476,7 @@ export function Wormate3DArena({
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([])
   const [playerRank, setPlayerRank] = useState(1)
   const [aliveCount, setAliveCount] = useState(1)
-  const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 1024
-    }
-    return true
-  })
+  const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(false)
   const [player2Score, setPlayer2Score] = useState(0)
   const [playerStats, setPlayerStats] = useState({ score: 0, length: INITIAL_SEGMENT_COUNT })
   const [roundResult, setRoundResult] = useState<{ restartKey: number; winner: boolean; reason: string } | null>(null)
@@ -1745,9 +1740,6 @@ export function Wormate3DArena({
     e.currentTarget.setPointerCapture(e.pointerId)
     handlePointerMove(e)
     if (e.pointerType !== 'touch') engineRef.current.keys.boost = true
-    if (!isLeaderboardCollapsed && dimensions.width < 640) {
-      setIsLeaderboardCollapsed(true)
-    }
   }
 
   const handlePointerUp = () => {
@@ -1776,12 +1768,12 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 1: BẢNG XẾP HẠNG NGƯỜI CHƠI (TOP 10 RÕ NÉT, CHỮ TO RÕ) */}
+      {/* VÙNG 3: BẢNG XẾP HẠNG GÓC PHẢI TRÊN CÙNG (MẶC ĐỊNH TOP 3, CHỮ NHỎ GỌN, KHÔNG ĐÈ CARD KHÁC) */}
       <div
         className={cn(
-          'absolute top-3.5 left-3.5 z-10 select-none text-xs transition-opacity duration-200',
+          'absolute top-2 right-2 sm:top-2.5 sm:right-2.5 z-10 select-none text-[10px] sm:text-xs transition-opacity duration-200 pointer-events-auto',
           isRunning && !isGameOver
-            ? 'opacity-85 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
+            ? 'opacity-90 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
             : 'opacity-95',
         )}
       >
@@ -1789,43 +1781,43 @@ export function Wormate3DArena({
           <button
             type="button"
             onClick={() => setIsLeaderboardCollapsed(false)}
-            title="Mở bảng xếp hạng TOP 10"
-            className="flex items-center gap-1.5 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-amber-300 font-bold text-xs sm:text-sm shadow-md cursor-pointer hover:bg-slate-900 active:scale-95 transition-all pointer-events-auto whitespace-nowrap"
+            title="Mở bảng xếp hạng TOP 3"
+            aria-label="Mở bảng xếp hạng TOP 3"
+            className="flex items-center gap-1 h-6 sm:h-7 px-2 rounded-full bg-slate-950/85 backdrop-blur-md border border-white/15 text-amber-300 font-bold text-[10px] sm:text-xs shadow-md cursor-pointer hover:bg-slate-900 active:scale-95 transition-all whitespace-nowrap"
           >
-            <Trophy className="size-3.5 text-amber-400 shrink-0" />
+            <Trophy className="size-3 text-amber-400 shrink-0" />
             <span>#{playerRank}</span>
-            <span className="hidden sm:inline text-white/20">·</span>
-            <span className="hidden sm:inline font-mono text-slate-200">{playerStats.score}đ</span>
             <span className="text-white/20">·</span>
-            <span className="font-mono text-emerald-400 font-bold text-[11px] sm:text-xs">{aliveCount} sống</span>
-            <ChevronDown className="size-3 text-slate-400 shrink-0" />
+            <span className="font-mono text-emerald-400 font-bold">{aliveCount} sống</span>
+            <ChevronDown className="size-2.5 text-slate-400 shrink-0" />
           </button>
         ) : (
-          <div className="w-52 sm:w-60 p-2 sm:p-2.5 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-white/15 shadow-2xl pointer-events-auto">
-            {/* Header: TOP 10 */}
-            <div className="flex items-center justify-between pb-1.5 mb-1 border-b border-white/10">
-              <div className="flex items-center gap-1.5 font-black text-xs sm:text-sm text-amber-300 uppercase tracking-wider">
-                <Trophy className="size-3.5 text-amber-400" />
-                <span>TOP 10</span>
+          <div className="w-[126px] sm:w-[148px] p-1.5 sm:p-2 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/15 shadow-xl text-[10px] sm:text-xs">
+            {/* Header: TOP 3 */}
+            <div className="flex items-center justify-between pb-1 mb-1 border-b border-white/10">
+              <div className="flex items-center gap-1 font-black text-[10px] sm:text-xs text-amber-300 uppercase tracking-wide">
+                <Trophy className="size-3 text-amber-400 shrink-0" />
+                <span>TOP 3</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] sm:text-xs font-mono text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold">
-                  {aliveCount} còn lại
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-mono text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded font-bold">
+                  {aliveCount}
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsLeaderboardCollapsed(true)}
                   title="Thu gọn"
-                  className="p-1 text-slate-400 hover:text-white cursor-pointer rounded-md transition-colors"
+                  aria-label="Thu gọn"
+                  className="p-0.5 text-slate-400 hover:text-white cursor-pointer rounded transition-colors"
                 >
-                  <ChevronUp className="size-3.5" />
+                  <ChevronUp className="size-2.5" />
                 </button>
               </div>
             </div>
 
-            {/* Danh sách TOP 10 */}
-            <div className="flex flex-col gap-1 max-h-[220px] sm:max-h-[260px] overflow-y-auto pr-0.5" style={{ scrollbarWidth: 'thin' }}>
-              {leaderboard.slice(0, 10).map((entry, index) => {
+            {/* Danh sách TOP 3 */}
+            <div className="flex flex-col gap-0.5">
+              {leaderboard.slice(0, 3).map((entry, index) => {
                 const isTop1 = index === 0
                 const isTop2 = index === 1
                 const isTop3 = index === 2
@@ -1833,20 +1825,20 @@ export function Wormate3DArena({
                   <div
                     key={entry.id}
                     className={cn(
-                      'flex items-center justify-between px-1.5 py-1 rounded-lg text-xs sm:text-sm transition-colors',
+                      'flex items-center justify-between px-1 py-0.5 rounded text-[10px] sm:text-[11px] leading-tight transition-colors',
                       entry.isPlayer
-                        ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-400/40'
+                        ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-400/30'
                         : 'text-slate-200 font-medium hover:bg-white/5',
                       !entry.isAlive && 'opacity-35 line-through',
                     )}
                   >
-                    <div className="flex items-center gap-1.5 truncate max-w-[125px] sm:max-w-[145px]">
-                      <span className={cn('font-mono font-black text-xs w-4 shrink-0 text-center', isTop1 ? 'text-amber-400 text-sm' : isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-600' : 'text-slate-400/60')}>
+                    <div className="flex items-center gap-1 truncate max-w-[76px] sm:max-w-[92px]">
+                      <span className={cn('font-mono font-black text-[9px] w-3 shrink-0 text-center', isTop1 ? 'text-amber-400' : isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-600' : 'text-slate-400/60')}>
                         {isTop1 ? '👑' : isTop2 ? '🥈' : isTop3 ? '🥉' : `#${index + 1}`}
                       </span>
                       <span className="truncate">{entry.name}</span>
                     </div>
-                    <span className={cn('font-mono font-bold text-xs sm:text-sm tabular-nums shrink-0', entry.isPlayer ? 'text-sky-300' : 'text-amber-300')}>
+                    <span className={cn('font-mono font-bold text-[9px] sm:text-[10px] tabular-nums shrink-0', entry.isPlayer ? 'text-sky-300' : 'text-amber-300')}>
                       {entry.score}đ
                     </span>
                   </div>
@@ -1854,11 +1846,11 @@ export function Wormate3DArena({
               })}
             </div>
 
-            {/* Vị trí của bạn nếu không nằm trong top 10 */}
-            {playerRank > 10 && (
-              <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-1.5 py-1 rounded-lg text-sky-300 text-xs sm:text-sm font-bold bg-sky-500/20 border border-sky-400/40">
-                <span className="truncate max-w-[120px]">#{playerRank} Bạn</span>
-                <span className="font-mono tabular-nums">{playerStats.score}đ</span>
+            {/* Vị trí của bạn nếu không nằm trong top 3 */}
+            {playerRank > 3 && (
+              <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-1 py-0.5 rounded text-sky-300 text-[10px] sm:text-[11px] font-bold bg-sky-500/20 border border-sky-400/30">
+                <span className="truncate max-w-[76px] sm:max-w-[92px]">#{playerRank} Bạn</span>
+                <span className="font-mono tabular-nums text-[9px] sm:text-[10px]">{playerStats.score}đ</span>
               </div>
             )}
           </div>
@@ -1867,7 +1859,7 @@ export function Wormate3DArena({
 
       {/* HUD thông số người chơi & Đếm ngược vòng bo an toàn ở đỉnh trung tâm */}
       {isRunning && !isGameOver && (
-        <div className="snake-hud absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs shadow-md select-none pointer-events-none whitespace-nowrap transition-opacity">
+        <div className="snake-hud absolute top-2 sm:top-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-[10px] sm:text-xs shadow-md select-none pointer-events-none whitespace-nowrap transition-opacity">
           {mode === 'pass_and_play' ? (
             <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs sm:text-sm">
               <span className="text-brand font-bold">P1: {playerStats.score}đ</span>
@@ -1875,7 +1867,7 @@ export function Wormate3DArena({
               <span className="text-rose-400 font-bold">P2: {player2Score}đ</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs whitespace-nowrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs whitespace-nowrap">
               {/* Trạng thái đếm ngược vòng bo */}
               {safeZoneHud.isShrinking ? (
                 <div className="flex items-center gap-1 text-rose-400 font-bold animate-pulse">
@@ -3074,9 +3066,9 @@ function drawMinimap(
   eng: { player: Worm; aiWorms: Worm[]; bushes?: Bush[]; safeZone?: SafeZoneState }
 ) {
   const isMobile = viewW < 640 || viewH < 500
-  const mapSize = isMobile ? 54 : 76
-  const mapX = viewW - mapSize - 10
-  const mapY = isMobile ? 12 : 14
+  const mapSize = isMobile ? 48 : 64
+  const mapX = isMobile ? 10 : 14
+  const mapY = isMobile ? 10 : 12
 
   ctx.save()
   // Khung radar

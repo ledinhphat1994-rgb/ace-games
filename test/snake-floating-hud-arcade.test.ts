@@ -38,7 +38,8 @@ describe('Chuẩn Quốc Tế Arcade: Tràn viền 100% màn hình & HUD nổi k
   })
 
   it('Wormate3DArena: Sắp xếp HUD Top 3 và radar minimap gọn ở các góc trên, giải phóng tầm nhìn', () => {
-    expect(wormateRaw).toContain('absolute top-3.5 left-3.5 z-10')
-    expect(wormateRaw).toContain('const mapY = isMobile ? 12 : 14')
+    expect(wormateRaw).toContain('top-2 right-2')
+    expect(wormateRaw).toContain('leaderboard.slice(0, 3)')
+    expect(wormateRaw).toContain('const mapX = isMobile ? 10 : 14')
   })
 })

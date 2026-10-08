@@ -326,16 +326,16 @@ export function AppShell({ children }: AppShellProps) {
             'fixed z-[80] flex items-center justify-center rounded-full text-white cursor-pointer transition-colors duration-150',
             isChatOpen && 'max-sm:hidden max-lg:landscape:hidden',
             isActivityRoom
-              ? 'bottom-2.5 right-2.5 sm:bottom-5 sm:right-5'
+              ? 'bottom-2 right-2 sm:bottom-2.5 sm:right-3'
               : 'bottom-20 right-4 sm:bottom-6 sm:right-6',
             isChatOpen
               ? cn(
-                  isActivityRoom ? 'size-10 sm:size-11' : 'size-12',
+                  isActivityRoom ? 'size-9.5 sm:size-10' : 'size-12',
                   'bg-gradient-to-r from-sky-500 to-blue-600 border border-sky-300/40 opacity-100 shadow-[0_4px_20px_rgba(56,189,248,0.5)]',
                 )
               : cn(
                   isActivityRoom
-                    ? 'size-8 sm:size-9 bg-sky-950/70 border border-sky-400/25 shadow-sm backdrop-blur-xs opacity-35 hover:opacity-100 hover:bg-sky-600/80 hover:border-sky-300/50'
+                    ? 'size-9.5 sm:size-10 bg-slate-900/90 border border-white/20 shadow-lg backdrop-blur-md opacity-85 hover:opacity-100 hover:bg-slate-800 text-sky-400 hover:text-sky-300'
                     : 'size-9.5 sm:size-10 bg-sky-600/75 border border-sky-300/30 shadow-md',
                   !isActivityRoom && (coTinNhanMoi ? 'opacity-85' : 'opacity-40'),
                   !isActivityRoom && 'hover:opacity-100 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:shadow-[0_4px_20px_rgba(56,189,248,0.45)]',
@@ -346,12 +346,12 @@ export function AppShell({ children }: AppShellProps) {
         >
           <MessageSquare
             className={cn(
-              'text-white transition-transform',
+              'transition-transform',
               isChatOpen
-                ? 'size-5'
+                ? 'size-5 text-white'
                 : isActivityRoom
-                  ? 'size-3.5 sm:size-4'
-                  : 'size-4.5 sm:size-5',
+                  ? 'size-5 text-sky-400'
+                  : 'size-4.5 sm:size-5 text-white',
             )}
           />
           {coTinNhanMoi && !isChatOpen && (
