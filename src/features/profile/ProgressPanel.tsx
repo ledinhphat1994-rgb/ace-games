@@ -9,8 +9,8 @@ import { AchievementsModal } from '@/features/engagement/AchievementsModal'
 import { ClassChallengeModal } from '@/features/engagement/ClassChallengeModal'
 import { ClassLeaderboardModal } from '@/features/engagement/ClassLeaderboardModal'
 
-// Tab "Tiến trình" trong hồ sơ: chỉ hiện số liệu máy chủ trả về (chuỗi ngày, XP, huy hiệu, thử thách lớp).
-export function ProgressPanel() {
+// Tab "Tiến trình" trong hồ sơ: chỉ hiện số liệu máy chủ trả về (chuỗi ngày, XP, huy hiệu).
+export function ProgressPanel({ hideChallenge = false }: { hideChallenge?: boolean } = {}) {
   const [moXepHang, setMoXepHang] = useState(false)
   const [moHuyHieu, setMoHuyHieu] = useState(false)
   const [moThuThach, setMoThuThach] = useState(false)
@@ -34,36 +34,37 @@ export function ProgressPanel() {
       if (!res.ok) return { ok: false, lopTen: null, challenge: null }
       return res.json()
     },
+    enabled: !hideChallenge,
     staleTime: 60_000,
   })
 
   const trangThai = deriveProgressState({ isLoading, isError, data, error })
-  const thuThach = challengeData?.challenge ?? null
+  const thuThach = hideChallenge ? null : challengeData?.challenge ?? null
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6 card-side-glow">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 card-side-glow shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Tiến trình học tập</h3>
+            <h3 className="text-base font-bold text-text-primary">Tiến trình học tập</h3>
           </div>
-          <div className="max-sm:day-loc-deu w-full gap-2 sm:flex sm:w-auto [--the-nho-nhat:9rem]">
-            <Button variant="outline" size="sm" onClick={() => setMoHuyHieu(true)}>
-              <Award className="text-social" />
-              Huy hiệu
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setMoHuyHieu(true)} className="rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold gap-1.5 cursor-pointer">
+              <Award className="size-3.5 text-social" />
+              <span>Huy hiệu</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setMoXepHang(true)}>
-              <Trophy className="text-achievement" />
-              Xếp hạng lớp
+            <Button variant="outline" size="sm" onClick={() => setMoXepHang(true)} className="rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold gap-1.5 cursor-pointer">
+              <Trophy className="size-3.5 text-achievement" />
+              <span>Xếp hạng lớp</span>
             </Button>
           </div>
         </div>
 
         <div className="mt-5" style={{ overflowAnchor: 'none' }}>
           {trangThai.type === 'loading' && (
-            <div className="day-loc-deu [--the-nho-nhat:9rem]" aria-busy="true" aria-label="Đang tải tiến trình">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-busy="true" aria-label="Đang tải tiến trình">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-[84px] animate-pulse rounded-xl border border-border-subtle bg-canvas/40" />
+                <div key={i} className="h-[84px] animate-pulse rounded-xl border border-border-subtle bg-surface-overlay/40" />
               ))}
             </div>
           )}
@@ -82,7 +83,7 @@ export function ProgressPanel() {
           )}
 
           {trangThai.type === 'success' && (
-            <dl className="day-loc-deu [--the-nho-nhat:9rem]">
+            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <OChiSo icon={<Flame className="size-4 text-warning" />} nhan="Chuỗi hiện tại" giaTri={`${trangThai.currentStreak} ngày`} />
               <OChiSo icon={<CalendarDays className="size-4 text-text-tertiary" />} nhan="Chuỗi dài nhất" giaTri={`${trangThai.profile.longestStreak} ngày`} />
               <OChiSo
@@ -97,7 +98,7 @@ export function ProgressPanel() {
         </div>
       </section>
 
-      {thuThach && (
+      {!hideChallenge && thuThach && (
         <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6 card-side-glow">
           <div className="flex items-start gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-success-muted text-success">
@@ -140,7 +141,7 @@ export function ProgressPanel() {
 
       <ClassLeaderboardModal open={moXepHang} onOpenChange={setMoXepHang} />
       <AchievementsModal open={moHuyHieu} onOpenChange={setMoHuyHieu} />
-      <ClassChallengeModal open={moThuThach} onOpenChange={setMoThuThach} />
+      {!hideChallenge && <ClassChallengeModal open={moThuThach} onOpenChange={setMoThuThach} />}
     </div>
   )
 }

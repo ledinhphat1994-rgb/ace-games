@@ -4,6 +4,8 @@
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant mobile-landscape (@media (orientation: landscape) and (max-height: 540px));
+@custom-variant short-screen (@media (max-height: 540px));
 
 :root {
   color-scheme: light;
@@ -1182,6 +1184,37 @@ body { min-width: 280px; }
 @media (min-width: 1280px) {
   .game-board-snake {
     width: min(100%, min(calc(100dvh - 160px), 660px));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TỐI ƯU TOÀN DIỆN CHO MÀN HÌNH NGANG WEB MOBILE (MOBILE LANDSCAPE RESILIENCE)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (orientation: landscape) and (max-height: 540px) {
+  /* Bàn cờ Cờ Tướng: Tối ưu kích thước hiển thị lớn, không bị co lại 140px */
+  .game-board-xiangqi {
+    width: min(calc((100dvh - 56px) * 0.9), min(calc(100vw - 32px), 480px)) !important;
+    max-height: calc(100dvh - 56px) !important;
+  }
+  /* Bàn cờ Vua, Cờ Caro, Trí nhớ: Tận dụng tối đa chiều cao màn hình ngang */
+  .game-board-chess,
+  .game-board-caro,
+  .game-board-memory {
+    width: min(calc(100dvh - 56px), min(calc(100vw - 32px), 480px)) !important;
+    max-height: calc(100dvh - 56px) !important;
+  }
+
+  /* Khung trò chuyện nổi Campus: Căn chuẩn mép phải, full chiều cao, 0 pixel bị che */
+  [data-slot="sheet-content"].campus-chat-sheet-root {
+    top: 8px !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 8px)) !important;
+    right: 8px !important;
+    left: auto !important;
+    width: min(380px, calc(100vw - 20px)) !important;
+    height: calc(100dvh - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    min-height: 0 !important;
+    transform: none !important;
   }
 }
 

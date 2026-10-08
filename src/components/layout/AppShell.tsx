@@ -121,9 +121,21 @@ export function AppShell({ children }: AppShellProps) {
       setActiveDmTarget(null)
       setIsChatOpen(true)
     }
+    const handleToggleChat = () => {
+      if (!nguoiDung) {
+        moAuthModal('dang_nhap')
+        return
+      }
+      setActiveDmTarget(null)
+      datMoChat(!isChatOpen)
+    }
     window.addEventListener('campus:open-chat', handleOpenChat)
-    return () => window.removeEventListener('campus:open-chat', handleOpenChat)
-  }, [nguoiDung, moAuthModal])
+    window.addEventListener('campus:toggle-chat', handleToggleChat)
+    return () => {
+      window.removeEventListener('campus:open-chat', handleOpenChat)
+      window.removeEventListener('campus:toggle-chat', handleToggleChat)
+    }
+  }, [nguoiDung, moAuthModal, isChatOpen])
 
   useEffect(() => {
     const handleOpenDM = (e: Event) => {
@@ -303,7 +315,7 @@ export function AppShell({ children }: AppShellProps) {
       {!isFullscreen && !isActivityRoom && <MobileNav />}
 
       {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng (Nhỏ gọn & mờ tinh tế khi vào phòng hoạt động) */}
-      {!isFullscreen && (
+      {(!isFullscreen || isSnakeGame) && (
         <button
           type="button"
           onClick={() => datMoChat(!isChatOpen)}
@@ -312,7 +324,7 @@ export function AppShell({ children }: AppShellProps) {
           data-testid="floating-chat-button"
           className={cn(
             'fixed z-[80] flex items-center justify-center rounded-full text-white cursor-pointer transition-colors duration-150',
-            isChatOpen && 'max-sm:hidden',
+            isChatOpen && 'max-sm:hidden max-lg:landscape:hidden',
             isActivityRoom
               ? 'bottom-2.5 right-2.5 sm:bottom-5 sm:right-5'
               : 'bottom-20 right-4 sm:bottom-6 sm:right-6',

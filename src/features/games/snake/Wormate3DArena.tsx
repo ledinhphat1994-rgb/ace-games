@@ -1,30 +1,75 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bot, Check, ChevronDown, ChevronUp, Crown, Lock, Play, RotateCcw, Swords, Trophy, Users, X } from 'lucide-react'
+import { Bot, Check, ChevronDown, ChevronUp, Crown, Lock, Play, RotateCcw, Swords, Trophy, Users, X, Music, Volume2, Sparkles, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
+import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
 
-const ARENA_SIZE = 2400
+const ARENA_SIZE = 3600
 const INITIAL_SEGMENT_COUNT = 18
 const BASE_SPEED = 3.6
 const BOOST_SPEED = 7.0
 const SEGMENT_SPACING = 5.8
 const MIN_RADIUS = 11.5
-const MAX_RADIUS = 24.0
-const TOTAL_FOOD_COUNT = 200
+const MAX_RADIUS = 26.0
+const TOTAL_FOOD_COUNT = 450
 
-export type PastryType = 'donut' | 'cupcake' | 'cake' | 'cookie' | 'candy' | 'burger' | 'croissant'
+export type PastryType =
+  // Đồ xịn (Super Foods: Lớn nhanh, điểm cao, hào quang)
+  | 'burger'
+  | 'pizza'
+  | 'boba'
+  | 'sushi'
+  | 'gem'
+  // Đồ thường (Classic Pastries: +điểm & +đốt bình thường)
+  | 'donut'
+  | 'cupcake'
+  | 'cake'
+  | 'cookie'
+  | 'candy'
+  | 'croissant'
+  // Đồ dỏm / Độc hại (Hazard items: Trừ điểm & Giảm độ dài/teo nhỏ)
+  | 'poison_mushroom'
+  | 'rotten_apple'
+  | 'fish_bone'
+  | 'chili_pepper'
 
-interface FoodItem {
+export interface FoodItem {
   id: number
   x: number
   y: number
   type: PastryType
+  category: 'deluxe' | 'normal' | 'hazard'
   r: number
   points: number
+  lengthDelta: number // Số đốt tăng (+) hoặc giảm (-)
   rotation: number
   rotSpeed: number
   pulse: number
+}
+
+export interface SafeZoneState {
+  centerX: number
+  centerY: number
+  currentRadius: number
+  targetRadius: number
+  targetCenterX: number
+  targetCenterY: number
+  phase: number
+  countdown: number
+  isShrinking: boolean
+  shrinkDuration: number
+  shrinkTimer: number
+}
+
+export interface FloatingText {
+  id: number
+  x: number
+  y: number
+  text: string
+  color: string
+  alpha: number
+  vy: number
 }
 
 interface Worm {
@@ -142,61 +187,77 @@ const COLOR_PALETTES = [
 
 function createBushes(): Bush[] {
   const bushes: Bush[] = []
-  const count = 32
+  const clusterCount = 18 // 18 cụm rừng lớn khắp map
   const berryColors = ['#f43f5e', '#fbbf24', '#f472b6', '#38bdf8', '#a855f7']
-  for (let i = 0; i < count; i++) {
-    let bx = 160 + Math.random() * (ARENA_SIZE - 320)
-    let by = 160 + Math.random() * (ARENA_SIZE - 320)
+  let globalBushId = 0
+
+  for (let c = 0; c < clusterCount; c++) {
+    // Vị trí tâm cụm rừng
+    let cx = 240 + Math.random() * (ARENA_SIZE - 480)
+    let cy = 240 + Math.random() * (ARENA_SIZE - 480)
     // Tránh khu vực xuất hiện của người chơi ở tâm sân
-    if (Math.hypot(bx - ARENA_SIZE / 2, by - ARENA_SIZE / 2) < 280) {
-      bx += bx > ARENA_SIZE / 2 ? 340 : -340
+    if (Math.hypot(cx - ARENA_SIZE / 2, cy - ARENA_SIZE / 2) < 400) {
+      cx += cx > ARENA_SIZE / 2 ? 460 : -460
     }
-    const r = 32 + Math.random() * 24
-    const leafCount = 6 + Math.floor(Math.random() * 3)
-    const leaves: BushLeaf[] = []
-    for (let j = 0; j < leafCount; j++) {
-      const a = (j * Math.PI * 2) / leafCount + (Math.random() - 0.5) * 0.35
-      const dist = (0.35 + Math.random() * 0.35) * r
-      leaves.push({
-        ox: Math.cos(a) * dist,
-        oy: Math.sin(a) * dist,
-        r: r * (0.44 + Math.random() * 0.2),
+
+    // Mỗi cụm có 5 - 8 bụi cây mọc sát nhau, đè nhẹ lên nhau tạo thành thảm rừng dày đặc
+    const bushesInCluster = 5 + Math.floor(Math.random() * 4)
+    for (let b = 0; b < bushesInCluster; b++) {
+      const angle = (b * Math.PI * 2) / bushesInCluster + (Math.random() - 0.5) * 0.4
+      const distFromCenter = b === 0 ? 0 : 35 + Math.random() * 55 // Bụi trung tâm và các bụi xung quanh sát nhau
+      const bx = cx + Math.cos(angle) * distFromCenter
+      const by = cy + Math.sin(angle) * distFromCenter
+      const r = 38 + Math.random() * 26 // Bụi lớn 38 - 64px
+
+      const leafCount = 7 + Math.floor(Math.random() * 3)
+      const leaves: BushLeaf[] = []
+      for (let j = 0; j < leafCount; j++) {
+        const a = (j * Math.PI * 2) / leafCount + (Math.random() - 0.5) * 0.35
+        const dist = (0.35 + Math.random() * 0.35) * r
+        leaves.push({
+          ox: Math.cos(a) * dist,
+          oy: Math.sin(a) * dist,
+          r: r * (0.45 + Math.random() * 0.22),
+        })
+      }
+
+      const berryCount = 3 + Math.floor(Math.random() * 4)
+      const berries: BushBerry[] = []
+      for (let k = 0; k < berryCount; k++) {
+        berries.push({
+          ox: (Math.random() - 0.5) * r * 1.05,
+          oy: (Math.random() - 0.5) * r * 1.05,
+          r: 2.4 + Math.random() * 2.0,
+          color: berryColors[Math.floor(Math.random() * berryColors.length)],
+        })
+      }
+
+      bushes.push({
+        id: globalBushId++,
+        x: bx,
+        y: by,
+        r,
+        foliageColor: globalBushId % 2 === 0 ? '#047857' : '#065f46',
+        foliageLight: globalBushId % 2 === 0 ? '#10b981' : '#059669',
+        leaves,
+        berries,
       })
     }
-    const berryCount = 3 + Math.floor(Math.random() * 4)
-    const berries: BushBerry[] = []
-    for (let k = 0; k < berryCount; k++) {
-      berries.push({
-        ox: (Math.random() - 0.5) * r * 1.05,
-        oy: (Math.random() - 0.5) * r * 1.05,
-        r: 2.2 + Math.random() * 1.8,
-        color: berryColors[Math.floor(Math.random() * berryColors.length)],
-      })
-    }
-    bushes.push({
-      id: i,
-      x: bx,
-      y: by,
-      r,
-      foliageColor: i % 2 === 0 ? '#047857' : '#065f46',
-      foliageLight: i % 2 === 0 ? '#10b981' : '#059669',
-      leaves,
-      berries,
-    })
   }
+
   return bushes
 }
 
 function createFireflies(): Firefly[] {
   const f: Firefly[] = []
   const colors = ['#6ee7b7', '#38bdf8', '#fef08a', '#c084fc']
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 50; i++) {
     f.push({
       x: Math.random() * ARENA_SIZE,
       y: Math.random() * ARENA_SIZE,
       vx: (Math.random() - 0.5) * 0.6,
       vy: (Math.random() - 0.5) * 0.6,
-      r: 1.8 + Math.random() * 1.6,
+      r: 1.8 + Math.random() * 1.8,
       color: colors[i % colors.length],
       phase: Math.random() * Math.PI * 2,
     })
@@ -425,6 +486,17 @@ export function Wormate3DArena({
   const [roundResult, setRoundResult] = useState<{ restartKey: number; winner: boolean; reason: string } | null>(null)
   const finalResult = roundResult?.restartKey === restartKey ? roundResult : null
 
+  // Trạng thái Vòng bo đếm ngược (Battle Royale Safe Zone)
+  const [safeZoneHud, setSafeZoneHud] = useState<{ phase: number; countdown: number; isShrinking: boolean }>({
+    phase: 1,
+    countdown: 40,
+    isShrinking: false,
+  })
+
+  // Cài đặt âm thanh & Nhạc nền BGM
+  const [audioSettings, setAudioSettings] = useState<SnakeAudioSettings>(loadAudioSettings)
+  const [configTab, setConfigTab] = useState<'match' | 'audio'>('match')
+
   // Chặn tuyệt đối hành vi cuộn trang mobile khi chạm và vuốt trên canvas chơi game
   useEffect(() => {
     const canvas = canvasRef.current
@@ -496,8 +568,11 @@ export function Wormate3DArena({
     }
     bushes: Bush[]
     fireflies: Firefly[]
+    safeZone: SafeZoneState
+    floatingTexts: FloatingText[]
     animFrame: number | null
     nextFoodId: number
+    nextTextId: number
   }>({
     player: null!,
     player2: null,
@@ -506,6 +581,20 @@ export function Wormate3DArena({
     crumbs: [],
     bushes: [],
     fireflies: [],
+    safeZone: {
+      centerX: ARENA_SIZE / 2,
+      centerY: ARENA_SIZE / 2,
+      currentRadius: ARENA_SIZE * 0.70,
+      targetRadius: ARENA_SIZE * 0.70,
+      targetCenterX: ARENA_SIZE / 2,
+      targetCenterY: ARENA_SIZE / 2,
+      phase: 1,
+      countdown: 40,
+      isShrinking: false,
+      shrinkDuration: 15,
+      shrinkTimer: 0,
+    },
+    floatingTexts: [],
     camX: ARENA_SIZE / 2,
     camY: ARENA_SIZE / 2,
     keys: {
@@ -518,29 +607,93 @@ export function Wormate3DArena({
     },
     animFrame: null,
     nextFoodId: 1,
+    nextTextId: 1,
   })
 
-  // Spawn random food
-  const createFood = useCallback((id: number, forcedX?: number, forcedY?: number): FoodItem => {
-    const types: PastryType[] = ['donut', 'cupcake', 'cake', 'cookie', 'candy', 'burger', 'croissant']
-    const type = types[Math.floor(Math.random() * types.length)]
-    let points = 10
-    let r = 7.8
-    if (type === 'donut' || type === 'cupcake') {
-      points = 15
-      r = 9.0
-    } else if (type === 'croissant') {
-      points = 20
-      r = 9.6
-    } else if (type === 'cake') {
-      points = 25
-      r = 10.2
-    } else if (type === 'burger') {
-      points = 30
-      r = 11.0
+  // Spawn thức ăn đa dạng: Đồ xịn (+nhiều điểm & lớn nhanh), Đồ thường (+bình thường), Đồ dỏm (-điểm & teo nhỏ)
+  const createFood = useCallback((id: number, forcedX?: number, forcedY?: number, allowHazard = true): FoodItem => {
+    const rand = Math.random()
+    let category: 'deluxe' | 'normal' | 'hazard' = 'normal'
+    if (rand < 0.20) {
+      category = 'deluxe'
+    } else if (rand < 0.35 && allowHazard) {
+      category = 'hazard'
+    } else {
+      category = 'normal'
     }
 
-    const margin = 80
+    let type: PastryType
+    let points = 15
+    let lengthDelta = 1
+    let r = 9.0
+
+    if (category === 'deluxe') {
+      const deluxeTypes: PastryType[] = ['burger', 'pizza', 'boba', 'sushi', 'gem']
+      type = deluxeTypes[Math.floor(Math.random() * deluxeTypes.length)]
+      if (type === 'gem') {
+        points = 80
+        lengthDelta = 8
+        r = 13.5
+      } else if (type === 'sushi') {
+        points = 60
+        lengthDelta = 6
+        r = 12.8
+      } else if (type === 'boba') {
+        points = 50
+        lengthDelta = 5
+        r = 12.0
+      } else if (type === 'pizza') {
+        points = 45
+        lengthDelta = 4
+        r = 12.0
+      } else { // burger
+        points = 35
+        lengthDelta = 3
+        r = 11.2
+      }
+    } else if (category === 'hazard') {
+      const hazardTypes: PastryType[] = ['poison_mushroom', 'rotten_apple', 'fish_bone', 'chili_pepper']
+      type = hazardTypes[Math.floor(Math.random() * hazardTypes.length)]
+      if (type === 'poison_mushroom') {
+        points = -25
+        lengthDelta = -3
+        r = 10.5
+      } else if (type === 'fish_bone') {
+        points = -20
+        lengthDelta = -2
+        r = 9.8
+      } else if (type === 'rotten_apple') {
+        points = -15
+        lengthDelta = -2
+        r = 9.5
+      } else { // chili_pepper
+        points = -15
+        lengthDelta = -1
+        r = 9.5
+      }
+    } else {
+      const normalTypes: PastryType[] = ['donut', 'cupcake', 'cake', 'cookie', 'candy', 'croissant']
+      type = normalTypes[Math.floor(Math.random() * normalTypes.length)]
+      if (type === 'cake' || type === 'croissant') {
+        points = 20
+        lengthDelta = 2
+        r = 9.8
+      } else if (type === 'donut' || type === 'cupcake') {
+        points = 15
+        lengthDelta = 1
+        r = 9.0
+      } else if (type === 'cookie') {
+        points = 12
+        lengthDelta = 1
+        r = 8.5
+      } else {
+        points = 10
+        lengthDelta = 1
+        r = 8.0
+      }
+    }
+
+    const margin = 120
     const x = forcedX ?? margin + Math.random() * (ARENA_SIZE - margin * 2)
     const y = forcedY ?? margin + Math.random() * (ARENA_SIZE - margin * 2)
 
@@ -549,8 +702,10 @@ export function Wormate3DArena({
       x,
       y,
       type,
+      category,
       r,
       points,
+      lengthDelta,
       rotation: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 0.03,
       pulse: Math.random() * Math.PI * 2,
@@ -679,6 +834,20 @@ export function Wormate3DArena({
       crumbs: [],
       bushes: createBushes(),
       fireflies: createFireflies(),
+      safeZone: {
+        centerX: ARENA_SIZE / 2,
+        centerY: ARENA_SIZE / 2,
+        currentRadius: ARENA_SIZE * 0.70,
+        targetRadius: ARENA_SIZE * 0.70,
+        targetCenterX: ARENA_SIZE / 2,
+        targetCenterY: ARENA_SIZE / 2,
+        phase: 1,
+        countdown: 40,
+        isShrinking: false,
+        shrinkDuration: 15,
+        shrinkTimer: 0,
+      },
+      floatingTexts: [],
       camX: startX,
       camY: startY,
       keys: {
@@ -691,6 +860,7 @@ export function Wormate3DArena({
       },
       animFrame: null,
       nextFoodId: fId,
+      nextTextId: 1,
     }
   }, [createFood, difficulty, aiCount, mode])
 
@@ -757,6 +927,49 @@ export function Wormate3DArena({
           player.invulnerableTimer = Math.max(0, player.invulnerableTimer - dt)
         }
 
+        // CẬP NHẬT VÒNG BO BATTLE ROYALE (SAFE ZONE SHRINK)
+        const sz = eng.safeZone
+        if (!sz.isShrinking) {
+          sz.countdown -= dt
+          if (sz.countdown <= 0) {
+            sz.isShrinking = true
+            sz.shrinkTimer = 0
+            sz.shrinkDuration = 16
+            sz.targetRadius = Math.max(380, sz.currentRadius * 0.72)
+            const maxShift = (sz.currentRadius - sz.targetRadius) * 0.65
+            const shiftAngle = Math.random() * Math.PI * 2
+            const shiftDist = Math.random() * maxShift
+            sz.targetCenterX = Math.max(sz.targetRadius + 150, Math.min(ARENA_SIZE - sz.targetRadius - 150, sz.centerX + Math.cos(shiftAngle) * shiftDist))
+            sz.targetCenterY = Math.max(sz.targetRadius + 150, Math.min(ARENA_SIZE - sz.targetRadius - 150, sz.centerY + Math.sin(shiftAngle) * shiftDist))
+            snakeAudio.playSafeZoneAlert()
+          }
+        } else {
+          sz.shrinkTimer += dt
+          const progress = Math.min(1, sz.shrinkTimer / sz.shrinkDuration)
+          sz.currentRadius = sz.currentRadius + (sz.targetRadius - sz.currentRadius) * (dt / Math.max(0.01, sz.shrinkDuration - sz.shrinkTimer + dt))
+          sz.centerX = sz.centerX + (sz.targetCenterX - sz.centerX) * (dt / Math.max(0.01, sz.shrinkDuration - sz.shrinkTimer + dt))
+          sz.centerY = sz.centerY + (sz.targetCenterY - sz.centerY) * (dt / Math.max(0.01, sz.shrinkDuration - sz.shrinkTimer + dt))
+
+          if (progress >= 1) {
+            sz.isShrinking = false
+            sz.currentRadius = sz.targetRadius
+            sz.centerX = sz.targetCenterX
+            sz.centerY = sz.targetCenterY
+            sz.phase = Math.min(5, sz.phase + 1)
+            sz.countdown = 35
+          }
+        }
+
+        // Cập nhật HUD Vòng bo định kỳ
+        if (currentTime - lastHudUpdate > 250) {
+          lastHudUpdate = currentTime
+          setSafeZoneHud({
+            phase: sz.phase,
+            countdown: Math.max(0, Math.ceil(sz.countdown)),
+            isShrinking: sz.isShrinking,
+          })
+        }
+
         // Tốc độ tăng tốc khi giữ chuột / phím Space
         const isBoosting = eng.keys.boost
         player.isBoosting = isBoosting && player.score > 5
@@ -808,33 +1021,113 @@ export function Wormate3DArena({
           player.y > ARENA_SIZE - player.radius
         ) {
           player.isAlive = false
-          playWormSound('crash', muted)
+          snakeAudio.playCrash()
           explodeWormIntoPastries(player)
           setRoundResult({ restartKey, winner: false, reason: 'Đâm vào hàng rào bảo vệ đấu trường!' })
           finishGame(false, 'Đâm vào hàng rào đấu trường!')
         }
 
-        // Ăn bánh ngọt
+        // Sát thương bão ngoài vòng an toàn Safe Zone
+        const distFromSafeCenter = Math.hypot(player.x - sz.centerX, player.y - sz.centerY)
+        if (distFromSafeCenter > sz.currentRadius) {
+          player.score = Math.max(0, player.score - 0.18)
+          if (Math.random() < 0.25) {
+            player.length = Math.max(6, player.length - 1)
+            eng.crumbs.push({
+              x: player.x + (Math.random() - 0.5) * 15,
+              y: player.y + (Math.random() - 0.5) * 15,
+              vx: (Math.random() - 0.5) * 3,
+              vy: -Math.random() * 2 - 1,
+              r: 3 + Math.random() * 3,
+              color: '#c084fc',
+              alpha: 0.9,
+            })
+          }
+          if (player.score <= 0 && player.length <= 6) {
+            player.isAlive = false
+            snakeAudio.playCrash()
+            explodeWormIntoPastries(player)
+            setRoundResult({ restartKey, winner: false, reason: 'Bị bão độc ngoài vòng bo tiêu diệt!' })
+            finishGame(false, 'Bị bão độc ngoài vòng bo tiêu diệt!')
+          }
+        }
+
+        // Ăn thức ăn đa dạng: Đồ xịn (+lớn nhanh), Đồ thường (+bình thường), Đồ dỏm (-teo nhỏ)
         for (let i = eng.foods.length - 1; i >= 0; i--) {
           const f = eng.foods[i]
           const dist = Math.hypot(player.x - f.x, player.y - f.y)
           if (dist < player.radius + f.r) {
-            // Ăn trúng!
-            player.score += f.points
-            player.length += Math.max(1, Math.floor(f.points / 10))
-            playWormSound(f.points >= 25 ? 'bonus' : 'nom', muted)
+            if (f.category === 'hazard') {
+              // Đồ dỏm: Trừ điểm và teo nhỏ!
+              player.score = Math.max(0, player.score + f.points)
+              player.length = Math.max(6, player.length + f.lengthDelta)
+              snakeAudio.playHazard()
 
-            // Vụn bay lên
-            for (let c = 0; c < 5; c++) {
-              eng.crumbs.push({
-                x: f.x,
-                y: f.y,
-                vx: (Math.random() - 0.5) * 4,
-                vy: (Math.random() - 0.5) * 4,
-                r: 2 + Math.random() * 3,
-                color: '#f43f5e',
+              eng.floatingTexts.push({
+                id: eng.nextTextId++,
+                x: player.x,
+                y: player.y - 20,
+                text: `${f.points}đ TEO NHỎ!`,
+                color: '#ec4899',
                 alpha: 1,
+                vy: -1.8,
               })
+
+              for (let c = 0; c < 8; c++) {
+                eng.crumbs.push({
+                  x: f.x,
+                  y: f.y,
+                  vx: (Math.random() - 0.5) * 4,
+                  vy: -Math.random() * 3 - 1,
+                  r: 3 + Math.random() * 4,
+                  color: '#a855f7',
+                  alpha: 1,
+                })
+              }
+            } else if (f.category === 'deluxe') {
+              // Đồ xịn: Điểm cao và lớn nhanh!
+              player.score += f.points
+              player.length += f.lengthDelta
+              snakeAudio.playSuperNom()
+
+              eng.floatingTexts.push({
+                id: eng.nextTextId++,
+                x: player.x,
+                y: player.y - 20,
+                text: `+${f.points}đ LỚN NHANH!`,
+                color: '#facc15',
+                alpha: 1,
+                vy: -2.2,
+              })
+
+              for (let c = 0; c < 12; c++) {
+                eng.crumbs.push({
+                  x: f.x,
+                  y: f.y,
+                  vx: (Math.random() - 0.5) * 6,
+                  vy: (Math.random() - 0.5) * 6,
+                  r: 2.5 + Math.random() * 3.5,
+                  color: '#fde047',
+                  alpha: 1,
+                })
+              }
+            } else {
+              // Đồ thường
+              player.score += f.points
+              player.length += f.lengthDelta
+              snakeAudio.playNom()
+
+              for (let c = 0; c < 5; c++) {
+                eng.crumbs.push({
+                  x: f.x,
+                  y: f.y,
+                  vx: (Math.random() - 0.5) * 4,
+                  vy: (Math.random() - 0.5) * 4,
+                  r: 2 + Math.random() * 3,
+                  color: '#f43f5e',
+                  alpha: 1,
+                })
+              }
             }
 
             eng.foods.splice(i, 1)
@@ -1151,6 +1444,38 @@ export function Wormate3DArena({
       ctx.strokeStyle = '#ef4444'
       ctx.strokeRect(0, 0, ARENA_SIZE, ARENA_SIZE)
 
+      // Vẽ VÒNG BO BATTLE ROYALE (SAFE ZONE)
+      if (eng.safeZone) {
+        const sz = eng.safeZone
+        ctx.save()
+        // 1. Vùng bão điện ngoài vòng bo (phủ mờ cảnh báo)
+        ctx.beginPath()
+        ctx.rect(0, 0, ARENA_SIZE, ARENA_SIZE)
+        ctx.arc(sz.centerX, sz.centerY, sz.currentRadius, 0, Math.PI * 2, true)
+        ctx.fillStyle = sz.isShrinking ? 'rgba(239, 68, 68, 0.12)' : 'rgba(99, 102, 241, 0.06)'
+        ctx.fill()
+
+        // 2. Viền vòng an toàn phát sáng nét đứt xoay chuyển
+        ctx.beginPath()
+        ctx.arc(sz.centerX, sz.centerY, sz.currentRadius, 0, Math.PI * 2)
+        ctx.lineWidth = sz.isShrinking ? 6 : 4
+        ctx.strokeStyle = sz.isShrinking ? '#f43f5e' : '#38bdf8'
+        ctx.setLineDash([16, 10])
+        ctx.lineDashOffset = -currentTime * 0.03
+        ctx.stroke()
+
+        // 3. Nếu đang thu hẹp bo, vẽ thêm vòng mục tiêu bo kế tiếp
+        if (sz.isShrinking) {
+          ctx.beginPath()
+          ctx.arc(sz.targetCenterX, sz.targetCenterY, sz.targetRadius, 0, Math.PI * 2)
+          ctx.lineWidth = 2
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.45)'
+          ctx.setLineDash([8, 6])
+          ctx.stroke()
+        }
+        ctx.restore()
+      }
+
       // Vẽ các món bánh kẹo & đồ ngọt (Pastries) kèm Viewport Culling
       for (const f of eng.foods) {
         f.rotation += f.rotSpeed
@@ -1172,6 +1497,30 @@ export function Wormate3DArena({
         ctx.globalAlpha = Math.max(0, cr.alpha)
         ctx.fill()
         ctx.globalAlpha = 1
+      }
+
+      // Vẽ chữ nổi hiệu ứng (Floating Texts: Lớn nhanh / Teo nhỏ)
+      if (eng.floatingTexts) {
+        for (let tIdx = eng.floatingTexts.length - 1; tIdx >= 0; tIdx--) {
+          const ft = eng.floatingTexts[tIdx]
+          ft.y += ft.vy
+          ft.alpha -= 0.025
+          if (ft.alpha <= 0) {
+            eng.floatingTexts.splice(tIdx, 1)
+            continue
+          }
+          if (ft.x < viewBounds.minX || ft.x > viewBounds.maxX || ft.y < viewBounds.minY || ft.y > viewBounds.maxY) {
+            continue
+          }
+          ctx.save()
+          ctx.font = 'bold 15px sans-serif'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillStyle = ft.color
+          ctx.globalAlpha = Math.max(0, ft.alpha)
+          ctx.fillText(ft.text, ft.x, ft.y)
+          ctx.restore()
+        }
       }
 
       // Tìm sâu dẫn đầu điểm số (Top 1) để trao Vương Miện Hoàng Gia
@@ -1373,71 +1722,75 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 3: BẢNG XẾP HẠNG NGƯỜI CHƠI (Pill siêu gọn góc trên trái khi chơi) */}
+      {/* VÙNG 1: BẢNG XẾP HẠNG NGƯỜI CHƠI (TOP 10 RÕ NÉT, CHỮ TO RÕ) */}
       <div
         className={cn(
           'absolute top-3.5 left-3.5 z-10 select-none text-xs transition-opacity duration-200',
           isRunning && !isGameOver
-            ? 'opacity-40 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
-            : 'opacity-90',
+            ? 'opacity-85 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
+            : 'opacity-95',
         )}
       >
         {isLeaderboardCollapsed ? (
           <button
             type="button"
             onClick={() => setIsLeaderboardCollapsed(false)}
-            title="Mở bảng xếp hạng"
-            className="flex items-center gap-1.5 h-6 px-2 rounded-full bg-slate-950/60 backdrop-blur-xs border border-white/10 text-amber-300 font-bold text-[10px] shadow-xs cursor-pointer hover:bg-slate-900/80 active:scale-95 transition-all pointer-events-auto"
+            title="Mở bảng xếp hạng TOP 10"
+            className="flex items-center gap-2 h-7 sm:h-8 px-2.5 sm:px-3 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-amber-300 font-bold text-xs sm:text-sm shadow-md cursor-pointer hover:bg-slate-900 active:scale-95 transition-all pointer-events-auto"
           >
-            <Trophy className="size-2.5 text-amber-400 shrink-0" />
+            <Trophy className="size-3.5 text-amber-400 shrink-0" />
             <span>#{playerRank}</span>
             <span className="text-white/20">·</span>
             <span className="font-mono text-slate-200">{playerStats.score}đ</span>
-            <ChevronDown className="size-2.5 text-slate-400 shrink-0" />
+            <ChevronDown className="size-3.5 text-slate-400 shrink-0" />
           </button>
         ) : (
-          <div className="w-28 sm:w-34 p-1 sm:p-1.5 rounded-xl bg-slate-950/80 backdrop-blur-sm border border-white/10 shadow-lg pointer-events-auto">
-            <div className="flex items-center justify-between pb-0.5 mb-0.5 border-b border-white/10">
-              <div className="flex items-center gap-1 font-black text-[9px] text-amber-300 uppercase tracking-wider">
-                <Trophy className="size-2.5 text-amber-400" />
-                <span>Top 3</span>
+          <div className="w-52 sm:w-60 p-2 sm:p-2.5 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-white/15 shadow-2xl pointer-events-auto">
+            {/* Header: TOP 10 */}
+            <div className="flex items-center justify-between pb-1.5 mb-1 border-b border-white/10">
+              <div className="flex items-center gap-1.5 font-black text-xs sm:text-sm text-amber-300 uppercase tracking-wider">
+                <Trophy className="size-3.5 text-amber-400" />
+                <span>TOP 10</span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[8px] font-mono text-slate-400 bg-white/10 px-1 py-0.2 rounded-full">
-                  {leaderboard.length}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] sm:text-xs font-mono text-slate-300 bg-white/10 px-1.5 py-0.5 rounded-full font-bold">
+                  {leaderboard.length} còn lại
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsLeaderboardCollapsed(true)}
                   title="Thu gọn"
-                  className="p-0.5 text-slate-400 hover:text-white cursor-pointer rounded transition-colors"
+                  className="p-1 text-slate-400 hover:text-white cursor-pointer rounded-md transition-colors"
                 >
-                  <ChevronUp className="size-2.5" />
+                  <ChevronUp className="size-3.5" />
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-0.5">
-              {leaderboard.slice(0, 3).map((entry, index) => {
+            {/* Danh sách TOP 10 */}
+            <div className="flex flex-col gap-1 max-h-[220px] sm:max-h-[260px] overflow-y-auto pr-0.5" style={{ scrollbarWidth: 'thin' }}>
+              {leaderboard.slice(0, 10).map((entry, index) => {
                 const isTop1 = index === 0
+                const isTop2 = index === 1
+                const isTop3 = index === 2
                 return (
                   <div
                     key={entry.id}
                     className={cn(
-                      'flex items-center justify-between px-1 py-0.5 rounded text-[8px] transition-colors',
+                      'flex items-center justify-between px-1.5 py-1 rounded-lg text-xs sm:text-sm transition-colors',
                       entry.isPlayer
-                        ? 'text-brand font-bold bg-brand/10'
-                        : 'text-slate-300/80 font-medium',
-                      !entry.isAlive && 'opacity-30 line-through',
+                        ? 'text-sky-300 font-bold bg-sky-500/20 border border-sky-400/40'
+                        : 'text-slate-200 font-medium hover:bg-white/5',
+                      !entry.isAlive && 'opacity-35 line-through',
                     )}
                   >
-                    <div className="flex items-center gap-1 truncate max-w-[68px]">
-                      <span className={cn('font-mono font-black text-[8px] w-3 shrink-0', isTop1 ? 'text-amber-400' : 'text-slate-400/50')}>
-                        {isTop1 ? '👑' : `#${index + 1}`}
+                    <div className="flex items-center gap-1.5 truncate max-w-[125px] sm:max-w-[145px]">
+                      <span className={cn('font-mono font-black text-xs w-4 shrink-0 text-center', isTop1 ? 'text-amber-400 text-sm' : isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-600' : 'text-slate-400/60')}>
+                        {isTop1 ? '👑' : isTop2 ? '🥈' : isTop3 ? '🥉' : `#${index + 1}`}
                       </span>
                       <span className="truncate">{entry.name}</span>
                     </div>
-                    <span className={cn('font-mono font-bold text-[8px] tabular-nums shrink-0', entry.isPlayer ? 'text-brand' : 'text-slate-300/80')}>
+                    <span className={cn('font-mono font-bold text-xs sm:text-sm tabular-nums shrink-0', entry.isPlayer ? 'text-sky-300' : 'text-amber-300')}>
                       {entry.score}đ
                     </span>
                   </div>
@@ -1445,10 +1798,10 @@ export function Wormate3DArena({
               })}
             </div>
 
-            {/* Vị trí của bạn nếu không nằm trong top 3 */}
-            {playerRank > 3 && (
-              <div className="mt-0.5 pt-0.5 border-t border-white/10 flex items-center justify-between px-1 py-0.5 rounded text-brand text-[8px] font-bold bg-brand/10">
-                <span className="truncate max-w-[62px]">#{playerRank} Bạn</span>
+            {/* Vị trí của bạn nếu không nằm trong top 10 */}
+            {playerRank > 10 && (
+              <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between px-1.5 py-1 rounded-lg text-sky-300 text-xs sm:text-sm font-bold bg-sky-500/20 border border-sky-400/40">
+                <span className="truncate max-w-[120px]">#{playerRank} Bạn</span>
                 <span className="font-mono tabular-nums">{playerStats.score}đ</span>
               </div>
             )}
@@ -1456,21 +1809,40 @@ export function Wormate3DArena({
         )}
       </div>
 
-      {/* HUD thông số người chơi ở đỉnh trung tâm (Thoáng đãng, không che khuất tầm nhìn) */}
+      {/* HUD thông số người chơi & Đếm ngược vòng bo an toàn ở đỉnh trung tâm */}
       {isRunning && !isGameOver && (
-        <div className="snake-hud absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-950/40 border border-white/10 text-xs shadow-none select-none pointer-events-none transition-opacity">
+        <div className="snake-hud absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/15 text-xs sm:text-sm shadow-md select-none pointer-events-none transition-opacity">
           {mode === 'pass_and_play' ? (
-            <div className="flex items-center gap-2 font-mono text-xs">
+            <div className="flex items-center gap-2 font-mono text-xs sm:text-sm">
               <span className="text-brand font-bold">P1: {playerStats.score}đ</span>
               <span className="text-white/20">|</span>
               <span className="text-rose-400 font-bold">P2: {player2Score}đ</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono font-bold text-brand">{playerStats.score}đ</span>
-              <span className="text-white/30 text-[10px]">·</span>
-              <span className="text-[10px] text-slate-300 font-mono">{playerStats.length} đốt</span>
+            <div className="flex items-center gap-2 text-xs sm:text-sm">
+              {/* Trạng thái đếm ngược vòng bo */}
+              {safeZoneHud.isShrinking ? (
+                <div className="flex items-center gap-1 text-rose-400 font-bold animate-pulse">
+                  <Flame className="size-3.5 text-rose-400 shrink-0" />
+                  <span>Bo đang thu! (Đợt {safeZoneHud.phase})</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-sky-300 font-medium">
+                  <span className="size-2 rounded-full bg-sky-400 animate-ping shrink-0" />
+                  <span>Bo thu sau:</span>
+                  <span className="font-mono font-bold text-amber-300">
+                    {Math.floor(safeZoneHud.countdown / 60).toString().padStart(2, '0')}:
+                    {(safeZoneHud.countdown % 60).toString().padStart(2, '0')}
+                  </span>
+                  <span className="text-slate-400 text-xs">(Đợt {safeZoneHud.phase})</span>
+                </div>
+              )}
+              <span className="text-white/20">|</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-bold text-emerald-400">{playerStats.score}đ</span>
+                <span className="text-white/30 text-xs">·</span>
+                <span className="text-xs text-slate-300 font-mono">{playerStats.length} đốt</span>
+              </div>
             </div>
           )}
         </div>
@@ -1538,29 +1910,52 @@ export function Wormate3DArena({
           data-testid="ran-man-san-sang"
           className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-4 bg-transparent select-none"
         >
-          <div className="w-[min(460px,calc(100vw-2rem))] h-[440px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-5 flex flex-col justify-between overflow-hidden">
-            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển chế độ PvE/PvP */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 h-10 shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                {mode === 'ai' ? (
-                  <CuteSnakeLogo className="size-5 shrink-0" />
-                ) : (
-                  <Swords className="size-5 text-sky-400 shrink-0" />
-                )}
-                <h2 className="text-base font-bold text-white tracking-wide truncate">
-                  {mode === 'ai' ? 'Rắn Săn Mồi' : 'Đấu Trường Rắn'}
-                </h2>
+          <div className="w-[min(480px,calc(100vw-1.5rem))] max-h-[calc(100dvh-1rem)] sm:h-[440px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-3 sm:p-5 flex flex-col justify-between overflow-hidden">
+            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab / chế độ PvE/PvP */}
+            <div className="flex items-center justify-between pb-2 sm:pb-3 border-b border-slate-800 h-9 sm:h-10 shrink-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setConfigTab('match')}
+                  className={cn(
+                    'px-2 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
+                    configTab === 'match'
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                      : 'border-transparent text-slate-400 hover:text-white',
+                  )}
+                >
+                  {mode === 'ai' ? (
+                    <CuteSnakeLogo className="size-4 shrink-0" />
+                  ) : (
+                    <Swords className="size-4 text-sky-400 shrink-0" />
+                  )}
+                  <span>Đấu Trường</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setConfigTab('audio')}
+                  className={cn(
+                    'px-2 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
+                    configTab === 'audio'
+                      ? 'border-sky-500 bg-sky-500/20 text-sky-300'
+                      : 'border-transparent text-slate-400 hover:text-white',
+                  )}
+                >
+                  <Music className="size-4 text-sky-400 shrink-0" />
+                  <span>Âm Thanh & Phím</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                {onModeChange && (
+                {configTab === 'match' && onModeChange && (
                   <div className="flex items-center p-0.5 rounded-lg border-2 border-slate-700 bg-slate-800 text-xs font-bold shrink-0">
                     <button
                       type="button"
                       disabled={isSessionLocked}
                       onClick={() => !isSessionLocked && onModeChange('ai')}
                       className={cn(
-                        'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
+                        'px-2 py-0.5 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
                         mode === 'ai'
                           ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
                           : 'border-transparent text-slate-300 hover:text-white',
@@ -1574,7 +1969,7 @@ export function Wormate3DArena({
                       disabled={isSessionLocked}
                       onClick={() => !isSessionLocked && onModeChange('pass_and_play')}
                       className={cn(
-                        'px-2.5 py-1 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
+                        'px-2 py-0.5 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
                         mode === 'pass_and_play'
                           ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
                           : 'border-transparent text-slate-300 hover:text-white',
@@ -1615,9 +2010,133 @@ export function Wormate3DArena({
               </div>
             </div>
 
-            {/* Nội dung trung tâm: Cố định chính xác h-[270px] cho cả PvE lẫn PvP */}
-            <div className="flex flex-col justify-between h-[270px] py-2 shrink-0">
-              {mode === 'ai' ? (
+            {/* Nội dung trung tâm: Co giãn linh hoạt theo viewport */}
+            <div className="flex-1 min-h-0 flex flex-col justify-between py-1.5 sm:py-2 overflow-y-auto">
+              {configTab === 'audio' ? (
+                /* TAB ÂM THANH & PHÍM TẮT: Bật/tắt BGM 132BPM, SFX, và danh sách Hotkey PC */
+                <div className="flex flex-col gap-2 min-h-0">
+                  {/* Mục 1: Nhạc nền Arcade BGM */}
+                  <div className="p-2.5 rounded-xl border-2 border-slate-800 bg-slate-800/60 flex flex-col gap-1.5 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Music className="size-4 text-sky-400 shrink-0" />
+                        <span className="font-bold text-xs text-white">Nhạc nền Arcade (132 BPM)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const enabled = snakeAudio.toggleMusic()
+                          setAudioSettings({ ...snakeAudio.getSettings(), musicEnabled: enabled })
+                        }}
+                        className={cn(
+                          'px-2.5 py-0.5 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer',
+                          audioSettings.musicEnabled
+                            ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                            : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white',
+                        )}
+                      >
+                        {audioSettings.musicEnabled ? 'Đang bật' : 'Đang tắt'}
+                      </button>
+                    </div>
+                    {/* Volume Slider BGM */}
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <Volume2 className="size-3.5 text-slate-400 shrink-0" />
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={audioSettings.musicVolume}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value)
+                          snakeAudio.setMusicVolume(val)
+                          setAudioSettings({ ...snakeAudio.getSettings() })
+                        }}
+                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-400"
+                        title="Âm lượng nhạc nền"
+                      />
+                      <span className="text-[10px] font-mono text-slate-400 w-8 text-right tabular-nums">
+                        {Math.round(audioSettings.musicVolume * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Mục 2: Hiệu ứng âm thanh SFX */}
+                  <div className="p-2.5 rounded-xl border-2 border-slate-800 bg-slate-800/60 flex flex-col gap-1.5 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="size-4 text-amber-400 shrink-0" />
+                        <span className="font-bold text-xs text-white">Hiệu ứng ăn mồi & va chạm</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const enabled = snakeAudio.toggleSfx()
+                          setAudioSettings({ ...snakeAudio.getSettings(), sfxEnabled: enabled })
+                          if (enabled) snakeAudio.playNom()
+                        }}
+                        className={cn(
+                          'px-2.5 py-0.5 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer',
+                          audioSettings.sfxEnabled
+                            ? 'border-amber-500 bg-amber-500/20 text-amber-300'
+                            : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white',
+                        )}
+                      >
+                        {audioSettings.sfxEnabled ? 'Đang bật' : 'Đang tắt'}
+                      </button>
+                    </div>
+                    {/* Volume Slider SFX */}
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <Volume2 className="size-3.5 text-slate-400 shrink-0" />
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={audioSettings.sfxVolume}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value)
+                          snakeAudio.setSfxVolume(val)
+                          setAudioSettings({ ...snakeAudio.getSettings() })
+                        }}
+                        className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                        title="Âm lượng hiệu ứng"
+                      />
+                      <span className="text-[10px] font-mono text-slate-400 w-8 text-right tabular-nums">
+                        {Math.round(audioSettings.sfxVolume * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Mục 3: Bảng phím tắt PC tiện lợi */}
+                  <div className="p-2 rounded-xl border border-white/10 bg-slate-950/70 grid grid-cols-3 gap-1.5 text-[10px] shrink-0">
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <span className="px-1.5 py-0.5 rounded bg-white/10 font-mono font-bold text-sky-400">F</span>
+                      <span>Toàn màn hình</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <span className="px-1.5 py-0.5 rounded bg-white/10 font-mono font-bold text-sky-400">C</span>
+                      <span>Chat nổi</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <span className="px-1.5 py-0.5 rounded bg-white/10 font-mono font-bold text-emerald-400">O / S</span>
+                      <span>Cài đặt</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <span className="px-1.5 py-0.5 rounded bg-white/10 font-mono font-bold text-amber-400">R</span>
+                      <span>Chơi lại</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <span className="px-1.5 py-0.5 rounded bg-white/10 font-mono font-bold text-slate-400">Q</span>
+                      <span>Sảnh</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <span className="px-1.5 py-0.5 rounded bg-white/10 font-mono font-bold text-amber-300">Space</span>
+                      <span>Tăng tốc</span>
+                    </div>
+                  </div>
+                </div>
+              ) : mode === 'ai' ? (
                 /* CHẾ ĐỘ PVE: 1 hàng chọn số lượng rắn (presets + stepper tối đa 50) + danh sách slot tự động thay thế */
                 <>
                   <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
@@ -2202,6 +2721,7 @@ function drawGoldenCrown(ctx: CanvasRenderingContext2D, segRadius: number) {
 }
 
 // ── VẼ BÁNH NGỌT & ĐỒ ĂN ──
+// ── VẼ BÁNH NGỌT & ĐỒ ĂN ĐA DẠNG ──
 function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
   ctx.save()
   ctx.translate(f.x, f.y)
@@ -2210,79 +2730,107 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
   const bobScale = 1 + Math.sin(f.pulse) * 0.05
   ctx.scale(bobScale, bobScale)
 
-  if (f.type === 'donut') {
-    // Bánh Donut rực rỡ
+  // 1. NHÓM ĐỒ XỊN (LỚN NHANH, ĐIỂM CAO)
+  if (f.type === 'gem') {
+    // Viên Ngọc Rồng Vàng óng ánh (+80đ, lớn cực nhanh)
     ctx.beginPath()
-    ctx.arc(0, 0, f.r, 0, Math.PI * 2)
-    ctx.fillStyle = '#f59e0b'
-    ctx.shadowColor = 'rgba(245, 158, 11, 0.4)'
-    ctx.shadowBlur = 6
+    ctx.moveTo(0, -f.r * 0.95)
+    ctx.lineTo(f.r * 0.85, 0)
+    ctx.lineTo(0, f.r * 0.95)
+    ctx.lineTo(-f.r * 0.85, 0)
+    ctx.closePath()
+    const gemGrad = ctx.createLinearGradient(-f.r, -f.r, f.r, f.r)
+    gemGrad.addColorStop(0, '#fef08a')
+    gemGrad.addColorStop(0.5, '#facc15')
+    gemGrad.addColorStop(1, '#eab308')
+    ctx.fillStyle = gemGrad
+    ctx.shadowColor = 'rgba(250, 204, 21, 0.75)'
+    ctx.shadowBlur = 8
     ctx.fill()
+    ctx.strokeStyle = '#ca8a04'
+    ctx.lineWidth = 1.2
+    ctx.stroke()
     ctx.shadowColor = 'transparent'
-
-    // Lớp kem dâu
+    // Điểm sáng kim cương
     ctx.beginPath()
-    ctx.arc(0, 0, f.r * 0.85, 0, Math.PI * 2)
-    ctx.fillStyle = '#f43f5e'
+    ctx.arc(-f.r * 0.25, -f.r * 0.25, 2.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffffff'
     ctx.fill()
-
-    // Lỗ bánh
+  } else if (f.type === 'sushi') {
+    // Sushi Cá Hồi thượng hạng (+60đ)
     ctx.beginPath()
-    ctx.arc(0, 0, f.r * 0.32, 0, Math.PI * 2)
-    ctx.fillStyle = '#080d1a'
+    ctx.roundRect(-f.r * 0.85, -f.r * 0.55, f.r * 1.7, f.r * 1.1, 4)
+    ctx.fillStyle = '#f8fafc' // Cơm trắng
     ctx.fill()
-
-    // Cốm bảy màu
-    const sprinkles = ['#67e8f9', '#fde047', '#ffffff']
-    for (let i = 0; i < 5; i++) {
-      const a = (i * Math.PI * 2) / 5
-      const sx = Math.cos(a) * f.r * 0.58
-      const sy = Math.sin(a) * f.r * 0.58
+    // Miếng cá hồi cam
+    ctx.beginPath()
+    ctx.roundRect(-f.r * 0.9, -f.r * 0.6, f.r * 1.8, f.r * 0.65, 3)
+    ctx.fillStyle = '#fb923c'
+    ctx.fill()
+    // Vân mỡ trắng cá hồi
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(-f.r * 0.4, -f.r * 0.5)
+    ctx.lineTo(-f.r * 0.1, -f.r * 0.1)
+    ctx.moveTo(f.r * 0.2, -f.r * 0.5)
+    ctx.lineTo(f.r * 0.5, -f.r * 0.1)
+    ctx.stroke()
+    // Đai rong biển đen
+    ctx.fillStyle = '#0f172a'
+    ctx.fillRect(-f.r * 0.2, -f.r * 0.6, f.r * 0.4, f.r * 1.15)
+  } else if (f.type === 'boba') {
+    // Trà sữa trân châu hoàng gia (+50đ)
+    ctx.beginPath()
+    ctx.roundRect(-f.r * 0.55, -f.r * 0.7, f.r * 1.1, f.r * 1.4, [2, 2, 5, 5])
+    ctx.fillStyle = '#fed7aa' // Trà sữa
+    ctx.fill()
+    ctx.strokeStyle = '#ea580c'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    // Nắp cốc & Ống hút
+    ctx.beginPath()
+    ctx.arc(0, -f.r * 0.7, f.r * 0.55, Math.PI, 0)
+    ctx.fillStyle = '#38bdf8'
+    ctx.fill()
+    ctx.strokeStyle = '#0284c7'
+    ctx.lineWidth = 2.2
+    ctx.beginPath()
+    ctx.moveTo(f.r * 0.15, -f.r * 1.1)
+    ctx.lineTo(0, -f.r * 0.2)
+    ctx.stroke()
+    // Các viên trân châu đen ở đáy
+    ctx.fillStyle = '#1e1b4b'
+    for (let p = -2; p <= 2; p++) {
       ctx.beginPath()
-      ctx.arc(sx, sy, 1.8, 0, Math.PI * 2)
-      ctx.fillStyle = sprinkles[i % sprinkles.length]
+      ctx.arc(p * f.r * 0.2, f.r * 0.45, 2.2, 0, Math.PI * 2)
       ctx.fill()
     }
-  } else if (f.type === 'cupcake') {
-    // Cupcake kem bồng bềnh
+  } else if (f.type === 'pizza') {
+    // Lát Pizza phô mai xúc xích (+45đ)
     ctx.beginPath()
-    ctx.arc(0, -f.r * 0.25, f.r * 0.75, 0, Math.PI * 2)
-    ctx.fillStyle = '#fbcfe8'
-    ctx.fill()
-
-    // Quả cherry đỏ trên đỉnh
-    ctx.beginPath()
-    ctx.arc(0, -f.r * 0.85, f.r * 0.28, 0, Math.PI * 2)
-    ctx.fillStyle = '#e11d48'
-    ctx.fill()
-  } else if (f.type === 'cake') {
-    // Miếng bánh kem dâu tây
-    ctx.beginPath()
-    ctx.moveTo(-f.r * 0.7, f.r * 0.7)
-    ctx.lineTo(f.r * 0.7, f.r * 0.7)
-    ctx.lineTo(0, -f.r * 0.9)
+    ctx.moveTo(0, f.r * 0.85)
+    ctx.lineTo(-f.r * 0.85, -f.r * 0.6)
+    ctx.quadraticCurveTo(0, -f.r * 0.95, f.r * 0.85, -f.r * 0.6)
     ctx.closePath()
-    ctx.fillStyle = '#fbbf24'
+    ctx.fillStyle = '#f59e0b' // Phô mai vàng
     ctx.fill()
+    // Viền bánh nướng
     ctx.beginPath()
-    ctx.arc(0, -f.r * 0.35, f.r * 0.3, 0, Math.PI * 2)
+    ctx.arc(0, -f.r * 0.6, f.r * 0.85, -Math.PI * 0.78, -Math.PI * 0.22)
+    ctx.strokeStyle = '#b45309'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    // Topping xúc xích đỏ
     ctx.fillStyle = '#ef4444'
-    ctx.fill()
-  } else if (f.type === 'cookie') {
-    // Bánh quy sô-cô-la
-    ctx.beginPath()
-    ctx.arc(0, 0, f.r, 0, Math.PI * 2)
-    ctx.fillStyle = '#d97706'
-    ctx.fill()
-    const chips = [[-0.3, -0.3], [0.3, -0.2], [0, 0.3], [-0.3, 0.2]]
-    chips.forEach(([cx, cy]) => {
+    const toppings = [[-f.r * 0.3, -f.r * 0.3], [f.r * 0.3, -f.r * 0.25], [0, f.r * 0.2]]
+    toppings.forEach(([tx, ty]) => {
       ctx.beginPath()
-      ctx.arc(cx * f.r, cy * f.r, f.r * 0.18, 0, Math.PI * 2)
-      ctx.fillStyle = '#451a03'
+      ctx.arc(tx, ty, 2.4, 0, Math.PI * 2)
       ctx.fill()
     })
   } else if (f.type === 'burger') {
-    // Hamburger ngon mắt
+    // Hamburger hoàng đế (+35đ)
     ctx.beginPath()
     ctx.arc(0, -f.r * 0.15, f.r * 0.65, Math.PI, 0)
     ctx.fillStyle = '#d97706'
@@ -2295,8 +2843,144 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
     ctx.ellipse(0, f.r * 0.3, f.r * 0.7, f.r * 0.2, 0, 0, Math.PI * 2)
     ctx.fillStyle = '#b45309'
     ctx.fill()
+  }
+
+  // 2. NHÓM ĐỒ DỎM / ĐỘC HẠI (-ĐIỂM, TEO NHỎ)
+  else if (f.type === 'poison_mushroom') {
+    // Nấm độc tím đốm đỏ (-25đ, teo nhỏ)
+    ctx.beginPath()
+    ctx.roundRect(-f.r * 0.22, 0, f.r * 0.44, f.r * 0.75, 2)
+    ctx.fillStyle = '#cbd5e1'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(0, 0, f.r * 0.8, Math.PI, 0)
+    ctx.fillStyle = '#7e22ce'
+    ctx.shadowColor = 'rgba(168, 85, 247, 0.6)'
+    ctx.shadowBlur = 6
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+    ctx.fillStyle = '#f43f5e'
+    const dots = [[-f.r * 0.4, -f.r * 0.3], [0, -f.r * 0.55], [f.r * 0.4, -f.r * 0.3]]
+    dots.forEach(([dx, dy]) => {
+      ctx.beginPath()
+      ctx.arc(dx, dy, 2.2, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  } else if (f.type === 'rotten_apple') {
+    // Táo thối xanh mốc (-15đ, teo nhỏ)
+    ctx.beginPath()
+    ctx.arc(0, f.r * 0.1, f.r * 0.75, 0, Math.PI * 2)
+    ctx.fillStyle = '#65a30d' // Xanh mốc
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(f.r * 0.25, f.r * 0.2, f.r * 0.35, 0, Math.PI * 2)
+    ctx.fillStyle = '#3f2e18'
+    ctx.fill()
+    ctx.strokeStyle = '#78350f'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(0, -f.r * 0.65)
+    ctx.lineTo(f.r * 0.15, -f.r * 0.95)
+    ctx.stroke()
+  } else if (f.type === 'fish_bone') {
+    // Xương cá rác thải (-20đ, teo nhỏ)
+    ctx.strokeStyle = '#94a3b8'
+    ctx.lineWidth = 1.8
+    ctx.beginPath()
+    ctx.moveTo(-f.r * 0.8, 0)
+    ctx.lineTo(f.r * 0.8, 0)
+    ctx.moveTo(-f.r * 0.8, 0)
+    ctx.lineTo(-f.r * 0.5, -f.r * 0.4)
+    ctx.moveTo(-f.r * 0.8, 0)
+    ctx.lineTo(-f.r * 0.5, f.r * 0.4)
+    for (let s = -0.2; s <= 0.6; s += 0.3) {
+      ctx.moveTo(s * f.r, -f.r * 0.4)
+      ctx.lineTo(s * f.r, f.r * 0.4)
+    }
+    ctx.moveTo(f.r * 0.8, 0)
+    ctx.lineTo(f.r * 0.95, -f.r * 0.3)
+    ctx.moveTo(f.r * 0.8, 0)
+    ctx.lineTo(f.r * 0.95, f.r * 0.3)
+    ctx.stroke()
+  } else if (f.type === 'chili_pepper') {
+    // Ớt hiểm cay xé lưỡi (-15đ, teo nhỏ)
+    ctx.beginPath()
+    ctx.moveTo(f.r * 0.4, -f.r * 0.6)
+    ctx.quadraticCurveTo(-f.r * 0.7, 0, -f.r * 0.2, f.r * 0.8)
+    ctx.quadraticCurveTo(f.r * 0.3, 0, f.r * 0.4, -f.r * 0.6)
+    ctx.fillStyle = '#dc2626'
+    ctx.fill()
+    ctx.fillStyle = '#16a34a'
+    ctx.beginPath()
+    ctx.arc(f.r * 0.4, -f.r * 0.65, 3, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // 3. NHÓM ĐỒ THƯỜNG
+  else if (f.type === 'donut') {
+    ctx.beginPath()
+    ctx.arc(0, 0, f.r, 0, Math.PI * 2)
+    ctx.fillStyle = '#f59e0b'
+    ctx.shadowColor = 'rgba(245, 158, 11, 0.4)'
+    ctx.shadowBlur = 6
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+
+    ctx.beginPath()
+    ctx.arc(0, 0, f.r * 0.85, 0, Math.PI * 2)
+    ctx.fillStyle = '#f43f5e'
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.arc(0, 0, f.r * 0.32, 0, Math.PI * 2)
+    ctx.fillStyle = '#080d1a'
+    ctx.fill()
+
+    const sprinkles = ['#67e8f9', '#fde047', '#ffffff']
+    for (let i = 0; i < 5; i++) {
+      const a = (i * Math.PI * 2) / 5
+      const sx = Math.cos(a) * f.r * 0.58
+      const sy = Math.sin(a) * f.r * 0.58
+      ctx.beginPath()
+      ctx.arc(sx, sy, 1.8, 0, Math.PI * 2)
+      ctx.fillStyle = sprinkles[i % sprinkles.length]
+      ctx.fill()
+    }
+  } else if (f.type === 'cupcake') {
+    ctx.beginPath()
+    ctx.arc(0, -f.r * 0.25, f.r * 0.75, 0, Math.PI * 2)
+    ctx.fillStyle = '#fbcfe8'
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.arc(0, -f.r * 0.85, f.r * 0.28, 0, Math.PI * 2)
+    ctx.fillStyle = '#e11d48'
+    ctx.fill()
+  } else if (f.type === 'cake') {
+    ctx.beginPath()
+    ctx.moveTo(-f.r * 0.7, f.r * 0.7)
+    ctx.lineTo(f.r * 0.7, f.r * 0.7)
+    ctx.lineTo(0, -f.r * 0.9)
+    ctx.closePath()
+    ctx.fillStyle = '#fbbf24'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(0, -f.r * 0.35, f.r * 0.3, 0, Math.PI * 2)
+    ctx.fillStyle = '#ef4444'
+    ctx.fill()
+  } else if (f.type === 'cookie') {
+    ctx.beginPath()
+    ctx.arc(0, 0, f.r, 0, Math.PI * 2)
+    ctx.fillStyle = '#d97706'
+    ctx.fill()
+    const chips = [[-0.3, -0.3], [0.3, -0.2], [0, 0.3], [-0.3, 0.2]]
+    chips.forEach(([cx, cy]) => {
+      ctx.beginPath()
+      ctx.arc(cx * f.r, cy * f.r, f.r * 0.18, 0, Math.PI * 2)
+      ctx.fillStyle = '#451a03'
+      ctx.fill()
+    })
   } else if (f.type === 'croissant') {
-    // Bánh sừng bò Pháp vàng ươm
     ctx.beginPath()
     ctx.ellipse(0, 0, f.r * 0.85, f.r * 0.45, 0, 0, Math.PI * 2)
     const croissGrad = ctx.createLinearGradient(-f.r, 0, f.r, 0)
@@ -2313,7 +2997,6 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
     ctx.arc(f.r * 0.3, 0, f.r * 0.35, -Math.PI * 0.5, Math.PI * 0.5)
     ctx.stroke()
   } else {
-    // Kẹo xoắn ngọt ngào
     ctx.beginPath()
     ctx.arc(0, 0, f.r * 0.75, 0, Math.PI * 2)
     ctx.fillStyle = '#a855f7'
@@ -2327,15 +3010,15 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
   ctx.restore()
 }
 
-// ── VẼ MINIMAP ──
+// ── VẼ MINIMAP (KÈM VÒNG AN TOÀN SAFE ZONE) ──
 function drawMinimap(
   ctx: CanvasRenderingContext2D,
   viewW: number,
   viewH: number,
-  eng: { player: Worm; aiWorms: Worm[]; bushes?: Bush[] }
+  eng: { player: Worm; aiWorms: Worm[]; bushes?: Bush[]; safeZone?: SafeZoneState }
 ) {
   const isMobile = viewW < 640 || viewH < 500
-  const mapSize = isMobile ? 52 : 72
+  const mapSize = isMobile ? 54 : 76
   const mapX = viewW - mapSize - 10
   const mapY = isMobile ? 12 : 14
 
@@ -2343,19 +3026,36 @@ function drawMinimap(
   // Khung radar
   ctx.beginPath()
   ctx.arc(mapX + mapSize / 2, mapY + mapSize / 2, mapSize / 2, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(8, 13, 26, 0.45)'
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)'
+  ctx.fillStyle = 'rgba(8, 13, 26, 0.55)'
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
   ctx.lineWidth = 1
   ctx.fill()
   ctx.stroke()
 
   const scale = mapSize / ARENA_SIZE
 
+  // Vòng an toàn Safe Zone trên Minimap
+  if (eng.safeZone) {
+    ctx.beginPath()
+    ctx.arc(
+      mapX + eng.safeZone.centerX * scale,
+      mapY + eng.safeZone.centerY * scale,
+      Math.max(2, eng.safeZone.currentRadius * scale),
+      0,
+      Math.PI * 2
+    )
+    ctx.strokeStyle = eng.safeZone.isShrinking ? '#f43f5e' : '#38bdf8'
+    ctx.lineWidth = 1.2
+    ctx.setLineDash([2, 2])
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
+
   // Vị trí các bụi rậm trên Minimap
   if (eng.bushes) {
     eng.bushes.forEach((b) => {
       ctx.beginPath()
-      ctx.arc(mapX + b.x * scale, mapY + b.y * scale, isMobile ? 1.0 : 1.5, 0, Math.PI * 2)
+      ctx.arc(mapX + b.x * scale, mapY + b.y * scale, isMobile ? 0.9 : 1.3, 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(16, 185, 129, 0.35)'
       ctx.fill()
     })
@@ -2371,7 +3071,7 @@ function drawMinimap(
     }
   })
 
-  // Vị trí người chơi (Vẽ 2 vòng để tạo hiệu ứng phát sáng nhẹ mà không dùng shadowBlur)
+  // Vị trí người chơi
   if (eng.player.isAlive) {
     ctx.beginPath()
     ctx.arc(mapX + eng.player.x * scale, mapY + eng.player.y * scale, isMobile ? 3.0 : 4.0, 0, Math.PI * 2)

@@ -255,11 +255,11 @@ export function CampusChatSheet({
 
   // Khả năng co giãn khung chat trên Desktop (các cạnh và góc)
   const [dimensions, setDimensions] = useState<SheetDimensions>(getInitialDimensions)
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 640)
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerHeight >= 560)
 
   useEffect(() => {
     const handleWindowResize = () => {
-      setIsDesktop(window.innerWidth >= 640)
+      setIsDesktop(window.innerWidth >= 768 && window.innerHeight >= 560)
       setDimensions((prev) => {
         const maxWidth = Math.max(360, window.innerWidth - 32)
         const maxHeight = Math.max(400, window.innerHeight - 100)
@@ -480,13 +480,18 @@ export function CampusChatSheet({
             : undefined
         }
         className={cn(
-          'gap-0 p-0 z-[70] shadow-2xl overflow-hidden flex flex-col',
+          'campus-chat-sheet-root gap-0 p-0 z-[70] shadow-2xl overflow-hidden flex flex-col',
           'top-2.5 right-2.5 left-2.5 bottom-[max(0.625rem,env(safe-area-inset-bottom))] max-h-[calc(100dvh-20px)] rounded-2xl border border-border-default',
-          'sm:top-auto sm:right-4 sm:bottom-[84px] sm:left-auto',
-          'sm:rounded-2xl sm:border sm:border-border-default',
-          'sm:w-[480px] md:w-[500px] lg:w-[520px]',
-          'sm:min-w-[360px] sm:max-w-[calc(100vw-24px)] sm:min-h-[400px] sm:max-h-[calc(100vh-96px)]',
-          'sm:shadow-[-8px_12px_32px_rgba(0,0,0,0.45)]',
+          // Tối ưu màn hình ngang mobile: căn sát mép phải, full chiều cao, 0 pixel bị che
+          'landscape:top-2 landscape:bottom-[max(0.5rem,env(safe-area-inset-bottom,8px))] landscape:right-2 landscape:left-auto landscape:w-[min(380px,calc(100vw-20px))] landscape:h-[calc(100dvh-16px)] landscape:max-h-[calc(100dvh-16px)] landscape:min-h-0',
+          // Chỉ áp dụng bố cục nổi desktop khi màn hình thật sự đủ lớn
+          isDesktop && [
+            'sm:top-auto sm:right-4 sm:bottom-[84px] sm:left-auto',
+            'sm:rounded-2xl sm:border sm:border-border-default',
+            'sm:w-[480px] md:w-[500px] lg:w-[520px]',
+            'sm:min-w-[360px] sm:max-w-[calc(100vw-24px)] sm:min-h-[400px] sm:max-h-[calc(100vh-96px)]',
+            'sm:shadow-[-8px_12px_32px_rgba(0,0,0,0.45)]',
+          ],
           '[&_[data-slot=sheet-close]]:size-8 sm:[&_[data-slot=sheet-close]]:size-9',
         )}
       >

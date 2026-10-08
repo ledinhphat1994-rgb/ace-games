@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ArrowLeft, Gamepad2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
@@ -64,7 +64,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   const myReady = sanSangMap[myKey] ?? isHost
 
   const handleToggleReady = () => {
-    setSanSangMap((prev) => ({ ...prev, [myKey]: !prev[myKey] }))
+    setSanSangMap((prev: Record<string, boolean>) => ({ ...prev, [myKey]: !prev[myKey] }))
   }
 
   // Số người thật trong phòng
@@ -80,7 +80,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   // 1. Số người thật >= số lượng mong muốn của chủ phòng
   // 2. HOẶC tất cả thành viên khác (tổng số lượng yêu cầu >= 2) đã bấm xác nhận sẵn sàng
   const cacThanhVienKhacSanSang =
-    realMembers.length >= 2 && realMembers.filter((m) => !m.isHost).every((m) => sanSangMap[m.id])
+    realMembers.length >= 2 && realMembers.filter((m: { isHost: boolean }) => !m.isHost).every((m: { id: string }) => sanSangMap[m.id])
   const canStartPvp = soNguoiThat >= pvpTargetCount || cacThanhVienKhacSanSang
 
   const difficulty = thietLap.capDo
@@ -144,7 +144,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     setIsGameOver(false)
     setIsRunning(true)
     setPlayerScore(0)
-    setRestartKey((k) => k + 1)
+    setRestartKey((k: number) => k + 1)
   }, [mode, canStartPvp, isHost])
 
   const handleHuyPhong = useCallback(() => {
@@ -183,30 +183,35 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         return
       }
 
-      // 2. Phím C hoặc O: Mở cài đặt / chế độ chơi
-      if (key === 'c' || key === 'o') {
+      // 2. Phím C: Mở / đóng Chat nổi toàn trường
+      if (key === 'c') {
         e.preventDefault()
-        if (!isSessionLocked) {
-          setIsConfigOpen((prev) => !prev)
-        }
+        window.dispatchEvent(new CustomEvent('campus:toggle-chat'))
         return
       }
 
-      // 3. Phím R: Chơi lại / ván mới
+      // 3. Phím O hoặc S: Mở / đóng Cài đặt & Nhạc nền
+      if (key === 'o' || key === 's') {
+        e.preventDefault()
+        setIsConfigOpen((prev: boolean) => !prev)
+        return
+      }
+
+      // 4. Phím R: Chơi lại / ván mới
       if (key === 'r') {
         e.preventDefault()
         handleStartGame()
         return
       }
 
-      // 4. Phím Q: Quay lại sảnh
+      // 5. Phím Q: Quay lại sảnh
       if (key === 'q') {
         e.preventDefault()
         handleBackRoom()
         return
       }
 
-      // 5. Phím Escape: Nếu mở cài đặt -> đóng cài đặt. Nếu fullscreen -> thoát fullscreen.
+      // 6. Phím Escape: Nếu mở cài đặt -> đóng cài đặt. Nếu fullscreen -> thoát fullscreen.
       if (e.key === 'Escape') {
         if (isConfigOpen) {
           e.preventDefault()
@@ -282,7 +287,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           canStartPvp={canStartPvp}
           isReady={myReady}
           onToggleReady={handleToggleReady}
-          pvpMembersList={realMembers.map((m) => ({
+          pvpMembersList={realMembers.map((m: { id: string; name: string; isHost: boolean }) => ({
             id: m.id,
             name: m.name,
             isHost: m.isHost,
@@ -298,7 +303,12 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
 
       {/* ── 2. CỤM NÚT THAO TÁC NHANH GÓC PHẢI DƯỚI CÙNG (SÁT NÚT TĂNG TỐC VÀ SÁT NÚT TIN NHẮN NỔI) ── */}
       <div
-        className="snake-quick-actions absolute z-30 flex items-center gap-1 sm:gap-1.5 bottom-2.5 right-13 sm:bottom-4 sm:right-16 pointer-events-auto select-none"
+        className={cn(
+          'snake-quick-actions absolute z-30 flex items-center gap-1 sm:gap-1.5 pointer-events-auto select-none transition-all',
+          isFullscreen
+            ? 'bottom-3 right-3 sm:bottom-4 sm:right-4'
+            : 'bottom-2.5 right-13 sm:bottom-4 sm:right-16'
+        )}
         data-testid="snake-quick-actions"
       >
         <button
@@ -314,12 +324,8 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
 
         <button
           type="button"
-          onClick={() => {
-            if (!isSessionLocked) {
-              setIsConfigOpen((prev) => !prev)
-            }
-          }}
-          title="Cài đặt (C)"
+          onClick={() => setIsConfigOpen((prev: boolean) => !prev)}
+          title="Cài đặt (O)"
           aria-label="Cài đặt"
           data-testid="nut-che-do-choi"
           className={cn(
