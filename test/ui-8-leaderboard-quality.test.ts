@@ -85,4 +85,17 @@ describe('UI-8 Leaderboard — Rankings & Recognition Quality & Data Truth', () 
     expect(leaderboardRaw).toContain('aria-selected=')
     expect(leaderboardRaw).toContain('aria-label="Làm mới bảng xếp hạng"')
   })
+
+  // ── 10. Card Stability & Zero Layout Shift (Peer Card Uniformity & Fixed Stage Card) ──
+  it('11. Enforces uniform grid for Category cards and locked min-height for main stage card', () => {
+    // 1. Vùng 1 category tabs must use uniform grid to prevent x/y coordinate drift
+    expect(leaderboardRaw).toContain('grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6')
+    expect(leaderboardRaw).toContain('border-2')
+    expect(leaderboardRaw).toContain('transition-colors duration-150')
+    expect(leaderboardRaw).not.toContain('transition-all')
+
+    // 2. Main stage card container must lock minimum height and provide fixed header
+    expect(leaderboardRaw).toContain('min-h-[580px]')
+    expect(leaderboardRaw).toContain('Bảng vinh danh')
+  })
 })
