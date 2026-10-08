@@ -1,6 +1,6 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles, Lock, Globe, Sliders, Shield, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
@@ -463,6 +463,10 @@ export interface Wormate3DArenaProps {
   onHuyPhong?: () => void
   isConfigOpen?: boolean
   onCloseConfig?: () => void
+  accessMode?: 'public' | 'private'
+  onAccessModeChange?: (mode: 'public' | 'private') => void
+  roomPassword?: string
+  onRoomPasswordChange?: (pw: string) => void
 }
 
 export function Wormate3DArena({
@@ -483,18 +487,22 @@ export function Wormate3DArena({
   onStartGame,
   realPlayerCount: _realPlayerCount = 1,
   pvpTargetCount = 2,
-  onPvpTargetCountChange: _onPvpTargetCountChange,
+  onPvpTargetCountChange,
   isHost = true,
   canStartPvp = true,
   isReady = true,
   onToggleReady,
   pvpMembersList: _pvpMembersList = [],
   pveCapacity = 6,
-  onPveCapacityChange: _onPveCapacityChange,
+  onPveCapacityChange,
   isSessionLocked = false,
-  onHuyPhong: _onHuyPhong,
+  onHuyPhong,
   isConfigOpen = false,
   onCloseConfig,
+  accessMode = 'public',
+  onAccessModeChange,
+  roomPassword = '',
+  onRoomPasswordChange,
 }: Wormate3DArenaProps) {
   // Invariants verification for contract test suites:
   // pveCapacity >= 50
@@ -535,7 +543,35 @@ export function Wormate3DArena({
 
   // Cài đặt âm thanh & Nhạc nền BGM
   const [audioSettings, setAudioSettings] = useState<SnakeAudioSettings>(loadAudioSettings)
-  const [configTab, setConfigTab] = useState<'skin' | 'audio'>('skin')
+  const [configTab, setConfigTab] = useState<'skin' | 'room' | 'audio'>('skin')
+  const [localAccessMode, setLocalAccessMode] = useState<'public' | 'private'>('public')
+  const [localRoomPassword, setLocalRoomPassword] = useState('')
+  const [hienMatKhau, setHienMatKhau] = useState(false)
+  const [isCustomCapacity, setIsCustomCapacity] = useState(false)
+
+  const currentAccessMode = onAccessModeChange ? accessMode : localAccessMode
+  const setCheDoPhong = (m: 'public' | 'private') => {
+    if (isSessionLocked) return
+    if (onAccessModeChange) onAccessModeChange(m)
+    else setLocalAccessMode(m)
+  }
+
+  const currentPassword = onRoomPasswordChange ? roomPassword : localRoomPassword
+  const setMatKhau = (pw: string) => {
+    if (isSessionLocked) return
+    if (onRoomPasswordChange) onRoomPasswordChange(pw)
+    else setLocalRoomPassword(pw)
+  }
+
+  const currentTargetCount = mode === 'pass_and_play' ? pvpTargetCount : pveCapacity
+  const handleCapacityChange = (count: number) => {
+    if (isSessionLocked) return
+    if (mode === 'pass_and_play') {
+      onPvpTargetCountChange?.(count)
+    } else {
+      onPveCapacityChange?.(count)
+    }
+  }
   const [selectedSkinId, setSelectedSkinId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('dc_snake_skin') || 'rainbow'
@@ -2218,7 +2254,7 @@ export function Wormate3DArena({
           className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-4 bg-transparent select-none"
         >
           <div className="w-[min(480px,calc(100vw-1.5rem))] max-h-[calc(100dvh-1rem)] sm:h-[440px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-3 sm:p-5 flex flex-col justify-between overflow-hidden">
-            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab Skin Rắn & Âm Thanh (xóa hoàn toàn Vùng 1 PvE/PvP/Hủy phòng theo yêu cầu) */}
+            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab Skin Rắn, Cấu hình phòng & Âm Thanh */}
             <div className="flex items-center justify-between pb-2 sm:pb-3 border-b border-slate-800 h-9 sm:h-10 shrink-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <button
@@ -2237,6 +2273,23 @@ export function Wormate3DArena({
 
                 <button
                   type="button"
+                  onClick={() => setConfigTab('room')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
+                    configTab === 'room'
+                      ? 'border-brand bg-brand/20 text-brand'
+                      : 'border-transparent text-slate-400 hover:text-white',
+                  )}
+                >
+                  <Sliders className="size-4 text-brand shrink-0" />
+                  <span>Cấu hình phòng</span>
+                  {isSessionLocked && (
+                    <Lock className="size-3 text-amber-400 shrink-0" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setConfigTab('audio')}
                   className={cn(
                     'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
@@ -2251,6 +2304,16 @@ export function Wormate3DArena({
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
+                {isSessionLocked && onHuyPhong && (
+                  <button
+                    type="button"
+                    onClick={onHuyPhong}
+                    className="h-8 px-2 rounded-lg border-2 border-rose-500/40 bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1"
+                    title="Hủy phòng"
+                  >
+                    <span>Hủy phòng</span>
+                  </button>
+                )}
                 {onCloseConfig && (
                   <button
                     type="button"
@@ -2266,7 +2329,178 @@ export function Wormate3DArena({
 
             {/* Nội dung trung tâm: Co giãn linh hoạt theo viewport */}
             <div className="flex-1 min-h-0 flex flex-col justify-between py-1.5 sm:py-2 overflow-y-auto">
-              {configTab === 'audio' ? (
+              {configTab === 'room' ? (
+                /* TAB CẤU HÌNH PHÒNG: Số lượng người chơi, Chế độ phòng (Công khai/Riêng tư), Mật khẩu và Trạng thái khóa */
+                <div className="flex flex-col gap-2 min-h-0">
+                  {/* Banner trạng thái: Khóa khi đã bắt đầu / tạo phòng thành công */}
+                  {isSessionLocked ? (
+                    <div className="h-9 px-3 rounded-xl border-2 border-amber-500/40 bg-amber-500/15 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-1.5 text-amber-300">
+                        <Lock className="size-3.5 shrink-0 text-amber-400" />
+                        <span className="text-xs font-bold">Cấu hình phòng đã khóa</span>
+                      </div>
+                      {onHuyPhong && (
+                        <button
+                          type="button"
+                          onClick={onHuyPhong}
+                          className="px-2 py-0.5 rounded-lg border-2 border-rose-500/60 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-xs font-bold transition-colors duration-150 cursor-pointer"
+                        >
+                          Hủy phòng
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-9 px-3 rounded-xl border-2 border-slate-800 bg-slate-800/40 flex items-center justify-between shrink-0 text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <Shield className="size-3.5 shrink-0 text-emerald-400" />
+                        <span className="text-xs font-semibold text-slate-300">
+                          {isHost ? 'Thiết lập trước khi bắt đầu' : 'Chỉ chủ phòng mới có thể thiết lập'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-500">Khóa khi bắt đầu</span>
+                    </div>
+                  )}
+
+                  {/* Mục 1: Số lượng người chơi (Presets 2, 4, 6, 8 và Stepper tùy chỉnh lên tới 50) */}
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200">Số lượng người chơi</span>
+                      <span className="text-[11px] font-mono text-brand font-bold">{currentTargetCount} người</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
+                      {[2, 4, 6, 8].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          disabled={isSessionLocked || !isHost}
+                          onClick={() => {
+                            setIsCustomCapacity(false)
+                            handleCapacityChange(num)
+                          }}
+                          className={cn(
+                            'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
+                            !isCustomCapacity && currentTargetCount === num
+                              ? 'border-brand bg-brand/20 text-brand font-black'
+                              : 'border-slate-800 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-700',
+                            (isSessionLocked || !isHost) && 'opacity-60 cursor-not-allowed',
+                          )}
+                        >
+                          <span>{num} Người</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Stepper Tùy chỉnh (2 - 50 người) - Cố định 1 hàng h-9 inline */}
+                    <div className="flex items-center justify-between h-9 px-3 rounded-xl border-2 border-slate-800 bg-slate-800/60 shrink-0">
+                      <span className="text-xs font-semibold text-slate-300">Tùy chỉnh số lượng:</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isSessionLocked || !isHost || currentTargetCount <= 2}
+                          onClick={() => {
+                            setIsCustomCapacity(true)
+                            handleCapacityChange(Math.max(2, currentTargetCount - 1))
+                          }}
+                          className="size-6 rounded border border-slate-700 bg-slate-800 flex items-center justify-center font-black text-white hover:bg-slate-700 cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          -
+                        </button>
+                        <span className="font-bold text-xs font-mono text-emerald-400 w-6 text-center tabular-nums">
+                          {currentTargetCount}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isSessionLocked || !isHost || currentTargetCount >= 50}
+                          onClick={() => {
+                            setIsCustomCapacity(true)
+                            handleCapacityChange(Math.min(50, currentTargetCount + 1))
+                          }}
+                          className="size-6 rounded border border-slate-700 bg-slate-800 flex items-center justify-center font-black text-white hover:bg-slate-700 cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mục 2: Chế độ phòng: Công khai hay Riêng tư */}
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <span className="text-xs font-bold text-slate-200">Chế độ phòng</span>
+                    <div className="grid grid-cols-2 gap-2 h-9 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isSessionLocked || !isHost}
+                        onClick={() => setCheDoPhong('public')}
+                        className={cn(
+                          'h-9 px-3 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer',
+                          currentAccessMode === 'public'
+                            ? 'border-brand bg-brand/20 text-brand font-black'
+                            : 'border-slate-800 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-700',
+                          (isSessionLocked || !isHost) && 'opacity-60 cursor-not-allowed',
+                        )}
+                      >
+                        <Globe className="size-4 shrink-0" />
+                        <span>Công khai</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isSessionLocked || !isHost}
+                        onClick={() => setCheDoPhong('private')}
+                        className={cn(
+                          'h-9 px-3 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer',
+                          currentAccessMode === 'private'
+                            ? 'border-brand bg-brand/20 text-brand font-black'
+                            : 'border-slate-800 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-700',
+                          (isSessionLocked || !isHost) && 'opacity-60 cursor-not-allowed',
+                        )}
+                      >
+                        <Lock className="size-4 shrink-0" />
+                        <span>Riêng tư</span>
+                      </button>
+                    </div>
+
+                    {/* Ô Mật khẩu phòng khi chế độ là Riêng tư, hoặc thông báo khi Công khai */}
+                    <div
+                      className={cn(
+                        'h-9 px-3 rounded-xl border-2 flex items-center justify-between shrink-0 transition-colors duration-150',
+                        currentAccessMode === 'private'
+                          ? 'border-slate-700 bg-slate-800/90'
+                          : 'border-slate-800/80 bg-slate-900/60',
+                      )}
+                    >
+                      {currentAccessMode === 'private' ? (
+                        <div className="flex items-center gap-2 w-full">
+                          <span className="text-xs font-semibold text-slate-400 shrink-0">Mật khẩu:</span>
+                          <input
+                            type={hienMatKhau ? 'text' : 'password'}
+                            disabled={isSessionLocked || !isHost}
+                            value={currentPassword}
+                            onChange={(e) => setMatKhau(e.target.value)}
+                            placeholder="Nhập mật khẩu phòng..."
+                            maxLength={20}
+                            className="w-full bg-transparent border-0 p-0 text-xs text-white font-medium placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setHienMatKhau(!hienMatKhau)}
+                            className="text-slate-400 hover:text-white p-1 cursor-pointer transition-colors shrink-0"
+                            aria-label={hienMatKhau ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                          >
+                            {hienMatKhau ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-slate-400 text-xs truncate">
+                          <Globe className="size-3.5 text-emerald-400 shrink-0" />
+                          <span className="truncate">Phòng mở toàn trường</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : configTab === 'audio' ? (
                 /* TAB ÂM THANH & PHÍM TẮT: Bật/tắt BGM 132BPM, SFX, và danh sách Hotkey PC */
                 <div className="flex flex-col gap-2 min-h-0">
                   {/* Mục 1: Nhạc nền Arcade BGM */}

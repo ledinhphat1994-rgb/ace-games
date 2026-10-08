@@ -56,6 +56,8 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
 
   // Cấu hình PvE: Mặc định 6 rắn, tùy chỉnh tối đa 50 rắn cùng lúc
   const [pveCapacity, setPveCapacity] = useState<number>(MAX_CAPACITY)
+  const [accessMode, setAccessMode] = useState<'public' | 'private'>('public')
+  const [roomPassword, setRoomPassword] = useState<string>('')
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [hasConfirmedPlay, setHasConfirmedPlay] = useState(false)
 
@@ -323,6 +325,14 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           }}
           onGameOver={handleGameOver}
           onStartGame={handleStartGame}
+          accessMode={accessMode}
+          onAccessModeChange={(m) => {
+            if (!isSessionLocked) setAccessMode(m)
+          }}
+          roomPassword={roomPassword}
+          onRoomPasswordChange={(pw) => {
+            if (!isSessionLocked) setRoomPassword(pw)
+          }}
         />
       </div>
 
