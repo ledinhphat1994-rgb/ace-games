@@ -116,4 +116,11 @@ describe('Unified Game Lobby & Chat Stability Invariants', () => {
     expect(gameLobbyRaw).toContain('new Date(b.thoiGianBatDau).getTime() - new Date(a.thoiGianBatDau).getTime()')
     expect(gameLobbyRaw).toContain('suKienSapXep.map')
   })
+
+  // ── 11. Không hồi sinh phòng ma: Chỉ render liveRooms từ máy chủ authoritative ──
+  it('11. Sảnh game chỉ render phòng authoritative từ server (liveRooms), không tự ý merge phòng ma từ local storage khi máy chủ đã xóa phòng', () => {
+    expect(gameLobbyRaw).toContain('// Sảnh game CHỈ hiển thị các bàn thực sự đang mở trên máy chủ (Server-authoritative)')
+    expect(gameLobbyRaw).toContain('const merged = liveRooms')
+    expect(gameLobbyRaw).not.toContain('const merged = [...localCreatedRooms.filter((lr) => !liveIds.has(lr.id)), ...liveRooms]')
+  })
 })

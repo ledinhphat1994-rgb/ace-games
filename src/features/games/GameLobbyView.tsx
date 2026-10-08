@@ -472,6 +472,26 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   const hasAuthoritativeData = Boolean(nguoiDung) && !isPending && !isError
 
+  // Tự động dọn dẹp các phòng trong bộ nhớ tạm local storage nếu phòng đó không còn tồn tại trên máy chủ
+  useEffect(() => {
+    if (localCreatedRooms.length > 0 && !isPending) {
+      const liveIds = new Set(tables.map((t) => t.id))
+      const conLai = localCreatedRooms.filter((lr) => liveIds.has(lr.id))
+      if (conLai.length !== localCreatedRooms.length) {
+        setLocalCreatedRooms(conLai)
+        try {
+          if (conLai.length > 0) {
+            sessionStorage.setItem('dc_my_game_rooms', JSON.stringify(conLai))
+            localStorage.setItem('dc_my_game_rooms', JSON.stringify(conLai))
+          } else {
+            sessionStorage.removeItem('dc_my_game_rooms')
+            localStorage.removeItem('dc_my_game_rooms')
+          }
+        } catch {}
+      }
+    }
+  }, [tables, localCreatedRooms, isPending])
+
   // Tổng hợp danh sách phòng game và tích hợp thông tin bạn bè + ĐẢM BẢO SỐ PHÒNG LÀ DUY NHẤT
   const allRooms = useMemo<PhongGameItem[]>(() => {
     const friendNames = new Set(
@@ -527,8 +547,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       }
     })
 
-    const liveIds = new Set(liveRooms.map((r) => r.id))
-    const merged = [...localCreatedRooms.filter((lr) => !liveIds.has(lr.id)), ...liveRooms]
+    // Sảnh game CHỈ hiển thị các bàn thực sự đang mở trên máy chủ (Server-authoritative)
+    // Tuyệt đối không hiển thị phòng ma từ local storage khi máy chủ đã xóa phòng
+    const merged = liveRooms
 
     // ── ĐẢM BẢO SỐ PHÒNG LÀ DUY NHẤT KHÔNG TRÙNG LẶP TRÊN TOÀN BỘ SẢNH ──
     const usedNumbers = new Set<number>()
