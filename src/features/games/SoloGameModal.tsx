@@ -30,10 +30,7 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         style={{
-          top: '72px',
-          translate: '-50% 0',
-          transform: 'none',
-          maxHeight: 'min(640px, calc(100svh - 88px))',
+          maxHeight: 'min(640px, calc(100svh - 2rem))',
         }}
         className="w-[min(540px,calc(100vw-2rem))] p-6 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
       >

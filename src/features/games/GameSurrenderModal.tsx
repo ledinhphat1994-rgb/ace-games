@@ -127,10 +127,7 @@ export function GameSurrenderModal({
     >
       <DialogContent
         style={{
-          top: '72px',
-          translate: '-50% 0',
-          transform: 'none',
-          maxHeight: 'min(380px, calc(100svh - 88px))',
+          maxHeight: 'min(380px, calc(100svh - 2rem))',
         }}
         className="w-[min(380px,calc(100vw-2rem))] p-5 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
       >
