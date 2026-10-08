@@ -281,6 +281,26 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
   const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false)
   const [emoteAnchorEl, setEmoteAnchorEl] = useState<HTMLElement | null>(null)
   const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
+  const quickMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isQuickMenuOpen) return
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (quickMenuRef.current && !quickMenuRef.current.contains(e.target as Node)) {
+        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emote, #mobile-tool-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+        if (!trigger) {
+          setIsQuickMenuOpen(false)
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [isQuickMenuOpen])
 
   const [selectedProfileUser, setSelectedProfileUser] = useState<NguoiXem | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
@@ -731,14 +751,21 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
     {
       id: 'emote',
       title: 'Biểu cảm & Tin nhanh',
-      icon: <Smile className="size-4 text-violet-400" />,
+      icon: <Smile className={cn('size-4', (isQuickMenuOpen || isEmotePickerOpen) ? 'text-violet-200' : 'text-violet-400')} />,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
-        const el = e.currentTarget
-        setEmoteAnchorEl(el)
-        updateQuickMenuPos(el)
-        setIsEmotePickerOpen((prev) => !prev)
+        if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+          setIsQuickMenuOpen((prev) => !prev)
+        } else {
+          const el = e.currentTarget
+          setEmoteAnchorEl(el)
+          updateQuickMenuPos(el)
+          setIsEmotePickerOpen((prev) => !prev)
+        }
       },
-      className: 'border-violet-400/50 bg-[#161a24]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+      className: cn(
+        'border-violet-400/50 bg-[#161a24]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+        (isQuickMenuOpen || isEmotePickerOpen) && 'border-violet-400 bg-violet-500/30 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,0.5)]'
+      ),
     },
   ]
 
@@ -872,6 +899,86 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
 
       {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA CHUẨN CỜ TƯỚNG */}
       <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
+        {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CHƠI, KHÔNG ĐÈ THẺ ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (mode === 'pve') {
+                  toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 3' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 2' : 'AI Trí Nhớ · Cấp 1')
+                  return
+                }
+                const rect = e.currentTarget.getBoundingClientRect()
+                setSelectedProfileUser({
+                  id: 2,
+                  ten: 'Người chơi 2',
+                  gameName: 'Trí Nhớ',
+                  anchorRect: {
+                    top: rect.top,
+                    left: rect.left,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                  },
+                })
+              }}
+              className={cn(
+                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                turn === 2 && !isGameOver
+                  ? 'border-violet-400 ring-2 ring-violet-400/30'
+                  : 'border-white/15 bg-[#121620]'
+              )}
+              title={mode === 'pve' ? 'Máy AI Trí Nhớ' : 'Người chơi 2'}
+            >
+              {mode === 'pve' ? (
+                <div className="size-full rounded-full bg-violet-950/60 flex items-center justify-center text-violet-300 pointer-events-none">
+                  <Bot className="size-4.5" />
+                </div>
+              ) : (
+                <div className="size-full rounded-full bg-slate-800 flex items-center justify-center text-violet-300 pointer-events-none">
+                  <User className="size-4.5" />
+                </div>
+              )}
+              <div
+                className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#0c2340] border-violet-500/60 text-violet-400"
+                title="Điểm số đối thủ"
+              >
+                {score2}
+              </div>
+            </button>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                {mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+              </span>
+              <span className="text-[10px] text-violet-300 font-semibold leading-none">
+                {mode === 'pve' ? (difficulty === 'hard' ? 'AI Cấp 3' : difficulty === 'medium' ? 'AI Cấp 2' : 'AI Cấp 1') : 'Người chơi 2'}
+              </span>
+            </div>
+            {opponentBubble && (
+              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-violet-400/50 text-[11px] font-bold text-violet-300 truncate max-w-[100px]">
+                {opponentBubble.emoji} {opponentBubble.quote}
+              </div>
+            )}
+          </div>
+
+          {/* Đồng hồ đối thủ trên mobile */}
+          <div
+            className={cn(
+              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              turn === 2 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                : turn === 2 && !isGameOver
+                  ? 'border-violet-500/80 bg-violet-950/80 text-violet-300'
+                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+            )}
+            title="Thời gian đối thủ"
+          >
+            <Clock className="size-3 text-violet-400 shrink-0" />
+            <span>{formatClockTime(turn === 2 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
+          </div>
+        </div>
+
         {/* Khung bàn chơi */}
         <section
           style={{
@@ -999,6 +1106,137 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
           )}
         </section>
 
+        {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE (< xl): NẰM DƯỚI BÀN CHƠI, KHÔNG ĐÈ THẺ ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mt-1 select-none z-20">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsSettingsModalOpen(true)}
+              className={cn(
+                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                turn === 1 && !isGameOver
+                  ? 'border-emerald-400 ring-2 ring-emerald-400/30'
+                  : 'border-white/15 bg-[#121620]'
+              )}
+              title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
+            >
+              <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
+              <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#0c2340] border-emerald-500/60 text-emerald-400">
+                {score1}
+              </div>
+            </button>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                {myName || 'Bạn'}
+              </span>
+              <span className="text-[10px] text-emerald-300 font-semibold leading-none">
+                Lv.{myLevel} · Elo {myElo}
+              </span>
+            </div>
+            {playerBubble && (
+              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-emerald-400/50 text-[11px] font-bold text-emerald-300 truncate max-w-[100px]">
+                {playerBubble.emoji} {playerBubble.quote}
+              </div>
+            )}
+          </div>
+
+          {/* Đồng hồ người chơi trên mobile */}
+          <div
+            className={cn(
+              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              turn === 1 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                : turn === 1 && !isGameOver
+                  ? 'border-emerald-500/80 bg-emerald-950/80 text-emerald-300'
+                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+            )}
+            title="Thời gian của Bạn"
+          >
+            <Clock className="size-3 text-emerald-400 shrink-0" />
+            <span>{formatClockTime(turn === 1 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
+          </div>
+        </div>
+
+        {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
+        <div id="mobile-tools-bar" className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20">
+          {memoryTools.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              id={`mobile-tool-${tool.id}`}
+              onClick={tool.onClick}
+              disabled={tool.disabled}
+              className={cn(
+                'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                tool.className
+              )}
+              title={tool.title}
+              aria-label={tool.title}
+            >
+              {tool.icon}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-violet-400 text-gray-300 hover:text-violet-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+            title="Cài đặt"
+            aria-label="Cài đặt"
+          >
+            <Settings className="size-4" />
+          </button>
+        </div>
+
+        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CHƠI HAY NỘI DUNG KHÁC ==================== */}
+        {isQuickMenuOpen && (
+          <div
+            id="mobile-quick-menu-container"
+            ref={quickMenuRef}
+            aria-label="Tin nhắn nhanh"
+            className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
+          >
+            <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-violet-400/40 shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2">
+              <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                <span className="text-[11px] font-bold text-violet-300 tracking-wide flex items-center gap-1.5">
+                  <span>💬</span>
+                  <span>Tin nhắn nhanh</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickMenuOpen(false)}
+                  className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                  aria-label="Đóng tin nhắn nhanh"
+                  title="Đóng"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
+                {DANH_SACH_THAI_DO_MEMORY.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleQuickEmote(item)
+                      setIsQuickMenuOpen(false)
+                    }}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-violet-500/20 border border-white/10 hover:border-violet-400/50 text-left transition-colors cursor-pointer active:scale-95 group min-h-[38px]"
+                    title={`${item.emoji} ${item.quote}`}
+                  >
+                    <span className="text-base shrink-0 group-hover:scale-110 transition-transform">
+                      {item.emoji}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-200 group-hover:text-violet-200 truncate leading-tight">
+                      {item.quote}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI) ==================== */}
         <aside
           id="vung-4-plus-desk"
@@ -1006,7 +1244,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
           style={{
             transform: `translate3d(${avatarOffset.x}px, ${avatarOffset.y}px, 0)`,
           }}
-          className="w-full mt-3 xl:mt-0 xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex flex-col items-center xl:items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
+          className="hidden xl:flex xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex-col items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
           <div className="relative flex flex-col items-center mb-8">
             {/* Bong bóng chat người chơi (đặt phía trên cụm nút công cụ, không đè nút, sidebar hay bàn chơi) */}
@@ -1102,7 +1340,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         <aside
           id="vung-2-plus-desk"
           aria-label="Thông tin đối thủ"
-          className="w-full mb-3 xl:mb-0 xl:absolute xl:left-[calc(100%+24px)] xl:top-0 xl:w-[250px] flex flex-col items-center xl:items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
+          className="hidden xl:flex xl:absolute xl:left-[calc(100%+24px)] xl:top-0 xl:w-[250px] flex-col items-start justify-start select-none z-30 shrink-0 pointer-events-auto"
         >
           <div className="relative flex flex-col items-center">
             {/* Badge Elo & Level */}
