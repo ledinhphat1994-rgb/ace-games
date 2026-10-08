@@ -128,7 +128,7 @@ export function HomePage() {
         </>
       ),
       desc: 'Cùng nhau học tập, chơi game, kết nối bạn bè và phát triển kỹ năng để tạo nên một cộng đồng học sinh mạnh mẽ hơn.',
-      bgImage: '/assets/cyber_mockups/home_hero_bg.webp',
+      bgImage: '/assets/banners/home_hero_overview.jpg',
       gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
       primaryAction: {
         label: 'Bắt đầu khám phá',
@@ -273,7 +273,7 @@ export function HomePage() {
       const r = activeRoomsPreview[0]
       items.push({
         tag: 'HỌC TẬP', tagColor: 'bg-sky-500',
-        image: '/assets/learning/room_study.webp',
+        image: '/assets/banners/learning_hero_cyber.jpg',
         title: r.ten,
         desc: `${r.soNguoi}/${r.sucChua} học sinh đang tham gia`,
         meta: `GV ${r.chuPhongTen}`,
@@ -282,7 +282,7 @@ export function HomePage() {
     } else {
       items.push({
         tag: 'HỌC TẬP', tagColor: 'bg-sky-500',
-        image: '/assets/learning/room_study.webp',
+        image: '/assets/banners/learning_hero_cyber.jpg',
         title: 'Mở phòng học nhóm',
         desc: 'Tạo phòng học để cùng bạn bè trao đổi bài vở và tài liệu ôn thi',
         meta: 'Nhấn để tạo phòng',
@@ -469,11 +469,11 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── Bố cục 2 cột: Vùng 3 (8 col) + Vùng 5 (4 col) ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      {/* ── Hoạt động nổi bật (Mở rộng trọn bề ngang khi tạm ẩn Vùng 3) ── */}
+      <div className="w-full space-y-6">
 
-        {/* ── VÙNG 3: Hoạt động nổi bật — 8 cột ── */}
-        <div className="xl:col-span-8 min-w-0">
+        {/* Hoạt động nổi bật */}
+        <div className="w-full min-w-0">
           <section aria-label="Hoạt động nổi bật" className="space-y-4">
             <div className="flex items-center gap-2">
               <span className="text-lg">🔥</span>
@@ -482,7 +482,7 @@ export function HomePage() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {hoatDongNoiBat.map((item, i) => (
                 <button
                   key={i}
@@ -519,8 +519,8 @@ export function HomePage() {
           </section>
         </div>
 
-        {/* ── VÙNG 2: Right Panel — 4 cột ── */}
-        <div className="xl:col-span-4 space-y-6 self-start">
+        {/* ── VÙNG 3: Right Panel (Bảng xếp hạng & Sự kiện) — Tạm ẩn theo yêu cầu ── */}
+        <div className="hidden" aria-hidden="true">
 
           {/* Card 1: Bảng xếp hạng */}
           <section

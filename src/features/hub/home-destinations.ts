@@ -81,7 +81,7 @@ export const HOME_DESTINATIONS: readonly HomeDestinationConfig[] = [
   {
     id: 'rooms',
     title: 'Phòng học',
-    artwork: '/assets/learning/room_study.webp',
+    artwork: '/assets/banners/learning_hero_cyber.jpg',
     href: '/learn',
   },
 ]

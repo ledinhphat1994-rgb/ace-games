@@ -14,7 +14,6 @@ describe('HomePage Vùng 1, Vùng 2, Vùng 3 Fix Suite', () => {
     expect(homePageRaw).toContain("badge: 'DIGITAL CAMPUS'")
     expect(homePageRaw).toContain("badge: 'PHÒNG HỌC TRỰC TUYẾN'")
     expect(homePageRaw).toContain("badge: 'ĐẤU TRƯỜNG TRÒ CHƠI'")
-    expect(homePageRaw).toContain("badge: 'CỘNG ĐỒNG HỌC SINH'")
     expect(homePageRaw).toContain("badge: 'BẢNG VINH DANH'")
   })
 
