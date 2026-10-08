@@ -16,7 +16,7 @@ export function MobileNav() {
       ].join(' ')}
     >
       <div className="flex h-[60px] items-end justify-around px-1 pb-1">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.hidden).map((item) => {
           const Icon = item.icon
           return (
             <NavLink

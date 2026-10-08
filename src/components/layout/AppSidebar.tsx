@@ -20,7 +20,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     >
       {/* ── Primary Navigation List (5 Destinations) ── */}
       <nav aria-label="Khu vực hoạt động" className="space-y-1.5 pt-1 relative z-10">
-        {MAIN_NAV_ITEMS.map((item) => {
+        {MAIN_NAV_ITEMS.filter((item) => !item.hidden).map((item) => {
           const Icon = item.icon
           return (
             <NavLink
