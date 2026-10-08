@@ -724,6 +724,7 @@ export function CaroBoard({
     </div>
   )
   const isOpponentTurn = currentTurn !== playerSide && isPlaying && !winner
+  const coDuNguoiChoi = !laOnlinePvp || Boolean(banOnline?.meta.playerX && banOnline?.meta.playerO)
 
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const quickMenuRef = useRef<HTMLDivElement>(null)
@@ -731,22 +732,17 @@ export function CaroBoard({
 
   const handleOpenQuickMenu = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      setIsQuickMenuOpen((prev) => !prev)
+      return
+    }
     const asideEl = document.getElementById('vung-4-plus-desk')
     const asideRect = asideEl ? asideEl.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
     const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
     const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
-    const menuWidth = 240
-    const menuHeight = 150
+    const menuWidth = 280
+    const menuHeight = 220
     const padding = 16
-
-    if (window.innerWidth < 1280) {
-      setQuickMenuPos({
-        left: Math.max(12, (window.innerWidth - menuWidth) / 2),
-        top: Math.max(70, window.innerHeight - menuHeight - 110),
-      })
-      setIsQuickMenuOpen((prev) => !prev)
-      return
-    }
 
     // Giới hạn chiều ngang: không bị sidebar che (>= 248px trên desktop) và không đè lên bàn cờ
     const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
@@ -767,6 +763,25 @@ export function CaroBoard({
     setIsQuickMenuOpen((prev) => !prev)
   }
 
+  // Tự động đóng menu tin nhắn nhanh khi chạm ra ngoài
+  useEffect(() => {
+    if (!isQuickMenuOpen) return
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (quickMenuRef.current && !quickMenuRef.current.contains(e.target as Node)) {
+        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+        if (!trigger) {
+          setIsQuickMenuOpen(false)
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [isQuickMenuOpen])
+
   const getBubbleCoordinates = (index: number, total: number) => {
     const D = 66
     if (total <= 1) return { x: -66, y: 0 }
@@ -783,11 +798,16 @@ export function CaroBoard({
 
   const handleStartGameClick = () => {
     if (laOnlinePvp && banOnline) {
+      if (!banOnline.meta?.playerX || !banOnline.meta?.playerO) {
+        // Ngăn chặn hoàn toàn khi chưa đủ 2 người chơi
+        return
+      }
       if (!banOnline.mySide) {
         banOnline.joinGame()
         return
       }
       banOnline.startGame()
+      return
     }
     setIsLocalStarted(true)
     resetGame(true)
@@ -820,9 +840,12 @@ export function CaroBoard({
     {
       id: 'emote',
       title: 'Biểu cảm & Tin nhanh',
-      icon: <Smile className="size-4 text-cyan-400" />,
+      icon: <Smile className={cn('size-4', isQuickMenuOpen ? 'text-cyan-200' : 'text-cyan-400')} />,
       onClick: (e: React.MouseEvent) => handleOpenQuickMenu(e),
-      className: 'border-cyan-400/50 bg-[#161a24]/95 hover:border-cyan-400 hover:bg-cyan-500/20 text-cyan-300',
+      className: cn(
+        'border-cyan-400/50 bg-[#161a24]/95 hover:border-cyan-400 hover:bg-cyan-500/20 text-cyan-300',
+        isQuickMenuOpen && 'border-cyan-400 bg-cyan-500/30 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+      ),
     },
   ]
 
@@ -1161,16 +1184,37 @@ export function CaroBoard({
                 id="btn-bat-dau-river"
                 data-testid="btn-bat-dau-river"
                 onClick={handleStartGameClick}
+                disabled={laOnlinePvp && !coDuNguoiChoi}
                 className={cn(
-                  'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none cursor-pointer active:scale-95 hover:scale-105',
-                  winner
-                    ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)]'
-                    : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)]'
+                  'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none',
+                  laOnlinePvp && !coDuNguoiChoi
+                    ? 'bg-slate-800/80 border-slate-600/60 text-slate-400 opacity-50 cursor-not-allowed shadow-none'
+                    : winner
+                      ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)] cursor-pointer active:scale-95 hover:scale-105'
+                      : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)] cursor-pointer active:scale-95 hover:scale-105'
                 )}
-                title={winner ? 'Đấu lại ván mới' : 'Bắt đầu ván đấu'}
+                title={
+                  laOnlinePvp && !coDuNguoiChoi
+                    ? 'Cần đủ 2 người chơi để bắt đầu ván đấu'
+                    : winner
+                      ? 'Đấu lại ván mới'
+                      : 'Bắt đầu ván đấu'
+                }
               >
-                <Swords className="w-5 h-5 text-cyan-300 group-hover:rotate-12 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-                <span className="font-black uppercase drop-shadow text-cyan-100">
+                <Swords
+                  className={cn(
+                    'w-5 h-5 shrink-0 transition-transform',
+                    laOnlinePvp && !coDuNguoiChoi
+                      ? 'text-slate-500'
+                      : 'text-cyan-300 group-hover:rotate-12 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                  )}
+                />
+                <span
+                  className={cn(
+                    'font-black uppercase drop-shadow',
+                    laOnlinePvp && !coDuNguoiChoi ? 'text-slate-400' : 'text-cyan-100'
+                  )}
+                >
                   {winner ? 'ĐẤU LẠI' : 'BẮT ĐẦU'}
                 </span>
               </button>
@@ -1251,11 +1295,12 @@ export function CaroBoard({
         </div>
 
         {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20">
+        <div id="mobile-tools-bar" className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20">
           {caroTools.map((tool) => (
             <button
               key={tool.id}
               type="button"
+              id={`mobile-tool-${tool.id}`}
               onClick={tool.onClick}
               disabled={tool.disabled}
               className={cn(
@@ -1278,6 +1323,57 @@ export function CaroBoard({
             <Settings className="size-4" />
           </button>
         </div>
+
+        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CỜ HAY NỘI DUNG KHÁC ==================== */}
+        {isQuickMenuOpen && (
+          <div
+            id="mobile-quick-menu-container"
+            ref={quickMenuRef}
+            aria-label="Tin nhắn nhanh"
+            className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
+          >
+            <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-cyan-400/40 shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2">
+              <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                <span className="text-[11px] font-bold text-cyan-300 tracking-wide flex items-center gap-1.5">
+                  <span>💬</span>
+                  <span>Tin nhắn nhanh</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickMenuOpen(false)}
+                  className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                  aria-label="Đóng tin nhắn nhanh"
+                  title="Đóng"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+
+              {/* Danh sách 8 câu tin nhắn nhanh Caro: Hiển thị đầy đủ Icon + Nội dung chữ, xếp 2 cột thoáng mắt */}
+              <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
+                {QUICK_EMOTES_CARO.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleQuickEmote(item)
+                      setIsQuickMenuOpen(false)
+                    }}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/50 text-left transition-colors cursor-pointer active:scale-95 group min-h-[38px]"
+                    title={`${item.emoji} ${item.quote}`}
+                  >
+                    <span className="text-base shrink-0 group-hover:scale-110 transition-transform">
+                      {item.emoji}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-200 group-hover:text-cyan-200 truncate leading-tight">
+                      {item.quote}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI - DESKTOP XL DUY NHẤT) ==================== */}
         <aside
@@ -1513,7 +1609,7 @@ export function CaroBoard({
         </aside>
       </main>
 
-      {/* POPUP BIỂU CẢM & TIN NHẮN NHANH */}
+      {/* POPUP BIỂU CẢM & TIN NHẮN NHANH TRÊN DESKTOP (xl) */}
       {isQuickMenuOpen &&
         typeof document !== 'undefined' &&
         createPortal(
@@ -1525,20 +1621,24 @@ export function CaroBoard({
               top: `${quickMenuPos.top}px`,
               zIndex: 80,
             }}
-            className="w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-cyan-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto"
+            className="hidden xl:flex w-[280px] p-3 rounded-2xl bg-[#161b26]/98 border border-cyan-400/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto"
           >
             <div className="flex items-center justify-between pb-1 border-b border-white/10">
-              <span className="text-[11px] font-bold text-cyan-400">Biểu cảm & Tin nhanh</span>
+              <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+                <span>💬</span>
+                <span>Tin nhắn nhanh</span>
+              </span>
               <button
                 type="button"
                 onClick={() => setIsQuickMenuOpen(false)}
                 className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                aria-label="Đóng"
+                aria-label="Đóng tin nhắn nhanh"
+                title="Đóng"
               >
                 <X className="size-3.5" />
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+            <div className="grid grid-cols-2 gap-1.5 pt-0.5 max-h-[220px] overflow-y-auto">
               {QUICK_EMOTES_CARO.map((item) => (
                 <button
                   key={item.id}
@@ -1547,10 +1647,13 @@ export function CaroBoard({
                     handleQuickEmote(item)
                     setIsQuickMenuOpen(false)
                   }}
-                  className="p-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                  title={item.quote}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-400/40 border border-white/10 text-left transition cursor-pointer hover:scale-[1.02] active:scale-95 group min-h-[36px]"
+                  title={`${item.emoji} ${item.quote}`}
                 >
-                  {item.emoji}
+                  <span className="text-base shrink-0">{item.emoji}</span>
+                  <span className="text-[11px] font-semibold text-slate-200 group-hover:text-cyan-200 truncate leading-tight">
+                    {item.quote}
+                  </span>
                 </button>
               ))}
             </div>
