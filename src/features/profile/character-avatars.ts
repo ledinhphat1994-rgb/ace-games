@@ -18,4 +18,22 @@ export const CHARACTER_AVATARS: CharacterAvatar[] = [
   { id: 'girl_headphones', name: 'Cyberpunk Girl', category: 'nhan_vat', src: '/assets/avatars/avatar_10_girl_headphones.webp' },
   { id: 'flat_boy', name: 'Flat Art Nam', category: 'minimal', src: '/assets/avatars/avatar_11_flat_boy.webp' },
   { id: 'flat_girl', name: 'Flat Art Nữ', category: 'minimal', src: '/assets/avatars/avatar_12_flat_girl.webp' },
+  // 13-15: Avatar 3D Pixar Hoạt hình Cute
+  { id: 'panda_cute', name: 'Gấu Trúc Panda', category: 'cute', src: '/assets/avatars/avatar_13_panda_cute.webp' },
+  { id: 'corgi_cute', name: 'Cún Corgi Hoodie', category: 'cute', src: '/assets/avatars/avatar_14_corgi_cute.webp' },
+  { id: 'kitten_cute', name: 'Mèo Pastel Cute', category: 'cute', src: '/assets/avatars/avatar_15_kitten_cute.webp' },
+  // 16-28: Hoạt hình dễ thương
+  { id: 'dino_cute', name: 'Khủng Long Baby', category: 'cute', src: '/assets/avatars/avatar_16_dino_cute.webp' },
+  { id: 'bunny_cute', name: 'Thỏ Trắng Nơ Hồng', category: 'cute', src: '/assets/avatars/avatar_17_bunny_cute.webp' },
+  { id: 'penguin_cute', name: 'Chim Cánh Cụt', category: 'cute', src: '/assets/avatars/avatar_18_penguin_cute.webp' },
+  { id: 'duck_cute', name: 'Vịt Vàng Bé Bỏng', category: 'cute', src: '/assets/avatars/avatar_19_duck_cute.webp' },
+  { id: 'hamster_cute', name: 'Chuột Hamster', category: 'cute', src: '/assets/avatars/avatar_20_hamster_cute.webp' },
+  { id: 'fox_cute', name: 'Cáo Fennec Cam', category: 'cute', src: '/assets/avatars/avatar_21_fox_cute.webp' },
+  { id: 'koala_cute', name: 'Gấu Koala Má Hồng', category: 'cute', src: '/assets/avatars/avatar_22_koala_cute.webp' },
+  { id: 'frog_cute', name: 'Ếch Cốm Đội Sen', category: 'cute', src: '/assets/avatars/avatar_23_frog_cute.webp' },
+  { id: 'piggy_cute', name: 'Heo Hồng Vương Miện', category: 'cute', src: '/assets/avatars/avatar_24_piggy_cute.webp' },
+  { id: 'tiger_cute', name: 'Hổ Con Nhí Nhảnh', category: 'cute', src: '/assets/avatars/avatar_25_tiger_cute.webp' },
+  { id: 'unicorn_cute', name: 'Kỳ Lân Cầu Vồng', category: 'cute', src: '/assets/avatars/avatar_26_unicorn_cute.webp' },
+  { id: 'bear_cute', name: 'Gấu Nâu Teddy', category: 'cute', src: '/assets/avatars/avatar_27_bear_cute.webp' },
+  { id: 'chick_cute', name: 'Gà Con Vỏ Trứng', category: 'cute', src: '/assets/avatars/avatar_28_chick_cute.webp' },
 ]
