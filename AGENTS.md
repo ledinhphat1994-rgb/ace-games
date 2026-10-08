@@ -157,6 +157,14 @@ NEED: <thứ cần quyết định>
 - **Cố định cạnh trên của modal khi co giãn kích thước:** Khi mở rộng card modal, chỉ mở rộng sang hai cạnh bên (chiều rộng) và cạnh dưới (chiều cao), giữ nguyên tọa độ cạnh trên (`top: 72px`, `translate: -50% 0`, `transform: none`), tuyệt đối không để cạnh trên bị kéo trôi lên sát nóc viewport.
 - **Cố định tuyệt đối các card con và nút bấm bên trong:** Sub-card, nút chọn, stepper tùy chỉnh chỉ nằm trên 1 hàng duy nhất (`h-9`), slot thời gian luôn cố định chiều cao `114px` ở cả chế độ 1v1 lẫn chơi đơn. Duy trì khoảng cách an toàn >= 12px với thanh Footer CTA, tuyệt đối không đè card/nội dung lên nhau.
 
+## 13. Quy tắc Thiết kế Hồ sơ Tối giản & Chống Trôi Cắt Đầu Popup (Profile Simplicity & Safe Viewport Centering Invariant)
+- **Hồ sơ cá nhân tối giản, không màu mè, không banner (`/me`):** Giao diện hồ sơ cá nhân tuân thủ nghiêm ngặt nguyên tắc tinh gọn, loại bỏ hoàn toàn ảnh bìa banner đồ sộ lãng phí không gian hoặc gây chói mắt ('không cần banner, không cần màu mè'). Tập trung trực quan vào: thông tin danh tính người dùng (Avatar, tên hiển thị, @username, suy nghĩ nhanh), nút "Thành tựu" trực quan để xem huy hiệu và tiến trình chuyên cần, và bảng bảo mật tài khoản an toàn.
+- **Chống trôi cắt đầu popup (Popup Top Viewport Safety):** Mọi popup, modal, dialog phải luôn căn giữa an toàn trong tầm nhìn (`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`), không bao giờ được cấu hình tọa độ cứng `top: 72px` kết hợp với `-translate-y-1/2` khiến nửa trên của popup bị trôi ngược lên trên nóc màn hình làm cắt mất tiêu đề hoặc nút đóng.
+- **Tuân thủ tiêu chuẩn thiết kế web quốc tế (WCAG 2.2 AA & Responsive Safety):**
+  * Không chồng lấn chữ (Zero Text Overlap Invariant).
+  * Kích thước tương tác tối thiểu >= 40px trên desktop, >= 44px trên mobile touch.
+  * Tương phản văn bản cao, nhãn dễ tiếp cận, không đổi cấu trúc DOM đột ngột gây giật khung hình (Zero CLS).
+
 ## Mandatory UI/UX constitution
 
 Before modifying any UI/UX, frontend layout, responsive behavior,

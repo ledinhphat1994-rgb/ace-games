@@ -184,6 +184,12 @@ ensuring the surrounding page, hero banner, room cards, leaderboards, and naviga
 Popups MUST always remain strictly centered in the viewport (`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`),
 never using overriding `relative` classes that cause the dialog to drift down or clip footer actions.
 
+POPUP VIEWPORT CENTERING & TOP CLIFF SAFETY:
+Popups and modals must NEVER hardcode offset `top: 72px` while applying `-translate-y-1/2`, which causes negative Y coordinates and clips headers/close buttons off-screen above the browser viewport. All dialog surfaces must safely center with `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2` and `max-h-[calc(100svh-2rem)] overflow-y-auto`.
+
+PROFILE PAGE SIMPLICITY & NO-BANNER INVARIANT:
+The user profile page (`/me`) must maintain an ultra-clean, minimal, and modern interface without decorative photo cover banners or card clutter ("không cần banner, không cần màu mè"). Focus cleanly on user identity (avatar, name, @username, status), dedicated "Thành tựu" action button and achievement stats, and secure account credentials.
+
 FIXED CARD MOVEMENT INVARIANT:
 Fixed cards, panels, and modals must NEVER move when switching options, tabs, or modes.
 (x, y) coordinates and dimensions must remain strictly constant.

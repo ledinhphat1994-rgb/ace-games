@@ -2176,8 +2176,9 @@ export function XiangqiBoard({
               </span>
             </div>
             {hasOpponent && opponentQuickMessage && (
-              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-sky-400/50 text-[11px] font-bold text-sky-300 truncate max-w-[100px]">
-                {opponentQuickMessage.emoji} {opponentQuickMessage.text}
+              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-sky-400 text-[11px] sm:text-xs font-bold text-sky-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                {opponentQuickMessage.emoji && <span className="text-sm shrink-0">{opponentQuickMessage.emoji}</span>}
+                <span>{opponentQuickMessage.text}</span>
               </div>
             )}
           </div>
@@ -2559,7 +2560,7 @@ export function XiangqiBoard({
           {activeDlg && (
             <div
               id="center-board-dialog"
-              className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/10 animate-in fade-in duration-150 pointer-events-auto"
+              className="absolute inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-black/10 animate-in fade-in duration-150 pointer-events-auto"
               onClick={(e) => {
                 e.stopPropagation()
                 if (activeDlg.onCancel) activeDlg.onCancel()
@@ -2570,7 +2571,13 @@ export function XiangqiBoard({
               }}
             >
               <div
-                className="relative w-full max-w-[340px] skeuo-modal-surface border border-sky-500/20 rounded-2xl shadow-2xl p-5 flex flex-col items-center text-center animate-in fade-in duration-150 select-none overflow-hidden"
+                style={{
+                  position: 'relative',
+                  top: 'auto',
+                  left: 'auto',
+                  transform: 'none',
+                }}
+                className="relative w-[min(340px,calc(100%-1rem))] max-w-[340px] skeuo-modal-surface border border-sky-500/20 rounded-2xl shadow-2xl p-4 sm:p-5 flex flex-col items-center text-center animate-in fade-in duration-150 select-none overflow-hidden pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Họa tiết Blueprint Arcade Schematic mờ chìm toàn diện */}
@@ -2714,8 +2721,9 @@ export function XiangqiBoard({
               </span>
             </div>
             {myQuickMessage && (
-              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-amber-400/50 text-[11px] font-bold text-amber-300 truncate max-w-[100px]">
-                {myQuickMessage.emoji} {myQuickMessage.text}
+              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-amber-400 text-[11px] sm:text-xs font-bold text-amber-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                {myQuickMessage.emoji && <span className="text-sm shrink-0">{myQuickMessage.emoji}</span>}
+                <span>{myQuickMessage.text}</span>
               </div>
             )}
           </div>
@@ -2877,10 +2885,10 @@ export function XiangqiBoard({
             {myQuickMessage && (
               <div
                 style={{ bottom: '126px' }}
-                className="absolute left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150 z-40 select-none pointer-events-none max-w-[200px]"
+                className="absolute left-0 px-3 py-1 rounded-2xl rounded-bl-sm bg-[#161a22] border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150 z-40 select-none pointer-events-none max-w-xs"
               >
                 {myQuickMessage.emoji && <span className="text-sm shrink-0">{myQuickMessage.emoji}</span>}
-                <span className="truncate">{myQuickMessage.text}</span>
+                <span>{myQuickMessage.text}</span>
               </div>
             )}
 
@@ -3043,9 +3051,9 @@ export function XiangqiBoard({
 
             {/* 1. KHI DÙNG TIN NHẮN NHANH: HIỆN CÂU NÓI PHÍA TRÊN AVATAR 1 TÍ, NỞ SANG PHẢI RA NGOÀI ĐỂ TUYỆT ĐỐI KHÔNG ĐÈ BÀN CỜ */}
             {hasOpponent && opponentQuickMessage && (
-              <div className="absolute bottom-full mb-2.5 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
+              <div className="absolute bottom-full mb-2.5 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-sky-400 text-xs font-bold text-sky-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-xs">
                 {opponentQuickMessage.emoji && <span className="text-sm shrink-0">{opponentQuickMessage.emoji}</span>}
-                <span className="truncate">{opponentQuickMessage.text}</span>
+                <span>{opponentQuickMessage.text}</span>
               </div>
             )}
 

@@ -51,7 +51,7 @@ export function ProgressPanel({ hideChallenge = false }: { hideChallenge?: boole
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setMoHuyHieu(true)} className="rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold gap-1.5 cursor-pointer">
               <Award className="size-3.5 text-social" />
-              <span>Huy hiệu</span>
+              <span>Thành tựu</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setMoXepHang(true)} className="rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold gap-1.5 cursor-pointer">
               <Trophy className="size-3.5 text-achievement" />
@@ -92,7 +92,7 @@ export function ProgressPanel({ hideChallenge = false }: { hideChallenge?: boole
                 giaTri={trangThai.totalXp.toLocaleString('vi-VN')}
                 phu={trangThai.todayXp > 0 ? `+${trangThai.todayXp} hôm nay` : undefined}
               />
-              <OChiSo icon={<Award className="size-4 text-social" />} nhan="Huy hiệu" giaTri={String(trangThai.profile.unlockedAchievementsCount)} />
+              <OChiSo icon={<Award className="size-4 text-social" />} nhan="Thành tựu" giaTri={String(trangThai.profile.unlockedAchievementsCount)} />
             </dl>
           )}
         </div>

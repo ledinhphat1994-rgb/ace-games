@@ -118,17 +118,9 @@ export function ProfilePage() {
     <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 pb-12">
       <PageHeader title="Hồ sơ" />
 
-      {/* ── Bìa danh tính người dùng (Chuẩn kích thước, thoáng con mắt) ── */}
-      <section className="overflow-hidden rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm shadow-xs relative card-side-glow">
-        {/* Bìa phong cảnh trường học */}
-        <div
-          className="h-44 sm:h-56 bg-cover bg-center relative"
-          style={{ backgroundImage: 'url(/assets/profile/profile_cover_clean.jpg)' }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent" />
-        </div>
-
-        <div className="p-5 sm:p-7 -mt-14 sm:-mt-16 relative z-10 flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-6">
+      {/* ── Thẻ danh tính người dùng (Tối giản, không banner màu mè, tập trung vào thành tựu) ── */}
+      <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-6 sm:p-7 relative shadow-xs card-side-glow">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-6">
           {/* Avatar người dùng */}
           <div className="relative shrink-0">
             <div
@@ -144,7 +136,7 @@ export function ProfilePage() {
               className="group/avatar relative block cursor-pointer rounded-2xl outline-none"
               title="Nhấn để đổi ảnh đại diện"
             >
-              <Avatar className="size-24 sm:size-28 rounded-2xl ring-4 ring-surface shadow-xl transition-transform duration-150 group-hover/avatar:scale-105">
+              <Avatar className="size-20 sm:size-24 rounded-2xl ring-2 ring-border-default shadow-md transition-transform duration-150 group-hover/avatar:scale-105">
                 {nguoiDung.avatar && (
                   <AvatarImage src={nguoiDung.avatar} alt={displayName} className="rounded-2xl object-cover" />
                 )}

@@ -47,7 +47,7 @@ export function SoloGamePage({
     <div
       className={
         gameType === 'solo_snake'
-          ? 'game-stage flex min-w-0 w-full flex-1 h-full min-h-0 flex-col overflow-hidden touch-none select-none overscroll-none p-0 border-0 rounded-none bg-slate-950 shadow-none'
+          ? 'flex min-w-0 w-full flex-1 h-full min-h-0 flex-col overflow-hidden touch-none select-none overscroll-none p-0 border-0 rounded-none bg-slate-950 shadow-none'
           : 'game-stage flex min-w-0 w-full flex-1 h-full min-h-0 flex-col rounded-2xl border border-border-default bg-slate-950 p-1 sm:p-2 shadow-xl landscape:p-0 landscape:rounded-xl overflow-hidden touch-none select-none overscroll-none'
       }
     >

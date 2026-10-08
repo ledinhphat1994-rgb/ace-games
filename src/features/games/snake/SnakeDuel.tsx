@@ -304,10 +304,10 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
       {/* ── 2. CỤM NÚT THAO TÁC NHANH GÓC PHẢI DƯỚI CÙNG (SÁT NÚT TĂNG TỐC VÀ SÁT NÚT TIN NHẮN NỔI) ── */}
       <div
         className={cn(
-          'snake-quick-actions absolute z-30 flex items-center gap-1 sm:gap-1.5 pointer-events-auto select-none transition-all',
+          'snake-quick-actions absolute z-30 flex items-center gap-1 sm:gap-1.5 pointer-events-auto select-none transition-all pb-[env(safe-area-inset-bottom,0px)]',
           isFullscreen
-            ? 'bottom-3 right-3 sm:bottom-4 sm:right-4'
-            : 'bottom-2.5 right-13 sm:bottom-4 sm:right-16'
+            ? 'bottom-2 right-2 sm:bottom-3 sm:right-3'
+            : 'bottom-2 right-12 sm:bottom-3 sm:right-14'
         )}
         data-testid="snake-quick-actions"
       >

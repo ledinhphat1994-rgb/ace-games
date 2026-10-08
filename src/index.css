@@ -2329,13 +2329,8 @@ input[type='number'] {
 
 /* ─── BỘ UTILITY TOKEN SKEUOMORPHIC CHUẨN TOÀN TRANG (PHASE 1) ─── */
 
-/* Khung Dialog / Modal chuẩn Skeuomorphic neo cố định cạnh trên, mở rộng xuống dưới */
+/* Khung Dialog / Modal chuẩn Skeuomorphic bề mặt cao cấp */
 .skeuo-modal-surface {
-  position: fixed;
-  top: 72px;
-  left: 50%;
-  translate: -50% 0;
-  transform: none;
   background: linear-gradient(180deg, #0e172a 0%, #090f1d 100%);
   border: 1px solid rgba(56, 189, 248, 0.22);
   border-top: 1px solid rgba(255, 255, 255, 0.2);

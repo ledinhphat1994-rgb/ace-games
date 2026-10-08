@@ -1790,15 +1790,15 @@ export function Wormate3DArena({
             type="button"
             onClick={() => setIsLeaderboardCollapsed(false)}
             title="Mở bảng xếp hạng TOP 10"
-            className="flex items-center gap-2 h-7 sm:h-8 px-2.5 sm:px-3 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-amber-300 font-bold text-xs sm:text-sm shadow-md cursor-pointer hover:bg-slate-900 active:scale-95 transition-all pointer-events-auto"
+            className="flex items-center gap-1.5 sm:gap-2 h-7 sm:h-8 px-2 sm:px-3 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-amber-300 font-bold text-xs sm:text-sm shadow-md cursor-pointer hover:bg-slate-900 active:scale-95 transition-all pointer-events-auto whitespace-nowrap"
           >
             <Trophy className="size-3.5 text-amber-400 shrink-0" />
             <span>#{playerRank}</span>
+            <span className="hidden sm:inline text-white/20">·</span>
+            <span className="hidden sm:inline font-mono text-slate-200">{playerStats.score}đ</span>
             <span className="text-white/20">·</span>
-            <span className="font-mono text-slate-200">{playerStats.score}đ</span>
-            <span className="text-white/20">·</span>
-            <span className="font-mono text-emerald-400 font-bold">{aliveCount} còn lại</span>
-            <ChevronDown className="size-3.5 text-slate-400 shrink-0" />
+            <span className="font-mono text-emerald-400 font-bold text-[11px] sm:text-xs">{aliveCount} sống</span>
+            <ChevronDown className="size-3 text-slate-400 shrink-0" />
           </button>
         ) : (
           <div className="w-52 sm:w-60 p-2 sm:p-2.5 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-white/15 shadow-2xl pointer-events-auto">
@@ -1867,37 +1867,37 @@ export function Wormate3DArena({
 
       {/* HUD thông số người chơi & Đếm ngược vòng bo an toàn ở đỉnh trung tâm */}
       {isRunning && !isGameOver && (
-        <div className="snake-hud absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/15 text-xs sm:text-sm shadow-md select-none pointer-events-none transition-opacity">
+        <div className="snake-hud absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs shadow-md select-none pointer-events-none whitespace-nowrap transition-opacity">
           {mode === 'pass_and_play' ? (
-            <div className="flex items-center gap-2 font-mono text-xs sm:text-sm">
+            <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs sm:text-sm">
               <span className="text-brand font-bold">P1: {playerStats.score}đ</span>
               <span className="text-white/20">|</span>
               <span className="text-rose-400 font-bold">P2: {player2Score}đ</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs whitespace-nowrap">
               {/* Trạng thái đếm ngược vòng bo */}
               {safeZoneHud.isShrinking ? (
                 <div className="flex items-center gap-1 text-rose-400 font-bold animate-pulse">
-                  <Flame className="size-3.5 text-rose-400 shrink-0" />
-                  <span>Bo đang thu! (Đợt {safeZoneHud.phase})</span>
+                  <Flame className="size-3 text-rose-400 shrink-0" />
+                  <span>Bo đang thu! ({safeZoneHud.phase})</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 text-sky-300 font-medium">
-                  <span className="size-2 rounded-full bg-sky-400 animate-ping shrink-0" />
-                  <span>Bo thu sau:</span>
+                  <span className="size-1.5 rounded-full bg-sky-400 animate-ping shrink-0" />
+                  <span className="hidden sm:inline">Bo sau:</span>
                   <span className="font-mono font-bold text-amber-300">
                     {Math.floor(safeZoneHud.countdown / 60).toString().padStart(2, '0')}:
                     {(safeZoneHud.countdown % 60).toString().padStart(2, '0')}
                   </span>
-                  <span className="text-slate-400 text-xs">(Đợt {safeZoneHud.phase})</span>
+                  <span className="text-slate-400 text-[10px] sm:text-xs">({safeZoneHud.phase})</span>
                 </div>
               )}
               <span className="text-white/20">|</span>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono font-bold text-emerald-400">{playerStats.score}đ</span>
-                <span className="text-white/30 text-xs">·</span>
-                <span className="text-xs text-slate-300 font-mono">{playerStats.length} đốt</span>
+              <div className="flex items-center gap-1 font-mono">
+                <span className="font-bold text-emerald-400">{playerStats.score}đ</span>
+                <span className="text-white/30 text-[10px]">·</span>
+                <span className="text-slate-300">{playerStats.length} đốt</span>
               </div>
             </div>
           )}
