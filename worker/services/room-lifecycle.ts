@@ -8,8 +8,8 @@ import type { TaiKhoan } from '../lib/session'
 export const DEFAULT_ROOM_POLICY: RoomLifecyclePolicy = {
   id: 1,
   autoCloseEnabled: true,
-  neverJoinedTtlMinutes: 5,
-  emptyRoomTtlMinutes: 15,
+  neverJoinedTtlMinutes: 10 / 60, // 10 giây: tự động xóa phòng hoàn toàn khi chưa có ai vào
+  emptyRoomTtlMinutes: 10 / 60,   // 10 giây: tự động xóa phòng hoàn toàn khi tất cả rời phòng
   maxRoomLifetimeMinutes: 480,
   updatedAt: 0,
   revision: 1,

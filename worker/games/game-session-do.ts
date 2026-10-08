@@ -29,7 +29,7 @@ export const TEN_GAME_SESSION_PREFIX = 'match:'
 // All timed obligations are persisted to DO SQLite and processed via alarm().
 // Cloudflare alarm is at-least-once → every handler must be idempotent.
 const RECONNECT_GRACE_MS = 30_000
-const CLEANUP_DELAY_MS = 120_000
+const CLEANUP_DELAY_MS = 10_000 // 10 giây: phòng game không có người sẽ tự động xóa hoàn toàn
 const COUNTDOWN_MS = 1_000
 const SETTLEMENT_RETRY_BASE_MS = 5_000
 const SETTLEMENT_MAX_ATTEMPTS = 5
@@ -378,7 +378,12 @@ export class GameSessionDO extends DurableObject<Env> {
   private async onCleanup(): Promise<void> {
     const activeSockets = this.ctx.getWebSockets().filter((w) => w.readyState === WebSocket.OPEN)
     if (activeSockets.length > 0) return // Someone reconnected
-    if (this.status === 'playing') return  // Match resumed — don't clean
+    if (this.status === 'playing') {
+      this.status = 'ended'
+      this.endReason = 'aborted'
+      this.ghiMeta('status', 'ended')
+      this.ghiMeta('end_reason', 'aborted')
+    }
 
     await this.baoLobbyRong()
     this.ctx.storage.sql.exec('DELETE FROM session_meta')
@@ -524,6 +529,9 @@ export class GameSessionDO extends DurableObject<Env> {
       this.ghiMeta('status', this.status)
       this.ghiMeta('board', JSON.stringify(this.board))
 
+      // Nếu phòng tạo ra mà không có ai kết nối trong 10 giây, tự động xóa hoàn toàn
+      this.persistObligation('cleanup', 'cleanup', Date.now() + CLEANUP_DELAY_MS)
+
       return Response.json({ ok: true, matchId: this.matchId })
     }
 
@@ -634,6 +642,9 @@ export class GameSessionDO extends DurableObject<Env> {
     // Hibernation-compatible heartbeat: raw "ping" → raw "pong" via setWebSocketAutoResponse
     // This avoids waking the DO just to reply to heartbeats.
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
+
+    // Phòng đã có người kết nối: hủy lịch xóa phòng tự động
+    this.clearObligation('cleanup')
 
     const nowConn = Date.now()
     const att: AttachmentKetNoi = {

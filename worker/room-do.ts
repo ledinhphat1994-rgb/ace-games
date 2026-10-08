@@ -183,8 +183,8 @@ const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
   closeReason: null,
   closedAt: null,
   closedBy: null,
-  neverJoinedTtlMinutes: 5,
-  emptyRoomTtlMinutes: 15,
+  neverJoinedTtlMinutes: 10 / 60,
+  emptyRoomTtlMinutes: 10 / 60,
   maxRoomLifetimeMinutes: 480,
   autoCloseEnabled: true,
   retryAttempts: 0,
@@ -218,6 +218,7 @@ export class RoomDO extends DurableObject<Env> {
   private gameMoves: NuocCo[] = []
   private hostKey: string | null = null
   private isGameRoom = false
+  private gameEmptySince: number | null = null
   private khoiTaoXong = false
   private lifecycleState: RoomLifecycleLocalState = { ...DEFAULT_LIFECYCLE_STATE }
   private lastD1ActivityPersistAt = 0
@@ -625,6 +626,8 @@ export class RoomDO extends DurableObject<Env> {
           this.isPersistentLobbyRoom = r.value === '1'
         } else if (r.key === 'is_tournament_game') {
           this.isTournamentGame = r.value === '1'
+        } else if (r.key === 'game_empty_since') {
+          this.gameEmptySince = r.value ? Number(r.value) : null
         }
       }
 
@@ -1128,6 +1131,21 @@ export class RoomDO extends DurableObject<Env> {
       deadlines.push(hanLuotGame)
     }
 
+    // 4c. Hạn chót tự động xóa phòng game hoàn toàn sau 10 giây nếu không có người
+    if (this.isGameRoom && this.gameRoomId && this.gameMeta.status !== 'ended') {
+      const activeMembers = this.layDanhSachThanhVien()
+      if (activeMembers.length === 0) {
+        if (this.gameEmptySince === null) {
+          this.gameEmptySince = now
+          this.luuMeta('game_empty_since', String(this.gameEmptySince))
+        }
+        deadlines.push(this.gameEmptySince + 10_000)
+      } else if (this.gameEmptySince !== null) {
+        this.gameEmptySince = null
+        this.luuMeta('game_empty_since', '')
+      }
+    }
+
     // 5. Room lifecycle deadlines
     if (this.lifecycleState.finalizePending) {
       // Có nghĩa vụ finalize pending D1: nếu có finalizeNextRetryAt trong tương lai thì xếp lịch, nếu không thì now
@@ -1141,12 +1159,13 @@ export class RoomDO extends DurableObject<Env> {
         // Lifecycle đang trong chu kỳ backoff tạm thời sau lỗi D1
         deadlines.push(this.lifecycleState.nextRetryAt)
       } else {
-        // 5.1 Never-joined deadline
+        // 5.1 Never-joined deadline (tự động xóa sau tối đa 10 giây khi không có người vào)
         if (!this.lifecycleState.everJoined && this.lifecycleState.neverJoinedTtlMinutes > 0) {
-          const neverDue = this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
+          const ttlMs = Math.min(this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000, 10_000)
+          const neverDue = this.lifecycleState.createdAt + ttlMs
           deadlines.push(neverDue)
         }
-        // 5.2 Empty room deadline (only when ever_joined is true and room is empty)
+        // 5.2 Empty room deadline (tự động xóa sau tối đa 10 giây khi tất cả rời phòng)
         if (this.lifecycleState.everJoined && this.lifecycleState.lastParticipantLeftAt) {
           const activeSockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
           const activeUnique = new Set(
@@ -1155,7 +1174,8 @@ export class RoomDO extends DurableObject<Env> {
               .filter(Boolean),
           )
           if (activeUnique.size === 0 && this.lifecycleState.emptyRoomTtlMinutes > 0) {
-            const emptyDue = this.lifecycleState.lastParticipantLeftAt + this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000
+            const ttlMs = Math.min(this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000, 10_000)
+            const emptyDue = this.lifecycleState.lastParticipantLeftAt + ttlMs
             deadlines.push(emptyDue)
           }
         }
@@ -1333,7 +1353,7 @@ export class RoomDO extends DurableObject<Env> {
     } else if (
       !this.lifecycleState.everJoined &&
       this.lifecycleState.neverJoinedTtlMinutes > 0 &&
-      now >= this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
+      now >= this.lifecycleState.createdAt + Math.min(this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000, 10_000)
     ) {
       timeoutReason = 'never_joined_timeout'
     } else if (
@@ -1349,7 +1369,7 @@ export class RoomDO extends DurableObject<Env> {
       )
       if (
         activeUnique.size === 0 &&
-        now >= this.lifecycleState.lastParticipantLeftAt + this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000
+        now >= this.lifecycleState.lastParticipantLeftAt + Math.min(this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000, 10_000)
       ) {
         timeoutReason = 'empty_timeout'
       }
@@ -1506,7 +1526,55 @@ export class RoomDO extends DurableObject<Env> {
       console.error('[RoomDO.alarm] Lỗi xử lý lifecycle alarm:', err)
     }
     this.xuLyHetGioLuot(now)
+    await this.xuLyGameRoomEmptyAlarm(now)
     await this.reconcileRoomAlarm()
+  }
+
+  /** Tự động xóa phòng game hoàn toàn sau 10 giây nếu không có người tham gia hay theo dõi. */
+  private async xuLyGameRoomEmptyAlarm(now: number): Promise<boolean> {
+    if (!this.isGameRoom || !this.gameRoomId || this.gameMeta.status === 'ended') return false
+    const thanhVien = this.layDanhSachThanhVien()
+    if (thanhVien.length > 0) {
+      if (this.gameEmptySince !== null) {
+        this.gameEmptySince = null
+        this.luuMeta('game_empty_since', '')
+      }
+      return false
+    }
+
+    if (this.gameEmptySince === null) {
+      this.gameEmptySince = now
+      this.luuMeta('game_empty_since', String(this.gameEmptySince))
+      return false
+    }
+
+    if (now < this.gameEmptySince + 10_000) {
+      return false
+    }
+
+    console.log(`[RoomDO] Tự động xóa phòng game ${this.gameRoomId} hoàn toàn do không có người sau 10 giây.`)
+    this.gameMeta = { ...this.gameMeta, status: 'ended' }
+    this.isPersistentLobbyRoom = false
+    this.luuMeta('persistent_lobby_room', '0')
+    this.gameEmptySince = null
+    this.luuMeta('game_empty_since', '')
+    this.luuGameState()
+
+    for (const lobby of this.cacSanhGame()) {
+      try {
+        await lobby.xoaBan(this.gameRoomId)
+      } catch (err) {
+        console.error('Không gỡ được khỏi GameLobbyDO:', err)
+      }
+    }
+
+    try {
+      this.ctx.storage.sql.exec('DELETE FROM room_chat')
+      this.ctx.storage.sql.exec('DELETE FROM game_state')
+      this.ctx.storage.sql.exec('DELETE FROM room_meta')
+    } catch {}
+
+    return true
   }
 
   /** Hạn chót (đã cộng ân hạn) mà alarm phải tới để xử lượt đi đang chạy của bàn game; null nếu không có. */
@@ -2373,6 +2441,12 @@ export class RoomDO extends DurableObject<Env> {
             .catch(() => {}),
         )
       }
+    }
+
+    if (this.isGameRoom && this.gameEmptySince !== null) {
+      this.gameEmptySince = null
+      this.luuMeta('game_empty_since', '')
+      needReconcile = true
     }
 
     if (needReconcile) {
@@ -4731,15 +4805,21 @@ export class RoomDO extends DurableObject<Env> {
     return [...cacTen].map((ten) => this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(ten)))
   }
 
-  // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — tự hủy phòng và gỡ khỏi sảnh GameLobbyDO
+  // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — giữ tối đa 10 giây cho phòng waiting, tự hủy phòng ngay với phòng không persistent
   // Còn người ở lại thì chỉ cập nhật số người xem của bàn trên sảnh.
   private baoRoiLobbyNeuTrong(vuaRoi: WebSocket): void {
     if (!this.isGameRoom || !this.gameRoomId) return
     const thanhVienConLai = this.layDanhSachThanhVien(vuaRoi)
     if (thanhVienConLai.length === 0) {
       // Nếu bàn được tạo từ sảnh và đang chờ đối thủ (status === 'waiting'),
-      // giữ bàn trên sảnh để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
+      // giữ bàn trên sảnh tối đa 10 giây để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
+      // Sau 10 giây không có ai, RoomDO alarm (xuLyGameRoomEmptyAlarm) sẽ tự động xóa phòng hoàn toàn.
       if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && (this.gameMeta.playerX || this.hostKey)) {
+        if (this.gameEmptySince === null) {
+          this.gameEmptySince = Date.now()
+          this.luuMeta('game_empty_since', String(this.gameEmptySince))
+        }
+        this.ctx.waitUntil(this.reconcileRoomAlarm().catch(() => {}))
         this.baoLobby(vuaRoi)
         return
       }
@@ -4748,6 +4828,8 @@ export class RoomDO extends DurableObject<Env> {
       this.isPersistentLobbyRoom = false
       this.luuMeta('persistent_lobby_room', '0')
       this.gameMeta = { ...this.gameMeta, status: 'ended' }
+      this.gameEmptySince = null
+      this.luuMeta('game_empty_since', '')
       this.luuGameState()
       for (const lobby of this.cacSanhGame()) {
         this.ctx.waitUntil(
@@ -6226,8 +6308,10 @@ export class RoomDO extends DurableObject<Env> {
         this.isPersistentLobbyRoom = true
         this.isTournamentGame = Boolean(body.isTournament)
         this.gameRoomId = body.roomId
+        this.gameEmptySince = Date.now()
         this.luuMeta('game_room_id', body.roomId)
         this.luuMeta('persistent_lobby_room', '1')
+        this.luuMeta('game_empty_since', String(this.gameEmptySince))
         if (body.isTournament) {
           this.luuMeta('is_tournament_game', '1')
         }
@@ -6257,6 +6341,7 @@ export class RoomDO extends DurableObject<Env> {
         this.gameMoves = []
         this.luuGameState()
         this.baoLobby()
+        this.ctx.waitUntil(this.reconcileRoomAlarm().catch(() => {}))
         return json({ ok: true, roomId: body.roomId })
       } catch (err: any) {
         return json({ ok: false, message: err?.message || 'Lỗi khởi tạo bàn.' }, 500)
@@ -6468,6 +6553,13 @@ export class RoomDO extends DurableObject<Env> {
     }
     this.lifecycleState = { ...this.lifecycleState, ...state }
     this.luuLifecycleState()
+    await this.reconcileRoomAlarm()
+  }
+
+  async testSetGameEmptySince(since: number | null): Promise<void> {
+    this.nạpDuLieuNeuCan()
+    this.gameEmptySince = since
+    this.luuMeta('game_empty_since', since ? String(since) : '')
     await this.reconcileRoomAlarm()
   }
 

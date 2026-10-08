@@ -18,9 +18,8 @@ export function tenLobbyTheoLoai(gameType?: string): string {
 }
 
 const BAN_TOI_DA_GUI = 100
-// Bàn không được RoomDO cập nhật quá lâu (RoomDO lỗi/bị khởi động lại giữa chừng, không kịp báo gỡ)
-// coi như đã bỏ hoang — dọn khi có ai đọc danh sách hoặc định kỳ.
-const BAN_HET_HAN_MS = 20 * 60 * 1000
+// Bàn không có người hoặc không được cập nhật quá 10 giây coi như đã kết thúc/bỏ hoang — tự động xóa hoàn toàn
+const BAN_HET_HAN_MS = 10 * 1000
 
 /**
  * GameLobbyDO — Phân vùng danh bạ bàn đấu theo gameType và hỗ trợ WebSocket Event Stream.
@@ -117,6 +116,9 @@ export class GameLobbyDO extends DurableObject<Env> {
       ban,
       serverTime: Date.now(),
     })
+
+    // Lên lịch alarm kiểm tra dọn bàn hết hạn
+    this.ctx.storage.setAlarm(Date.now() + BAN_HET_HAN_MS)
   }
 
   /** GameSessionDO gọi khi ván kết thúc hoặc phòng đã trống hẳn (mọi người rời) — gỡ khỏi sảnh. */
@@ -149,11 +151,31 @@ export class GameLobbyDO extends DurableObject<Env> {
   }
 
   async danhSach(): Promise<BanSanh[]> {
-    this.ctx.storage.sql.exec('DELETE FROM ban WHERE cap_nhat_luc < ?', Date.now() - BAN_HET_HAN_MS)
+    const expiredRows = this.ctx.storage.sql
+      .exec<{ id: string }>('SELECT id FROM ban WHERE cap_nhat_luc < ?', Date.now() - BAN_HET_HAN_MS)
+      .toArray()
+    if (expiredRows.length > 0) {
+      this.ctx.storage.sql.exec('DELETE FROM ban WHERE cap_nhat_luc < ?', Date.now() - BAN_HET_HAN_MS)
+      for (const row of expiredRows) {
+        this.broadcastEvent({
+          type: 'lobby.event',
+          event: 'room_closed',
+          ban: { id: row.id },
+          serverTime: Date.now(),
+        })
+      }
+    }
     return this.ctx.storage.sql
       .exec<{ du_lieu: string }>('SELECT du_lieu FROM ban ORDER BY cap_nhat_luc DESC LIMIT ?', BAN_TOI_DA_GUI)
       .toArray()
       .map((r) => JSON.parse(r.du_lieu) as BanSanh)
+  }
+
+  async alarm(): Promise<void> {
+    const conLai = await this.danhSach()
+    if (conLai.length > 0) {
+      this.ctx.storage.setAlarm(Date.now() + BAN_HET_HAN_MS)
+    }
   }
 
   // ─── WebSocket Event Broadcast ──────────────────────────────────────────────
