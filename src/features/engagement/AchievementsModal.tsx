@@ -4,16 +4,23 @@ import {
   AlertCircle,
   Award,
   BookOpen,
+  Brain,
   CheckCircle2,
   Coins,
-  Gem,
+  Crown,
   Flame,
+  Gem,
   Lock,
+  MessageSquare,
+  PenTool,
   ShieldCheck,
   Sparkles,
+  Swords,
   Target,
   Trophy,
+  UserPlus,
   Users,
+  Video,
   Vote,
   Zap,
 } from 'lucide-react'
@@ -65,6 +72,14 @@ const ICON: Record<string, ComponentType<{ className?: string }>> = {
   Target,
   Trophy,
   ShieldCheck,
+  Crown,
+  Swords,
+  PenTool,
+  Video,
+  UserPlus,
+  MessageSquare,
+  Brain,
+  Award,
 }
 
 const NGAY = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })
@@ -175,13 +190,13 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
         </div>
 
         {/* Chuyển đổi tab Cửa hàng / Huy hiệu */}
-        <div className="flex items-center justify-between pt-2 pb-1">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between pt-2 pb-1 shrink-0">
+          <div className="flex items-center gap-2 select-none">
             <button
               type="button"
               onClick={() => setActiveTab('shop')}
               className={cn(
-                'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer',
+                'h-8 px-3.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center',
                 activeTab === 'shop'
                   ? 'bg-amber-400 text-amber-950 shadow-md font-black'
                   : 'bg-slate-800/80 text-slate-300 hover:text-white',
@@ -193,7 +208,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
               type="button"
               onClick={() => setActiveTab('badges')}
               className={cn(
-                'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer',
+                'h-8 px-3.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center',
                 activeTab === 'badges'
                   ? 'bg-amber-400 text-amber-950 shadow-md font-black'
                   : 'bg-slate-800/80 text-slate-300 hover:text-white',
@@ -204,98 +219,101 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
           </div>
         </div>
 
+        {/* Khung nội dung cố định chiều cao cho cả 2 tab (Triệt tiêu 100% Layout Shift khi chuyển tab) */}
         {activeTab === 'shop' ? (
           /* Lưới 6 vật phẩm Cửa hàng 3D */
-          <div className="grid grid-cols-3 gap-2.5 py-2">
-            {[
-              {
-                id: 'chest_shard',
-                name: 'Gói Mảnh Tướng',
-                price: '1200 Vàng',
-                priceType: 'gold',
-                Icon: IconChest3D,
-              },
-              {
-                id: 'board_galaxy',
-                name: 'Giao diện Tinh tú',
-                price: '50 Kim cương',
-                priceType: 'diamond',
-                Icon: IconManaCrystal3D,
-              },
-              {
-                id: 'caro_classic',
-                name: 'Hậu vệ Caro Cổ điển',
-                price: '50 Kim cương',
-                priceType: 'diamond',
-                Icon: IconCaroCubes3D,
-              },
-              {
-                id: 'chest_gold',
-                name: 'Rương Báu Hoàng Kim',
-                price: '1200 Vàng',
-                priceType: 'gold',
-                Icon: IconChest3D,
-              },
-              {
-                id: 'crown_royal',
-                name: 'Vương Miện Quý Tộc',
-                price: '50 Kim cương',
-                priceType: 'diamond',
-                Icon: IconCrown3D,
-              },
-              {
-                id: 'throne_warlord',
-                name: 'Ngai Vàng Chiến Tướng',
-                price: '50 Kim cương',
-                priceType: 'diamond',
-                Icon: IconTrophyGold3D,
-              },
-            ].map((item) => {
-              const ItemIcon = item.Icon
-              return (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border-2 border-slate-800 bg-[#0c1527] p-2.5 flex flex-col items-center justify-between text-center h-[170px] hover:border-amber-400/50 hover:shadow-lg transition-colors group select-none"
-                >
-                  <span className="text-[11px] font-bold text-white line-clamp-1 w-full">{item.name}</span>
-                  <div className="my-1 py-1">
-                    <ItemIcon size={48} className="drop-shadow-lg group-hover:scale-105 transition-transform" />
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold mb-1">
-                    {item.priceType === 'gold' ? (
-                      <span className="text-amber-400 flex items-center gap-0.5">
-                        <Coins className="size-3" />
-                        {item.price}
-                      </span>
-                    ) : (
-                      <span className="text-sky-300 flex items-center gap-0.5">
-                        <Gem className="size-3 text-sky-400" />
-                        {item.price}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {}}
-                    className="w-full h-7 rounded-full border border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-200 text-[11px] font-bold transition-colors cursor-pointer flex items-center justify-center shadow-xs"
+          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto pr-1 my-2 select-none">
+            <div className="grid grid-cols-3 gap-2.5 py-1">
+              {[
+                {
+                  id: 'chest_shard',
+                  name: 'Gói Mảnh Tướng',
+                  price: '1200 Vàng',
+                  priceType: 'gold',
+                  Icon: IconChest3D,
+                },
+                {
+                  id: 'board_galaxy',
+                  name: 'Giao diện Tinh tú',
+                  price: '50 Kim cương',
+                  priceType: 'diamond',
+                  Icon: IconManaCrystal3D,
+                },
+                {
+                  id: 'caro_classic',
+                  name: 'Hậu vệ Caro Cổ điển',
+                  price: '50 Kim cương',
+                  priceType: 'diamond',
+                  Icon: IconCaroCubes3D,
+                },
+                {
+                  id: 'chest_gold',
+                  name: 'Rương Báu Hoàng Kim',
+                  price: '1200 Vàng',
+                  priceType: 'gold',
+                  Icon: IconChest3D,
+                },
+                {
+                  id: 'crown_royal',
+                  name: 'Vương Miện Quý Tộc',
+                  price: '50 Kim cương',
+                  priceType: 'diamond',
+                  Icon: IconCrown3D,
+                },
+                {
+                  id: 'throne_warlord',
+                  name: 'Ngai Vàng Chiến Tướng',
+                  price: '50 Kim cương',
+                  priceType: 'diamond',
+                  Icon: IconTrophyGold3D,
+                },
+              ].map((item) => {
+                const ItemIcon = item.Icon
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border-2 border-slate-800 bg-[#0c1527] p-2.5 flex flex-col items-center justify-between text-center h-[170px] hover:border-amber-400/50 hover:shadow-lg transition-colors duration-150 group select-none"
                   >
-                    Mua bùa
-                  </button>
-                </div>
-              )
-            })}
+                    <span className="text-[11px] font-bold text-white line-clamp-1 w-full">{item.name}</span>
+                    <div className="my-1 py-1">
+                      <ItemIcon size={48} className="drop-shadow-lg group-hover:scale-105 transition-transform" />
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold mb-1">
+                      {item.priceType === 'gold' ? (
+                        <span className="text-amber-400 flex items-center gap-0.5">
+                          <Coins className="size-3" />
+                          {item.price}
+                        </span>
+                      ) : (
+                        <span className="text-sky-300 flex items-center gap-0.5">
+                          <Gem className="size-3 text-sky-400" />
+                          {item.price}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {}}
+                      className="w-full h-7 rounded-full border border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-200 text-[11px] font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center shadow-xs"
+                    >
+                      Mua bùa
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         ) : (
-          /* Danh sách Huy hiệu */
-          <div className="min-h-48 py-2">
+          /* Danh sách Huy hiệu (Card cố định chiều cao, không rớt dòng badge XP, chống rung giật) */
+          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto pr-1 my-2 select-none">
             {isLoading ? (
-              <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-xl bg-slate-800/60" />
+              <div className="grid gap-2 sm:grid-cols-2 py-1" aria-hidden>
+                {Array.from({ length: 6 }, (_, i) => (
+                  <Skeleton key={i} className="h-[84px] w-full rounded-xl bg-slate-800/60" />
                 ))}
               </div>
             ) : error ? (
-              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+              <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
                 <AlertCircle className="size-6 text-red-400" />
                 <p className="mt-2 text-sm text-slate-300">
                   {error instanceof Error ? error.message : 'Không thể tải huy hiệu.'}
@@ -305,22 +323,22 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                 </Button>
               </div>
             ) : sapXep.length === 0 ? (
-              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+              <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
                 <Award className="size-6 text-slate-500" />
                 <p className="mt-2 text-sm font-medium text-slate-300">Chưa có huy hiệu nào</p>
               </div>
             ) : (
-              <ul className="-mx-1 grid max-h-[46svh] gap-2.5 overflow-y-auto overscroll-contain px-1 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 py-1">
                 {sapXep.map((badge) => {
                   const Icon = badge.unlocked ? (ICON[badge.icon] ?? Award) : Lock
                   return (
                     <li
                       key={badge.key}
                       className={cn(
-                        'flex items-start gap-3 rounded-xl border-2 p-3 transition-colors duration-150',
+                        'h-[84px] min-h-[84px] max-h-[84px] flex items-center gap-3 rounded-xl border-2 px-3 py-2 transition-colors duration-150 select-none overflow-hidden relative',
                         badge.unlocked
-                          ? 'border-amber-400/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
-                          : 'border-slate-800 bg-slate-900/40 opacity-70',
+                          ? 'border-amber-400/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)] hover:border-amber-400/80'
+                          : 'border-slate-800 bg-slate-900/40 opacity-75 hover:border-slate-700',
                       )}
                     >
                       <span
@@ -333,21 +351,28 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                       >
                         <Icon className="size-4" />
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="flex flex-wrap items-baseline justify-between gap-x-2">
+                      <div className="min-w-0 flex-1 h-full flex flex-col justify-center">
+                        <div className="flex items-center justify-between gap-1.5 min-w-0">
                           <span
                             className={cn(
-                              'min-w-0 text-sm font-bold break-words',
-                              badge.unlocked ? 'text-amber-300' : 'text-slate-400',
+                              'text-xs sm:text-sm font-bold truncate min-w-0',
+                              badge.unlocked ? 'text-amber-300' : 'text-slate-300',
                             )}
+                            title={badge.title}
                           >
                             {badge.title}
                           </span>
-                          <span className="text-xs font-black text-amber-400 tabular-nums">+{badge.rewardXp} XP</span>
+                          <span className="shrink-0 text-xs font-black text-amber-400 tabular-nums whitespace-nowrap">
+                            +{badge.rewardXp} XP
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs leading-snug text-slate-400 line-clamp-2 break-words">
+                          {badge.description}
                         </p>
-                        <p className="mt-0.5 text-xs leading-snug break-words text-slate-400">{badge.description}</p>
                         {badge.unlocked && badge.unlockedAt ? (
-                          <p className="mt-1 text-[11px] text-amber-400/70 font-medium">Mở ngày {NGAY.format(badge.unlockedAt)}</p>
+                          <p className="text-[10px] text-amber-400/70 font-medium truncate mt-0.5">
+                            Mở ngày {NGAY.format(badge.unlockedAt)}
+                          </p>
                         ) : null}
                       </div>
                     </li>

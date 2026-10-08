@@ -119,11 +119,11 @@ export const DANH_SACH_SU_KIEN_GAME: readonly SuKienGameItem[] = [
 
 // Danh sách phòng mẫu với số phòng DUY NHẤT không trùng lặp (1 đến 10), link 100% tiếng Việt
 const PLATFORM_DEFAULT_ROOMS: PhongGameItem[] = [
-  // 1. VIP Giải đấu: Giải Cờ Vua Digital Campus Mùa 1 - Bàn #1
+  // 1. Giải đấu: Giải Cờ Vua Digital Campus Mùa 1 - Bàn #1
   {
     id: 'giai-dau-co-vua-1',
     gameType: 'chess',
-    tieuDe: 'Giải Cờ Vua Mùa 1 · Bàn VIP',
+    tieuDe: 'Giải Cờ Vua Mùa 1 · Bàn Giải đấu',
     tenChu: 'Ban Trọng Tài',
     tenKhach: null,
     trangThai: 'waiting',
@@ -672,7 +672,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
   // 4. Sắp xếp theo số phòng từ thấp lên cao (Priority 4)
   const sortedRooms = useMemo(() => {
     return [...allRooms].sort((a, b) => {
-      // 1. VIP Giải đấu
+      // 1. Giải đấu
       const aVip = a.isVip || a.isTournament ? 1 : 0
       const bVip = b.isVip || b.isTournament ? 1 : 0
       if (aVip !== bVip) return bVip - aVip
@@ -1166,7 +1166,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       },
       {
         id: 'vip',
-        label: 'VIP Giải đấu',
+        label: 'Giải đấu',
         count: roomCounts.vip,
         icon: <Trophy className="size-8 sm:size-9 text-amber-400 drop-shadow-md" />,
       },

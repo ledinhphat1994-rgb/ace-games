@@ -33,8 +33,9 @@ export const INVITE_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes per friend
 export const INVITE_EXPIRY_MS = 15 * 60 * 1000 // 15 minutes validity
 export const MAX_INVITES_PER_HOUR = 10
 
-// ─── Achievement Catalog (8 Badges) ──────────────────────────────────────────
+// ─── Achievement Catalog (20 Badges) ──────────────────────────────────────────
 export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
+  // ── 1. Học tập & Phiên học ──
   {
     key: 'first_session',
     title: 'Khởi đầu học tập',
@@ -51,6 +52,48 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
     icon: 'Users',
     rewardXp: 15,
   },
+  {
+    key: 'study_regular_5',
+    title: 'Học sinh chuyên cần',
+    description: 'Hoàn thành 5 phiên học chất lượng',
+    category: 'session',
+    icon: 'BookOpen',
+    rewardXp: 30,
+  },
+  {
+    key: 'poll_voter_3',
+    title: 'Ý kiến xây dựng',
+    description: 'Tham gia 3 lần bình chọn trong các phiên học',
+    category: 'session',
+    icon: 'Vote',
+    rewardXp: 15,
+  },
+  {
+    key: 'whiteboard_creator',
+    title: 'Bảng trắng sáng tạo',
+    description: 'Thảo luận và vẽ ý tưởng trên bảng trắng phòng học',
+    category: 'session',
+    icon: 'PenTool',
+    rewardXp: 20,
+  },
+  {
+    key: 'document_scholar',
+    title: 'Khám phá tài liệu',
+    description: 'Đọc và nghiên cứu tài liệu PDF bài học',
+    category: 'session',
+    icon: 'BookOpen',
+    rewardXp: 20,
+  },
+  {
+    key: 'watch_together_sync',
+    title: 'Cùng xem video',
+    description: 'Xem video bài giảng cùng bạn bè trong phòng',
+    category: 'session',
+    icon: 'Video',
+    rewardXp: 20,
+  },
+
+  // ── 2. Chuỗi chuyên cần & Thử thách ──
   {
     key: 'streak_3',
     title: 'Chăm chỉ 3 ngày',
@@ -76,28 +119,88 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
     rewardXp: 20,
   },
   {
-    key: 'poll_voter_3',
-    title: 'Ý kiến xây dựng',
-    description: 'Tham gia 3 lần bình chọn trong các phiên học',
-    category: 'session',
-    icon: 'Vote',
-    rewardXp: 15,
-  },
-  {
-    key: 'study_regular_5',
-    title: 'Học sinh chuyên cần',
-    description: 'Hoàn thành 5 phiên học chất lượng',
-    category: 'session',
-    icon: 'BookOpen',
-    rewardXp: 30,
-  },
-  {
     key: 'challenge_contributor',
     title: 'Vì tập thể',
     description: 'Đóng góp hoàn thành một thử thách chung của lớp',
     category: 'challenge',
     icon: 'Trophy',
     rewardXp: 30,
+  },
+
+  // ── 3. Đấu trường Game (Games Arena) ──
+  {
+    key: 'chess_master',
+    title: 'Kỳ thủ Cờ Vua',
+    description: 'Tham gia thi đấu trí tuệ trên bàn Cờ Vua',
+    category: 'game',
+    icon: 'Crown',
+    rewardXp: 20,
+  },
+  {
+    key: 'xiangqi_tactician',
+    title: 'Bậc thầy Cờ Tướng',
+    description: 'Thử sức tài trí cùng ván cờ Tướng truyền thống',
+    category: 'game',
+    icon: 'ShieldCheck',
+    rewardXp: 20,
+  },
+  {
+    key: 'caro_strategist',
+    title: 'Thần đồng Caro',
+    description: 'Tạo chuỗi 5 quân liên tiếp trên bàn Caro',
+    category: 'game',
+    icon: 'Target',
+    rewardXp: 20,
+  },
+  {
+    key: 'snake_challenger',
+    title: 'Rắn săn mồi',
+    description: 'Thể hiện phản xạ khéo léo trong Rắn săn mồi',
+    category: 'game',
+    icon: 'Zap',
+    rewardXp: 20,
+  },
+  {
+    key: 'memory_ace',
+    title: 'Bậc thầy Trí Nhớ',
+    description: 'Lật tìm chính xác các cặp thẻ bài Trí nhớ',
+    category: 'game',
+    icon: 'Brain',
+    rewardXp: 20,
+  },
+  {
+    key: 'tournament_warrior',
+    title: 'Đấu thủ Giải đấu',
+    description: 'Tham gia thi đấu tại phòng Giải đấu của trường',
+    category: 'game',
+    icon: 'Swords',
+    rewardXp: 35,
+  },
+  {
+    key: 'win_streak_hero',
+    title: 'Chiến thắng áp đảo',
+    description: 'Đạt chuỗi 3 trận thắng liên tiếp tại Game Arena',
+    category: 'game',
+    icon: 'Award',
+    rewardXp: 30,
+  },
+
+  // ── 4. Cộng đồng & Kết nối ──
+  {
+    key: 'friendship_circle',
+    title: 'Vòng tay bạn bè',
+    description: 'Kết bạn cùng các bạn học tại Digital Campus',
+    category: 'social',
+    icon: 'UserPlus',
+    rewardXp: 15,
+  },
+  {
+    key: 'chat_communicator',
+    title: 'Trò chuyện sôi nổi',
+    description: 'Gửi tin nhắn trao đổi bài tập và giao lưu',
+    category: 'social',
+    icon: 'MessageSquare',
+    rewardXp: 15,
   },
 ] as const
 

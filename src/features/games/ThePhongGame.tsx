@@ -99,11 +99,11 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
             <span>{gameName}</span>
           </span>
 
-          {/* Badge VIP Giải đấu */}
+          {/* Badge Giải đấu */}
           {isVip && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/35 px-2 py-0.5 text-[11px] font-bold shadow-xs">
               <Trophy className="size-3 text-amber-400" />
-              <span>VIP Giải đấu</span>
+              <span>Giải đấu</span>
             </span>
           )}
 

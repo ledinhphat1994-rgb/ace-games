@@ -15,7 +15,7 @@ export interface AchievementDefinition {
   key: string
   title: string
   description: string
-  category: 'session' | 'streak' | 'task' | 'social' | 'challenge'
+  category: 'session' | 'streak' | 'task' | 'social' | 'challenge' | 'game'
   icon: string
   rewardXp: number
 }
