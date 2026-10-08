@@ -2647,7 +2647,7 @@ export function XiangqiBoard({
                               setIncomingDialog(null)
                             }
                       }
-                      className="skeuo-btn-cancel h-9 text-xs font-semibold cursor-pointer"
+                      className="skeuo-btn-cancel h-9 text-xs font-semibold transition-colors duration-150 cursor-pointer"
                     >
                       {activeDlg.cancelText || 'Chơi tiếp'}
                     </button>
@@ -2656,7 +2656,7 @@ export function XiangqiBoard({
                     type="button"
                     id="dialog-confirm-btn"
                     onClick={activeDlg.onConfirm}
-                    className="skeuo-btn-cta-amber h-9 text-xs font-bold cursor-pointer"
+                    className="skeuo-btn-cta-amber h-9 text-xs font-bold transition-colors duration-150 shadow-lg cursor-pointer"
                   >
                     {activeDlg.confirmText || 'Đồng ý'}
                   </button>
