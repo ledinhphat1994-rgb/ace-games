@@ -252,7 +252,7 @@ export function LearningPage() {
       badge: 'TÀI LIỆU & ĐỀ CƯƠNG • CHUẨN SGK',
       title: 'Ôn Luyện Chuyên Sâu, Chinh Phục Điểm Cao',
       desc: 'Kho đề thi, đề cương ôn tập các môn Toán, Vật lý, Hoá học, Ngữ văn được cập nhật liên tục theo chương trình GDPT.',
-      bgImage: '/assets/cyber_mockups/classroom_hero_bg.webp',
+      bgImage: '/assets/banners/learn_materials_hero.jpg',
       gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
     },
     {
@@ -260,7 +260,7 @@ export function LearningPage() {
       badge: 'TƯƠNG TÁC THỜI GIAN THỰC • BẢNG VẼ & YOUTUBE',
       title: 'Học Nhóm Hiệu Quả Cùng Bạn Bè',
       desc: 'Đồng bộ video bài giảng YouTube, cùng vẽ và ghi chú trực tiếp trên tài liệu ôn thi với bạn học theo thời gian thực.',
-      bgImage: '/assets/cyber_mockups/home_hero_bg.webp',
+      bgImage: '/assets/banners/learn_interactive_hero.jpg',
       gradient: 'from-[#031d1a] via-[#031d1a]/85 to-transparent',
     },
   ], [])
