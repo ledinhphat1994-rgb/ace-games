@@ -586,6 +586,9 @@ export function CampusChatSheet({
           </>
         )}
 
+        {/* Tiêu đề ẩn hỗ trợ trợ năng / Screen reader */}
+        <h2 className="sr-only text-center">Trò chuyện</h2>
+
         <div className="flex flex-col h-full w-full min-h-0 bg-surface">
           {/* ════════════════════════════════════════════════════════════════════════════════
               VÙNG X: CÁC TAB (Bạn bè, Toàn trường, Phòng) & NÚT TÌM KIẾM + NÚT ĐÓNG
