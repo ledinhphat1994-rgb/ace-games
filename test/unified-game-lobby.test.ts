@@ -105,16 +105,8 @@ describe('Unified Game Lobby & Chat Stability Invariants', () => {
   it('9. Số phòng là duy nhất không trùng lặp trên toàn bộ sảnh game, phòng #1 là duy nhất', () => {
     expect(gameLobbyRaw).toContain('// ── ĐẢM BẢO SỐ PHÒNG LÀ DUY NHẤT KHÔNG TRÙNG LẶP TRÊN TOÀN BỘ SẢNH ──')
     expect(gameLobbyRaw).toContain('const usedNumbers = new Set<number>()')
-    expect(gameLobbyRaw).toContain('soPhong: 1,')
-    expect(gameLobbyRaw).toContain('soPhong: 2,')
-    expect(gameLobbyRaw).toContain('soPhong: 3,')
-    expect(gameLobbyRaw).toContain('soPhong: 4,')
-    expect(gameLobbyRaw).toContain('soPhong: 5,')
-    expect(gameLobbyRaw).toContain('soPhong: 6,')
-    expect(gameLobbyRaw).toContain('soPhong: 7,')
-    expect(gameLobbyRaw).toContain('soPhong: 8,')
-    expect(gameLobbyRaw).toContain('soPhong: 9,')
-    expect(gameLobbyRaw).toContain('soPhong: 10,')
+    expect(gameLobbyRaw).toContain('let nextAvailableNum = 1')
+    expect(gameLobbyRaw).toContain('usedNumbers.has(num)')
   })
 
   // ── 10. Fix Vùng 5: Sự kiện hiển thị mới nhất từ trên xuống dưới theo thời gian chi tiết ──

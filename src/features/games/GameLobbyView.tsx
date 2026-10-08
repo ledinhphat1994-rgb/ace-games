@@ -1327,8 +1327,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               </div>
             </div>
 
-            {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi, min-h-[380px] chống sụt lún CLS) */}
-            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 min-h-[380px]">
+            {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi, content-start chống giãn dòng card, min-h-[380px] chống sụt lún CLS) */}
+            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 content-start min-h-[380px]">
               {displayedRooms.length > 0 ? (
                 displayedRooms.map((room) => {
                   const laChuPhong = Boolean(
@@ -1347,7 +1347,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   )
                 })
               ) : (
-                <div className="col-span-full flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border-default bg-surface/50 space-y-3">
+                <div className="col-span-full min-h-[320px] flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border-default bg-surface/50 space-y-3">
                   <div className="size-12 rounded-2xl bg-surface-raised border border-border-subtle flex items-center justify-center text-text-tertiary">
                     <Gamepad2 className="size-6" />
                   </div>

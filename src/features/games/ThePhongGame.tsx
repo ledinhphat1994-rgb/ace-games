@@ -173,7 +173,9 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
 
           {/* Dòng tên chủ phòng chữ ẩn mờ theo yêu cầu */}
           <p className="mt-1 text-xs text-text-tertiary font-normal truncate">
-            {room.tenChu || 'Ẩn danh'}
+            {room.tenKhach
+              ? `${room.tenChu || 'Ẩn danh'} vs ${room.tenKhach}`
+              : (room.tenChu || 'Ẩn danh')}
           </p>
         </div>
       </div>
