@@ -15,9 +15,9 @@ describe('AchievementsModal & Giải Đấu UI / UX Regression Tests', () => {
     expect(gameLobbyViewRaw).not.toContain("label: 'VIP Giải đấu'")
   })
 
-  it('2. Vùng 1: Card huy hiệu trong AchievementsModal có chiều cao cố định, không rớt dòng badge XP', () => {
-    // Card huy hiệu có kích thước cố định h-[84px] và min-h-[84px]
-    expect(modalRaw).toContain('h-[84px] min-h-[84px]')
+  it('2. Vùng 1: Card huy hiệu trong AchievementsModal thích ứng mobile dọc & ngang, không rớt dòng badge XP', () => {
+    // Card huy hiệu có min-h-[80px] đảm bảo hiển thị trọn vẹn nội dung không bị cắt xén
+    expect(modalRaw).toContain('min-h-[80px]')
 
     // Không còn flex-wrap gây rớt dòng badge XP xuống dưới tiêu đề
     expect(modalRaw).not.toContain('flex flex-wrap items-baseline justify-between')
@@ -27,9 +27,14 @@ describe('AchievementsModal & Giải Đấu UI / UX Regression Tests', () => {
     expect(modalRaw).toContain('shrink-0 text-xs font-black text-amber-400 tabular-nums whitespace-nowrap')
   })
 
-  it('3. Khung nội dung cố định h-[370px] cho cả 2 tab (Cửa hàng & Huy hiệu) chống giật CLS khi chuyển tab', () => {
-    // Container cho cả 2 tab đều có h-[370px] cố định
-    expect(modalRaw).toContain('h-[370px] min-h-[370px] max-h-[370px]')
+  it('3. Khung nội dung flex-1 min-h-0 và footer mt-auto shrink-0 luôn hiển thị nút trên mobile dọc và ngang', () => {
+    // Cả 2 tab đều dùng khung cuộn flex-1 min-h-0 đồng nhất, chống giật CLS và thích ứng mọi chiều cao mobile
+    expect(modalRaw).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain')
+
+    // Footer được cố định ở đáy modal với shrink-0 mt-auto đảm bảo luôn thấy nút bấm
+    expect(modalRaw).toContain('mt-auto shrink-0')
+    expect(modalRaw).toContain('Thoát')
+    expect(modalRaw).toContain('Nạp tiền ngay')
   })
 
   it('4. Danh mục nhiệm vụ đa dạng bao phủ đầy đủ tính năng của web (20 nhiệm vụ)', () => {

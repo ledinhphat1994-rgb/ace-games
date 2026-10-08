@@ -126,13 +126,13 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="skeuo-modal-surface sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[calc(100svh-3rem)] p-5 sm:p-6 overflow-y-auto overscroll-contain text-white">
+      <DialogContent className="skeuo-modal-surface sm:max-w-[560px] w-[calc(100vw-1.5rem)] sm:w-full max-h-[calc(100svh-1.5rem)] sm:max-h-[calc(100svh-3rem)] p-3.5 sm:p-6 flex flex-col overflow-hidden text-white gap-0">
         <BlueprintArcadePattern className="opacity-75 pointer-events-none" />
-        <DialogHeader className="shrink-0 mb-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <DialogTitle className="text-xl font-black text-white flex items-center gap-2 tracking-wide">
-                <Award className="size-5 text-amber-400" />
+        <DialogHeader className="shrink-0 mb-2 sm:mb-3">
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-wide">
+                <Award className="size-5 text-amber-400 shrink-0" />
                 <span>Thành tựu & Huy hiệu</span>
               </DialogTitle>
               <DialogDescription className="sr-only">
@@ -140,12 +140,12 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
               </DialogDescription>
 
               {/* Thanh tiến trình điểm kinh nghiệm */}
-              <div className="mt-3 space-y-1">
+              <div className="mt-2 sm:mt-3 space-y-1">
                 <div className="flex items-center justify-between text-xs text-slate-300 font-semibold">
                   <span>Điểm kinh nghiệm</span>
-                  <span className="text-amber-300 font-black">{xp} / {level * 100} XP</span>
+                  <span className="text-amber-300 font-black tabular-nums">{xp} / {level * 100} XP</span>
                 </div>
-                <div className="h-3 w-full rounded-full bg-[#070e1c] border border-sky-950 p-0.5 overflow-hidden">
+                <div className="h-2.5 sm:h-3 w-full rounded-full bg-[#070e1c] border border-sky-950 p-0.5 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-300 shadow-[0_0_10px_rgba(245,158,11,0.7)] transition-all duration-500"
                     style={{ width: `${Math.min(100, ((xp % 100) || 40))}%` }}
@@ -154,45 +154,45 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
               </div>
             </div>
 
-            {/* Khung Kim Cương Nguyệt Quế 3D góc phải */}
-            <div className="shrink-0 p-2 rounded-2xl bg-gradient-to-b from-[#111f3d] to-[#071124] border border-sky-500/25 shadow-lg flex items-center justify-center">
-              <IconLaurelDiamond3D size={56} className="drop-shadow-md" />
+            {/* Khung Kim Cương Nguyệt Quế 3D góc phải (ẩn trên màn hình quá thấp để nhường chỗ cho nội dung) */}
+            <div className="shrink-0 p-1.5 sm:p-2 rounded-2xl bg-gradient-to-b from-[#111f3d] to-[#071124] border border-sky-500/25 shadow-lg flex items-center justify-center short-screen:hidden">
+              <IconLaurelDiamond3D size={48} className="drop-shadow-md sm:w-[56px] sm:h-[56px]" />
             </div>
           </div>
         </DialogHeader>
 
         {/* 3 Thẻ Chỉ Số 3D (Điểm kinh nghiệm, Số trận thắng, Hạng hiện tại) */}
-        <div className="grid grid-cols-3 gap-2.5 my-2">
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 my-1.5 sm:my-2 shrink-0 short-screen:my-1">
           {/* 1. Điểm kinh nghiệm */}
-          <div className="p-2.5 rounded-2xl border-2 border-slate-800 bg-[#0d1629] flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-slate-400 font-semibold">Điểm kinh nghiệm</p>
-              <p className="text-xl font-black text-white mt-0.5">{level}</p>
+          <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border-2 border-slate-800 bg-[#0d1629] flex items-center justify-between min-w-0">
+            <div className="min-w-0">
+              <p className="text-[10px] text-slate-400 font-semibold truncate">Điểm kinh nghiệm</p>
+              <p className="text-base sm:text-xl font-black text-white mt-0.5 tabular-nums">{level}</p>
             </div>
-            <IconXpMedal3D size={34} className="shrink-0 drop-shadow-md" />
+            <IconXpMedal3D size={28} className="shrink-0 drop-shadow-md sm:w-[34px] sm:h-[34px]" />
           </div>
 
           {/* 2. Số trận thắng */}
-          <div className="p-2.5 rounded-2xl border-2 border-slate-800 bg-[#0d1629] flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-slate-400 font-semibold">Số trận thắng</p>
-              <p className="text-xl font-black text-white mt-0.5">{streak * 17 || 53}</p>
+          <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border-2 border-slate-800 bg-[#0d1629] flex items-center justify-between min-w-0">
+            <div className="min-w-0">
+              <p className="text-[10px] text-slate-400 font-semibold truncate">Số trận thắng</p>
+              <p className="text-base sm:text-xl font-black text-white mt-0.5 tabular-nums">{streak * 17 || 53}</p>
             </div>
-            <IconTrophyGold3D size={34} className="shrink-0 drop-shadow-md" />
+            <IconTrophyGold3D size={28} className="shrink-0 drop-shadow-md sm:w-[34px] sm:h-[34px]" />
           </div>
 
           {/* 3. Hạng hiện tại */}
-          <div className="p-2.5 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-br from-[#1a1c2e] to-[#0d1629] flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-amber-300/80 font-bold">Hạng hiện tại</p>
-              <p className="text-xs font-black text-amber-300 mt-1">Hạng Vàng</p>
+          <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border-2 border-amber-500/40 bg-gradient-to-br from-[#1a1c2e] to-[#0d1629] flex items-center justify-between min-w-0">
+            <div className="min-w-0">
+              <p className="text-[10px] text-amber-300/80 font-bold truncate">Hạng hiện tại</p>
+              <p className="text-[11px] sm:text-xs font-black text-amber-300 mt-1 truncate">Hạng Vàng</p>
             </div>
-            <IconRankStar3D size={34} className="shrink-0 drop-shadow-md" />
+            <IconRankStar3D size={28} className="shrink-0 drop-shadow-md sm:w-[34px] sm:h-[34px]" />
           </div>
         </div>
 
         {/* Chuyển đổi tab Cửa hàng / Huy hiệu */}
-        <div className="flex items-center justify-between pt-2 pb-1 shrink-0">
+        <div className="flex items-center justify-between pt-1.5 pb-1 sm:pt-2 sm:pb-1 shrink-0">
           <div className="flex items-center gap-2 select-none">
             <button
               type="button"
@@ -223,11 +223,11 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
           </div>
         </div>
 
-        {/* Khung nội dung cố định chiều cao cho cả 2 tab (Triệt tiêu 100% Layout Shift khi chuyển tab) */}
+        {/* Khung nội dung co giãn linh hoạt theo chiều cao màn hình, chống giật CLS giữa 2 tab */}
         {activeTab === 'shop' ? (
-          /* Lưới 6 vật phẩm Cửa hàng 3D: Cố định vị trí và kích thước 100%, không dựt màn hình khi chọn */
-          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto overscroll-contain pr-1 my-2 select-none">
-            <div className="grid grid-cols-3 gap-2.5 py-1">
+          /* Lưới 6 vật phẩm Cửa hàng 3D */
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 my-1.5 select-none">
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 py-1">
               {[
                 {
                   id: 'chest_shard',
@@ -285,7 +285,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                       setSelectedShopId(item.id)
                     }}
                     className={cn(
-                      'rounded-2xl border-2 p-2.5 flex flex-col items-center justify-between text-center h-[170px] min-h-[170px] max-h-[170px] w-full transition-colors duration-150 relative cursor-pointer select-none overflow-hidden',
+                      'rounded-2xl border-2 p-2 sm:p-2.5 flex flex-col items-center justify-between text-center min-h-[160px] h-[164px] sm:h-[170px] w-full transition-colors duration-150 relative cursor-pointer select-none overflow-hidden',
                       isSelected
                         ? 'border-amber-400 bg-amber-500/15 shadow-[0_0_14px_rgba(245,158,11,0.25)]'
                         : 'border-slate-800 bg-[#0c1527] hover:border-slate-700',
@@ -301,16 +301,16 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                       <Check className="size-2.5 stroke-[3]" />
                     </div>
 
-                    {/* Vùng tiêu đề cố định h-7 min-h-7: Khóa tọa độ Y của toàn bộ các card cùng hàng */}
-                    <div className="h-7 min-h-7 max-h-7 w-full flex items-center justify-center text-center overflow-hidden shrink-0 px-1">
-                      <span className="text-[11px] font-bold text-white line-clamp-2 leading-tight w-full break-words" title={item.name}>
+                    {/* Vùng tiêu đề cố định h-7 min-h-7 */}
+                    <div className="h-7 min-h-7 max-h-7 w-full flex items-center justify-center text-center overflow-hidden shrink-0 px-0.5">
+                      <span className="text-[10px] sm:text-[11px] font-bold text-white line-clamp-2 leading-tight w-full break-words" title={item.name}>
                         {item.name}
                       </span>
                     </div>
 
-                    {/* Vùng Icon cố định h-12 min-h-12: Đồng nhất 100% tọa độ ngang */}
-                    <div className="h-12 min-h-12 max-h-12 w-full flex items-center justify-center shrink-0 my-0.5">
-                      <ItemIcon size={44} className="drop-shadow-lg" />
+                    {/* Vùng Icon cố định */}
+                    <div className="h-10 sm:h-12 min-h-10 w-full flex items-center justify-center shrink-0 my-0.5">
+                      <ItemIcon size={38} className="drop-shadow-lg sm:w-[44px] sm:h-[44px]" />
                     </div>
 
                     {/* Vùng giá cố định h-5 min-h-5 */}
@@ -328,7 +328,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                       )}
                     </div>
 
-                    {/* Nút hành động cố định h-7: Giữ nguyên tọa độ, chống trôi chuyển động */}
+                    {/* Nút hành động cố định */}
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
@@ -338,7 +338,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                         setSelectedShopId(item.id)
                       }}
                       className={cn(
-                        'w-full h-7 min-h-7 max-h-7 rounded-full border text-[11px] font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center shadow-xs shrink-0',
+                        'w-full h-6 sm:h-7 min-h-6 sm:min-h-7 rounded-full border text-[10px] sm:text-[11px] font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center shadow-xs shrink-0',
                         isSelected
                           ? 'border-amber-400 bg-amber-400 text-amber-950 font-black'
                           : 'border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-200',
@@ -352,16 +352,16 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
             </div>
           </div>
         ) : (
-          /* Danh sách Huy hiệu (Card cố định chiều cao, không rớt dòng badge XP, chống rung giật) */
-          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto overscroll-contain pr-1 my-2 select-none">
+          /* Danh sách Huy hiệu */
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 my-1.5 select-none">
             {isLoading ? (
               <div className="grid gap-2 sm:grid-cols-2 py-1" aria-hidden>
                 {Array.from({ length: 6 }, (_, i) => (
-                  <Skeleton key={i} className="h-[84px] w-full rounded-xl bg-slate-800/60" />
+                  <Skeleton key={i} className="h-[80px] w-full rounded-xl bg-slate-800/60" />
                 ))}
               </div>
             ) : error ? (
-              <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
+              <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center">
                 <AlertCircle className="size-6 text-red-400" />
                 <p className="mt-2 text-sm text-slate-300">
                   {error instanceof Error ? error.message : 'Không thể tải huy hiệu.'}
@@ -371,12 +371,12 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                 </Button>
               </div>
             ) : sapXep.length === 0 ? (
-              <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
+              <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center">
                 <Award className="size-6 text-slate-500" />
                 <p className="mt-2 text-sm font-medium text-slate-300">Chưa có huy hiệu nào</p>
               </div>
             ) : (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 py-1">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 py-1">
                 {sapXep.map((badge) => {
                   const Icon = badge.unlocked ? (ICON[badge.icon] ?? Award) : Lock
                   return (
@@ -384,7 +384,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                       key={badge.key}
                       onMouseDown={(e) => e.preventDefault()}
                       className={cn(
-                        'h-[84px] min-h-[84px] max-h-[84px] flex items-center gap-3 rounded-xl border-2 px-3 py-2 transition-colors duration-150 select-none overflow-hidden relative',
+                        'min-h-[80px] p-2.5 sm:p-3 flex items-start gap-2.5 sm:gap-3 rounded-xl border-2 transition-colors duration-150 select-none relative',
                         badge.unlocked
                           ? 'border-amber-400/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)] hover:border-amber-400/80'
                           : 'border-slate-800 bg-slate-900/40 opacity-75 hover:border-slate-700',
@@ -392,7 +392,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                     >
                       <span
                         className={cn(
-                          'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                          'flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-lg mt-0.5',
                           badge.unlocked
                             ? 'bg-gradient-to-b from-amber-400/25 to-amber-600/30 border border-amber-400/50 text-amber-400 shadow-xs'
                             : 'bg-slate-800 text-slate-500',
@@ -400,7 +400,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                       >
                         <Icon className="size-4" />
                       </span>
-                      <div className="min-w-0 flex-1 h-full flex flex-col justify-center">
+                      <div className="min-w-0 flex-1 flex flex-col justify-center">
                         <div className="flex items-center justify-between gap-1.5 min-w-0">
                           <span
                             className={cn(
@@ -415,7 +415,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                             +{badge.rewardXp} XP
                           </span>
                         </div>
-                        <p className="mt-1 text-xs leading-snug text-slate-400 line-clamp-2 break-words">
+                        <p className="mt-1 text-xs leading-snug text-slate-400 break-words">
                           {badge.description}
                         </p>
                         {badge.unlocked && badge.unlockedAt ? (
@@ -432,22 +432,22 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
           </div>
         )}
 
-        {/* Footer: Thoát & Nạp tiền ngay */}
-        <div className="flex justify-end items-center gap-3 pt-4 border-t border-sky-950/60 mt-2">
+        {/* Footer: Thoát & Nạp tiền ngay - Luôn cố định ở đáy modal, không bị che khuất */}
+        <div className="flex justify-end items-center gap-2.5 sm:gap-3 pt-2.5 sm:pt-4 border-t border-sky-950/60 mt-auto shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-full text-xs font-semibold px-6 h-10 cursor-pointer border border-slate-700/80 bg-[#162238] hover:bg-[#202f4d] text-slate-200 transition-colors"
+            className="rounded-full text-xs font-semibold px-5 sm:px-6 h-9 sm:h-10 cursor-pointer border border-slate-700/80 bg-[#162238] hover:bg-[#202f4d] text-slate-200 transition-colors shrink-0"
           >
             Thoát
           </button>
           <button
             type="button"
             onClick={() => {}}
-            className="cyber-gold-charge-btn rounded-full text-xs font-black px-8 h-10 cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_25px_rgba(245,158,11,0.6)] relative overflow-visible"
+            className="cyber-gold-charge-btn rounded-full text-xs font-black px-6 sm:px-8 h-9 sm:h-10 cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_25px_rgba(245,158,11,0.6)] relative overflow-visible shrink-0"
           >
             <span>Nạp tiền ngay</span>
-            <IconStarSparkle className="absolute -top-2.5 -right-2 text-amber-200 drop-shadow-[0_0_8px_#fff]" size={20} />
+            <IconStarSparkle className="absolute -top-2.5 -right-2 text-amber-200 drop-shadow-[0_0_8px_#fff]" size={18} />
           </button>
         </div>
       </DialogContent>

@@ -167,19 +167,16 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
   })
 
   // ── 6. Zero Fabricated Achievements Contract ──────────────────────────────
-  it('6. D: Ensures AccountQuickCenter does NOT contain hardcoded fake achievements and consumes authoritative endpoint', () => {
+  it('6. D: Ensures AccountQuickCenter routes to /me without duplicating achievements menu', () => {
     // D. No fabricated achievement names exist
     expect(accountQuickCenterRaw).not.toContain('Pomodoro')
     expect(accountQuickCenterRaw).not.toContain('Vua Cờ Caro')
     expect(accountQuickCenterRaw).not.toContain('Thuyết Trình')
     expect(accountQuickCenterRaw).not.toContain('Bảng Đen')
 
-    // Must query authoritative achievements & profile endpoints.
-    // The profile summary lives at /api/engagement/me — /api/engagement/profile never existed on the worker (404).
-    expect(accountQuickCenterRaw).toContain('/api/engagement/achievements')
-    expect(accountQuickCenterRaw).toContain('/api/engagement/me')
-    expect(accountQuickCenterRaw).not.toContain('/api/engagement/profile')
-    expect(accountQuickCenterRaw).toContain("currentView === 'achievements'")
+    // Per user invariant, achievements reside canonically in /me
+    expect(accountQuickCenterRaw).toContain("diToi('/me')")
+    expect(accountQuickCenterRaw).not.toContain("currentView === 'achievements'")
   })
 
   // ── 7. Truthful Achievement View State Derivation ─────────────────────────
