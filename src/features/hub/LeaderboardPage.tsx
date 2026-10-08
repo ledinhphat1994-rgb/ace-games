@@ -296,15 +296,15 @@ export function LeaderboardPage() {
       <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-r from-[#0d0903] via-[#1a1205] to-[#0a0702] p-8 sm:p-12 lg:p-16 shadow-[0_0_40px_rgba(245,158,11,0.18)] select-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.18),rgba(255,255,255,0))]" />
 
-        {/* Artwork anime podium vinh danh cùng chủ đề, đặt ở nửa phải */}
-        <div className="absolute right-0 top-0 bottom-0 w-3/5 lg:w-1/2 pointer-events-none overflow-hidden select-none">
+        {/* Artwork anime vinh danh danh dự toàn cảnh */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
           <img
-            src="/assets/cyber_mockups/leaderboard_podium.webp"
+            src="/assets/banners/leaderboard_hero_cyber.jpg"
             alt="Bảng xếp hạng Digital Campus"
-            className="w-full h-full object-cover object-[center_top] opacity-85 lg:opacity-95 mix-blend-lighten"
+            className="w-full h-full object-cover object-center opacity-85 lg:opacity-90"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0d0903] via-[#0d0903]/90 via-30% to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0a0702] via-[#0a0702]/95 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0d0903] via-[#0d0903]/85 via-45% to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0a0702] via-[#0a0702]/80 to-transparent" />
         </div>
 
         <div className="relative z-10 max-w-2xl">
