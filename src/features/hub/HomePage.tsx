@@ -16,14 +16,12 @@ import {
   ChevronRight,
   Clock,
   Gamepad2,
-  MessageSquare,
   Sparkles,
   Trophy,
-  Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-// Vùng 2: Quick Nav — 4 mục điều hướng nhanh tích hợp trong banner
+// Vùng 2: Quick Nav — Các mục điều hướng nhanh tích hợp trong banner
 const QUICK_NAV = [
   {
     to: '/learn',
@@ -48,18 +46,6 @@ const QUICK_NAV = [
     border: 'border-purple-500/30',
     hover: 'hover:border-purple-400/70',
     accent: 'text-purple-400',
-  },
-  {
-    to: '/community',
-    Icon: Users,
-    label: 'Cộng đồng',
-    desc: 'Kết nối bạn bè\ncùng nhau tiến bộ',
-    hubImg: '/assets/cyber_mockups/hub_community.webp',
-    iconBg: 'bg-emerald-500',
-    glow: 'shadow-[0_0_24px_rgba(16,185,129,0.55)]',
-    border: 'border-emerald-500/30',
-    hover: 'hover:border-emerald-400/70',
-    accent: 'text-emerald-400',
   },
   {
     to: '/leaderboard',
@@ -112,6 +98,7 @@ export function HomePage() {
       return p && (p.state === 'online' || p.state === 'away')
     })
   }, [friends, presenceMap])
+  void onlineFriends
 
   // Tin nhắn sảnh trường thời gian thực (Bảo toàn contract kiểm thử kiến trúc authoritative)
   const recentMessagesPreview = useMemo(() => {
@@ -211,35 +198,6 @@ export function HomePage() {
         label: 'Xem bảng xếp hạng',
         to: '/leaderboard',
         icon: Trophy,
-      },
-    },
-    {
-      id: 'community',
-      badge: 'CỘNG ĐỒNG HỌC SINH',
-      title: (
-        <>
-          Kết nối bạn bè,
-          <br />
-          cùng nhau tiến bộ.
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400">
-            Chia sẻ bài viết & Trò chuyện tức thì.
-          </span>
-        </>
-      ),
-      desc: 'Không gian kết nối trao đổi trực tuyến — theo dõi bạn học đang online, trò chuyện kênh trường và tham gia cộng đồng sôi nổi.',
-      bgImage: '/assets/cyber_mockups/community_hero_bg.webp',
-      gradient: 'from-[#031d1a] via-[#031d1a]/85 to-transparent',
-      primaryAction: {
-        label: 'Khám phá cộng đồng',
-        to: '/community',
-        icon: Users,
-        className: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
-      },
-      secondaryAction: {
-        label: 'Kênh trò chuyện trường',
-        action: 'open_chat' as const,
-        icon: MessageSquare,
       },
     },
     {
@@ -346,18 +304,9 @@ export function HomePage() {
         onClick: () => navigate(`/arena?game=${g.id}`),
       })
     }
-    // CỘNG ĐỒNG: dữ liệu presence thật
-    items.push({
-      tag: 'CỘNG ĐỒNG', tagColor: 'bg-emerald-500',
-      image: '/assets/community/community_hero.webp',
-      title: 'Ngày hội Kết nối bạn học',
-      desc: onlineFriends.length > 0 ? `${onlineFriends.length} bạn học đang trực tuyến` : 'Không gian kết nối và trao đổi cùng bạn bè toàn trường',
-      meta: 'Digital Campus · Online',
-      onClick: () => navigate('/community'),
-    })
     return items
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRoomsPreview, onlineFriends, nguoiDung, navigate])
+  }, [activeRoomsPreview, nguoiDung, navigate])
 
   return (
     <div className="pb-12 space-y-6">
@@ -483,10 +432,10 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── Quick Nav Cards — 4 card Học tập, Game, Cộng đồng, Bảng xếp hạng ── */}
+      {/* ── Quick Nav Cards — Các card Học tập, Game, Bảng xếp hạng ── */}
       <section aria-label="Điều hướng nhanh">
         <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative card-campus-glow">
-          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border-subtle">
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle">
             {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }, idx) => {
               const isCurrentSlide = slideIndex === idx
               return (
@@ -533,7 +482,7 @@ export function HomePage() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {hoatDongNoiBat.map((item, i) => (
                 <button
                   key={i}

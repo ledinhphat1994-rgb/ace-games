@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useSearchParams, useNavigate } from 'react-router'
-import { Trophy, RefreshCw, Crown, Medal, Flame, AlertCircle, GraduationCap, Users, Sparkles, BookOpen, Gamepad2, ArrowRight } from 'lucide-react'
+import { useSearchParams } from 'react-router'
+import { Trophy, RefreshCw, Crown, Flame, AlertCircle, GraduationCap, Users, Medal } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { usePhien } from '@/app/phien'
@@ -62,7 +62,6 @@ function parseCategoryParam(raw: string | null): LeaderboardCategory {
 }
 
 export function LeaderboardPage() {
-  const navigate = useNavigate()
   const { nguoiDung } = usePhien()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -346,8 +345,8 @@ export function LeaderboardPage() {
         </div>
       </div>
 
-      {/* ── 2-Column Responsive Layout (Desktop 8+4 cols, Mobile 1-col) ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px] items-start">
+      {/* ── Bảng xếp hạng chính (Full width) ── */}
+      <div className="space-y-6 min-w-0">
         {/* Main Central Stage */}
         <div className="min-w-0 space-y-6">
           {/* ── 2. Category Selector (Authoritative Tabs) ── */}
@@ -756,105 +755,6 @@ export function LeaderboardPage() {
         </section>
       )}
         </div>
-
-        {/* ── Right Rail (Widgets) ── */}
-        <aside className="space-y-4">
-          {/* Card: Quy tắc tính điểm */}
-          <div className="rounded-2xl border border-border-default/80 bg-surface/80 backdrop-blur-md p-5 shadow-xs space-y-3">
-            <div className="flex items-center gap-2.5 text-amber-400">
-              <Sparkles className="size-4" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                Quy tắc tính điểm
-              </h3>
-            </div>
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-xs py-1.5 border-b border-border-subtle/60">
-                <span className="text-text-tertiary">Xác thực kỷ lục</span>
-                <span className="font-semibold text-text-primary">Máy chủ tự động</span>
-              </div>
-              <div className="flex items-center justify-between text-xs py-1.5 border-b border-border-subtle/60">
-                <span className="text-text-tertiary">Chu kỳ cập nhật</span>
-                <span className="font-semibold text-emerald-400">Thời gian thực</span>
-              </div>
-              <div className="flex items-center justify-between text-xs py-1.5">
-                <span className="text-text-tertiary">Phạm vi tính điểm</span>
-                <span className="font-semibold text-text-primary">Toàn trường &amp; Lớp</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card: Thành tích của bạn */}
-          {nguoiDung && (
-            <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-surface to-amber-500/5 p-5 shadow-xs space-y-3">
-              <div className="flex items-center gap-2.5 text-amber-400">
-                <Medal className="size-4" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                  Thành tích của bạn
-                </h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <AnhNguoiDung ten={nguoiDung.ten || nguoiDung.username} avatar={nguoiDung.avatar} className="size-11 ring-2 ring-amber-400/40" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-text-primary truncate">
-                    {nguoiDung.ten || nguoiDung.username}
-                  </p>
-                  <p className="text-xs text-text-tertiary truncate">
-                    {nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh'}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/me')}
-                className="w-full h-8 text-xs font-semibold rounded-xl border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1.5 cursor-pointer"
-              >
-                <span>Xem hồ sơ & huy hiệu</span>
-                <ArrowRight className="size-3" />
-              </Button>
-            </div>
-          )}
-
-          {/* Card: Tích lũy thêm điểm */}
-          <div className="rounded-2xl border border-border-default/80 bg-surface/80 backdrop-blur-md p-5 shadow-xs space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
-              Tích lũy thêm điểm
-            </h3>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => navigate('/learn')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-default/60 hover:border-amber-500/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
-                    <BookOpen className="size-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-text-primary group-hover:text-amber-400 transition-colors truncate">
-                    Vào phòng học tập
-                  </span>
-                </div>
-                <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-amber-400 transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/arena')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-border-default/60 hover:border-violet-500/40 bg-surface-overlay/50 hover:bg-surface-overlay text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400">
-                    <Gamepad2 className="size-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-text-primary group-hover:text-violet-400 transition-colors truncate">
-                    Đấu trường trò chơi
-                  </span>
-                </div>
-                <ArrowRight className="size-3.5 text-text-tertiary group-hover:text-violet-400 transition-colors" />
-              </button>
-            </div>
-          </div>
-        </aside>
       </div>
 
       {/* ── 8. User Profile Modal Integration ── */}

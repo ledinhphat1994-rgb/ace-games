@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState, memo } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import {
-  ArrowRight,
-  Calendar,
   Check,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Eye,
   EyeOff,
   Gamepad2,
@@ -1006,6 +1003,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       (a, b) => new Date(b.thoiGianBatDau).getTime() - new Date(a.thoiGianBatDau).getTime(),
     )
   }, [])
+  void suKienSapXep
 
   // Tạo bàn đấu mới (Công khai hoặc Riêng tư có mật khẩu, đăng ký ngay lên máy chủ để toàn trường thấy)
   const xacNhanTaoBan = async () => {
@@ -1118,10 +1116,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* 1. Hero Banner Sảnh trò chơi (Chuẩn màu Sky/Blue, không dùng tím/hồng) */}
       <GameLobbyHeroBanner />
 
-      {/* Bố cục 2 cột đồng bộ với Sảnh học tập: 8 Cột trái + 4 Cột phải */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* ── Khu vực chính giữa: 8 Cột trên XL ── */}
-        <div className="xl:col-span-8 space-y-6 min-w-0">
+      {/* Sảnh trực tiếp cho tất cả các game */}
+      <div className="space-y-6 min-w-0">
+        {/* ── Khu vực chính: Phòng game trực tuyến ── */}
+        <div className="space-y-6 min-w-0">
           {/* VÙNG 3: SẢNH CHUNG TRỰC TIẾP CHO TẤT CẢ CÁC GAME (Không qua sảnh riêng) */}
           <section aria-label="Sảnh phòng game trực tuyến" className="space-y-4">
             {/* Header & Cụm hành động */}
@@ -1285,94 +1283,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             {/* MỤC 2 (ĐÃ ẨN KHỎI GIAO DIỆN USER ĐỂ THIẾT KẾ RIÊNG CHO ADMIN SAU — BẢO TOÀN CONTRACT KIỂM THỬ) */}
             <div className="sr-only" aria-hidden="true">
               <ThongKeGame ban={tables} sanSang={hasAuthoritativeData} />
-            </div>
-          </section>
-        </div>
-
-        {/* ── Cột tiện ích bên phải: 4 Cột trên XL (Đồng bộ sắc xanh Sapphire/Sky) ── */}
-        <div className="xl:col-span-4 space-y-6">
-          {/* Card 1: Bảng thi đua game */}
-          <section
-            aria-label="Thi đua game"
-            className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-blue-950/20 p-4 shadow-sm space-y-3 card-campus-glow"
-          >
-            <div className="flex items-center gap-2.5 text-sky-400">
-              <Trophy className="size-4.5" />
-              <h3 className="text-sm font-bold text-white">Bảng thi đua game</h3>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Tích lũy điểm Elo, so tài chiến thuật đỉnh cao và ghi danh bảng vàng cao thủ trường.
-            </p>
-            <Link
-              to="/leaderboard"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
-            >
-              <span>Xem bảng xếp hạng game</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </section>
-
-          {/* Card 2: Sự kiện & Giải đấu */}
-          <section
-            aria-label="Sự kiện game"
-            data-testid="game-events-card"
-            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5 card-campus-glow"
-          >
-            <div className="flex items-center gap-2 border-b border-border-subtle/60 pb-3">
-              <Calendar className="size-4 text-sky-400" />
-              <h3 className="text-sm font-bold text-text-primary">Sự kiện &amp; Giải đấu</h3>
-            </div>
-
-            {/* Danh sách các card sự kiện game: Tự động sắp xếp mới nhất từ trên xuống dưới theo thời gian chi tiết được thiết lập */}
-            <div className="space-y-2.5">
-              {suKienSapXep.map((evt) => (
-                <div
-                  key={evt.id}
-                  className={cn(
-                    'rounded-xl border p-3.5 space-y-1.5 transition-colors',
-                    evt.isLive
-                      ? 'border-emerald-500/25 bg-emerald-500/5'
-                      : evt.badgeVariant === 'amber'
-                        ? 'border-border-subtle/80 bg-surface-raised/40 hover:border-amber-500/30'
-                        : 'border-border-subtle/80 bg-surface-raised/40 hover:border-sky-500/30',
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-xs font-bold text-text-primary leading-snug">
-                      {evt.tieuDe}
-                    </h4>
-                    <span
-                      className={cn(
-                        'shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold border',
-                        evt.isLive
-                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
-                          : evt.badgeVariant === 'amber'
-                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
-                            : 'bg-sky-500/15 text-sky-400 border-sky-500/25',
-                      )}
-                    >
-                      {evt.isLive && <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-                      <span>{evt.badgeText}</span>
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-text-secondary leading-relaxed">
-                    {evt.moTa}
-                  </p>
-                  <div
-                    className={cn(
-                      'flex items-center justify-end gap-1.5 text-[11px] font-medium pt-1',
-                      evt.isLive
-                        ? 'text-emerald-400'
-                        : evt.badgeVariant === 'amber'
-                          ? 'text-amber-400'
-                          : 'text-sky-400',
-                    )}
-                  >
-                    <Clock className="size-3 shrink-0" />
-                    <span>{evt.thoiGianHienThi}</span>
-                  </div>
-                </div>
-              ))}
             </div>
           </section>
         </div>

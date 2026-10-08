@@ -23,15 +23,12 @@ import {
 } from './learning-semantics'
 import {
   BookOpen,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Plus,
   RefreshCw,
   Search,
   Sparkles,
-  Trophy,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -377,9 +374,9 @@ export function LearningPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* ── Khu vực chính giữa: 8 Cột trên XL ── */}
-        <div className="xl:col-span-8 space-y-6 min-w-0">
+      <div className="space-y-6 min-w-0">
+        {/* ── Khu vực chính giữa: Danh sách phòng học đang mở ── */}
+        <div className="space-y-6 min-w-0">
           {/* 4. Danh sách phòng học đang mở (Kéo lên kéo xuống) */}
           <section aria-label="Phòng học đang mở" className="space-y-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
@@ -508,94 +505,6 @@ export function LearningPage() {
             {/* ThongKeHocTap: Bảo toàn contract kiểm thử sảnh học tập */}
             <div className="sr-only" aria-hidden="true">
               <ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />
-            </div>
-          </section>
-        </div>
-
-        {/* ── Cột tiện ích bên phải: 4 Cột trên XL (Kéo lên kéo xuống) ── */}
-        <div className="xl:col-span-4 space-y-6">
-          {/* Vùng 6 thay thế cho vùng 3 lớn: Bảng thi đua học tập đưa lên đầu (Đã xóa link X) */}
-          <section aria-label="Thi đua học tập" className="rounded-2xl border border-sky-500/25 bg-gradient-to-br from-[#0f172a] to-sky-950/20 p-4 shadow-sm space-y-3">
-            <div className="flex items-center gap-2.5 text-sky-400">
-              <Trophy className="size-4.5" />
-              <h3 className="text-sm font-bold text-white">Bảng thi đua học tập</h3>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Tích lũy thời gian học tập có ý nghĩa và ghi nhận chuỗi ngày chuyên cần cùng cả lớp.
-            </p>
-          </section>
-
-          {/* Dưới vùng 6: Card sự kiện (VÙNG 2: Bỏ chữ GDTX, chữ Đang diễn ra & Sắp diễn ra ở góc phải trên cùng mỗi card) */}
-          <section
-            aria-label="Sự kiện học tập"
-            data-testid="learning-events-card"
-            className="rounded-2xl border border-border-default/80 bg-surface p-4 shadow-sm space-y-3.5"
-          >
-            <div className="flex items-center gap-2 border-b border-border-subtle/60 pb-3">
-              <Calendar className="size-4 text-sky-400" />
-              <h3 className="text-sm font-bold text-text-primary">Sự kiện học tập</h3>
-            </div>
-
-            {/* Danh sách các card sự kiện */}
-            <div className="space-y-2.5">
-              {/* Card 1: Sự kiện hiện tại (Đang diễn ra ở góc phải trên cùng) */}
-              {/* Card 1: Sự kiện đang diễn ra (VÙNG 2: Chỉ ghi Đang diễn ra, thời gian dưới tiêu đề, bỏ chữ phòng) */}
-              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-xs font-bold text-text-primary leading-snug">
-                    Ôn tập chuyên đề thi THPT: Toán &amp; Ngữ văn
-                  </h4>
-                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/25">
-                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Đang diễn ra</span>
-                  </span>
-                </div>
-                <p className="text-[11px] text-text-secondary leading-relaxed">
-                  Phòng học nhóm trực tuyến mở tự do cùng giáo viên bộ môn và ban cán sự lớp.
-                </p>
-                <div className="flex items-center justify-end gap-1.5 text-[11px] text-emerald-400 font-medium pt-1">
-                  <Clock className="size-3 shrink-0" />
-                  <span>19:30 – 21:30 hôm nay</span>
-                </div>
-              </div>
-
-              {/* Card 2: Sự kiện sắp diễn ra (VÙNG 2: Chỉ ghi Sắp diễn ra, thời gian dưới tiêu đề, bỏ chữ sảnh) */}
-              <div className="rounded-xl border border-border-subtle/80 bg-surface-raised/40 p-3.5 space-y-1.5 transition-colors hover:border-sky-500/30">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-xs font-bold text-text-primary leading-snug">
-                    Giao hữu Cờ Vua &amp; Cờ Tướng 1v1
-                  </h4>
-                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-400 border border-sky-500/25">
-                    <span>Sắp diễn ra</span>
-                  </span>
-                </div>
-                <p className="text-[11px] text-text-secondary leading-relaxed">
-                  Vòng loại tuần 1 Đấu trường Game Digital Campus.
-                </p>
-                <div className="flex items-center justify-end gap-1.5 text-[11px] text-sky-400 font-medium pt-1">
-                  <Clock className="size-3 shrink-0" />
-                  <span>08:30 – 11:00 Thứ Bảy, 03/10</span>
-                </div>
-              </div>
-
-              {/* Card 3: Sự kiện kết thúc (VÙNG 2: Chỉ ghi Kết thúc, thời gian dưới tiêu đề, bỏ chữ phòng) */}
-              <div className="rounded-xl border border-border-subtle/80 bg-surface-raised/40 p-3.5 space-y-1.5 transition-colors hover:border-zinc-500/30">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-xs font-bold text-text-primary leading-snug">
-                    Chuyên đề: Phương pháp tự học hiệu quả
-                  </h4>
-                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-zinc-500/15 px-2 py-0.5 text-[10px] font-bold text-zinc-400 border border-zinc-500/25">
-                    <span>Kết thúc</span>
-                  </span>
-                </div>
-                <p className="text-[11px] text-text-secondary leading-relaxed">
-                  Chia sẻ kinh nghiệm ghi chú số và sơ đồ tư duy cùng bạn học.
-                </p>
-                <div className="flex items-center justify-end gap-1.5 text-[11px] text-zinc-400 font-medium pt-1">
-                  <Clock className="size-3 shrink-0" />
-                  <span>14:00 – 16:00 Chủ Nhật</span>
-                </div>
-              </div>
             </div>
           </section>
         </div>
