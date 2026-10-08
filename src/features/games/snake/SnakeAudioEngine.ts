@@ -215,51 +215,105 @@ class SnakeAudioEngineClass {
     }
   }
 
+  // Biến đếm combo ăn mồi liên tục
+  private lastNomTime = 0
+  private nomComboCount = 0
+
+  // Quản lý âm thanh lướt nhanh (Boost Woosh)
+  private isBoostingAudio = false
+  private boostNoiseNode: AudioBufferSourceNode | null = null
+  private boostGainNode: GainNode | null = null
+  private boostFilterNode: BiquadFilterNode | null = null
+  private lastBushRustleTime = 0
+
   // ── HIỆU ỨNG ÂM THANH (SFX) ──
 
-  // 1. Ăn đồ thường (+điểm nhẹ nhàng: tiếng pop giòn tan)
+  // 1. Ăn đồ thường (+điểm giòn tan, có pitch shifting combo tăng dần cực vui tai)
   public playNom() {
     if (!this.settings.sfxEnabled) return
     this.initContext()
     if (!this.ctx || !this.sfxGain) return
     try {
       const now = this.ctx.currentTime
+
+      // Tính combo ăn mồi liên tiếp trong 1.2s
+      if (now - this.lastNomTime < 1.2) {
+        this.nomComboCount = Math.min(14, this.nomComboCount + 1)
+      } else {
+        this.nomComboCount = 0
+      }
+      this.lastNomTime = now
+
+      // Tần số cơ sở nâng dần theo combo (chromatic scale) + biến điệu ngẫu nhiên
+      const comboMult = Math.pow(1.05946, this.nomComboCount % 12)
+      const baseFreq = 440 * comboMult * (0.97 + Math.random() * 0.06)
+
+      // Lớp 1: Tiếng Bubble Pop ấm áp
       const osc = this.ctx.createOscillator()
       const gain = this.ctx.createGain()
       osc.type = 'triangle'
-      osc.frequency.setValueAtTime(450, now)
-      osc.frequency.exponentialRampToValueAtTime(750, now + 0.08)
-      gain.gain.setValueAtTime(0.18, now)
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.08)
+      osc.frequency.setValueAtTime(baseFreq, now)
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.6, now + 0.075)
+
+      gain.gain.setValueAtTime(0.22, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+
       osc.connect(gain)
       gain.connect(this.sfxGain)
       osc.start(now)
-      osc.stop(now + 0.08)
+      osc.stop(now + 0.085)
+
+      // Lớp 2: Tiếng Ping cao lấp lánh (Sparkle chime)
+      const chimeOsc = this.ctx.createOscillator()
+      const chimeGain = this.ctx.createGain()
+      chimeOsc.type = 'sine'
+      chimeOsc.frequency.setValueAtTime(baseFreq * 2.5, now)
+      chimeGain.gain.setValueAtTime(0.08, now)
+      chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+
+      chimeOsc.connect(chimeGain)
+      chimeGain.connect(this.sfxGain)
+      chimeOsc.start(now)
+      chimeOsc.stop(now + 0.13)
     } catch {}
   }
 
-  // 2. Ăn đồ xịn (+nhiều điểm, nở lớn nhanh: hợp âm chuông reo vàng óng)
+  // 2. Ăn đồ xịn (+nhiều điểm, bánh kem to / ngọc bảo: hợp âm chuông vàng óng arpeggio)
   public playSuperNom() {
     if (!this.settings.sfxEnabled) return
     this.initContext()
     if (!this.ctx || !this.sfxGain) return
     try {
       const now = this.ctx.currentTime
-      const notes = [523.25, 659.25, 783.99, 1046.50] // C5, E5, G5, C6 Arpeggio
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51] // C5, E5, G5, C6, E6
       notes.forEach((freq, idx) => {
         if (!this.ctx || !this.sfxGain) return
-        const startTime = now + idx * 0.04
+        const startTime = now + idx * 0.035
         const osc = this.ctx.createOscillator()
         const gain = this.ctx.createGain()
         osc.type = 'sine'
         osc.frequency.setValueAtTime(freq, startTime)
-        gain.gain.setValueAtTime(0.16, startTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22)
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.05, startTime + 0.22)
+        gain.gain.setValueAtTime(0.18, startTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.26)
         osc.connect(gain)
         gain.connect(this.sfxGain)
         osc.start(startTime)
-        osc.stop(startTime + 0.22)
+        osc.stop(startTime + 0.27)
       })
+
+      // Tiếng pop giòn kèm theo
+      const popOsc = this.ctx.createOscillator()
+      const popGain = this.ctx.createGain()
+      popOsc.type = 'triangle'
+      popOsc.frequency.setValueAtTime(380, now)
+      popOsc.frequency.exponentialRampToValueAtTime(880, now + 0.1)
+      popGain.gain.setValueAtTime(0.24, now)
+      popGain.gain.linearRampToValueAtTime(0.001, now + 0.11)
+      popOsc.connect(popGain)
+      popGain.connect(this.sfxGain)
+      popOsc.start(now)
+      popOsc.stop(now + 0.12)
     } catch {}
   }
 
@@ -273,14 +327,14 @@ class SnakeAudioEngineClass {
       const osc = this.ctx.createOscillator()
       const gain = this.ctx.createGain()
       osc.type = 'sawtooth'
-      osc.frequency.setValueAtTime(320, now)
-      osc.frequency.exponentialRampToValueAtTime(110, now + 0.18)
-      gain.gain.setValueAtTime(0.20, now)
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.18)
+      osc.frequency.setValueAtTime(340, now)
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.22)
+      gain.gain.setValueAtTime(0.22, now)
+      gain.gain.linearRampToValueAtTime(0.001, now + 0.22)
       osc.connect(gain)
       gain.connect(this.sfxGain)
       osc.start(now)
-      osc.stop(now + 0.18)
+      osc.stop(now + 0.23)
     } catch {}
   }
 
@@ -306,24 +360,65 @@ class SnakeAudioEngineClass {
     } catch {}
   }
 
-  // 5. Va chạm / Game over
+  // 5. Va chạm chết / Nổ tan xác thành kẹo bánh (Impact boom + Shatter debris)
   public playCrash() {
     if (!this.settings.sfxEnabled) return
     this.initContext()
     if (!this.ctx || !this.sfxGain) return
     try {
       const now = this.ctx.currentTime
-      const osc = this.ctx.createOscillator()
-      const gain = this.ctx.createGain()
-      osc.type = 'sawtooth'
-      osc.frequency.setValueAtTime(180, now)
-      osc.frequency.linearRampToValueAtTime(40, now + 0.40)
-      gain.gain.setValueAtTime(0.28, now)
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.40)
-      osc.connect(gain)
-      gain.connect(this.sfxGain)
-      osc.start(now)
-      osc.stop(now + 0.40)
+
+      // Lớp 1: Sub-bass Punch boom trầm vang
+      const bassOsc = this.ctx.createOscillator()
+      const bassGain = this.ctx.createGain()
+      bassOsc.type = 'sine'
+      bassOsc.frequency.setValueAtTime(130, now)
+      bassOsc.frequency.exponentialRampToValueAtTime(32, now + 0.45)
+      bassGain.gain.setValueAtTime(0.40, now)
+      bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45)
+      bassOsc.connect(bassGain)
+      bassGain.connect(this.sfxGain)
+      bassOsc.start(now)
+      bassOsc.stop(now + 0.46)
+
+      // Lớp 2: Tiếng nứt vỡ va chạm (Shatter noise burst)
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.3)
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.22))
+      }
+      const noise = this.ctx.createBufferSource()
+      noise.buffer = buffer
+
+      const filter = this.ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.setValueAtTime(900, now)
+      filter.frequency.exponentialRampToValueAtTime(250, now + 0.3)
+      filter.Q.value = 1.2
+
+      const noiseGain = this.ctx.createGain()
+      noiseGain.gain.setValueAtTime(0.32, now)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+
+      noise.connect(filter)
+      filter.connect(noiseGain)
+      noiseGain.connect(this.sfxGain)
+      noise.start(now)
+      noise.stop(now + 0.36)
+
+      // Lớp 3: Sawtooth gãy khúc trượt
+      const crashOsc = this.ctx.createOscillator()
+      const crashGain = this.ctx.createGain()
+      crashOsc.type = 'sawtooth'
+      crashOsc.frequency.setValueAtTime(220, now)
+      crashOsc.frequency.linearRampToValueAtTime(45, now + 0.35)
+      crashGain.gain.setValueAtTime(0.22, now)
+      crashGain.gain.linearRampToValueAtTime(0.001, now + 0.36)
+      crashOsc.connect(crashGain)
+      crashGain.connect(this.sfxGain)
+      crashOsc.start(now)
+      crashOsc.stop(now + 0.37)
     } catch {}
   }
 
@@ -349,6 +444,125 @@ class SnakeAudioEngineClass {
         osc.start(startTime)
         osc.stop(startTime + 0.36)
       })
+    } catch {}
+  }
+
+  // 7. Lướt nhanh tăng tốc (Boost Woosh Wind - âm thanh phản lực xé gió siêu tốc)
+  public updateBoost(isBoosting: boolean) {
+    if (!this.settings.sfxEnabled) {
+      if (this.isBoostingAudio) this.stopBoostSound()
+      return
+    }
+    if (isBoosting) {
+      if (!this.isBoostingAudio) this.startBoostSound()
+    } else {
+      if (this.isBoostingAudio) this.stopBoostSound()
+    }
+  }
+
+  private startBoostSound() {
+    this.initContext()
+    if (!this.ctx || !this.sfxGain) return
+    try {
+      this.isBoostingAudio = true
+      const now = this.ctx.currentTime
+
+      // Buffer white noise lặp tuần hoàn 1s
+      const bufferSize = this.ctx.sampleRate
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1)
+      }
+
+      const noiseSource = this.ctx.createBufferSource()
+      noiseSource.buffer = buffer
+      noiseSource.loop = true
+
+      // Bandpass filter tạo tiếng gió xé rít
+      const filter = this.ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.setValueAtTime(650, now)
+      filter.frequency.linearRampToValueAtTime(1450, now + 0.25)
+      filter.Q.value = 1.8
+
+      const gain = this.ctx.createGain()
+      gain.gain.setValueAtTime(0.001, now)
+      gain.gain.linearRampToValueAtTime(0.12, now + 0.12)
+
+      noiseSource.connect(filter)
+      filter.connect(gain)
+      gain.connect(this.sfxGain)
+
+      noiseSource.start(now)
+
+      this.boostNoiseNode = noiseSource
+      this.boostGainNode = gain
+      this.boostFilterNode = filter
+    } catch {}
+  }
+
+  private stopBoostSound() {
+    this.isBoostingAudio = false
+    if (!this.ctx || !this.boostGainNode) return
+    try {
+      const now = this.ctx.currentTime
+      this.boostGainNode.gain.linearRampToValueAtTime(0.001, now + 0.15)
+      const oldSource = this.boostNoiseNode
+      const oldFilter = this.boostFilterNode
+      setTimeout(() => {
+        try {
+          oldSource?.stop()
+          oldSource?.disconnect()
+          oldFilter?.disconnect()
+        } catch {}
+      }, 160)
+      this.boostNoiseNode = null
+      this.boostGainNode = null
+      this.boostFilterNode = null
+    } catch {}
+  }
+
+  // 8. Chui vào bụi rậm (Foliage Rustle: tiếng xào xạc lá cây sột soạt êm ái)
+  public playBushRustle() {
+    if (!this.settings.sfxEnabled) return
+    this.initContext()
+    if (!this.ctx || !this.sfxGain) return
+
+    const now = this.ctx.currentTime
+    if (now - this.lastBushRustleTime < 0.35) return // Chống spam lặp liên tục
+    this.lastBushRustleTime = now
+
+    try {
+      // 2 nhịp xào xạc lá cây
+      for (let step = 0; step < 2; step++) {
+        const startTime = now + step * 0.08
+        const dur = 0.14
+        const bufferSize = Math.floor(this.ctx.sampleRate * dur)
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate)
+        const data = buffer.getChannelData(0)
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI)
+        }
+
+        const noise = this.ctx.createBufferSource()
+        noise.buffer = buffer
+
+        const hp = this.ctx.createBiquadFilter()
+        hp.type = 'highpass'
+        hp.frequency.setValueAtTime(1800 + step * 400, startTime)
+
+        const gain = this.ctx.createGain()
+        gain.gain.setValueAtTime(0.09, startTime)
+        gain.gain.linearRampToValueAtTime(0.001, startTime + dur)
+
+        noise.connect(hp)
+        hp.connect(gain)
+        gain.connect(this.sfxGain)
+
+        noise.start(startTime)
+        noise.stop(startTime + dur)
+      }
     } catch {}
   }
 }

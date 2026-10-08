@@ -1815,6 +1815,15 @@ app.post('/api/game/create', async (c) => {
     isPrivate?: boolean
     password?: string
     soPhong?: number
+    isTournament?: boolean
+  }
+
+  const isTournament = Boolean(body.isTournament)
+  if (isTournament) {
+    const laAdmin = Boolean(kq.taiKhoan.laAdminTruong || kq.taiKhoan.role === 'admin')
+    if (!laAdmin) {
+      return loi('Chỉ tài khoản admin quản trị viên mới có quyền tạo phòng giải đấu.', 403)
+    }
   }
 
   const gameType: GameType = body.gameType || 'chess'
@@ -1850,6 +1859,7 @@ app.post('/api/game/create', async (c) => {
         hostName,
         roomName: body.tieuDe?.trim() || undefined,
         soPhong,
+        isTournament,
       }),
     }),
   )
@@ -1865,6 +1875,7 @@ app.post('/api/game/create', async (c) => {
     soPhong,
     isPrivate,
     password: cleanPw || undefined,
+    isTournament,
   })
 })
 

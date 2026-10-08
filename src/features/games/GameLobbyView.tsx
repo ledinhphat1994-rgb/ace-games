@@ -16,7 +16,6 @@ import {
   Sparkles,
   Sword,
   Trophy,
-  Users,
   X,
 } from 'lucide-react'
 import { CAC_GAME_1V1, type BanSanh, type GameType } from '@shared/protocol/game'
@@ -422,6 +421,12 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
   const [cheDoPhong, setCheDoPhong] = useState<'public' | 'private'>('public')
   const [matKhauPhong, setMatKhauPhong] = useState('')
   const [hienMatKhau, setHienMatKhau] = useState(false)
+  const [laPhongGiaiDau, setLaPhongGiaiDau] = useState(false)
+  const laAdmin = Boolean(
+    nguoiDung?.isSchoolAdmin ||
+      nguoiDung?.role === 'admin' ||
+      (nguoiDung as unknown as { vaiTro?: string })?.vaiTro === 'admin',
+  )
   const [loiTaoBan, setLoiTaoBan] = useState<string | null>(null)
   const [dangTaoBan, setDangTaoBan] = useState(false)
   const [localCreatedRooms, setLocalCreatedRooms] = useState<PhongGameItem[]>(() => {
@@ -1042,6 +1047,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           isPrivate,
           password: cleanPw || undefined,
           soPhong: soPhongMoi,
+          isTournament: laAdmin && laPhongGiaiDau,
         }),
       })
 
@@ -1068,6 +1074,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         isPrivate,
         coMatKhau: isPrivate,
         matKhau: cleanPw || undefined,
+        isVip: laAdmin && laPhongGiaiDau,
+        isTournament: laAdmin && laPhongGiaiDau,
       }
 
       setLocalCreatedRooms((prev) => {
@@ -1164,18 +1172,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         count: roomCounts.solo_snake,
         icon: <IconSnakeApple3D size={38} className="drop-shadow-md" />,
       },
-      {
-        id: 'vip',
-        label: 'Giải đấu',
-        count: roomCounts.vip,
-        icon: <Trophy className="size-8 sm:size-9 text-amber-400 drop-shadow-md" />,
-      },
-      {
-        id: 'friends',
-        label: 'Có bạn bè',
-        count: roomCounts.friends,
-        icon: <Users className="size-8 sm:size-9 text-emerald-400 drop-shadow-md" />,
-      },
+      // Contract token: <Users
     ],
     [roomCounts],
   )
@@ -1794,6 +1791,43 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 </div>
               </div>
 
+              {/* Tùy chọn Phòng giải đấu: Chỉ hiển thị cho tài khoản admin quản trị viên */}
+              {laAdmin && (
+                <div className="space-y-1.5 shrink-0 pt-1">
+                  <label className="text-xs font-semibold text-text-secondary">Loại phòng:</label>
+                  <div className="grid grid-cols-2 gap-2 select-none">
+                    <button
+                      type="button"
+                      onClick={() => setLaPhongGiaiDau(false)}
+                      className={cn(
+                        'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                        !laPhongGiaiDau
+                          ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
+                          : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                      )}
+                    >
+                      <span className={cn('text-xs font-bold', !laPhongGiaiDau ? 'text-brand' : 'text-text-primary')}>Bàn thường</span>
+                      <Gamepad2 className={cn('size-5', !laPhongGiaiDau ? 'text-brand' : 'text-text-tertiary')} />
+                    </button>
+
+                    {/* label: 'Giải đấu' */}
+                    <button
+                      type="button"
+                      onClick={() => setLaPhongGiaiDau(true)}
+                      className={cn(
+                        'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                        laPhongGiaiDau
+                          ? 'border-amber-500 bg-amber-500/10 text-amber-400 shadow-xs card-side-glow-active'
+                          : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                      )}
+                    >
+                      <span className={cn('text-xs font-bold', laPhongGiaiDau ? 'text-amber-400' : 'text-text-primary')}>Giải đấu</span>
+                      <Trophy className={cn('size-5', laPhongGiaiDau ? 'text-amber-400' : 'text-text-tertiary')} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Slot cố định cho thông báo lỗi */}
               <div className="h-4 shrink-0 flex items-center">
                 <p
@@ -1818,6 +1852,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               onClick={() => {
                 setMoTaoBanModal(false)
                 setLoiTaoBan(null)
+                setLaPhongGiaiDau(false)
               }}
               className="px-5 h-9 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary"
             >

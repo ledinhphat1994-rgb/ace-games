@@ -878,6 +878,10 @@ export function CaroBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
+                  if (banOnline && !banOnline.mySide) {
+                    banOnline.joinGame('O')
+                    return
+                  }
                   if (onInvite) onInvite()
                   else {
                     try {
@@ -918,7 +922,9 @@ export function CaroBoard({
               )}
               title={
                 !hasOpponent
-                  ? 'Chạm để mời bạn bè'
+                  ? banOnline && !banOnline.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : mode === 'ai'
                     ? `AI Cấp ${opponentLevel}`
                     : opponentName
@@ -1411,6 +1417,10 @@ export function CaroBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
+                  if (banOnline && !banOnline.mySide) {
+                    banOnline.joinGame('O')
+                    return
+                  }
                   if (onInvite) {
                     onInvite()
                   } else {
@@ -1452,14 +1462,18 @@ export function CaroBoard({
               )}
               title={
                 !hasOpponent
-                  ? 'Đang chờ đối thủ vào bàn - Bấm để mời hoặc sao chép liên kết'
+                  ? banOnline && !banOnline.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : mode === 'ai'
                     ? `Caro Master AI · Cấp ${opponentLevel} · Elo ${opponentElo}`
-                    : `${opponentName} (Elo ${opponentElo}) - Bấm để xem hồ sơ kỳ thủ`
+                    : `${opponentName} (Elo ${opponentElo})`
               }
               aria-label={
                 !hasOpponent
-                  ? 'Mời người chơi'
+                  ? banOnline && !banOnline.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : mode === 'ai'
                     ? 'Thông tin AI'
                     : `${opponentName} - Hồ sơ kỳ thủ`

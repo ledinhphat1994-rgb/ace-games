@@ -194,4 +194,5 @@ export interface BanSanh {
   capNhatLuc: number
   isPrivate?: boolean
   coMatKhau?: boolean
+  isTournament?: boolean
 }

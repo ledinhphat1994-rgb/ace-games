@@ -1152,6 +1152,10 @@ export function ChessBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
+                  if (online && !online.mySide) {
+                    online.joinGame('O')
+                    return
+                  }
                   if (onInvite) {
                     onInvite()
                   } else {
@@ -1191,7 +1195,7 @@ export function ChessBoard({
                     ? 'border-amber-400 ring-2 ring-amber-400/30'
                     : 'border-white/15 bg-[#121620]'
               )}
-              title={hasOpponent ? opponentName : 'Mời người chơi'}
+              title={hasOpponent ? opponentName : online && !online.mySide ? 'Tham gia' : 'Mời bạn bè'}
             >
               {hasOpponent ? (
                 <AnhNguoiDung ten={opponentName} avatar={opponentAvatarUrl} className="size-full rounded-full pointer-events-none" />
@@ -1591,6 +1595,10 @@ export function ChessBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
+                  if (online && !online.mySide) {
+                    online.joinGame('O')
+                    return
+                  }
                   if (onInvite) {
                     onInvite()
                   } else {
@@ -1632,14 +1640,18 @@ export function ChessBoard({
               )}
               title={
                 !hasOpponent
-                  ? 'Đang chờ đối thủ vào bàn - Bấm để mời hoặc sao chép liên kết'
+                  ? online && !online.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : mode === 'ai'
                     ? `Stockfish AI · Cấp ${opponentLevel} · Elo ${opponentElo}`
-                    : `${opponentName} (Elo ${opponentElo}) - Bấm để xem hồ sơ kỳ thủ`
+                    : `${opponentName} (Elo ${opponentElo})`
               }
               aria-label={
                 !hasOpponent
-                  ? 'Mời người chơi'
+                  ? online && !online.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : mode === 'ai'
                     ? 'Thông tin AI'
                     : `${opponentName} - Hồ sơ kỳ thủ`

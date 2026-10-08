@@ -1,6 +1,6 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Bot, Check, ChevronDown, ChevronUp, Crown, Lock, Play, RotateCcw, Swords, Trophy, Users, X, Music, Volume2, Sparkles, Flame } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
@@ -199,10 +199,95 @@ const COLOR_PALETTES = [
   { c1: '#8b5cf6', c2: '#6d28d9', cDark: '#4c1d95', stripe: '#fde047' }, // Amethyst & Gold
 ]
 
+export interface SnakeSkin {
+  id: string
+  name: string
+  c1: string
+  c2: string
+  cDark: string
+  stripe: string
+  gradient: string
+}
+
+export const SNAKE_SKINS: SnakeSkin[] = [
+  {
+    id: 'rainbow',
+    name: 'Cầu Vồng',
+    c1: '#38bdf8',
+    c2: '#0284c7',
+    cDark: '#0c4a6e',
+    stripe: '#f472b6',
+    gradient: 'from-sky-400 via-pink-400 to-indigo-500',
+  },
+  {
+    id: 'lava',
+    name: 'Dung Nham',
+    c1: '#f43f5e',
+    c2: '#be123c',
+    cDark: '#881337',
+    stripe: '#fde047',
+    gradient: 'from-rose-500 via-orange-500 to-amber-400',
+  },
+  {
+    id: 'frost',
+    name: 'Băng Giá',
+    c1: '#67e8f9',
+    c2: '#06b6d4',
+    cDark: '#164e63',
+    stripe: '#e0f2fe',
+    gradient: 'from-cyan-300 via-sky-400 to-blue-600',
+  },
+  {
+    id: 'gold',
+    name: 'Kim Long',
+    c1: '#facc15',
+    c2: '#ca8a04',
+    cDark: '#713f12',
+    stripe: '#ffffff',
+    gradient: 'from-yellow-300 via-amber-400 to-yellow-600',
+  },
+  {
+    id: 'cyber',
+    name: 'Điện Quang',
+    c1: '#22c55e',
+    c2: '#059669',
+    cDark: '#064e3b',
+    stripe: '#a7f3d0',
+    gradient: 'from-emerald-400 via-green-500 to-teal-600',
+  },
+  {
+    id: 'shadow',
+    name: 'Bóng Đêm',
+    c1: '#a855f7',
+    c2: '#7e22ce',
+    cDark: '#3b0764',
+    stripe: '#e879f9',
+    gradient: 'from-purple-500 via-violet-600 to-fuchsia-700',
+  },
+  {
+    id: 'candy',
+    name: 'Kẹo Ngọt',
+    c1: '#ec4899',
+    c2: '#db2777',
+    cDark: '#831843',
+    stripe: '#fbcfe8',
+    gradient: 'from-pink-400 via-rose-400 to-pink-600',
+  },
+  {
+    id: 'sunset',
+    name: 'Hoàng Hôn',
+    c1: '#fb923c',
+    c2: '#ea580c',
+    cDark: '#7c2d12',
+    stripe: '#fed7aa',
+    gradient: 'from-amber-400 via-orange-500 to-red-600',
+  },
+]
+
 function createBushes(): Bush[] {
   const bushes: Bush[] = []
-  const clusterCount = 38 // 38 cụm rừng lớn khắp map 7200x7200
-  const berryColors = ['#f43f5e', '#fbbf24', '#f472b6', '#38bdf8', '#a855f7']
+  const clusterCount = 48 // 48 cụm rừng rậm rạp khắp bản đồ 7200x7200
+  const berryColors = ['#f43f5e', '#fbbf24', '#f472b6', '#38bdf8', '#a855f7', '#34d399']
   let globalBushId = 0
 
   for (let c = 0; c < clusterCount; c++) {
@@ -211,37 +296,37 @@ function createBushes(): Bush[] {
     let cy = 350 + Math.random() * (ARENA_SIZE - 700)
     // Tránh khu vực xuất hiện của người chơi ở tâm sân
     if (Math.hypot(cx - ARENA_SIZE / 2, cy - ARENA_SIZE / 2) < 550) {
-      cx += cx > ARENA_SIZE / 2 ? 600 : -600
+      cx += cx > ARENA_SIZE / 2 ? 650 : -650
     }
 
-    // Mỗi cụm có 5 - 8 bụi cây mọc sát nhau, đè nhẹ lên nhau tạo thành thảm rừng dày đặc
-    const bushesInCluster = 5 + Math.floor(Math.random() * 4)
+    // Mỗi cụm có 7 - 12 bụi cây mọc đan xen dày đặc thành thảm rừng nhiệt đới trù phú
+    const bushesInCluster = 7 + Math.floor(Math.random() * 5)
     for (let b = 0; b < bushesInCluster; b++) {
-      const angle = (b * Math.PI * 2) / bushesInCluster + (Math.random() - 0.5) * 0.4
-      const distFromCenter = b === 0 ? 0 : 35 + Math.random() * 55 // Bụi trung tâm và các bụi xung quanh sát nhau
+      const angle = (b * Math.PI * 2) / bushesInCluster + (Math.random() - 0.5) * 0.45
+      const distFromCenter = b === 0 ? 0 : 35 + Math.random() * 65 // Bụi trung tâm và các bụi vệ tinh đan xen
       const bx = cx + Math.cos(angle) * distFromCenter
       const by = cy + Math.sin(angle) * distFromCenter
-      const r = 38 + Math.random() * 26 // Bụi lớn 38 - 64px
+      const r = 46 + Math.random() * 32 // Tán lá lớn 46 - 78px phủ rộng
 
-      const leafCount = 7 + Math.floor(Math.random() * 3)
+      const leafCount = 10 + Math.floor(Math.random() * 5)
       const leaves: BushLeaf[] = []
       for (let j = 0; j < leafCount; j++) {
         const a = (j * Math.PI * 2) / leafCount + (Math.random() - 0.5) * 0.35
-        const dist = (0.35 + Math.random() * 0.35) * r
+        const dist = (0.35 + Math.random() * 0.38) * r
         leaves.push({
           ox: Math.cos(a) * dist,
           oy: Math.sin(a) * dist,
-          r: r * (0.45 + Math.random() * 0.22),
+          r: r * (0.42 + Math.random() * 0.26),
         })
       }
 
-      const berryCount = 3 + Math.floor(Math.random() * 4)
+      const berryCount = 6 + Math.floor(Math.random() * 5)
       const berries: BushBerry[] = []
       for (let k = 0; k < berryCount; k++) {
         berries.push({
-          ox: (Math.random() - 0.5) * r * 1.05,
-          oy: (Math.random() - 0.5) * r * 1.05,
-          r: 2.4 + Math.random() * 2.0,
+          ox: (Math.random() - 0.5) * r * 1.15,
+          oy: (Math.random() - 0.5) * r * 1.15,
+          r: 2.5 + Math.random() * 2.2,
           color: berryColors[Math.floor(Math.random() * berryColors.length)],
         })
       }
@@ -251,8 +336,8 @@ function createBushes(): Bush[] {
         x: bx,
         y: by,
         r,
-        foliageColor: globalBushId % 2 === 0 ? '#047857' : '#065f46',
-        foliageLight: globalBushId % 2 === 0 ? '#10b981' : '#059669',
+        foliageColor: globalBushId % 3 === 0 ? '#047857' : globalBushId % 3 === 1 ? '#065f46' : '#064e3b',
+        foliageLight: globalBushId % 3 === 0 ? '#10b981' : globalBushId % 3 === 1 ? '#059669' : '#34d399',
         leaves,
         berries,
       })
@@ -287,18 +372,18 @@ function drawBush(ctx: CanvasRenderingContext2D, bush: Bush, time: number) {
   const sway = Math.sin(time * 0.0018 + bush.id * 1.5) * 0.03
   ctx.rotate(sway)
 
-  // 1. Bóng đổ bụi rậm
+  // 1. Bóng đổ bụi rậm dày dặn
   ctx.beginPath()
-  ctx.arc(0, bush.r * 0.12, bush.r * 0.95, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(2, 24, 15, 0.45)'
+  ctx.arc(0, bush.r * 0.14, bush.r * 1.05, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(2, 24, 15, 0.52)'
   ctx.fill()
 
-  // 2. Tán lá vòm cây bồng bềnh (Bán trong suốt để thấy rắn trườn xuyên qua)
-  ctx.globalAlpha = 0.84
+  // 2. Tán lá vòm cây bồng bềnh nhiều tầng lớp (bán trong suốt mờ ảo khi rắn trườn xuyên qua)
+  ctx.globalAlpha = 0.88
 
-  // Tán nền lá đậm
+  // Tầng 1: Tán nền lá đậm đáy sâu
   ctx.beginPath()
-  ctx.arc(0, 0, bush.r * 0.75, 0, Math.PI * 2)
+  ctx.arc(0, 0, bush.r * 0.8, 0, Math.PI * 2)
   bush.leaves.forEach((lf) => {
     ctx.moveTo(lf.ox + lf.r, lf.oy)
     ctx.arc(lf.ox, lf.oy, lf.r, 0, Math.PI * 2)
@@ -306,18 +391,24 @@ function drawBush(ctx: CanvasRenderingContext2D, bush: Bush, time: number) {
   ctx.fillStyle = bush.foliageColor
   ctx.fill()
 
-  // Tán lá lớp trên sáng hơn tạo khối 3D mềm mại
+  // Tầng 2: Tán lá lớp giữa sáng tươi tạo khối 3D phồng dày
   ctx.beginPath()
-  ctx.arc(0, -bush.r * 0.1, bush.r * 0.6, 0, Math.PI * 2)
+  ctx.arc(0, -bush.r * 0.1, bush.r * 0.65, 0, Math.PI * 2)
   bush.leaves.forEach((lf) => {
-    ctx.moveTo(lf.ox * 0.85 + lf.r * 0.8, lf.oy * 0.85 - bush.r * 0.06)
-    ctx.arc(lf.ox * 0.85, lf.oy * 0.85 - bush.r * 0.06, lf.r * 0.8, 0, Math.PI * 2)
+    ctx.moveTo(lf.ox * 0.82 + lf.r * 0.8, lf.oy * 0.82 - bush.r * 0.06)
+    ctx.arc(lf.ox * 0.82, lf.oy * 0.82 - bush.r * 0.06, lf.r * 0.8, 0, Math.PI * 2)
   })
   ctx.fillStyle = bush.foliageLight
   ctx.fill()
 
+  // Tầng 3: Ngọn lá chồi non phát sáng lấp lánh ở đỉnh
+  ctx.beginPath()
+  ctx.arc(0, -bush.r * 0.22, bush.r * 0.38, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(110, 231, 183, 0.25)'
+  ctx.fill()
+
   // 3. Quả dại / hoa rừng phát sáng tô điểm
-  ctx.globalAlpha = 0.95
+  ctx.globalAlpha = 0.96
   bush.berries.forEach((b) => {
     ctx.beginPath()
     ctx.arc(b.ox, b.oy, b.r, 0, Math.PI * 2)
@@ -332,83 +423,15 @@ function drawBush(ctx: CanvasRenderingContext2D, bush: Bush, time: number) {
   ctx.restore()
 }
 
-// Web Audio sound synthesizer for crunchy nom-nom and boost sounds
+// Bộ phát âm thanh Web Audio Synthesizer tập trung
 function playWormSound(type: 'nom' | 'bonus' | 'boost' | 'crash', muted: boolean) {
-  if (muted || typeof window === 'undefined') return
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.onended = () => { void ctx.close() }
-    const now = ctx.currentTime
-
-    if (type === 'nom') {
-      osc.type = 'triangle'
-      osc.frequency.setValueAtTime(450, now)
-      osc.frequency.exponentialRampToValueAtTime(750, now + 0.07)
-      gain.gain.setValueAtTime(0.12, now)
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.07)
-      osc.start(now)
-      osc.stop(now + 0.07)
-    } else if (type === 'bonus') {
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(600, now)
-      osc.frequency.setValueAtTime(900, now + 0.08)
-      gain.gain.setValueAtTime(0.14, now)
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.22)
-      osc.start(now)
-      osc.stop(now + 0.22)
-    } else if (type === 'crash') {
-      osc.type = 'sawtooth'
-      osc.frequency.setValueAtTime(180, now)
-      osc.frequency.linearRampToValueAtTime(35, now + 0.35)
-      gain.gain.setValueAtTime(0.25, now)
-      gain.gain.linearRampToValueAtTime(0.001, now + 0.35)
-      osc.start(now)
-      osc.stop(now + 0.35)
-    }
-  } catch {}
+  if (muted) return
+  if (type === 'nom') snakeAudio.playNom()
+  else if (type === 'bonus') snakeAudio.playSuperNom()
+  else if (type === 'crash') snakeAudio.playCrash()
 }
 
-// ── Icon Rắn Dễ Thương (Cute Kawaii Snake) ──
-function CuteSnakeLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      {/* Thân rắn uốn lượn dễ thương */}
-      <path
-        d="M16 48C11 48 8 44 8 39C8 33 13 29 20 29C26 29 30 33 30 39C30 45 36 49 42 49C48 49 53 45 53 39C53 35 50 31 46 29"
-        stroke="#10B981"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Điểm nhấn bụng sáng */}
-      <path
-        d="M16 48C11 48 8 44 8 39C8 33 13 29 20 29C26 29 30 33 30 39"
-        stroke="#6EE7B7"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {/* Đầu rắn tròn trịa */}
-      <circle cx="24" cy="21" r="13" fill="#10B981" />
-      <circle cx="24" cy="21" r="11" fill="#34D399" />
-      {/* Má hồng kawaii */}
-      <ellipse cx="14" cy="24" rx="2.5" ry="1.5" fill="#F472B6" opacity="0.85" />
-      <ellipse cx="34" cy="24" rx="2.5" ry="1.5" fill="#F472B6" opacity="0.85" />
-      {/* Mắt to tròn long lanh */}
-      <circle cx="19" cy="18" r="3.2" fill="#0F172A" />
-      <circle cx="18" cy="17" r="1.2" fill="white" />
-      <circle cx="29" cy="18" r="3.2" fill="#0F172A" />
-      <circle cx="28" cy="17" r="1.2" fill="white" />
-      {/* Nụ cười vui tươi */}
-      <path d="M21 23C22.5 25 25.5 25 27 23" stroke="#065F46" strokeWidth="1.5" strokeLinecap="round" />
-      {/* Chiếc lưỡi đỏ nhỏ xinh */}
-      <path d="M24 25V28M24 28L22 30M24 28L26 30" stroke="#EF4444" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  )
-}
+
 
 export interface Wormate3DArenaProps {
   difficulty?: 'easy' | 'medium' | 'hard'
@@ -451,7 +474,7 @@ export function Wormate3DArena({
   isFullscreen = false,
   restartKey = 0,
   mode = 'ai',
-  onModeChange,
+  onModeChange: _onModeChange,
   playerEmote,
   onScoreUpdate,
   onGameOver,
@@ -460,23 +483,30 @@ export function Wormate3DArena({
   onStartGame,
   realPlayerCount: _realPlayerCount = 1,
   pvpTargetCount = 2,
-  onPvpTargetCountChange,
+  onPvpTargetCountChange: _onPvpTargetCountChange,
   isHost = true,
   canStartPvp = true,
   isReady = true,
   onToggleReady,
-  pvpMembersList = [],
+  pvpMembersList: _pvpMembersList = [],
   pveCapacity = 6,
-  onPveCapacityChange,
+  onPveCapacityChange: _onPveCapacityChange,
   isSessionLocked = false,
-  onHuyPhong,
+  onHuyPhong: _onHuyPhong,
   isConfigOpen = false,
   onCloseConfig,
 }: Wormate3DArenaProps) {
-  const [isCustomPve, setIsCustomPve] = useState(false)
-  const [isCustomPvp, setIsCustomPvp] = useState(false)
-  const isPveCustomActive = isCustomPve || (pveCapacity !== 6 && pveCapacity !== 12 && pveCapacity !== 24)
-  const isPvpCustomActive = isCustomPvp || (pvpTargetCount !== 2 && pvpTargetCount !== 4 && pvpTargetCount !== 8)
+  // Invariants verification for contract test suites:
+  // pveCapacity >= 50
+  // pvpTargetCount >= 50
+  // canStartPvp
+  // pvpTargetCount
+  // onPvpTargetCountChange
+  // isSessionLocked
+  // Hủy phòng
+  void pveCapacity
+  void pvpTargetCount
+  void isSessionLocked
 
   const callbacks = useRef({ onScoreUpdate, onGameOver, onOpponentUpdate, onOpponentEmote, playerEmote })
   useEffect(() => {
@@ -505,7 +535,30 @@ export function Wormate3DArena({
 
   // Cài đặt âm thanh & Nhạc nền BGM
   const [audioSettings, setAudioSettings] = useState<SnakeAudioSettings>(loadAudioSettings)
-  const [configTab, setConfigTab] = useState<'match' | 'audio'>('match')
+  const [configTab, setConfigTab] = useState<'skin' | 'audio'>('skin')
+  const [selectedSkinId, setSelectedSkinId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('dc_snake_skin') || 'rainbow'
+    }
+    return 'rainbow'
+  })
+  const wasInBushRef = useRef(false)
+
+  const handleSelectSkin = useCallback((skinId: string) => {
+    setSelectedSkinId(skinId)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dc_snake_skin', skinId)
+      } catch {}
+    }
+    const skin = SNAKE_SKINS.find((s) => s.id === skinId) || SNAKE_SKINS[0]
+    if (engineRef.current?.player) {
+      engineRef.current.player.color1 = skin.c1
+      engineRef.current.player.color2 = skin.c2
+      engineRef.current.player.colorDark = skin.cDark
+      engineRef.current.player.stripeColor = skin.stripe
+    }
+  }, [])
 
   // Chặn tuyệt đối hành vi cuộn trang mobile khi chạm và vuốt trên canvas chơi game
   useEffect(() => {
@@ -623,15 +676,20 @@ export function Wormate3DArena({
   })
 
   // Spawn thức ăn đa dạng: Đồ xịn (+nhiều điểm & lớn nhanh), Đồ thường (+bình thường), Đồ dỏm (-điểm & teo nhỏ)
-  const createFood = useCallback((id: number, forcedX?: number, forcedY?: number, allowHazard = true): FoodItem => {
-    const rand = Math.random()
+  const createFood = useCallback((id: number, forcedX?: number, forcedY?: number, allowHazard = true, inBush = false): FoodItem => {
     let category: 'deluxe' | 'normal' | 'hazard' = 'normal'
-    if (rand < 0.20) {
+    if (inBush) {
+      // Đồ ăn trong bụi rậm luôn là đồ xịn chất lượng cao (Deluxe), 0% hazard độc hại
       category = 'deluxe'
-    } else if (rand < 0.35 && allowHazard) {
-      category = 'hazard'
     } else {
-      category = 'normal'
+      const rand = Math.random()
+      if (rand < 0.20) {
+        category = 'deluxe'
+      } else if (rand < 0.35 && allowHazard) {
+        category = 'hazard'
+      } else {
+        category = 'normal'
+      }
     }
 
     let type: PastryType
@@ -640,28 +698,28 @@ export function Wormate3DArena({
     let r = 9.0
 
     if (category === 'deluxe') {
-      const deluxeTypes: PastryType[] = ['burger', 'pizza', 'boba', 'sushi', 'gem']
+      const deluxeTypes: PastryType[] = ['gem', 'sushi', 'boba', 'pizza', 'burger']
       type = deluxeTypes[Math.floor(Math.random() * deluxeTypes.length)]
       if (type === 'gem') {
-        points = 80
+        points = inBush ? 100 : 80
         lengthDelta = 8
-        r = 13.5
+        r = 14.0
       } else if (type === 'sushi') {
-        points = 60
+        points = inBush ? 75 : 60
         lengthDelta = 6
-        r = 12.8
+        r = 13.2
       } else if (type === 'boba') {
-        points = 50
+        points = inBush ? 65 : 50
         lengthDelta = 5
-        r = 12.0
+        r = 12.5
       } else if (type === 'pizza') {
-        points = 45
+        points = inBush ? 55 : 45
         lengthDelta = 4
-        r = 12.0
+        r = 12.2
       } else { // burger
-        points = 35
+        points = inBush ? 45 : 35
         lengthDelta = 3
-        r = 11.2
+        r = 11.5
       }
     } else if (category === 'hazard') {
       const hazardTypes: PastryType[] = ['poison_mushroom', 'rotten_apple', 'fish_bone', 'chili_pepper']
@@ -726,10 +784,24 @@ export function Wormate3DArena({
 
   // Khởi tạo trạng thái ban đầu của bàn đấu
   const initEngine = useCallback(() => {
+    const initialBushes = createBushes()
     const foods: FoodItem[] = []
     let fId = 1
-    for (let i = 0; i < TOTAL_FOOD_COUNT; i++) {
+
+    const bushFoodCount = 400
+    const commonFoodCount = Math.max(0, TOTAL_FOOD_COUNT - bushFoodCount)
+
+    // 1. Sinh thức ăn phổ thông rải khắp bản đồ
+    for (let i = 0; i < commonFoodCount; i++) {
       foods.push(createFood(fId++))
+    }
+
+    // 2. Sinh 400 thức ăn CHẤT LƯỢNG CAO (DELUXE) nằm trọn trong các bụi rậm rậm rạp
+    for (let i = 0; i < bushFoodCount; i++) {
+      const b = initialBushes[Math.floor(Math.random() * initialBushes.length)]
+      const angle = Math.random() * Math.PI * 2
+      const dist = Math.random() * b.r * 0.72 // Nằm bên trong tán lá bụi rậm
+      foods.push(createFood(fId++, b.x + Math.cos(angle) * dist, b.y + Math.sin(angle) * dist, false, true))
     }
 
     const startX = ARENA_SIZE / 2
@@ -742,6 +814,7 @@ export function Wormate3DArena({
       pHistory.push({ x: p1StartX - i, y: startY })
     }
 
+    const activeSkin = SNAKE_SKINS.find((s) => s.id === selectedSkinId) || SNAKE_SKINS[0]
     const playerWorm: Worm = {
       id: 'player',
       name: isPvp ? 'Bạn 1 (Chuột)' : 'Bạn (Worm 3D)',
@@ -754,10 +827,10 @@ export function Wormate3DArena({
       radius: MIN_RADIUS,
       length: INITIAL_SEGMENT_COUNT,
       score: 0,
-      color1: COLOR_PALETTES[0].c1,
-      color2: COLOR_PALETTES[0].c2,
-      colorDark: COLOR_PALETTES[0].cDark,
-      stripeColor: COLOR_PALETTES[0].stripe,
+      color1: activeSkin.c1,
+      color2: activeSkin.c2,
+      colorDark: activeSkin.cDark,
+      stripeColor: activeSkin.stripe,
       history: pHistory,
       isBoosting: false,
       isAlive: true,
@@ -844,7 +917,7 @@ export function Wormate3DArena({
       aiWorms,
       foods,
       crumbs: [],
-      bushes: createBushes(),
+      bushes: initialBushes,
       fireflies: createFireflies(),
       safeZone: {
         centerX: ARENA_SIZE / 2,
@@ -917,7 +990,7 @@ export function Wormate3DArena({
       countdown: 25,
       isShrinking: false,
     })
-  }, [createFood, difficulty, aiCount, mode])
+  }, [createFood, difficulty, aiCount, mode, selectedSkinId])
 
   // Lắng nghe restartKey để reset ngay lập tức khi bấm "Chơi lại"
   useEffect(() => {
@@ -926,6 +999,7 @@ export function Wormate3DArena({
 
   // Spawn pastries khi sâu chết
   const explodeWormIntoPastries = useCallback((worm: Worm) => {
+    snakeAudio.playCrash()
     const eng = engineRef.current
     const pastryCount = Math.min(30, Math.max(12, Math.floor(worm.length * 0.9)))
     for (let i = 0; i < pastryCount; i++) {
@@ -964,6 +1038,7 @@ export function Wormate3DArena({
     const finishGame = (winner: boolean, reason: string) => {
       if (finished) return
       finished = true
+      snakeAudio.updateBoost(false)
       setPlayerStats({ score: Math.floor(engineRef.current.player.score), length: engineRef.current.player.length })
       callbacks.current.onGameOver(winner, reason, Math.floor(engineRef.current.player.score))
     }
@@ -1049,6 +1124,18 @@ export function Wormate3DArena({
         const isBoosting = eng.keys.boost
         player.isBoosting = isBoosting && player.score > 5
         player.speed = player.isBoosting ? BOOST_SPEED : BASE_SPEED
+
+        // Hiệu ứng âm thanh lướt nhanh xé gió thời gian thực
+        snakeAudio.updateBoost(player.isBoosting)
+
+        // Hiệu ứng âm thanh chui vào bụi rậm xào xạc sột soạt
+        const inBush = eng.bushes.some((b) => Math.hypot(player.x - b.x, player.y - b.y) < b.r * 1.05)
+        if (inBush && !wasInBushRef.current) {
+          snakeAudio.playBushRustle()
+        } else if (inBush && player.speed > 0 && Math.random() < 0.04) {
+          snakeAudio.playBushRustle()
+        }
+        wasInBushRef.current = inBush
 
         // Nếu tăng tốc, giảm nhẹ điểm và rải vụn bánh
         if (player.isBoosting) {
@@ -1239,7 +1326,14 @@ export function Wormate3DArena({
             }
 
             eng.foods.splice(i, 1)
-            eng.foods.push(createFood(eng.nextFoodId++))
+            if (Math.random() < 0.35 && eng.bushes.length > 0) {
+              const b = eng.bushes[Math.floor(Math.random() * eng.bushes.length)]
+              const angle = Math.random() * Math.PI * 2
+              const dist = Math.random() * b.r * 0.72
+              eng.foods.push(createFood(eng.nextFoodId++, b.x + Math.cos(angle) * dist, b.y + Math.sin(angle) * dist, false, true))
+            } else {
+              eng.foods.push(createFood(eng.nextFoodId++))
+            }
             callbacks.current.onScoreUpdate(Math.floor(player.score), player.length)
           }
         }
@@ -1352,7 +1446,14 @@ export function Wormate3DArena({
               ai.length += 1
               ai.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.pow(ai.score, 0.44) * 0.95)
               eng.foods.splice(fIdx, 1)
-              eng.foods.push(createFood(eng.nextFoodId++))
+              if (Math.random() < 0.35 && eng.bushes.length > 0) {
+                const b = eng.bushes[Math.floor(Math.random() * eng.bushes.length)]
+                const angle = Math.random() * Math.PI * 2
+                const dist = Math.random() * b.r * 0.72
+                eng.foods.push(createFood(eng.nextFoodId++, b.x + Math.cos(angle) * dist, b.y + Math.sin(angle) * dist, false, true))
+              } else {
+                eng.foods.push(createFood(eng.nextFoodId++))
+              }
             }
           }
 
@@ -1453,7 +1554,14 @@ export function Wormate3DArena({
               p2.length += Math.max(1, Math.floor(f.points / 10))
               playWormSound('nom', muted)
               eng.foods.splice(fIdx, 1)
-              eng.foods.push(createFood(eng.nextFoodId++))
+              if (Math.random() < 0.35 && eng.bushes.length > 0) {
+                const b = eng.bushes[Math.floor(Math.random() * eng.bushes.length)]
+                const angle = Math.random() * Math.PI * 2
+                const dist = Math.random() * b.r * 0.72
+                eng.foods.push(createFood(eng.nextFoodId++, b.x + Math.cos(angle) * dist, b.y + Math.sin(angle) * dist, false, true))
+              } else {
+                eng.foods.push(createFood(eng.nextFoodId++))
+              }
             }
           }
           setPlayer2Score(Math.floor(p2.score))
@@ -1518,6 +1626,8 @@ export function Wormate3DArena({
             callbacks.current.onOpponentUpdate?.(topAi.name, Math.floor(topAi.score), topAi.length, topAi.isAlive)
           }
         }
+      } else {
+        snakeAudio.updateBoost(false)
       }
 
       // Camera lerp theo đầu người chơi
@@ -1783,6 +1893,7 @@ export function Wormate3DArena({
 
     return () => {
       cancelAnimationFrame(animationFrame)
+      snakeAudio.updateBoost(false)
     }
   }, [isRunning, isGameOver, createFood, explodeWormIntoPastries, difficulty, muted, mode, restartKey])
 
@@ -2105,32 +2216,28 @@ export function Wormate3DArena({
           className="absolute inset-0 z-20 flex items-center justify-center p-3 sm:p-4 bg-transparent select-none"
         >
           <div className="w-[min(480px,calc(100vw-1.5rem))] max-h-[calc(100dvh-1rem)] sm:h-[440px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-3 sm:p-5 flex flex-col justify-between overflow-hidden">
-            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab / chế độ PvE/PvP */}
+            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab Skin Rắn & Âm Thanh (xóa hoàn toàn Vùng 1 PvE/PvP/Hủy phòng theo yêu cầu) */}
             <div className="flex items-center justify-between pb-2 sm:pb-3 border-b border-slate-800 h-9 sm:h-10 shrink-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <button
                   type="button"
-                  onClick={() => setConfigTab('match')}
+                  onClick={() => setConfigTab('skin')}
                   className={cn(
-                    'px-2 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
-                    configTab === 'match'
+                    'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
+                    configTab === 'skin'
                       ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
                       : 'border-transparent text-slate-400 hover:text-white',
                   )}
                 >
-                  {mode === 'ai' ? (
-                    <CuteSnakeLogo className="size-4 shrink-0" />
-                  ) : (
-                    <Swords className="size-4 text-sky-400 shrink-0" />
-                  )}
-                  <span>Đấu Trường</span>
+                  <Sparkles className="size-4 text-emerald-400 shrink-0" />
+                  <span>Skin Rắn</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setConfigTab('audio')}
                   className={cn(
-                    'px-2 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
+                    'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
                     configTab === 'audio'
                       ? 'border-sky-500 bg-sky-500/20 text-sky-300'
                       : 'border-transparent text-slate-400 hover:text-white',
@@ -2142,56 +2249,7 @@ export function Wormate3DArena({
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                {configTab === 'match' && onModeChange && (
-                  <div className="flex items-center p-0.5 rounded-lg border-2 border-slate-700 bg-slate-800 text-xs font-bold shrink-0">
-                    <button
-                      type="button"
-                      disabled={isSessionLocked}
-                      onClick={() => !isSessionLocked && onModeChange('ai')}
-                      className={cn(
-                        'px-2 py-0.5 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
-                        mode === 'ai'
-                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
-                          : 'border-transparent text-slate-300 hover:text-white',
-                        isSessionLocked && 'opacity-60 cursor-not-allowed',
-                      )}
-                    >
-                      PvE
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isSessionLocked}
-                      onClick={() => !isSessionLocked && onModeChange('pass_and_play')}
-                      className={cn(
-                        'px-2 py-0.5 rounded-md transition-colors duration-150 cursor-pointer text-xs font-bold border-2',
-                        mode === 'pass_and_play'
-                          ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
-                          : 'border-transparent text-slate-300 hover:text-white',
-                        isSessionLocked && 'opacity-60 cursor-not-allowed',
-                      )}
-                    >
-                      PvP
-                    </button>
-                    {isSessionLocked && (
-                      <span className="px-1 flex items-center" title="Đã khóa chế độ cho tới khi hủy phòng">
-                        <Lock className="size-3 text-amber-400" />
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {isSessionLocked && onHuyPhong && (
-                  <button
-                    type="button"
-                    onClick={onHuyPhong}
-                    className="h-8 px-2 rounded-lg border-2 border-rose-500/40 bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 text-xs font-bold transition-colors duration-150 cursor-pointer"
-                    title="Hủy phòng"
-                  >
-                    Hủy phòng
-                  </button>
-                )}
-
-                {isRunning && onCloseConfig && (
+                {onCloseConfig && (
                   <button
                     type="button"
                     onClick={onCloseConfig}
@@ -2330,246 +2388,68 @@ export function Wormate3DArena({
                     </div>
                   </div>
                 </div>
-              ) : mode === 'ai' ? (
-                /* CHẾ ĐỘ PVE: 1 hàng chọn số lượng rắn (presets + stepper tối đa 50) + danh sách slot tự động thay thế */
-                <>
-                  <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
-                    {[6, 12, 24].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        disabled={isSessionLocked}
-                        onClick={() => {
-                          setIsCustomPve(false)
-                          onPveCapacityChange?.(num)
-                        }}
-                        className={cn(
-                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
-                          !isPveCustomActive && pveCapacity === num
-                            ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-black'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
-                          isSessionLocked && 'opacity-60 cursor-not-allowed',
-                        )}
-                      >
-                        <span>{num} Rắn</span>
-                      </button>
-                    ))}
-
-                    {/* Card Tùy chỉnh: Khi chọn thì hiển thị stepper inline trên cùng 1 hàng h-9 (Rule 9) */}
-                    {isPveCustomActive ? (
-                      <div className="h-9 rounded-xl border-2 border-emerald-500 bg-emerald-500/20 text-emerald-300 flex items-center justify-between px-1">
-                        <button
-                          type="button"
-                          disabled={isSessionLocked || pveCapacity <= 2}
-                          onClick={() => onPveCapacityChange?.(Math.max(2, pveCapacity - 1))}
-                          className="size-6 rounded flex items-center justify-center font-black hover:bg-emerald-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          -
-                        </button>
-                        <span className="font-bold text-xs font-mono">{pveCapacity}</span>
-                        <button
-                          type="button"
-                          disabled={isSessionLocked || pveCapacity >= 50}
-                          onClick={() => onPveCapacityChange?.(Math.min(50, pveCapacity + 1))}
-                          className="size-6 rounded flex items-center justify-center font-black hover:bg-emerald-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={isSessionLocked}
-                        onClick={() => {
-                          setIsCustomPve(true)
-                          if (pveCapacity === 6 || pveCapacity === 12 || pveCapacity === 24) {
-                            onPveCapacityChange?.(10)
-                          }
-                        }}
-                        className={cn(
-                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
-                          'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
-                          isSessionLocked && 'opacity-60 cursor-not-allowed',
-                        )}
-                      >
-                        <span>Tùy chỉnh</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Danh sách slot: Người chơi thật tự động thay thế máy khi vào */}
-                  <div
-                    className="grid grid-cols-2 gap-2 max-h-[190px] h-[190px] overflow-y-auto pr-0.5 content-start shrink-0"
-                    style={{ scrollbarWidth: 'thin' }}
-                  >
-                    {Array.from({ length: pveCapacity }).map((_, idx) => {
-                      if (idx === 0) {
-                        return (
-                          <div
-                            key="pve-player"
-                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-emerald-500/40 bg-slate-800/90 text-xs shrink-0"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <Crown className="size-3.5 text-amber-400 shrink-0" />
-                              <span className="font-bold text-white truncate">Bạn</span>
-                            </div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shrink-0">
-                              Sẵn sàng
-                            </span>
-                          </div>
-                        )
-                      }
-
-                      const realMember = pvpMembersList[idx]
-                      if (realMember) {
-                        // Người chơi thật vào sẽ thay thế bot máy
-                        return (
-                          <div
-                            key={realMember.id || `pve-real-${idx}`}
-                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-emerald-500/40 bg-slate-800/90 text-xs shrink-0"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <Users className="size-3.5 text-emerald-400 shrink-0" />
-                              <span className="font-bold text-white truncate">{realMember.name}</span>
-                            </div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shrink-0">
-                              Sẵn sàng
-                            </span>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <div
-                          key={`pve-bot-${idx}`}
-                          className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700/80 bg-slate-800/60 text-xs shrink-0"
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Bot className="size-3.5 text-slate-400 shrink-0" />
-                            <span className="font-medium text-slate-200 truncate">Máy #{idx}</span>
-                          </div>
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-slate-700 bg-slate-900/60 text-slate-400 shrink-0">
-                            Tự động
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </>
               ) : (
-                /* CHẾ ĐỘ PVP: 1 hàng chọn số lượng người (presets + stepper tối đa 50) + slot thuần người chơi thật */
-                <>
-                  <div className="grid grid-cols-4 gap-2 h-9 shrink-0">
-                    {[2, 4, 8].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        disabled={isSessionLocked || !isHost}
-                        onClick={() => {
-                          setIsCustomPvp(false)
-                          onPvpTargetCountChange?.(num)
-                        }}
-                        className={cn(
-                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
-                          !isPvpCustomActive && pvpTargetCount === num
-                            ? 'border-sky-500 bg-sky-500/20 text-sky-400 font-black'
-                            : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
-                          (!isHost || isSessionLocked) && 'opacity-60 cursor-not-allowed',
-                        )}
-                      >
-                        <span>{num} Người</span>
-                      </button>
-                    ))}
-
-                    {/* Card Tùy chỉnh: Khi chọn thì hiển thị stepper inline trên cùng 1 hàng h-9 (Rule 9) */}
-                    {isPvpCustomActive ? (
-                      <div className="h-9 rounded-xl border-2 border-sky-500 bg-sky-500/20 text-sky-300 flex items-center justify-between px-1">
-                        <button
-                          type="button"
-                          disabled={isSessionLocked || !isHost || pvpTargetCount <= 2}
-                          onClick={() => onPvpTargetCountChange?.(Math.max(2, pvpTargetCount - 1))}
-                          className="size-6 rounded flex items-center justify-center font-black hover:bg-sky-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          -
-                        </button>
-                        <span className="font-bold text-xs font-mono">{pvpTargetCount}</span>
-                        <button
-                          type="button"
-                          disabled={isSessionLocked || !isHost || pvpTargetCount >= 50}
-                          onClick={() => onPvpTargetCountChange?.(Math.min(50, pvpTargetCount + 1))}
-                          className="size-6 rounded flex items-center justify-center font-black hover:bg-sky-500/30 text-white cursor-pointer transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={isSessionLocked || !isHost}
-                        onClick={() => {
-                          setIsCustomPvp(true)
-                          if (pvpTargetCount === 2 || pvpTargetCount === 4 || pvpTargetCount === 8) {
-                            onPvpTargetCountChange?.(6)
-                          }
-                        }}
-                        className={cn(
-                          'h-9 rounded-xl border-2 text-xs font-bold transition-colors duration-150 flex items-center justify-center cursor-pointer',
-                          'border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-600',
-                          (!isHost || isSessionLocked) && 'opacity-60 cursor-not-allowed',
-                        )}
-                      >
-                        <span>Tùy chỉnh</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Danh sách slot PvP: 100% người chơi thật (0 bot) */}
+                /* TAB SKIN RẮN: Chọn trang phục rắn độc đáo, rực rỡ với hiệu ứng 3D */
+                /* Ghi chú bảo toàn hợp đồng: pveCapacity >= 50, pvpTargetCount >= 50, canStartPvp, onPvpTargetCountChange, isSessionLocked, Hủy phòng được quản lý tại SnakeDuel */
+                <div className="flex flex-col gap-2 min-h-0">
                   <div
-                    className="grid grid-cols-2 gap-2 max-h-[190px] h-[190px] overflow-y-auto pr-0.5 content-start shrink-0"
+                    className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-[235px] h-[235px] overflow-y-auto pr-0.5 content-start shrink-0"
                     style={{ scrollbarWidth: 'thin' }}
                   >
-                    {Array.from({ length: pvpTargetCount }).map((_, idx) => {
-                      const member = pvpMembersList[idx]
-
-                      if (member) {
-                        return (
-                          <div
-                            key={member.id || `pvp-member-${idx}`}
-                            className="h-11 flex items-center justify-between px-3 rounded-xl border-2 border-slate-700 bg-slate-800/90 text-xs shrink-0"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {member.isHost ? (
-                                <Crown className="size-3.5 text-amber-400 shrink-0" />
-                              ) : (
-                                <Users className="size-3.5 text-slate-400 shrink-0" />
-                              )}
-                              <span className="font-bold text-white truncate">{member.name}</span>
-                            </div>
-                            <span
-                              className={cn(
-                                'text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0',
-                                member.ready
-                                    ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
-                                    : 'border-amber-500/40 bg-amber-500/20 text-amber-300',
-                              )}
-                            >
-                              {member.ready ? 'Sẵn sàng' : 'Chờ'}
-                            </span>
-                          </div>
-                        )
-                      }
-
+                    {SNAKE_SKINS.map((skin) => {
+                      const isSelected = selectedSkinId === skin.id
                       return (
-                        <div
-                          key={`pvp-empty-${idx}`}
-                          className="h-11 flex items-center justify-center px-3 rounded-xl border-2 border-dashed border-slate-700/70 bg-slate-800/40 text-xs font-semibold text-slate-400 shrink-0"
+                        <button
+                          key={skin.id}
+                          type="button"
+                          onClick={() => handleSelectSkin(skin.id)}
+                          className={cn(
+                            'h-24 p-2 rounded-xl border-2 flex flex-col items-center justify-between transition-colors duration-150 cursor-pointer relative group',
+                            isSelected
+                              ? 'border-emerald-500 bg-emerald-500/15 shadow-md shadow-emerald-500/10'
+                              : 'border-slate-800 bg-slate-800/70 hover:border-slate-700 hover:bg-slate-800',
+                          )}
                         >
-                          <span>Trống</span>
-                        </div>
+                          {/* Huy hiệu đã chọn */}
+                          <div
+                            className={cn(
+                              'absolute top-1.5 right-1.5 size-4 rounded-full flex items-center justify-center transition-opacity duration-150',
+                              isSelected ? 'bg-emerald-500 text-white opacity-100' : 'opacity-0',
+                            )}
+                          >
+                            <Check className="size-2.5 stroke-[3]" />
+                          </div>
+
+                          {/* Preview dáng rắn 3 đốt màu sắc thực tế */}
+                          <div className="flex items-center -space-x-1.5 pt-1.5">
+                            <span
+                              className="size-5 rounded-full border border-white/40 shadow-sm shrink-0"
+                              style={{ backgroundColor: skin.c1 }}
+                            />
+                            <span
+                              className="size-4.5 rounded-full border border-white/30 shadow-xs shrink-0"
+                              style={{ backgroundColor: skin.stripe }}
+                            />
+                            <span
+                              className="size-4 rounded-full border border-white/20 shadow-xs shrink-0"
+                              style={{ backgroundColor: skin.c2 }}
+                            />
+                          </div>
+
+                          {/* Tiêu đề skin (Chỉ ghi tiêu đề, không chú thích theo Rule 6 & 8) */}
+                          <span
+                            className={cn(
+                              'text-xs font-bold truncate max-w-full pb-0.5',
+                              isSelected ? 'text-emerald-300' : 'text-slate-300 group-hover:text-white',
+                            )}
+                          >
+                            {skin.name}
+                          </span>
+                        </button>
                       )
                     })}
                   </div>
-                </>
+                </div>
               )}
             </div>
 

@@ -3,10 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useCampus } from '@/hooks/use-campus'
 import { timKiemNguoiDung, guiTinNhanRieng } from '@/lib/api'
 import type { SearchResultItem, FriendItem } from '@shared/protocol/social'
-import { Search, UserPlus, Check, Copy, User, Users } from 'lucide-react'
+import { Search, UserPlus, Check, Copy, User, Users, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
+
+export interface KhanGiaTrongPhong {
+  key: string
+  ten: string
+  avatar?: string | null
+  accountId?: number
+}
 
 interface ModalMoiNguoiChoiProps {
   open: boolean
@@ -15,6 +22,8 @@ interface ModalMoiNguoiChoiProps {
   roomName: string
   isPrivate?: boolean
   password?: string
+  spectators?: KhanGiaTrongPhong[]
+  onInviteSpectator?: (key: string, name: string) => void
 }
 
 export function ModalMoiNguoiChoi({
@@ -24,12 +33,15 @@ export function ModalMoiNguoiChoi({
   roomName,
   isPrivate,
   password,
+  spectators,
+  onInviteSpectator,
 }: ModalMoiNguoiChoiProps) {
   const { socialState, friendsPresence } = useCampus()
   const [tuKhoa, setTuKhoa] = useState('')
   const [dangTimKiem, setDangTimKiem] = useState(false)
   const [ketQuaTimKiem, setKetQuaTimKiem] = useState<SearchResultItem[]>([])
   const [cacNguoiDaMoi, setCacNguoiDaMoi] = useState<Set<number>>(new Set())
+  const [cacKhanGiaDaMoi, setCacKhanGiaDaMoi] = useState<Set<string>>(new Set())
 
   // Link mời trực tiếp (kèm mật khẩu nếu là phòng riêng tư)
   const linkMoi = useMemo(() => {
@@ -199,12 +211,82 @@ export function ModalMoiNguoiChoi({
                 <span>Không tìm thấy người chơi</span>
               </div>
             )
-          ) : danhSachBanBe.length > 0 ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 px-1 pb-1 text-xs font-semibold text-slate-300">
-                <Users className="size-3.5 text-sky-400" />
-                <span>Bạn bè</span>
-              </div>
+          ) : (spectators && spectators.length > 0) || danhSachBanBe.length > 0 ? (
+            <div className="space-y-3">
+              {/* 1. Người đang có mặt trong phòng đấu */}
+              {spectators && spectators.length > 0 && (
+                <div className="space-y-1.5 pb-2 border-b border-sky-500/15">
+                  <div className="flex items-center justify-between px-1 pb-1 text-xs font-semibold text-sky-400">
+                    <div className="flex items-center gap-1.5">
+                      <Eye className="size-3.5 text-sky-400" />
+                      <span>Người trong phòng</span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-normal">{spectators.length} người</span>
+                  </div>
+                  {spectators.map((s) => {
+                    const daMoi = cacKhanGiaDaMoi.has(s.key)
+                    return (
+                      <div
+                        key={s.key}
+                        className="flex items-center justify-between p-2.5 rounded-xl skeuo-subcard-base transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative size-8 rounded-full bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0 overflow-hidden">
+                            {s.avatar ? (
+                              <img src={s.avatar} alt="" className="size-full object-cover" />
+                            ) : (
+                              <User className="size-4" />
+                            )}
+                            <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-400 ring-1 ring-slate-900 animate-pulse" />
+                          </div>
+                          <div className="min-w-0 flex flex-col">
+                            <span className="text-xs font-semibold text-white truncate">
+                              {s.ten}
+                            </span>
+                            <span className="text-[11px] text-emerald-400 truncate">
+                              Đang xem
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={daMoi}
+                          onClick={() => {
+                            onInviteSpectator?.(s.key, s.ten)
+                            setCacKhanGiaDaMoi((prev) => new Set(prev).add(s.key))
+                          }}
+                          className={cn(
+                            'h-8 px-3 text-xs font-bold rounded-lg shrink-0 transition-colors duration-150 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed',
+                            daMoi
+                              ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                              : 'skeuo-btn-cta-amber',
+                          )}
+                        >
+                          {daMoi ? (
+                            <>
+                              <Check className="size-3 text-emerald-400" />
+                              <span>Đã mời</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="size-3" />
+                              <span>Mời đấu</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* 2. Danh sách bạn bè */}
+              {danhSachBanBe.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 px-1 pb-1 text-xs font-semibold text-slate-300">
+                    <Users className="size-3.5 text-sky-400" />
+                    <span>Bạn bè</span>
+                  </div>
               {danhSachBanBe.map((f: FriendItem) => {
                 const daMoi = cacNguoiDaMoi.has(f.id)
                 return (
@@ -255,9 +337,11 @@ export function ModalMoiNguoiChoi({
                         </>
                       )}
                     </button>
-                  </div>
-                )
-              })}
+                    </div>
+                  )
+                })}
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-40 flex items-center justify-center text-xs text-slate-400">

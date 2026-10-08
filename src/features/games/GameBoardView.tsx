@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { toast } from 'sonner'
 import { ResponsiveActivityLayout } from '@/components/layout/ResponsiveActivityLayout'
 import type { GameType } from '@shared/protocol/game'
 import { useGame } from '../../hooks/use-game'
@@ -82,6 +83,49 @@ export function GameBoardView({
     }
   }, [online, online?.chat, online?.guiChat, online?.thanhVien, roomName, soPhongHienThi, chatBan])
 
+  const spectatorsInRoom = useMemo(() => {
+    if (!online?.thanhVien) return []
+    return online.thanhVien
+      .filter((tv) => tv.key !== meta.playerX && tv.key !== meta.playerO && tv.key !== myActorKey)
+      .map((tv) => ({
+        key: tv.key,
+        ten: tv.ten,
+        avatar: tv.avatar,
+        accountId: tv.accountId,
+      }))
+  }, [online?.thanhVien, meta.playerX, meta.playerO, myActorKey])
+
+  const handleInviteSpectator = (key: string, name: string) => {
+    if (!online?.guiChat) return
+    const senderName = meta.playerXName || _myActorName || 'Chủ phòng'
+    const ok = online.guiChat(`[SYS_INVITE]:${key}:${senderName}`)
+    if (ok) {
+      toast.success(`Đã gửi lời mời tới ${name}`)
+    }
+  }
+
+  // Khán giả nhận được lời mời từ chủ phòng
+  const daXuLyMoiRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!online?.chat || !myActorKey) return
+    const myInvites = online.chat.filter((m) => m.text.startsWith(`[SYS_INVITE]:${myActorKey}:`))
+    for (const msg of myInvites) {
+      if (daXuLyMoiRef.current.has(msg.id)) continue
+      daXuLyMoiRef.current.add(msg.id)
+      const parts = msg.text.split(':')
+      const senderName = parts.slice(2).join(':') || 'Chủ phòng'
+      toast.info(`${senderName} mời bạn vào bàn thi đấu!`, {
+        duration: 10000,
+        action: {
+          label: 'Vào bàn ngay',
+          onClick: () => {
+            online.joinGame('O')
+          },
+        },
+      })
+    }
+  }, [online?.chat, myActorKey, online])
+
   return (
     <ResponsiveActivityLayout
       utilityMode="floating"
@@ -140,6 +184,8 @@ export function GameBoardView({
         roomName={roomName}
         isPrivate={isPrivate}
         password={intendedPassword}
+        spectators={spectatorsInRoom}
+        onInviteSpectator={handleInviteSpectator}
       />
     </ResponsiveActivityLayout>
   )

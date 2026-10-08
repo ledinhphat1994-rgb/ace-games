@@ -2100,6 +2100,10 @@ export function XiangqiBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
+                  if (online && !online.mySide) {
+                    online.joinGame('O')
+                    return
+                  }
                   if (onInvite) {
                     onInvite()
                   } else {
@@ -2141,7 +2145,9 @@ export function XiangqiBoard({
               )}
               title={
                 !hasOpponent
-                  ? 'Chạm để mời bạn bè'
+                  ? online && !online.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : isPveMode
                     ? 'Người chơi AI'
                     : opponentName
@@ -3063,6 +3069,10 @@ export function XiangqiBoard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
+                  if (online && !online.mySide) {
+                    online.joinGame('O')
+                    return
+                  }
                   if (onInvite) {
                     onInvite()
                   } else {
@@ -3106,14 +3116,18 @@ export function XiangqiBoard({
               )}
               title={
                 !hasOpponent
-                  ? 'Đang chờ đối thủ vào bàn - Bấm để mời hoặc sao chép liên kết'
+                  ? online && !online.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : isPveMode
                     ? 'Người chơi AI (Cấp 10 · Elo 1500)'
-                    : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo}) - Bấm để xem hồ sơ`
+                    : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo})`
               }
               aria-label={
                 !hasOpponent
-                  ? 'Đang chờ đối thủ vào bàn'
+                  ? online && !online.mySide
+                    ? 'Tham gia'
+                    : 'Mời bạn bè'
                   : isPveMode
                     ? 'Người chơi AI'
                     : `${opponentName} - Bấm để xem hồ sơ`

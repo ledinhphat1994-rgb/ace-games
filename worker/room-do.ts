@@ -234,6 +234,7 @@ export class RoomDO extends DurableObject<Env> {
   private isPrivateGame = false
   private gamePassword: string | null = null
   private isPersistentLobbyRoom = false
+  private isTournamentGame = false
   // Nhịp gửi biểu cảm của từng actor trong bàn game (chống spam; chỉ cần sống trong bộ nhớ).
   private nhipBieuCam = new Map<string, { luc: number; soLan: number }>()
   // Nhịp gửi của từng kết nối (chỉ cần sống trong bộ nhớ; ngủ đông dậy thì đếm lại từ đầu).
@@ -622,6 +623,8 @@ export class RoomDO extends DurableObject<Env> {
           this.gamePassword = r.value
         } else if (r.key === 'persistent_lobby_room') {
           this.isPersistentLobbyRoom = r.value === '1'
+        } else if (r.key === 'is_tournament_game') {
+          this.isTournamentGame = r.value === '1'
         }
       }
 
@@ -1655,7 +1658,7 @@ export class RoomDO extends DurableObject<Env> {
           ws.send(JSON.stringify(this.goiDongBoGame(now)))
           return
         }
-        if (this.gameMeta.status !== 'waiting') {
+        if (this.gameMeta.status === 'playing') {
           this.guiLoiGame(ws, 'Bàn đang có trận đấu — bạn đang xem.')
           return
         }
@@ -1674,16 +1677,44 @@ export class RoomDO extends DurableObject<Env> {
         if (this.gameMeta.playerO && !this.hasConnectedActor(this.gameMeta.playerO)) {
           this.gameMeta = { ...this.gameMeta, playerO: null, playerOName: null }
         }
-        // Ghế X (chủ bàn, tên hiện trên sảnh) luôn được lấp trước hoặc dành cho host.
-        if (att.key === this.hostKey) {
-          this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
-        } else if (!this.gameMeta.playerX) {
-          this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
-        } else if (!this.gameMeta.playerO) {
-          this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
+
+        const yeuCauSide = goi.side === 'X' || goi.side === 'O' ? goi.side : null
+        if (yeuCauSide === 'X') {
+          if (!this.gameMeta.playerX) {
+            this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
+          } else if (att.key === this.hostKey || this.gameMeta.playerX === att.key) {
+            this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
+          } else {
+            this.guiLoiGame(ws, 'Ghế X đã có người ngồi.')
+            return
+          }
+        } else if (yeuCauSide === 'O') {
+          if (!this.gameMeta.playerO) {
+            this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
+          } else if (this.gameMeta.playerO === att.key) {
+            this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
+          } else {
+            this.guiLoiGame(ws, 'Ghế O đã có người ngồi.')
+            return
+          }
         } else {
-          this.guiLoiGame(ws, 'Bàn đã đủ 2 người chơi.')
-          return
+          // Ghế X (chủ bàn, tên hiện trên sảnh) luôn được lấp trước hoặc dành cho host.
+          if (att.key === this.hostKey) {
+            this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
+          } else if (!this.gameMeta.playerX) {
+            this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
+          } else if (!this.gameMeta.playerO) {
+            this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
+          } else {
+            this.guiLoiGame(ws, 'Bàn đã đủ 2 người chơi.')
+            return
+          }
+        }
+
+        if (this.gameMeta.status === 'ended') {
+          this.gameMeta = { ...this.gameMeta, status: 'waiting', winner: null, winLine: null }
+          this.gameBoard = taoBanMoi(this.gameMeta.gameType)
+          this.gameMoves = []
         }
 
         if (this.gameMeta.playerX && this.gameMeta.playerO) {
@@ -3436,8 +3467,9 @@ export class RoomDO extends DurableObject<Env> {
       if (laChuPhongRoi) {
         if (uniqueActorsConLai.size >= 1) {
           if (this.isGameRoom) {
-            // Bàn game: nếu còn playerO thì đôn playerO lên làm chủ bàn mới (playerX).
-            // Nếu chỉ còn khán giả, chuyển quyền quản lý phòng (hostKey) nhưng giữ ghế chơi trống cho người chơi mới.
+            // Bàn game: chuyển quyền chủ phòng cho người tiếp theo liền kề (playerO hoặc khán giả đầu tiên).
+            // Nếu còn playerO thì đôn playerO lên làm chủ bàn mới (playerX).
+            // Nếu chỉ còn khán giả, nhường hostKey nhưng giữ ghế chơi trống cho người vào sau hoặc khán giả click tham gia.
             const playerOConLai = this.gameMeta.playerO ? uniqueActorsConLai.get(this.gameMeta.playerO) : undefined
             const newHost = playerOConLai || [...uniqueActorsConLai.values()][0]
             if (newHost) {
@@ -3450,7 +3482,11 @@ export class RoomDO extends DurableObject<Env> {
                 playerO: null,
                 playerOName: null,
                 status: 'waiting',
+                winner: null,
+                winLine: null,
               }
+              this.gameBoard = taoBanMoi(this.gameMeta.gameType)
+              this.gameMoves = []
               this.luuGameState()
               this.phatTrangThaiGame(Date.now())
               this.baoLobby(ws)
@@ -4678,6 +4714,7 @@ export class RoomDO extends DurableObject<Env> {
       capNhatLuc: Date.now(),
       isPrivate,
       coMatKhau: isPrivate,
+      isTournament: Boolean(this.isTournamentGame),
     }
     for (const lobby of this.cacSanhGame()) {
       const rpc = ban.trangThai === 'ended' ? lobby.xoaBan(ban.id) : lobby.capNhatBan(ban)
@@ -4694,24 +4731,33 @@ export class RoomDO extends DurableObject<Env> {
     return [...cacTen].map((ten) => this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(ten)))
   }
 
-  // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — gỡ khỏi sảnh dù ván chưa kết thúc.
+  // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — tự hủy phòng và gỡ khỏi sảnh GameLobbyDO
   // Còn người ở lại thì chỉ cập nhật số người xem của bàn trên sảnh.
   private baoRoiLobbyNeuTrong(vuaRoi: WebSocket): void {
     if (!this.isGameRoom || !this.gameRoomId) return
-    if (this.layDanhSachThanhVien(vuaRoi).length > 0) {
-      if (this.gameMeta.playerX || this.gameMeta.playerO) this.baoLobby(vuaRoi)
+    const thanhVienConLai = this.layDanhSachThanhVien(vuaRoi)
+    if (thanhVienConLai.length === 0) {
+      // Nếu bàn được tạo từ sảnh và đang chờ đối thủ (status === 'waiting'),
+      // giữ bàn trên sảnh để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
+      if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && (this.gameMeta.playerX || this.hostKey)) {
+        this.baoLobby(vuaRoi)
+        return
+      }
+
+      // Tự hủy phòng khi không có ai tham gia (0 người còn lại)
+      this.isPersistentLobbyRoom = false
+      this.luuMeta('persistent_lobby_room', '0')
+      this.gameMeta = { ...this.gameMeta, status: 'ended' }
+      this.luuGameState()
+      for (const lobby of this.cacSanhGame()) {
+        this.ctx.waitUntil(
+          lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
+        )
+      }
       return
     }
-    // Nếu bàn được tạo từ sảnh và đang chờ đối thủ (status === 'waiting'),
-    // giữ bàn trên sảnh để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
-    if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && (this.gameMeta.playerX || this.hostKey)) {
+    if (this.gameMeta.playerX || this.gameMeta.playerO) {
       this.baoLobby(vuaRoi)
-      return
-    }
-    for (const lobby of this.cacSanhGame()) {
-      this.ctx.waitUntil(
-        lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
-      )
     }
   }
 
@@ -6172,13 +6218,18 @@ export class RoomDO extends DurableObject<Env> {
           hostName: string
           roomName?: string
           soPhong?: number
+          isTournament?: boolean
         }
 
         this.isGameRoom = true
         this.isPersistentLobbyRoom = true
+        this.isTournamentGame = Boolean(body.isTournament)
         this.gameRoomId = body.roomId
         this.luuMeta('game_room_id', body.roomId)
         this.luuMeta('persistent_lobby_room', '1')
+        if (body.isTournament) {
+          this.luuMeta('is_tournament_game', '1')
+        }
         this.hostKey = body.hostKey
         this.luuMeta('host_key', body.hostKey)
         if (body.roomName) {
