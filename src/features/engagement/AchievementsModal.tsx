@@ -5,6 +5,7 @@ import {
   Award,
   BookOpen,
   Brain,
+  Check,
   CheckCircle2,
   Coins,
   Crown,
@@ -86,6 +87,7 @@ const NGAY = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric'
 
 export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps) {
   const [activeTab, setActiveTab] = useState<'shop' | 'badges'>('badges')
+  const [selectedShopId, setSelectedShopId] = useState<string | null>('chest_shard')
 
   const { data, isLoading, error, refetch } = useQuery<AchievementsResponse>({
     queryKey: ['engagement', 'achievements'],
@@ -124,7 +126,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="skeuo-modal-surface sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[calc(100svh-3rem)] p-5 sm:p-6 overflow-y-auto text-white">
+      <DialogContent className="skeuo-modal-surface sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[calc(100svh-3rem)] p-5 sm:p-6 overflow-y-auto overscroll-contain text-white">
         <BlueprintArcadePattern className="opacity-75 pointer-events-none" />
         <DialogHeader className="shrink-0 mb-3">
           <div className="flex items-start justify-between gap-4">
@@ -194,6 +196,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
           <div className="flex items-center gap-2 select-none">
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveTab('shop')}
               className={cn(
                 'h-8 px-3.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center',
@@ -206,6 +209,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
             </button>
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveTab('badges')}
               className={cn(
                 'h-8 px-3.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center',
@@ -221,8 +225,8 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
 
         {/* Khung nội dung cố định chiều cao cho cả 2 tab (Triệt tiêu 100% Layout Shift khi chuyển tab) */}
         {activeTab === 'shop' ? (
-          /* Lưới 6 vật phẩm Cửa hàng 3D */
-          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto pr-1 my-2 select-none">
+          /* Lưới 6 vật phẩm Cửa hàng 3D: Cố định vị trí và kích thước 100%, không dựt màn hình khi chọn */
+          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto overscroll-contain pr-1 my-2 select-none">
             <div className="grid grid-cols-3 gap-2.5 py-1">
               {[
                 {
@@ -269,16 +273,48 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                 },
               ].map((item) => {
                 const ItemIcon = item.Icon
+                const isSelected = selectedShopId === item.id
                 return (
                   <div
                     key={item.id}
-                    className="rounded-2xl border-2 border-slate-800 bg-[#0c1527] p-2.5 flex flex-col items-center justify-between text-center h-[170px] hover:border-amber-400/50 hover:shadow-lg transition-colors duration-150 group select-none"
+                    role="button"
+                    tabIndex={0}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setSelectedShopId(item.id)
+                    }}
+                    className={cn(
+                      'rounded-2xl border-2 p-2.5 flex flex-col items-center justify-between text-center h-[170px] min-h-[170px] max-h-[170px] w-full transition-colors duration-150 relative cursor-pointer select-none overflow-hidden',
+                      isSelected
+                        ? 'border-amber-400 bg-amber-500/15 shadow-[0_0_14px_rgba(245,158,11,0.25)]'
+                        : 'border-slate-800 bg-[#0c1527] hover:border-slate-700',
+                    )}
                   >
-                    <span className="text-[11px] font-bold text-white line-clamp-1 w-full">{item.name}</span>
-                    <div className="my-1 py-1">
-                      <ItemIcon size={48} className="drop-shadow-lg group-hover:scale-105 transition-transform" />
+                    {/* Huy hiệu đã chọn: Vị trí cố định, không remount DOM */}
+                    <div
+                      className={cn(
+                        'absolute top-1.5 right-1.5 size-4 rounded-full flex items-center justify-center transition-opacity duration-150',
+                        isSelected ? 'bg-amber-400 text-amber-950 opacity-100' : 'opacity-0',
+                      )}
+                    >
+                      <Check className="size-2.5 stroke-[3]" />
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] font-bold mb-1">
+
+                    {/* Vùng tiêu đề cố định h-7 min-h-7: Khóa tọa độ Y của toàn bộ các card cùng hàng */}
+                    <div className="h-7 min-h-7 max-h-7 w-full flex items-center justify-center text-center overflow-hidden shrink-0 px-1">
+                      <span className="text-[11px] font-bold text-white line-clamp-2 leading-tight w-full break-words" title={item.name}>
+                        {item.name}
+                      </span>
+                    </div>
+
+                    {/* Vùng Icon cố định h-12 min-h-12: Đồng nhất 100% tọa độ ngang */}
+                    <div className="h-12 min-h-12 max-h-12 w-full flex items-center justify-center shrink-0 my-0.5">
+                      <ItemIcon size={44} className="drop-shadow-lg" />
+                    </div>
+
+                    {/* Vùng giá cố định h-5 min-h-5 */}
+                    <div className="h-5 min-h-5 max-h-5 w-full flex items-center justify-center text-[10px] font-bold shrink-0 mb-0.5">
                       {item.priceType === 'gold' ? (
                         <span className="text-amber-400 flex items-center gap-0.5">
                           <Coins className="size-3" />
@@ -291,12 +327,24 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                         </span>
                       )}
                     </div>
+
+                    {/* Nút hành động cố định h-7: Giữ nguyên tọa độ, chống trôi chuyển động */}
                     <button
                       type="button"
-                      onClick={() => {}}
-                      className="w-full h-7 rounded-full border border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-200 text-[11px] font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center shadow-xs"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setSelectedShopId(item.id)
+                      }}
+                      className={cn(
+                        'w-full h-7 min-h-7 max-h-7 rounded-full border text-[11px] font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center shadow-xs shrink-0',
+                        isSelected
+                          ? 'border-amber-400 bg-amber-400 text-amber-950 font-black'
+                          : 'border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-200',
+                      )}
                     >
-                      Mua bùa
+                      {isSelected ? 'Đã chọn' : 'Mua bùa'}
                     </button>
                   </div>
                 )
@@ -305,7 +353,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
           </div>
         ) : (
           /* Danh sách Huy hiệu (Card cố định chiều cao, không rớt dòng badge XP, chống rung giật) */
-          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto pr-1 my-2 select-none">
+          <div className="h-[370px] min-h-[370px] max-h-[370px] overflow-y-auto overscroll-contain pr-1 my-2 select-none">
             {isLoading ? (
               <div className="grid gap-2 sm:grid-cols-2 py-1" aria-hidden>
                 {Array.from({ length: 6 }, (_, i) => (
@@ -334,6 +382,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                   return (
                     <li
                       key={badge.key}
+                      onMouseDown={(e) => e.preventDefault()}
                       className={cn(
                         'h-[84px] min-h-[84px] max-h-[84px] flex items-center gap-3 rounded-xl border-2 px-3 py-2 transition-colors duration-150 select-none overflow-hidden relative',
                         badge.unlocked

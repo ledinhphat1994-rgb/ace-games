@@ -40,7 +40,7 @@ export function TheBanGame({ ban, onVao }: TheBanGameProps) {
 
   return (
     <article
-      className="group flex flex-col gap-3.5 rounded-2xl skeuo-subcard-base p-4 transition-colors duration-150 hover:border-sky-400/50"
+      className="group flex flex-col justify-between gap-3.5 rounded-2xl skeuo-subcard-base p-4 transition-colors duration-150 hover:border-sky-400/50 select-none min-h-[168px]"
       data-testid={`ban-${ban.id}`}
     >
       <div className="flex items-start gap-3">

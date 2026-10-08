@@ -126,7 +126,7 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
       data-testid={`room-card-${room.id}`}
       onClick={() => onVaoPhong?.(room)}
       className={cn(
-        'group relative flex flex-col justify-between gap-3.5 rounded-2xl p-4 transition-colors duration-150 cursor-pointer',
+        'group relative flex flex-col justify-between gap-3.5 rounded-2xl p-4 transition-colors duration-150 cursor-pointer select-none h-full min-h-[168px]',
         hasFriends
           ? 'skeuo-subcard-active-cyan'
           : 'skeuo-subcard-base hover:border-sky-400/50',

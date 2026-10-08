@@ -1226,12 +1226,17 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     isDraggingRef.current = false
   }
 
-  const handleCardSelect = (id: string) => {
+  const handleCardSelect = (id: string, e?: React.MouseEvent) => {
+    e?.preventDefault()
     if (dragInfoRef.current.moved) {
       dragInfoRef.current.moved = false
       return
     }
+    const currentScrollLeft = carouselRef.current?.scrollLeft
     setSelectedFilter(id)
+    if (carouselRef.current && currentScrollLeft !== undefined) {
+      carouselRef.current.scrollLeft = currentScrollLeft
+    }
   }
 
   const cuonTrai = () => {
@@ -1385,7 +1390,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 onMouseMove={handleDragMove}
                 onMouseUp={handleDragEnd}
                 onMouseLeave={handleDragEnd}
-                className="flex gap-2.5 sm:gap-3 overflow-x-auto py-1 px-0.5 scrollbar-none select-none scroll-smooth touch-pan-x cursor-grab active:cursor-grabbing"
+                className="flex gap-2.5 sm:gap-3 overflow-x-auto py-1 px-0.5 scrollbar-none select-none touch-pan-x cursor-grab active:cursor-grabbing"
               >
                 {gameFilterCards.map((card) => {
                   const isActive = selectedFilter === card.id
@@ -1393,10 +1398,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     <button
                       key={card.id}
                       type="button"
-                      onClick={() => handleCardSelect(card.id)}
+                      onMouseDown={(e) => {
+                        if (!isDraggingRef.current) e.preventDefault()
+                      }}
+                      onClick={(e) => handleCardSelect(card.id, e)}
                       className={cn(
-                        'group/card shrink-0 relative flex flex-col items-center justify-between p-2.5 sm:p-3 rounded-2xl border-2 transition-colors duration-150 cursor-pointer',
-                        'w-[124px] sm:w-[138px] h-[106px] sm:h-[114px]',
+                        'group/card shrink-0 relative flex flex-col items-center justify-between p-2.5 sm:p-3 rounded-2xl border-2 transition-colors duration-150 cursor-pointer select-none',
+                        'w-[124px] sm:w-[138px] min-w-[124px] sm:min-w-[138px] max-w-[124px] sm:max-w-[138px] h-[106px] sm:h-[114px] min-h-[106px] sm:min-h-[114px] max-h-[106px] sm:max-h-[114px]',
                         isActive
                           ? 'border-sky-400 bg-sky-500/15 text-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.25)]'
                           : 'border-border-default/80 bg-surface text-text-secondary hover:border-sky-400/40 hover:bg-surface-raised hover:text-text-primary',
@@ -1415,7 +1423,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                       </span>
 
                       {/* Icon to rõ ở giữa */}
-                      <div className="flex-1 flex items-center justify-center pt-1 group-hover/card:scale-108 transition-transform duration-150">
+                      <div className="flex-1 flex items-center justify-center pt-1">
                         {card.icon}
                       </div>
 
@@ -1434,8 +1442,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               </div>
             </div>
 
-            {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi) */}
-            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+            {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi, min-h-[380px] chống sụt lún CLS) */}
+            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 min-h-[380px]">
               {displayedRooms.length > 0 ? (
                 displayedRooms.map((room) => {
                   const laChuPhong = Boolean(
@@ -1536,9 +1544,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     <button
                       key={item.id}
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setGameMoiChon(item.id)}
                       className={cn(
-                        'h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden card-side-glow',
+                        'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden card-side-glow',
                         isSelected
                           ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
                           : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
@@ -1591,9 +1600,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                             <button
                               key={String(moc.value)}
                               type="button"
+                              onMouseDown={(e) => e.preventDefault()}
                               onClick={() => setCheDoTurn(moc.value)}
                               className={cn(
-                                'h-7 rounded-lg text-xs transition-colors duration-150 cursor-pointer text-center flex items-center justify-center select-none border-2',
+                                'h-7 min-h-7 max-h-7 rounded-lg text-xs transition-colors duration-150 cursor-pointer text-center flex items-center justify-center select-none border-2',
                                 isSelected
                                   ? 'border-brand bg-brand/10 text-brand font-bold'
                                   : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary font-medium',
@@ -1704,12 +1714,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               <div className="grid grid-cols-2 gap-2 select-none">
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setCheDoPhong('public')
                     setLoiTaoBan(null)
                   }}
                   className={cn(
-                    'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                    'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
                     cheDoPhong === 'public'
                       ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
                       : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
@@ -1721,12 +1732,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setCheDoPhong('private')
                     setLoiTaoBan(null)
                   }}
                   className={cn(
-                    'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                    'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
                     cheDoPhong === 'private'
                       ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
                       : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',

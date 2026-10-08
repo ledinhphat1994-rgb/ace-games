@@ -373,10 +373,11 @@ function TheLuaChon({
       type="button"
       data-testid={testId}
       aria-pressed={chon}
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onChon}
       disabled={disabled}
       className={cn(
-        'flex items-center justify-center gap-2 h-11 px-3 rounded-xl text-xs font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150',
+        'flex items-center justify-center gap-2 h-11 min-h-11 max-h-11 px-3 rounded-xl text-xs font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150 select-none',
         chon
           ? 'skeuo-subcard-active-amber text-amber-200'
           : 'skeuo-subcard-base text-slate-300 hover:text-white',

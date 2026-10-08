@@ -10,12 +10,13 @@ export function ChonSoMay({ soMay, onChon, className }: { soMay: number; onChon:
           key={n}
           type="button"
           aria-pressed={soMay === n}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => onChon(n)}
           className={cn(
-            'flex items-center justify-center rounded-lg border py-1.5 font-mono text-xs font-bold tabular-nums transition-all cursor-pointer',
+            'flex h-8 min-h-8 max-h-8 items-center justify-center rounded-lg border-2 font-mono text-xs font-bold tabular-nums transition-colors duration-150 cursor-pointer select-none',
             soMay === n
-              ? 'border-brand/40 bg-brand/15 font-black text-brand shadow-sm'
-              : 'border-white/5 text-slate-400 hover:bg-white/10 hover:text-white',
+              ? 'border-brand bg-brand/15 font-black text-brand shadow-xs'
+              : 'border-border-default bg-surface/50 text-slate-400 hover:bg-surface-raised hover:text-white',
           )}
         >
           {n}

@@ -147,8 +147,9 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
                 key={tmpl.id}
                 type="button"
                 disabled={isInFlight}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSelectedTemplate(tmpl.id)}
-                className={`w-full h-14 flex items-center gap-3.5 px-4 rounded-xl text-left cursor-pointer transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`w-full h-14 min-h-14 max-h-14 flex items-center gap-3.5 px-4 rounded-xl text-left cursor-pointer transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 select-none ${
                   isSelected
                     ? 'skeuo-subcard-active-amber text-amber-200'
                     : 'skeuo-subcard-base text-slate-300 hover:text-white'

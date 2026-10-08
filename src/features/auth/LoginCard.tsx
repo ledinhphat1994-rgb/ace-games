@@ -262,11 +262,12 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
                   key={id}
                   type="button"
                   aria-pressed={dkVaiTro === id}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setDkVaiTro(id)}
                   className={cn(
-                    'flex h-11 items-center gap-2 rounded-xl border text-sm font-medium transition-colors duration-150',
+                    'flex h-11 min-h-11 max-h-11 items-center gap-2 rounded-xl border-2 text-sm font-medium transition-colors duration-150 cursor-pointer select-none',
                     dkVaiTro === id
-                      ? 'border-brand/60 bg-brand/10 text-brand'
+                      ? 'border-brand bg-brand/10 text-brand'
                       : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                   )}
                 >

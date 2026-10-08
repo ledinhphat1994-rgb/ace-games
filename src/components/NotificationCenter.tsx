@@ -432,11 +432,12 @@ function NutLoc({ dangChon, onClick, children }: { dangChon: boolean; onClick: (
     <button
       type="button"
       aria-pressed={dangChon}
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={cn(
-        'inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'inline-flex h-7 min-h-7 max-h-7 items-center gap-1.5 rounded-full border-2 px-3 text-xs font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer select-none',
         dangChon
-          ? 'border-brand/50 bg-brand/10 text-brand'
+          ? 'border-brand bg-brand/10 text-brand'
           : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
       )}
     >

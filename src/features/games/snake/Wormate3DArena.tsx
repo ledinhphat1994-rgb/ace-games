@@ -2404,9 +2404,10 @@ export function Wormate3DArena({
                         <button
                           key={skin.id}
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleSelectSkin(skin.id)}
                           className={cn(
-                            'h-24 p-2 rounded-xl border-2 flex flex-col items-center justify-between transition-colors duration-150 cursor-pointer relative group',
+                            'h-24 min-h-24 max-h-24 p-2 rounded-xl border-2 flex flex-col items-center justify-between transition-colors duration-150 cursor-pointer relative group select-none',
                             isSelected
                               ? 'border-emerald-500 bg-emerald-500/15 shadow-md shadow-emerald-500/10'
                               : 'border-slate-800 bg-slate-800/70 hover:border-slate-700 hover:bg-slate-800',

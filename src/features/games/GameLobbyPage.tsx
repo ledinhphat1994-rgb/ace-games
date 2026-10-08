@@ -182,11 +182,12 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
                     key={s}
                     type="button"
                     aria-pressed={turnSeconds === s}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setTurnSeconds(s)}
                     className={cn(
-                      'h-10 rounded-xl border text-sm font-semibold transition-colors',
+                      'h-10 min-h-10 max-h-10 rounded-xl border-2 text-sm font-semibold transition-colors duration-150 cursor-pointer select-none',
                       turnSeconds === s
-                        ? 'border-brand/60 bg-brand/15 text-brand'
+                        ? 'border-brand bg-brand/15 text-brand'
                         : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
                     )}
                   >

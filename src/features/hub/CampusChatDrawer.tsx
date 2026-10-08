@@ -243,7 +243,7 @@ function CampusChatInputBar({
                   onClick={() => {
                     setNoiDung((prev) => (prev + em).slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))
                     setMoPickerEmoji(false)
-                    inputRef.current?.focus()
+                    inputRef.current?.focus({ preventScroll: true })
                   }}
                   className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-surface-overlay transition-colors active:scale-95 cursor-pointer"
                 >

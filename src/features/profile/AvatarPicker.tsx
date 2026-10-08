@@ -58,11 +58,12 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: Avat
               key={nhom.id}
               type="button"
               aria-pressed={activeCategory === nhom.id}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveCategory(nhom.id)}
               className={cn(
-                'flex h-9 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors duration-150',
+                'flex h-9 min-h-9 max-h-9 items-center gap-1.5 rounded-xl border-2 px-3 text-sm font-medium transition-colors duration-150',
                 activeCategory === nhom.id
-                  ? 'border-brand/50 bg-brand/10 text-brand'
+                  ? 'border-brand bg-brand/10 text-brand'
                   : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
               )}
             >
@@ -88,18 +89,22 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: Avat
               aria-selected={daChon}
               aria-label={avatar.name}
               title={avatar.name}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setSelectedAvatar(avatar.src)}
               className={cn(
-                'relative aspect-square overflow-hidden rounded-2xl bg-canvas transition-shadow duration-150',
-                daChon ? 'ring-2 ring-brand ring-offset-2 ring-offset-surface' : 'ring-1 ring-border-default hover:ring-border-strong',
+                'relative aspect-square overflow-hidden rounded-2xl bg-canvas border-2 transition-colors duration-150 cursor-pointer',
+                daChon ? 'border-brand bg-brand/10 shadow-xs' : 'border-border-default hover:border-border-strong',
               )}
             >
               <img src={avatar.src} alt="" loading="lazy" className="size-full object-cover" />
-              {daChon && (
-                <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-text-on-brand shadow">
-                  <Check className="size-3 stroke-[3]" />
-                </span>
-              )}
+              <span
+                className={cn(
+                  'absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-text-on-brand shadow transition-opacity duration-150',
+                  daChon ? 'opacity-100' : 'opacity-0',
+                )}
+              >
+                <Check className="size-3 stroke-[3]" />
+              </span>
             </button>
           )
         })}
