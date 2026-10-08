@@ -27,7 +27,8 @@ describe('Chuẩn Quốc Tế Arcade: Tràn viền 100% màn hình & HUD nổi k
     expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-sanh"')
     expect(snakeDuelRaw).toContain('data-testid="nut-che-do-choi"')
     expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-choi-lai"')
-    expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-toan-man-hinh"')
+    // Rắn Săn Mồi luôn ở chế độ full màn hình, đã loại bỏ nút thu nhỏ theo yêu cầu
+    expect(snakeDuelRaw).not.toContain('data-testid="nut-nhanh-toan-man-hinh"')
   })
 
   it('CSS: Định nghĩa HUD nổi kính mờ (.game-toolbar-floating-hud) không chiếm chiều cao layout', () => {

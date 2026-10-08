@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ArrowLeft, Gamepad2, Maximize2, Minimize2, RotateCcw, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Gamepad2, RotateCcw, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
@@ -183,6 +183,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
 
   const handleBackRoom = useCallback(() => {
     setHasConfirmedPlay(false)
+    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void> }
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      if (doc.exitFullscreen) doc.exitFullscreen().catch?.(() => {})
+      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen().catch?.(() => {})
+    }
     onBack?.()
   }, [onBack])
 
@@ -273,10 +278,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   return (
     <div
       ref={fullscreenContainerRef}
-      className={cn(
-        'relative flex flex-col items-center justify-center w-full h-full flex-1 min-h-0 overflow-hidden touch-none select-none overscroll-none transition-colors duration-150',
-        isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-0 bg-surface justify-center overflow-hidden'
-      )}
+      className="fixed inset-0 z-30 w-full h-dvh max-w-none p-0 bg-surface flex flex-col items-center justify-center overflow-hidden touch-none select-none overscroll-none"
     >
       {/* ── 1. ĐẤU TRƯỜNG RẮN SĂN MỒI (TOÀN MÀN HÌNH 100%, KHÔNG CÒN VÙNG 1 TRÊN ĐỈNH) ── */}
       {/* Hỗ trợ chế độ chơi: 100% PVE, PVP + PVE, và 100% PVP */}
@@ -287,7 +289,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           aiCount={aiCount}
           isRunning={isRunning}
           isGameOver={isGameOver}
-          isFullscreen={isFullscreen}
+          isFullscreen={true}
           restartKey={restartKey}
           mode={mode === 'pass_and_play' ? 'pass_and_play' : 'ai'}
           onModeChange={(m) => {
@@ -378,17 +380,6 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
           <RotateCcw className="size-5" />
-        </button>
-
-        <button
-          type="button"
-          onClick={handleToggleFullscreen}
-          title={isFullscreen ? 'Thu nhỏ (F)' : 'Toàn màn hình (F)'}
-          aria-label={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
-          data-testid="nut-nhanh-toan-man-hinh"
-          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
-        >
-          {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
         </button>
 
         <button
