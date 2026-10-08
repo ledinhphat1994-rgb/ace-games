@@ -2,7 +2,7 @@
 // src/components/layout/navigation-config.ts
 
 import type { LucideIcon } from 'lucide-react'
-import { Home, BookOpen, Gamepad2, Users, Trophy } from 'lucide-react'
+import { Home, BookOpen, Gamepad2, Users, Trophy, ShoppingBag } from 'lucide-react'
 
 export interface DesktopNavLink {
   to: string
@@ -35,6 +35,7 @@ export interface SidebarNavItem {
  * 3. Game (Arena)
  * 4. Cộng đồng (Community) - Tạm thời ẩn theo yêu cầu người dùng
  * 5. Bảng xếp hạng (Rankings)
+ * 6. Cửa hàng vật phẩm (Shop)
  */
 export const MAIN_NAV_ITEMS: SidebarNavItem[] = [
   { to: '/', label: 'Trang chủ', shortLabel: 'Trang chủ', icon: Home, exact: true },
@@ -42,6 +43,7 @@ export const MAIN_NAV_ITEMS: SidebarNavItem[] = [
   { to: '/arena', label: 'Game', shortLabel: 'Game', icon: Gamepad2 },
   { to: '/community', label: 'Cộng đồng', shortLabel: 'Cộng đồng', icon: Users, hidden: true },
   { to: '/leaderboard', label: 'Bảng xếp hạng', shortLabel: 'Xếp hạng', icon: Trophy },
+  { to: '/shop', label: 'Cửa hàng vật phẩm', shortLabel: 'Cửa hàng', icon: ShoppingBag },
 ]
 
 export const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
@@ -53,6 +55,7 @@ export const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
 
 export const SIDEBAR_SECONDARY_NAV: SidebarNavItem[] = [
   { to: '/leaderboard', label: 'Bảng xếp hạng', icon: Trophy },
+  { to: '/shop', label: 'Cửa hàng vật phẩm', icon: ShoppingBag },
 ]
 
 /**

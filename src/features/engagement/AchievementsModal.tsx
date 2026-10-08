@@ -1,16 +1,13 @@
-import { useState, type ComponentType } from 'react'
+import { type ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertCircle,
   Award,
   BookOpen,
   Brain,
-  Check,
   CheckCircle2,
-  Coins,
   Crown,
   Flame,
-  Gem,
   Lock,
   MessageSquare,
   PenTool,
@@ -38,15 +35,10 @@ import { cn } from '@/lib/utils'
 import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
 import type { UserAchievementItem } from '@shared/protocol/engagement'
 import {
-  IconCrown3D,
-  IconCaroCubes3D,
-  IconManaCrystal3D,
-  IconChest3D,
   IconLaurelDiamond3D,
   IconTrophyGold3D,
   IconXpMedal3D,
   IconRankStar3D,
-  IconStarSparkle,
 } from '@/features/games/GameArt3D'
 
 interface AchievementsModalProps {
@@ -86,9 +78,6 @@ const ICON: Record<string, ComponentType<{ className?: string }>> = {
 const NGAY = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })
 
 export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps) {
-  const [activeTab, setActiveTab] = useState<'shop' | 'badges'>('badges')
-  const [selectedShopId, setSelectedShopId] = useState<string | null>('chest_shard')
-
   const { data, isLoading, error, refetch } = useQuery<AchievementsResponse>({
     queryKey: ['engagement', 'achievements'],
     queryFn: async () => {
@@ -136,7 +125,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                 <span>Thành tựu & Huy hiệu</span>
               </DialogTitle>
               <DialogDescription className="sr-only">
-                Thông tin kinh nghiệm và cửa hàng vật phẩm
+                Thông tin kinh nghiệm và huy hiệu thành tựu
               </DialogDescription>
 
               {/* Thanh tiến trình điểm kinh nghiệm */}
@@ -191,263 +180,100 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
           </div>
         </div>
 
-        {/* Chuyển đổi tab Cửa hàng / Huy hiệu */}
+        {/* Tiêu đề mục Huy hiệu */}
         <div className="flex items-center justify-between pt-1.5 pb-1 sm:pt-2 sm:pb-1 shrink-0">
-          <div className="flex items-center gap-2 select-none">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setActiveTab('shop')}
-              className={cn(
-                'h-8 px-3.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center',
-                activeTab === 'shop'
-                  ? 'bg-amber-400 text-amber-950 shadow-md font-black'
-                  : 'bg-slate-800/80 text-slate-300 hover:text-white',
-              )}
-            >
-              Cửa hàng vật phẩm
-            </button>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setActiveTab('badges')}
-              className={cn(
-                'h-8 px-3.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center',
-                activeTab === 'badges'
-                  ? 'bg-amber-400 text-amber-950 shadow-md font-black'
-                  : 'bg-slate-800/80 text-slate-300 hover:text-white',
-              )}
-            >
-              Huy hiệu ({unlockedCount}/{totalCount})
-            </button>
-          </div>
+          <h3 className="text-xs sm:text-sm font-bold text-amber-300 select-none">
+            Huy hiệu ({unlockedCount}/{totalCount})
+          </h3>
         </div>
 
-        {/* Khung nội dung co giãn linh hoạt theo chiều cao màn hình, chống giật CLS giữa 2 tab */}
-        {activeTab === 'shop' ? (
-          /* Lưới 6 vật phẩm Cửa hàng 3D */
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 my-1.5 select-none">
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 py-1">
-              {[
-                {
-                  id: 'chest_shard',
-                  name: 'Gói Mảnh Tướng',
-                  price: '1200 Vàng',
-                  priceType: 'gold',
-                  Icon: IconChest3D,
-                },
-                {
-                  id: 'board_galaxy',
-                  name: 'Giao diện Tinh tú',
-                  price: '50 Kim cương',
-                  priceType: 'diamond',
-                  Icon: IconManaCrystal3D,
-                },
-                {
-                  id: 'caro_classic',
-                  name: 'Hậu vệ Caro Cổ điển',
-                  price: '50 Kim cương',
-                  priceType: 'diamond',
-                  Icon: IconCaroCubes3D,
-                },
-                {
-                  id: 'chest_gold',
-                  name: 'Rương Báu Hoàng Kim',
-                  price: '1200 Vàng',
-                  priceType: 'gold',
-                  Icon: IconChest3D,
-                },
-                {
-                  id: 'crown_royal',
-                  name: 'Vương Miện Quý Tộc',
-                  price: '50 Kim cương',
-                  priceType: 'diamond',
-                  Icon: IconCrown3D,
-                },
-                {
-                  id: 'throne_warlord',
-                  name: 'Ngai Vàng Chiến Tướng',
-                  price: '50 Kim cương',
-                  priceType: 'diamond',
-                  Icon: IconTrophyGold3D,
-                },
-              ].map((item) => {
-                const ItemIcon = item.Icon
-                const isSelected = selectedShopId === item.id
+        {/* Danh sách Huy hiệu */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 my-1.5 select-none">
+          {isLoading ? (
+            <div className="grid gap-2 sm:grid-cols-2 py-1" aria-hidden>
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-[80px] w-full rounded-xl bg-slate-800/60" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center">
+              <AlertCircle className="size-6 text-red-400" />
+              <p className="mt-2 text-sm text-slate-300">
+                {error instanceof Error ? error.message : 'Không thể tải huy hiệu.'}
+              </p>
+              <Button variant="outline" size="xs" className="mt-3" onClick={() => void refetch()}>
+                Thử lại
+              </Button>
+            </div>
+          ) : sapXep.length === 0 ? (
+            <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center">
+              <Award className="size-6 text-slate-500" />
+              <p className="mt-2 text-sm font-medium text-slate-300">Chưa có huy hiệu nào</p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 py-1">
+              {sapXep.map((badge) => {
+                const Icon = badge.unlocked ? (ICON[badge.icon] ?? Award) : Lock
                 return (
-                  <div
-                    key={item.id}
-                    role="button"
-                    tabIndex={0}
+                  <li
+                    key={badge.key}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setSelectedShopId(item.id)
-                    }}
                     className={cn(
-                      'rounded-2xl border-2 p-2 sm:p-2.5 flex flex-col items-center justify-between text-center min-h-[160px] h-[164px] sm:h-[170px] w-full transition-colors duration-150 relative cursor-pointer select-none overflow-hidden',
-                      isSelected
-                        ? 'border-amber-400 bg-amber-500/15 shadow-[0_0_14px_rgba(245,158,11,0.25)]'
-                        : 'border-slate-800 bg-[#0c1527] hover:border-slate-700',
+                      'min-h-[80px] p-2.5 sm:p-3 flex items-start gap-2.5 sm:gap-3 rounded-xl border-2 transition-colors duration-150 select-none relative',
+                      badge.unlocked
+                        ? 'border-amber-400/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)] hover:border-amber-400/80'
+                        : 'border-slate-800 bg-slate-900/40 opacity-75 hover:border-slate-700',
                     )}
                   >
-                    {/* Huy hiệu đã chọn: Vị trí cố định, không remount DOM */}
-                    <div
+                    <span
                       className={cn(
-                        'absolute top-1.5 right-1.5 size-4 rounded-full flex items-center justify-center transition-opacity duration-150',
-                        isSelected ? 'bg-amber-400 text-amber-950 opacity-100' : 'opacity-0',
+                        'flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-lg mt-0.5',
+                        badge.unlocked
+                          ? 'bg-gradient-to-b from-amber-400/25 to-amber-600/30 border border-amber-400/50 text-amber-400 shadow-xs'
+                          : 'bg-slate-800 text-slate-500',
                       )}
                     >
-                      <Check className="size-2.5 stroke-[3]" />
-                    </div>
-
-                    {/* Vùng tiêu đề cố định h-7 min-h-7 */}
-                    <div className="h-7 min-h-7 max-h-7 w-full flex items-center justify-center text-center overflow-hidden shrink-0 px-0.5">
-                      <span className="text-[10px] sm:text-[11px] font-bold text-white line-clamp-2 leading-tight w-full break-words" title={item.name}>
-                        {item.name}
-                      </span>
-                    </div>
-
-                    {/* Vùng Icon cố định */}
-                    <div className="h-10 sm:h-12 min-h-10 w-full flex items-center justify-center shrink-0 my-0.5">
-                      <ItemIcon size={38} className="drop-shadow-lg sm:w-[44px] sm:h-[44px]" />
-                    </div>
-
-                    {/* Vùng giá cố định h-5 min-h-5 */}
-                    <div className="h-5 min-h-5 max-h-5 w-full flex items-center justify-center text-[10px] font-bold shrink-0 mb-0.5">
-                      {item.priceType === 'gold' ? (
-                        <span className="text-amber-400 flex items-center gap-0.5">
-                          <Coins className="size-3" />
-                          {item.price}
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1 flex flex-col justify-center">
+                      <div className="flex items-center justify-between gap-1.5 min-w-0">
+                        <span
+                          className={cn(
+                            'text-xs sm:text-sm font-bold truncate min-w-0',
+                            badge.unlocked ? 'text-amber-300' : 'text-slate-300',
+                          )}
+                          title={badge.title}
+                        >
+                          {badge.title}
                         </span>
-                      ) : (
-                        <span className="text-sky-300 flex items-center gap-0.5">
-                          <Gem className="size-3 text-sky-400" />
-                          {item.price}
+                        <span className="shrink-0 text-xs font-black text-amber-400 tabular-nums whitespace-nowrap">
+                          +{badge.rewardXp} XP
                         </span>
-                      )}
+                      </div>
+                      <p className="mt-1 text-xs leading-snug text-slate-400 break-words">
+                        {badge.description}
+                      </p>
+                      {badge.unlocked && badge.unlockedAt ? (
+                        <p className="text-[10px] text-amber-400/70 font-medium truncate mt-0.5">
+                          Mở ngày {NGAY.format(badge.unlockedAt)}
+                        </p>
+                      ) : null}
                     </div>
-
-                    {/* Nút hành động cố định */}
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setSelectedShopId(item.id)
-                      }}
-                      className={cn(
-                        'w-full h-6 sm:h-7 min-h-6 sm:min-h-7 rounded-full border text-[10px] sm:text-[11px] font-bold transition-colors duration-150 cursor-pointer flex items-center justify-center shadow-xs shrink-0',
-                        isSelected
-                          ? 'border-amber-400 bg-amber-400 text-amber-950 font-black'
-                          : 'border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 hover:from-amber-500/30 hover:to-sky-500/30 text-amber-200',
-                      )}
-                    >
-                      {isSelected ? 'Đã chọn' : 'Mua bùa'}
-                    </button>
-                  </div>
+                  </li>
                 )
               })}
-            </div>
-          </div>
-        ) : (
-          /* Danh sách Huy hiệu */
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 my-1.5 select-none">
-            {isLoading ? (
-              <div className="grid gap-2 sm:grid-cols-2 py-1" aria-hidden>
-                {Array.from({ length: 6 }, (_, i) => (
-                  <Skeleton key={i} className="h-[80px] w-full rounded-xl bg-slate-800/60" />
-                ))}
-              </div>
-            ) : error ? (
-              <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center">
-                <AlertCircle className="size-6 text-red-400" />
-                <p className="mt-2 text-sm text-slate-300">
-                  {error instanceof Error ? error.message : 'Không thể tải huy hiệu.'}
-                </p>
-                <Button variant="outline" size="xs" className="mt-3" onClick={() => void refetch()}>
-                  Thử lại
-                </Button>
-              </div>
-            ) : sapXep.length === 0 ? (
-              <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center">
-                <Award className="size-6 text-slate-500" />
-                <p className="mt-2 text-sm font-medium text-slate-300">Chưa có huy hiệu nào</p>
-              </div>
-            ) : (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 py-1">
-                {sapXep.map((badge) => {
-                  const Icon = badge.unlocked ? (ICON[badge.icon] ?? Award) : Lock
-                  return (
-                    <li
-                      key={badge.key}
-                      onMouseDown={(e) => e.preventDefault()}
-                      className={cn(
-                        'min-h-[80px] p-2.5 sm:p-3 flex items-start gap-2.5 sm:gap-3 rounded-xl border-2 transition-colors duration-150 select-none relative',
-                        badge.unlocked
-                          ? 'border-amber-400/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)] hover:border-amber-400/80'
-                          : 'border-slate-800 bg-slate-900/40 opacity-75 hover:border-slate-700',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-lg mt-0.5',
-                          badge.unlocked
-                            ? 'bg-gradient-to-b from-amber-400/25 to-amber-600/30 border border-amber-400/50 text-amber-400 shadow-xs'
-                            : 'bg-slate-800 text-slate-500',
-                        )}
-                      >
-                        <Icon className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1 flex flex-col justify-center">
-                        <div className="flex items-center justify-between gap-1.5 min-w-0">
-                          <span
-                            className={cn(
-                              'text-xs sm:text-sm font-bold truncate min-w-0',
-                              badge.unlocked ? 'text-amber-300' : 'text-slate-300',
-                            )}
-                            title={badge.title}
-                          >
-                            {badge.title}
-                          </span>
-                          <span className="shrink-0 text-xs font-black text-amber-400 tabular-nums whitespace-nowrap">
-                            +{badge.rewardXp} XP
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs leading-snug text-slate-400 break-words">
-                          {badge.description}
-                        </p>
-                        {badge.unlocked && badge.unlockedAt ? (
-                          <p className="text-[10px] text-amber-400/70 font-medium truncate mt-0.5">
-                            Mở ngày {NGAY.format(badge.unlockedAt)}
-                          </p>
-                        ) : null}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        )}
+            </ul>
+          )}
+        </div>
 
-        {/* Footer: Thoát & Nạp tiền ngay - Luôn cố định ở đáy modal, không bị che khuất */}
-        <div className="flex justify-end items-center gap-2.5 sm:gap-3 pt-2.5 sm:pt-4 border-t border-sky-950/60 mt-auto shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+        {/* Footer: Thoát - Luôn cố định ở đáy modal, không bị che khuất */}
+        <div className="flex justify-end items-center pt-2.5 sm:pt-4 border-t border-sky-950/60 mt-auto shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             className="rounded-full text-xs font-semibold px-5 sm:px-6 h-9 sm:h-10 cursor-pointer border border-slate-700/80 bg-[#162238] hover:bg-[#202f4d] text-slate-200 transition-colors shrink-0"
           >
             Thoát
-          </button>
-          <button
-            type="button"
-            onClick={() => {}}
-            className="cyber-gold-charge-btn rounded-full text-xs font-black px-6 sm:px-8 h-9 sm:h-10 cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_25px_rgba(245,158,11,0.6)] relative overflow-visible shrink-0"
-          >
-            <span>Nạp tiền ngay</span>
-            <IconStarSparkle className="absolute -top-2.5 -right-2 text-amber-200 drop-shadow-[0_0_8px_#fff]" size={18} />
           </button>
         </div>
       </DialogContent>

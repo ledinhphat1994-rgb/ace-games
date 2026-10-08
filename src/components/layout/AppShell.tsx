@@ -180,7 +180,8 @@ export function AppShell({ children }: AppShellProps) {
     location.pathname.startsWith('/game') ||
     location.pathname.startsWith('/learn') ||
     location.pathname.startsWith('/community') ||
-    location.pathname.startsWith('/leaderboard')
+    location.pathname.startsWith('/leaderboard') ||
+    location.pathname.startsWith('/shop')
 
   const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement))
   useEffect(() => {

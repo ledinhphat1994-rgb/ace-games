@@ -28,13 +28,15 @@ describe('AchievementsModal & Giải Đấu UI / UX Regression Tests', () => {
   })
 
   it('3. Khung nội dung flex-1 min-h-0 và footer mt-auto shrink-0 luôn hiển thị nút trên mobile dọc và ngang', () => {
-    // Cả 2 tab đều dùng khung cuộn flex-1 min-h-0 đồng nhất, chống giật CLS và thích ứng mọi chiều cao mobile
+    // Khung cuộn flex-1 min-h-0 đồng nhất, chống giật CLS và thích ứng mọi chiều cao mobile
     expect(modalRaw).toContain('flex-1 min-h-0 overflow-y-auto overscroll-contain')
+
+    // Cửa hàng vật phẩm đã được tách ra khỏi modal thành tựu
+    expect(modalRaw).not.toContain('Cửa hàng vật phẩm')
 
     // Footer được cố định ở đáy modal với shrink-0 mt-auto đảm bảo luôn thấy nút bấm
     expect(modalRaw).toContain('mt-auto shrink-0')
     expect(modalRaw).toContain('Thoát')
-    expect(modalRaw).toContain('Nạp tiền ngay')
   })
 
   it('4. Danh mục nhiệm vụ đa dạng bao phủ đầy đủ tính năng của web (20 nhiệm vụ)', () => {

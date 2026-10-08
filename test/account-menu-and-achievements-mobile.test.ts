@@ -16,7 +16,7 @@ describe('Account Menu & Achievements Modal Mobile Responsiveness', () => {
     expect(accountQuickCenterRaw).toContain('Đăng xuất')
   })
 
-  it('2. Vùng 2: AchievementsModal cố định chân modal với nút Thoát & Nạp tiền ngay, không bị che khuất trên mobile dọc & ngang', () => {
+  it('2. Vùng 2: AchievementsModal cố định chân modal với nút Thoát, không bị che khuất trên mobile dọc & ngang', () => {
     // Khung DialogContent khóa chiều cao và không cho cuộn cả vỏ ngoài
     expect(achievementsModalRaw).toContain('flex flex-col overflow-hidden')
     expect(achievementsModalRaw).toContain('max-h-[calc(100svh-1.5rem)]')
@@ -24,7 +24,6 @@ describe('Account Menu & Achievements Modal Mobile Responsiveness', () => {
     // Footer được cố định ở đáy modal với mt-auto shrink-0
     expect(achievementsModalRaw).toContain('mt-auto shrink-0')
     expect(achievementsModalRaw).toContain('Thoát')
-    expect(achievementsModalRaw).toContain('Nạp tiền ngay')
 
     // Có safe-area-inset-bottom
     expect(achievementsModalRaw).toContain('env(safe-area-inset-bottom)')

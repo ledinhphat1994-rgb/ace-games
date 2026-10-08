@@ -33,6 +33,7 @@ const AnalyticsDashboardPage = lazy(() =>
 const AdminControlPlanePage = lazy(() =>
   import('@/features/admin/AdminControlPlanePage').then((m) => ({ default: m.AdminControlPlanePage })),
 )
+const ShopPage = lazy(() => import('@/features/shop/ShopPage').then((m) => ({ default: m.ShopPage })))
 
 // Sau một lần deploy, tab đang mở vẫn giữ bundle cũ và xin chunk đã bị thay tên → tải lại trang một lần để lấy bản mới.
 // Chặn lặp: không tự tải lại quá một lần trong 10 giây.
@@ -72,6 +73,8 @@ const router = createBrowserRouter([
           { path: 'community', element: <CommunityPage /> },
           { path: 'leaderboard', element: <LeaderboardPage /> },
           { path: 'rankings', element: <Navigate to="/leaderboard" replace /> },
+          { path: 'shop', element: <ShopPage /> },
+          { path: 'market', element: <Navigate to="/shop" replace /> },
           { path: 'me', element: <ProfilePage /> },
           { path: 'profile', element: <Navigate to="/me" replace /> },
           { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
