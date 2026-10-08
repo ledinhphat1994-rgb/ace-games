@@ -74,11 +74,11 @@ export function GameHeroicBanner({
       aria-live="assertive"
       onClick={() => onCloseRef.current?.()}
       className={cn(
-        'absolute inset-0 z-40 flex items-center justify-center p-4 select-none pointer-events-auto cursor-pointer transition-all animate-in fade-in duration-200',
+        'absolute inset-0 z-40 flex items-center justify-center p-4 select-none pointer-events-none transition-all animate-in fade-in duration-200',
         className,
       )}
     >
-      <div className="flex flex-col items-center justify-center animate-in zoom-in-75 duration-300">
+      <div className="flex flex-col items-center justify-center animate-in zoom-in-75 duration-300 pointer-events-auto cursor-pointer">
         <div className="bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.75)_0%,rgba(0,0,0,0.45)_50%,transparent_80%)] px-8 py-5 sm:px-12 sm:py-7 flex flex-col items-center justify-center max-w-[90vw] sm:max-w-[480px]">
           <span
             className={cn(

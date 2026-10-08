@@ -73,6 +73,7 @@ const STORAGE_KEY = 'c10a7_chat_sheet_dimensions'
 interface SheetDimensions {
   width: number
   height: number
+  bottomOffset?: number
 }
 
 function layTieuDePhongGame(rawId: string): string {
@@ -86,17 +87,21 @@ function layTieuDePhongGame(rawId: string): string {
 }
 
 function getInitialDimensions(): SheetDimensions {
-  if (typeof window === 'undefined') return { width: 440, height: 580 }
+  if (typeof window === 'undefined') return { width: 480, height: 580, bottomOffset: 84 }
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
       if (typeof parsed.width === 'number' && typeof parsed.height === 'number') {
         const maxWidth = Math.max(360, window.innerWidth - 32)
-        const maxHeight = Math.max(400, window.innerHeight - 100)
+        const maxHeight = Math.max(380, window.innerHeight - 60)
         return {
           width: Math.min(Math.max(360, parsed.width), maxWidth),
-          height: Math.min(Math.max(400, parsed.height), maxHeight),
+          height: Math.min(Math.max(380, parsed.height), maxHeight),
+          bottomOffset:
+            typeof parsed.bottomOffset === 'number'
+              ? Math.max(16, Math.min(parsed.bottomOffset, window.innerHeight - 380))
+              : 84,
         }
       }
     }
@@ -104,8 +109,9 @@ function getInitialDimensions(): SheetDimensions {
     // fallback
   }
   return {
-    width: Math.min(460, Math.max(360, window.innerWidth - 32)),
-    height: Math.min(580, Math.max(400, window.innerHeight - 100)),
+    width: Math.min(480, Math.max(360, window.innerWidth - 32)),
+    height: Math.min(580, Math.max(380, window.innerHeight - 60)),
+    bottomOffset: 84,
   }
 }
 
@@ -262,10 +268,11 @@ export function CampusChatSheet({
       setIsDesktop(window.innerWidth >= 768 && window.innerHeight >= 560)
       setDimensions((prev) => {
         const maxWidth = Math.max(360, window.innerWidth - 32)
-        const maxHeight = Math.max(400, window.innerHeight - 100)
+        const maxHeight = Math.max(380, window.innerHeight - 60)
         return {
           width: Math.min(Math.max(360, prev.width), maxWidth),
-          height: Math.min(Math.max(400, prev.height), maxHeight),
+          height: Math.min(Math.max(380, prev.height), maxHeight),
+          bottomOffset: Math.max(16, Math.min(prev.bottomOffset ?? 84, window.innerHeight - 380)),
         }
       })
     }
@@ -273,7 +280,7 @@ export function CampusChatSheet({
     return () => window.removeEventListener('resize', handleWindowResize)
   }, [])
 
-  const handleResizeStart = (e: React.PointerEvent, direction: 'w' | 'n' | 'nw') => {
+  const handleResizeStart = (e: React.PointerEvent, direction: 'w' | 'n' | 's' | 'nw' | 'sw') => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
@@ -282,25 +289,41 @@ export function CampusChatSheet({
     const startY = e.clientY
     const startWidth = dimensions.width
     const startHeight = dimensions.height
+    const startBottom = dimensions.bottomOffset ?? 84
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      const deltaX = startX - moveEvent.clientX
-      const deltaY = startY - moveEvent.clientY
+      const deltaX = startX - moveEvent.clientX // Kéo chuột sang trái -> deltaX > 0 -> tăng width
 
       const maxWidth = Math.max(360, window.innerWidth - 32)
-      const maxHeight = Math.max(400, window.innerHeight - 100)
+      const maxHeight = Math.max(380, window.innerHeight - 60)
 
       let nextWidth = startWidth
       let nextHeight = startHeight
+      let nextBottom = startBottom
 
-      if (direction === 'w' || direction === 'nw') {
+      // 1. Kéo chiều ngang (cạnh trái: 'w', 'nw', 'sw')
+      if (direction === 'w' || direction === 'nw' || direction === 'sw') {
         nextWidth = Math.min(Math.max(360, startWidth + deltaX), maxWidth)
       }
+
+      // 2. Kéo cạnh trên ('n', 'nw'): Cạnh dưới cố định, cạnh trên mở rộng/thu nhỏ
       if (direction === 'n' || direction === 'nw') {
-        nextHeight = Math.min(Math.max(400, startHeight + deltaY), maxHeight)
+        const deltaY = startY - moveEvent.clientY // Kéo lên trên -> deltaY > 0 -> tăng height
+        nextHeight = Math.min(Math.max(380, startHeight + deltaY), maxHeight)
       }
 
-      setDimensions({ width: nextWidth, height: nextHeight })
+      // 3. Kéo cạnh dưới ('s', 'sw'): Cạnh trên cố định, cạnh dưới mở rộng/thu nhỏ
+      if (direction === 's' || direction === 'sw') {
+        const deltaDown = moveEvent.clientY - startY // Kéo xuống dưới -> deltaDown > 0 -> giảm bottomOffset
+        const minBottom = 16
+        const maxBottom = window.innerHeight - 380 - 40
+        const proposedBottom = Math.max(minBottom, Math.min(startBottom - deltaDown, maxBottom))
+        const actualDeltaBottom = startBottom - proposedBottom
+        nextBottom = proposedBottom
+        nextHeight = Math.min(Math.max(380, startHeight + actualDeltaBottom), maxHeight)
+      }
+
+      setDimensions({ width: nextWidth, height: nextHeight, bottomOffset: nextBottom })
     }
 
     const handlePointerUp = () => {
@@ -476,20 +499,25 @@ export function CampusChatSheet({
             ? {
                 width: `${dimensions.width}px`,
                 height: `${dimensions.height}px`,
+                bottom: `${dimensions.bottomOffset ?? 84}px`,
+                right: '16px',
+                top: 'auto',
+                left: 'auto',
               }
             : undefined
         }
         className={cn(
           'campus-chat-sheet-root gap-0 p-0 z-[70] shadow-2xl overflow-hidden flex flex-col',
           'top-2.5 right-2.5 left-2.5 bottom-[max(0.625rem,env(safe-area-inset-bottom))] max-h-[calc(100dvh-20px)] rounded-2xl border border-border-default',
-          // Tối ưu màn hình ngang mobile: căn sát mép phải, full chiều cao, 0 pixel bị che
-          'landscape:top-2 landscape:bottom-[max(0.5rem,env(safe-area-inset-bottom,8px))] landscape:right-2 landscape:left-auto landscape:w-[min(380px,calc(100vw-20px))] landscape:h-[calc(100dvh-16px)] landscape:max-h-[calc(100dvh-16px)] landscape:min-h-0',
-          // Chỉ áp dụng bố cục nổi desktop khi màn hình thật sự đủ lớn
+          // Tối ưu màn hình ngang mobile: CHỈ kích hoạt khi KHÔNG phải Desktop
+          !isDesktop &&
+            'landscape:top-2 landscape:bottom-[max(0.5rem,env(safe-area-inset-bottom,8px))] landscape:right-2 landscape:left-auto landscape:w-[min(380px,calc(100vw-20px))] landscape:h-[calc(100dvh-16px)] landscape:max-h-[calc(100dvh-16px)] landscape:min-h-0',
+          // Bố cục nổi desktop: không ép width cứng, cho phép co dãn tự do
           isDesktop && [
             'sm:top-auto sm:right-4 sm:bottom-[84px] sm:left-auto',
             'sm:rounded-2xl sm:border sm:border-border-default',
             'sm:w-[480px] md:w-[500px] lg:w-[520px]',
-            'sm:min-w-[360px] sm:max-w-[calc(100vw-24px)] sm:min-h-[400px] sm:max-h-[calc(100vh-96px)]',
+            'sm:min-w-[360px] sm:max-w-[calc(100vw-24px)] sm:min-h-[380px] sm:max-h-[calc(100vh-48px)]',
             'sm:shadow-[-8px_12px_32px_rgba(0,0,0,0.45)]',
           ],
           '[&_[data-slot=sheet-close]]:size-8 sm:[&_[data-slot=sheet-close]]:size-9',
@@ -503,34 +531,57 @@ export function CampusChatSheet({
         {/* Họa tiết Blueprint Community Schematic mờ chìm toàn diện */}
         <BlueprintCommunityPattern className="opacity-35 pointer-events-none" />
 
-        {/* Các tay cầm co giãn trên Desktop */}
+        {/* Các tay cầm co giãn trên Desktop (Cạnh Trái, Cạnh Trên, Cạnh Dưới, Góc Trên-Trái, Góc Dưới-Trái) */}
         {isDesktop && (
           <>
+            {/* Cạnh trái (W): Thay đổi độ rộng */}
             <div
               onPointerDown={(e) => handleResizeStart(e, 'w')}
-              className="hidden sm:block absolute top-0 left-0 bottom-0 w-2.5 cursor-ew-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
+              className="hidden sm:block absolute top-3 left-0 bottom-3 w-3 cursor-ew-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
               title="Kéo cạnh trái để thay đổi độ rộng"
               aria-label="Kéo cạnh trái để thay đổi độ rộng"
             >
               <div className="absolute top-1/2 left-0.5 -translate-y-1/2 w-1 h-8 rounded-full bg-border-strong opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
+            {/* Cạnh trên (N): Thay đổi chiều cao phía trên */}
             <div
               onPointerDown={(e) => handleResizeStart(e, 'n')}
-              className="hidden sm:block absolute top-0 left-0 right-0 h-2.5 cursor-ns-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
+              className="hidden sm:block absolute top-0 left-3 right-3 h-3 cursor-ns-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
               title="Kéo cạnh trên để thay đổi chiều cao"
               aria-label="Kéo cạnh trên để thay đổi chiều cao"
             >
               <div className="absolute top-0.5 left-1/2 -translate-x-1/2 h-1 w-8 rounded-full bg-border-strong opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
+            {/* Cạnh dưới (S): Thay đổi chiều cao phía dưới */}
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 's')}
+              className="hidden sm:block absolute bottom-0 left-3 right-3 h-3 cursor-ns-resize z-50 hover:bg-brand/20 active:bg-brand/40 transition-colors select-none group"
+              title="Kéo cạnh dưới để thay đổi chiều cao"
+              aria-label="Kéo cạnh dưới để thay đổi chiều cao"
+            >
+              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-8 rounded-full bg-border-strong opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            {/* Góc trên-trái (NW): Co giãn cả 2 chiều */}
             <div
               onPointerDown={(e) => handleResizeStart(e, 'nw')}
-              className="hidden sm:block absolute top-0 left-0 size-4 cursor-nwse-resize z-50 hover:bg-brand/30 active:bg-brand/50 transition-colors select-none"
-              title="Kéo góc để co giãn cả 2 chiều"
-              aria-label="Kéo góc để co giãn cả 2 chiều"
+              className="hidden sm:flex items-start justify-start p-0.5 absolute top-0 left-0 size-5 cursor-nwse-resize z-50 hover:bg-brand/30 active:bg-brand/50 transition-colors select-none group rounded-tl-2xl"
+              title="Kéo góc trên-trái để co giãn cả 2 chiều"
+              aria-label="Kéo góc trên-trái để co giãn cả 2 chiều"
             >
-              <span className="sr-only">Co giãn khung chat</span>
+              <div className="size-2 rounded-tl-sm border-t-2 border-l-2 border-brand/50 group-hover:border-brand transition-colors" />
+            </div>
+
+            {/* Góc dưới-trái (SW): Co giãn cả 2 chiều */}
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'sw')}
+              className="hidden sm:flex items-end justify-start p-0.5 absolute bottom-0 left-0 size-5 cursor-nesw-resize z-50 hover:bg-brand/30 active:bg-brand/50 transition-colors select-none group rounded-bl-2xl"
+              title="Kéo góc dưới-trái để co giãn cả 2 chiều"
+              aria-label="Kéo góc dưới-trái để co giãn cả 2 chiều"
+            >
+              <div className="size-2 rounded-bl-sm border-b-2 border-l-2 border-brand/50 group-hover:border-brand transition-colors" />
             </div>
           </>
         )}
