@@ -16,11 +16,9 @@ describe('Snake Vùng 2, PvE Auto-Replace, and Dedicated PvP Mechanism', () => {
     expect(toolbarContent).toContain('(!hideCenterTurn || Boolean(opponentSlot || nutThoiGian || rightSlot || playerSlot || showRoomChat || showRankings))')
   })
 
-  it('xóa 2 nút pve và pvp gần card sảnh, thay vào đó tạo nút Chế độ chơi ở giữa cùng hàng', () => {
-    expect(snakeDuelContent).toContain('hideModeSelector={true}')
-    expect(snakeDuelContent).toContain('centerRowSlot=')
-    expect(snakeDuelContent).toContain('<span>Chế độ chơi</span>')
+  it('không còn Vùng 1 trên đỉnh, nút Chế độ chơi được tích hợp vào cụm thao tác nhanh và phím tắt', () => {
     expect(snakeDuelContent).toContain('data-testid="nut-che-do-choi"')
+    expect(snakeDuelContent).toContain('handleToggleFullscreen')
   })
 
   it('chế độ mặc định của Rắn Săn Mồi là PvE (ai)', () => {

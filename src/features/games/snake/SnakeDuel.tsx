@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
-import { Flame, Gamepad2, Lock, Play, RotateCcw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { ArrowLeft, Gamepad2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
-import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import { docThietLap, ghiThietLap, type ThietLapRan } from './thiet-lap'
 import { useGame } from '@/hooks/use-game'
+import type { PlayMode } from '../GamePlayToolbar'
 
 export type SnakeDifficulty = 'easy' | 'medium' | 'hard'
 
@@ -98,7 +97,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   const fullscreenContainerRef = useRef<HTMLDivElement | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const handleToggleFullscreen = () => {
+  const handleToggleFullscreen = useCallback(() => {
     const el = fullscreenContainerRef.current
     if (!el) return
 
@@ -110,7 +109,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     } else {
       setIsFullscreen(true)
     }
-  }
+  }, [isFullscreen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -120,7 +119,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
-  // Thoát toàn màn hình bằng phím Esc hoặc nút Back trên điện thoại
+  // Thoát toàn màn hình bằng nút Back trên điện thoại
   useEffect(() => {
     if (!isFullscreen) return
 
@@ -135,51 +134,96 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
       setIsFullscreen(false)
     }
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (document.fullscreenElement) {
-          document.exitFullscreen?.().catch(() => {})
-        }
-        setIsFullscreen(false)
-      }
-    }
-
     window.addEventListener('popstate', handlePopState)
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [isFullscreen])
 
-  // Đổi thiết lập độ khó
-  const doiThietLap = (moi: ThietLapRan) => {
-    setThietLap(moi)
-    ghiThietLap(moi)
-    if (isRunning) handleStartGame()
-  }
-
-  const handleStartGame = () => {
+  const handleStartGame = useCallback(() => {
     if (mode === 'pass_and_play' && !canStartPvp && isHost) return
     setHasConfirmedPlay(true)
     setIsGameOver(false)
     setIsRunning(true)
     setPlayerScore(0)
     setRestartKey((k) => k + 1)
-  }
+  }, [mode, canStartPvp, isHost])
 
-  const handleHuyPhong = () => {
+  const handleHuyPhong = useCallback(() => {
     setHasConfirmedPlay(false)
     setIsRunning(false)
     setIsGameOver(false)
     setIsConfigOpen(false)
-  }
+  }, [])
 
-  const handleBackRoom = () => {
+  const handleBackRoom = useCallback(() => {
     setHasConfirmedPlay(false)
     onBack?.()
-  }
+  }, [onBack])
+
+  // Đổi thiết lập độ khó
+  const doiThietLap = useCallback((moi: ThietLapRan) => {
+    setThietLap(moi)
+    ghiThietLap(moi)
+    if (isRunning) handleStartGame()
+  }, [isRunning, handleStartGame])
+
+  // ── PHÍM TẮT KEYBOARD TRÊN PC (Tối ưu 100% không gian, loại bỏ Vùng 1 trên đỉnh) ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Bỏ qua khi người dùng đang nhập văn bản trong input / textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      const key = e.key.toLowerCase()
+
+      // 1. Phím F: Toàn màn hình & thu nhỏ lại
+      if (key === 'f') {
+        e.preventDefault()
+        handleToggleFullscreen()
+        return
+      }
+
+      // 2. Phím C hoặc O: Mở cài đặt / chế độ chơi
+      if (key === 'c' || key === 'o') {
+        e.preventDefault()
+        if (!isSessionLocked) {
+          setIsConfigOpen((prev) => !prev)
+        }
+        return
+      }
+
+      // 3. Phím R: Chơi lại / ván mới
+      if (key === 'r') {
+        e.preventDefault()
+        handleStartGame()
+        return
+      }
+
+      // 4. Phím Q: Quay lại sảnh
+      if (key === 'q') {
+        e.preventDefault()
+        handleBackRoom()
+        return
+      }
+
+      // 5. Phím Escape: Nếu mở cài đặt -> đóng cài đặt. Nếu fullscreen -> thoát fullscreen.
+      if (e.key === 'Escape') {
+        if (isConfigOpen) {
+          e.preventDefault()
+          setIsConfigOpen(false)
+          return
+        }
+        if (isFullscreen) {
+          e.preventDefault()
+          handleToggleFullscreen()
+          return
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleToggleFullscreen, isSessionLocked, handleBackRoom, handleStartGame, isConfigOpen, isFullscreen])
 
   const handleGameOver = (winner: boolean, _reason?: string, finalScore = playerScore) => {
     setIsRunning(false)
@@ -202,77 +246,8 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         isFullscreen && 'fixed inset-0 z-50 w-full h-dvh max-w-none p-0 bg-surface justify-center overflow-hidden'
       )}
     >
-      {/* ── 1. THANH CÔNG CỤ VÙNG 2: DẠNG HUD NỔI TRONG SUỐT (FLOATING TRANSLUCENT HUD) CHUẨN QUỐC TẾ ── */}
+      {/* ── 1. ĐẤU TRƯỜNG RẮN SĂN MỒI (TOÀN MÀN HÌNH 100%, KHÔNG CÒN VÙNG 1 TRÊN ĐỈNH) ── */}
       {/* Hỗ trợ chế độ chơi: 100% PVE, PVP + PVE, và 100% PVP */}
-      <GamePlayToolbar
-        floatingHud={true}
-        onBack={handleBackRoom}
-        title="Rắn Săn Mồi"
-        icon={<Flame className="size-4 text-emerald-400" />}
-        mode={mode}
-        onModeChange={(m) => {
-          if (!isSessionLocked) {
-            setMode(m)
-            setIsRunning(false)
-            setIsGameOver(false)
-          }
-        }}
-        hideModeSelector={true}
-        centerRowSlot={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsConfigOpen((prev) => !prev)}
-            data-testid="nut-che-do-choi"
-            className={cn(
-              'h-8 px-2 sm:px-2.5 rounded-xl border-border-default bg-surface/90 backdrop-blur-md text-text-primary hover:bg-surface-raised font-bold text-xs gap-1 sm:gap-1.5 shadow-xs cursor-pointer transition-colors duration-150 flex items-center shrink-0 w-auto min-w-0',
-              isConfigOpen && 'border-emerald-500/60 bg-surface-raised',
-            )}
-            title="Chế độ chơi"
-            aria-label="Chế độ chơi"
-          >
-            <Gamepad2 className="size-3.5 text-emerald-400 shrink-0" />
-            <span>Chế độ chơi</span>
-            <span
-              className={cn(
-                'px-1.5 py-0.2 rounded-md text-[10px] font-bold border-2 shrink-0 transition-colors duration-150',
-                mode === 'ai'
-                  ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
-                  : 'border-sky-500/40 bg-sky-500/20 text-sky-300',
-              )}
-            >
-              {mode === 'ai' ? 'PvE' : 'PvP'}
-            </span>
-            {isSessionLocked && (
-              <Lock className="size-3 text-amber-400 shrink-0" />
-            )}
-          </Button>
-        }
-        aiLevel={difficulty}
-        onAiLevelChange={(capDo) => doiThietLap({ ...thietLap, capDo })}
-        phuPve={
-          <div className="mt-2 border-t border-border-subtle/60 pt-2 flex items-center justify-between text-xs font-bold text-text-secondary px-1">
-            <span>Máy</span>
-            <span className="font-mono text-brand">{soBotPve}</span>
-          </div>
-        }
-        onReset={handleStartGame}
-        hideReset={!isRunning}
-        resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}
-        resetDisabled={mode === 'pass_and_play' && !canStartPvp && !isRunning && !isGameOver}
-        resetIcon={isRunning || isGameOver ? <RotateCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
-        resetNoiBat={!isRunning && !isGameOver}
-        turnLabel=""
-        activeSide="red"
-        hideCenterTurn
-        showRoomChat={false}
-        showRankings={false}
-        onToggleFullscreen={handleToggleFullscreen}
-        isFullscreen={isFullscreen}
-        className="w-full shrink-0 px-1"
-      />
-
-      {/* ── 2. ĐẤU TRƯỜNG RẮN SĂN MỒI ── */}
       <div className="relative flex flex-col items-center justify-center w-full flex-1 h-full min-h-0 overflow-hidden touch-none select-none overscroll-none">
         <Wormate3DArena
           difficulty={difficulty}
@@ -319,6 +294,63 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           onGameOver={handleGameOver}
           onStartGame={handleStartGame}
         />
+      </div>
+
+      {/* ── 2. CỤM NÚT THAO TÁC NHANH GÓC PHẢI DƯỚI CÙNG (SÁT NÚT TĂNG TỐC VÀ SÁT NÚT TIN NHẮN NỔI) ── */}
+      <div
+        className="snake-quick-actions absolute z-30 flex items-center gap-1 sm:gap-1.5 bottom-2.5 right-13 sm:bottom-4 sm:right-16 pointer-events-auto select-none"
+        data-testid="snake-quick-actions"
+      >
+        <button
+          type="button"
+          onClick={handleBackRoom}
+          title="Sảnh (Q)"
+          aria-label="Sảnh"
+          data-testid="nut-nhanh-sanh"
+          className="size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (!isSessionLocked) {
+              setIsConfigOpen((prev) => !prev)
+            }
+          }}
+          title="Cài đặt (C)"
+          aria-label="Cài đặt"
+          data-testid="nut-che-do-choi"
+          className={cn(
+            'size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150',
+            isConfigOpen && 'border-emerald-400/80 bg-emerald-950/70',
+          )}
+        >
+          <Gamepad2 className="size-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleStartGame}
+          title="Chơi lại (R)"
+          aria-label="Chơi lại"
+          data-testid="nut-nhanh-choi-lai"
+          className="size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150"
+        >
+          <RotateCcw className="size-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleToggleFullscreen}
+          title={isFullscreen ? 'Thu nhỏ (F)' : 'Toàn màn hình (F)'}
+          aria-label={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+          data-testid="nut-nhanh-toan-man-hinh"
+          className="size-8 sm:size-9 rounded-full bg-slate-900/85 hover:bg-slate-800/90 active:scale-95 backdrop-blur-md border border-white/15 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-md transition-colors duration-150"
+        >
+          {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </button>
       </div>
     </div>
   )

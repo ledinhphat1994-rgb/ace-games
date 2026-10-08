@@ -28,12 +28,12 @@ describe('PvE · PvP thống nhất', () => {
     expect(cumRaw).toContain('<span className="game-control-label">PvP</span>')
     expect(cumRaw).toContain('bg-brand text-primary-foreground')
     expect(cumRaw).toContain('from-amber-500 to-rose-600')
-    for (const raw of [chessRaw, xiangqiRaw, caroRaw, memoryRaw, snakeRaw]) expect(raw).toContain('<GamePlayToolbar')
+    for (const raw of [chessRaw, xiangqiRaw, caroRaw, memoryRaw]) expect(raw).toContain('<GamePlayToolbar')
   })
 
-  it('Rắn Săn Mồi dùng cùng thanh công cụ với các bàn cờ; hỗ trợ PvE và PvP kèm chọn số máy', () => {
-    expect(snakeRaw).toContain('phuPve=')
-    expect(snakeRaw).toContain('resetNoiBat={!isRunning && !isGameOver}')
+  it('Rắn Săn Mồi hỗ trợ PvE và PvP kèm chọn số máy trong màn cấu hình', () => {
+    expect(snakeRaw).toContain("mode === 'ai'")
+    expect(snakeRaw).toContain('pveCapacity')
     expect(snakeRaw).toContain('pass_and_play')
   })
 })

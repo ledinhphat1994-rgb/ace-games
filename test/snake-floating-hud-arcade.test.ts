@@ -17,9 +17,17 @@ describe('Chuẩn Quốc Tế Arcade: Tràn viền 100% màn hình & HUD nổi k
     expect(soloPageRaw).toContain('p-0 border-0 rounded-none bg-slate-950 shadow-none')
   })
 
-  it('SnakeDuel: Kích hoạt floatingHud={true} cho GamePlayToolbar', () => {
-    expect(snakeDuelRaw).toContain('<GamePlayToolbar')
-    expect(snakeDuelRaw).toContain('floatingHud={true}')
+  it('SnakeDuel: Không dùng Vùng 1 trên đỉnh, tích hợp phím tắt PC và cụm nút thao tác nhanh góc phải dưới cùng', () => {
+    expect(snakeDuelRaw).not.toContain('<GamePlayToolbar')
+    expect(snakeDuelRaw).toContain("key === 'f'")
+    expect(snakeDuelRaw).toContain("key === 'c'")
+    expect(snakeDuelRaw).toContain("key === 'r'")
+    expect(snakeDuelRaw).toContain("key === 'q'")
+    expect(snakeDuelRaw).toContain('data-testid="snake-quick-actions"')
+    expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-sanh"')
+    expect(snakeDuelRaw).toContain('data-testid="nut-che-do-choi"')
+    expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-choi-lai"')
+    expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-toan-man-hinh"')
   })
 
   it('CSS: Định nghĩa HUD nổi kính mờ (.game-toolbar-floating-hud) không chiếm chiều cao layout', () => {
@@ -29,8 +37,8 @@ describe('Chuẩn Quốc Tế Arcade: Tràn viền 100% màn hình & HUD nổi k
     expect(indexCssRaw).toContain('border-radius: 9999px !important;')
   })
 
-  it('Wormate3DArena: Sắp xếp HUD Top 3 và radar minimap hài hòa, không đè nút nổi', () => {
-    expect(wormateRaw).toContain('absolute top-14 left-3 z-10')
-    expect(wormateRaw).toContain('const mapY = isMobile ? 48 : 54')
+  it('Wormate3DArena: Sắp xếp HUD Top 3 và radar minimap gọn ở các góc trên, giải phóng tầm nhìn', () => {
+    expect(wormateRaw).toContain('absolute top-3.5 left-3.5 z-10')
+    expect(wormateRaw).toContain('const mapY = isMobile ? 12 : 14')
   })
 })

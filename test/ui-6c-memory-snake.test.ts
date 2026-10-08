@@ -22,13 +22,14 @@ describe('UI-6C: Solo Game Page Isolation & Architecture', () => {
     expect(soloPageRaw).toContain('onSnakeSettled={lamMoiBangXepHang}')
   })
 
-  it('GamePlayToolbar hides room chat and rankings for both Memory and Snake', () => {
+  it('GamePlayToolbar hides room chat and rankings for Memory and Snake Classic', () => {
     expect(memoryRaw).toContain('showRoomChat={false}')
     expect(memoryRaw).toContain('showRankings={false}')
-    expect(snakeDuelRaw).toContain('showRoomChat={false}')
-    expect(snakeDuelRaw).toContain('showRankings={false}')
     expect(snakeDeluxeRaw).toContain('showRoomChat={false}')
     expect(snakeDeluxeRaw).toContain('showRankings={false}')
+    // SnakeDuel replaces top toolbar with keyboard shortcuts and quick action dock for maximum immersion
+    expect(snakeDuelRaw).not.toContain('<GamePlayToolbar')
+    expect(snakeDuelRaw).toContain('snake-quick-actions')
   })
 })
 
@@ -140,9 +141,9 @@ describe('UI-6C: Snake Game Experience (Modern Wormate3D Arena)', () => {
     expect(soloStageRaw).not.toContain('Quay lại sảnh')
   })
 
-  it('Snake Duel has single canonical start action: overlay when idle, toolbar Replay when running', () => {
-    expect(snakeDuelRaw).toContain('hideReset={!isRunning}')
-    expect(snakeDuelRaw).toContain("resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}")
+  it('Snake Duel has single canonical start action: overlay when idle, quick action Replay when running', () => {
+    expect(snakeDuelRaw).toContain('data-testid="nut-nhanh-choi-lai"')
+    expect(snakeDuelRaw).toContain('title="Chơi lại (R)"')
   })
 
   it('Snake Classic has single canonical start action in toolbar, non-interactive instructions in canvas', () => {

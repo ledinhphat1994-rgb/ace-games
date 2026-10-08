@@ -39,14 +39,13 @@ describe('Chữ BẮT ĐẦU đủ dấu', () => {
 })
 
 describe('Bảng chọn cấp độ máy — một kiểu cho mọi game', () => {
-  it('Cờ Vua, Cờ Tướng, Caro, Trí Nhớ và Rắn Săn Mồi cùng GamePlayToolbar → CumPvePvp → BangChonCapDo', () => {
-    for (const raw of [caroRaw, chessRaw, xiangqiRaw, memoryRaw, snakeRaw]) expect(raw).toContain('<GamePlayToolbar')
+  it('Cờ Vua, Cờ Tướng, Caro và Trí Nhớ cùng GamePlayToolbar → CumPvePvp → BangChonCapDo', () => {
+    for (const raw of [caroRaw, chessRaw, xiangqiRaw, memoryRaw]) expect(raw).toContain('<GamePlayToolbar')
     expect(toolbarRaw).toContain('<CumPvePvp')
     expect(cumRaw).toContain('<BangChonCapDo')
     expect(cumRaw).toContain('data-testid="bang-chon-cap-do"')
-    // Rắn chỉ thêm phần riêng (số rắn máy) vào cùng bảng, không tự vẽ bảng khác.
     expect(snakeRaw).not.toContain('Độ khó Máy AI')
-    expect(snakeRaw).toContain('phuPve=')
+    expect(snakeRaw).toContain('pveCapacity')
   })
 })
 
@@ -59,7 +58,7 @@ describe('Lobby các game đồng nhất: mọi game cùng dùng chung sảnh B�
   })
 
   it('màn chơi: thanh công cụ chung (Bắt đầu nổi bật · Toàn màn hình), màn sẵn sàng / kết thúc không có nút thứ hai', () => {
-    expect(snakeRaw).toContain("resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}")
+    expect(snakeRaw).toContain('data-testid="nut-nhanh-choi-lai"')
     expect(toolbarRaw).toContain('aria-label="Toàn màn hình"')
     expect(arenaRaw).toContain('data-testid="ran-man-san-sang"')
     expect(arenaRaw).toContain('data-testid="ran-man-ket-thuc"')
