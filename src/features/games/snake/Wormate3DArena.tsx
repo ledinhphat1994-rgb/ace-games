@@ -5,14 +5,17 @@ import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
 
-const ARENA_SIZE = 3600
+const ARENA_SIZE = 7200
 const INITIAL_SEGMENT_COUNT = 18
 const BASE_SPEED = 3.6
 const BOOST_SPEED = 7.0
 const SEGMENT_SPACING = 5.8
-const MIN_RADIUS = 11.5
-const MAX_RADIUS = 26.0
-const TOTAL_FOOD_COUNT = 450
+const MIN_RADIUS = 12.0
+const MAX_RADIUS = 72.0
+const TOTAL_FOOD_COUNT = 1200
+
+import { type SizeTierInfo, SIZE_TIERS, getWormSizeTier } from './snake-size-tiers'
+export { type SizeTierInfo, SIZE_TIERS, getWormSizeTier }
 
 export type PastryType =
   // Đồ xịn (Super Foods: Lớn nhanh, điểm cao, hào quang)
@@ -91,9 +94,20 @@ interface Worm {
   history: { x: number; y: number }[]
   isBoosting: boolean
   isAlive: boolean
+  sizeTier?: number
   aiTarget?: { x: number; y: number }
   aiDecisionTimer: number
   invulnerableTimer?: number
+  respawnTimer?: number
+}
+
+interface ShockwaveEffect {
+  x: number
+  y: number
+  r: number
+  maxR: number
+  color: string
+  alpha: number
 }
 
 interface CrumbParticle {
@@ -187,17 +201,17 @@ const COLOR_PALETTES = [
 
 function createBushes(): Bush[] {
   const bushes: Bush[] = []
-  const clusterCount = 18 // 18 cụm rừng lớn khắp map
+  const clusterCount = 38 // 38 cụm rừng lớn khắp map 7200x7200
   const berryColors = ['#f43f5e', '#fbbf24', '#f472b6', '#38bdf8', '#a855f7']
   let globalBushId = 0
 
   for (let c = 0; c < clusterCount; c++) {
     // Vị trí tâm cụm rừng
-    let cx = 240 + Math.random() * (ARENA_SIZE - 480)
-    let cy = 240 + Math.random() * (ARENA_SIZE - 480)
+    let cx = 350 + Math.random() * (ARENA_SIZE - 700)
+    let cy = 350 + Math.random() * (ARENA_SIZE - 700)
     // Tránh khu vực xuất hiện của người chơi ở tâm sân
-    if (Math.hypot(cx - ARENA_SIZE / 2, cy - ARENA_SIZE / 2) < 400) {
-      cx += cx > ARENA_SIZE / 2 ? 460 : -460
+    if (Math.hypot(cx - ARENA_SIZE / 2, cy - ARENA_SIZE / 2) < 550) {
+      cx += cx > ARENA_SIZE / 2 ? 600 : -600
     }
 
     // Mỗi cụm có 5 - 8 bụi cây mọc sát nhau, đè nhẹ lên nhau tạo thành thảm rừng dày đặc
@@ -251,7 +265,7 @@ function createBushes(): Bush[] {
 function createFireflies(): Firefly[] {
   const f: Firefly[] = []
   const colors = ['#6ee7b7', '#38bdf8', '#fef08a', '#c084fc']
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 100; i++) {
     f.push({
       x: Math.random() * ARENA_SIZE,
       y: Math.random() * ARENA_SIZE,
@@ -565,6 +579,7 @@ export function Wormate3DArena({
     bushes: Bush[]
     fireflies: Firefly[]
     safeZone: SafeZoneState
+    shockwaves: ShockwaveEffect[]
     floatingTexts: FloatingText[]
     animFrame: number | null
     nextFoodId: number
@@ -580,16 +595,17 @@ export function Wormate3DArena({
     safeZone: {
       centerX: ARENA_SIZE / 2,
       centerY: ARENA_SIZE / 2,
-      currentRadius: ARENA_SIZE * 0.46,
-      targetRadius: ARENA_SIZE * 0.46,
+      currentRadius: ARENA_SIZE * 0.48,
+      targetRadius: ARENA_SIZE * 0.48,
       targetCenterX: ARENA_SIZE / 2,
       targetCenterY: ARENA_SIZE / 2,
       phase: 1,
-      countdown: 25,
+      countdown: 120,
       isShrinking: false,
-      shrinkDuration: 14,
+      shrinkDuration: 24,
       shrinkTimer: 0,
     },
+    shockwaves: [],
     floatingTexts: [],
     camX: ARENA_SIZE / 2,
     camY: ARENA_SIZE / 2,
@@ -833,16 +849,17 @@ export function Wormate3DArena({
       safeZone: {
         centerX: ARENA_SIZE / 2,
         centerY: ARENA_SIZE / 2,
-        currentRadius: ARENA_SIZE * 0.46,
-        targetRadius: ARENA_SIZE * 0.46,
+        currentRadius: ARENA_SIZE * 0.48,
+        targetRadius: ARENA_SIZE * 0.48,
         targetCenterX: ARENA_SIZE / 2,
         targetCenterY: ARENA_SIZE / 2,
         phase: 1,
-        countdown: 25,
+        countdown: 120,
         isShrinking: false,
-        shrinkDuration: 14,
+        shrinkDuration: 24,
         shrinkTimer: 0,
       },
+      shockwaves: [],
       floatingTexts: [],
       camX: startX,
       camY: startY,
@@ -965,20 +982,21 @@ export function Wormate3DArena({
           player.invulnerableTimer = Math.max(0, player.invulnerableTimer - dt)
         }
 
-        // CẬP NHẬT VÒNG BO BATTLE ROYALE (SAFE ZONE SHRINK)
+        // CẬP NHẬT VÒNG BO BATTLE ROYALE (SAFE ZONE SHRINK) - CƠ CHẾ LÂU DÀI, RỘNG RÃI
         const sz = eng.safeZone
         if (!sz.isShrinking) {
           sz.countdown -= dt
           if (sz.countdown <= 0) {
             sz.isShrinking = true
             sz.shrinkTimer = 0
-            sz.shrinkDuration = 14
-            sz.targetRadius = Math.max(300, sz.currentRadius * 0.70)
-            const maxShift = (sz.currentRadius - sz.targetRadius) * 0.60
+            sz.shrinkDuration = 24
+            // Khóa bán kính tối thiểu ở 1800px, không gian luôn mênh mông, không bị bóp nghẹt
+            sz.targetRadius = Math.max(1800, sz.currentRadius * 0.80)
+            const maxShift = (sz.currentRadius - sz.targetRadius) * 0.45
             const shiftAngle = Math.random() * Math.PI * 2
             const shiftDist = Math.random() * maxShift
-            sz.targetCenterX = Math.max(sz.targetRadius + 150, Math.min(ARENA_SIZE - sz.targetRadius - 150, sz.centerX + Math.cos(shiftAngle) * shiftDist))
-            sz.targetCenterY = Math.max(sz.targetRadius + 150, Math.min(ARENA_SIZE - sz.targetRadius - 150, sz.centerY + Math.sin(shiftAngle) * shiftDist))
+            sz.targetCenterX = Math.max(sz.targetRadius + 200, Math.min(ARENA_SIZE - sz.targetRadius - 200, sz.centerX + Math.cos(shiftAngle) * shiftDist))
+            sz.targetCenterY = Math.max(sz.targetRadius + 200, Math.min(ARENA_SIZE - sz.targetRadius - 200, sz.centerY + Math.sin(shiftAngle) * shiftDist))
             snakeAudio.playSafeZoneAlert()
           }
         } else {
@@ -994,7 +1012,7 @@ export function Wormate3DArena({
             sz.centerX = sz.targetCenterX
             sz.centerY = sz.targetCenterY
             sz.phase = Math.min(6, sz.phase + 1)
-            sz.countdown = 20
+            sz.countdown = sz.phase <= 2 ? 90 : 75
           }
         }
 
@@ -1067,31 +1085,79 @@ export function Wormate3DArena({
           player.history.pop()
         }
 
-        // Bán kính nở to dần theo số điểm (Cân đối, cuốn hút chuẩn Wormate)
-        player.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(player.score / 120))
+        // Bán kính nở to thực sự theo điểm số, tối đa 72px (Cự thú khổng lồ)
+        const targetRadius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.pow(Math.max(0, player.score), 0.44) * 0.95)
+        player.radius = targetRadius
 
-        // Va chạm viền đấu trường
-        if (
-          player.x < player.radius ||
-          player.x > ARENA_SIZE - player.radius ||
-          player.y < player.radius ||
-          player.y > ARENA_SIZE - player.radius
-        ) {
-          player.isAlive = false
-          snakeAudio.playCrash()
-          explodeWormIntoPastries(player)
-          setRoundResult({ restartKey, winner: false, reason: 'Đâm vào hàng rào bảo vệ đấu trường!' })
-          finishGame(false, 'Đâm vào hàng rào đấu trường!')
+        // Kiểm tra mốc Level Kích Cỡ Khổng Lồ
+        const currentTier = getWormSizeTier(player.score)
+        if (!player.sizeTier) player.sizeTier = 1
+        if (currentTier.tier > player.sizeTier) {
+          player.sizeTier = currentTier.tier
+          snakeAudio.playLevelUp()
+          // Sóng xung kích hào quang vàng rực tỏa rộng
+          eng.shockwaves.push({
+            x: player.x,
+            y: player.y,
+            r: player.radius * 0.6,
+            maxR: player.radius * 5.0,
+            color: currentTier.color,
+            alpha: 1.0,
+          })
+          // 24 hạt ánh sao vàng bung tỏa
+          for (let sp = 0; sp < 24; sp++) {
+            const a = (sp * Math.PI * 2) / 24 + Math.random() * 0.3
+            const spd = 3.5 + Math.random() * 4.5
+            eng.crumbs.push({
+              x: player.x,
+              y: player.y,
+              vx: Math.cos(a) * spd,
+              vy: Math.sin(a) * spd,
+              r: 3.5 + Math.random() * 3.5,
+              color: '#facc15',
+              alpha: 1.0,
+            })
+          }
+          // Chữ nổi 3D bay lên
+          eng.floatingTexts.push({
+            id: eng.nextTextId++,
+            x: player.x,
+            y: player.y - player.radius - 35,
+            text: `⭐ LÊN CẤP KHỔNG LỒ: ${currentTier.name.toUpperCase()}! ⭐`,
+            color: currentTier.color,
+            alpha: 1.4,
+            vy: -2.6,
+          })
         }
 
-        // VÙNG CẤM NGOÀI VÒNG BO (Battle Royale Invariant): Đi vào vùng cấm là THUA NGAY LẬP TỨC
+        // Uốn lượn mềm mại khi tới gần viền bản đồ (chơi lâu dài, không đâm chết oan uổng)
+        const borderMargin = player.radius + 15
+        if (player.x < borderMargin) {
+          player.x = borderMargin
+          player.targetAngle = 0
+        } else if (player.x > ARENA_SIZE - borderMargin) {
+          player.x = ARENA_SIZE - borderMargin
+          player.targetAngle = Math.PI
+        }
+        if (player.y < borderMargin) {
+          player.y = borderMargin
+          player.targetAngle = Math.PI / 2
+        } else if (player.y > ARENA_SIZE - borderMargin) {
+          player.y = ARENA_SIZE - borderMargin
+          player.targetAngle = -Math.PI / 2
+        }
+
+        // VÙNG NGOÀI VÒNG BO (Cơ chế lâu dài): Trừ điểm và rút năng lượng dần, không chết tức thì
         const distFromSafeCenter = Math.hypot(player.x - sz.centerX, player.y - sz.centerY)
         if (distFromSafeCenter > sz.currentRadius) {
-          player.isAlive = false
-          snakeAudio.playCrash()
-          explodeWormIntoPastries(player)
-          setRoundResult({ restartKey, winner: false, reason: 'Đi vào vùng cấm ngoài vòng bo!' })
-          finishGame(false, 'Đi vào vùng cấm ngoài vòng bo!')
+          player.score = Math.max(0, player.score - dt * 15)
+          if (player.score <= 0 && player.length <= 6) {
+            player.isAlive = false
+            snakeAudio.playCrash()
+            explodeWormIntoPastries(player)
+            setRoundResult({ restartKey, winner: false, reason: 'Đi vào vùng cấm ngoài vòng bo!' })
+            finishGame(false, 'Đi vào vùng cấm ngoài vòng bo!')
+          }
         }
 
         // Ăn thức ăn đa dạng: Đồ xịn (+lớn nhanh), Đồ thường (+bình thường), Đồ dỏm (-teo nhỏ)
@@ -1180,12 +1246,45 @@ export function Wormate3DArena({
 
         // ── CẬP NHẬT CÁC AI WORMS ──
         eng.aiWorms.forEach((ai) => {
-          if (!ai.isAlive) return
+          if (!ai.isAlive) {
+            // Cơ chế lâu dài: Tự động hồi sinh AI bot sau 3s trong SafeZone khi chơi solo
+            if (mode === 'ai') {
+              if (ai.respawnTimer === undefined) ai.respawnTimer = 3.0 + Math.random() * 2.0
+              ai.respawnTimer -= dt
+              if (ai.respawnTimer <= 0) {
+                const safeR = Math.max(300, sz.currentRadius * 0.72)
+                const spawnAngle = Math.random() * Math.PI * 2
+                const spawnDist = Math.random() * safeR
+                const spawnX = sz.centerX + Math.cos(spawnAngle) * spawnDist
+                const spawnY = sz.centerY + Math.sin(spawnAngle) * spawnDist
+                ai.x = spawnX
+                ai.y = spawnY
+                ai.angle = Math.random() * Math.PI * 2
+                ai.targetAngle = ai.angle
+                ai.length = INITIAL_SEGMENT_COUNT + Math.floor(Math.random() * 6)
+                ai.score = ai.length * 10
+                ai.radius = MIN_RADIUS
+                ai.isAlive = true
+                ai.invulnerableTimer = 2.0
+                ai.respawnTimer = undefined
+                ai.history = []
+                for (let s = 0; s < ai.length * SEGMENT_SPACING; s++) {
+                  ai.history.push({ x: spawnX - Math.cos(ai.angle) * s, y: spawnY - Math.sin(ai.angle) * s })
+                }
+              }
+            }
+            return
+          }
+
+          if (ai.invulnerableTimer && ai.invulnerableTimer > 0) {
+            ai.invulnerableTimer -= dt
+          }
 
           // AI đi vào vùng cấm ngoài vòng an toàn -> Tiêu diệt ngay lập tức
           const aiDistFromSafe = Math.hypot(ai.x - sz.centerX, ai.y - sz.centerY)
           if (aiDistFromSafe > sz.currentRadius) {
             ai.isAlive = false
+            ai.respawnTimer = 3.0 + Math.random() * 2.5
             explodeWormIntoPastries(ai)
             return
           }
@@ -1216,7 +1315,7 @@ export function Wormate3DArena({
               }
 
               // Tránh xa tường
-              const pad = 120
+              const pad = 160
               if (ai.x < pad) ai.targetAngle = 0
               else if (ai.x > ARENA_SIZE - pad) ai.targetAngle = Math.PI
               else if (ai.y < pad) ai.targetAngle = Math.PI / 2
@@ -1240,6 +1339,7 @@ export function Wormate3DArena({
           // AI va chạm tường
           if (ai.x < ai.radius || ai.x > ARENA_SIZE - ai.radius || ai.y < ai.radius || ai.y > ARENA_SIZE - ai.radius) {
             ai.isAlive = false
+            ai.respawnTimer = 3.0 + Math.random() * 2.5
             explodeWormIntoPastries(ai)
           }
 
@@ -1250,7 +1350,7 @@ export function Wormate3DArena({
             if (d < ai.radius + f.r) {
               ai.score += f.points
               ai.length += 1
-              ai.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.floor(ai.score / 120))
+              ai.radius = Math.min(MAX_RADIUS, MIN_RADIUS + Math.pow(ai.score, 0.44) * 0.95)
               eng.foods.splice(fIdx, 1)
               eng.foods.push(createFood(eng.nextFoodId++))
             }
@@ -1262,6 +1362,7 @@ export function Wormate3DArena({
               const seg = player.history[sIdx]
               if (Math.hypot(ai.x - seg.x, ai.y - seg.y) < ai.radius + player.radius * 0.75) {
                 ai.isAlive = false
+                ai.respawnTimer = 3.0 + Math.random() * 2.5
                 playWormSound('crash', muted)
                 explodeWormIntoPastries(ai)
                 callbacks.current.onOpponentEmote?.('🤯', `${ai.name} đã đâm phải bạn!`)
@@ -1440,11 +1541,11 @@ export function Wormate3DArena({
       ctx.clearRect(0, 0, w, h)
 
       ctx.save()
-      // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài sâu như Wormate.io (Góc nhìn rõ nét, hấp dẫn, cuốn hút)
+      // Tỷ lệ phóng to/thu nhỏ camera mượt mà theo độ dài và bán kính khổng lồ
       const isMobileScreen = w < 640 || h < 640
       const startZoom = isMobileScreen ? 0.54 : 0.72
-      const minZoom = isMobileScreen ? 0.38 : 0.50
-      const zoom = Math.max(minZoom, startZoom - (player.length - INITIAL_SEGMENT_COUNT) * 0.001)
+      const minZoom = isMobileScreen ? 0.28 : 0.36
+      const zoom = Math.max(minZoom, startZoom - (player.radius - MIN_RADIUS) * 0.0055 - (player.length - INITIAL_SEGMENT_COUNT) * 0.00045)
       ctx.translate(w / 2, h / 2)
       ctx.scale(zoom, zoom)
       ctx.translate(-eng.camX, -eng.camY)
@@ -1459,46 +1560,50 @@ export function Wormate3DArena({
         maxY: eng.camY + halfViewH,
       }
 
-      // Nền đấu trường Cyber Grid ngọt ngào
+      // Nền đấu trường Cyber Grid bao trùm vô cực theo camera (XÓA BỎ VÙNG 1: không bao giờ có viền đỏ chói mắt hay vệt đen)
       ctx.fillStyle = '#080d1a'
-      ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE)
+      ctx.fillRect(viewBounds.minX - 500, viewBounds.minY - 500, (viewBounds.maxX - viewBounds.minX) + 1000, (viewBounds.maxY - viewBounds.minY) + 1000)
 
-      // Lưới ô vuông không gian
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'
+      // Lưới ô vuông không gian cyber grid mượt mà
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)'
       ctx.lineWidth = 1
-      const gridSize = 60
-      const startGridX = Math.floor(Math.max(0, eng.camX - (w / 2) / zoom) / gridSize) * gridSize
-      const endGridX = Math.min(ARENA_SIZE, eng.camX + (w / 2) / zoom + gridSize)
-      const startGridY = Math.floor(Math.max(0, eng.camY - (h / 2) / zoom) / gridSize) * gridSize
-      const endGridY = Math.min(ARENA_SIZE, eng.camY + (h / 2) / zoom + gridSize)
+      const gridSize = 75
+      const startGridX = Math.floor(viewBounds.minX / gridSize) * gridSize
+      const endGridX = Math.ceil(viewBounds.maxX / gridSize) * gridSize
+      const startGridY = Math.floor(viewBounds.minY / gridSize) * gridSize
+      const endGridY = Math.ceil(viewBounds.maxY / gridSize) * gridSize
 
       ctx.beginPath()
       for (let gx = startGridX; gx <= endGridX; gx += gridSize) {
-        ctx.moveTo(gx, 0)
-        ctx.lineTo(gx, ARENA_SIZE)
+        if (gx >= 0 && gx <= ARENA_SIZE) {
+          ctx.moveTo(gx, Math.max(0, startGridY))
+          ctx.lineTo(gx, Math.min(ARENA_SIZE, endGridY))
+        }
       }
       for (let gy = startGridY; gy <= endGridY; gy += gridSize) {
-        ctx.moveTo(0, gy)
-        ctx.lineTo(ARENA_SIZE, gy)
+        if (gy >= 0 && gy <= ARENA_SIZE) {
+          ctx.moveTo(Math.max(0, startGridX), gy)
+          ctx.lineTo(Math.min(ARENA_SIZE, endGridX), gy)
+        }
       }
       ctx.stroke()
 
-      // Hàng rào neon bảo vệ đấu trường (Vẽ 2 lớp stroke thay cho shadowBlur để đạt 60fps trên mobile)
-      ctx.lineWidth = 16
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.25)'
+      // Ranh giới bản đồ mềm mại tinh tế (thay thế dải đỏ thô kệch Vùng 1)
+      ctx.save()
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)'
+      ctx.lineWidth = 2.5
+      ctx.setLineDash([16, 12])
       ctx.strokeRect(0, 0, ARENA_SIZE, ARENA_SIZE)
-      ctx.lineWidth = 6
-      ctx.strokeStyle = '#ef4444'
-      ctx.strokeRect(0, 0, ARENA_SIZE, ARENA_SIZE)
+      ctx.restore()
 
-      // Vẽ VÒNG BO BATTLE ROYALE & VÙNG CẤM TỬ ĐỊA (DEATH ZONE - ĐI VÀO LÀ THUA)
+      // Vẽ VÒNG BO BATTLE ROYALE & VÙNG CẤM TỬ ĐỊA
       if (eng.safeZone) {
         const sz = eng.safeZone
         ctx.save()
 
-        // 1. Vùng cấm tử địa ngoài vòng bo (phủ lớp đỏ nguy hiểm rõ rệt)
+        // 1. Vùng cấm tử địa ngoài vòng bo (phủ lớp đỏ nguy hiểm rõ rệt bao trọn viewport)
         ctx.beginPath()
-        ctx.rect(0, 0, ARENA_SIZE, ARENA_SIZE)
+        ctx.rect(viewBounds.minX - 300, viewBounds.minY - 300, (viewBounds.maxX - viewBounds.minX) + 600, (viewBounds.maxY - viewBounds.minY) + 600)
         ctx.arc(sz.centerX, sz.centerY, sz.currentRadius, 0, Math.PI * 2, true)
         ctx.fillStyle = sz.isShrinking ? 'rgba(239, 68, 68, 0.35)' : 'rgba(225, 29, 72, 0.22)'
         ctx.fill()
@@ -1522,6 +1627,32 @@ export function Wormate3DArena({
           ctx.lineDashOffset = currentTime * 0.02
           ctx.stroke()
         }
+        ctx.restore()
+      }
+
+      // Vẽ hiệu ứng Sóng Xung Kích Hào Quang khi Thăng Cấp Khổng Lồ (Titan Shockwaves)
+      for (let sIdx = eng.shockwaves.length - 1; sIdx >= 0; sIdx--) {
+        const sw = eng.shockwaves[sIdx]
+        sw.r += (sw.maxR - sw.r) * 0.14 + 1.5
+        sw.alpha -= 0.022
+        if (sw.alpha <= 0 || sw.r >= sw.maxR - 2) {
+          eng.shockwaves.splice(sIdx, 1)
+          continue
+        }
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2)
+        ctx.strokeStyle = sw.color
+        ctx.lineWidth = Math.max(1.5, 7 * sw.alpha)
+        ctx.globalAlpha = sw.alpha
+        ctx.stroke()
+
+        // Sóng phụ phát quang trắng
+        ctx.beginPath()
+        ctx.arc(sw.x, sw.y, Math.max(0, sw.r - 10), 0, Math.PI * 2)
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth = Math.max(1, 3.5 * sw.alpha)
+        ctx.stroke()
         ctx.restore()
       }
 
@@ -1788,7 +1919,7 @@ export function Wormate3DArena({
             <Trophy className="size-3 text-amber-400 shrink-0" />
             <span>#{playerRank}</span>
             <span className="text-white/20">·</span>
-            <span className="font-mono text-emerald-400 font-bold">{aliveCount} sống</span>
+            <span className="font-mono text-emerald-400 font-bold">{aliveCount} còn lại</span>
             <ChevronDown className="size-2.5 text-slate-400 shrink-0" />
           </button>
         ) : (
@@ -1887,6 +2018,21 @@ export function Wormate3DArena({
               )}
               <span className="text-white/20">|</span>
               <div className="flex items-center gap-1 font-mono">
+                {(() => {
+                  const tier = getWormSizeTier(playerStats.score)
+                  return (
+                    <span
+                      className="font-bold px-1.5 py-0.2 sm:py-0.5 rounded text-[9px] sm:text-[10px] tracking-wide"
+                      style={{
+                        backgroundColor: `${tier.color}22`,
+                        color: tier.color,
+                        border: `1px solid ${tier.color}55`,
+                      }}
+                    >
+                      {tier.name}
+                    </span>
+                  )
+                })()}
                 <span className="font-bold text-emerald-400">{playerStats.score}đ</span>
                 <span className="text-white/30 text-[10px]">·</span>
                 <span className="text-slate-300">{playerStats.length} đốt</span>
@@ -2584,6 +2730,14 @@ function draw3DWorm(
 
     ctx.save()
 
+    // Hào quang Titan cho thân rắn khổng lồ
+    if (worm.radius > 28) {
+      ctx.beginPath()
+      ctx.arc(seg.x, seg.y, segRadius * 1.12, 0, Math.PI * 2)
+      ctx.fillStyle = worm.radius >= 50 ? 'rgba(192, 132, 252, 0.18)' : 'rgba(251, 191, 36, 0.14)'
+      ctx.fill()
+    }
+
     // Đổ bóng 3D nhẹ dưới mặt sàn
     ctx.beginPath()
     ctx.arc(seg.x + 2, seg.y + 4, segRadius * 0.95, 0, Math.PI * 2)
@@ -2630,8 +2784,27 @@ function draw3DWorm(
       ctx.translate(seg.x, seg.y)
       ctx.rotate(worm.angle)
 
-      // Vương miện hoàng gia vàng nếu đang dẫn đầu bảng xếp hạng
-      if (isLeader) {
+      // Hào quang Titan phát sáng bừng nở quanh đầu sâu khổng lồ
+      if (worm.radius > 26) {
+        ctx.save()
+        const auraGrad = ctx.createRadialGradient(0, 0, segRadius * 0.7, 0, 0, segRadius * 1.6)
+        const auraColor =
+          worm.radius >= 50
+            ? 'rgba(192, 132, 252,'
+            : worm.radius >= 38
+              ? 'rgba(251, 146, 60,'
+              : 'rgba(251, 191, 36,'
+        auraGrad.addColorStop(0, `${auraColor} 0.38)`)
+        auraGrad.addColorStop(1, `${auraColor} 0)`)
+        ctx.beginPath()
+        ctx.arc(0, 0, segRadius * 1.6, 0, Math.PI * 2)
+        ctx.fillStyle = auraGrad
+        ctx.fill()
+        ctx.restore()
+      }
+
+      // Vương miện hoàng gia vàng nếu đang dẫn đầu bảng xếp hạng hoặc đạt kích cỡ Khổng Lồ trở lên
+      if (isLeader || worm.radius >= 38) {
         drawGoldenCrown(ctx, segRadius)
       }
 

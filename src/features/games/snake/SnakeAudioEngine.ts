@@ -326,6 +326,31 @@ class SnakeAudioEngineClass {
       osc.stop(now + 0.40)
     } catch {}
   }
+
+  // 6. Thăng cấp kích thước khổng lồ / Level up fanfare
+  public playLevelUp() {
+    if (!this.settings.sfxEnabled) return
+    this.initContext()
+    if (!this.ctx || !this.sfxGain) return
+    try {
+      const now = this.ctx.currentTime
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]
+      notes.forEach((freq, idx) => {
+        if (!this.ctx || !this.sfxGain) return
+        const startTime = now + idx * 0.05
+        const osc = this.ctx.createOscillator()
+        const gain = this.ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(freq, startTime)
+        gain.gain.setValueAtTime(0.22, startTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35)
+        osc.connect(gain)
+        gain.connect(this.sfxGain)
+        osc.start(startTime)
+        osc.stop(startTime + 0.36)
+      })
+    } catch {}
+  }
 }
 
 export const snakeAudio = new SnakeAudioEngineClass()
