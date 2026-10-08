@@ -1,17 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, Award, CalendarDays, ChevronRight, Flame, RotateCw, Target, Trophy, Zap } from 'lucide-react'
+import { AlertCircle, Award, CalendarDays, ChevronRight, Flame, RotateCw, Target, Zap } from 'lucide-react'
 import type { ClassChallenge } from '@shared/protocol/engagement'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { deriveProgressState, type ProgressDataResponse } from '@/components/progress/progress-state'
 import { AchievementsModal } from '@/features/engagement/AchievementsModal'
 import { ClassChallengeModal } from '@/features/engagement/ClassChallengeModal'
-import { ClassLeaderboardModal } from '@/features/engagement/ClassLeaderboardModal'
 
 // Tab "Tiến trình" trong hồ sơ: chỉ hiện số liệu máy chủ trả về (chuỗi ngày, XP, huy hiệu).
 export function ProgressPanel({ hideChallenge = false }: { hideChallenge?: boolean } = {}) {
-  const [moXepHang, setMoXepHang] = useState(false)
   const [moHuyHieu, setMoHuyHieu] = useState(false)
   const [moThuThach, setMoThuThach] = useState(false)
 
@@ -52,10 +50,6 @@ export function ProgressPanel({ hideChallenge = false }: { hideChallenge?: boole
             <Button variant="outline" size="sm" onClick={() => setMoHuyHieu(true)} className="rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold gap-1.5 cursor-pointer">
               <Award className="size-3.5 text-social" />
               <span>Thành tựu</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setMoXepHang(true)} className="rounded-xl border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold gap-1.5 cursor-pointer">
-              <Trophy className="size-3.5 text-achievement" />
-              <span>Xếp hạng lớp</span>
             </Button>
           </div>
         </div>
@@ -139,7 +133,6 @@ export function ProgressPanel({ hideChallenge = false }: { hideChallenge?: boole
         </section>
       )}
 
-      <ClassLeaderboardModal open={moXepHang} onOpenChange={setMoXepHang} />
       <AchievementsModal open={moHuyHieu} onOpenChange={setMoHuyHieu} />
       {!hideChallenge && <ClassChallengeModal open={moThuThach} onOpenChange={setMoThuThach} />}
     </div>

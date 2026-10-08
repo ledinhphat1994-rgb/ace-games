@@ -13,7 +13,6 @@ import {
   Sparkles,
   Target,
   Trophy,
-  User,
   Users,
   Vote,
   Zap,
@@ -71,7 +70,7 @@ const ICON: Record<string, ComponentType<{ className?: string }>> = {
 const NGAY = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })
 
 export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps) {
-  const [activeTab, setActiveTab] = useState<'shop' | 'badges'>('shop')
+  const [activeTab, setActiveTab] = useState<'shop' | 'badges'>('badges')
 
   const { data, isLoading, error, refetch } = useQuery<AchievementsResponse>({
     queryKey: ['engagement', 'achievements'],
@@ -110,14 +109,14 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="skeuo-modal-surface sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[96vh] p-5 sm:p-6 overflow-y-auto text-white">
+      <DialogContent className="skeuo-modal-surface sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[calc(100svh-3rem)] p-5 sm:p-6 overflow-y-auto text-white">
         <BlueprintArcadePattern className="opacity-75 pointer-events-none" />
         <DialogHeader className="shrink-0 mb-3">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <DialogTitle className="text-xl font-black text-white flex items-center gap-2 tracking-wide">
-                <User className="size-5 text-sky-400" />
-                <span>Thông tin cá nhân & Cửa hàng</span>
+                <Award className="size-5 text-amber-400" />
+                <span>Thành tựu & Huy hiệu</span>
               </DialogTitle>
               <DialogDescription className="sr-only">
                 Thông tin kinh nghiệm và cửa hàng vật phẩm

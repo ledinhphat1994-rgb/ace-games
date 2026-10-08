@@ -217,43 +217,45 @@ export function ProfilePage() {
             </div>
             <p className="text-xs text-text-tertiary font-medium mt-0.5">@{nguoiDung.username}</p>
 
-            {/* Suy nghĩ nhanh */}
-            <div className="mt-3 rounded-xl border border-border-default bg-surface-overlay/70 px-3.5 py-2 min-h-[2.25rem] flex items-center justify-between gap-2 max-w-lg">
+            {/* Suy nghĩ nhanh (Gọn gàng, tinh tế, không chiếm dụng không gian) */}
+            <div className="mt-2.5 flex items-center justify-center sm:justify-start">
               {dangSuaSuyNghi ? (
-                <form onSubmit={handleLuuSuyNghiNhanh} className="w-full space-y-2">
-                  <Input
-                    value={suyNghiTam}
-                    onChange={(e) => setSuyNghiTam(e.target.value)}
-                    placeholder="Nhập suy nghĩ của bạn…"
-                    maxLength={150}
-                    className="h-8 text-xs bg-surface border-border-default text-text-primary"
-                    autoFocus
-                  />
-                  <div className="flex flex-wrap items-center gap-1">
-                    <span className="text-[10px] text-text-tertiary mr-1">Icon:</span>
-                    {EMOJI_GOI_Y.map((em) => (
-                      <button
-                        key={em}
-                        type="button"
-                        onClick={() => setSuyNghiTam((prev) => (prev ? prev + ' ' + em : em))}
-                        className="size-6 text-xs rounded hover:bg-surface-raised transition-all flex items-center justify-center cursor-pointer"
-                      >
-                        {em}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex justify-end gap-1.5 pt-1">
-                    <Button type="button" variant="ghost" size="xs" onClick={() => setDangSuaSuyNghi(false)}>
-                      Hủy
-                    </Button>
-                    <Button type="submit" size="xs" disabled={dangLuuProfile} className="bg-brand hover:bg-brand/90 text-white text-xs font-bold">
-                      {dangLuuProfile ? 'Đang lưu…' : 'Lưu'}
-                    </Button>
-                  </div>
-                </form>
+                <div className="w-full max-w-xs sm:max-w-sm rounded-xl border border-border-default bg-surface-overlay/90 p-3 shadow-xs">
+                  <form onSubmit={handleLuuSuyNghiNhanh} className="w-full space-y-2">
+                    <Input
+                      value={suyNghiTam}
+                      onChange={(e) => setSuyNghiTam(e.target.value)}
+                      placeholder="Nhập suy nghĩ của bạn…"
+                      maxLength={150}
+                      className="h-8 text-xs bg-surface border-border-default text-text-primary"
+                      autoFocus
+                    />
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] text-text-tertiary mr-1">Icon:</span>
+                      {EMOJI_GOI_Y.map((em) => (
+                        <button
+                          key={em}
+                          type="button"
+                          onClick={() => setSuyNghiTam((prev) => (prev ? prev + ' ' + em : em))}
+                          className="size-6 text-xs rounded hover:bg-surface-raised transition-colors flex items-center justify-center cursor-pointer"
+                        >
+                          {em}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-1.5 pt-1">
+                      <Button type="button" variant="ghost" size="xs" onClick={() => setDangSuaSuyNghi(false)}>
+                        Hủy
+                      </Button>
+                      <Button type="submit" size="xs" disabled={dangLuuProfile} className="bg-brand hover:bg-brand/90 text-white text-xs font-bold">
+                        {dangLuuProfile ? 'Đang lưu…' : 'Lưu'}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
               ) : (
-                <>
-                  <p className="text-xs italic text-text-secondary break-words line-clamp-1 flex-1">
+                <div className="inline-flex items-center gap-2 rounded-xl border border-border-default/80 bg-surface-overlay/60 px-3 py-1.5 max-w-xs sm:max-w-sm">
+                  <p className="text-xs italic text-text-secondary truncate max-w-[200px] sm:max-w-[260px]">
                     {tieuDeHoSo ? `"${tieuDeHoSo}"` : '"Chưa có suy nghĩ nào."'}
                   </p>
                   <button
@@ -262,13 +264,14 @@ export function ProfilePage() {
                       setSuyNghiTam(tieuDeHoSo)
                       setDangSuaSuyNghi(true)
                     }}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline shrink-0 cursor-pointer ml-1"
+                    className="flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline shrink-0 cursor-pointer ml-0.5"
                     title="Chỉnh sửa suy nghĩ"
+                    aria-label="Sửa suy nghĩ"
                   >
                     <Pencil className="size-3" />
                     <span>Sửa</span>
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
