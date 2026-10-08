@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { taoDanhTinhCampus, TEN_CAMPUS } from './campus/danh-tinh'
-import { tenLobbyTheoLoai } from './games/game-lobby-do'
+import { TEN_GAME_LOBBY, tenLobbyTheoLoai } from './games/game-lobby-do'
 import { xuLyCapNhatReactions, type ActionReactionInput } from './campus/campus-reactions'
 import { SLUG_TIENG_VIET_GAME, type GameType } from '../shared/protocol/game'
 
@@ -1885,14 +1885,58 @@ app.post('/api/game/:maPhong/cancel', async (c) => {
   const maPhong = c.req.param('maPhong')
   if (!/^[a-z0-9-]{1,64}$/.test(maPhong)) return loi('Mã phòng không hợp lệ.', 400)
 
+  // 1. Gỡ khỏi RoomDO
   const doId = c.env.ROOMS.idFromName('game_' + maPhong)
   const roomDO = c.env.ROOMS.get(doId)
-  return roomDO.fetch(
-    new Request('http://internal/internal/game/cancel-room', {
+  await roomDO.fetch(
+    new Request(`http://internal/internal/game/cancel-room?roomId=${encodeURIComponent(maPhong)}`, {
       method: 'POST',
     }),
-  )
+  ).catch(() => null)
+
+  // 2. Trực tiếp gỡ khỏi GameLobbyDO các shard để sảnh cập nhật ngay lập tức
+  try {
+    const cacShards = [
+      TEN_GAME_LOBBY,
+      'lobby:chess',
+      'lobby:xiangqi',
+      'lobby:caro_15',
+      'lobby:solo_memory',
+      'lobby:solo_snake',
+    ]
+    for (const shard of cacShards) {
+      const lobbyDO = c.env.GAME_LOBBY.get(c.env.GAME_LOBBY.idFromName(shard))
+      c.executionCtx.waitUntil(lobbyDO.xoaBan(maPhong).catch(() => {}))
+    }
+  } catch {}
+
+  return c.json({ ok: true })
 })
+
+app.post('/api/game/rooms/reset', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  // Xóa toàn bộ bàn ở tất cả shard GameLobbyDO và phát snapshot rỗng tức thì
+  const cacShards = [
+    TEN_GAME_LOBBY,
+    'lobby:chess',
+    'lobby:xiangqi',
+    'lobby:caro_15',
+    'lobby:solo_memory',
+    'lobby:solo_snake',
+  ]
+  for (const shard of cacShards) {
+    try {
+      const lobby = c.env.GAME_LOBBY.get(c.env.GAME_LOBBY.idFromName(shard))
+      await lobby.xoaTatCaBan()
+    } catch (err) {
+      console.error(`Lỗi khi reset shard ${shard}:`, err)
+    }
+  }
+  return c.json({ ok: true, message: 'Đã đặt lại toàn bộ phòng game về 0.' })
+})
+app.all('/api/game/rooms/reset', saiPhuongThuc)
 
 async function vaoGameLobby(request: Request, env: Env, gameType?: string): Promise<Response> {
   if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)

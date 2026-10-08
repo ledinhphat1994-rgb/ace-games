@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, memo } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Check,
   CheckSquare,
@@ -113,121 +114,6 @@ export const DANH_SACH_SU_KIEN_GAME: readonly SuKienGameItem[] = [
     thoiGianHienThi: '08:30 – 11:00 Thứ Bảy, 03/10',
     badgeText: 'Sắp diễn ra',
     badgeVariant: 'sky',
-  },
-]
-
-// Danh sách phòng mẫu với số phòng DUY NHẤT không trùng lặp (1 đến 10), link 100% tiếng Việt
-const PLATFORM_DEFAULT_ROOMS: PhongGameItem[] = [
-  // 1. Giải đấu: Giải Cờ Vua Digital Campus Mùa 1 - Bàn #1
-  {
-    id: 'giai-dau-co-vua-1',
-    gameType: 'chess',
-    tieuDe: 'Giải Cờ Vua Mùa 1 · Bàn Giải đấu',
-    tenChu: 'Ban Trọng Tài',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 60,
-    soNguoiXem: 12,
-    isVip: true,
-    isTournament: true,
-    soPhong: 1,
-  },
-  // 2. Cờ Vua: Bàn #2, #3, #4 (Không trùng #1)
-  {
-    id: 'co-vua-1',
-    gameType: 'chess',
-    tenChu: 'Thầy Mai',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 30,
-    soNguoiXem: 3,
-    soPhong: 2,
-  },
-  {
-    id: 'co-vua-2',
-    gameType: 'chess',
-    tenChu: 'Nguyễn Văn Học Sinh',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 30,
-    soNguoiXem: 1,
-    soPhong: 3,
-  },
-  {
-    id: 'co-vua-3',
-    gameType: 'chess',
-    tenChu: 'Lê An',
-    tenKhach: 'Trần Bình',
-    trangThai: 'playing',
-    turnTimerSeconds: 30,
-    soNguoiXem: 5,
-    soPhong: 4,
-  },
-  // 3. Cờ Tướng: Bàn #5, #6 (Mã tiếng Việt co-tuong, không dùng tiếng Trung xiangqi)
-  {
-    id: 'co-tuong-1',
-    gameType: 'xiangqi',
-    tenChu: 'Trần Văn Cường',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 30,
-    soNguoiXem: 2,
-    soPhong: 5,
-  },
-  {
-    id: 'co-tuong-2',
-    gameType: 'xiangqi',
-    tenChu: 'Phạm Minh Tuấn',
-    tenKhach: 'Lê Văn Nam',
-    trangThai: 'playing',
-    turnTimerSeconds: 30,
-    soNguoiXem: 4,
-    soPhong: 6,
-  },
-  // 4. Cờ Caro: Bàn #7, #8 (Mã tiếng Việt co-caro)
-  {
-    id: 'co-caro-1',
-    gameType: 'caro_15',
-    tenChu: 'Hoàng Yến',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 15,
-    soNguoiXem: 2,
-    soPhong: 7,
-  },
-  {
-    id: 'co-caro-2',
-    gameType: 'caro_15',
-    tenChu: 'Đỗ Hữu Đạt',
-    tenKhach: 'Vũ Thị Hạnh',
-    trangThai: 'playing',
-    turnTimerSeconds: 15,
-    soNguoiXem: 6,
-    soPhong: 8,
-  },
-  // 5. Trí Nhớ (Solo): Bàn #9 (Mã tiếng Việt tri-nho)
-  {
-    id: 'tri-nho-1',
-    gameType: 'solo_memory',
-    tieuDe: 'Thử Thách Trí Nhớ 4×4',
-    tenChu: 'Đấu trường Solo',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 0,
-    soNguoiXem: 0,
-    soPhong: 9,
-  },
-  // 6. Rắn Săn Mồi (Solo): Bàn #10 (Mã tiếng Việt ran-san-moi)
-  {
-    id: 'ran-san-moi-1',
-    gameType: 'solo_snake',
-    tieuDe: 'Đua Top Điểm Cao Rắn Săn Mồi',
-    tenChu: 'Đấu trường Arcade',
-    tenKhach: null,
-    trangThai: 'waiting',
-    turnTimerSeconds: 0,
-    soNguoiXem: 0,
-    soPhong: 10,
   },
 ]
 
@@ -408,6 +294,7 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
 export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
   void onMoSanh
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { nguoiDung, moAuthModal } = usePhien()
   const { socialState } = useCampus()
   const [selectedFilter, setSelectedFilter] = useState<string>('all')
@@ -456,12 +343,21 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     viec()
   }
 
-  // Đặt lại / Xóa tất cả các bàn đấu test
+  // Đặt lại / Xóa tất cả các bàn đấu test về 0
   const datLaiTatCaPhong = async () => {
-    // Hủy các bàn của mình trên máy chủ nếu có
-    for (const r of allRooms) {
-      const laCuaToi = r.tenChu && nguoiDung && (r.tenChu === nguoiDung.ten || r.tenChu === nguoiDung.username)
-      if (laCuaToi && r.trangThai === 'waiting') {
+    try {
+      const res = await fetch('/api/game/rooms/reset', { method: 'POST' })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean }
+      if (!res.ok || !data.ok) {
+        // Fallback: Hủy các bàn trên máy chủ nếu có
+        for (const r of allRooms) {
+          try {
+            await fetch(`/api/game/${encodeURIComponent(r.id)}/cancel`, { method: 'POST' })
+          } catch {}
+        }
+      }
+    } catch {
+      for (const r of allRooms) {
         try {
           await fetch(`/api/game/${encodeURIComponent(r.id)}/cancel`, { method: 'POST' })
         } catch {}
@@ -469,12 +365,17 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
     setLocalCreatedRooms([])
     setSanhDaXoaPhong(true)
+    queryClient.setQueryData(['game-rooms', 'all'], [])
+    if (selectedFilter) {
+      queryClient.setQueryData(['game-rooms', selectedFilter], [])
+    }
+    void queryClient.invalidateQueries({ queryKey: ['game-rooms'] })
     try {
       sessionStorage.setItem('dc_lobby_cleared', 'true')
       sessionStorage.removeItem('dc_my_game_rooms')
       localStorage.removeItem('dc_my_game_rooms')
     } catch {}
-    toast.success('Đã đặt lại sảnh, xóa tất cả phòng test.')
+    toast.success('Đã đặt lại sảnh về 0 phòng.')
   }
 
   // Hủy 1 bàn đấu cụ thể do chính mình làm chủ
@@ -628,22 +529,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
     const liveIds = new Set(liveRooms.map((r) => r.id))
     const merged = [...localCreatedRooms.filter((lr) => !liveIds.has(lr.id)), ...liveRooms]
-
-    // Ghép các phòng mẫu chuẩn nền tảng (chỉ nạp khi chưa được yêu cầu xóa/reset để kiểm thử)
-    if (!sanhDaXoaPhong) {
-      for (const d of PLATFORM_DEFAULT_ROOMS) {
-        if (!liveIds.has(d.id)) {
-          const friendsInRoom: string[] = []
-          if (d.tenChu && friendNames.has(d.tenChu.toLowerCase())) friendsInRoom.push(d.tenChu)
-          if (d.tenKhach && friendNames.has(d.tenKhach.toLowerCase())) friendsInRoom.push(d.tenKhach)
-
-          merged.push({
-            ...d,
-            friendsInRoom,
-          })
-        }
-      }
-    }
 
     // ── ĐẢM BẢO SỐ PHÒNG LÀ DUY NHẤT KHÔNG TRÙNG LẶP TRÊN TOÀN BỘ SẢNH ──
     const usedNumbers = new Set<number>()
@@ -1467,18 +1352,15 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     <Gamepad2 className="size-6" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-text-primary">Không tìm thấy phòng game phù hợp</h3>
-                    <p className="text-xs text-text-secondary mt-1">
-                      Hãy thử đổi từ khóa tìm kiếm hoặc tạo bàn đấu mới ngay bây giờ.
-                    </p>
+                    <h3 className="text-sm font-bold text-text-primary">Chưa có bàn đấu</h3>
                   </div>
                   <Button
                     size="sm"
                     onClick={canDangNhap(() => setMoTaoBanModal(true))}
-                    className="h-8 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold"
+                    className="h-8 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold cursor-pointer"
                   >
                     <Plus className="size-3.5 mr-1" />
-                    <span>Tạo bàn đấu ngay</span>
+                    <span>Tạo bàn đấu</span>
                   </Button>
                 </div>
               )}

@@ -6207,6 +6207,7 @@ export class RoomDO extends DurableObject<Env> {
 
 
     if (request.method === 'POST' && url.pathname === '/internal/game/create-room') {
+      this.nạpDuLieuNeuCan()
       try {
         const body = (await request.json()) as {
           roomId: string
@@ -6263,14 +6264,16 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     if (request.method === 'POST' && url.pathname === '/internal/game/cancel-room') {
+      this.nạpDuLieuNeuCan()
       this.gameMeta = { ...this.gameMeta, status: 'ended' }
       this.isPersistentLobbyRoom = false
       this.luuMeta('persistent_lobby_room', '0')
       this.luuGameState()
-      if (this.gameRoomId) {
+      const targetRoomId = this.gameRoomId || url.searchParams.get('roomId')
+      if (targetRoomId) {
         for (const lobby of this.cacSanhGame()) {
           this.ctx.waitUntil(
-            lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
+            lobby.xoaBan(targetRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
           )
         }
       }
@@ -6278,6 +6281,7 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     if (request.method === 'POST' && url.pathname === '/internal/game/verify-password') {
+      this.nạpDuLieuNeuCan()
       try {
         const body = (await request.json()) as { password?: string }
         const pw = body.password?.trim()

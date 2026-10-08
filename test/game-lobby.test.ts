@@ -231,4 +231,31 @@ describe('Sảnh riêng từng trò chơi (/arena/:gameType)', () => {
 
     chu.dong()
   })
+
+  it('POST /api/game/rooms/reset đặt lại toàn bộ phòng trong sảnh về 0', async () => {
+    const { exports } = await import('cloudflare:workers')
+    const lobby = layLobby()
+    await lobby.capNhatBan(banMau('test-reset-1'))
+    await lobby.capNhatBan(banMau('test-reset-2'))
+    expect((await lobby.danhSach()).length).toBeGreaterThanOrEqual(2)
+
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await exports.default.fetch('https://campus.test/api/game/rooms/reset', {
+      method: 'POST',
+      headers: { Cookie: cookie },
+    })
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { ok: boolean }
+    expect(json.ok).toBe(true)
+
+    const dsSau = await lobby.danhSach()
+    expect(dsSau).toHaveLength(0)
+
+    const dsApi = await exports.default.fetch('https://campus.test/api/game/rooms', {
+      headers: { Cookie: cookie },
+    })
+    const jsonApi = (await dsApi.json()) as { ok: boolean; rooms: BanSanh[] }
+    expect(jsonApi.ok).toBe(true)
+    expect(jsonApi.rooms).toEqual([])
+  })
 })

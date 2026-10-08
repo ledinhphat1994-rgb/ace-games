@@ -70,6 +70,11 @@ export class GameLobbyDO extends DurableObject<Env> {
       return Response.json({ ok: true, rooms })
     }
 
+    if (url.pathname === '/reset' || url.pathname === '/internal/reset') {
+      await this.xoaTatCaBan()
+      return Response.json({ ok: true, message: 'Đã xóa toàn bộ bàn đấu trong sảnh.' })
+    }
+
     return new Response('Not Found', { status: 404 })
   }
 
@@ -123,6 +128,24 @@ export class GameLobbyDO extends DurableObject<Env> {
       ban: { id },
       serverTime: Date.now(),
     })
+  }
+
+  /** Xóa sạch toàn bộ bàn trong sảnh về 0 và phát snapshot rỗng tức thì tới toàn bộ client WebSocket */
+  async xoaTatCaBan(): Promise<void> {
+    this.ctx.storage.sql.exec('DELETE FROM ban')
+    const snap: GoiLobbySnapshot = {
+      type: 'lobby.snapshot',
+      rooms: [],
+      serverTime: Date.now(),
+    }
+    const payload = JSON.stringify(snap)
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(payload)
+        } catch {}
+      }
+    }
   }
 
   async danhSach(): Promise<BanSanh[]> {
