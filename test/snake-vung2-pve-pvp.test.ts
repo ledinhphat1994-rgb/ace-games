@@ -54,4 +54,20 @@ describe('Snake Vùng 2, PvE Auto-Replace, and Dedicated PvP Mechanism', () => {
     expect(wormateContent).toContain('isSessionLocked')
     expect(wormateContent).toContain('Hủy phòng')
   })
+
+  it('Bảng xếp hạng TOP 10 (Vùng 1) hiển thị và cập nhật số người còn lại aliveCount thời gian thực', () => {
+    expect(wormateContent).toContain('const [aliveCount, setAliveCount] = useState')
+    expect(wormateContent).toContain('{aliveCount} còn lại')
+    expect(wormateContent).toContain('setLeaderboard(')
+    expect(wormateContent).toContain('setPlayerRank(')
+    expect(wormateContent).toContain('setAliveCount(livingCount)')
+  })
+
+  it('Vòng tròn thu hẹp sân đấu: đi vào vùng cấm ngoài vòng bo sẽ bị xử thua ngay lập tức', () => {
+    expect(wormateContent).toContain('distFromSafeCenter > sz.currentRadius')
+    expect(wormateContent).toContain("reason: 'Đi vào vùng cấm ngoài vòng bo!'")
+    expect(wormateContent).toContain("finishGame(false, 'Đi vào vùng cấm ngoài vòng bo!')")
+    expect(wormateContent).toContain('aiDistFromSafe > sz.currentRadius')
+    expect(wormateContent).toContain('p2DistFromSafe > sz.currentRadius')
+  })
 })

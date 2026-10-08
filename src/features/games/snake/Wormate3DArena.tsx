@@ -475,6 +475,7 @@ export function Wormate3DArena({
   const [muted] = useState(false)
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([])
   const [playerRank, setPlayerRank] = useState(1)
+  const [aliveCount, setAliveCount] = useState(1)
   const [isLeaderboardCollapsed, setIsLeaderboardCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth < 1024
@@ -584,14 +585,14 @@ export function Wormate3DArena({
     safeZone: {
       centerX: ARENA_SIZE / 2,
       centerY: ARENA_SIZE / 2,
-      currentRadius: ARENA_SIZE * 0.70,
-      targetRadius: ARENA_SIZE * 0.70,
+      currentRadius: ARENA_SIZE * 0.46,
+      targetRadius: ARENA_SIZE * 0.46,
       targetCenterX: ARENA_SIZE / 2,
       targetCenterY: ARENA_SIZE / 2,
       phase: 1,
-      countdown: 40,
+      countdown: 25,
       isShrinking: false,
-      shrinkDuration: 15,
+      shrinkDuration: 14,
       shrinkTimer: 0,
     },
     floatingTexts: [],
@@ -837,14 +838,14 @@ export function Wormate3DArena({
       safeZone: {
         centerX: ARENA_SIZE / 2,
         centerY: ARENA_SIZE / 2,
-        currentRadius: ARENA_SIZE * 0.70,
-        targetRadius: ARENA_SIZE * 0.70,
+        currentRadius: ARENA_SIZE * 0.46,
+        targetRadius: ARENA_SIZE * 0.46,
         targetCenterX: ARENA_SIZE / 2,
         targetCenterY: ARENA_SIZE / 2,
         phase: 1,
-        countdown: 40,
+        countdown: 25,
         isShrinking: false,
-        shrinkDuration: 15,
+        shrinkDuration: 14,
         shrinkTimer: 0,
       },
       floatingTexts: [],
@@ -862,6 +863,48 @@ export function Wormate3DArena({
       nextFoodId: fId,
       nextTextId: 1,
     }
+
+    // Khởi tạo Bảng Xếp Hạng TOP 10 và HUD ngay từ frame 0
+    const allInitialWorms: LeaderboardItem[] = [
+      {
+        id: playerWorm.id,
+        name: playerWorm.name,
+        score: Math.floor(playerWorm.score),
+        length: playerWorm.length,
+        isPlayer: true,
+        isAlive: true,
+      },
+      ...(player2Worm
+        ? [
+            {
+              id: player2Worm.id,
+              name: player2Worm.name,
+              score: Math.floor(player2Worm.score),
+              length: player2Worm.length,
+              isPlayer: true,
+              isAlive: true,
+            },
+          ]
+        : []),
+      ...aiWorms.map((ai) => ({
+        id: ai.id,
+        name: ai.name,
+        score: Math.floor(ai.score),
+        length: ai.length,
+        isPlayer: false,
+        isAlive: true,
+      })),
+    ].sort((a, b) => b.score - a.score)
+
+    setLeaderboard(allInitialWorms.slice(0, 10))
+    setPlayerRank(allInitialWorms.findIndex((w) => w.id === playerWorm.id) + 1)
+    setAliveCount(allInitialWorms.length)
+    setPlayerStats({ score: 0, length: INITIAL_SEGMENT_COUNT })
+    setSafeZoneHud({
+      phase: 1,
+      countdown: 25,
+      isShrinking: false,
+    })
   }, [createFood, difficulty, aiCount, mode])
 
   // Lắng nghe restartKey để reset ngay lập tức khi bấm "Chơi lại"
@@ -934,9 +977,9 @@ export function Wormate3DArena({
           if (sz.countdown <= 0) {
             sz.isShrinking = true
             sz.shrinkTimer = 0
-            sz.shrinkDuration = 16
-            sz.targetRadius = Math.max(380, sz.currentRadius * 0.72)
-            const maxShift = (sz.currentRadius - sz.targetRadius) * 0.65
+            sz.shrinkDuration = 14
+            sz.targetRadius = Math.max(300, sz.currentRadius * 0.70)
+            const maxShift = (sz.currentRadius - sz.targetRadius) * 0.60
             const shiftAngle = Math.random() * Math.PI * 2
             const shiftDist = Math.random() * maxShift
             sz.targetCenterX = Math.max(sz.targetRadius + 150, Math.min(ARENA_SIZE - sz.targetRadius - 150, sz.centerX + Math.cos(shiftAngle) * shiftDist))
@@ -955,12 +998,12 @@ export function Wormate3DArena({
             sz.currentRadius = sz.targetRadius
             sz.centerX = sz.targetCenterX
             sz.centerY = sz.targetCenterY
-            sz.phase = Math.min(5, sz.phase + 1)
-            sz.countdown = 35
+            sz.phase = Math.min(6, sz.phase + 1)
+            sz.countdown = 20
           }
         }
 
-        // Cập nhật HUD Vòng bo định kỳ
+        // Cập nhật HUD Vòng bo và Bảng Xếp Hạng TOP 10 (Vùng 1) định kỳ mỗi 250ms
         if (currentTime - lastHudUpdate > 250) {
           lastHudUpdate = currentTime
           setSafeZoneHud({
@@ -968,6 +1011,25 @@ export function Wormate3DArena({
             countdown: Math.max(0, Math.ceil(sz.countdown)),
             isShrinking: sz.isShrinking,
           })
+
+          const allWorms = [player, ...(eng.player2 ? [eng.player2] : []), ...eng.aiWorms]
+          const sorted = [...allWorms].sort((a, b) => b.score - a.score)
+          const pRank = sorted.findIndex((w) => w.id === player.id) + 1
+          const livingCount = allWorms.filter((w) => w.isAlive).length
+
+          setPlayerStats({ score: Math.floor(player.score), length: player.length })
+          setPlayerRank(pRank)
+          setAliveCount(livingCount)
+          setLeaderboard(
+            sorted.slice(0, 10).map((w) => ({
+              id: w.id,
+              name: w.name,
+              score: Math.floor(w.score),
+              length: w.length,
+              isPlayer: w.isPlayer,
+              isAlive: w.isAlive,
+            }))
+          )
         }
 
         // Tốc độ tăng tốc khi giữ chuột / phím Space
@@ -1027,29 +1089,14 @@ export function Wormate3DArena({
           finishGame(false, 'Đâm vào hàng rào đấu trường!')
         }
 
-        // Sát thương bão ngoài vòng an toàn Safe Zone
+        // VÙNG CẤM NGOÀI VÒNG BO (Battle Royale Invariant): Đi vào vùng cấm là THUA NGAY LẬP TỨC
         const distFromSafeCenter = Math.hypot(player.x - sz.centerX, player.y - sz.centerY)
         if (distFromSafeCenter > sz.currentRadius) {
-          player.score = Math.max(0, player.score - 0.18)
-          if (Math.random() < 0.25) {
-            player.length = Math.max(6, player.length - 1)
-            eng.crumbs.push({
-              x: player.x + (Math.random() - 0.5) * 15,
-              y: player.y + (Math.random() - 0.5) * 15,
-              vx: (Math.random() - 0.5) * 3,
-              vy: -Math.random() * 2 - 1,
-              r: 3 + Math.random() * 3,
-              color: '#c084fc',
-              alpha: 0.9,
-            })
-          }
-          if (player.score <= 0 && player.length <= 6) {
-            player.isAlive = false
-            snakeAudio.playCrash()
-            explodeWormIntoPastries(player)
-            setRoundResult({ restartKey, winner: false, reason: 'Bị bão độc ngoài vòng bo tiêu diệt!' })
-            finishGame(false, 'Bị bão độc ngoài vòng bo tiêu diệt!')
-          }
+          player.isAlive = false
+          snakeAudio.playCrash()
+          explodeWormIntoPastries(player)
+          setRoundResult({ restartKey, winner: false, reason: 'Đi vào vùng cấm ngoài vòng bo!' })
+          finishGame(false, 'Đi vào vùng cấm ngoài vòng bo!')
         }
 
         // Ăn thức ăn đa dạng: Đồ xịn (+lớn nhanh), Đồ thường (+bình thường), Đồ dỏm (-teo nhỏ)
@@ -1140,33 +1187,46 @@ export function Wormate3DArena({
         eng.aiWorms.forEach((ai) => {
           if (!ai.isAlive) return
 
+          // AI đi vào vùng cấm ngoài vòng an toàn -> Tiêu diệt ngay lập tức
+          const aiDistFromSafe = Math.hypot(ai.x - sz.centerX, ai.y - sz.centerY)
+          if (aiDistFromSafe > sz.currentRadius) {
+            ai.isAlive = false
+            explodeWormIntoPastries(ai)
+            return
+          }
+
           ai.aiDecisionTimer -= dt
           if (ai.aiDecisionTimer <= 0) {
             ai.aiDecisionTimer = 0.4 + Math.random() * 0.6
 
-            // Tìm bánh ngọt gần nhất hoặc né tránh
-            let nearestFood: FoodItem | null = null
-            let minDist = 400
-            for (const f of eng.foods) {
-              const d = Math.hypot(ai.x - f.x, ai.y - f.y)
-              if (d < minDist) {
-                minDist = d
-                nearestFood = f
-              }
-            }
-
-            if (nearestFood) {
-              ai.targetAngle = Math.atan2(nearestFood.y - ai.y, nearestFood.x - ai.x)
+            // Tránh xa vùng cấm ngoài bo: nếu gần rìa bo (< 220px), ưu tiên bẻ lái về tâm an toàn
+            if (aiDistFromSafe > sz.currentRadius - 220) {
+              ai.targetAngle = Math.atan2(sz.centerY - ai.y, sz.centerX - ai.x)
             } else {
-              ai.targetAngle += (Math.random() - 0.5) * 1.5
-            }
+              // Tìm bánh ngọt gần nhất hoặc né tránh
+              let nearestFood: FoodItem | null = null
+              let minDist = 400
+              for (const f of eng.foods) {
+                const d = Math.hypot(ai.x - f.x, ai.y - f.y)
+                if (d < minDist) {
+                  minDist = d
+                  nearestFood = f
+                }
+              }
 
-            // Tránh xa tường
-            const pad = 120
-            if (ai.x < pad) ai.targetAngle = 0
-            else if (ai.x > ARENA_SIZE - pad) ai.targetAngle = Math.PI
-            else if (ai.y < pad) ai.targetAngle = Math.PI / 2
-            else if (ai.y > ARENA_SIZE - pad) ai.targetAngle = -Math.PI / 2
+              if (nearestFood) {
+                ai.targetAngle = Math.atan2(nearestFood.y - ai.y, nearestFood.x - ai.x)
+              } else {
+                ai.targetAngle += (Math.random() - 0.5) * 1.5
+              }
+
+              // Tránh xa tường
+              const pad = 120
+              if (ai.x < pad) ai.targetAngle = 0
+              else if (ai.x > ARENA_SIZE - pad) ai.targetAngle = Math.PI
+              else if (ai.y < pad) ai.targetAngle = Math.PI / 2
+              else if (ai.y > ARENA_SIZE - pad) ai.targetAngle = -Math.PI / 2
+            }
           }
 
           // Xoay góc AI
@@ -1260,6 +1320,18 @@ export function Wormate3DArena({
           const p2HistLen = Math.floor(p2.length * SEGMENT_SPACING)
           while (p2.history.length > p2HistLen) p2.history.pop()
 
+          // Player 2 đi vào vùng cấm ngoài vòng bo
+          const p2DistFromSafe = Math.hypot(p2.x - sz.centerX, p2.y - sz.centerY)
+          if (p2DistFromSafe > sz.currentRadius) {
+            p2.isAlive = false
+            playWormSound('crash', muted)
+            explodeWormIntoPastries(p2)
+            if (player.isAlive) {
+              setRoundResult({ restartKey, winner: true, reason: 'Người chơi 1 chiến thắng! (Người chơi 2 đi vào vùng cấm)' })
+              finishGame(true, 'Người chơi 1 chiến thắng!')
+            }
+          }
+
           // Player 2 đâm tường
           if (
             p2.x < p2.radius ||
@@ -1339,26 +1411,6 @@ export function Wormate3DArena({
               }
             }
           }
-        }
-
-        // Cập nhật Bảng Xếp Hạng thời gian thực cho Vùng 3 (Throttle 400ms để giữ 60fps mượt mà trên mobile)
-        const allWorms = [player, ...(eng.player2 ? [eng.player2] : []), ...eng.aiWorms]
-        const sorted = [...allWorms].sort((a, b) => b.score - a.score)
-        const pRank = sorted.findIndex((w) => w.id === player.id) + 1
-        if (currentTime - lastHudUpdate >= 400) {
-          lastHudUpdate = currentTime
-          setPlayerStats({ score: Math.floor(player.score), length: player.length })
-          setPlayerRank(pRank)
-          setLeaderboard(
-            sorted.map((w) => ({
-              id: w.id,
-              name: w.name,
-              score: Math.floor(w.score),
-              length: w.length,
-              isPlayer: w.isPlayer,
-              isAlive: w.isAlive,
-            }))
-          )
         }
 
         // Báo đối thủ mạnh nhất ra bảng ngoài
@@ -1444,33 +1496,35 @@ export function Wormate3DArena({
       ctx.strokeStyle = '#ef4444'
       ctx.strokeRect(0, 0, ARENA_SIZE, ARENA_SIZE)
 
-      // Vẽ VÒNG BO BATTLE ROYALE (SAFE ZONE)
+      // Vẽ VÒNG BO BATTLE ROYALE & VÙNG CẤM TỬ ĐỊA (DEATH ZONE - ĐI VÀO LÀ THUA)
       if (eng.safeZone) {
         const sz = eng.safeZone
         ctx.save()
-        // 1. Vùng bão điện ngoài vòng bo (phủ mờ cảnh báo)
+
+        // 1. Vùng cấm tử địa ngoài vòng bo (phủ lớp đỏ nguy hiểm rõ rệt)
         ctx.beginPath()
         ctx.rect(0, 0, ARENA_SIZE, ARENA_SIZE)
         ctx.arc(sz.centerX, sz.centerY, sz.currentRadius, 0, Math.PI * 2, true)
-        ctx.fillStyle = sz.isShrinking ? 'rgba(239, 68, 68, 0.12)' : 'rgba(99, 102, 241, 0.06)'
+        ctx.fillStyle = sz.isShrinking ? 'rgba(239, 68, 68, 0.35)' : 'rgba(225, 29, 72, 0.22)'
         ctx.fill()
 
-        // 2. Viền vòng an toàn phát sáng nét đứt xoay chuyển
+        // 2. Viền ngoài ranh giới an toàn / vùng cấm (laser xoay chuyển rực rỡ)
         ctx.beginPath()
         ctx.arc(sz.centerX, sz.centerY, sz.currentRadius, 0, Math.PI * 2)
-        ctx.lineWidth = sz.isShrinking ? 6 : 4
-        ctx.strokeStyle = sz.isShrinking ? '#f43f5e' : '#38bdf8'
-        ctx.setLineDash([16, 10])
-        ctx.lineDashOffset = -currentTime * 0.03
+        ctx.lineWidth = sz.isShrinking ? 7 : 5
+        ctx.strokeStyle = sz.isShrinking ? '#ef4444' : '#06b6d4'
+        ctx.setLineDash([20, 12])
+        ctx.lineDashOffset = -currentTime * 0.04
         ctx.stroke()
 
-        // 3. Nếu đang thu hẹp bo, vẽ thêm vòng mục tiêu bo kế tiếp
+        // 3. Nếu đang thu hẹp bo, vẽ thêm vòng mục tiêu kế tiếp nét đứt màu vàng hổ phách
         if (sz.isShrinking) {
           ctx.beginPath()
           ctx.arc(sz.targetCenterX, sz.targetCenterY, sz.targetRadius, 0, Math.PI * 2)
-          ctx.lineWidth = 2
-          ctx.strokeStyle = 'rgba(244, 63, 94, 0.45)'
-          ctx.setLineDash([8, 6])
+          ctx.lineWidth = 3
+          ctx.strokeStyle = '#f59e0b'
+          ctx.setLineDash([10, 8])
+          ctx.lineDashOffset = currentTime * 0.02
           ctx.stroke()
         }
         ctx.restore()
@@ -1742,6 +1796,8 @@ export function Wormate3DArena({
             <span>#{playerRank}</span>
             <span className="text-white/20">·</span>
             <span className="font-mono text-slate-200">{playerStats.score}đ</span>
+            <span className="text-white/20">·</span>
+            <span className="font-mono text-emerald-400 font-bold">{aliveCount} còn lại</span>
             <ChevronDown className="size-3.5 text-slate-400 shrink-0" />
           </button>
         ) : (
@@ -1753,8 +1809,8 @@ export function Wormate3DArena({
                 <span>TOP 10</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] sm:text-xs font-mono text-slate-300 bg-white/10 px-1.5 py-0.5 rounded-full font-bold">
-                  {leaderboard.length} còn lại
+                <span className="text-[10px] sm:text-xs font-mono text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold">
+                  {aliveCount} còn lại
                 </span>
                 <button
                   type="button"
@@ -3034,18 +3090,26 @@ function drawMinimap(
 
   const scale = mapSize / ARENA_SIZE
 
-  // Vòng an toàn Safe Zone trên Minimap
+  // Vòng an toàn Safe Zone & Vùng cấm trên Minimap
   if (eng.safeZone) {
+    const szX = mapX + eng.safeZone.centerX * scale
+    const szY = mapY + eng.safeZone.centerY * scale
+    const szR = Math.max(2, eng.safeZone.currentRadius * scale)
+
+    // Phủ vùng cấm màu đỏ nguy hiểm ngoài bo trên minimap
+    ctx.save()
     ctx.beginPath()
-    ctx.arc(
-      mapX + eng.safeZone.centerX * scale,
-      mapY + eng.safeZone.centerY * scale,
-      Math.max(2, eng.safeZone.currentRadius * scale),
-      0,
-      Math.PI * 2
-    )
-    ctx.strokeStyle = eng.safeZone.isShrinking ? '#f43f5e' : '#38bdf8'
-    ctx.lineWidth = 1.2
+    ctx.arc(mapX + mapSize / 2, mapY + mapSize / 2, mapSize / 2, 0, Math.PI * 2)
+    ctx.arc(szX, szY, szR, 0, Math.PI * 2, true)
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.35)'
+    ctx.fill()
+    ctx.restore()
+
+    // Viền vòng an toàn trên minimap
+    ctx.beginPath()
+    ctx.arc(szX, szY, szR, 0, Math.PI * 2)
+    ctx.strokeStyle = eng.safeZone.isShrinking ? '#ef4444' : '#06b6d4'
+    ctx.lineWidth = 1.4
     ctx.setLineDash([2, 2])
     ctx.stroke()
     ctx.setLineDash([])
