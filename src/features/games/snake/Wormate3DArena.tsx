@@ -2010,10 +2010,10 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
-      {/* VÙNG 3: BẢNG XẾP HẠNG GÓC PHẢI TRÊN CÙNG (MẶC ĐỊNH TOP 3, CHỮ NHỎ GỌN, KHÔNG ĐÈ CARD KHÁC) */}
+      {/* VÙNG 3: BẢNG XẾP HẠNG GÓC PHẢI (TRÊN MOBILE DỌC NẰM DƯỚI HUD TRÁNH CHỒNG CHÉO, SM+ NẰM TRÊN CÙNG) */}
       <div
         className={cn(
-          'absolute top-2 right-2 sm:top-2.5 sm:right-2.5 z-10 select-none text-[10px] sm:text-xs transition-opacity duration-200 pointer-events-auto',
+          'absolute max-sm:top-10 max-sm:right-2 top-2 right-2 sm:top-2.5 sm:right-2.5 z-10 select-none text-[10px] sm:text-xs transition-opacity duration-200 pointer-events-auto',
           isRunning && !isGameOver
             ? 'opacity-90 hover:opacity-100 active:opacity-100 focus-within:opacity-100'
             : 'opacity-95',
@@ -2114,7 +2114,9 @@ export function Wormate3DArena({
               {safeZoneHud.isShrinking ? (
                 <div className="flex items-center gap-1 text-rose-400 font-bold animate-pulse">
                   <Flame className="size-3 text-rose-400 shrink-0" />
-                  <span>Bo đang thu! ({safeZoneHud.phase})</span>
+                  <span className="hidden sm:inline">Bo đang thu!</span>
+                  <span className="sm:hidden">Bo thu</span>
+                  <span>({safeZoneHud.phase})</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 text-sky-300 font-medium">
@@ -2145,17 +2147,17 @@ export function Wormate3DArena({
                   )
                 })()}
                 <span className="font-bold text-emerald-400">{playerStats.score}đ</span>
-                <span className="text-white/30 text-[10px]">·</span>
-                <span className="text-slate-300">{playerStats.length} đốt</span>
+                <span className="text-white/30 text-[10px] hidden sm:inline">·</span>
+                <span className="text-slate-300 hidden sm:inline">{playerStats.length} đốt</span>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Nút điều khiển cảm ứng Mobile: Tối ưu 2 tay cho cả màn hình Dọc và Ngang */}
+      {/* Nút điều khiển cảm ứng Mobile: Tối ưu 2 tay cho cả màn hình Dọc và Ngang (Nút Flash to & ngang chiều cao với Joystick) */}
       {isRunning && !isGameOver && (
-        <div className="pointer-events-none absolute inset-x-4 sm:inset-x-6 bottom-7 sm:bottom-9 z-10 hidden justify-between items-end gap-3 pointer-coarse:flex pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="pointer-events-none absolute inset-x-4 sm:inset-x-6 bottom-16 sm:bottom-20 z-10 hidden justify-between items-center gap-3 pointer-coarse:flex pb-[env(safe-area-inset-bottom,0px)]">
           {mode === 'ai' ? (
             <>
               {/* Tay TRÁI: Joystick lái rắn mượt mà 120Hz */}

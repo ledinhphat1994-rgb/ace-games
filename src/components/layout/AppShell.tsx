@@ -314,8 +314,8 @@ export function AppShell({ children }: AppShellProps) {
       {/* 3. Mobile Bottom Navigation (Ẩn khi đang trong phòng chơi game hoặc phòng học để tối đa hoá không gian) */}
       {!isFullscreen && !isActivityRoom && <MobileNav />}
 
-      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng (Nhỏ gọn & mờ tinh tế khi vào phòng hoạt động) */}
-      {(!isFullscreen || isSnakeGame) && (
+      {/* 3b. Floating Campus Chat Button at bottom right (Vùng 5) — Bấm mở / bấm lại là đóng (SnakeGame sử dụng thanh công cụ tích hợp sẵn) */}
+      {(!isFullscreen && !isSnakeGame) && (
         <button
           type="button"
           onClick={() => datMoChat(!isChatOpen)}

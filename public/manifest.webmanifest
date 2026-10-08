@@ -1,0 +1,16 @@
+{
+  "name": "Digital Campus v2",
+  "short_name": "Campus 10A7",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

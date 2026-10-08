@@ -106,8 +106,8 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       aria-label={'Tăng tốc P' + player}
       data-testid={'snake-boost-p' + player}
       className={cn(
-        'flex touch-none items-center justify-center rounded-full border-2 shadow-2xl outline-none transition-all duration-150 cursor-pointer select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 backdrop-blur-sm ring-1 ring-white/10',
-        isLarge ? 'size-18 sm:size-20' : 'size-13',
+        'flex touch-none items-center justify-center rounded-full border-2 shadow-2xl outline-none transition-colors duration-150 cursor-pointer select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 backdrop-blur-sm ring-1 ring-white/10',
+        isLarge ? 'size-24 sm:size-26' : 'size-13',
         boosting
           ? 'border-amber-300 bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 shadow-[0_0_28px_rgba(251,191,36,0.8)] scale-95'
           : 'border-amber-400/60 bg-slate-950/85 text-amber-300 hover:bg-slate-900 hover:border-amber-300 active:border-amber-300',
@@ -131,7 +131,7 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       onKeyUp={stopBoost}
       onBlur={stopBoost}
     >
-      <Zap className={cn('fill-current transition-transform duration-100', isLarge ? (boosting ? 'size-9 sm:size-10 scale-110' : 'size-8 sm:size-9') : 'size-6')} />
+      <Zap className={cn('fill-current transition-transform duration-100', isLarge ? (boosting ? 'size-11 sm:size-12 scale-110' : 'size-10 sm:size-11') : 'size-6')} />
     </button>
   )
 }

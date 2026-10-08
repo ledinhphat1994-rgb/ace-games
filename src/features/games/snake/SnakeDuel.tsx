@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ArrowLeft, Gamepad2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Gamepad2, Maximize2, Minimize2, RotateCcw, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
 import { playGameOverSound } from '../game-audio'
@@ -145,6 +145,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     setIsRunning(true)
     setPlayerScore(0)
     setRestartKey((k: number) => k + 1)
+
+    // Tự động bật toàn màn hình trên thiết bị di động để ẩn thanh URL và thanh điều hướng hệ thống
+    if (!document.fullscreenElement && fullscreenContainerRef.current?.requestFullscreen) {
+      fullscreenContainerRef.current.requestFullscreen().catch(() => {})
+    }
   }, [mode, canStartPvp, isHost])
 
   const handleHuyPhong = useCallback(() => {
@@ -301,11 +306,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         />
       </div>
 
-      {/* ── 2. CỤM NÚT THAO TÁC NHANH GÓC PHẢI DƯỚI CÙNG (VÙNG 2: SÁT MÉP DƯỚI, CÁCH ĐỀU NHAU, ICON TO RÕ) ── */}
+      {/* ── 2. CỤM NÚT THAO TÁC NHANH DƯỚI ĐÁY MÀN HÌNH (SÁT MÉP DƯỚI, CĂN GIỮA, CÁCH NHAU THÔNG THOÁNG) ── */}
       <div
         className={cn(
-          'snake-quick-actions absolute z-30 flex items-center gap-2 sm:gap-2.5 pointer-events-auto select-none transition-all pb-[env(safe-area-inset-bottom,0px)]',
-          'bottom-2 right-13 sm:bottom-2.5 sm:right-15'
+          'snake-quick-actions absolute z-30 flex items-center justify-center gap-3.5 sm:gap-4.5 pointer-events-auto select-none transition-colors pb-[env(safe-area-inset-bottom,0px)]',
+          'bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2'
         )}
         data-testid="snake-quick-actions"
       >
@@ -354,6 +359,17 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
           {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('campus:toggle-chat'))}
+          title="Trò chuyện (C)"
+          aria-label="Trò chuyện"
+          data-testid="nut-nhanh-chat"
+          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+        >
+          <MessageSquare className="size-5" />
         </button>
       </div>
     </div>
