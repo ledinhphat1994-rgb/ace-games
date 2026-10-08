@@ -168,7 +168,7 @@ export function CreateStudyRoomDialog({
           transform: 'none',
           maxHeight: 'min(620px, calc(100svh - 88px))',
         }}
-        className="w-[min(480px,calc(100vw-2rem))] p-6 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
+        className="w-[min(480px,calc(100vw-2rem))] h-[min(600px,calc(100svh-88px))] p-6 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
       >
         {/* Họa tiết Blueprint Study Schematic mờ chìm toàn diện */}
         <BlueprintStudyPattern className="opacity-80" />

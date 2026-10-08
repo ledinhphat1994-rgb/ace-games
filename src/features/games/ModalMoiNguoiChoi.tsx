@@ -116,7 +116,7 @@ export function ModalMoiNguoiChoi({
         style={{
           maxHeight: 'min(580px, calc(100svh - 2rem))',
         }}
-        className="w-[min(480px,calc(100vw-2rem))] p-6 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
+        className="w-[min(480px,calc(100vw-2rem))] h-[520px] p-6 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
       >
         {/* Họa tiết Blueprint Arcade Schematic mờ chìm toàn diện */}
         <BlueprintArcadePattern className="opacity-80" />

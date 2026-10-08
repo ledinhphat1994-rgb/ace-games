@@ -20,9 +20,10 @@ interface AvatarPickerProps {
   currentAvatarUrl?: string
   onSaveAvatar: (url: string) => Promise<void>
   onSuccess?: () => void
+  onClose?: () => void
 }
 
-export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: AvatarPickerProps) {
+export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess, onClose }: AvatarPickerProps) {
   const [selectedAvatar, setSelectedAvatar] = useState<string>(
     currentAvatarUrl || CHARACTER_AVATARS[0].src
   )
@@ -50,64 +51,99 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: Avat
   const chuaDoi = selectedAvatar === currentAvatarUrl
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="day-loc-deu-co-gian sm:max-w-xl sm:flex-1 [--the-nho-nhat:5.5rem]" role="group" aria-label="Loại ảnh đại diện">
-          {NHOM.map((nhom) => (
+    <div className="flex flex-col flex-1 min-h-0 justify-between gap-3">
+      {/* VÙNG 1: BỘ LỌC DANH MỤC CỐ ĐỊNH 1 HÀNG DUY NHẤT, KHÔNG RỚT HÀNG (Rule 9 & 10) */}
+      <div
+        className="grid grid-cols-5 gap-1.5 sm:gap-2 shrink-0 select-none"
+        role="group"
+        aria-label="Loại ảnh đại diện"
+      >
+        {NHOM.map((nhom) => {
+          const isActive = activeCategory === nhom.id
+          return (
             <button
               key={nhom.id}
               type="button"
-              aria-pressed={activeCategory === nhom.id}
+              aria-pressed={isActive}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveCategory(nhom.id)}
               className={cn(
-                'flex h-9 min-h-9 max-h-9 items-center gap-1.5 rounded-xl border-2 px-3 text-sm font-medium transition-colors duration-150',
-                activeCategory === nhom.id
-                  ? 'border-brand bg-brand/10 text-brand'
-                  : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+                'flex h-9 min-h-9 max-h-9 items-center justify-center gap-1 sm:gap-1.5 rounded-xl border-2 px-1.5 sm:px-2.5 text-xs sm:text-[13px] font-semibold transition-colors duration-150 cursor-pointer',
+                isActive
+                  ? 'border-brand bg-brand/15 text-brand shadow-xs'
+                  : 'border-border-default bg-surface text-text-secondary hover:border-brand/40 hover:bg-surface-raised hover:text-text-primary',
               )}
             >
-              {nhom.label}
-              <span className="text-xs tabular-nums opacity-70">{demTheoNhom(nhom.id)}</span>
-            </button>
-          ))}
-        </div>
-        <Button onClick={handleSave} disabled={isSaving || chuaDoi} className="skeuo-btn-cta-amber shrink-0">
-          {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
-          {isSaving ? 'Đang lưu…' : 'Lưu ảnh đã chọn'}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-8 p-0.5" role="listbox" aria-label="Thư viện ảnh đại diện">
-        {filteredAvatars.map((avatar) => {
-          const daChon = selectedAvatar === avatar.src
-          return (
-            <button
-              key={avatar.id}
-              type="button"
-              role="option"
-              aria-selected={daChon}
-              aria-label={avatar.name}
-              title={avatar.name}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setSelectedAvatar(avatar.src)}
-              className={cn(
-                'relative aspect-square overflow-hidden rounded-2xl bg-canvas border-2 transition-colors duration-150 cursor-pointer',
-                daChon ? 'border-brand bg-brand/10 shadow-xs' : 'border-border-default hover:border-border-strong',
-              )}
-            >
-              <img src={avatar.src} alt="" loading="lazy" className="size-full object-cover" />
-              <span
-                className={cn(
-                  'absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-text-on-brand shadow transition-opacity duration-150',
-                  daChon ? 'opacity-100' : 'opacity-0',
-                )}
-              >
-                <Check className="size-3 stroke-[3]" />
+              <span className="truncate">{nhom.label}</span>
+              <span className="text-[11px] font-mono tabular-nums opacity-75 shrink-0">
+                {demTheoNhom(nhom.id)}
               </span>
             </button>
           )
         })}
+      </div>
+
+      {/* VÙNG 2: THƯ VIỆN ẢNH ĐẠI DIỆN - KHÓA SLOT CHIỀU CAO CỐ ĐỊNH, CUỘN NỘI BỘ, ZERO CLS */}
+      <div
+        className="flex-1 min-h-[340px] max-h-[340px] overflow-y-auto overscroll-contain pr-1 py-1 select-none"
+        role="listbox"
+        aria-label="Thư viện ảnh đại diện"
+      >
+        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2.5 sm:gap-3 content-start">
+          {filteredAvatars.map((avatar) => {
+            const daChon = selectedAvatar === avatar.src
+            return (
+              <button
+                key={avatar.id}
+                type="button"
+                role="option"
+                aria-selected={daChon}
+                aria-label={avatar.name}
+                title={avatar.name}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setSelectedAvatar(avatar.src)}
+                className={cn(
+                  'relative aspect-square overflow-hidden rounded-2xl bg-canvas border-2 transition-colors duration-150 cursor-pointer',
+                  daChon ? 'border-brand bg-brand/10 shadow-xs ring-1 ring-brand/40' : 'border-border-default hover:border-brand/40',
+                )}
+              >
+                <img src={avatar.src} alt="" loading="lazy" className="size-full object-cover" />
+                <span
+                  className={cn(
+                    'absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-text-on-brand shadow transition-opacity duration-150',
+                    daChon ? 'opacity-100' : 'opacity-0',
+                  )}
+                >
+                  <Check className="size-3 stroke-[3]" />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* VÙNG 3: FOOTER CTA CỐ ĐỊNH VỊ TRÍ, KHÔNG BỊ ĐÈ HAY CO GIẬT (Rule 9) */}
+      <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border-subtle shrink-0">
+        {onClose && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            className="h-9 px-4 rounded-xl text-xs font-semibold border-2 border-border-default hover:bg-surface-raised cursor-pointer transition-colors duration-150"
+          >
+            Hủy
+          </Button>
+        )}
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving || chuaDoi}
+          className="skeuo-btn-cta-amber h-9 px-5 rounded-xl text-xs font-bold shrink-0 cursor-pointer gap-1.5 transition-colors duration-150"
+        >
+          {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+          <span>{isSaving ? 'Đang lưu…' : 'Lưu ảnh đã chọn'}</span>
+        </Button>
       </div>
     </div>
   )
