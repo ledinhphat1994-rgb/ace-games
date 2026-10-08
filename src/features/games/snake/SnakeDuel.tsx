@@ -98,25 +98,38 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const handleToggleFullscreen = useCallback(() => {
-    const el = fullscreenContainerRef.current
+    const el = fullscreenContainerRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> }) | null
     if (!el) return
 
+    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void> }
+
     if (isFullscreen) {
-      if (document.fullscreenElement) void document.exitFullscreen?.()
+      if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+        if (doc.exitFullscreen) void doc.exitFullscreen().catch?.(() => {})
+        else if (doc.webkitExitFullscreen) void doc.webkitExitFullscreen().catch?.(() => {})
+      }
       setIsFullscreen(false)
-    } else if (el.requestFullscreen) {
-      void el.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => setIsFullscreen(true))
     } else {
-      setIsFullscreen(true)
+      const requestFn = el.requestFullscreen || el.webkitRequestFullscreen
+      if (requestFn) {
+        void requestFn.call(el).then(() => setIsFullscreen(true)).catch(() => setIsFullscreen(true))
+      } else {
+        setIsFullscreen(true)
+      }
     }
   }, [isFullscreen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
+      const doc = document as Document & { webkitFullscreenElement?: Element }
+      setIsFullscreen(Boolean(doc.fullscreenElement || doc.webkitFullscreenElement))
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+    }
   }, [])
 
   // Thoát toàn màn hình bằng nút Back trên điện thoại
@@ -128,8 +141,10 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     } catch {}
 
     const handlePopState = () => {
-      if (document.fullscreenElement) {
-        document.exitFullscreen?.().catch(() => {})
+      const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void> }
+      if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+        if (doc.exitFullscreen) doc.exitFullscreen().catch?.(() => {})
+        else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen().catch?.(() => {})
       }
       setIsFullscreen(false)
     }
@@ -146,9 +161,14 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
     setPlayerScore(0)
     setRestartKey((k: number) => k + 1)
 
-    // Tự động bật toàn màn hình trên thiết bị di động để ẩn thanh URL và thanh điều hướng hệ thống
-    if (!document.fullscreenElement && fullscreenContainerRef.current?.requestFullscreen) {
-      fullscreenContainerRef.current.requestFullscreen().catch(() => {})
+    // Tự động bật toàn màn hình trực tiếp trên trình duyệt web (ẩn thanh URL và thanh điều hướng, không cần cài đặt PWA)
+    const el = fullscreenContainerRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> }) | null
+    const doc = document as Document & { webkitFullscreenElement?: Element }
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement && el) {
+      const requestFn = el.requestFullscreen || el.webkitRequestFullscreen
+      if (requestFn) {
+        requestFn.call(el).catch(() => {})
+      }
     }
   }, [mode, canStartPvp, isHost])
 
