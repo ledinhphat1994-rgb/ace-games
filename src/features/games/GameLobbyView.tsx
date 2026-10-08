@@ -6,14 +6,17 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Eye,
   EyeOff,
   Gamepad2,
   Globe,
   Lock,
+  PenLine,
   Plus,
   RotateCcw,
   Search,
+  Shield,
   Sparkles,
   Sword,
   Trophy,
@@ -1402,11 +1405,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* ── Dialog tạo bàn đấu mới trực tiếp (Card luôn cố định kích thước, đúng chuẩn thiết kế mockup) ── */}
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
-          className="sm:max-w-[520px] w-[calc(100vw-2rem)] max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-surface border border-border-default rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary card-side-glow"
+          className="sm:max-w-[520px] w-[calc(100vw-2rem)] max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary card-side-glow"
         >
-          <DialogHeader className="shrink-0 mb-1">
-            <DialogTitle className="text-lg font-bold text-text-primary flex items-center gap-2.5">
-              <Sword className="size-5 text-brand" />
+          <DialogHeader className="shrink-0 pb-2.5 mb-1.5 border-b border-slate-800/80">
+            <DialogTitle className="text-lg font-bold text-white flex items-center gap-2.5">
+              <div className="size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
+                <Sword className="size-4.5" />
+              </div>
               <span>Tạo bàn đấu</span>
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -1414,25 +1419,39 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0 space-y-1.5 overflow-y-auto pr-0.5">
+          <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0 space-y-2 sm:space-y-2.5 overflow-y-auto pr-0.5">
             {/* 1. Tên phòng */}
             <div className="space-y-1.5 shrink-0">
-              <label className="text-xs font-semibold text-text-secondary">Tên phòng:</label>
-              <div className="relative rounded-xl border border-border-default bg-surface hover:border-border-strong h-10 px-3.5 flex items-center transition-colors card-side-glow">
+              <div className="flex items-center gap-2">
+                <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
+                  <PenLine className="size-3" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-wide">
+                  Tên phòng
+                </span>
+              </div>
+              <div className="relative rounded-xl border-2 border-slate-800/90 bg-slate-900/90 hover:border-slate-700 focus-within:border-sky-400 h-10 px-3.5 flex items-center transition-colors">
                 <input
                   type="text"
                   value={tenPhongMoi}
                   onChange={(e) => setTenPhongMoi(e.target.value)}
                   placeholder="Nhập tên phòng..."
                   maxLength={40}
-                  className="w-full bg-transparent text-xs text-text-primary font-medium placeholder:text-text-tertiary focus:outline-none"
+                  className="w-full bg-transparent text-xs text-white font-medium placeholder:text-slate-500 focus:outline-none"
                 />
               </div>
             </div>
 
-            {/* 2. Chọn trò chơi: Lưới 2 cột 5 game đồng nhất kích thước và màu sắc chuẩn campus */}
+            {/* 2. Chọn trò chơi: Lưới 2 cột 5 game đồng nhất kích thước và phân tầng thị giác rõ rệt */}
             <div className="space-y-1.5 shrink-0">
-              <label className="text-xs font-semibold text-text-secondary">Chọn trò chơi:</label>
+              <div className="flex items-center gap-2">
+                <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
+                  <Gamepad2 className="size-3" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-wide">
+                  Chọn trò chơi
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-2 select-none">
                 {[
                   { id: 'chess' as const, name: 'Cờ Vua', Icon: IconCrown3D },
@@ -1450,13 +1469,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setGameMoiChon(item.id)}
                       className={cn(
-                        'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden card-side-glow',
+                        'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden',
                         isSelected
-                          ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
-                          : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                          ? 'border-sky-400 bg-sky-500/15 text-sky-300 shadow-xs'
+                          : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800/80 hover:border-slate-700 text-slate-300 hover:text-white',
                       )}
                     >
-                      <span className={cn('truncate text-xs font-bold tracking-wide', isSelected ? 'text-brand' : 'text-text-primary')}>
+                      <span className={cn('truncate text-xs tracking-wide', isSelected ? 'text-sky-300 font-bold' : 'text-slate-200 font-medium')}>
                         {item.name}
                       </span>
                       <div className="shrink-0 flex items-center justify-center">
@@ -1470,7 +1489,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
             {/* 3. Chọn thời gian lượt: chuẩn campus */}
             <div className="space-y-1.5 shrink-0">
-              <label className="text-xs font-semibold text-text-secondary">Thời gian mỗi lượt:</label>
+              <div className="flex items-center gap-2">
+                <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
+                  <Clock className="size-3" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-wide">
+                  Thời gian mỗi lượt
+                </span>
+              </div>
               <div className="h-[114px] flex flex-col justify-between select-none">
                 {gameMoiChon === 'random' || (CAC_GAME_1V1 as readonly GameType[]).includes(gameMoiChon) ? (
                   <>
@@ -1483,7 +1509,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                           const prevIdx = currIdx <= 0 ? list.length - 1 : currIdx - 1
                           setCheDoTurn(list[prevIdx])
                         }}
-                        className="size-7 rounded-lg border border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        className="size-7 rounded-lg border-2 border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
                         aria-label="Thời gian trước"
                       >
                         <ChevronLeft size={16} />
@@ -1508,8 +1534,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                               className={cn(
                                 'h-7 min-h-7 max-h-7 rounded-lg text-xs transition-colors duration-150 cursor-pointer text-center flex items-center justify-center select-none border-2',
                                 isSelected
-                                  ? 'border-brand bg-brand/10 text-brand font-bold'
-                                  : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary font-medium',
+                                  ? 'border-sky-400 bg-sky-500/15 text-sky-300 font-bold'
+                                  : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-medium',
                               )}
                             >
                               {moc.label}
@@ -1526,7 +1552,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                           const nextIdx = (currIdx + 1) % list.length
                           setCheDoTurn(list[nextIdx])
                         }}
-                        className="size-7 rounded-lg border border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        className="size-7 rounded-lg border-2 border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
                         aria-label="Thời gian tiếp theo"
                       >
                         <ChevronRight size={16} />
@@ -1534,12 +1560,12 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     </div>
 
                     {/* Vùng thanh thời gian: 1 hàng cố định h-9, thiết kế chuẩn campus */}
-                    <div className="h-9 rounded-xl border border-border-subtle bg-surface-overlay/50 px-3.5 flex items-center justify-between select-none card-side-glow">
-                      <span className="text-xs font-semibold text-text-secondary">
-                        {cheDoTurn === 'custom' ? 'Thời gian tùy chỉnh' : 'Thời gian mỗi lượt'}
+                    <div className="h-9 rounded-xl border border-slate-800/90 bg-slate-950/80 px-3.5 flex items-center justify-between select-none">
+                      <span className="text-xs font-medium text-slate-400">
+                        {cheDoTurn === 'custom' ? 'Thời gian tùy chỉnh' : 'Thời gian đã chọn'}
                       </span>
                       {cheDoTurn === 'custom' ? (
-                        <div className="flex items-center gap-1.5 bg-surface px-2 py-0.5 rounded-lg border border-border-default">
+                        <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700/80">
                           <button
                             type="button"
                             onClick={() =>
@@ -1551,7 +1577,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                                 return 0
                               })
                             }
-                            className="w-5 h-5 flex items-center justify-center rounded text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-colors cursor-pointer text-xs font-bold"
+                            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-xs font-bold"
                             aria-label="Giảm thời gian"
                           >
                             -
@@ -1562,9 +1588,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                             max={3600}
                             value={turnTuyChinh}
                             onChange={(e) => setTurnTuyChinh(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
-                            className="w-10 text-center text-xs font-bold text-text-primary bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 text-center text-xs font-bold text-sky-300 bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
-                          <span className="text-xs text-text-tertiary font-medium">
+                          <span className="text-xs text-slate-400 font-medium">
                             {turnTuyChinh === 0
                               ? 'Vô hạn'
                               : turnTuyChinh >= 60 && turnTuyChinh % 60 === 0
@@ -1581,14 +1607,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                                 return Math.min(3600, v + 300)
                               })
                             }
-                            className="w-5 h-5 flex items-center justify-center rounded text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-colors cursor-pointer text-xs font-bold"
+                            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-xs font-bold"
                             aria-label="Tăng thời gian"
                           >
                             +
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-text-primary font-bold tracking-wide">
+                        <span className="px-2.5 py-0.5 rounded-md bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-bold tracking-wide tabular-nums">
                           {cheDoTurn === 30
                             ? '30 giây / lượt'
                             : cheDoTurn === 120
@@ -1603,9 +1629,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     </div>
                   </>
                 ) : (
-                  <div className="h-full rounded-xl border border-border-subtle bg-surface-overlay/30 flex flex-col items-center justify-center gap-1 text-xs text-text-secondary font-semibold select-none card-side-glow">
-                    <Sparkles className="size-5 text-brand mb-0.5" />
-                    <span className="text-xs font-bold text-text-primary">Chơi đơn</span>
+                  <div className="h-full rounded-xl border border-slate-800/90 bg-slate-950/60 flex flex-col items-center justify-center gap-1 text-xs text-slate-400 font-semibold select-none">
+                    <Sparkles className="size-5 text-sky-400 mb-0.5" />
+                    <span className="text-xs font-bold text-white">Chơi đơn</span>
                   </div>
                 )}
               </div>
@@ -1613,7 +1639,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
             {/* 4. Chế độ phòng & Mật khẩu */}
             <div className="space-y-1.5 shrink-0">
-              <label className="text-xs font-semibold text-text-secondary">Chế độ phòng:</label>
+              <div className="flex items-center gap-2">
+                <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
+                  <Shield className="size-3" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-wide">
+                  Chế độ phòng
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-2 select-none">
                 <button
                   type="button"
@@ -1623,14 +1656,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     setLoiTaoBan(null)
                   }}
                   className={cn(
-                    'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                    'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
                     cheDoPhong === 'public'
-                      ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
-                      : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                      ? 'border-sky-400 bg-sky-500/15 text-sky-300 shadow-xs'
+                      : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 hover:border-slate-700 text-slate-300 hover:text-white',
                   )}
                 >
-                  <span className={cn('text-xs font-bold', cheDoPhong === 'public' ? 'text-brand' : 'text-text-primary')}>Công khai</span>
-                  <Globe className={cn('size-5', cheDoPhong === 'public' ? 'text-brand' : 'text-text-tertiary')} />
+                  <span className={cn('text-xs', cheDoPhong === 'public' ? 'text-sky-300 font-bold' : 'text-slate-200 font-medium')}>Công khai</span>
+                  <Globe className={cn('size-5', cheDoPhong === 'public' ? 'text-sky-400' : 'text-slate-500')} />
                 </button>
 
                 <button
@@ -1641,14 +1674,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     setLoiTaoBan(null)
                   }}
                   className={cn(
-                    'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                    'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
                     cheDoPhong === 'private'
-                      ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
-                      : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                      ? 'border-sky-400 bg-sky-500/15 text-sky-300 shadow-xs'
+                      : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 hover:border-slate-700 text-slate-300 hover:text-white',
                   )}
                 >
-                  <span className={cn('text-xs font-bold', cheDoPhong === 'private' ? 'text-brand' : 'text-text-primary')}>Riêng tư</span>
-                  <Lock className={cn('size-5', cheDoPhong === 'private' ? 'text-brand' : 'text-text-tertiary')} />
+                  <span className={cn('text-xs', cheDoPhong === 'private' ? 'text-sky-300 font-bold' : 'text-slate-200 font-medium')}>Riêng tư</span>
+                  <Lock className={cn('size-5', cheDoPhong === 'private' ? 'text-sky-400' : 'text-slate-500')} />
                 </button>
               </div>
 
@@ -1661,13 +1694,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   }
                 }}
                 className={cn(
-                  'rounded-xl border-2 px-3.5 py-2 h-[58px] flex flex-col justify-between transition-colors duration-150 select-none cursor-pointer card-side-glow',
+                  'rounded-xl border-2 px-3.5 py-2 h-[58px] flex flex-col justify-between transition-colors duration-150 select-none cursor-pointer',
                   cheDoPhong === 'private'
-                    ? 'border-brand bg-brand/5 card-side-glow-active'
-                    : 'border-border-default bg-surface hover:bg-surface-raised',
+                    ? 'border-sky-400/80 bg-sky-500/10'
+                    : 'border-slate-800/90 bg-slate-900/60 hover:bg-slate-900 hover:border-slate-700',
                 )}
               >
-                <span className={cn('text-xs font-semibold transition-colors duration-150', cheDoPhong === 'private' ? 'text-brand' : 'text-text-secondary')}>
+                <span className={cn('text-xs font-semibold transition-colors duration-150', cheDoPhong === 'private' ? 'text-sky-300' : 'text-slate-400')}>
                   Mật khẩu phòng:
                 </span>
 
@@ -1688,7 +1721,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     }}
                     placeholder={cheDoPhong === 'private' ? 'Nhập mật khẩu cho phòng...' : 'Bấm vào đây để đặt mật khẩu...'}
                     maxLength={20}
-                    className="w-full bg-transparent border-0 p-0 text-xs text-text-primary font-medium placeholder:text-text-tertiary focus:outline-none pr-8"
+                    className="w-full bg-transparent border-0 p-0 text-xs text-white font-medium placeholder:text-slate-500 focus:outline-none pr-8"
                   />
                   {cheDoPhong === 'private' && (
                     <button
@@ -1697,7 +1730,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                         e.stopPropagation()
                         setHienMatKhau(!hienMatKhau)
                       }}
-                      className="absolute right-0 text-text-tertiary hover:text-text-primary p-0.5 cursor-pointer transition-colors"
+                      className="absolute right-0 text-slate-400 hover:text-white p-0.5 cursor-pointer transition-colors"
                       aria-label={hienMatKhau ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     >
                       {hienMatKhau ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -1709,20 +1742,27 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               {/* Tùy chọn Phòng giải đấu: Chỉ hiển thị cho tài khoản admin quản trị viên */}
               {laAdmin && (
                 <div className="space-y-1.5 shrink-0 pt-1">
-                  <label className="text-xs font-semibold text-text-secondary">Loại phòng:</label>
+                  <div className="flex items-center gap-2">
+                    <div className="size-5 rounded-md bg-amber-500/15 border border-amber-400/25 flex items-center justify-center text-amber-400 shrink-0">
+                      <Trophy className="size-3" />
+                    </div>
+                    <span className="text-xs font-bold text-white tracking-wide">
+                      Loại phòng
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 gap-2 select-none">
                     <button
                       type="button"
                       onClick={() => setLaPhongGiaiDau(false)}
                       className={cn(
-                        'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                        'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
                         !laPhongGiaiDau
-                          ? 'border-brand bg-brand/10 text-brand shadow-xs card-side-glow-active'
-                          : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                          ? 'border-sky-400 bg-sky-500/15 text-sky-300 shadow-xs'
+                          : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 hover:border-slate-700 text-slate-300 hover:text-white',
                       )}
                     >
-                      <span className={cn('text-xs font-bold', !laPhongGiaiDau ? 'text-brand' : 'text-text-primary')}>Bàn thường</span>
-                      <Gamepad2 className={cn('size-5', !laPhongGiaiDau ? 'text-brand' : 'text-text-tertiary')} />
+                      <span className={cn('text-xs', !laPhongGiaiDau ? 'text-sky-300 font-bold' : 'text-slate-200 font-medium')}>Bàn thường</span>
+                      <Gamepad2 className={cn('size-5', !laPhongGiaiDau ? 'text-sky-400' : 'text-slate-500')} />
                     </button>
 
                     {/* label: 'Giải đấu' */}
@@ -1730,14 +1770,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                       type="button"
                       onClick={() => setLaPhongGiaiDau(true)}
                       className={cn(
-                        'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs card-side-glow',
+                        'h-[46px] px-3.5 rounded-xl border-2 text-left transition-colors duration-150 cursor-pointer flex items-center justify-between select-none font-bold text-xs',
                         laPhongGiaiDau
-                          ? 'border-amber-500 bg-amber-500/10 text-amber-400 shadow-xs card-side-glow-active'
-                          : 'border-border-default bg-surface hover:bg-surface-raised text-text-secondary hover:text-text-primary',
+                          ? 'border-amber-500 bg-amber-500/15 text-amber-400 shadow-xs'
+                          : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800 hover:border-slate-700 text-slate-300 hover:text-white',
                       )}
                     >
-                      <span className={cn('text-xs font-bold', laPhongGiaiDau ? 'text-amber-400' : 'text-text-primary')}>Giải đấu</span>
-                      <Trophy className={cn('size-5', laPhongGiaiDau ? 'text-amber-400' : 'text-text-tertiary')} />
+                      <span className={cn('text-xs font-bold', laPhongGiaiDau ? 'text-amber-400' : 'text-slate-200 font-medium')}>Giải đấu</span>
+                      <Trophy className={cn('size-5', laPhongGiaiDau ? 'text-amber-400' : 'text-slate-500')} />
                     </button>
                   </div>
                 </div>
@@ -1759,7 +1799,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           </div>
 
           {/* Dialog Footer */}
-          <div className="flex justify-end gap-2.5 pt-2.5 border-t border-border-subtle shrink-0">
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-800/80 shrink-0">
             <Button
               type="button"
               variant="outline"
@@ -1769,7 +1809,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 setLoiTaoBan(null)
                 setLaPhongGiaiDau(false)
               }}
-              className="px-5 h-9 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary"
+              className="px-5 h-9 rounded-xl text-xs font-semibold border-slate-700/80 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800"
             >
               Hủy
             </Button>
@@ -1778,7 +1818,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               size="sm"
               disabled={dangTaoBan}
               onClick={xacNhanTaoBan}
-              className="px-6 h-9 rounded-xl text-xs font-bold bg-brand hover:bg-brand/90 text-white shadow-xs"
+              className="px-6 h-9 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs cursor-pointer"
             >
               {dangTaoBan ? 'Đang tạo...' : 'Tạo bàn ngay'}
             </Button>
