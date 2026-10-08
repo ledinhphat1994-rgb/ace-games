@@ -53,6 +53,7 @@ import { tinhLevel } from '../GameLeaderboard'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import { tenNguoiChoi, useCheDoBan } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
+import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
 import { useGameClock } from '../use-game-clock'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import {
@@ -1976,7 +1977,7 @@ export function XiangqiBoard({
     },
     resign: {
       id: 'resign',
-      title: 'Xin thua',
+      title: 'Xin thua / Đầu hàng',
       bubbleClassName:
         'border-red-500/50 bg-[#1c1214]/95 text-red-400 hover:border-red-400 hover:text-red-300 hover:bg-red-500/20 shadow-red-500/15',
       renderIcon: (compact) => <Flag className={compact ? 'size-4' : 'size-4.5'} />,
@@ -2569,9 +2570,12 @@ export function XiangqiBoard({
               }}
             >
               <div
-                className="relative w-full max-w-[320px] bg-[#161a24] border border-amber-500/40 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] p-5 flex flex-col items-center text-center animate-in fade-in duration-150 select-none"
+                className="relative w-full max-w-[340px] skeuo-modal-surface border border-sky-500/20 rounded-2xl shadow-2xl p-5 flex flex-col items-center text-center animate-in fade-in duration-150 select-none overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
+                {/* Họa tiết Blueprint Arcade Schematic mờ chìm toàn diện */}
+                <BlueprintArcadePattern className="opacity-80" />
+
                 {/* Nút đóng X ở góc */}
                 <button
                   type="button"
@@ -2582,7 +2586,7 @@ export function XiangqiBoard({
                       setIncomingDialog(null)
                     }
                   }}
-                  className="absolute top-3 right-3 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors duration-150 cursor-pointer"
+                  className="absolute top-3 right-3 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors duration-150 cursor-pointer z-10"
                   aria-label="Đóng"
                 >
                   <X className="w-4 h-4" />
@@ -2591,7 +2595,7 @@ export function XiangqiBoard({
                 {/* Icon Badge nổi bật theo loại */}
                 <div
                   className={cn(
-                    'w-12 h-12 rounded-2xl border flex items-center justify-center mb-3 shadow-lg',
+                    'w-12 h-12 rounded-2xl border flex items-center justify-center mb-3 shadow-lg relative z-10',
                     activeDlg.icon === 'draw' &&
                       'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-amber-500/20',
                     activeDlg.icon === 'resign' &&
@@ -2612,15 +2616,15 @@ export function XiangqiBoard({
                 </div>
 
                 {/* Tiêu đề & Nội dung đơn giản, ngắn gọn */}
-                <h3 className="text-base font-bold text-gray-100">{activeDlg.title}</h3>
-                <p className="text-xs text-gray-300 mt-2 leading-relaxed px-1 font-medium">
+                <h3 className="text-base font-bold text-gray-100 relative z-10">{activeDlg.title}</h3>
+                <p className="text-xs text-gray-300 mt-2 leading-relaxed px-1 font-medium relative z-10">
                   {activeDlg.subtitle}
                 </p>
 
                 {/* 2 Nút: 1 là Đồng ý, 2 là Chơi tiếp */}
                 <div
                   className={cn(
-                    'grid gap-2.5 w-full mt-5',
+                    'grid gap-2.5 w-full mt-5 relative z-10',
                     activeDlg.onlyConfirm ? 'grid-cols-1' : 'grid-cols-2'
                   )}
                 >
@@ -2636,7 +2640,7 @@ export function XiangqiBoard({
                               setIncomingDialog(null)
                             }
                       }
-                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold border border-white/10 transition-colors duration-150 cursor-pointer"
+                      className="skeuo-btn-cancel h-9 text-xs font-semibold cursor-pointer"
                     >
                       {activeDlg.cancelText || 'Chơi tiếp'}
                     </button>
@@ -2645,14 +2649,7 @@ export function XiangqiBoard({
                     type="button"
                     id="dialog-confirm-btn"
                     onClick={activeDlg.onConfirm}
-                    className={cn(
-                      'w-full py-2.5 rounded-xl text-xs font-bold transition-colors duration-150 shadow-lg cursor-pointer',
-                      activeDlg.confirmVariant === 'red'
-                        ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
-                        : activeDlg.confirmVariant === 'emerald'
-                          ? 'bg-emerald-500 hover:bg-emerald-400 text-stone-950 shadow-emerald-500/25'
-                          : 'bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-amber-500/25'
-                    )}
+                    className="skeuo-btn-cta-amber h-9 text-xs font-bold cursor-pointer"
                   >
                     {activeDlg.confirmText || 'Đồng ý'}
                   </button>

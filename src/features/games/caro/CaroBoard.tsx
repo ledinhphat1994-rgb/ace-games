@@ -1147,8 +1147,8 @@ export function CaroBoard({
             />
           </div>
 
-          {/* NÚT BẮT ĐẦU HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ CHUẨN CỜ TƯỚNG */}
-          {((!isPlaying && !winner) || Boolean(winner)) && (
+          {/* NÚT BẮT ĐẦU HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ CHUẨN CỜ TƯỚNG (Ẩn khi đang hiển thị heroicBanner để không đè chữ) */}
+          {((!isPlaying && !winner && !heroicBanner) || (Boolean(winner) && !isPlaying && !heroicBanner)) && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
               <button
                 type="button"

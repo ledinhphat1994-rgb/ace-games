@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
 import { cn } from '@/lib/utils'
 
 export interface GameDrawModalProps {
@@ -30,18 +30,15 @@ export function GameDrawModal({
   const themeColors = {
     amber: {
       iconBg: 'bg-amber-500/15 border-amber-500/30 text-amber-400',
-      btn: 'bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold shadow-amber-500/20',
-      border: 'border-amber-500/30',
+      btn: 'skeuo-btn-cta-amber',
     },
     cyan: {
       iconBg: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400',
-      btn: 'bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold shadow-cyan-500/20',
-      border: 'border-cyan-500/30',
+      btn: 'skeuo-btn-cta-cyan',
     },
     violet: {
       iconBg: 'bg-violet-500/15 border-violet-500/30 text-violet-400',
-      btn: 'bg-violet-500 hover:bg-violet-400 text-white font-bold shadow-violet-500/20',
-      border: 'border-violet-500/30',
+      btn: 'skeuo-btn-cta-amber',
     },
   }[theme]
 
@@ -49,56 +46,71 @@ export function GameDrawModal({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
         data-testid="game-draw-modal"
-        className={cn(
-          'w-[calc(100vw-2rem)] max-w-sm rounded-2xl border bg-surface/95 backdrop-blur-xl p-5 shadow-2xl text-text-primary overflow-hidden',
-          themeColors.border,
-        )}
+        style={{
+          top: '72px',
+          translate: '-50% 0',
+          transform: 'none',
+          maxHeight: 'min(380px, calc(100svh - 88px))',
+        }}
+        className="w-[min(380px,calc(100vw-2rem))] p-5 rounded-2xl skeuo-modal-surface flex flex-col justify-between overflow-hidden shadow-2xl"
       >
-        <DialogHeader className="flex flex-col items-center text-center gap-2">
-          <div
-            className={cn(
-              'size-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-inner',
-              themeColors.iconBg,
-            )}
-          >
-            <Handshake className="size-6" />
-          </div>
-          <DialogTitle className="text-base font-bold text-text-primary tracking-tight">
-            {isOffer ? 'Đề nghị hòa' : 'Đối thủ xin hòa'}
-          </DialogTitle>
-        </DialogHeader>
+        {/* Họa tiết Blueprint Arcade Schematic mờ chìm toàn diện */}
+        <BlueprintArcadePattern className="opacity-80" />
 
-        <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-border-subtle mt-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (onDecline) {
-                onDecline()
-              } else {
-                onClose()
-              }
-            }}
-            className="flex-1 h-9 rounded-xl text-xs font-semibold border-border-default hover:bg-surface-raised cursor-pointer transition-colors duration-150"
-          >
-            {isOffer ? 'Hủy' : 'Từ chối'}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              onConfirm()
-              onClose()
-            }}
-            className={cn(
-              'flex-1 h-9 rounded-xl text-xs font-bold cursor-pointer transition-colors duration-150 shadow-md',
-              themeColors.btn,
-            )}
-          >
-            {isOffer ? 'Đồng ý' : 'Chấp nhận'}
-          </Button>
-        </div>
+        <DialogHeader className="relative z-10 space-y-1.5 text-center">
+          <div className="flex items-center justify-between pb-2 border-b border-sky-500/15">
+            <DialogTitle className="text-sm font-black uppercase tracking-wider text-white">
+              {isOffer ? 'Đề nghị hòa' : 'Đối thủ xin hòa'}
+            </DialogTitle>
+          </div>
+
+          <div className="space-y-3 pt-2 text-left">
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  'size-10 rounded-xl border flex items-center justify-center shrink-0 shadow-inner',
+                  themeColors.iconBg,
+                )}
+              >
+                <Handshake className="size-5" />
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                {isOffer
+                  ? 'Xác nhận gửi yêu cầu đề nghị hòa cờ cho đối thủ?'
+                  : 'Đối thủ gửi lời mời hòa cờ, bạn có chấp nhận kết thúc ván hòa không?'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-sky-500/15">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDecline) {
+                    onDecline()
+                  } else {
+                    onClose()
+                  }
+                }}
+                className="skeuo-btn-cancel h-9 text-xs font-semibold cursor-pointer"
+              >
+                {isOffer ? 'Hủy bỏ' : 'Từ chối'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onConfirm()
+                  onClose()
+                }}
+                className={cn(
+                  'h-9 text-xs font-bold cursor-pointer',
+                  themeColors.btn,
+                )}
+              >
+                {isOffer ? 'Đồng ý' : 'Chấp nhận'}
+              </button>
+            </div>
+          </div>
+        </DialogHeader>
       </DialogContent>
     </Dialog>
   )

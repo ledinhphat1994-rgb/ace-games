@@ -72,8 +72,9 @@ export function GameHeroicBanner({
     <div
       role="alert"
       aria-live="assertive"
+      onClick={() => onCloseRef.current?.()}
       className={cn(
-        'absolute inset-0 z-40 flex items-center justify-center p-4 select-none pointer-events-none transition-all animate-in fade-in duration-200',
+        'absolute inset-0 z-40 flex items-center justify-center p-4 select-none pointer-events-auto cursor-pointer transition-all animate-in fade-in duration-200',
         className,
       )}
     >

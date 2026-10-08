@@ -140,7 +140,7 @@ export function GameSurrenderModal({
         <DialogHeader className="relative z-10 space-y-1.5 text-center">
           <div className="flex items-center justify-between pb-2 border-b border-sky-500/15">
             <DialogTitle className="text-sm font-black uppercase tracking-wider text-white">
-              Xin thua
+              Xin thua / Đầu hàng
             </DialogTitle>
           </div>
 
