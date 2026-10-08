@@ -752,7 +752,7 @@ export function GameSocialSidebar({
                           id={r.sender.id}
                           ten={r.sender.displayName}
                           avatar={r.sender.avatar}
-                          phu={r.sender.lopTen ?? nhanVaiTro(r.sender.role)}
+                          phu={nhanVaiTro(r.sender.role)}
                           onXem={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect()
                             setNguoiXem(
@@ -799,7 +799,6 @@ export function GameSocialSidebar({
                                 {friend.displayName}
                               </p>
                               <p className="break-words text-xs text-text-secondary">
-                                {friend.lopTen ? `${friend.lopTen} · ` : ''}
                                 {pres.label}
                               </p>
                             </div>
@@ -849,7 +848,7 @@ export function GameSocialSidebar({
                         id={r.id}
                         ten={r.displayName}
                         avatar={r.avatar}
-                        phu={r.lopTen ?? nhanVaiTro(r.role)}
+                        phu={nhanVaiTro(r.role)}
                         trangThaiMayChu={r.relationshipStatus}
                         onXem={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect()

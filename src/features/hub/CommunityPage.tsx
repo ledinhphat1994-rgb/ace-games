@@ -730,7 +730,7 @@ export function CommunityPage() {
                               {sender.displayName}
                             </p>
                             <p className="text-xs text-text-tertiary truncate">
-                              @{sender.username} {sender.lopTen ? `· ${sender.lopTen}` : ''}
+                              @{sender.username}
                             </p>
                           </div>
                         </button>
@@ -850,7 +850,7 @@ export function CommunityPage() {
                       onXem={moHoSo}
                       onDM={handleOpenDM}
                       trangThai="unknown"
-                      meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
+                      meta={`@${friend.username}`}
                     />
                   ))}
                 </NhomBanBe>
@@ -874,12 +874,7 @@ export function CommunityPage() {
                           onXem={moHoSo}
                           onDM={handleOpenDM}
                           trangThai="room"
-                          meta={
-                            <>
-                              <span className="text-social font-medium">{roomTitle || 'Phòng học'}</span>
-                              {friend.lopTen ? ` · ${friend.lopTen}` : ''}
-                            </>
-                          }
+                          meta={<span className="text-social font-medium">{roomTitle || 'Phòng học'}</span>}
                           action={
                             <div className="flex items-center gap-1.5 shrink-0">
                               <Button
@@ -924,7 +919,7 @@ export function CommunityPage() {
                           onXem={moHoSo}
                           onDM={handleOpenDM}
                           trangThai={isAway ? 'away' : 'online'}
-                          meta={`@${friend.username}${friend.lopTen ? ` · ${friend.lopTen}` : ''}`}
+                          meta={`@${friend.username}`}
                           action={
                             <div className="flex items-center gap-2 shrink-0">
                               <span className={cn('text-xs font-medium px-2 py-0.5 rounded-lg border', isAway ? 'text-amber-400 bg-amber-500/10 border-amber-500/25' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25')}>
@@ -963,7 +958,7 @@ export function CommunityPage() {
                           onXem={moHoSo}
                           onDM={handleOpenDM}
                           trangThai="offline"
-                          meta={`${friend.lopTen ? `${friend.lopTen} · ` : ''}${formatLastSeen(presence?.lastSeen)}`}
+                          meta={formatLastSeen(presence?.lastSeen)}
                           action={
                             <Button
                               size="xs"
@@ -1061,12 +1056,6 @@ export function CommunityPage() {
                             : 'Học sinh'}
                       </span>
                     </span>
-
-                    {nguoiDung.lop?.ten && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-surface-overlay text-text-secondary border border-border-default">
-                        Lớp {nguoiDung.lop.ten}
-                      </span>
-                    )}
                   </div>
 
                   {/* Personal Bio Quote */}

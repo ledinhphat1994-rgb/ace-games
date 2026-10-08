@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
-import { Trophy, RefreshCw, Crown, Flame, AlertCircle, GraduationCap, Users, Medal } from 'lucide-react'
+import { Trophy, RefreshCw, Crown, Flame, AlertCircle, Medal } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { usePhien } from '@/app/phien'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { tinhLevel, type HighScoreRecord } from '@/features/games/GameLeaderboard'
-import type { SchoolStudyLeaderboardItem, ClassLeaderboardItem } from '@shared/protocol/engagement'
+import type { SchoolStudyLeaderboardItem } from '@shared/protocol/engagement'
 
 export type LeaderboardCategory =
   | 'hoc_tap'
@@ -69,7 +69,6 @@ export function LeaderboardPage() {
     searchParams.get('category') || searchParams.get('game') || searchParams.get('tab'),
   )
   const [category, setCategoryState] = useState<LeaderboardCategory>(initialCat)
-  const [studyScope, setStudyScope] = useState<'school' | 'class'>('school')
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
 
   const setCategory = useCallback(
@@ -89,7 +88,7 @@ export function LeaderboardPage() {
     [setSearchParams],
   )
 
-  // ── 1. Fetch School-wide Study Leaderboard ──
+  // ── 1. Fetch School-wide Study Leaderboard (Toàn trường) ──
   const {
     data: schoolStudyData,
     isLoading: isSchoolStudyLoading,
@@ -110,35 +109,7 @@ export function LeaderboardPage() {
       if (!json?.ok) throw new Error(json?.loi || 'Không thể tải bảng xếp hạng học tập.')
       return json.items ?? []
     },
-    enabled: category === 'hoc_tap' && studyScope === 'school',
-    staleTime: 30_000,
-  })
-
-  // ── 2. Fetch Class Weekly Study Leaderboard ──
-  const coLop = Boolean(nguoiDung?.lopId)
-  const {
-    data: classStudyData,
-    isLoading: isClassStudyLoading,
-    isError: isClassStudyError,
-    error: classStudyError,
-    refetch: refetchClassStudy,
-    isRefetching: isClassStudyRefetching,
-  } = useQuery({
-    queryKey: ['leaderboard-class-study', nguoiDung?.lopId],
-    queryFn: async () => {
-      const res = await fetch('/api/engagement/leaderboard', { credentials: 'same-origin' })
-      if (!res.ok) throw new Error('Không thể tải bảng thi đua tuần của lớp.')
-      const json = (await res.json().catch(() => null)) as {
-        ok?: boolean
-        lopTen?: string | null
-        currentWeek?: string
-        items?: ClassLeaderboardItem[]
-        loi?: string
-      } | null
-      if (!json?.ok) throw new Error(json?.loi || 'Không thể tải bảng thi đua của lớp.')
-      return json
-    },
-    enabled: category === 'hoc_tap' && studyScope === 'class' && coLop,
+    enabled: category === 'hoc_tap',
     staleTime: 30_000,
   })
 
@@ -170,76 +141,37 @@ export function LeaderboardPage() {
   })
 
   // ── Unified Loading & Error States ──
-  const isLoading =
-    category === 'hoc_tap'
-      ? studyScope === 'school'
-        ? isSchoolStudyLoading
-        : isClassStudyLoading
-      : isGameLoading
-
-  const isRefetching =
-    category === 'hoc_tap'
-      ? studyScope === 'school'
-        ? isSchoolStudyRefetching
-        : isClassStudyRefetching
-      : isGameRefetching
-
-  const isError =
-    category === 'hoc_tap'
-      ? studyScope === 'school'
-        ? isSchoolStudyError
-        : isClassStudyError
-      : isGameError
-
-  const errorObj =
-    category === 'hoc_tap'
-      ? studyScope === 'school'
-        ? schoolStudyError
-        : classStudyError
-      : gameError
+  const isLoading = category === 'hoc_tap' ? isSchoolStudyLoading : isGameLoading
+  const isRefetching = category === 'hoc_tap' ? isSchoolStudyRefetching : isGameRefetching
+  const isError = category === 'hoc_tap' ? isSchoolStudyError : isGameError
+  const errorObj = category === 'hoc_tap' ? schoolStudyError : gameError
 
   const handleRefresh = useCallback(() => {
     if (category === 'hoc_tap') {
-      if (studyScope === 'school') void refetchSchoolStudy()
-      else void refetchClassStudy()
+      void refetchSchoolStudy()
     } else {
       void refetchGame()
     }
-  }, [category, studyScope, refetchSchoolStudy, refetchClassStudy, refetchGame])
+  }, [category, refetchSchoolStudy, refetchGame])
 
   // ── Unified Authoritative Entries ──
   const entries: UnifiedRankingEntry[] = useMemo(() => {
     if (category === 'hoc_tap') {
-      if (studyScope === 'school') {
-        return (schoolStudyData ?? []).map((item) => {
-          const isMe = Boolean(
-            nguoiDung && (item.playerName === (nguoiDung.ten?.trim() || nguoiDung.username)),
-          )
-          return {
-            rank: item.rank,
-            id: `school-${item.rank}-${item.playerName}`,
-            name: item.playerName,
-            score: item.totalXp,
-            scoreLabel: 'XP',
-            level: item.level,
-            isCurrentUser: isMe,
-            accountId: isMe ? nguoiDung?.accountId : undefined,
-          }
-        })
-      } else {
-        return (classStudyData?.items ?? []).map((item) => ({
+      return (schoolStudyData ?? []).map((item) => {
+        const isMe = Boolean(
+          nguoiDung && (item.playerName === (nguoiDung.ten?.trim() || nguoiDung.username)),
+        )
+        return {
           rank: item.rank,
-          id: `class-${item.accountId}`,
-          name: item.displayName,
-          avatar: item.avatar,
-          score: item.weeklyXp,
-          scoreLabel: 'XP tuần',
-          streak: item.currentStreak > 0 ? item.currentStreak : undefined,
-          className: classStudyData?.lopTen ?? undefined,
-          isCurrentUser: item.isCurrentUser,
-          accountId: item.accountId,
-        }))
-      }
+          id: `school-${item.rank}-${item.playerName}`,
+          name: item.playerName,
+          score: item.totalXp,
+          scoreLabel: 'XP',
+          level: item.level,
+          isCurrentUser: isMe,
+          accountId: isMe ? nguoiDung?.accountId : undefined,
+        }
+      })
     }
 
     // Games highscores
@@ -258,7 +190,7 @@ export function LeaderboardPage() {
         accountId: isMe ? nguoiDung?.accountId : undefined,
       }
     })
-  }, [category, studyScope, schoolStudyData, classStudyData, gameData, nguoiDung])
+  }, [category, schoolStudyData, gameData, nguoiDung])
 
   const moHoSo = useCallback((accountId: number, ten: string, avatar?: string | null, rect?: DOMRect) => {
     setNguoiXem({
@@ -379,41 +311,6 @@ export function LeaderboardPage() {
             )
           })}
         </div>
-
-        {/* ── Secondary Scope Selector (Only for Học tập when user belongs to a class) ── */}
-        {category === 'hoc_tap' && coLop && (
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs font-semibold text-text-tertiary">Phạm vi:</span>
-            <div className="inline-flex rounded-lg border border-border-subtle bg-surface p-1">
-              <button
-                type="button"
-                onClick={() => setStudyScope('school')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer',
-                  studyScope === 'school'
-                    ? 'bg-brand/15 text-brand shadow-xs'
-                    : 'text-text-secondary hover:text-text-primary',
-                )}
-              >
-                <GraduationCap className="size-3.5" />
-                <span>Toàn trường (Top 50)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setStudyScope('class')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer',
-                  studyScope === 'class'
-                    ? 'bg-brand/15 text-brand shadow-xs'
-                    : 'text-text-secondary hover:text-text-primary',
-                )}
-              >
-                <Users className="size-3.5" />
-                <span>{classStudyData?.lopTen ? `Lớp ${classStudyData.lopTen}` : 'Lớp của bạn'}</span>
-              </button>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* ── 3. Error State ── */}
@@ -717,11 +614,6 @@ export function LeaderboardPage() {
                           <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                             <Flame className="size-3" />
                             {item.streak} ngày
-                          </span>
-                        )}
-                        {item.className && (
-                          <span className="text-[10px] sm:text-[11px] text-text-tertiary truncate">
-                            {item.className}
                           </span>
                         )}
                       </div>

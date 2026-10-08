@@ -104,7 +104,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const vaiTro = nhanVaiTro(hoSo?.role ?? nguoi.vaiTro)
   const lopTen = hoSo ? hoSo.lopTen : (nguoi.lopTen ?? null)
   const capDo = hoSo ? tinhLevel(hoSo.totalXp) : null
-  const tagDinhDanh = (isMe && nguoiDung?.username) ? `@${nguoiDung.username}` : (hoSo?.tag || `@c10a7_${nguoi.id}`)
+  const tagDinhDanh = (isMe && nguoiDung?.username) ? `@${nguoiDung.username}` : (hoSo?.tag || `@campus_${nguoi.id}`)
 
   const danhSachThanhTuu = achievementsData?.achievements ?? []
   const unlockedCount =
@@ -211,7 +211,6 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                           <span>{tagDinhDanh}</span>
                         </span>
                         {vaiTro && <span className="text-xs text-text-tertiary">· {vaiTro}</span>}
-                        {lopTen && <span className="text-xs text-text-tertiary">· {lopTen}</span>}
                       </div>
                     </div>
                   </div>

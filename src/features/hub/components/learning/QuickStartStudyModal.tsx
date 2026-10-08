@@ -23,8 +23,8 @@ interface QuickTemplate {
   title: string
   description: string
   icon: typeof Sparkles
-  defaultName: (userName: string, className?: string) => string
-  phamVi: 'truong' | 'lop'
+  defaultName: (userName: string) => string
+  phamVi: 'truong'
   sucChua: number
 }
 
@@ -43,8 +43,8 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
     title: 'Nhóm thảo luận bài tập',
     description: 'Cùng trao đổi kiến thức',
     icon: Users,
-    defaultName: (name, className) => className ? `Nhóm ôn bài · ${className}` : `Nhóm bài tập · ${name}`,
-    phamVi: 'lop',
+    defaultName: (name) => `Nhóm bài tập · ${name}`,
+    phamVi: 'truong',
     sucChua: 10,
   },
   {
@@ -64,14 +64,12 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
   const { isInFlight, handleOpenChange, execute } = useQuickStartLock()
 
   const displayName = nguoiDung?.ten || nguoiDung?.username || 'Bạn học'
-  const className = nguoiDung?.lop?.ten || (nguoiDung?.lopId ? `Lớp ${nguoiDung.lopId}` : undefined)
 
   const handleStart = async () => {
     if (isInFlight) return
 
     const template = QUICK_TEMPLATES.find((t) => t.id === selectedTemplate) || QUICK_TEMPLATES[0]
-    const phamVi = template.phamVi === 'lop' && nguoiDung?.lopId ? 'lop' : 'truong'
-    const roomName = template.defaultName(displayName, className)
+    const roomName = template.defaultName(displayName)
 
     await execute(
       async () => {
@@ -81,8 +79,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
           body: JSON.stringify({
             ten: roomName,
             moTa: template.description,
-            phamVi,
-            lopId: phamVi === 'lop' && nguoiDung ? nguoiDung.lopId : undefined,
+            phamVi: 'truong',
             accessMode: 'public',
             sucChua: template.sucChua,
           }),

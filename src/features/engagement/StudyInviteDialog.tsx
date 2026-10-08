@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useCampusContext } from '@/app/CampusContext'
-import { cn, getInitials, tenLop } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 
 interface StudyInviteDialogProps {
   open: boolean
@@ -144,9 +144,9 @@ export function StudyInviteDialog({
                       <p className="text-xs break-words text-text-tertiary">
                         {dangOPhongNay
                           ? 'Đang ở trong phòng này'
-                          : [friend.lopTen ? tenLop(friend.lopTen) : null, dangTrucTuyen ? 'đang trực tuyến' : null]
-                              .filter(Boolean)
-                              .join(' · ') || `@${friend.username}`}
+                          : dangTrucTuyen
+                            ? 'Đang trực tuyến'
+                            : `@${friend.username}`}
                       </p>
                     </div>
 

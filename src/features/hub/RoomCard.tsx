@@ -133,7 +133,7 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
         dayPhong && 'opacity-85',
       )}
     >
-      {/* ── Hàng trên cùng: Nhãn môn + Badge Lớp / Mật khẩu / Bạn bè + Số phòng ── */}
+      {/* ── Hàng trên cùng: Nhãn môn + Badge Mật khẩu / Bạn bè + Số phòng ── */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {/* Nhãn môn học nhận diện dễ dàng */}
@@ -146,13 +146,6 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
             <span className="size-1.5 rounded-full bg-current" />
             <span>{mon.label}</span>
           </span>
-
-          {/* Badge Lớp học */}
-          {room.phamVi === 'lop' && room.lopTen && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-surface-overlay border border-border-default px-2 py-0.5 text-[11px] font-semibold text-text-secondary shadow-xs">
-              <span>Lớp {room.lopTen}</span>
-            </span>
-          )}
 
           {/* Badge Mật khẩu */}
           {room.coMatKhau && (

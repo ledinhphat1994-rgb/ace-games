@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ClassChallenge } from '@shared/protocol/engagement'
-import { cn, tenLop } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 interface ClassChallengeModalProps {
   open: boolean
@@ -62,9 +62,9 @@ export function ClassChallengeModal({ open, onOpenChange }: ClassChallengeModalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Thử thách của lớp</DialogTitle>
+          <DialogTitle>Thử thách thi đua</DialogTitle>
           <DialogDescription>
-            {data?.lopTen ? `${tenLop(data.lopTen)} · cả lớp` : 'Cả lớp'} cùng góp sức hoàn thành mục tiêu tuần.
+            Cùng góp sức hoàn thành mục tiêu tuần.
           </DialogDescription>
         </DialogHeader>
 

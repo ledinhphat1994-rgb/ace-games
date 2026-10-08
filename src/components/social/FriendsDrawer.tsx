@@ -470,7 +470,6 @@ export function FriendsDrawer({
                               >
                                 {friend.displayName}
                               </button>
-                              {friend.lopTen && <span className="text-xs text-text-tertiary">{friend.lopTen}</span>}
                             </p>
 
                             {!presenceSanSang ? (
@@ -962,12 +961,11 @@ function DanhTinhNguoiDung({ children }: { children: ReactNode }) {
 function NguoiDung({
   ten,
   username,
-  lop,
   onClick,
 }: {
   ten: string
   username: string
-  lop: string | null
+  lop?: string | null
   onClick?: (rect: { top: number; left: number; right: number; bottom: number }) => void
 }) {
   return (
@@ -988,7 +986,6 @@ function NguoiDung({
       )}
       <p className="text-xs break-words text-text-tertiary">
         @{username}
-        {lop ? ` · ${lop}` : ''}
       </p>
     </div>
   )

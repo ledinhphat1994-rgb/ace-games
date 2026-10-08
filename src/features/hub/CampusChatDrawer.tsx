@@ -1142,11 +1142,9 @@ export function CampusChatDrawer({
                             >
                               {msg.ten}
                             </button>
-                            {msg.vaiTro === 'giao_vien' ? (
+                            {msg.vaiTro === 'giao_vien' && (
                               <span className="rounded bg-brand/12 px-1 text-[10px] font-semibold text-brand">GV</span>
-                            ) : msg.lopTen ? (
-                              <span className="text-text-tertiary">{msg.lopTen}</span>
-                            ) : null}
+                            )}
 
                           </p>
                         )}
