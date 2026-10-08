@@ -7,6 +7,11 @@ import heroicBannerRaw from '../src/features/games/GameHeroicBanner.tsx?raw'
 import drawModalRaw from '../src/features/games/GameDrawModal.tsx?raw'
 import surrenderModalRaw from '../src/features/games/GameSurrenderModal.tsx?raw'
 import modalMoiRaw from '../src/features/games/ModalMoiNguoiChoi.tsx?raw'
+import profileRaw from '../src/features/hub/ProfilePage.tsx?raw'
+import progressPanelRaw from '../src/features/profile/ProgressPanel.tsx?raw'
+import wormateHudRaw from '../src/features/games/snake/Wormate3DArena.tsx?raw'
+import soloGameRaw from '../src/features/games/SoloGamePage.tsx?raw'
+import indexCssRaw from '../src/index.css?raw'
 
 describe('Game UI Đồng Bộ: Zero Overlap cho Banner BẠN THUA / ĐẤU LẠI & Chuẩn Hóa Popup Cùng Cấp', () => {
   it('ChessBoard và CaroBoard ẩn nút ĐẤU LẠI khi đang hiển thị heroicBanner để loại bỏ hoàn toàn đè chữ', () => {
@@ -63,5 +68,26 @@ describe('Game UI Đồng Bộ: Zero Overlap cho Banner BẠN THUA / ĐẤU LẠ
     expect(memoryRaw).toContain('Xin thua / Đầu hàng')
     expect(xiangqiBoardRaw).toContain('Xin thua / Đầu hàng')
     expect(surrenderModalRaw).toContain('Xin thua / Đầu hàng')
+  })
+
+  it('XiangqiBoard hiển thị trọn vẹn tin nhắn nhanh và popup căn giữa màn cờ', () => {
+    expect(xiangqiBoardRaw).not.toContain('truncate max-w-[100px]')
+    expect(xiangqiBoardRaw).toContain('top: \'auto\'')
+    expect(xiangqiBoardRaw).toContain('left: \'auto\'')
+    expect(xiangqiBoardRaw).toContain('transform: \'none\'')
+  })
+
+  it('Snake game sử dụng trọn vẹn map không bị co rút card riêng và HUD chống chồng chéo text', () => {
+    expect(soloGameRaw).not.toMatch(/gameType === 'solo_snake'\s*\?\s*'[^\']*game-stage/)
+    expect(wormateHudRaw).toContain('whitespace-nowrap')
+  })
+
+  it('Hồ sơ tối giản không dùng banner ảnh bìa, tập trung vào Thành tựu và dialog không bị trôi nóc', () => {
+    expect(profileRaw).not.toContain('profile_cover_clean.jpg')
+    expect(profileRaw).not.toContain('-mt-14')
+    expect(progressPanelRaw).toContain('Thành tựu')
+    // skeuo-modal-surface không gán cứng top 72px hay fixed làm trôi nóc modal
+    expect(indexCssRaw).not.toMatch(/\.skeuo-modal-surface\s*\{[^}]*top:\s*72px/)
+    expect(indexCssRaw).not.toMatch(/\.skeuo-modal-surface\s*\{[^}]*position:\s*fixed/)
   })
 })
