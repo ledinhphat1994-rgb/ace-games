@@ -14,8 +14,25 @@ import { LearningPage } from '@/features/hub/LearningPage'
 import './index.css'
 import { ThemeProvider } from '@/app/theme'
 
+import { Capacitor } from '@capacitor/core'
+import { App as CapApp } from '@capacitor/app'
+import { StatusBar, Style } from '@capacitor/status-bar'
+
 if (typeof window !== 'undefined') {
   ;(window as unknown as { toast?: typeof toast }).toast = toast
+
+  if (Capacitor.isNativePlatform()) {
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
+    StatusBar.setBackgroundColor({ color: '#0a0d14' }).catch(() => {})
+
+    CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back()
+      } else {
+        CapApp.exitApp()
+      }
+    }).catch(() => {})
+  }
 }
 
 // Trang đích /learn nằm trong bundle chính; các trang khác tách chunk riêng, chỉ tải khi người dùng mở tới.
