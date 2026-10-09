@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { ThePhongGame, type PhongGameItem } from './ThePhongGame'
+import { playUiTapSound, playMatchFoundSound } from './game-audio'
 import { toast } from 'sonner'
 
 interface GameLobbyViewProps {
@@ -789,6 +790,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       const banBanBe = cacBanCho.find((r) => (r.friendsInRoom?.length ?? 0) > 0)
       const banChon = banBanBe || cacBanCho[0]
       const tenGame = GAME_CATALOG_BY_ID[banChon.gameType]?.shortTitle || banChon.gameType
+      // PixelUX Principle 3 — Feedback: Kèn hiệu chiến đấu khi tìm thấy đối thủ
+      playMatchFoundSound()
       toast.info(`Chơi ngay: Đang vào bàn #${banChon.soPhong} (${tenGame})`, {
         id: 'quick-play-entering',
       })
@@ -1149,6 +1152,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       return
     }
     const currentScrollLeft = carouselRef.current?.scrollLeft
+    playUiTapSound()
     setSelectedFilter(id)
     if (carouselRef.current && currentScrollLeft !== undefined) {
       carouselRef.current.scrollLeft = currentScrollLeft
@@ -1196,7 +1200,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   <Button
                     data-testid="create-table-btn"
                     size="sm"
-                    onClick={canDangNhap(() => setMoTaoBanModal(true))}
+                    onClick={canDangNhap(() => { playUiTapSound(); setMoTaoBanModal(true) })}
                     className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer shrink-0"
                   >
                     <Plus className="size-3.5 mr-1 stroke-[3]" />
@@ -1282,7 +1286,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   <Button
                     data-testid="create-table-btn"
                     size="sm"
-                    onClick={canDangNhap(() => setMoTaoBanModal(true))}
+                    onClick={canDangNhap(() => { playUiTapSound(); setMoTaoBanModal(true) })}
                     className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer"
                   >
                     <Plus className="size-3.5 mr-1 stroke-[3]" />
@@ -1406,7 +1410,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   </div>
                   <Button
                     size="sm"
-                    onClick={canDangNhap(() => setMoTaoBanModal(true))}
+                    onClick={canDangNhap(() => { playUiTapSound(); setMoTaoBanModal(true) })}
                     className="h-8 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold cursor-pointer"
                   >
                     <Plus className="size-3.5 mr-1" />
@@ -1496,7 +1500,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                       key={item.id}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => setGameMoiChon(item.id)}
+                      onClick={() => { playUiTapSound(); setGameMoiChon(item.id) }}
                       className={cn(
                         'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden',
                         isSelected
@@ -1559,7 +1563,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                               key={String(moc.value)}
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => setCheDoTurn(moc.value)}
+                              onClick={() => { playUiTapSound(); setCheDoTurn(moc.value) }}
                               className={cn(
                                 'h-7 min-h-7 max-h-7 rounded-lg text-xs transition-colors duration-150 cursor-pointer text-center flex items-center justify-center select-none border-2',
                                 isSelected
@@ -1681,6 +1685,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
+                    playUiTapSound()
                     setCheDoPhong('public')
                     setLoiTaoBan(null)
                   }}
@@ -1699,7 +1704,12 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
+                    playUiTapSound()
                     setCheDoPhong('private')
+                    // PixelUX Principle 5 — Error Prevention: Auto-generate PIN 4 số
+                    if (!matKhauPhong.trim()) {
+                      setMatKhauPhong(String(Math.floor(1000 + Math.random() * 9000)))
+                    }
                     setLoiTaoBan(null)
                   }}
                   className={cn(

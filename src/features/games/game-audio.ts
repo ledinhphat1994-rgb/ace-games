@@ -246,3 +246,155 @@ export function playCheckAlertSound(): void {
     osc.stop(now + 0.28)
   } catch {}
 }
+
+/**
+ * ── DOPAMINE AUDIO ENGINE (PixelUX Principle 3: Feedback) ──
+ * Âm thanh phản hồi tức thì cho mọi tương tác trong sảnh game.
+ */
+
+/**
+ * Tiếng gõ gỗ nảy nhẹ thanh thoát (UI Wood Tap)
+ * Dùng cho: Mọi nút bấm, chọn thẻ, chuyển filter, chọn game trong sảnh
+ */
+export function playUiTapSound(): void {
+  triggerHaptic('selection')
+  const ctx = getAudioContext()
+  if (!ctx) return
+  try {
+    const now = ctx.currentTime
+
+    // Layer 1: Knock body (tiếng gỗ gõ chắc)
+    const osc1 = ctx.createOscillator()
+    const gain1 = ctx.createGain()
+    const filter1 = ctx.createBiquadFilter()
+    osc1.type = 'triangle'
+    osc1.frequency.setValueAtTime(380, now)
+    osc1.frequency.exponentialRampToValueAtTime(100, now + 0.04)
+    filter1.type = 'lowpass'
+    filter1.frequency.setValueAtTime(900, now)
+    filter1.frequency.exponentialRampToValueAtTime(250, now + 0.04)
+    gain1.gain.setValueAtTime(0.1, now)
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+    osc1.connect(filter1)
+    filter1.connect(gain1)
+    gain1.connect(ctx.destination)
+    osc1.start(now)
+    osc1.stop(now + 0.04)
+
+    // Layer 2: High click (tiếng nảy nhẹ trên đầu)
+    const osc2 = ctx.createOscillator()
+    const gain2 = ctx.createGain()
+    osc2.type = 'sine'
+    osc2.frequency.setValueAtTime(1200, now)
+    osc2.frequency.exponentialRampToValueAtTime(600, now + 0.025)
+    gain2.gain.setValueAtTime(0.06, now)
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
+    osc2.connect(gain2)
+    gain2.connect(ctx.destination)
+    osc2.start(now)
+    osc2.stop(now + 0.025)
+  } catch {}
+}
+
+/**
+ * Tiếng kèn hiệu chiến đấu hùng tráng (Battle Horn Match Found)
+ * Dùng cho: Khi tìm thấy đối thủ / ghép trận thành công
+ */
+export function playMatchFoundSound(): void {
+  triggerHaptic('medium')
+  const ctx = getAudioContext()
+  if (!ctx) return
+  try {
+    const now = ctx.currentTime
+
+    // Ascending brass fanfare: C4 → E4 → G4 → C5 (4 nốt hùng tráng)
+    const notes = [
+      { freq: 261.63, time: 0, dur: 0.12, vol: 0.1 },
+      { freq: 329.63, time: 0.1, dur: 0.12, vol: 0.12 },
+      { freq: 392.0, time: 0.2, dur: 0.15, vol: 0.14 },
+      { freq: 523.25, time: 0.32, dur: 0.45, vol: 0.16 },
+    ]
+
+    notes.forEach(({ freq, time, dur, vol }) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      const filter = ctx.createBiquadFilter()
+
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(freq, now + time)
+
+      // Warm brass lowpass
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(1600, now + time)
+      filter.frequency.exponentialRampToValueAtTime(600, now + time + dur)
+
+      gain.gain.setValueAtTime(0.001, now + time)
+      gain.gain.linearRampToValueAtTime(vol, now + time + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.start(now + time)
+      osc.stop(now + time + dur)
+    })
+
+    // Sub bass hit cho punch cảm xúc
+    const sub = ctx.createOscillator()
+    const subGain = ctx.createGain()
+    sub.type = 'sine'
+    sub.frequency.setValueAtTime(80, now + 0.32)
+    sub.frequency.exponentialRampToValueAtTime(40, now + 0.55)
+    subGain.gain.setValueAtTime(0.12, now + 0.32)
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55)
+    sub.connect(subGain)
+    subGain.connect(ctx.destination)
+    sub.start(now + 0.32)
+    sub.stop(now + 0.55)
+  } catch {}
+}
+
+/**
+ * Tiếng confetti / coin shower rộn ràng (Victory Confetti Burst)
+ * Dùng cho: Khi chiến thắng, mở rương, thăng hạng
+ */
+export function playVictoryConfettiSound(): void {
+  triggerHaptic('success')
+  const ctx = getAudioContext()
+  if (!ctx) return
+  try {
+    const now = ctx.currentTime
+
+    // Sparkle chime cascade (tiếng lấp lánh rải từ trên xuống)
+    const sparkleFreqs = [1760, 2093, 2349, 2637, 3136, 2349, 2637, 3520]
+    sparkleFreqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, now + i * 0.06)
+      gain.gain.setValueAtTime(0.04, now + i * 0.06)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.15)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now + i * 0.06)
+      osc.stop(now + i * 0.06 + 0.15)
+    })
+
+    // Victory chord: C5 + E5 + G5 sustained
+    const chordFreqs = [523.25, 659.25, 783.99]
+    chordFreqs.forEach((freq) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, now + 0.3)
+      gain.gain.setValueAtTime(0.001, now + 0.3)
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.38)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now + 0.3)
+      osc.stop(now + 0.9)
+    })
+  } catch {}
+}
