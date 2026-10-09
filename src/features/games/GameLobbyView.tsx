@@ -926,6 +926,11 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       moAuthModal('dang_nhap')
       return
     }
+    const cleanTen = tenPhongMoi.trim()
+    if (!cleanTen) {
+      setLoiTaoBan('Vui lòng nhập tên phòng đấu.')
+      return
+    }
     const isPrivate = cheDoPhong === 'private' || matKhauPhong.trim().length >= 4
     const cleanPw = matKhauPhong.trim()
     if (isPrivate && (!cleanPw || cleanPw.length < 4)) {
@@ -933,7 +938,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       return
     }
     const soPhongMoi = Math.floor(Math.random() * 89) + 11
-    const tieuDeBan = tenPhongMoi.trim() || undefined
+    const tieuDeBan = cleanTen
     const gameTypeThucTe: GameType =
       gameMoiChon === 'random'
         ? CAC_GAME_1V1[Math.floor(Math.random() * CAC_GAME_1V1.length)]
@@ -1434,7 +1439,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 <input
                   type="text"
                   value={tenPhongMoi}
-                  onChange={(e) => setTenPhongMoi(e.target.value)}
+                  onChange={(e) => {
+                    setTenPhongMoi(e.target.value)
+                    if (loiTaoBan) setLoiTaoBan(null)
+                  }}
                   placeholder="Nhập tên phòng..."
                   maxLength={40}
                   className="w-full bg-transparent text-xs text-white font-medium placeholder:text-slate-500 focus:outline-none"
@@ -1816,9 +1824,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             <Button
               type="button"
               size="sm"
-              disabled={dangTaoBan}
+              disabled={dangTaoBan || !tenPhongMoi.trim()}
               onClick={xacNhanTaoBan}
-              className="px-6 h-9 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs cursor-pointer"
+              className="px-6 h-9 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {dangTaoBan ? 'Đang tạo...' : 'Tạo bàn ngay'}
             </Button>

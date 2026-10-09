@@ -232,8 +232,8 @@ export function AppShell({ children }: AppShellProps) {
       {/* Nền mờ họa tiết vi mạch Blueprint toàn diện cho toàn trang web */}
       <BlueprintGlobalBackground />
 
-      {/* 1. Header (Sticky desktop & mobile — VÙNG 4: topbar dài hết chiều ngang của màn hình web thống nhất, ẩn khi chơi game Rắn Săn Mồi hoặc toàn màn hình để tối ưu tuyệt đối tầm nhìn arcade) */}
-      {!isFullscreen && !isSnakeGame && (
+      {/* 1. Header (Sticky desktop & mobile — Ẩn khi đang trong bất kỳ phòng đấu game nào: Cờ Tướng, Cờ Vua, Cờ Caro, Trí Nhớ, Rắn Săn Mồi để tối ưu tối đa không gian bàn cờ) */}
+      {!isFullscreen && !isGameRoom && (
         <div className={cn('sticky top-0 z-30 w-full shrink-0', isActivityRoom && 'max-lg:landscape:hidden')}>
           <AppHeader
             nguoiDung={nguoiDung}
@@ -253,8 +253,8 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main Content Layout with Desktop Left Sidebar (Under Header) */}
       <div className={cn('flex-1 flex min-w-0 relative', isGameRoom && 'h-full min-h-0 overflow-hidden')}>
-        {/* Desktop Left Sidebar (Fixed under Topbar, ẩn trong phòng rắn để sân chơi chiếm trọn vùng 1) */}
-        {!isFullscreen && !isSnakeGame && <AppSidebar className="hidden lg:flex" />}
+        {/* Desktop Left Sidebar (Ẩn trong phòng đấu game để sân chơi chiếm trọn không gian) */}
+        {!isFullscreen && !isGameRoom && <AppSidebar className="hidden lg:flex" />}
 
         {/* Main Content Column — shifts right by sidebar width on desktop; balances with right margin on game room for exact screen center */}
         {/* Invariant for tests: !isFullscreen && isGameRoom && 'lg:mr-[240px] xl:mr-[256px]' */}

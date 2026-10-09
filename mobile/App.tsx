@@ -74,16 +74,20 @@ export default function App() {
           // Bật tối đa tăng tốc phần cứng GPU (Hardware Acceleration)
           androidHardwareAccelerationDisabled={false}
           androidLayerType="hardware"
+          renderToHardwareTextureAndroid={true}
           // Cho phép lưu cache và LocalStorage / Cookies phiên đăng nhập
           domStorageEnabled={true}
           databaseEnabled={true}
           cacheEnabled={true}
+          cacheMode="LOAD_DEFAULT"
           thirdPartyCookiesEnabled={true}
           sharedCookiesEnabled={true}
+          setSupportMultipleWindows={false}
           // Cho phép phát âm thanh / media game và video YouTube lớp học
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
           javaScriptEnabled={true}
+          keyboardDisplayRequiresUserAction={false}
           // Tối ưu trải nghiệm cảm ứng và cuộn trang
           overScrollMode="never"
           textZoom={100}
@@ -94,7 +98,7 @@ export default function App() {
           applicationNameForUserAgent="DigitalCampusApp/1.0.0"
         />
 
-        {/* Màn hình Splash Loading sang trọng mang Logo App đồng bộ */}
+        {/* Màn hình Splash Loading sang trọng mang Logo App đồng bộ to rõ */}
         {isLoading && (
           <View style={styles.loadingContainer} pointerEvents="none">
             <Image
@@ -133,8 +137,8 @@ const styles = StyleSheet.create({
     zIndex: 99,
   },
   logoImage: {
-    width: 80,
-    height: 80,
+    width: 96,
+    height: 96,
     marginBottom: 16,
   },
   loadingTitle: {

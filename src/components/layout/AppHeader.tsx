@@ -45,13 +45,13 @@ export const AppHeader = memo(function AppHeader({
         <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
           {/* Brand logo (visible across desktop & mobile) */}
           <NavLink to="/learn" className="flex items-center gap-3 group shrink-0 select-none rounded-xl py-1 pr-1 sm:pr-2 hover:opacity-90 transition-opacity">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 via-indigo-500/15 to-purple-500/20 border border-sky-400/40 text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.25)] group-hover:scale-105 group-hover:border-sky-400/70 transition-all duration-300">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/25 via-indigo-500/20 to-purple-500/25 border-2 border-sky-400/60 text-sky-400 shadow-[0_0_25px_rgba(56,189,248,0.4)] group-hover:scale-105 group-hover:border-sky-400/90 transition-all duration-300">
               {/* Animated glow aura */}
-              <span className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-sky-400/40 via-indigo-400/30 to-purple-400/40 blur-[3px] animate-pulse pointer-events-none" />
+              <span className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-sky-400/50 via-indigo-400/40 to-purple-400/50 blur-[5px] animate-pulse pointer-events-none" />
               <img
                 src="/assets/brand/app-logo.png"
                 alt="Digital Campus Logo"
-                className="relative h-6 w-6 object-contain drop-shadow-[0_0_8px_rgba(56,189,248,0.9)] transition-transform duration-300 group-hover:scale-110"
+                className="relative h-8 w-8 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,1)] transition-transform duration-300 group-hover:scale-110"
               />
               <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
