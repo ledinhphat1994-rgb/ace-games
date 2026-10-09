@@ -508,7 +508,12 @@ export function CampusChatSheet({
         }
         className={cn(
           'campus-chat-sheet-root gap-0 p-0 z-[70] shadow-2xl overflow-hidden flex flex-col',
-          'top-2.5 right-2.5 left-2.5 bottom-[max(0.625rem,env(safe-area-inset-bottom))] max-h-[calc(100dvh-20px)] rounded-2xl border border-border-default',
+          // Mobile portrait: Tận dụng trọn vẹn chiều cao màn hình, loại bỏ 100% khoảng đen thừa ở top và bot
+          !isDesktop && [
+            'top-1.5 bottom-1.5 left-1.5 right-1.5 my-0 mx-0',
+            'h-[calc(100svh-12px)] max-h-[calc(100svh-12px)]',
+            'rounded-2xl border border-border-default',
+          ],
           // Tối ưu màn hình ngang mobile: CHỈ kích hoạt khi KHÔNG phải Desktop
           !isDesktop &&
             'landscape:top-2 landscape:bottom-[max(0.5rem,env(safe-area-inset-bottom,8px))] landscape:right-2 landscape:left-auto landscape:w-[min(380px,calc(100vw-20px))] landscape:h-[calc(100dvh-16px)] landscape:max-h-[calc(100dvh-16px)] landscape:min-h-0',

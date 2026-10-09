@@ -204,7 +204,7 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
       aria-label="Đấu trường game Digital Campus"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(2,132,199,0.15)] group select-none"
+      className="relative w-full min-h-[180px] sm:min-h-[290px] lg:min-h-[420px] flex flex-col justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(2,132,199,0.15)] group select-none"
     >
       {BANNER_SLIDES.map((slide, idx) => {
         const isCurrent = idx === slideIndex
@@ -226,27 +226,27 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
               <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
             </div>
 
-            <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-                <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+            <div className="relative z-10 p-3.5 sm:p-8 lg:p-14 pb-8 sm:pb-12 lg:pb-14 max-w-3xl">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 sm:px-4 sm:py-1.5 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1.5 sm:mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                <span className="size-1.5 sm:size-2 rounded-full bg-sky-400 animate-pulse" />
                 <span>{slide.badge}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
+              <h1 className="text-lg sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
                 {slide.title}
               </h1>
 
-              <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+              <p className="mt-1 sm:mt-3 text-xs sm:text-base text-slate-300 leading-relaxed max-w-2xl line-clamp-2 sm:line-clamp-none">
                 {slide.desc}
               </p>
 
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-sky-400/20 bg-sky-950/40 text-xs text-sky-300 font-semibold backdrop-blur-md">
-                  <Sword className="size-3.5 text-sky-400" />
+              <div className="mt-2.5 sm:mt-5 flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-sky-400/20 bg-sky-950/40 text-[10px] sm:text-xs text-sky-300 font-semibold backdrop-blur-md">
+                  <Sword className="size-3 sm:size-3.5 text-sky-400" />
                   <span>Đấu trường 1v1 & Solo</span>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-400/20 bg-amber-950/40 text-xs text-amber-300 font-semibold backdrop-blur-md">
-                  <Trophy className="size-3.5 text-amber-400" />
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-amber-400/20 bg-amber-950/40 text-[10px] sm:text-xs text-amber-300 font-semibold backdrop-blur-md">
+                  <Trophy className="size-3 sm:size-3.5 text-amber-400" />
                   <span>Xếp hạng thời gian thực</span>
                 </div>
               </div>
@@ -256,16 +256,16 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
       })}
 
       {/* Nút điều hướng Carousel (Prev/Next & Dots) */}
-      <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+      <div className="absolute bottom-2 sm:bottom-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={() => setSlideIndex((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}
           aria-label="Banner trước"
-          className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+          className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className="size-3.5 sm:size-4" />
         </button>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
+        <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
           {BANNER_SLIDES.map((_, idx) => (
             <button
               key={idx}
@@ -275,8 +275,8 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
               className={cn(
                 'transition-all duration-300 rounded-full cursor-pointer',
                 idx === slideIndex
-                  ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
-                  : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80',
+                  ? 'w-5 sm:w-7 h-2 sm:h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                  : 'w-2 sm:w-2.5 h-2 sm:h-2.5 bg-white/40 hover:bg-white/80',
               )}
             />
           ))}
@@ -285,9 +285,9 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
           type="button"
           onClick={() => setSlideIndex((prev) => (prev + 1) % BANNER_SLIDES.length)}
           aria-label="Banner tiếp theo"
-          className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+          className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-3.5 sm:size-4" />
         </button>
       </div>
     </section>
@@ -1167,18 +1167,18 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Carousel tự chạy cho Hero Banner (Tách riêng component memo để tránh re-render toàn bộ 30+ phòng khi đổi slide)
   return (
-    <div className="pb-12 space-y-8">
+    <div className="pb-4 lg:pb-8 space-y-3.5 sm:space-y-6">
       {/* 1. Hero Banner Sảnh trò chơi (Chuẩn màu Sky/Blue, không dùng tím/hồng) */}
       <GameLobbyHeroBanner />
 
       {/* Sảnh trực tiếp cho tất cả các game */}
-      <div className="space-y-6 min-w-0">
+      <div className="space-y-3.5 sm:space-y-6 min-w-0">
         {/* ── Khu vực chính: Phòng game trực tuyến ── */}
-        <div className="space-y-6 min-w-0">
+        <div className="space-y-3.5 sm:space-y-6 min-w-0">
           {/* VÙNG 3: SẢNH CHUNG TRỰC TIẾP CHO TẤT CẢ CÁC GAME (Không qua sảnh riêng) */}
-          <section aria-label="Sảnh phòng game trực tuyến" className="space-y-4">
+          <section aria-label="Sảnh phòng game trực tuyến" className="space-y-2.5 sm:space-y-4">
             {/* Header & Cụm hành động */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3.5">
               <div className="flex items-center gap-2">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
                 <h2 className="text-base sm:text-lg font-bold text-text-primary">
@@ -1304,7 +1304,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 onMouseMove={handleDragMove}
                 onMouseUp={handleDragEnd}
                 onMouseLeave={handleDragEnd}
-                className="flex gap-2.5 sm:gap-3 overflow-x-auto py-1 px-0.5 scrollbar-none select-none touch-pan-x cursor-grab active:cursor-grabbing"
+                className="flex gap-2.5 sm:gap-3 overflow-x-auto py-1 px-0.5 pb-2 scrollbar-none select-none touch-pan-x cursor-grab active:cursor-grabbing"
               >
                 {gameFilterCards.map((card) => {
                   const isActive = selectedFilter === card.id
@@ -1317,8 +1317,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                       }}
                       onClick={(e) => handleCardSelect(card.id, e)}
                       className={cn(
-                        'group/card shrink-0 relative flex flex-col items-center justify-between p-2.5 sm:p-3 rounded-2xl border-2 transition-colors duration-150 cursor-pointer select-none',
-                        'w-[124px] sm:w-[138px] min-w-[124px] sm:min-w-[138px] max-w-[124px] sm:max-w-[138px] h-[106px] sm:h-[114px] min-h-[106px] sm:min-h-[114px] max-h-[106px] sm:max-h-[114px]',
+                        'group/card shrink-0 relative flex flex-col items-center justify-between p-2 sm:p-3 rounded-2xl border-2 transition-colors duration-150 cursor-pointer select-none',
+                        'w-[110px] sm:w-[138px] min-w-[110px] sm:min-w-[138px] max-w-[110px] sm:max-w-[138px] h-[96px] sm:h-[114px] min-h-[96px] sm:min-h-[114px] max-h-[96px] sm:max-h-[114px]',
                         isActive
                           ? 'border-sky-400 bg-sky-500/15 text-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.25)]'
                           : 'border-border-default/80 bg-surface text-text-secondary hover:border-sky-400/40 hover:bg-surface-raised hover:text-text-primary',

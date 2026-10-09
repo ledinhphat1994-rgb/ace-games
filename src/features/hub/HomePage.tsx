@@ -205,19 +205,19 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
   return (
     <section
       aria-label="Chào mừng bạn học"
-      className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[440px] lg:min-h-[480px] flex flex-col justify-center group"
+      className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[190px] sm:min-h-[300px] lg:min-h-[440px] flex flex-col justify-center group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       {/* Khung chuyển slide tự động (Auto-playing Carousel Stage) */}
-      <div className="relative w-full min-h-[440px] lg:min-h-[480px] overflow-hidden flex flex-col justify-center">
+      <div className="relative w-full min-h-[190px] sm:min-h-[300px] lg:min-h-[440px] overflow-hidden flex flex-col justify-center">
         {BANNER_SLIDES.map((slide, idx) => {
           const isActive = slideIndex === idx
           const PrimaryIcon = slide.primaryAction.icon
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 pb-16 sm:pb-18 lg:pb-18 transition-[opacity,transform] duration-700 ease-in-out ${
+              className={`absolute inset-0 flex flex-col justify-center p-3.5 sm:p-8 lg:p-14 pb-9 sm:pb-14 lg:pb-16 transition-[opacity,transform] duration-700 ease-in-out ${
                 isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
               }`}
             >
@@ -236,33 +236,33 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
 
               {/* Nội dung slide */}
               <div className="relative z-10 max-w-2xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-                  <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 sm:px-3.5 sm:py-1 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1.5 sm:mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                  <span className="size-1.5 sm:size-2 rounded-full bg-sky-400 animate-pulse" />
                   <span>{slide.badge}</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+                <h1 className="text-lg sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
                   {slide.title}
                 </h1>
 
-                <p className="mt-3.5 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
+                <p className="mt-1.5 sm:mt-3 text-xs sm:text-base text-slate-300 leading-relaxed max-w-xl line-clamp-2 sm:line-clamp-none">
                   {slide.desc}
                 </p>
 
-                <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3.5">
+                <div className="mt-3 sm:mt-6 flex flex-wrap items-center gap-2 sm:gap-3.5">
                   <Button
-                    size="lg"
+                    size="sm"
                     onClick={() => onNavigate(slide.primaryAction.to)}
-                    className={`h-11 px-6 rounded-xl text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2 ${slide.primaryAction.className}`}
+                    className={`h-8 sm:h-11 px-3.5 sm:px-6 rounded-lg sm:rounded-xl text-white font-bold text-xs sm:text-sm transition-colors duration-150 cursor-pointer gap-1.5 sm:gap-2 ${slide.primaryAction.className}`}
                   >
-                    <PrimaryIcon className="size-4" />
+                    <PrimaryIcon className="size-3.5 sm:size-4" />
                     <span>{slide.primaryAction.label}</span>
-                    <ArrowRight className="size-3.5" />
+                    <ArrowRight className="size-3 sm:size-3.5" />
                   </Button>
                   {slide.secondaryAction && (
                     <Button
                       variant="outline"
-                      size="lg"
+                      size="sm"
                       onClick={() => {
                         const sec = slide.secondaryAction
                         if ('action' in sec) {
@@ -275,9 +275,9 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
                           onNavigate(sec.to)
                         }
                       }}
-                      className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2"
+                      className="h-8 sm:h-11 px-3 sm:px-5 rounded-lg sm:rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm transition-colors duration-150 cursor-pointer gap-1.5 sm:gap-2"
                     >
-                      {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-4 text-purple-300" />}
+                      {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-3.5 sm:size-4 text-purple-300" />}
                       <span>{slide.secondaryAction.label}</span>
                     </Button>
                   )}
@@ -288,17 +288,17 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
         })}
 
         {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) ── */}
-        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+        <div className="absolute bottom-2 sm:bottom-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setSlideIndex((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}
             aria-label="Banner trước"
-            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
+            className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-3.5 sm:size-4" />
           </button>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/20 shadow-md">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-black/60 border border-white/20 shadow-md">
             {BANNER_SLIDES.map((_, idx) => (
               <button
                 key={idx}
@@ -307,8 +307,8 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
                 aria-label={`Chuyển đến banner ${idx + 1}`}
                 className={`transition-[width,background-color] duration-300 rounded-full cursor-pointer ${
                   slideIndex === idx
-                    ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
-                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
+                    ? 'w-5 sm:w-7 h-2 sm:h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                    : 'w-2 sm:w-2.5 h-2 sm:h-2.5 bg-white/40 hover:bg-white/80'
                 }`}
               />
             ))}
@@ -318,9 +318,9 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
             type="button"
             onClick={() => setSlideIndex((prev) => (prev + 1) % BANNER_SLIDES.length)}
             aria-label="Banner tiếp theo"
-            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
+            className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-3.5 sm:size-4" />
           </button>
         </div>
       </div>
@@ -450,7 +450,7 @@ export function HomePage() {
   }, [activeRoomsPreview, nguoiDung, navigate])
 
   return (
-    <div className="pb-12 space-y-6">
+    <div className="pb-4 lg:pb-8 space-y-3.5 sm:space-y-6">
 
       {/* ── BANNER: Full-Width Cyber Hero Banner + Auto-Slider (Isolate Carousel Re-render) ── */}
       <HomeHeroBanner
@@ -469,22 +469,22 @@ export function HomePage() {
                   key={to}
                   type="button"
                   onClick={() => navigate(to)}
-                  className={`group relative flex flex-col items-center gap-4 py-7 px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-surface-raised ${hover}`}
+                  className={`group relative flex flex-col items-center gap-2 sm:gap-4 py-3.5 px-3 sm:py-7 sm:px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-surface-raised ${hover}`}
                 >
                   {hubImg && (
                     <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-300">
                       <img src={hubImg} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     </div>
                   )}
-                  <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${glow} transition-transform duration-200 group-hover:scale-110`}>
-                    <Icon className="size-8 text-white" />
+                  <div className={`relative flex h-11 w-11 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl ${iconBg} ${glow} transition-transform duration-200 group-hover:scale-110`}>
+                    <Icon className="size-5.5 sm:size-8 text-white" />
                   </div>
                   <div className="relative min-w-0">
-                    <p className={`text-sm font-bold ${accent} leading-tight`}>{label}</p>
-                    <p className="mt-1 text-[11px] text-text-tertiary leading-relaxed whitespace-pre-line">{desc}</p>
+                    <p className={`text-xs sm:text-sm font-bold ${accent} leading-tight`}>{label}</p>
+                    <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] text-text-tertiary leading-relaxed whitespace-pre-line">{desc}</p>
                   </div>
-                  <div className={`relative flex h-7 w-7 items-center justify-center rounded-full bg-surface-raised border ${border} transition-transform duration-200 group-hover:scale-110`}>
-                    <ArrowRight className={`size-3.5 ${accent}`} />
+                  <div className={`relative flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-surface-raised border ${border} transition-transform duration-200 group-hover:scale-110`}>
+                    <ArrowRight className={`size-3 sm:size-3.5 ${accent}`} />
                   </div>
                 </button>
               )

@@ -338,11 +338,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         />
       </div>
 
-      {/* ── 2. CỤM NÚT THAO TÁC NHANH DƯỚI ĐÁY MÀN HÌNH (SÁT MÉP DƯỚI, CĂN GIỮA, CÁCH NHAU THÔNG THOÁNG) ── */}
+      {/* ── 2. CỤM NÚT THAO TÁC NHANH DƯỚI ĐÁY MÀN HÌNH (CĂN GIỮA, KHOẢNG CÁCH AN TOÀN VỚI PHÍM ĐIỀU HƯỚNG ANDROID) ── */}
       <div
         className={cn(
-          'snake-quick-actions absolute z-30 flex items-center justify-center gap-3.5 sm:gap-4.5 pointer-events-auto select-none transition-colors pb-[env(safe-area-inset-bottom,0px)]',
-          'bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2'
+          'snake-quick-actions absolute z-30 flex items-center justify-center gap-3 sm:gap-4 pointer-events-auto select-none transition-colors',
+          'bottom-3 sm:bottom-3.5 left-1/2 -translate-x-1/2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
         )}
         data-testid="snake-quick-actions"
       >
@@ -352,9 +352,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           title="Sảnh (Q)"
           aria-label="Sảnh"
           data-testid="nut-nhanh-sanh"
-          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+          className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-4 sm:size-4.5" />
         </button>
 
         <button
@@ -364,11 +364,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           aria-label="Cài đặt"
           data-testid="nut-che-do-choi"
           className={cn(
-            'size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150',
+            'size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150',
             isConfigOpen && 'border-emerald-400 bg-emerald-950/80',
           )}
         >
-          <Gamepad2 className="size-5" />
+          <Gamepad2 className="size-4 sm:size-4.5" />
         </button>
 
         <button
@@ -377,9 +377,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           title="Chơi lại (R)"
           aria-label="Chơi lại"
           data-testid="nut-nhanh-choi-lai"
-          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+          className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
-          <RotateCcw className="size-5" />
+          <RotateCcw className="size-4 sm:size-4.5" />
         </button>
 
         <button
@@ -388,9 +388,9 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           title="Trò chuyện (C)"
           aria-label="Trò chuyện"
           data-testid="nut-nhanh-chat"
-          className="size-9.5 sm:size-10 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+          className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
         >
-          <MessageSquare className="size-5" />
+          <MessageSquare className="size-4 sm:size-4.5" />
         </button>
       </div>
     </div>

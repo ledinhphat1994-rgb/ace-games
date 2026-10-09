@@ -57,9 +57,32 @@ export default function App() {
     }
   }
 
+  // Đoạn script tiêm trước khi nạp DOM để triệt tiêu 300ms touch delay, kích hoạt 120Hz mượt mà
+  const INJECTED_FAST_TOUCH_JS = `
+    (function() {
+      try {
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(
+          '* { -webkit-tap-highlight-color: transparent !important; } ' +
+          'html, body { touch-action: manipulation; -webkit-overflow-scrolling: touch; }'
+        ));
+        if (document.head) {
+          document.head.appendChild(style);
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            document.head.appendChild(style);
+          });
+        }
+      } catch (e) {}
+      true;
+    })();
+    true;
+  `
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar style="light" />
 
         <WebView
@@ -71,6 +94,7 @@ export default function App() {
           onLoadEnd={() => setIsLoading(false)}
           onError={() => setIsLoading(false)}
           onHttpError={() => setIsLoading(false)}
+          injectedJavaScriptBeforeContentLoaded={INJECTED_FAST_TOUCH_JS}
           // Bật tối đa tăng tốc phần cứng GPU (Hardware Acceleration)
           androidHardwareAccelerationDisabled={false}
           androidLayerType="hardware"
@@ -88,12 +112,19 @@ export default function App() {
           mediaPlaybackRequiresUserAction={false}
           javaScriptEnabled={true}
           keyboardDisplayRequiresUserAction={false}
-          // Tối ưu trải nghiệm cảm ứng và cuộn trang
+          // Tối ưu trải nghiệm cảm ứng và tốc độ phản hồi 60-120fps
           overScrollMode="never"
+          bounces={false}
+          pullToRefreshEnabled={false}
+          decelerationRate="normal"
+          directionalLockEnabled={true}
+          nestedScrollEnabled={true}
+          scrollEnabled={true}
           textZoom={100}
           scalesPageToFit={false}
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
+          allowsBackForwardNavigationGestures={true}
           // User Agent tối ưu Chrome Mobile
           applicationNameForUserAgent="DigitalCampusApp/1.0.0"
         />

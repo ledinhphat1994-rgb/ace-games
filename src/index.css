@@ -1207,6 +1207,21 @@ body { min-width: 280px; }
   }
 }
 
+/* Khung trò chuyện mobile dọc: Tận dụng trọn vẹn màn hình điện thoại, loại bỏ 100% khoảng đen thừa ở top và bot */
+@media (max-width: 639px) and (orientation: portrait) {
+  [data-slot="sheet-content"].campus-chat-sheet-root {
+    top: 6px !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 6px)) !important;
+    left: 6px !important;
+    right: 6px !important;
+    width: calc(100vw - 12px) !important;
+    height: calc(100svh - 12px) !important;
+    max-height: calc(100svh - 12px) !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+}
+
 
 /* Layout spacing, shadows and motion tokens */
 :root {
