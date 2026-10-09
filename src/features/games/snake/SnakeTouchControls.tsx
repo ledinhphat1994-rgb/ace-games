@@ -2,6 +2,7 @@ import { useRef, useState, type PointerEvent } from 'react'
 import { snakeKeyAngle } from './keyboard-steering'
 import { Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { triggerHaptic } from '@/lib/web-experience'
 
 export interface SnakeJoystickProps {
   player: 1 | 2
@@ -54,13 +55,14 @@ export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps
       aria-label={'Lái rắn P' + player}
       data-testid={'snake-joystick-p' + player}
       className={cn(
-        'relative flex size-24 sm:size-26 touch-none select-none items-center justify-center rounded-full border-2 bg-slate-950/80 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand backdrop-blur-sm ring-1 ring-white/10 active:border-brand/70 transition-colors',
+        'relative flex size-24 sm:size-26 min-w-[48px] min-h-[48px] touch-none select-none items-center justify-center rounded-full border-2 bg-slate-950/80 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand backdrop-blur-sm ring-1 ring-white/10 active:border-brand/70 transition-colors',
         player === 1 ? 'border-brand/50' : 'border-rose-400/50',
         className,
       )}
       onPointerDown={(e) => {
         if (pointer.current !== null) return
         pointer.current = e.pointerId
+        triggerHaptic('selection')
         rectRef.current = e.currentTarget.getBoundingClientRect()
         e.currentTarget.setPointerCapture(e.pointerId)
         move(e)
@@ -110,7 +112,7 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       data-testid={'snake-boost-p' + player}
       className={cn(
         'flex touch-none items-center justify-center rounded-full border-2 shadow-2xl outline-none transition-colors duration-150 cursor-pointer select-none active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-300 backdrop-blur-sm ring-1 ring-white/10',
-        isLarge ? 'size-24 sm:size-26' : 'size-13',
+        isLarge ? 'size-24 sm:size-26 min-w-[48px] min-h-[48px]' : 'size-13 min-w-[48px] min-h-[48px]',
         boosting
           ? 'border-amber-300 bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 shadow-[0_0_28px_rgba(251,191,36,0.8)] scale-95'
           : 'border-amber-400/60 bg-slate-950/85 text-amber-300 hover:bg-slate-900 hover:border-amber-300 active:border-amber-300',
@@ -118,6 +120,7 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       )}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
+        triggerHaptic('medium')
         setBoosting(true)
         onBoost(true)
       }}
@@ -127,6 +130,7 @@ export function SnakeBoostButton({ player, onBoost, className, size = 'normal' }
       onKeyDown={(e) => {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault()
+          triggerHaptic('medium')
           setBoosting(true)
           onBoost(true)
         }
@@ -148,7 +152,7 @@ export interface SnakeTouchControlsProps {
 
 export function SnakeTouchControls({ player, onSteer, onBoost, className }: SnakeTouchControlsProps) {
   return (
-    <div className={cn('flex flex-col items-center gap-2', className)} data-testid={'snake-touch-p' + player}>
+    <div className={cn('flex flex-col items-center gap-2.5 sm:gap-3', className)} data-testid={'snake-touch-p' + player}>
       <SnakeBoostButton player={player} onBoost={onBoost} />
       <SnakeJoystick player={player} onSteer={onSteer} />
     </div>

@@ -1,6 +1,6 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles, Pause } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
@@ -470,6 +470,7 @@ export interface Wormate3DArenaProps {
   onHuyPhong?: () => void
   isConfigOpen?: boolean
   onCloseConfig?: () => void
+  onOpenConfig?: () => void
   accessMode?: 'public' | 'private'
   onAccessModeChange?: (mode: 'public' | 'private') => void
   roomPassword?: string
@@ -506,6 +507,7 @@ export function Wormate3DArena({
   onHuyPhong,
   isConfigOpen = false,
   onCloseConfig,
+  onOpenConfig,
   accessMode = 'public',
   onAccessModeChange,
   roomPassword = '',
@@ -547,6 +549,8 @@ export function Wormate3DArena({
   const [playerStats, setPlayerStats] = useState({ score: 0, length: INITIAL_SEGMENT_COUNT })
   const [roundResult, setRoundResult] = useState<{ restartKey: number; winner: boolean; reason: string } | null>(null)
   const finalResult = roundResult?.restartKey === restartKey ? roundResult : null
+  const [localConfigOpen, setLocalConfigOpen] = useState(false)
+  const isPauseOrConfigOpen = isConfigOpen || localConfigOpen
 
   // Trạng thái Vòng bo đếm ngược (Battle Royale Safe Zone)
   const [safeZoneHud, setSafeZoneHud] = useState<{ phase: number; countdown: number; isShrinking: boolean }>({
@@ -2076,6 +2080,26 @@ export function Wormate3DArena({
         aria-label="Đấu trường Rắn săn mồi"
       />
 
+      {/* VÙNG ĐỎ (Đỉnh màn hình - 20%): Nút Tạm dừng bán trong suốt (opacity 50%) theo chuẩn Minimalist HUD */}
+      {isRunning && !isGameOver && (
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('selection')
+            if (onOpenConfig) {
+              onOpenConfig()
+            } else {
+              setLocalConfigOpen(true)
+            }
+          }}
+          title="Tạm dừng / Cài đặt"
+          aria-label="Tạm dừng"
+          className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-10 flex items-center justify-center size-8 sm:size-9 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/15 text-slate-300 hover:text-white opacity-50 hover:opacity-100 active:opacity-100 active:scale-95 transition-opacity cursor-pointer shadow-md pointer-events-auto"
+        >
+          <Pause className="size-4 text-slate-200" />
+        </button>
+      )}
+
       {/* VÙNG 3: BẢNG XẾP HẠNG GÓC PHẢI (TRÊN MOBILE DỌC NẰM DƯỚI HUD TRÁNH CHỒNG CHÉO, SM+ NẰM TRÊN CÙNG) */}
       <div
         className={cn(
@@ -2278,7 +2302,7 @@ export function Wormate3DArena({
       )}
 
       {/* Màn cấu hình / sẵn sàng: PvE hoặc PvP — Cố định 100% kích thước và vị trí toạ độ khi cấu hình */}
-      {((!isRunning && !isGameOver) || isConfigOpen) && (
+      {((!isRunning && !isGameOver) || isPauseOrConfigOpen) && (
         <div
           data-testid="ran-man-san-sang"
           className="absolute inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs select-none"
@@ -2524,10 +2548,14 @@ export function Wormate3DArena({
 
             {/* Footer CTA: Cố định h-11 tại đáy card, cách xa phần trên */}
             <div className="pt-2 h-11 shrink-0">
-              {isRunning && onCloseConfig ? (
+              {isRunning && (onCloseConfig || localConfigOpen) ? (
                 <button
                   type="button"
-                  onClick={onCloseConfig}
+                  onClick={() => {
+                    triggerHaptic('selection')
+                    setLocalConfigOpen(false)
+                    onCloseConfig?.()
+                  }}
                   className="w-full h-11 rounded-xl border-2 border-emerald-500 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
                 >
                   <Play className="size-4 fill-current" />

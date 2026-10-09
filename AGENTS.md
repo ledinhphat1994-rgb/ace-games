@@ -165,6 +165,26 @@ NEED: <thứ cần quyết định>
   * Kích thước tương tác tối thiểu >= 40px trên desktop, >= 44px trên mobile touch.
   * Tương phản văn bản cao, nhãn dễ tiếp cận, không đổi cấu trúc DOM đột ngột gây giật khung hình (Zero CLS).
 
+## 14. Quy tắc Công Thái Học, Vòng Lặp Phản Hồi 3 Giác Quan & Gamification Game (Game Ergonomics & Gamification UX)
+- **Công thái học & Vùng chạm ngón cái (Thumb-Zone 3 tầng):**
+  * Vùng xanh (Dưới cùng - 40% màn hình): 100% nút tương tác chính trong gameplay và CTA ("Bắt đầu", "Nhận thưởng").
+  * Vùng vàng (Giữa màn hình - 40%): Không gian hiển thị bàn cờ / sân đấu / trò chơi.
+  * Vùng đỏ (Đỉnh màn hình - 20%): Thông tin thụ động (thanh máu, level, vàng, kim cương, Cài đặt/Tạm dừng).
+  * Kích thước điểm chạm tối thiểu >= 48x48dp (Android) / 44x44pt (iOS), khoảng cách an toàn giữa 2 nút >= 8-12px, tôn trọng Safe Area >= 16-24px.
+- **Tối giản giao diện trong trận đấu (Minimalist HUD & Progressive Disclosure):**
+  * Trong ván game: Ẩn hoàn toàn thanh menu/điều hướng/nhiệm vụ. Giữ lại điểm số và nút tạm dừng bán trong suốt (opacity 50%).
+  * Tiết lộ lũy tiến: Cấp 1-3 chỉ thấy "Chơi ngay" và "Nhiệm vụ hàng ngày". Tính năng nâng cao mở dần theo cấp độ.
+  * Quy tắc 3 chạm để chơi: Dưới 3 lần chạm & dưới 4 giây từ khi mở app vào ván, không popup chặn liên tiếp.
+- **Vòng lặp phản hồi 3 giác quan (< 100ms):**
+  * Thị giác: Scale 0.95 -> 1.0, số điểm bay lên (+10 XP) kèm hiệu ứng hạt vỡ vụn nhẹ.
+  * Âm thanh: Click sắc gọn khi bấm nút, ting thanh thoát khi nhận thưởng, âm thanh chiến thắng hào hùng (`playUiTapSound`, `playMatchFoundSound`, `playVictoryConfettiSound`).
+  * Xúc giác: Rung nhẹ khi chạm nút thường (`selection`), rung nảy khi ăn điểm/trúng (`medium`), rung nhịp kép mạnh mẽ khi lên cấp/mở rương (`success`).
+- **Gamification UX:**
+  * Dynamic XP Bar: Đặt ngay góc trên/màn hình chính, chạy đầy từ trái sang phải, nhấp nháy phát sáng khi gần đầy (>= 80%) kích thích tâm lý "cố thêm 1 ván nữa để lên cấp".
+  * Celebration Screen: Mờ nền, huy hiệu xoay tia sáng, nút lớn duy nhất "Tuyệt vời / Tiếp tục".
+  * Streak Tracker: Hiển thị ngày liên tục kèm biểu tượng ngọn lửa rực sáng, cảnh báo cam nổi bật khi sắp hết ngày (trước 24:00).
+- **Quảng cáo & Độ tương phản:** Nút xem quảng cáo tách biệt hẳn nút chơi lại/thoát ván, minh bạch giá trị (+1 Tim, x2 XP); tương phản >= 4.5:1, Dark Mode mặc định.
+
 ## Mandatory UI/UX constitution
 
 Before modifying any UI/UX, frontend layout, responsive behavior,

@@ -307,6 +307,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           onHuyPhong={handleHuyPhong}
           isConfigOpen={isConfigOpen}
           onCloseConfig={() => setIsConfigOpen(false)}
+          onOpenConfig={() => setIsConfigOpen(true)}
           realPlayerCount={soNguoiThat}
           pvpTargetCount={pvpTargetCount}
           onPvpTargetCountChange={(count) => {
