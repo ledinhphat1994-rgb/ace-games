@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView, type WebViewNavigation } from 'react-native-webview'
+import * as Haptics from 'expo-haptics'
 
 const WEB_URL = 'https://gdtxdinhquan.com'
 
@@ -18,6 +19,38 @@ export default function App() {
   const webViewRef = useRef<any>(null)
   const [canGoBack, setCanGoBack] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Xử lý thông điệp từ Web Game gửi lên Native Shell qua Native Bridge
+  const handleWebViewMessage = useCallback((event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data)
+      if (data.type === 'haptic') {
+        switch (data.pattern) {
+          case 'selection':
+            Haptics.selectionAsync().catch(() => {})
+            break
+          case 'light':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+            break
+          case 'medium':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+            break
+          case 'heavy':
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {})
+            break
+          case 'success':
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+            break
+          case 'warning':
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {})
+            break
+          case 'error':
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {})
+            break
+        }
+      }
+    } catch {}
+  }, [])
 
   // Khóa an toàn: Tự động tắt loading splash sau tối đa 2.2 giây để không bao giờ bị kẹt
   useEffect(() => {
@@ -94,6 +127,7 @@ export default function App() {
           onLoadEnd={() => setIsLoading(false)}
           onError={() => setIsLoading(false)}
           onHttpError={() => setIsLoading(false)}
+          onMessage={handleWebViewMessage}
           injectedJavaScriptBeforeContentLoaded={INJECTED_FAST_TOUCH_JS}
           domStorageEnabled={true}
           javaScriptEnabled={true}

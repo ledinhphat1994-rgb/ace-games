@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
+import { triggerHaptic } from '@/lib/web-experience'
 
 const ARENA_SIZE = 7200
 const INITIAL_SEGMENT_COUNT = 18
@@ -423,12 +424,18 @@ function drawBush(ctx: CanvasRenderingContext2D, bush: Bush, time: number) {
   ctx.restore()
 }
 
-// Bộ phát âm thanh Web Audio Synthesizer tập trung
+// Bộ phát âm thanh Web Audio Synthesizer tập trung + Haptic feedback
 function playWormSound(type: 'nom' | 'bonus' | 'boost' | 'crash', muted: boolean) {
-  if (muted) return
-  if (type === 'nom') snakeAudio.playNom()
-  else if (type === 'bonus') snakeAudio.playSuperNom()
-  else if (type === 'crash') snakeAudio.playCrash()
+  if (type === 'nom') {
+    triggerHaptic('selection')
+    if (!muted) snakeAudio.playNom()
+  } else if (type === 'bonus') {
+    triggerHaptic('medium')
+    if (!muted) snakeAudio.playSuperNom()
+  } else if (type === 'crash') {
+    triggerHaptic('error')
+    if (!muted) snakeAudio.playCrash()
+  }
 }
 
 

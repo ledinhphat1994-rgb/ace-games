@@ -6,20 +6,38 @@ import { toast } from 'sonner'
  * Rung phản hồi xúc giác nhẹ nhàng trên thiết bị di động (Android / iOS hỗ trợ)
  * Hoàn toàn an toàn, tự động bỏ qua nếu trình duyệt không hỗ trợ.
  */
-export type HapticType = 'light' | 'medium' | 'success' | 'warning'
+export type HapticType = 'selection' | 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error'
 
 const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
-  light: 10,
-  medium: 22,
-  success: [12, 35, 18],
-  warning: [25, 40, 25],
+  selection: 8,
+  light: 15,
+  medium: 30,
+  heavy: 55,
+  success: [20, 35, 25],
+  warning: [30, 25, 30],
+  error: [50, 35, 50],
 }
 
 export function triggerHaptic(type: HapticType = 'light'): void {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return
+  if (typeof window === 'undefined') return
+
+  // 1. Gửi lệnh rung trực tiếp xuống Native Shell (Expo Native App)
+  if (window.ReactNativeWebView?.postMessage) {
+    try {
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: 'haptic',
+          pattern: type,
+        })
+      )
+      return
+    } catch {}
+  }
+
+  // 2. Fallback nếu đang chạy trên Trình duyệt Web di động (navigator.vibrate)
   try {
-    if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(HAPTIC_PATTERNS[type])
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(HAPTIC_PATTERNS[type] ?? 15)
     }
   } catch {}
 }

@@ -23,6 +23,7 @@ import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguo
 import { layHoSoNguoiDung } from '@/lib/api'
 import { tinhLevel } from '@/features/games/GameLeaderboard'
 import { cn } from '@/lib/utils'
+import { triggerHaptic } from '@/lib/web-experience'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameDrawModal } from '../GameDrawModal'
@@ -98,6 +99,12 @@ function xaoBai(): CardItem[] {
 }
 
 function playSound(type: 'flip' | 'match' | 'miss' | 'win' | 'lose', muted: boolean) {
+  if (type === 'flip') triggerHaptic('selection')
+  else if (type === 'match') triggerHaptic('success')
+  else if (type === 'miss') triggerHaptic('light')
+  else if (type === 'win') triggerHaptic('success')
+  else if (type === 'lose') triggerHaptic('error')
+
   if (muted || typeof window === 'undefined') return
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()

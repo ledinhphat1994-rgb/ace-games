@@ -73,6 +73,7 @@ export function playGameOverSound(result: 'win' | 'lose' | 'draw'): void {
     const now = ctx.currentTime
 
     if (result === 'win') {
+      triggerHaptic('success')
       // Victory Fanfare: C5 -> E5 -> G5 -> C6 (ascending bright arpeggio)
       const freqs = [523.25, 659.25, 783.99, 1046.5]
       freqs.forEach((freq, idx) => {
@@ -88,6 +89,7 @@ export function playGameOverSound(result: 'win' | 'lose' | 'draw'): void {
         osc.stop(now + idx * 0.1 + 0.35)
       })
     } else if (result === 'lose') {
+      triggerHaptic('error')
       // Defeat Chime: F4 -> Eb4 -> D4 -> C4 (gentle melancholic descending notes)
       const freqs = [349.23, 311.13, 293.66, 261.63]
       freqs.forEach((freq, idx) => {

@@ -61,7 +61,7 @@ import {
   playGameStartSound,
   playCheckAlertSound,
 } from '../game-audio'
-import { useScreenWakeLock } from '@/lib/web-experience'
+import { useScreenWakeLock, triggerHaptic } from '@/lib/web-experience'
 
 // --- 1. HỆ THỐNG ÂM THANH CỜ TƯỚNG CHUẨN CC0 INTERNET + WEB AUDIO FALLBACK ---
 class WebAudioSoundEngine {
@@ -160,22 +160,27 @@ class XiangqiSoundEngine {
   }
 
   playMove() {
+    triggerHaptic('light')
     this.playSound(this.moveAudio, () => this.webAudioFallback.playMove())
   }
 
   playCapture() {
+    triggerHaptic('medium')
     this.playSound(this.captureAudio, () => this.webAudioFallback.playCapture())
   }
 
   playCheck() {
+    triggerHaptic('warning')
     this.playSound(this.checkAudio, () => playCheckAlertSound())
   }
 
   playVictory() {
+    triggerHaptic('success')
     this.playSound(this.winAudio, () => playGameOverSound('win'))
   }
 
   playDefeat() {
+    triggerHaptic('error')
     this.playSound(this.loseAudio, () => playGameOverSound('lose'))
   }
 }
