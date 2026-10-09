@@ -81,8 +81,9 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <HomePage /> },
-          { path: 'home', element: <HomePage /> },
+          { index: true, element: <Navigate to="/arena" replace /> },
+          { path: 'home', element: <Navigate to="/arena" replace /> },
+          { path: 'homepage', element: <HomePage /> },
           { path: 'learn', element: <LearningPage /> },
           { path: 'learning', element: <Navigate to="/learn" replace /> },
           { path: 'arena', element: <GameArenaPage /> },
