@@ -206,7 +206,7 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
       aria-label="Đấu trường game Digital Campus"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative w-full min-h-[220px] sm:min-h-[300px] lg:min-h-[380px] flex flex-col justify-center overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-amber-400/35 bg-[#081226] shadow-[0_0_35px_rgba(245,158,11,0.2)] group select-none"
+      className="relative w-full min-h-[350px] sm:min-h-[420px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/30 bg-[#081226] shadow-[0_0_40px_rgba(245,158,11,0.18)] group select-none"
     >
       {BANNER_SLIDES.map((slide, idx) => {
         const isCurrent = idx === slideIndex
@@ -222,36 +222,30 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
               <img
                 src={slide.bgImage}
                 alt={slide.title}
-                className="h-full w-full object-cover object-right opacity-90 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+                className="h-full w-full object-cover object-center lg:object-right opacity-85 lg:opacity-90 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
               />
               <div className={cn('absolute inset-0 bg-gradient-to-r', slide.gradient)} />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#081226]/95 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#071126] via-[#071126]/85 via-45% to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#081226] via-[#081226]/80 to-transparent" />
             </div>
 
-            <div className="relative z-10 p-3.5 sm:p-8 lg:p-14 pb-8 sm:pb-12 lg:pb-14 max-w-3xl">
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 sm:px-4 sm:py-1.5 text-[10px] sm:text-xs font-black tracking-wider text-amber-300 mb-1.5 sm:mb-4 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
-                <span className="size-1.5 sm:size-2 rounded-full bg-amber-400 animate-pulse" />
-                <span>{slide.badge}</span>
+            <div className="relative z-10 p-6 sm:p-12 lg:p-16 pb-12 sm:pb-14 lg:pb-16 max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-bold text-amber-400 backdrop-blur-md mb-3 sm:mb-4 shadow-sm">
+                <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="tracking-wider uppercase">{slide.badge}</span>
               </div>
 
-              <h1 className="text-lg sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.2] drop-shadow-md">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-md">
                 {slide.title}
               </h1>
 
-              {/* Ẩn đoạn mô tả dài trên mobile để triệt tiêu hoàn toàn hiện tượng chồng chéo nội dung */}
-              <p className="hidden sm:block mt-2 sm:mt-3 text-xs sm:text-base text-slate-200 leading-relaxed max-w-2xl">
+              <p className="mt-2.5 sm:mt-3 text-xs sm:text-base text-slate-300 leading-relaxed max-w-2xl line-clamp-2 sm:line-clamp-none">
                 {slide.desc}
               </p>
 
-              <div className="mt-2.5 sm:mt-5 flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-amber-400/30 bg-[#0c1527]/90 text-[10px] sm:text-xs text-amber-300 font-bold shadow-xs">
-                  <Sword className="size-3 sm:size-3.5 text-amber-400" />
-                  <span>Đấu trường 1v1 & Solo</span>
-                </div>
-                <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-sky-400/30 bg-[#0c1527]/90 text-[10px] sm:text-xs text-sky-300 font-bold shadow-xs">
-                  <Trophy className="size-3 sm:size-3.5 text-sky-400" />
-                  <span>Xếp hạng thời gian thực</span>
-                </div>
+              <div className="mt-4 sm:mt-6 flex items-center gap-2 text-xs sm:text-sm text-slate-300">
+                <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Đấu trường 1v1 & Solo · Xác thực máy chủ thời gian thực</span>
               </div>
             </div>
           </div>
@@ -259,16 +253,16 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
       })}
 
       {/* Nút điều hướng Carousel (Prev/Next & Dots) đặt an toàn góc dưới bên phải */}
-      <div className="absolute bottom-2.5 sm:bottom-4 right-3 sm:right-6 z-20 flex items-center gap-1.5 sm:gap-2">
+      <div className="absolute bottom-3 sm:bottom-6 right-3 sm:right-6 z-20 flex items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={() => setSlideIndex((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}
           aria-label="Banner trước"
-          className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-amber-400/30 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-200 hover:text-white transition-all cursor-pointer shadow-md"
+          className="size-7 sm:size-8 flex items-center justify-center rounded-full border border-amber-400/30 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-200 hover:text-white transition-all cursor-pointer shadow-md"
         >
-          <ChevronLeft className="size-3.5 sm:size-4" />
+          <ChevronLeft className="size-4" />
         </button>
-        <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-full bg-[#0c1527]/80 border border-amber-400/30 shadow-md">
+        <div className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-full bg-[#0c1527]/80 border border-amber-400/30 shadow-md">
           {BANNER_SLIDES.map((_, idx) => (
             <button
               key={idx}
@@ -288,9 +282,9 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
           type="button"
           onClick={() => setSlideIndex((prev) => (prev + 1) % BANNER_SLIDES.length)}
           aria-label="Banner tiếp theo"
-          className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-amber-400/30 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-200 hover:text-white transition-all cursor-pointer shadow-md"
+          className="size-7 sm:size-8 flex items-center justify-center rounded-full border border-amber-400/30 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-200 hover:text-white transition-all cursor-pointer shadow-md"
         >
-          <ChevronRight className="size-3.5 sm:size-4" />
+          <ChevronRight className="size-4" />
         </button>
       </div>
     </section>
@@ -1173,7 +1167,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Carousel tự chạy cho Hero Banner (Tách riêng component memo để tránh re-render toàn bộ 30+ phòng khi đổi slide)
   return (
-    <div className="pb-4 lg:pb-8 space-y-3.5 sm:space-y-6">
+    <div className="pb-6 lg:pb-10 space-y-5 sm:space-y-8">
       {/* 1. Hero Banner Sảnh trò chơi (Chuẩn màu Sky/Blue, không dùng tím/hồng) */}
       <GameLobbyHeroBanner />
 
@@ -1181,17 +1175,17 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       <GamingLevelBar />
 
       {/* Sảnh trực tiếp cho tất cả các game */}
-      <div className="space-y-3.5 sm:space-y-6 min-w-0">
+      <div className="space-y-5 sm:space-y-8 min-w-0">
         {/* ── Khu vực chính: Phòng game trực tuyến ── */}
-        <div className="space-y-3.5 sm:space-y-6 min-w-0">
+        <div className="space-y-5 sm:space-y-8 min-w-0">
           {/* VÙNG 3: SẢNH CHUNG TRỰC TIẾP CHO TẤT CẢ CÁC GAME (Không qua sảnh riêng) */}
-          <section aria-label="Sảnh phòng game trực tuyến" className="space-y-2.5 sm:space-y-4">
+          <section aria-label="Sảnh phòng game trực tuyến" className="space-y-3.5 sm:space-y-5">
             {/* Header & Cụm hành động */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
-                  <h2 className="text-base sm:text-lg font-bold text-text-primary">
+                  <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
                     Phòng game trực tuyến
                   </h2>
                 </div>
@@ -1200,8 +1194,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   <Button
                     data-testid="create-table-btn"
                     size="sm"
-                    onClick={canDangNhap(() => { playUiTapSound(); setMoTaoBanModal(true) })}
-                    className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer shrink-0"
+                    onClick={canDangNhap(() => {
+                      playUiTapSound()
+                      if (!tenPhongMoi.trim()) {
+                        setTenPhongMoi(`Bàn đấu #${Math.floor(Math.random() * 89) + 11}`)
+                      }
+                      setMoTaoBanModal(true)
+                    })}
+                    className="h-8.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer shrink-0"
                   >
                     <Plus className="size-3.5 mr-1 stroke-[3]" />
                     <span>Tạo bàn</span>
@@ -1220,7 +1220,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     value={tuKhoa}
                     onChange={(e) => setTuKhoa(e.target.value)}
                     placeholder="Tìm số phòng, tên game..."
-                    className="w-full h-8 pl-8 pr-7 rounded-lg border border-slate-800 bg-[#0c1527] text-xs text-text-primary placeholder:text-text-tertiary focus:border-amber-400 focus:outline-hidden"
+                    className="w-full h-8.5 pl-8 pr-7 rounded-xl border border-slate-800 bg-[#0c1527] text-xs text-text-primary placeholder:text-text-tertiary focus:border-amber-400 focus:outline-hidden"
                   />
                   {tuKhoa && (
                     <button
@@ -1251,7 +1251,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     }
                     setMoPopupChoiNgay(true)
                   }}
-                  className="h-8 px-2.5 sm:px-3 rounded-lg border-amber-400/40 bg-[#0c1527] text-xs font-bold text-amber-300 cursor-pointer hover:bg-amber-500/10 gap-1.5 select-none active:scale-95 transition-all shrink-0"
+                  className="h-8.5 px-3 rounded-xl border-amber-400/40 bg-[#0c1527] text-xs font-bold text-amber-300 cursor-pointer hover:bg-amber-500/10 gap-1.5 select-none active:scale-95 transition-all shrink-0"
                   title={
                     cacGameGhiNho.length > 0
                       ? `Chơi ngay: ${cacGameGhiNho.map((g) => GAME_CATALOG_BY_ID[g]?.shortTitle || g).join(', ')} • Bấm giữ để chọn game`
@@ -1274,7 +1274,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     variant="outline"
                     size="sm"
                     onClick={canDangNhap(datLaiTatCaPhong)}
-                    className="h-8 px-2 rounded-lg border-border-default/80 hover:bg-surface-raised text-text-tertiary hover:text-amber-400 text-xs font-semibold cursor-pointer gap-1 transition-colors shrink-0 hidden sm:inline-flex"
+                    className="h-8.5 px-2.5 rounded-xl border-border-default/80 hover:bg-surface-raised text-text-tertiary hover:text-amber-400 text-xs font-semibold cursor-pointer gap-1 transition-colors shrink-0 hidden sm:inline-flex"
                     title="Xóa tất cả phòng test để làm sạch sảnh"
                   >
                     <RotateCcw className="size-3.5" />
@@ -1286,8 +1286,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   <Button
                     data-testid="create-table-btn"
                     size="sm"
-                    onClick={canDangNhap(() => { playUiTapSound(); setMoTaoBanModal(true) })}
-                    className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer"
+                    onClick={canDangNhap(() => {
+                      playUiTapSound()
+                      if (!tenPhongMoi.trim()) {
+                        setTenPhongMoi(`Bàn đấu #${Math.floor(Math.random() * 89) + 11}`)
+                      }
+                      setMoTaoBanModal(true)
+                    })}
+                    className="h-8.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer"
                   >
                     <Plus className="size-3.5 mr-1 stroke-[3]" />
                     <span>Tạo bàn đấu</span>
@@ -1435,12 +1441,17 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* ── Dialog tạo bàn đấu mới trực tiếp (Card luôn cố định kích thước, đúng chuẩn thiết kế mockup) ── */}
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
-          className="sm:max-w-[520px] w-[calc(100vw-2rem)] max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary card-side-glow"
+          className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:max-h-[88svh] sm:max-w-[520px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
         >
-          <DialogHeader className="shrink-0 pb-2.5 mb-1.5 border-b border-slate-800/80">
-            <DialogTitle className="text-lg font-bold text-white flex items-center gap-2.5">
-              <div className="size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
-                <Sword className="size-4.5" />
+          {/* Thanh gạt vuốt (Swipe handle) chuẩn mobile */}
+          <div className="sm:hidden flex justify-center pb-2 pt-0.5 -mt-1 cursor-grab">
+            <div className="w-12 h-1.5 rounded-full bg-slate-700/80" />
+          </div>
+
+          <DialogHeader className="shrink-0 pb-2 mb-1.5 border-b border-slate-800/80">
+            <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2.5">
+              <div className="size-7 sm:size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
+                <Sword className="size-4 sm:size-4.5" />
               </div>
               <span>Tạo bàn đấu</span>
             </DialogTitle>
