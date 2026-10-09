@@ -133,7 +133,7 @@ const PLATFORM_DEFAULT_STUDY_ROOMS: PhongSanh[] = [
 const LEARNING_BANNER_SLIDES = [
   {
     id: 'lobby',
-    badge: 'PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN',
+    badge: 'PHÒNG HỌC TRỰC TUYẾN • ACE GAMES',
     title: 'Sảnh Học Tập Trực Tuyến',
     desc: 'Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.',
     bgImage: '/assets/banners/learning_hero_cyber.webp',

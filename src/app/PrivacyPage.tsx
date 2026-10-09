@@ -28,12 +28,12 @@ export function PrivacyPage() {
         <header className="space-y-4">
           <div className="flex items-center gap-2.5 select-none">
             <DigitalCampusLogo size="sm" />
-            <span className="text-xs font-semibold tracking-wider text-text-tertiary uppercase">Digital Campus · GDTX Định Quán</span>
+            <span className="text-xs font-semibold tracking-wider text-text-tertiary uppercase">Ace Games</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">Chính sách bảo mật</h1>
           <p className="text-xs text-text-tertiary">Cập nhật: {NGAY_CAP_NHAT}</p>
           <p className="text-sm leading-relaxed text-text-secondary">
-            Digital Campus (gdtxdinhquan.com) là nền tảng học tập trực tuyến của GDTX Định Quán. Trang này cho biết chúng tôi thu thập
+            Ace Games là nền tảng game đối kháng và giải trí trực tuyến. Trang này cho biết chúng tôi thu thập
             những dữ liệu nào, dùng để làm gì, ai có thể xem và bạn có những quyền gì với dữ liệu của mình.
           </p>
         </header>
@@ -126,7 +126,7 @@ export function PrivacyPage() {
         </Muc>
 
         <Muc tieuDe="8. Liên hệ">
-          <p>Mọi câu hỏi về dữ liệu cá nhân, vui lòng liên hệ giáo viên chủ nhiệm hoặc quản trị viên website Digital Campus · GDTX Định Quán.</p>
+          <p>Mọi câu hỏi về dữ liệu cá nhân, vui lòng liên hệ ban quản trị website Ace Games.</p>
         </Muc>
 
         <Link
@@ -134,7 +134,7 @@ export function PrivacyPage() {
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
         >
           <ArrowLeft className="size-4" />
-          Về Digital Campus
+          Về Ace Games
         </Link>
       </article>
     </div>

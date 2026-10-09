@@ -232,7 +232,7 @@ export function LeaderboardPage() {
         <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
           <img
             src="/assets/banners/leaderboard_hero_cyber.webp"
-            alt="Bảng xếp hạng Digital Campus"
+            alt="Bảng xếp hạng Ace Games"
             loading="eager"
             decoding="async"
             className="w-full h-full object-cover object-center opacity-85 lg:opacity-90"

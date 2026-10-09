@@ -194,7 +194,7 @@ export function AuthModal({
           <div className="flex items-center gap-2.5 select-none mb-1">
             <DigitalCampusLogo size="sm" />
             <span className="text-xs font-bold tracking-wider uppercase text-text-tertiary">
-              Digital Campus
+              Ace Games
             </span>
           </div>
 
@@ -204,7 +204,7 @@ export function AuthModal({
             {mode === 'quen_mat_khau' && 'Khôi phục mật khẩu'}
           </DialogTitle>
           <DialogDescription className="text-xs leading-relaxed text-text-secondary">
-            {mode === 'dang_nhap' && 'Vào phòng học, thi đấu game và kết nối bạn bè toàn trường.'}
+            {mode === 'dang_nhap' && 'Vào phòng, thi đấu game và kết nối bạn bè trực tuyến.'}
             {mode === 'dang_ky' && 'Đăng ký nhanh chóng chỉ trong vài giây, hoàn toàn miễn phí.'}
             {mode === 'quen_mat_khau' && 'Nhận mã 6 số để thiết lập mật khẩu mới cho tài khoản của bạn.'}
           </DialogDescription>

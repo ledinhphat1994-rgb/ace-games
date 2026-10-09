@@ -108,8 +108,8 @@ export interface ShareOptions {
 }
 
 export async function shareCampusLink(options: ShareOptions): Promise<boolean> {
-  const title = options.title ?? 'Digital Campus'
-  const text = options.text ?? 'Tham gia cùng mình trên Digital Campus!'
+  const title = options.title ?? 'Ace Games'
+  const text = options.text ?? 'Tham gia cùng mình trên Ace Games!'
   const url = options.url ?? (typeof window !== 'undefined' ? window.location.href : '')
   const successMessage = options.successMessage ?? 'Đã sao chép liên kết vào bộ nhớ tạm!'
 

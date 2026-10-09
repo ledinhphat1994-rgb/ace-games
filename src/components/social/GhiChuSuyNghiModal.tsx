@@ -260,7 +260,7 @@ export function GhiChuSuyNghiModal({
         {/* Footer */}
         <footer className="px-4 py-2 border-t border-border-subtle bg-surface-raised/40 text-center shrink-0">
           <p className="text-[10px] text-text-tertiary leading-tight">
-            Bạn bè và người trong trường có thể xem ghi chú của bạn trên Digital Campus trong 24 giờ.
+            Bạn bè có thể xem ghi chú của bạn trên Ace Games trong 24 giờ.
           </p>
         </footer>
       </div>

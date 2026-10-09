@@ -255,8 +255,8 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
           )
         })}
 
-        {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) đặt góc dưới bên phải an toàn ── */}
-        <div className="absolute bottom-2.5 sm:bottom-4 right-3 sm:right-6 z-20 flex items-center gap-1.5 sm:gap-2">
+        {/* ── Dấu chấm điều hướng (Pagination Dots) đặt chính giữa cạnh dưới banner ── */}
+        <div className="absolute bottom-2.5 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setSlideIndex((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}
@@ -563,7 +563,7 @@ export function HomePage() {
                   </span>
                 </div>
                 <p className="text-[11px] text-text-secondary leading-relaxed">
-                  Vòng loại tuần 1 Đấu trường Game Digital Campus.
+                  Vòng loại tuần 1 Đấu trường Ace Games.
                 </p>
                 <div className="flex items-center justify-end gap-1.5 text-[11px] text-sky-400 font-medium pt-1">
                   <Clock className="size-3 shrink-0" />

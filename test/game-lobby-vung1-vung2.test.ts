@@ -16,12 +16,12 @@ describe('Game Lobby App Icon Grid 2 Hàng & Tạo Phòng Theo Game (User Reques
       expect(gameLobbyRaw).toContain('<Users')
     })
 
-    it('xếp các game thành 2 hàng cố định không kéo ngang, kích thước icon app squircle chuẩn Hình 1', () => {
-      // Kích thước icon chuẩn squircle như Hình 1 (size-14 sm:size-16 rounded-2xl)
-      expect(gameLobbyRaw).toContain('size-14 sm:size-16')
-      expect(gameLobbyRaw).toContain('rounded-2xl')
-      // Lưới 3 cột x 2 hàng không còn thanh trượt ngang
-      expect(gameLobbyRaw).toContain('grid grid-cols-3')
+    it('xếp các game thành 2 cột, kích thước icon app squircle to rõ chuẩn yêu cầu mới', () => {
+      // Kích thước icon to rõ (size-20 sm:size-24 rounded-3xl)
+      expect(gameLobbyRaw).toContain('size-20 sm:size-24')
+      expect(gameLobbyRaw).toContain('rounded-3xl')
+      // Lưới 2 cột để logo được to theo yêu cầu
+      expect(gameLobbyRaw).toContain('grid grid-cols-2')
       // Không còn cuộn kéo ngang carouselRef hay cursor-grab
       expect(gameLobbyRaw).not.toContain('cursor-grab active:cursor-grabbing')
       expect(gameLobbyRaw).not.toContain('carouselRef')

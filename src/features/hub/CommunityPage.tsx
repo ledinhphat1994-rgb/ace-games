@@ -1147,9 +1147,9 @@ export function CommunityPage() {
               <div className="flex size-12 mx-auto items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400">
                 <User className="size-6" />
               </div>
-              <h3 className="text-sm font-bold text-text-primary">Tham gia Digital Campus</h3>
+              <h3 className="text-sm font-bold text-text-primary">Tham gia Ace Games</h3>
               <p className="text-xs text-text-secondary leading-relaxed">
-                Đăng nhập để xem danh bạ bạn học, trạng thái trực tuyến và nhận huy hiệu tiến trình học tập.
+                Đăng nhập để xem danh bạ bạn bè, trạng thái trực tuyến và nhận huy hiệu thành tích.
               </p>
               <Button
                 onClick={() => moAuthModal('dang_nhap')}

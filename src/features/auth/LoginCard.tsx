@@ -12,11 +12,11 @@ import { toast } from 'sonner'
 type AuthMode = 'dang_nhap' | 'dang_ky' | 'quen_mat_khau'
 
 const TIEU_DE: Record<AuthMode, { title: string; description: string }> = {
-  dang_nhap: { title: 'Đăng nhập', description: 'Chào mừng bạn quay lại Digital Campus.' },
-  dang_ky: { title: 'Tạo tài khoản', description: 'Tham gia phòng học và trò chơi cùng bạn bè, thầy cô.' },
+  dang_nhap: { title: 'Đăng nhập', description: 'Chào mừng bạn quay lại Ace Games.' },
+  dang_ky: { title: 'Tạo tài khoản', description: 'Tham gia đấu trường game cùng bạn bè.' },
   quen_mat_khau: {
     title: 'Khôi phục mật khẩu',
-    description: 'Nhận mã 6 số (hoặc xin giáo viên cấp mã), rồi đặt mật khẩu mới.',
+    description: 'Nhận mã 6 số rồi đặt mật khẩu mới.',
   },
 }
 

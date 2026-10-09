@@ -14,7 +14,7 @@ export function NotFoundPage() {
       </div>
       <Link to="/" className={buttonVariants({ size: 'lg' })}>
         <ArrowLeft />
-        Về Digital Campus
+        Về Ace Games
       </Link>
     </div>
   )

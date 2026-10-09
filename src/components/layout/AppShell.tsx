@@ -294,7 +294,7 @@ export function AppShell({ children }: AppShellProps) {
                   <>
                     <p className="text-sm font-semibold text-text-primary">Tài khoản này đã bị quản trị viên khoá</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
-                      Bạn đã được đăng xuất khỏi Digital Campus. Liên hệ thầy cô hoặc Ban quản trị nhà trường nếu cần
+                      Bạn đã được đăng xuất khỏi Ace Games. Vui lòng liên hệ Quản trị viên nếu cần
                       mở lại tài khoản.
                     </p>
                   </>

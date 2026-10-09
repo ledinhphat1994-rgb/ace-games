@@ -1,13 +1,6 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
 import type { NguoiDung } from '@/lib/api'
 import { cn, getInitials } from '@/lib/utils'
 import { DoiMatKhauDialog } from '@/features/profile/DoiMatKhauDialog'
@@ -37,20 +30,6 @@ export function AccountQuickCenter({
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
 
-  // Điện thoại: ngăn trượt từ dưới lên; máy tính: bảng nổi neo dưới ảnh đại diện.
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 640
-    }
-    return false
-  })
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 640)
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
   const handleOpenChange = (nextOpen: boolean) => {
     setIsOpen(nextOpen)
   }
@@ -61,9 +40,7 @@ export function AccountQuickCenter({
   const tenHienThi = nguoiDung.ten || nguoiDung.username
   const roleLabel = nguoiDung.isSchoolAdmin
     ? 'Quản trị viên'
-    : nguoiDung.role === 'teacher'
-      ? 'Giáo viên'
-      : 'Học sinh'
+    : 'Thành viên'
 
   const diToi = (duongDan: string) => {
     handleOpenChange(false)
@@ -136,28 +113,7 @@ export function AccountQuickCenter({
     </div>
   )
 
-  const menuKichHoat = isMobile ? (
-    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-      <SheetTrigger
-        data-testid="account-menu-trigger"
-        className={triggerClass}
-        title="Tài khoản"
-        aria-label="Mở trung tâm tài khoản"
-      >
-        {triggerContent}
-      </SheetTrigger>
-      <SheetContent
-        side="bottom"
-        className="max-h-[85svh] gap-0 overflow-y-auto rounded-t-2xl px-4 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))]"
-      >
-        <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-strong" />
-        <SheetHeader className="sr-only">
-          <SheetTitle>Tài khoản</SheetTitle>
-        </SheetHeader>
-        {noiDung}
-      </SheetContent>
-    </Sheet>
-  ) : (
+  const menuKichHoat = (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         data-testid="account-menu-trigger"
@@ -167,7 +123,12 @@ export function AccountQuickCenter({
       >
         {triggerContent}
       </PopoverTrigger>
-      <PopoverContent align="end" side="bottom" sideOffset={8} className="w-80 gap-0 p-3">
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={8}
+        className="w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] gap-0 p-3 bg-slate-950/95 border border-slate-800 shadow-2xl rounded-2xl backdrop-blur-md z-50"
+      >
         {noiDung}
       </PopoverContent>
     </Popover>

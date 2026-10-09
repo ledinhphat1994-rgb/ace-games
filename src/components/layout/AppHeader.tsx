@@ -49,10 +49,10 @@ export const AppHeader = memo(function AppHeader({
             <DigitalCampusLogo size="md" />
             <div className="min-w-0">
               <span className="block text-sm sm:text-base font-extrabold tracking-tight text-text-primary leading-tight">
-                Digital Campus
+                Ace Games
               </span>
             </div>
-            <span className="lg:hidden sr-only">Thương hiệu trường học số</span>
+            <span className="lg:hidden sr-only">Thương hiệu Ace Games</span>
           </NavLink>
           {/* Vùng 1: Đã xóa thanh tìm kiếm theo yêu cầu (CampusSearch) */}
         </div>
