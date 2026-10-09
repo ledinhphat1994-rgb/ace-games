@@ -10,11 +10,10 @@ describe('HomePage Vùng 1, Vùng 2, Vùng 3 Fix Suite', () => {
     expect(homePageRaw).not.toContain('ĐẤU TRƯỜNG TRÒ CHƠI • DIGITAL CAMPUS')
     expect(homePageRaw).not.toContain('BẢNG VINH DANH • DIGITAL CAMPUS')
 
-    // Phải có các badge tiêu đề tinh gọn
-    expect(homePageRaw).toContain("badge: 'DIGITAL CAMPUS'")
-    expect(homePageRaw).toContain("badge: 'PHÒNG HỌC TRỰC TUYẾN'")
-    expect(homePageRaw).toContain("badge: 'ĐẤU TRƯỜNG TRÒ CHƠI'")
-    expect(homePageRaw).toContain("badge: 'BẢNG VINH DANH'")
+    // Phải có các badge tiêu đề game tinh gọn
+    expect(homePageRaw).toContain("badge: 'ĐẤU TRƯỜNG CHIẾN THUẬT'")
+    expect(homePageRaw).toContain("badge: 'ARCADE SINH TỒN 120HZ'")
+    expect(homePageRaw).toContain("badge: 'BẢNG VINH DANH CAO THỦ'")
   })
 
   // ── VÙNG 2: Bảng xếp hạng và Sự kiện (giống mục game, học tập) ──────────────
@@ -34,9 +33,9 @@ describe('HomePage Vùng 1, Vùng 2, Vùng 3 Fix Suite', () => {
     expect(homePageRaw).toContain('08:30 – 11:00 Thứ Bảy')
   })
 
-  // ── VÙNG 3: Thiết kế lại thumbnail hình ảnh hoạt động nổi bật ────────────────
-  it('3. Vùng 3: Card game trong hoạt động nổi bật sử dụng thumbnail game_pvp_hero.jpg', () => {
-    expect(homePageRaw).not.toContain('/assets/games/cover_chess.webp')
-    expect(homePageRaw).toContain("image: '/assets/banners/game_pvp_hero.jpg'")
+  // ── VÙNG 3: Danh mục trò chơi nổi bật ─────────────────────────────────────────
+  it('3. Vùng 3: Trò chơi nổi bật hiển thị danh mục game và link tới arena', () => {
+    expect(homePageRaw).toContain('aria-label="Trò chơi nổi bật"')
+    expect(homePageRaw).toContain('to="/arena"')
   })
 })

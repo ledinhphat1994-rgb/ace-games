@@ -3,14 +3,10 @@ import { useNavigate, Link } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
-import { PasswordRoomDialog } from './PasswordRoomDialog'
-import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap } from './room-discovery'
-import type { PhongSanh } from '@shared/protocol/campus'
 import { GAME_CATALOG } from '@/features/games/game-catalog'
 import {
   ArrowRight,
-  BookOpen,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -19,16 +15,15 @@ import {
   Sparkles,
   Trophy,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
-// Vùng 2: Quick Nav — Các mục điều hướng nhanh tích hợp trong banner
+// Vùng 2: Quick Nav — Các mục điều hướng nhanh chuyên nghiệp cho App Game
 const QUICK_NAV = [
   {
-    to: '/learn',
-    Icon: BookOpen,
-    label: 'Học tập',
-    desc: 'Kiến thức hôm nay\nkiến tạo tương lai',
-    hubImg: '/assets/cyber_mockups/hub_learn.webp',
+    to: '/arena',
+    Icon: Gamepad2,
+    label: 'Đấu trường 1v1',
+    desc: 'Cờ Vua, Cờ Tướng, Cờ Caro\nThách đấu trực tiếp',
+    hubImg: '/assets/cyber_mockups/hub_game.webp',
     iconBg: 'bg-sky-500',
     glow: 'shadow-[0_0_24px_rgba(56,189,248,0.55)]',
     border: 'border-sky-500/30',
@@ -36,22 +31,22 @@ const QUICK_NAV = [
     accent: 'text-sky-400',
   },
   {
-    to: '/arena',
-    Icon: Gamepad2,
-    label: 'Game',
-    desc: 'Chơi để phát triển\nnâng tầm trải nghiệm',
-    hubImg: '/assets/cyber_mockups/hub_game.webp',
-    iconBg: 'bg-purple-500',
-    glow: 'shadow-[0_0_24px_rgba(168,85,247,0.55)]',
-    border: 'border-purple-500/30',
-    hover: 'hover:border-purple-400/70',
-    accent: 'text-purple-400',
+    to: '/arena?game=solo_snake',
+    Icon: Sparkles,
+    label: 'Arcade & Sinh tồn',
+    desc: 'Rắn săn mồi 3D, Trí nhớ\nĐua top điểm số',
+    hubImg: '/assets/cyber_mockups/hub_arcade.webp',
+    iconBg: 'bg-emerald-500',
+    glow: 'shadow-[0_0_24px_rgba(16,185,129,0.55)]',
+    border: 'border-emerald-500/30',
+    hover: 'hover:border-emerald-400/70',
+    accent: 'text-emerald-400',
   },
   {
     to: '/leaderboard',
     Icon: Trophy,
     label: 'Bảng xếp hạng',
-    desc: 'Tôn vinh nỗ lực\nlan tỏa cảm hứng',
+    desc: 'Vinh danh cao thủ\nKỷ lục điểm số',
     hubImg: '/assets/cyber_mockups/hub_leaderboard.webp',
     iconBg: 'bg-amber-500',
     glow: 'shadow-[0_0_24px_rgba(245,158,11,0.55)]',
@@ -63,85 +58,27 @@ const QUICK_NAV = [
 
 const BANNER_SLIDES = [
   {
-    id: 'overview',
-    badge: 'DIGITAL CAMPUS',
-    title: (
-      <>
-        Học tập · Kết nối
-        <br />
-        Chơi game · Phát triển
-        <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-indigo-400">
-          Tất cả trong một nơi.
-        </span>
-      </>
-    ),
-    desc: 'Cùng nhau học tập, chơi game, kết nối bạn bè và phát triển kỹ năng để tạo nên một cộng đồng học sinh mạnh mẽ hơn.',
-    bgImage: '/assets/banners/home_hero_overview.webp',
-    gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
-    primaryAction: {
-      label: 'Bắt đầu khám phá',
-      to: '/learn',
-      icon: BookOpen,
-      className: 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-[0_0_20px_rgba(56,189,248,0.4)]',
-    },
-    secondaryAction: {
-      label: 'Xem đấu trường game',
-      to: '/arena',
-      icon: Gamepad2,
-    },
-  },
-  {
-    id: 'learning',
-    badge: 'PHÒNG HỌC TRỰC TUYẾN',
-    title: (
-      <>
-        Khám phá tri thức,
-        <br />
-        kiến tạo tương lai.
-        <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400">
-          Học nhóm & Tương tác trực tiếp.
-        </span>
-      </>
-    ),
-    desc: 'Không gian học nhóm tương tác với bảng vẽ trực tiếp, tài liệu ôn thi chuẩn SGK và video bài giảng đồng bộ cùng bạn học.',
-    bgImage: '/assets/banners/learning_hero_cyber.webp',
-    gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
-    primaryAction: {
-      label: 'Vào sảnh học tập',
-      to: '/learn',
-      icon: BookOpen,
-      className: 'bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 shadow-[0_0_20px_rgba(6,182,212,0.4)]',
-    },
-    secondaryAction: {
-      label: 'Tạo phòng học mới',
-      action: 'create_room' as const,
-      icon: Sparkles,
-    },
-  },
-  {
-    id: 'games',
-    badge: 'ĐẤU TRƯỜNG TRÒ CHƠI',
+    id: 'games-1v1',
+    badge: 'ĐẤU TRƯỜNG CHIẾN THUẬT',
     title: (
       <>
         Đấu Trí Chiến Thuật
         <br />
-        & Thử Thách Trí Tuệ.
+        & Thách Đấu Bạn Bè.
         <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-300 to-pink-400">
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-blue-400">
           Cờ Vua, Cờ Tướng, Cờ Caro 1v1.
         </span>
       </>
     ),
     desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 với bạn bè hoặc rèn luyện cùng AI đa cấp độ, xác thực máy chủ Cloudflare chống gian lận.',
     bgImage: '/assets/banners/game_pvp_hero.webp',
-    gradient: 'from-[#14062a] via-[#14062a]/85 to-transparent',
+    gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
     primaryAction: {
       label: 'Vào Đấu trường game',
       to: '/arena',
       icon: Gamepad2,
-      className: 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
+      className: 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-[0_0_20px_rgba(56,189,248,0.4)]',
     },
     secondaryAction: {
       label: 'Xem bảng xếp hạng',
@@ -150,8 +87,37 @@ const BANNER_SLIDES = [
     },
   },
   {
+    id: 'snake-3d',
+    badge: 'ARCADE SINH TỒN 120HZ',
+    title: (
+      <>
+        Rắn Săn Mồi 3D Arena,
+        <br />
+        Bứt Tốc Đua Top.
+        <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
+          Bo Sinh Tồn & Hiệu Ứng Bùng Nổ.
+        </span>
+      </>
+    ),
+    desc: 'Trải nghiệm điều khiển 120Hz siêu mượt, ăn kẹo bánh, săn mồi xé gió và trụ vững trước vòng bo khốc liệt.',
+    bgImage: '/assets/games/game_hero_clean.webp',
+    gradient: 'from-[#021c1e] via-[#021c1e]/85 to-transparent',
+    primaryAction: {
+      label: 'Chơi Rắn Săn Mồi',
+      to: '/arena?game=solo_snake',
+      icon: Sparkles,
+      className: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]',
+    },
+    secondaryAction: {
+      label: 'Vào sảnh tất cả game',
+      to: '/arena',
+      icon: Gamepad2,
+    },
+  },
+  {
     id: 'leaderboard',
-    badge: 'BẢNG VINH DANH',
+    badge: 'BẢNG VINH DANH CAO THỦ',
     title: (
       <>
         Vinh Danh Thành Tích,
@@ -173,7 +139,7 @@ const BANNER_SLIDES = [
       className: 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-stone-950 font-bold',
     },
     secondaryAction: {
-      label: 'Vào Đấu trường game',
+      label: 'Thách đấu bạn bè',
       to: '/arena',
       icon: Gamepad2,
     },
@@ -333,25 +299,9 @@ export function HomePage() {
   const { nguoiDung, moAuthModal } = usePhien()
   const { rooms, socialState, presenceMap, presenceReady, trangThai, messages } = useCampus()
 
-  const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
-  const [moTaoPhong, setMoTaoPhong] = useState(false)
-
   const handleCreateRoom = useCallback(() => {
-    if (!nguoiDung) { moAuthModal('dang_nhap'); return }
-    setMoTaoPhong(true)
-  }, [nguoiDung, moAuthModal])
-
-  const xuLyVaoPhong = (room: PhongSanh) => {
-    if (room.soNguoi >= room.sucChua) {
-      toast.error('Phòng học đã đầy')
-      return
-    }
-    if (room.coMatKhau) {
-      setPhongCanMatKhau(room)
-      return
-    }
-    navigate(`/room/phong-${room.id}`)
-  }
+    navigate('/arena')
+  }, [navigate])
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -373,6 +323,7 @@ export function HomePage() {
       return b.soNguoi - a.soNguoi
     })
   }, [rooms, roomFriendsMap])
+  void activeRoomsPreview
 
   const onlineFriends = useMemo(() => {
     return friends.filter((f) => {
@@ -406,48 +357,22 @@ export function HomePage() {
     }
   }, [nguoiDung, moAuthModal])
 
-  // Vùng 3: Hoạt động nổi bật — dữ liệu thật từ hệ thống
-  const hoatDongNoiBat = useMemo(() => {
-    const items = []
-    // HỌC TẬP: phòng học đang mở (thật) hoặc CTA tạo phòng
-    if (activeRoomsPreview[0]) {
-      const r = activeRoomsPreview[0]
-      items.push({
-        tag: 'HỌC TẬP', tagColor: 'bg-sky-500',
-        image: '/assets/banners/learning_hero_cyber.jpg',
-        title: r.ten,
-        desc: `${r.soNguoi}/${r.sucChua} học sinh đang tham gia`,
-        meta: `GV ${r.chuPhongTen}`,
-        onClick: () => xuLyVaoPhong(r),
-      })
-    } else {
-      items.push({
-        tag: 'HỌC TẬP', tagColor: 'bg-sky-500',
-        image: '/assets/banners/learning_hero_cyber.jpg',
-        title: 'Mở phòng học nhóm',
-        desc: 'Tạo phòng học để cùng bạn bè trao đổi bài vở và tài liệu ôn thi',
-        meta: 'Nhấn để tạo phòng',
-        onClick: () => {
-          if (!nguoiDung) { moAuthModal('dang_nhap'); return }
-          setMoTaoPhong(true)
-        },
-      })
-    }
-    // GAME: từ catalog thật
-    const g = GAME_CATALOG[0]
-    if (g) {
-      items.push({
-        tag: 'GAME', tagColor: 'bg-purple-500',
-        image: '/assets/banners/game_pvp_hero.jpg',
-        title: `Đấu trường trí tuệ · ${g.shortTitle}`,
-        desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 hoặc rèn luyện cùng AI',
-        meta: '1v1 & Đấu AI',
-        onClick: () => navigate(`/arena?game=${g.id}`),
-      })
-    }
-    return items
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRoomsPreview, nguoiDung, navigate])
+  // Vùng 3: Trò chơi nổi bật — Danh mục game nhẹ kinh điển
+  const troChoiNoiBat = useMemo(() => {
+    return GAME_CATALOG.map((g) => ({
+      id: g.id,
+      title: g.title,
+      shortTitle: g.shortTitle,
+      category: g.category,
+      badge: g.badge,
+      badgeColor: g.badgeColor,
+      icon: g.icon,
+      cover: g.cover,
+      desc: g.description,
+      boardLabel: g.boardLabel,
+      onClick: () => navigate(`/arena?game=${g.id}`),
+    }))
+  }, [navigate])
 
   return (
     <div className="pb-4 lg:pb-8 space-y-3.5 sm:space-y-6">
@@ -459,7 +384,7 @@ export function HomePage() {
         onOpenChat={handleOpenCampusChat}
       />
 
-      {/* ── Quick Nav Cards — Các card Học tập, Game, Bảng xếp hạng ── */}
+      {/* ── Quick Nav Cards — Các card Game 1v1, Arcade Sinh Tồn, Bảng Xếp Hạng ── */}
       <section aria-label="Điều hướng nhanh">
         <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative card-campus-glow">
           <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle">
@@ -493,55 +418,77 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── Hoạt động nổi bật (Mở rộng trọn bề ngang khi tạm ẩn Vùng 3) ── */}
-      <div className="w-full space-y-6">
-
-        {/* Hoạt động nổi bật */}
-        <div className="w-full min-w-0">
-          <section aria-label="Hoạt động nổi bật" className="space-y-4">
+      {/* ── Danh Sách Trò Chơi Nổi Bật (Lightweight Gaming App Hub) ── */}
+      <div className="w-full space-y-4">
+        <section aria-label="Trò chơi nổi bật" className="space-y-3.5">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">🔥</span>
               <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                Hoạt động nổi bật
+                Trò chơi nổi bật
               </h2>
             </div>
+            <Link
+              to="/arena"
+              className="inline-flex items-center gap-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
+            >
+              <span>Xem tất cả game</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              {hoatDongNoiBat.map((item, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={item.onClick}
-                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-colors duration-150 hover:border-brand/40 bg-surface/90 backdrop-blur-sm card-campus-glow"
-                >
-                  {/* Ảnh bìa + Vùng 2: Badge được fix chuẩn, tinh tế, không trùng lặp */}
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover crisp-image group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
-                    {/* Vùng 2: Huy hiệu danh mục sắc nét, thiết kế pill bo tròn hiện đại */}
-                    <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white shadow-lg backdrop-blur-md border border-white/20 ${item.tagColor}`}>
-                      {item.tag}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
+            {troChoiNoiBat.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.onClick}
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-colors duration-150 hover:border-sky-400/50 bg-surface/90 backdrop-blur-sm card-campus-glow"
+              >
+                {/* Ảnh bìa game cover */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
+                  <img
+                    src={item.cover}
+                    alt={item.title}
+                    loading="lazy"
+                    className="h-full w-full object-cover crisp-image group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-black/30" />
+                  {/* Badge thể loại */}
+                  <span className={`absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider text-white shadow-lg backdrop-blur-md border border-white/20 bg-gradient-to-r ${item.badgeColor}`}>
+                    {item.badge}
+                  </span>
+                  {item.boardLabel && (
+                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold text-sky-300 bg-black/60 border border-sky-400/30 backdrop-blur-sm">
+                      {item.boardLabel}
                     </span>
-                  </div>
-                  {/* Nội dung thẻ (Đã xóa toàn bộ Vùng X thừa thãi theo yêu cầu) */}
-                  <div className="flex flex-col flex-1 p-4 bg-surface gap-1.5">
-                    <h3 className="text-sm font-bold text-text-primary line-clamp-1 leading-snug group-hover:text-brand transition-colors">
+                  )}
+                </div>
+                {/* Nội dung thẻ game */}
+                <div className="flex flex-col flex-1 p-3.5 bg-surface gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">{item.icon}</span>
+                    <h3 className="text-sm font-bold text-text-primary line-clamp-1 leading-snug group-hover:text-sky-400 transition-colors">
                       {item.title}
                     </h3>
-                    <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">
-                      {item.desc}
-                    </p>
                   </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
+                  <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">
+                    {item.desc}
+                  </p>
+                  <div className="mt-2 pt-2 border-t border-border-subtle/50 flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-medium text-slate-400">
+                      {item.category === '1v1' ? 'Đấu 1v1 & Đấu Máy' : 'Arcade Đua Top'}
+                    </span>
+                    <span className="text-sky-400 font-bold text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                      Chơi ngay <ArrowRight className="size-3" />
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
 
         {/* ── VÙNG 3: Right Panel (Bảng xếp hạng & Sự kiện) — Tạm ẩn theo yêu cầu ── */}
         <div className="hidden" aria-hidden="true">
@@ -640,29 +587,6 @@ export function HomePage() {
             </div>
           </section>
         </div>
-      </div>
-
-      {/* Dialogs */}
-      {phongCanMatKhau && (
-        <PasswordRoomDialog
-          room={phongCanMatKhau}
-          onClose={() => setPhongCanMatKhau(null)}
-          onSuccess={(roomId) => {
-            setPhongCanMatKhau(null)
-            navigate(`/room/phong-${roomId}`)
-          }}
-        />
-      )}
-      {moTaoPhong && (
-        <CreateStudyRoomDialog
-          open={moTaoPhong}
-          onOpenChange={setMoTaoPhong}
-          onSuccess={(roomId) => {
-            setMoTaoPhong(false)
-            navigate(`/room/phong-${roomId}`)
-          }}
-        />
-      )}
     </div>
   )
 }

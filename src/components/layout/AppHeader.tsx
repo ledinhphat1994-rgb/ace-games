@@ -44,7 +44,7 @@ export const AppHeader = memo(function AppHeader({
         {/* ── Left Area: Brand Logo (VÙNG 4: Topbar dài hết chiều ngang chứa logo và chữ Digital Campus) + Desktop Search ── */}
         <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
           {/* Brand logo (visible across desktop & mobile) */}
-          <NavLink to="/learn" className="flex items-center gap-3 group shrink-0 select-none rounded-xl py-1 pr-1 sm:pr-2 hover:opacity-90 transition-opacity">
+          <NavLink to="/" className="flex items-center gap-3 group shrink-0 select-none rounded-xl py-1 pr-1 sm:pr-2 hover:opacity-90 transition-opacity">
             <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/25 via-indigo-500/20 to-purple-500/25 border-2 border-sky-400/60 text-sky-400 shadow-[0_0_25px_rgba(56,189,248,0.4)] group-hover:scale-105 group-hover:border-sky-400/90 transition-all duration-300">
               {/* Animated glow aura */}
               <span className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-sky-400/50 via-indigo-400/40 to-purple-400/50 blur-[5px] animate-pulse pointer-events-none" />

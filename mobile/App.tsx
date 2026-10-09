@@ -95,37 +95,21 @@ export default function App() {
           onError={() => setIsLoading(false)}
           onHttpError={() => setIsLoading(false)}
           injectedJavaScriptBeforeContentLoaded={INJECTED_FAST_TOUCH_JS}
-          // Bật tối đa tăng tốc phần cứng GPU (Hardware Acceleration)
-          androidHardwareAccelerationDisabled={false}
-          androidLayerType="hardware"
-          renderToHardwareTextureAndroid={true}
-          // Cho phép lưu cache và LocalStorage / Cookies phiên đăng nhập
           domStorageEnabled={true}
-          databaseEnabled={true}
+          javaScriptEnabled={true}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          overScrollMode="never"
+          androidLayerType="hardware"
+          nestedScrollEnabled={true}
+          textZoom={100}
+          scalesPageToFit={false}
+          setSupportMultipleWindows={false}
           cacheEnabled={true}
           cacheMode="LOAD_DEFAULT"
           thirdPartyCookiesEnabled={true}
-          sharedCookiesEnabled={true}
-          setSupportMultipleWindows={false}
-          // Cho phép phát âm thanh / media game và video YouTube lớp học
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled={true}
-          keyboardDisplayRequiresUserAction={false}
-          // Tối ưu trải nghiệm cảm ứng và tốc độ phản hồi 60-120fps
-          overScrollMode="never"
-          bounces={false}
-          pullToRefreshEnabled={false}
-          decelerationRate="normal"
-          directionalLockEnabled={true}
-          nestedScrollEnabled={true}
-          scrollEnabled={true}
-          textZoom={100}
-          scalesPageToFit={false}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-          allowsBackForwardNavigationGestures={true}
-          // User Agent tối ưu Chrome Mobile
           applicationNameForUserAgent="DigitalCampusApp/1.0.0"
         />
 
@@ -175,7 +159,7 @@ const styles = StyleSheet.create({
   loadingTitle: {
     color: '#38bdf8',
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: 'bold',
     letterSpacing: 2,
     marginBottom: 4,
   },
