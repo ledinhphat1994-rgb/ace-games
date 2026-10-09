@@ -418,15 +418,6 @@ export function XiangqiBoard({
 
   const updateQuickMenuPos = useCallback(() => {
     if (typeof window === 'undefined') return
-    const triggerEl =
-      document.getElementById('tool-bubble-emoji') ||
-      document.getElementById('quick-emoji-btn') ||
-      avatarBubbleRef.current
-    if (!triggerEl) return
-    const asideEl = document.getElementById('vung-2-plus-card')
-    const asideRect = asideEl ? asideEl.getBoundingClientRect() : triggerEl.getBoundingClientRect()
-    const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
-    const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
     const POPUP_W = 240
     const POPUP_H = 268
     const PADDING = 16
@@ -438,6 +429,17 @@ export function XiangqiBoard({
       })
       return
     }
+
+    const triggerEl =
+      document.getElementById('tool-bubble-emoji') ||
+      document.getElementById('mobile-tool-emoji') ||
+      document.getElementById('quick-emoji-btn') ||
+      avatarBubbleRef.current
+    if (!triggerEl) return
+    const asideEl = document.getElementById('vung-2-plus-card')
+    const asideRect = asideEl ? asideEl.getBoundingClientRect() : triggerEl.getBoundingClientRect()
+    const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
+    const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
 
     const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
     const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
@@ -473,22 +475,23 @@ export function XiangqiBoard({
 
   // Đóng menu Cảm xúc nhanh khi nhấp bên ngoài
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node
-      const emojiBtn =
-        document.getElementById('tool-bubble-emoji') ||
-        document.getElementById('quick-emoji-btn')
-      if (emojiBtn && (emojiBtn === target || emojiBtn.contains(target))) {
-        return
-      }
+    if (!isQuickMenuOpen) return
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
       if (quickMenuRef.current && !quickMenuRef.current.contains(target)) {
-        setIsQuickMenuOpen(false)
+        const trigger = target.closest?.('#tool-bubble-emoji, #mobile-tool-emoji, [id*="emoji"], [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+        if (!trigger) {
+          setIsQuickMenuOpen(false)
+        }
       }
     }
-    if (isQuickMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isQuickMenuOpen])
 
   // Danh sách định danh công cụ có thể ghim thành bong bóng quanh Avatar
@@ -1921,7 +1924,7 @@ export function XiangqiBoard({
       title: 'Cài đặt',
       bubbleClassName:
         'border-sky-500/50 bg-[#141824]/95 text-sky-400 hover:border-sky-400 hover:text-sky-300 hover:bg-sky-500/20 shadow-sky-500/15',
-      renderIcon: (compact) => <Settings className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <Settings className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: () => setIsSettingsModalOpen(true),
     },
     emoji: {
@@ -1931,7 +1934,7 @@ export function XiangqiBoard({
         'border-amber-500/50 bg-[#18161e]/95 text-amber-400 hover:border-amber-400 hover:text-amber-300 hover:bg-amber-500/20 shadow-amber-500/15',
         isQuickMenuOpen && 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
       ),
-      renderIcon: (compact) => <Smile className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <Smile className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: () => {
         updateQuickMenuPos()
         setIsQuickMenuOpen((prev) => !prev)
@@ -1943,7 +1946,7 @@ export function XiangqiBoard({
       bubbleClassName: isPveMode
         ? 'border-sky-500/50 bg-[#121926]/95 text-sky-400 hover:border-sky-400 hover:text-sky-300 hover:bg-sky-500/20 shadow-sky-500/15'
         : 'border-amber-500/50 bg-[#1a1714]/95 text-amber-400 hover:border-amber-400 hover:text-amber-300 hover:bg-amber-500/20 shadow-amber-500/15',
-      renderIcon: (compact) => (isPveMode ? <Bot className={compact ? 'size-4' : 'size-4.5'} /> : <Users className={compact ? 'size-4' : 'size-4.5'} />),
+      renderIcon: (compact) => (isPveMode ? <Bot className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} /> : <Users className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />),
       onClick: () => {
         if (isPveMode) {
           handleModeChange(online ? 'online' : 'pass_and_play')
@@ -1957,7 +1960,7 @@ export function XiangqiBoard({
       title: 'Mời bạn',
       bubbleClassName:
         'border-emerald-500/50 bg-[#121a18]/95 text-emerald-400 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 shadow-emerald-500/15',
-      renderIcon: (compact) => <UserPlus className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <UserPlus className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: () => {
         if (onInvite) {
           onInvite()
@@ -1976,7 +1979,7 @@ export function XiangqiBoard({
       title: isDrawOfferedByMe ? 'Đã xin hòa' : 'Xin hòa',
       bubbleClassName:
         'border-amber-500/50 bg-[#181614]/95 text-amber-400 hover:border-amber-400 hover:text-amber-300 hover:bg-amber-500/20 shadow-amber-500/15',
-      renderIcon: (compact) => <Handshake className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <Handshake className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: handleOfferDraw,
       disabled: isDrawOfferedByMe,
     },
@@ -1985,7 +1988,7 @@ export function XiangqiBoard({
       title: 'Xin thua / Đầu hàng',
       bubbleClassName:
         'border-red-500/50 bg-[#1c1214]/95 text-red-400 hover:border-red-400 hover:text-red-300 hover:bg-red-500/20 shadow-red-500/15',
-      renderIcon: (compact) => <Flag className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <Flag className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: handleResign,
     },
     win: {
@@ -1993,7 +1996,7 @@ export function XiangqiBoard({
       title: 'Xin thắng',
       bubbleClassName:
         'border-yellow-500/50 bg-[#1a1912]/95 text-yellow-400 hover:border-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/20 shadow-yellow-500/15',
-      renderIcon: (compact) => <Crown className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <Crown className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: handleAskForWin,
     },
     flip: {
@@ -2001,7 +2004,7 @@ export function XiangqiBoard({
       title: 'Xoay bàn cờ',
       bubbleClassName:
         'border-indigo-500/50 bg-[#161424]/95 text-indigo-400 hover:border-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 shadow-indigo-500/15',
-      renderIcon: (compact) => <RotateCcw className={compact ? 'size-4' : 'size-4.5'} />,
+      renderIcon: (compact) => <RotateCcw className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
       onClick: () => {
         setIsFlippedManual((prev) => {
           const next = !prev
@@ -2016,7 +2019,7 @@ export function XiangqiBoard({
       bubbleClassName: soundEnabled
         ? 'border-purple-500/50 bg-[#191424]/95 text-purple-400 hover:border-purple-400 hover:text-purple-300 hover:bg-purple-500/20 shadow-purple-500/15'
         : 'border-gray-500/50 bg-[#16161a]/95 text-gray-400 hover:border-gray-400 hover:text-gray-300 hover:bg-white/10 shadow-black/20',
-      renderIcon: (compact) => (soundEnabled ? <Volume2 className={compact ? 'size-4' : 'size-4.5'} /> : <VolumeX className={compact ? 'size-4' : 'size-4.5'} />),
+      renderIcon: (compact) => (soundEnabled ? <Volume2 className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} /> : <VolumeX className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />),
       onClick: () => {
         setSoundEnabled((prev) => {
           const next = !prev
@@ -2032,7 +2035,7 @@ export function XiangqiBoard({
       bubbleClassName: showHints
         ? 'border-sky-500/50 bg-[#121926]/95 text-sky-400 hover:border-sky-400 hover:text-sky-300 hover:bg-sky-500/20 shadow-sky-500/15'
         : 'border-gray-500/50 bg-[#16161a]/95 text-gray-400 hover:border-gray-400 hover:text-gray-300 hover:bg-white/10 shadow-black/20',
-      renderIcon: (compact) => (showHints ? <Eye className={compact ? 'size-4' : 'size-4.5'} /> : <EyeOff className={compact ? 'size-4' : 'size-4.5'} />),
+      renderIcon: (compact) => (showHints ? <Eye className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} /> : <EyeOff className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />),
       onClick: () => {
         setShowHints((prev) => {
           const next = !prev
@@ -2050,7 +2053,7 @@ export function XiangqiBoard({
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, VÙNG 3 SÁT GÓC TRÁI & ĐỒNG HỒ CHÍNH GIỮA */}
       <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
-        {/* CỤM TRÁI: ĐIỀU HƯỚNG SẢNH, ICON GAME TO RÕ ĐẸP (VÙNG 2) & BADGE RIÊNG TƯ */}
+        {/* CỤM TRÁI: ĐIỀU HƯỚNG SẢNH & BADGE RIÊNG TƯ */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           {/* Nút Quay lại Sảnh */}
           <button
@@ -2064,26 +2067,6 @@ export function XiangqiBoard({
             <ArrowLeft className="size-3.5" />
             <span>Sảnh</span>
           </button>
-
-          {/* VÙNG 2: ICON GAME CỜ TƯỚNG TO RÕ, ĐẲNG CẤP & SỐ PHÒNG */}
-          {roomName && (
-            <div
-              className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-slate-900/40 border border-amber-500/25 shadow-[0_2px_8px_rgba(0,0,0,0.4)] shrink-0 select-none hover:border-amber-500/40 transition-colors duration-150"
-              title={`Phòng Cờ Tướng #${soPhongHienThi || '55'}`}
-            >
-              {/* Đĩa cờ gỗ ngà 3D to rõ (size-8 sm:size-9), nổi khối chân thật */}
-              <div className="relative size-8 sm:size-9 rounded-full bg-gradient-to-br from-[#fffdf9] via-[#f7e8d0] to-[#d4a36e] border-2 border-[#9c6332] shadow-[0_3px_8px_rgba(0,0,0,0.5),inset_0_1.5px_2px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(100,50,15,0.4)] flex items-center justify-center shrink-0">
-                <div className="inner-border absolute inset-[2px] rounded-full border border-[#b91c1c]/40 pointer-events-none" />
-                <span className="font-han font-black text-base sm:text-lg text-[#b91c1c] leading-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
-                  帥
-                </span>
-              </div>
-              {/* Số phòng to rõ, màu vàng hoàng kim sắc sảo */}
-              <span className="font-cinzel font-black text-sm sm:text-base text-amber-300 tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] shrink-0">
-                #{soPhongHienThi || '55'}
-              </span>
-            </div>
-          )}
 
           {/* Badge Riêng tư nếu có */}
           {isPrivate && (
@@ -2744,19 +2727,26 @@ export function XiangqiBoard({
             </div>
           </div>
 
-          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
-          <div className="flex w-full h-10 px-2 items-center justify-center gap-2 select-none">
+          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG, ICON TO RÕ ==================== */}
+          <div className="flex w-full h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 select-none">
             {pinnedTools.map((toolId) => {
               const tool = toolDefinitions[toolId]
               if (!tool) return null
+              const buttonId =
+                toolId === 'mode'
+                  ? 'mobile-mode-toggle-card'
+                  : toolId === 'draw'
+                    ? 'mobile-xin-xo-btn'
+                    : `tool-bubble-${toolId}`
               return (
                 <button
                   key={toolId}
                   type="button"
+                  id={buttonId}
                   onClick={tool.onClick}
                   disabled={tool.disabled}
                   className={cn(
-                    'size-9 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                    'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md',
                     tool.bubbleClassName
                   )}
                   title={tool.title}
@@ -2769,15 +2759,88 @@ export function XiangqiBoard({
             {!pinnedTools.includes('settings') && (
               <button
                 type="button"
+                id="tool-bubble-settings"
                 onClick={() => setIsSettingsModalOpen(true)}
-                className="size-9 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-sky-400 text-gray-300 hover:text-sky-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+                className="size-11 sm:size-12 rounded-2xl border-2 border-white/10 bg-[#121622]/95 hover:border-sky-400 text-gray-300 hover:text-sky-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-md"
                 title="Cài đặt"
                 aria-label="Cài đặt"
               >
-                <Settings className="size-4" />
+                <Settings className="size-5 sm:size-5.5" />
               </button>
             )}
           </div>
+
+          {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ ==================== */}
+          {isQuickMenuOpen && (
+            <div
+              id="mobile-quick-menu-container"
+              ref={quickMenuRef}
+              aria-label="Tin nhắn nhanh"
+              className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
+            >
+              <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-amber-400/40 shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2">
+                <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                  <span className="text-[11px] font-bold text-amber-300 tracking-wide flex items-center gap-1.5">
+                    <span>💬</span>
+                    <span>Tin nhắn nhanh</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickMenuOpen(false)}
+                    className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                    aria-label="Đóng tin nhắn nhanh"
+                    title="Đóng"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+
+                {/* Lưới 8 Emoji cờ tướng gọn gàng */}
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                  {[
+                    { emoji: '👏', text: 'Hay quá' },
+                    { emoji: '🤔', text: 'Đang tính' },
+                    { emoji: '☕', text: 'Mời trà' },
+                    { emoji: '🤝', text: 'Bắt tay' },
+                    { emoji: '🔥', text: 'Chiến nào' },
+                    { emoji: '😅', text: 'Toát mồ hôi' },
+                    { emoji: '👍', text: 'Đỉnh cao' },
+                    { emoji: '⚔️', text: 'Xuất quân' },
+                  ].map((item) => (
+                    <button
+                      key={item.emoji}
+                      type="button"
+                      onClick={() => handleSendQuickMessage(item.text, item.emoji)}
+                      className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                      title={item.text}
+                    >
+                      {item.emoji}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
+                <div className="h-[1px] bg-white/10 my-0.5" />
+                <div className="grid grid-cols-2 gap-1">
+                  {[
+                    'Nước cờ hay',
+                    'Xin chỉ giáo',
+                    'Đang tính nước',
+                    'Chiến tiếp nào',
+                  ].map((msg) => (
+                    <button
+                      key={msg}
+                      type="button"
+                      onClick={() => handleSendQuickMessage(msg)}
+                      className="px-2.5 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
+                    >
+                      {msg}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH - DESKTOP XL DUY NHẤT) ==================== */}
@@ -3477,6 +3540,27 @@ export function XiangqiBoard({
       <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
         <GamePlayToolbar mode={mode} onModeChange={handleModeChange} onReset={resetGame} />
       </div>
+      {/* VÙNG 3 CHUYỂN XUỐNG VÙNG X GÓC TRÁI DƯỚI CÙNG THEO YÊU CẦU USER */}
+      {roomName && (
+        <div
+          id="room-number-badge-bottom-left"
+          className="fixed bottom-3 left-3 sm:bottom-4 sm:left-4 z-30 flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-slate-900/60 border border-amber-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.6)] shrink-0 select-none hover:border-amber-500/50 transition-colors duration-150 pointer-events-auto"
+          title={`Phòng Cờ Tướng #${soPhongHienThi || '55'}`}
+        >
+          {/* Đĩa cờ gỗ ngà 3D to rõ */}
+          <div className="relative size-8 sm:size-9 rounded-full bg-gradient-to-br from-[#fffdf9] via-[#f7e8d0] to-[#d4a36e] border-2 border-[#9c6332] shadow-[0_3px_8px_rgba(0,0,0,0.5),inset_0_1.5px_2px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(100,50,15,0.4)] flex items-center justify-center shrink-0">
+            <div className="inner-border absolute inset-[2px] rounded-full border border-[#b91c1c]/40 pointer-events-none" />
+            <span className="font-han font-black text-base sm:text-lg text-[#b91c1c] leading-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
+              帥
+            </span>
+          </div>
+          {/* Số phòng to rõ, màu vàng hoàng kim sắc sảo */}
+          <span className="font-cinzel font-black text-sm sm:text-base text-amber-300 tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] shrink-0">
+            #{soPhongHienThi || '55'}
+          </span>
+        </div>
+      )}
+
       {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
       {selectedProfileUser && (
         <HoSoNguoiDungDialog

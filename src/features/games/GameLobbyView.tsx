@@ -1230,45 +1230,16 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   )
                 })
               ) : (
-                /* VÙNG 2: THIẾT KẾ KHUNG CÁC BÀN ĐẤU, ĐÃ XÓA CHỮ TẠO BÀN ĐẤU THỪA */
-                <div className="col-span-full rounded-2xl sm:rounded-3xl border border-slate-800/90 bg-[#070f20]/90 p-5 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-md space-y-4">
-                  {/* Header khung bàn đấu */}
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400">
-                        <Gamepad2 className="size-4" />
-                      </div>
-                      <span className="text-sm font-bold text-white tracking-wide">
-                        Khung bàn đấu
-                      </span>
+                /* VÙNG 1: Tiêu đề Bàn đấu, còn lại các nội dung trong vùng xóa hết để trống */
+                <div className="col-span-full rounded-2xl sm:rounded-3xl border border-slate-800/90 bg-[#070f20]/90 p-5 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-md">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400">
+                      <Gamepad2 className="size-4" />
                     </div>
-                    <span className="text-[11px] font-semibold text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800">
-                      Sẵn sàng mở bàn
+                    <span className="text-sm font-bold text-white tracking-wide">
+                      Bàn đấu
                     </span>
                   </div>
-
-                  {/* Lưới các ô slot bàn đấu chờ chuẩn Esports */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 select-none py-1">
-                    <div className="h-28 rounded-2xl border-2 border-dashed border-slate-800/80 bg-[#040914]/60 flex flex-col items-center justify-center text-center p-3 space-y-1.5 transition-colors hover:border-slate-700">
-                      <div className="size-8 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-600">
-                        <Sword className="size-4" />
-                      </div>
-                      <span className="text-xs font-bold text-slate-400">Bàn đấu #1</span>
-                      <span className="text-[10px] text-slate-500">Chờ người chơi mở bàn</span>
-                    </div>
-
-                    <div className="h-28 rounded-2xl border-2 border-dashed border-slate-800/80 bg-[#040914]/60 flex flex-col items-center justify-center text-center p-3 space-y-1.5 transition-colors hover:border-slate-700">
-                      <div className="size-8 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-600">
-                        <Trophy className="size-4" />
-                      </div>
-                      <span className="text-xs font-bold text-slate-400">Bàn đấu #2</span>
-                      <span className="text-[10px] text-slate-500">Chờ người chơi mở bàn</span>
-                    </div>
-                  </div>
-
-                  <p className="text-center text-[11px] text-slate-500 pt-1">
-                    Bàn thi đấu sẽ tự động xuất hiện tại đây khi người chơi tạo phòng.
-                  </p>
                 </div>
               )}
             </div>
@@ -1288,12 +1259,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
           initialFocus={false}
-          className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-24 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:h-[calc(100svh-6rem)] max-sm:max-h-[calc(100svh-6rem)] sm:max-w-[540px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(540px,calc(100vw-2rem))] max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden text-text-primary z-50 duration-150"
         >
-          {/* Thanh gạt vuốt (Swipe handle) chuẩn mobile */}
-          <div className="sm:hidden flex justify-center pb-2 pt-0.5 -mt-1 cursor-grab">
-            <div className="w-12 h-1.5 rounded-full bg-slate-700/80" />
-          </div>
 
           <DialogHeader className="shrink-0 pb-2 mb-1.5 border-b border-slate-800/80">
             <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2.5">
