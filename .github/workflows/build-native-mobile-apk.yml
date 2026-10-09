@@ -1,0 +1,52 @@
+name: Build Native Mobile APK (React Native Skia)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'mobile/**'
+
+jobs:
+  build-native-apk:
+    name: Build Native Android APK (Skia 120 FPS)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Mobile Dependencies
+        working-directory: mobile
+        run: npm install
+
+      - name: Prebuild Native Android (if needed)
+        working-directory: mobile
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x mobile/android/gradlew
+
+      - name: Build Native Android Debug APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Native APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitalCampus_Native_Skia_Android_APK
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

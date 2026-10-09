@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Digital Campus",
+    "slug": "digital-campus",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#020c24",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gdtxdinhquan.campus"
+    },
+    "android": {
+      "package": "com.gdtxdinhquan.campus",
+      "adaptiveIcon": {
+        "backgroundColor": "#020c24",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": []
+  }
+}
