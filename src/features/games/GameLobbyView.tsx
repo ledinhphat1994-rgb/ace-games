@@ -227,11 +227,12 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
               <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#081226]/90 to-transparent pointer-events-none" />
             </div>
 
-            {/* VÙNG 5: CHỈ GIỮ LẠI DUY NHẤT TIÊU ĐỀ THEO YÊU CẦU */}
-            <div className="relative z-10 p-5 sm:p-10 lg:p-12 pb-14 sm:pb-16 max-w-xl lg:max-w-2xl pr-6">
-              <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-lg">
+            {/* VÙNG 1: TIÊU ĐỀ BANNER ĐẸP, CHUYÊN NGHIỆP, ANIMATED CHUẨN ESPORTS */}
+            <div className="relative z-10 p-5 sm:p-10 lg:p-12 pb-14 sm:pb-16 max-w-xl lg:max-w-2xl pr-6 space-y-2">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.18] uppercase animate-hero-title-shimmer select-none">
                 {slide.title}
               </h1>
+              <div className="h-1 w-20 sm:w-28 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-transparent shadow-[0_0_12px_rgba(245,158,11,0.6)]" />
             </div>
           </div>
         )
@@ -1229,21 +1230,45 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   )
                 })
               ) : (
-                <div className="col-span-full min-h-[320px] flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border-default bg-surface/50 space-y-3">
-                  <div className="size-12 rounded-2xl bg-surface-raised border border-border-subtle flex items-center justify-center text-text-tertiary">
-                    <Gamepad2 className="size-6" />
+                /* VÙNG 2: THIẾT KẾ KHUNG CÁC BÀN ĐẤU, ĐÃ XÓA CHỮ TẠO BÀN ĐẤU THỪA */
+                <div className="col-span-full rounded-2xl sm:rounded-3xl border border-slate-800/90 bg-[#070f20]/90 p-5 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-md space-y-4">
+                  {/* Header khung bàn đấu */}
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400">
+                        <Gamepad2 className="size-4" />
+                      </div>
+                      <span className="text-sm font-bold text-white tracking-wide">
+                        Khung bàn đấu
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800">
+                      Sẵn sàng mở bàn
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-text-primary">Chưa có bàn đấu</h3>
+
+                  {/* Lưới các ô slot bàn đấu chờ chuẩn Esports */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 select-none py-1">
+                    <div className="h-28 rounded-2xl border-2 border-dashed border-slate-800/80 bg-[#040914]/60 flex flex-col items-center justify-center text-center p-3 space-y-1.5 transition-colors hover:border-slate-700">
+                      <div className="size-8 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-600">
+                        <Sword className="size-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-400">Bàn đấu #1</span>
+                      <span className="text-[10px] text-slate-500">Chờ người chơi mở bàn</span>
+                    </div>
+
+                    <div className="h-28 rounded-2xl border-2 border-dashed border-slate-800/80 bg-[#040914]/60 flex flex-col items-center justify-center text-center p-3 space-y-1.5 transition-colors hover:border-slate-700">
+                      <div className="size-8 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-600">
+                        <Trophy className="size-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-400">Bàn đấu #2</span>
+                      <span className="text-[10px] text-slate-500">Chờ người chơi mở bàn</span>
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={canDangNhap(() => { playUiTapSound(); setMoTaoBanModal(true) })}
-                    className="h-8 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold cursor-pointer"
-                  >
-                    <Plus className="size-3.5 mr-1" />
-                    <span>Tạo bàn đấu</span>
-                  </Button>
+
+                  <p className="text-center text-[11px] text-slate-500 pt-1">
+                    Bàn thi đấu sẽ tự động xuất hiện tại đây khi người chơi tạo phòng.
+                  </p>
                 </div>
               )}
             </div>
@@ -1263,7 +1288,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
           initialFocus={false}
-          className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:h-[94svh] max-sm:max-h-[96svh] sm:max-w-[540px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
+          className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-24 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:h-auto max-sm:max-h-[calc(100svh-6rem)] sm:max-w-[540px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
         >
           {/* Thanh gạt vuốt (Swipe handle) chuẩn mobile */}
           <div className="sm:hidden flex justify-center pb-2 pt-0.5 -mt-1 cursor-grab">
@@ -1308,50 +1333,49 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
               </div>
             </div>
 
-            {/* 2. Chọn trò chơi: Lưới 2 cột 5 game đồng nhất kích thước và phân tầng thị giác rõ rệt */}
-            <div className="space-y-1.5 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
-                  <Gamepad2 className="size-3" />
-                </div>
-                <span className="text-xs font-bold text-white tracking-wide">
-                  Chọn trò chơi
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 select-none">
-                {[
-                  { id: 'chess' as const, name: 'Cờ Vua', Icon: IconCrown3D },
-                  { id: 'xiangqi' as const, name: 'Cờ Tướng', Icon: IconXiangqiPiece3D },
-                  { id: 'caro_15' as const, name: 'Cờ Caro', Icon: IconCaroCubes3D },
-                  { id: 'solo_memory' as const, name: 'Trí Nhớ', Icon: IconManaCrystal3D },
-                  { id: 'solo_snake' as const, name: 'Rắn Săn Mồi', Icon: IconSnakeApple3D },
-                ].map((item) => {
-                  const Icon = item.Icon
-                  const isSelected = gameMoiChon === item.id
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => { playUiTapSound(); setGameMoiChon(item.id) }}
-                      className={cn(
-                        'h-[46px] min-h-[46px] max-h-[46px] px-3.5 rounded-xl border-2 text-left text-xs transition-colors duration-150 cursor-pointer flex items-center justify-between font-bold select-none shrink-0 relative overflow-hidden',
-                        isSelected
-                          ? 'border-sky-400 bg-sky-500/15 text-sky-300 shadow-xs'
-                          : 'border-slate-800/90 bg-slate-900/90 hover:bg-slate-800/80 hover:border-slate-700 text-slate-300 hover:text-white',
-                      )}
-                    >
-                      <span className={cn('truncate text-xs tracking-wide', isSelected ? 'text-sky-300 font-bold' : 'text-slate-200 font-medium')}>
-                        {item.name}
-                      </span>
-                      <div className="shrink-0 flex items-center justify-center">
-                        <Icon size={28} className="drop-shadow-sm" />
+            {/* 2. Trò chơi: CHỈ HIỂN THỊ DUY NHẤT GAME ĐƯỢC CHỌN, KHÔNG CẦN CÁC GAME KHÁC THEO YÊU CẦU */}
+            {(() => {
+              const DANH_SACH_TRO_CHOI = [
+                { id: 'chess' as const, name: 'Cờ Vua', Icon: IconCrown3D },
+                { id: 'xiangqi' as const, name: 'Cờ Tướng', Icon: IconXiangqiPiece3D },
+                { id: 'caro_15' as const, name: 'Cờ Caro', Icon: IconCaroCubes3D },
+                { id: 'solo_memory' as const, name: 'Trí Nhớ', Icon: IconManaCrystal3D },
+                { id: 'solo_snake' as const, name: 'Rắn Săn Mồi', Icon: IconSnakeApple3D },
+              ] as const
+              const gameDangChon = DANH_SACH_TRO_CHOI.find((g) => g.id === gameMoiChon) || DANH_SACH_TRO_CHOI[0]
+              const Icon = gameDangChon.Icon
+              return (
+                <div className="space-y-1.5 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
+                      <Gamepad2 className="size-3" />
+                    </div>
+                    <span className="text-xs font-bold text-white tracking-wide">
+                      Trò chơi
+                    </span>
+                  </div>
+                  {/* Card duy nhất của game đang tạo bàn: To rõ, không hiển thị các game khác */}
+                  <div className="h-[48px] px-3.5 rounded-xl border-2 border-sky-400 bg-sky-500/15 flex items-center justify-between font-bold select-none shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="size-8 rounded-lg bg-slate-900/80 border border-sky-400/30 flex items-center justify-center shrink-0">
+                        <Icon size={26} className="drop-shadow-sm" />
                       </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs sm:text-sm font-bold text-sky-300 tracking-wide truncate">
+                          {gameDangChon.name}
+                        </span>
+                        <span className="block text-[10px] text-slate-400 font-medium">
+                          {laTroChoiDon(gameDangChon.id) ? 'Chơi đơn Solo' : '1v1 Đối kháng'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/30 font-semibold">
+                      Đã chọn
+                    </span>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* 3. Chọn thời gian lượt: chuẩn campus */}
             <div className="space-y-1.5 shrink-0">

@@ -2503,3 +2503,28 @@ input[type='number'] {
   border: 1px solid rgba(56, 189, 248, 0.15);
   border-radius: 0.75rem;
 }
+
+/* Hiệu ứng chữ tiêu đề Gaming Esports cao cấp chuyển động ánh kim */
+@keyframes title-gold-shimmer {
+  0% {
+    background-position: 0% 50%;
+    filter: drop-shadow(0 2px 14px rgba(245, 158, 11, 0.45)) drop-shadow(0 4px 24px rgba(0, 0, 0, 0.8));
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: drop-shadow(0 2px 22px rgba(251, 191, 36, 0.75)) drop-shadow(0 4px 28px rgba(0, 0, 0, 0.9));
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: drop-shadow(0 2px 14px rgba(245, 158, 11, 0.45)) drop-shadow(0 4px 24px rgba(0, 0, 0, 0.8));
+  }
+}
+
+.animate-hero-title-shimmer {
+  background: linear-gradient(90deg, #fffbeb 0%, #fde68a 25%, #f59e0b 50%, #fbbf24 75%, #fffbeb 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: title-gold-shimmer 5s ease-in-out infinite;
+}

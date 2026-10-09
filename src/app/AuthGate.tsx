@@ -198,7 +198,7 @@ function LogoCampus() {
   return (
     <span className="inline-flex items-center gap-2.5 select-none">
       <DigitalCampusLogo size="sm" />
-      <span className="text-[0.9375rem] font-bold tracking-tight text-text-primary">Digital Campus</span>
+      <span className="text-[0.9375rem] font-bold tracking-tight text-text-primary">Ace Games</span>
     </span>
   )
 }
