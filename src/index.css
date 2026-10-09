@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
@@ -404,11 +403,6 @@ nav[class*="fixed"] {
   .dark body,
   .dark .bg-canvas {
     background-color: var(--canvas);
-    background-image:
-      radial-gradient(ellipse 90% 55% at 50% -10%, rgba(14, 116, 222, 0.28), transparent 70%),
-      radial-gradient(ellipse 70% 45% at 90% 20%, rgba(56, 189, 248, 0.15), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 10% 45%, rgba(30, 58, 138, 0.2), transparent 55%);
-    background-attachment: fixed;
   }
 
   .crisp-image {
@@ -668,13 +662,9 @@ nav[class*="fixed"] {
 
 .dark body {
   background-color: var(--canvas);
-  background-image: radial-gradient(circle 900px at 50% -120px, rgba(56, 189, 248, 0.05), transparent 75%);
-  background-attachment: fixed;
 }
 :root:not(.dark) body {
   background-color: var(--canvas);
-  background-image: radial-gradient(circle 900px at 50% -120px, rgba(2, 132, 199, 0.03), transparent 75%);
-  background-attachment: fixed;
 }
 
 

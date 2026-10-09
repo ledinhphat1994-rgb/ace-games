@@ -326,7 +326,7 @@ export function HomePage() {
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 pb-16 sm:pb-18 lg:pb-18 transition-all duration-700 ease-in-out ${
+                className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 pb-16 sm:pb-18 lg:pb-18 transition-[opacity,transform] duration-700 ease-in-out ${
                   isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
                 }`}
               >
@@ -335,6 +335,8 @@ export function HomePage() {
                   <img
                     src={slide.bgImage}
                     alt=""
+                    loading={idx === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
                     className="h-full w-full object-cover object-right opacity-75 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
                   />
                   <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
@@ -360,7 +362,7 @@ export function HomePage() {
                     <Button
                       size="lg"
                       onClick={() => navigate(slide.primaryAction.to)}
-                      className={`h-11 px-6 rounded-xl text-white font-bold text-sm transition-all cursor-pointer gap-2 ${slide.primaryAction.className}`}
+                      className={`h-11 px-6 rounded-xl text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2 ${slide.primaryAction.className}`}
                     >
                       <PrimaryIcon className="size-4" />
                       <span>{slide.primaryAction.label}</span>
@@ -380,7 +382,7 @@ export function HomePage() {
                             navigate(slide.secondaryAction.to)
                           }
                         }}
-                        className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer gap-2"
+                        className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2"
                       >
                         {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-4 text-purple-300" />}
                         <span>{slide.secondaryAction.label}</span>
@@ -398,20 +400,20 @@ export function HomePage() {
               type="button"
               onClick={() => setSlideIndex((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
               aria-label="Banner trước"
-              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
             >
               <ChevronLeft className="size-4" />
             </button>
 
             {/* Mấy dấu chấm chuyển banner tự động */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/20 shadow-md">
               {bannerSlides.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => setSlideIndex(idx)}
                   aria-label={`Chuyển đến banner ${idx + 1}`}
-                  className={`transition-all duration-300 rounded-full cursor-pointer ${
+                  className={`transition-[width,background-color] duration-300 rounded-full cursor-pointer ${
                     slideIndex === idx
                       ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
                       : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
@@ -424,7 +426,7 @@ export function HomePage() {
               type="button"
               onClick={() => setSlideIndex((prev) => (prev + 1) % bannerSlides.length)}
               aria-label="Banner tiếp theo"
-              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
+              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -443,13 +445,13 @@ export function HomePage() {
                   key={to}
                   type="button"
                   onClick={() => navigate(to)}
-                  className={`group relative flex flex-col items-center gap-4 py-7 px-5 text-center cursor-pointer transition-all duration-200 hover:bg-surface-raised ${
+                  className={`group relative flex flex-col items-center gap-4 py-7 px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-surface-raised ${
                     isCurrentSlide ? 'bg-surface-raised/40' : ''
                   } ${hover}`}
                 >
                   {hubImg && (
                     <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-300">
-                      <img src={hubImg} alt="" className="h-full w-full object-cover" />
+                      <img src={hubImg} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     </div>
                   )}
                   <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${glow} transition-transform duration-200 group-hover:scale-110`}>
@@ -459,7 +461,7 @@ export function HomePage() {
                     <p className={`text-sm font-bold ${accent} leading-tight`}>{label}</p>
                     <p className="mt-1 text-[11px] text-text-tertiary leading-relaxed whitespace-pre-line">{desc}</p>
                   </div>
-                  <div className={`relative flex h-7 w-7 items-center justify-center rounded-full bg-surface-raised border ${border} transition-all duration-200 group-hover:scale-110`}>
+                  <div className={`relative flex h-7 w-7 items-center justify-center rounded-full bg-surface-raised border ${border} transition-transform duration-200 group-hover:scale-110`}>
                     <ArrowRight className={`size-3.5 ${accent}`} />
                   </div>
                 </button>
