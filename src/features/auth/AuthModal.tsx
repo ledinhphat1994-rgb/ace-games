@@ -6,9 +6,10 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { dangKy, dangNhap, quenMatKhau, yeuCauQuenMatKhau } from '@/lib/api'
-import { AlertCircle, ArrowLeft, GraduationCap, UserPlus, LogIn } from 'lucide-react'
+import { AlertCircle, ArrowLeft, UserPlus, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { LogoGoogle } from './LogoGoogle'
+import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
 
 export type AuthMode = 'dang_nhap' | 'dang_ky' | 'quen_mat_khau'
 
@@ -190,11 +191,9 @@ export function AuthModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-[440px] h-[min(590px,calc(100dvh-2rem))] min-h-0 p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col justify-start overflow-hidden">
         <DialogHeader className="space-y-1 pb-1 shrink-0 min-h-[76px]">
-          <div className="flex items-center gap-2 select-none mb-1">
-            <span className="flex size-8 items-center justify-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
-              <GraduationCap className="size-4" />
-            </span>
-            <span className="text-xs font-semibold tracking-wider uppercase text-text-tertiary">
+          <div className="flex items-center gap-2.5 select-none mb-1">
+            <DigitalCampusLogo size="sm" />
+            <span className="text-xs font-bold tracking-wider uppercase text-text-tertiary">
               Digital Campus
             </span>
           </div>

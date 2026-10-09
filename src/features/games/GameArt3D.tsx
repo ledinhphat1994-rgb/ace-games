@@ -7,13 +7,14 @@ interface Icon3DProps extends SVGProps<SVGSVGElement> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. CỜ VUA: VƯƠNG MIỆN HOÀNG KIM 3D (Golden Crown with Sapphire Gems)
+// 0. TẤT CẢ TRÒ CHƠI: TAY CẦM CHƠI GAME GAMEPAD ARCADE 3D (All Games / Gamepad 3D)
+// Đồng bộ 100% phong cách App Icon Squircle Tím Sang Trọng chuẩn hình ảnh
 // ─────────────────────────────────────────────────────────────────────────────
-export function IconCrown3D({ className, size = 32, ...props }: Icon3DProps) {
-  const id = `crown${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+export function IconAllGames3D({ className, size = 32, ...props }: Icon3DProps) {
+  const id = `gamepad${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 64 64"
       width={size}
       height={size}
       className={cn('shrink-0 select-none overflow-visible', className)}
@@ -21,83 +22,289 @@ export function IconCrown3D({ className, size = 32, ...props }: Icon3DProps) {
       {...props}
     >
       <defs>
-        {/* Vàng kim 3D ánh kim */}
-        <linearGradient id={`${id}-gold`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fef08a" />
-          <stop offset="35%" stopColor="#fbbf24" />
-          <stop offset="70%" stopColor="#d97706" />
-          <stop offset="100%" stopColor="#92400e" />
+        {/* Khung squircle tím 3D sâu thẳm */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
         </linearGradient>
-        {/* Bóng khối chân vương miện */}
-        <linearGradient id={`${id}-base`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#fde047" />
-          <stop offset="50%" stopColor="#f59e0b" />
-          <stop offset="100%" stopColor="#78350f" />
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
         </linearGradient>
-        {/* Ngọc Sapphire xanh lam */}
-        <radialGradient id={`${id}-sapphire`} cx="35%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="#bae6fd" />
-          <stop offset="40%" stopColor="#38bdf8" />
-          <stop offset="80%" stopColor="#0284c7" />
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        {/* Thân tay cầm Neon Cyan & Deep Navy 3D */}
+        <linearGradient id={`${id}-pad-body`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="45%" stopColor="#0284c7" />
           <stop offset="100%" stopColor="#082f49" />
+        </linearGradient>
+        <linearGradient id={`${id}-pad-bevel`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#e0f2fe" />
+          <stop offset="50%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#0369a1" />
+        </linearGradient>
+
+        {/* Cụm phím D-pad & Analog */}
+        <linearGradient id={`${id}-dpad`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#64748b" />
+          <stop offset="100%" stopColor="#0f172a" />
+        </linearGradient>
+
+        {/* Nút bấm Candy A/B/X/Y */}
+        <radialGradient id={`${id}-btn-amber`} cx="40%" cy="35%" r="60%">
+          <stop offset="0%" stopColor="#fef08a" />
+          <stop offset="60%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#b45309" />
         </radialGradient>
-        {/* Hào quang vàng kim */}
+        <radialGradient id={`${id}-btn-rose`} cx="40%" cy="35%" r="60%">
+          <stop offset="0%" stopColor="#fecdd3" />
+          <stop offset="60%" stopColor="#f43f5e" />
+          <stop offset="100%" stopColor="#9f1239" />
+        </radialGradient>
+        <radialGradient id={`${id}-btn-emerald`} cx="40%" cy="35%" r="60%">
+          <stop offset="0%" stopColor="#bbf7d0" />
+          <stop offset="60%" stopColor="#22c55e" />
+          <stop offset="100%" stopColor="#15803d" />
+        </radialGradient>
+
+        <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.5" floodColor="#080218" floodOpacity="0.8" />
+        </filter>
         <filter id={`${id}-glow`} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#f59e0b" floodOpacity="0.45" />
+          <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#38bdf8" floodOpacity="0.6" />
         </filter>
       </defs>
 
-      <g filter={`url(#${id}-glow)`}>
-        {/* Thân vương miện 3D với 5 đỉnh nhọn và cánh vòm uốn lượn */}
-        <path
-          d="M6 34L9 16L17 26L24 10L31 26L39 16L42 34C42 37 39 39 36 39H12C9 39 6 37 6 34Z"
-          fill={`url(#${id}-gold)`}
-          stroke="#fef08a"
-          strokeWidth="1.2"
-          strokeLinejoin="round"
-        />
+      {/* ── Khung Squircle Tím Sang Trọng ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
 
-        {/* Khối nổi đệm phía trước tạo chiều sâu 3D */}
-        <path
-          d="M9 33C14 36 34 36 39 33L36 38C32 40 16 40 12 38L9 33Z"
-          fill="#b45309"
-          opacity="0.8"
-        />
+      {/* ── TAY CẦM CHƠI GAME ARCADE 3D ── */}
+      <g filter={`url(#${id}-shadow)`}>
+        <g transform="translate(10, 16)">
+          {/* Đổ bóng tay cầm */}
+          <path
+            d="M5 12 C5 5 11 3 22 3 C33 3 39 5 39 12 C39 21 37 32 32 32 C28 32 26 23 22 23 C18 23 16 32 12 32 C7 32 5 21 5 12 Z"
+            fill="#080218"
+            transform="translate(0, 3)"
+            opacity="0.8"
+          />
+          {/* Thân tay cầm 3D vát khối */}
+          <path
+            d="M5 12 C5 5 11 3 22 3 C33 3 39 5 39 12 C39 21 37 32 32 32 C28 32 26 23 22 23 C18 23 16 32 12 32 C7 32 5 21 5 12 Z"
+            fill={`url(#${id}-pad-body)`}
+            stroke={`url(#${id}-pad-bevel)`}
+            strokeWidth="1.2"
+          />
+          {/* Vòm bóng gương trên đỉnh tay cầm */}
+          <path
+            d="M9 10 C10 6 15 5 22 5 C29 5 34 6 35 10 C30 12 14 12 9 10 Z"
+            fill="#ffffff"
+            opacity="0.5"
+          />
 
-        {/* Vành đai vương miện đính ngọc */}
-        <rect x="9" y="33" width="30" height="5" rx="2.5" fill={`url(#${id}-base)`} stroke="#fef08a" strokeWidth="0.8" />
+          {/* D-PAD CHỮ THẬP (Bên trái) */}
+          <g transform="translate(10, 10)">
+            <rect x="3" y="0" width="3" height="9" rx="1" fill={`url(#${id}-dpad)`} stroke="#38bdf8" strokeWidth="0.5" />
+            <rect x="0" y="3" width="9" height="3" rx="1" fill={`url(#${id}-dpad)`} stroke="#38bdf8" strokeWidth="0.5" />
+            <circle cx="4.5" cy="4.5" r="1.2" fill="#0284c7" />
+          </g>
 
-        {/* 3 Viên ngọc Sapphire gắn ở vành */}
-        <circle cx="16" cy="35.5" r="1.8" fill={`url(#${id}-sapphire)`} stroke="#ffffff" strokeWidth="0.5" />
-        <circle cx="24" cy="35.5" r="2.2" fill={`url(#${id}-sapphire)`} stroke="#ffffff" strokeWidth="0.5" />
-        <circle cx="32" cy="35.5" r="1.8" fill={`url(#${id}-sapphire)`} stroke="#ffffff" strokeWidth="0.5" />
+          {/* 4 NÚT TRÒN CANDY A/B/X/Y (Bên phải) */}
+          <g transform="translate(26, 8)">
+            {/* Nút trên (X) */}
+            <circle cx="4.5" cy="2" r="2.2" fill={`url(#${id}-btn-amber)`} stroke="#fef08a" strokeWidth="0.5" />
+            {/* Nút trái (Y) */}
+            <circle cx="1.5" cy="5.5" r="2.2" fill={`url(#${id}-btn-rose)`} stroke="#fecdd3" strokeWidth="0.5" />
+            {/* Nút phải (A) */}
+            <circle cx="7.5" cy="5.5" r="2.2" fill={`url(#${id}-btn-emerald)`} stroke="#bbf7d0" strokeWidth="0.5" />
+            {/* Nút dưới (B) */}
+            <circle cx="4.5" cy="9" r="2.2" fill={`url(#${id}-btn-amber)`} stroke="#fef08a" strokeWidth="0.5" />
+          </g>
 
-        {/* Đỉnh ngọc trên 3 nhánh chính */}
-        <circle cx="9" cy="15" r="2.5" fill={`url(#${id}-gold)`} stroke="#fef08a" strokeWidth="0.8" />
-        <circle cx="24" cy="9" r="3.2" fill={`url(#${id}-sapphire)`} stroke="#fef08a" strokeWidth="0.8" />
-        <circle cx="39" cy="15" r="2.5" fill={`url(#${id}-gold)`} stroke="#fef08a" strokeWidth="0.8" />
-
-        {/* Vết sáng kim loại (Specular Highlight) */}
-        <path
-          d="M23 15L24 28L25 15"
-          stroke="#ffffff"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity="0.7"
-        />
+          {/* CẦN ANALOG KÉP (Ở giữa dưới) */}
+          <g transform="translate(15, 17)">
+            <circle cx="3" cy="3" r="3" fill="#0f172a" stroke="#64748b" strokeWidth="0.8" />
+            <circle cx="3" cy="2.5" r="1.8" fill="#38bdf8" />
+            <circle cx="11" cy="3" r="3" fill="#0f172a" stroke="#64748b" strokeWidth="0.8" />
+            <circle cx="11" cy="2.5" r="1.8" fill="#38bdf8" />
+          </g>
+        </g>
       </g>
     </svg>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. CỜ TƯỚNG: QUÂN GỖ KHẮC ĐỎ 3D (Polished Wooden Piece with Crimson Carving)
+// 1. CỜ VUA: QUÂN MÃ GỖ SÁNG & QUÂN XE MUN SẪM 3D (Wooden Knight & Rook 3D)
+// Chuẩn thiết kế icon góc trên bên phải trong hình ảnh người dùng cung cấp
+// ─────────────────────────────────────────────────────────────────────────────
+export function IconCrown3D({ className, size = 32, ...props }: Icon3DProps) {
+  const id = `chess${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      width={size}
+      height={size}
+      className={cn('shrink-0 select-none overflow-visible', className)}
+      fill="none"
+      {...props}
+    >
+      <defs>
+        {/* Khung squircle tím 3D sâu thẳm */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
+        </linearGradient>
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        {/* Gỗ quân Mã sáng màu (White / Honey Knight) */}
+        <linearGradient id={`${id}-knight-body`} x1="15%" y1="10%" x2="85%" y2="90%">
+          <stop offset="0%" stopColor="#fffbeb" />
+          <stop offset="25%" stopColor="#fef3c7" />
+          <stop offset="65%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+        <linearGradient id={`${id}-knight-shade`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#78350f" />
+        </linearGradient>
+
+        {/* Gỗ quân Xe sẫm màu (Dark Walnut Rook) */}
+        <linearGradient id={`${id}-rook-body`} x1="20%" y1="0%" x2="80%" y2="100%">
+          <stop offset="0%" stopColor="#92400e" />
+          <stop offset="35%" stopColor="#713f12" />
+          <stop offset="70%" stopColor="#3b1d0b" />
+          <stop offset="100%" stopColor="#1c0c04" />
+        </linearGradient>
+        <linearGradient id={`${id}-rook-top`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#451a03" />
+        </linearGradient>
+
+        {/* Đổ bóng 3D */}
+        <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.5" floodColor="#0a031d" floodOpacity="0.75" />
+        </filter>
+      </defs>
+
+      {/* ── Khung Squircle Tím Sang Trọng chuẩn hình ảnh ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      {/* Vòm kính phản quang nửa trên */}
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
+
+      {/* ── QUÂN CỜ 3D ── */}
+      <g filter={`url(#${id}-shadow)`}>
+        {/* 1. QUÂN XE (ROOK) GỖ SẪM Ở PHÍA SAU BÊN PHẢI */}
+        <g transform="translate(35, 16)">
+          {/* Đổ bóng chân đế Xe */}
+          <ellipse cx="14" cy="35" rx="10" ry="3.5" fill="#0c0418" opacity="0.6" />
+          {/* Tầng đế dưới */}
+          <ellipse cx="14" cy="33" rx="9.5" ry="3.5" fill="#291206" />
+          <ellipse cx="14" cy="31" rx="8.5" ry="3" fill="#451a03" stroke="#92400e" strokeWidth="0.6" />
+          {/* Tầng đế giữa */}
+          <ellipse cx="14" cy="28" rx="7.5" ry="2.5" fill="#5c2406" />
+          {/* Thân trụ tháp */}
+          <path d="M7 28 C8.5 20 9 14 8 10 L20 10 C19 14 19.5 20 21 28 Z" fill={`url(#${id}-rook-body)`} />
+          {/* Đỉnh viền răng cưa tháp canh (Crenellations) */}
+          <ellipse cx="14" cy="10" rx="7" ry="2" fill="#78350f" />
+          <path
+            d="M6 10 L6 4 L8.5 4 L8.5 6.5 L11 6.5 L11 4 L17 4 L17 6.5 L19.5 6.5 L19.5 4 L22 4 L22 10 Z"
+            fill={`url(#${id}-rook-top)`}
+            stroke="#b45309"
+            strokeWidth="0.6"
+          />
+          {/* Lòng tháp canh lõm */}
+          <ellipse cx="14" cy="5" rx="5" ry="1.5" fill="#1c0a00" />
+          {/* Ánh sáng phản chiếu thân xe */}
+          <path d="M10 12 C10 18 9 24 8.5 27" stroke="#d97706" strokeWidth="0.8" opacity="0.4" strokeLinecap="round" />
+        </g>
+
+        {/* 2. QUÂN MÃ (KNIGHT) GỖ SÁNG BÓNG Ở PHÍA TRƯỚC BÊN TRÁI */}
+        <g transform="translate(9, 14)">
+          {/* Đổ bóng chân đế Mã */}
+          <ellipse cx="16" cy="38" rx="12" ry="4" fill="#0c0418" opacity="0.65" />
+          {/* Tầng đế dưới */}
+          <ellipse cx="16" cy="36" rx="11" ry="3.8" fill="#78350f" />
+          <ellipse cx="16" cy="34" rx="10" ry="3.2" fill="#d97706" />
+          <ellipse cx="16" cy="31" rx="8.5" ry="2.8" fill="#f59e0b" stroke="#fef3c7" strokeWidth="0.8" />
+
+          {/* Khối thân & đầu ngựa điêu khắc 3D uốn lượn */}
+          {/* Lưng & bờm ngựa gợn sóng phía sau */}
+          <path
+            d="M18 31 C21 28 23 21 21 14 C20 11 18 9 17 6 C20 8 22 12 24 16 C25 21 24 26 21 31 Z"
+            fill={`url(#${id}-knight-shade)`}
+          />
+          {/* Thân và cổ đầu ngựa chính */}
+          <path
+            d="M12 31 C10 26 10 21 12 17 C13 14 12 12 9 10 C7 9 5 11 6 13 C7 14 6 16 5 17 C3 18 3 20 6 20 C9 20 11 23 11 27 C11 29 11 30 12 31 Z"
+            fill={`url(#${id}-knight-shade)`}
+            opacity="0.8"
+          />
+          {/* Mặt diện đầu ngựa nổi khối sáng bóng */}
+          <path
+            d="M13 31 C11 25 11 19 13 15 C14 13 14 11 12 9 C14 7 17 6 18 9 C19 11 21 14 20 18 C19 23 19 27 18 31 Z"
+            fill={`url(#${id}-knight-body)`}
+            stroke="#fffbeb"
+            strokeWidth="0.6"
+          />
+
+          {/* Đầu ngựa & Mõm ngựa cong đẹp */}
+          <path
+            d="M13 15 C11 14 8 13 7 15 C6 17 7 19 10 19 C12 19 14 18 15 16 Z"
+            fill={`url(#${id}-knight-body)`}
+          />
+          {/* Mắt ngựa chấm khắc */}
+          <circle cx="12" cy="13" r="1.2" fill="#451a03" />
+          <circle cx="11.7" cy="12.7" r="0.4" fill="#ffffff" />
+          {/* Mũi & Lỗ mũi ngựa */}
+          <ellipse cx="7.5" cy="16.5" rx="0.8" ry="1.2" fill="#78350f" />
+          {/* Tai ngựa vểnh nhọn */}
+          <path d="M15 8 L17 3 L19 7 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="0.6" />
+
+          {/* Bờm ngựa khía 3D lượn sóng */}
+          <path d="M17 7 C19 9 20 12 19 14" stroke="#fffbeb" strokeWidth="1" strokeLinecap="round" />
+          <path d="M19 13 C21 15 22 18 20 21" stroke="#fffbeb" strokeWidth="1" strokeLinecap="round" />
+          <path d="M20 20 C22 23 22 26 20 28" stroke="#fffbeb" strokeWidth="1" strokeLinecap="round" />
+
+          {/* Vết sáng bóng gương (Specular Highlight) dọc sống cổ */}
+          <path
+            d="M14 16 C15 20 15 25 14 29"
+            stroke="#ffffff"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            opacity="0.85"
+          />
+        </g>
+      </g>
+    </svg>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. CỜ TƯỚNG: QUÂN ĐỎ 帥 & QUÂN ĐEN 將 VA CHẠM NẢY TIA LỬA 3D (Xiangqi Clash 3D)
+// Chuẩn thiết kế icon góc trên bên trái trong hình ảnh người dùng cung cấp
 // ─────────────────────────────────────────────────────────────────────────────
 export function IconXiangqiPiece3D({ className, size = 32, ...props }: Icon3DProps) {
   const id = `xq${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 64 64"
       width={size}
       height={size}
       className={cn('shrink-0 select-none overflow-visible', className)}
@@ -105,76 +312,166 @@ export function IconXiangqiPiece3D({ className, size = 32, ...props }: Icon3DPro
       {...props}
     >
       <defs>
-        {/* Vân gỗ gụ bóng bẩy 3D */}
-        <radialGradient id={`${id}-wood`} cx="40%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="#ffedd5" />
-          <stop offset="30%" stopColor="#fed7aa" />
-          <stop offset="70%" stopColor="#ea580c" />
-          <stop offset="100%" stopColor="#9a3412" />
-        </radialGradient>
-        {/* Viền vát cạnh 3D (Beveled Chamfer) */}
-        <linearGradient id={`${id}-bevel`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ffedd5" />
-          <stop offset="50%" stopColor="#c2410c" />
-          <stop offset="100%" stopColor="#431407" />
+        {/* Khung squircle tím 3D */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
         </linearGradient>
-        {/* Chữ khắc son đỏ sâu 3D */}
-        <filter id={`${id}-carve`} x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="0.8" floodColor="#450a0a" floodOpacity="0.8" />
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        {/* Sơn mài đỏ quân Soái (Red General 帥) */}
+        <radialGradient id={`${id}-red-wood`} cx="38%" cy="32%" r="68%">
+          <stop offset="0%" stopColor="#fca5a5" />
+          <stop offset="25%" stopColor="#ef4444" />
+          <stop offset="65%" stopColor="#b91c1c" />
+          <stop offset="100%" stopColor="#660e0e" />
+        </radialGradient>
+        <linearGradient id={`${id}-red-bevel`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fecaca" />
+          <stop offset="50%" stopColor="#dc2626" />
+          <stop offset="100%" stopColor="#450a0a" />
+        </linearGradient>
+
+        {/* Gỗ mun đen bóng quân Tướng (Black General 將) */}
+        <radialGradient id={`${id}-black-wood`} cx="38%" cy="32%" r="68%">
+          <stop offset="0%" stopColor="#57534e" />
+          <stop offset="35%" stopColor="#292524" />
+          <stop offset="75%" stopColor="#1c1917" />
+          <stop offset="100%" stopColor="#0c0a09" />
+        </radialGradient>
+        <linearGradient id={`${id}-black-bevel`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#78716c" />
+          <stop offset="50%" stopColor="#292524" />
+          <stop offset="100%" stopColor="#0c0a09" />
+        </linearGradient>
+
+        {/* Vệt lửa va chạm (Spark Burst) */}
+        <radialGradient id={`${id}-spark-core`} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="30%" stopColor="#fef08a" />
+          <stop offset="60%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
+        </radialGradient>
+
+        <filter id={`${id}-glow`} x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#f59e0b" floodOpacity="0.85" />
         </filter>
         <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#000000" floodOpacity="0.5" />
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.5" floodColor="#080218" floodOpacity="0.8" />
         </filter>
       </defs>
 
+      {/* ── Khung Squircle Tím Sang Trọng ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      {/* Vòm kính phản quang nửa trên */}
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
+
+      {/* ── HAI QUÂN CỜ VÀ TIA LỬA VA CHẠM ── */}
       <g filter={`url(#${id}-shadow)`}>
-        {/* Đế quân cờ tạo độ dày 3D */}
-        <circle cx="24" cy="26" r="20" fill="#431407" />
+        {/* 1. QUÂN ĐỎ (帥) Ở GÓC TRÊN BÊN TRÁI */}
+        <g transform="translate(4, 4)">
+          {/* Đổ bóng dày */}
+          <circle cx="19" cy="22" r="13" fill="#3b0707" opacity="0.75" />
+          {/* Thân vát cạnh 3D */}
+          <circle cx="19" cy="19.5" r="13" fill={`url(#${id}-red-bevel)`} />
+          <circle cx="19" cy="19.5" r="11.2" fill={`url(#${id}-red-wood)`} stroke="#f87171" strokeWidth="0.8" />
+          {/* Rãnh tròn khắc trong */}
+          <circle cx="19" cy="19.5" r="9.2" stroke="#7f1d1d" strokeWidth="0.7" opacity="0.6" strokeDasharray="1 0.8" />
+          {/* Chữ Soái (帥) màu trắng kem nổi khối */}
+          <text
+            x="19"
+            y="24.2"
+            fontSize="12.5"
+            fontFamily="serif"
+            fontWeight="900"
+            textAnchor="middle"
+            fill="#fffbeb"
+            stroke="#991b1b"
+            strokeWidth="0.5"
+          >
+            帥
+          </text>
+          {/* Ánh sáng gương trên mặt cờ */}
+          <path d="M12 14 C15 10 23 10 26 14" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+        </g>
 
-        {/* Mặt quân cờ vát tròn */}
-        <circle cx="24" cy="23" r="19" fill={`url(#${id}-bevel)`} />
-        <circle cx="24" cy="23" r="17" fill={`url(#${id}-wood)`} stroke="#7c2d12" strokeWidth="1" />
+        {/* 2. QUÂN ĐEN (將) Ở GÓC DƯỚI BÊN PHẢI */}
+        <g transform="translate(18, 16)">
+          {/* Đổ bóng dày */}
+          <circle cx="21" cy="23" r="13.5" fill="#0c0a09" opacity="0.8" />
+          {/* Thân vát cạnh 3D */}
+          <circle cx="21" cy="20.5" r="13.5" fill={`url(#${id}-black-bevel)`} />
+          <circle cx="21" cy="20.5" r="11.5" fill={`url(#${id}-black-wood)`} stroke="#78716c" strokeWidth="0.8" />
+          {/* Rãnh tròn khắc trong */}
+          <circle cx="21" cy="20.5" r="9.5" stroke="#44403c" strokeWidth="0.7" opacity="0.6" strokeDasharray="1 0.8" />
+          {/* Chữ Tướng (將) màu vàng gold óng ánh */}
+          <text
+            x="21"
+            y="25.5"
+            fontSize="13"
+            fontFamily="serif"
+            fontWeight="900"
+            textAnchor="middle"
+            fill="#fbbf24"
+            stroke="#b45309"
+            strokeWidth="0.5"
+          >
+            將
+          </text>
+          {/* Ánh sáng gương trên mặt cờ */}
+          <path d="M14 15 C17 11 25 11 28 15" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
+        </g>
 
-        {/* Vòng tròn khắc trong mặt cờ */}
-        <circle cx="24" cy="23" r="14" stroke="#c2410c" strokeWidth="1" strokeDasharray="1 1" opacity="0.6" />
+        {/* 3. TIA LỬA VA CHẠM KỊCH TÍNH Ở TÂM (SPARKS & IMPACT FLASH) */}
+        <g filter={`url(#${id}-glow)`} transform="translate(29, 26)">
+          {/* Đốm hào quang tâm nổ */}
+          <circle cx="2" cy="2" r="7" fill={`url(#${id}-spark-core)`} />
+          <circle cx="2" cy="2" r="2.5" fill="#ffffff" />
 
-        {/* Chữ Tướng (將) thư pháp son đỏ khắc chìm 3D */}
-        <text
-          x="24"
-          y="30"
-          fontSize="17"
-          fontFamily="serif"
-          fontWeight="900"
-          textAnchor="middle"
-          fill="#dc2626"
-          stroke="#991b1b"
-          strokeWidth="0.6"
-          filter={`url(#${id}-carve)`}
-        >
-          將
-        </text>
+          {/* Các tia sáng vàng cam xòe ra (Sparks) */}
+          {/* Tia dài lên trên */}
+          <path d="M2 2 L-2 -10" stroke="#fef08a" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M2 2 L6 -8" stroke="#f59e0b" strokeWidth="1.2" strokeLinecap="round" />
+          {/* Tia sang trái */}
+          <path d="M2 2 L-10 -1" stroke="#fef08a" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M2 2 L-9 7" stroke="#ea580c" strokeWidth="1" strokeLinecap="round" />
+          {/* Tia xuống dưới */}
+          <path d="M2 2 L1 11" stroke="#fef08a" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M2 2 L-5 10" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" />
+          {/* Tia sang phải */}
+          <path d="M2 2 L11 1" stroke="#fef08a" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M2 2 L12 -6" stroke="#ea580c" strokeWidth="1.1" strokeLinecap="round" />
 
-        {/* Vệt bóng gương ánh sáng tự nhiên */}
-        <path
-          d="M13 14C17 9 31 9 35 14"
-          stroke="#ffffff"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity="0.45"
-        />
+          {/* Các đốm lửa nhỏ bay quanh */}
+          <circle cx="-5" cy="-7" r="1" fill="#fff" />
+          <circle cx="8" cy="-5" r="0.8" fill="#fef08a" />
+          <circle cx="-7" cy="5" r="0.8" fill="#fef08a" />
+          <circle cx="9" cy="8" r="1.1" fill="#f59e0b" />
+          <circle cx="3" cy="13" r="0.7" fill="#fff" />
+        </g>
       </g>
     </svg>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. CỜ CARO: CỤM BIỂU TƯỢNG X + O 3D PHÁT QUANG (Glowing 3D Isometric X, +, O)
+// 3. CỜ CARO: HAI QUÂN CỜ X CYAN & O RUBY 3D ĐỐI ĐẦU (Caro Duel 3D)
+// Đồng bộ phong cách App Icon Squircle Tím Sang Trọng
 // ─────────────────────────────────────────────────────────────────────────────
 export function IconCaroCubes3D({ className, size = 32, ...props }: Icon3DProps) {
   const id = `caro${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 64 64"
       width={size}
       height={size}
       className={cn('shrink-0 select-none overflow-visible', className)}
@@ -182,119 +479,89 @@ export function IconCaroCubes3D({ className, size = 32, ...props }: Icon3DProps)
       {...props}
     >
       <defs>
+        {/* Khung squircle tím 3D */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
+        </linearGradient>
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        {/* Khối cờ X Cyan 3D */}
         <linearGradient id={`${id}-cyan`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#bae6fd" />
-          <stop offset="45%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#0284c7" />
+          <stop offset="40%" stopColor="#38bdf8" />
+          <stop offset="85%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#034d75" />
         </linearGradient>
-        <linearGradient id={`${id}-pink`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fbcfe8" />
-          <stop offset="50%" stopColor="#f43f5e" />
-          <stop offset="100%" stopColor="#9f1239" />
+
+        {/* Khối cờ O Ruby 3D */}
+        <linearGradient id={`${id}-ruby`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fecdd3" />
+          <stop offset="40%" stopColor="#f43f5e" />
+          <stop offset="85%" stopColor="#be123c" />
+          <stop offset="100%" stopColor="#710a24" />
         </linearGradient>
+
+        <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.5" floodColor="#080218" floodOpacity="0.8" />
+        </filter>
         <filter id={`${id}-glow`} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#38bdf8" floodOpacity="0.5" />
+          <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#38bdf8" floodOpacity="0.6" />
         </filter>
       </defs>
 
-      <g filter={`url(#${id}-glow)`}>
-        {/* Quân X Cyan 3D nổi khối */}
-        <g transform="translate(6, 12)">
+      {/* ── Khung Squircle Tím Sang Trọng ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
+
+      {/* ── KHỐI QUÂN X VÀ O 3D ── */}
+      <g filter={`url(#${id}-shadow)`}>
+        {/* Quân X Cyan nổi khối ở góc trái */}
+        <g transform="translate(8, 14)">
+          {/* Đổ bóng dày */}
           <path
-            d="M4 18L10 12L4 6L7 3L13 9L19 3L22 6L16 12L22 18L19 21L13 15L7 21Z"
-            fill="#0369a1"
-            transform="translate(0, 2)"
+            d="M5 21L12 14L5 7L9 3L16 10L23 3L27 7L20 14L27 21L23 25L16 18L9 25Z"
+            fill="#082f49"
+            transform="translate(0, 3)"
+            opacity="0.8"
           />
+          {/* Thân X Cyan 3D */}
           <path
-            d="M4 18L10 12L4 6L7 3L13 9L19 3L22 6L16 12L22 18L19 21L13 15L7 21Z"
+            d="M5 21L12 14L5 7L9 3L16 10L23 3L27 7L20 14L27 21L23 25L16 18L9 25Z"
             fill={`url(#${id}-cyan)`}
             stroke="#e0f2fe"
-            strokeWidth="0.8"
+            strokeWidth="1"
           />
+          {/* Vết sáng gương trên X */}
+          <path d="M8 6L16 14L24 6" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.65" />
         </g>
 
-        {/* Dấu cộng + trắng ánh bạc nổi ở giữa */}
-        <g transform="translate(19, 4)">
-          <path
-            d="M4.5 0H7.5V4.5H12V7.5H7.5V12H4.5V7.5H0V4.5H4.5V0Z"
-            fill="#ffffff"
-            stroke="#bae6fd"
-            strokeWidth="0.5"
-            opacity="0.95"
-          />
+        {/* Quân O Ruby Torus 3D ở góc phải */}
+        <g transform="translate(26, 21)">
+          {/* Đổ bóng dày */}
+          <ellipse cx="14" cy="17" rx="13" ry="11" fill="#4c0519" opacity="0.8" />
+          {/* Vòng ngoài O */}
+          <ellipse cx="14" cy="14" rx="13" ry="11" fill={`url(#${id}-ruby)`} stroke="#ffe4e6" strokeWidth="1" />
+          {/* Lỗ rỗng trong O */}
+          <ellipse cx="14" cy="14" rx="6.5" ry="5.5" fill="#1b0946" stroke="#be123c" strokeWidth="1" />
+          {/* Vết sáng gương trên O */}
+          <path d="M7 10 C10 6 18 6 21 10" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
         </g>
 
-        {/* Vòng tròn O Torus 3D */}
-        <g transform="translate(25, 19)">
-          <ellipse cx="10" cy="12" rx="9" ry="8" fill="#881337" />
-          <ellipse cx="10" cy="10" rx="9" ry="8" fill={`url(#${id}-pink)`} stroke="#fecdd3" strokeWidth="0.8" />
-          <ellipse cx="10" cy="10" rx="4.5" ry="4" fill="#0c182c" stroke="#9f1239" strokeWidth="0.8" />
-          <circle cx="8" cy="7" r="1.5" fill="#ffffff" opacity="0.85" />
-        </g>
-      </g>
-    </svg>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. TRÍ NHỚ: TINH THỂ MANA 3D ĐẾ HÀO QUANG (3D Glowing Mana Crystal & Pedestal)
-// ─────────────────────────────────────────────────────────────────────────────
-export function IconManaCrystal3D({ className, size = 32, ...props }: Icon3DProps) {
-  const id = `gem${useId().replace(/[^a-zA-Z0-9]/g, '')}`
-  return (
-    <svg
-      viewBox="0 0 48 48"
-      width={size}
-      height={size}
-      className={cn('shrink-0 select-none overflow-visible', className)}
-      fill="none"
-      {...props}
-    >
-      <defs>
-        <linearGradient id={`${id}-facet1`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#e879f9" />
-          <stop offset="100%" stopColor="#a855f7" />
-        </linearGradient>
-        <linearGradient id={`${id}-facet2`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#c084fc" />
-          <stop offset="100%" stopColor="#7e22ce" />
-        </linearGradient>
-        <linearGradient id={`${id}-facet3`} x1="100%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#6366f1" />
-        </linearGradient>
-        <linearGradient id={`${id}-glow-base`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-        </linearGradient>
-        <filter id={`${id}-glow`} x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#c084fc" floodOpacity="0.75" />
-        </filter>
-      </defs>
-
-      <g filter={`url(#${id}-glow)`}>
-        {/* Vòng đế hào quang dưới chân tinh thể */}
-        <ellipse cx="24" cy="41" rx="14" ry="4" fill={`url(#${id}-glow-base)`} />
-        <ellipse cx="24" cy="41" rx="9" ry="2.5" stroke="#bae6fd" strokeWidth="0.8" opacity="0.7" />
-
-        {/* Tinh thể đa giác 3D đa diện sắc sảo */}
-        {/* Đỉnh chóp trên */}
-        <polygon points="24,5 13,18 24,24" fill={`url(#${id}-facet1)`} stroke="#f5d0fe" strokeWidth="0.8" />
-        <polygon points="24,5 35,18 24,24" fill={`url(#${id}-facet3)`} stroke="#f5d0fe" strokeWidth="0.8" />
-        <polygon points="13,18 24,5 24,24" fill="#fae8ff" opacity="0.35" />
-
-        {/* Khối chóp dưới */}
-        <polygon points="13,18 24,40 24,24" fill={`url(#${id}-facet2)`} stroke="#e9d5ff" strokeWidth="0.8" />
-        <polygon points="35,18 24,40 24,24" fill="#6b21a8" stroke="#e9d5ff" strokeWidth="0.8" />
-
-        {/* Ánh sáng phản xạ chính giữa */}
-        <polygon points="24,10 28,19 24,23 20,19" fill="#ffffff" opacity="0.75" />
-
-        {/* Ngôi sao lấp lánh góc trên */}
+        {/* Ngôi sao lấp lánh ở điểm giao giữa X và O */}
         <path
-          d="M34 8L35.5 12L39.5 13.5L35.5 15L34 19L32.5 15L28.5 13.5L32.5 12Z"
+          d="M32 18 L33.5 22 L37.5 23.5 L33.5 25 L32 29 L30.5 25 L26.5 23.5 L30.5 22 Z"
           fill="#ffffff"
-          opacity="0.9"
+          filter={`url(#${id}-glow)`}
         />
       </g>
     </svg>
@@ -302,13 +569,127 @@ export function IconManaCrystal3D({ className, size = 32, ...props }: Icon3DProp
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. RẮN SĂN MỒI: RẮN NGỌC & TÁO ĐỎ 3D (3D Glossy Emerald Snake & Candy Apple)
+// 4. TRÍ NHỚ: LƯỚI 4 Ô THẺ BÀI LẬT MỞ CANDY 3D (Memory Cards 2x2 Grid 3D)
+// Chuẩn thiết kế icon góc dưới bên trái trong hình ảnh người dùng cung cấp
+// ─────────────────────────────────────────────────────────────────────────────
+export function IconManaCrystal3D({ className, size = 32, ...props }: Icon3DProps) {
+  const id = `mem${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      width={size}
+      height={size}
+      className={cn('shrink-0 select-none overflow-visible', className)}
+      fill="none"
+      {...props}
+    >
+      <defs>
+        {/* Khung squircle tím 3D */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
+        </linearGradient>
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        {/* Thẻ Candy xanh dương (Blue Card ?) */}
+        <linearGradient id={`${id}-blue-card`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#93c5fd" />
+          <stop offset="35%" stopColor="#60a5fa" />
+          <stop offset="75%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#1d4ed8" />
+        </linearGradient>
+        {/* Thẻ Candy vàng cam ngôi sao (Gold Star Card ★) */}
+        <linearGradient id={`${id}-gold-card`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#fef08a" />
+          <stop offset="35%" stopColor="#fcd34d" />
+          <stop offset="75%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+
+        <filter id={`${id}-card-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2.5" stdDeviation="1.5" floodColor="#0c0418" floodOpacity="0.75" />
+        </filter>
+      </defs>
+
+      {/* ── Khung Squircle Tím Sang Trọng ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
+
+      {/* ── LƯỚI 4 Ô THẺ BÀI 2x2 CANDY 3D ── */}
+      <g filter={`url(#${id}-card-shadow)`}>
+        {/* 1. Ô TRÊN TRÁI (XANH - ?) */}
+        <g transform="translate(10, 10)">
+          {/* Đổ bóng đáy thẻ */}
+          <rect x="0" y="2.5" width="20" height="20" rx="5" fill="#1e3a8a" opacity="0.8" />
+          {/* Khối thẻ bo tròn mềm mại */}
+          <rect x="0" y="0" width="20" height="20" rx="5" fill={`url(#${id}-blue-card)`} stroke="#bfdbfe" strokeWidth="0.9" />
+          {/* Vòm sáng bóng trên thẻ */}
+          <path d="M1.5 5.5 C1.5 3 3 1.5 6 1.5 L14 1.5 C17 1.5 18.5 3 18.5 5.5 C15 7.5 5 7.5 1.5 5.5 Z" fill="#ffffff" opacity="0.45" />
+          {/* Dấu chấm hỏi trắng to tròn "?" */}
+          <text x="10" y="15" fontSize="14" fontFamily="sans-serif" fontWeight="900" textAnchor="middle" fill="#ffffff">
+            ?
+          </text>
+        </g>
+
+        {/* 2. Ô TRÊN PHẢI (XANH - ?) */}
+        <g transform="translate(34, 10)">
+          <rect x="0" y="2.5" width="20" height="20" rx="5" fill="#1e3a8a" opacity="0.8" />
+          <rect x="0" y="0" width="20" height="20" rx="5" fill={`url(#${id}-blue-card)`} stroke="#bfdbfe" strokeWidth="0.9" />
+          <path d="M1.5 5.5 C1.5 3 3 1.5 6 1.5 L14 1.5 C17 1.5 18.5 3 18.5 5.5 C15 7.5 5 7.5 1.5 5.5 Z" fill="#ffffff" opacity="0.45" />
+          <text x="10" y="15" fontSize="14" fontFamily="sans-serif" fontWeight="900" textAnchor="middle" fill="#ffffff">
+            ?
+          </text>
+        </g>
+
+        {/* 3. Ô DƯỚI TRÁI (XANH - ?) */}
+        <g transform="translate(10, 34)">
+          <rect x="0" y="2.5" width="20" height="20" rx="5" fill="#1e3a8a" opacity="0.8" />
+          <rect x="0" y="0" width="20" height="20" rx="5" fill={`url(#${id}-blue-card)`} stroke="#bfdbfe" strokeWidth="0.9" />
+          <path d="M1.5 5.5 C1.5 3 3 1.5 6 1.5 L14 1.5 C17 1.5 18.5 3 18.5 5.5 C15 7.5 5 7.5 1.5 5.5 Z" fill="#ffffff" opacity="0.45" />
+          <text x="10" y="15" fontSize="14" fontFamily="sans-serif" fontWeight="900" textAnchor="middle" fill="#ffffff">
+            ?
+          </text>
+        </g>
+
+        {/* 4. Ô DƯỚI PHẢI (VÀNG CAM - NGÔI SAO ★ LẬT MỞ THÀNH CÔNG) */}
+        <g transform="translate(34, 34)">
+          {/* Đổ bóng đáy thẻ vàng */}
+          <rect x="0" y="2.5" width="20" height="20" rx="5" fill="#78350f" opacity="0.8" />
+          {/* Khối thẻ vàng cam rực rỡ */}
+          <rect x="0" y="0" width="20" height="20" rx="5" fill={`url(#${id}-gold-card)`} stroke="#fef08a" strokeWidth="0.9" />
+          {/* Vòm sáng bóng trên thẻ */}
+          <path d="M1.5 5.5 C1.5 3 3 1.5 6 1.5 L14 1.5 C17 1.5 18.5 3 18.5 5.5 C15 7.5 5 7.5 1.5 5.5 Z" fill="#ffffff" opacity="0.45" />
+          {/* Ngôi sao 5 cánh màu cam sẫm ★ */}
+          <polygon
+            points="10,4.5 11.8,8.2 15.8,8.8 12.9,11.6 13.6,15.5 10,13.6 6.4,15.5 7.1,11.6 4.2,8.8 8.2,8.2"
+            fill="#c2410c"
+            stroke="#9a3412"
+            strokeWidth="0.4"
+          />
+        </g>
+      </g>
+    </svg>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. RẮN SĂN MỒI: RẮN XANH PIXEL ART & TÁO ĐỎ PIXEL (Pixel Snake & Apple 3D)
+// Chuẩn thiết kế icon góc dưới bên phải trong hình ảnh người dùng cung cấp
 // ─────────────────────────────────────────────────────────────────────────────
 export function IconSnakeApple3D({ className, size = 32, ...props }: Icon3DProps) {
   const id = `snake${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 64 64"
       width={size}
       height={size}
       className={cn('shrink-0 select-none overflow-visible', className)}
@@ -316,55 +697,91 @@ export function IconSnakeApple3D({ className, size = 32, ...props }: Icon3DProps
       {...props}
     >
       <defs>
-        {/* Da rắn ngọc xanh bóng */}
-        <linearGradient id={`${id}-snake`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#6ee7b7" />
-          <stop offset="45%" stopColor="#10b981" />
-          <stop offset="100%" stopColor="#047857" />
+        {/* Khung squircle tím 3D */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
         </linearGradient>
-        {/* Táo đỏ ngọt ngào 3D */}
-        <radialGradient id={`${id}-apple`} cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#fca5a5" />
-          <stop offset="40%" stopColor="#ef4444" />
-          <stop offset="85%" stopColor="#b91c1c" />
-          <stop offset="100%" stopColor="#450a0a" />
-        </radialGradient>
-        <filter id={`${id}-glow`} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" floodColor="#10b981" floodOpacity="0.4" />
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.5" floodColor="#080218" floodOpacity="0.8" />
         </filter>
       </defs>
 
-      <g filter={`url(#${id}-glow)`}>
-        {/* Thân rắn uốn lượn 3D */}
-        <path
-          d="M8 36C8 28 16 28 16 22C16 16 24 16 24 22C24 28 32 28 32 20"
-          stroke="#065f46"
-          strokeWidth="8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M8 34C8 26 16 26 16 20C16 14 24 14 24 20C24 26 32 26 32 18"
-          stroke={`url(#${id}-snake)`}
-          strokeWidth="7"
-          strokeLinecap="round"
-        />
+      {/* ── Khung Squircle Tím Sang Trọng ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
 
-        {/* Đầu rắn 3D dễ thương */}
-        <circle cx="8" cy="33" r="6" fill={`url(#${id}-snake)`} stroke="#a7f3d0" strokeWidth="0.8" />
-        <circle cx="6" cy="31.5" r="1.8" fill="#ffffff" />
-        <circle cx="5.5" cy="31.5" r="0.9" fill="#064e3b" />
+      {/* ── RẮN XANH VÀ QUẢ TÁO ĐỎ PIXEL ART ── */}
+      <g filter={`url(#${id}-shadow)`}>
+        {/* 1. QUẢ TÁO ĐỎ PIXEL ART (Góc dưới bên trái) */}
+        <g transform="translate(14, 34)">
+          {/* Đổ bóng quả táo */}
+          <rect x="0" y="8" width="10" height="3" fill="#0c0418" opacity="0.6" />
+          {/* Thân táo pixel đỏ (6x6 px lưới) */}
+          {/* Cuống táo nâu */}
+          <rect x="4" y="-2" width="2" height="2" fill="#78350f" />
+          {/* Thân táo */}
+          <rect x="2" y="0" width="6" height="8" fill="#ef4444" />
+          <rect x="0" y="2" width="10" height="5" fill="#ef4444" />
+          <rect x="1" y="1" width="8" height="7" fill="#dc2626" />
+          {/* Bóng đổ sẫm cạnh dưới */}
+          <rect x="1" y="6" width="8" height="2" fill="#991b1b" />
+          {/* Điểm sáng pixel trắng trên táo */}
+          <rect x="2" y="2" width="2" height="2" fill="#fecaca" />
+          <rect x="3" y="3" width="1" height="1" fill="#ffffff" />
+        </g>
 
-        {/* Quả táo đỏ 3D */}
-        <g transform="translate(24, 14)">
-          {/* Bóng đổ táo */}
-          <ellipse cx="11" cy="22" rx="9" ry="3.5" fill="#000000" opacity="0.3" />
-          {/* Thân quả táo */}
-          <circle cx="11" cy="14" r="9" fill={`url(#${id}-apple)`} stroke="#fecaca" strokeWidth="0.8" />
-          {/* Cuống táo & lá xanh */}
-          <path d="M11 6C11 3 13 1 15 1" stroke="#78350f" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M12 4C15 2 18 3 17 6C15 6 13 5 12 4Z" fill="#34d399" />
-          {/* Đốm sáng trên táo */}
-          <ellipse cx="8" cy="11" rx="2.5" ry="1.5" transform="rotate(-25 8 11)" fill="#ffffff" opacity="0.75" />
+        {/* 2. CHÚ RẮN XANH LÁ CÂY PIXEL ART (Uốn lượn S-shape) */}
+        <g transform="translate(20, 14)">
+          {/* Lưỡi rắn đỏ thè ra hướng về quả táo */}
+          <rect x="-3" y="10" width="3" height="1.8" fill="#ef4444" />
+          <rect x="-4.5" y="10" width="1.8" height="3.2" fill="#ef4444" />
+
+          {/* ĐẦU RẮN PIXEL (x: 0..16, y: 0..14) */}
+          {/* Viền viền đầu rắn màu xanh lục đậm */}
+          <rect x="4" y="0" width="12" height="14" fill="#15803d" />
+          <rect x="2" y="2" width="16" height="11" fill="#15803d" />
+          {/* Ruột đầu rắn màu xanh tươi */}
+          <rect x="3" y="2" width="14" height="10" fill="#4ade80" />
+          <rect x="5" y="1" width="10" height="11" fill="#22c55e" />
+
+          {/* Mắt rắn pixel to ngây thơ */}
+          <rect x="6" y="4" width="3.5" height="3.5" fill="#0f172a" />
+          <rect x="6.5" y="4.5" width="1.5" height="1.5" fill="#ffffff" />
+
+          {/* CỔ VÀ THÂN RẮN UỐN LƯỢN (Uốn sang phải rồi xuống dưới) */}
+          {/* Khối thân 1: Cổ uốn sang phải */}
+          <rect x="12" y="8" width="6" height="9" fill="#22c55e" stroke="#15803d" strokeWidth="0.8" />
+          {/* Khối thân 2: Xuống dưới */}
+          <rect x="13" y="15" width="6" height="10" fill="#22c55e" stroke="#15803d" strokeWidth="0.8" />
+          {/* Khối thân 3: Uốn sang trái làm bụng */}
+          <rect x="7" y="21" width="10" height="6" fill="#22c55e" stroke="#15803d" strokeWidth="0.8" />
+          {/* Khối thân 4: Uốn lượn sang phải */}
+          <rect x="14" y="24" width="11" height="6" fill="#22c55e" stroke="#15803d" strokeWidth="0.8" />
+          {/* Đuôi rắn vểnh lên */}
+          <rect x="22" y="21" width="5" height="6" fill="#22c55e" stroke="#15803d" strokeWidth="0.8" />
+
+          {/* VIỀN BỤNG MÀU VÀNG CHANH PIXEL NHẠT (Đặc trưng chú rắn trong hình) */}
+          <rect x="7" y="25" width="7" height="2" fill="#fde047" />
+          <rect x="14" y="27" width="9" height="2" fill="#fde047" />
+          <rect x="24" y="23" width="2" height="4" fill="#fde047" />
+
+          {/* Đốm vảy xanh lục đậm pixel trên lưng */}
+          <rect x="9" y="1" width="3" height="1.5" fill="#16a34a" />
+          <rect x="15" y="9" width="2" height="2" fill="#16a34a" />
+          <rect x="16" y="17" width="2" height="3" fill="#16a34a" />
+          <rect x="17" y="25" width="3" height="2" fill="#16a34a" />
         </g>
       </g>
     </svg>

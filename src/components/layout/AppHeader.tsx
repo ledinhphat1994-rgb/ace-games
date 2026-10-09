@@ -8,6 +8,7 @@ import type { NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
 import { MessageSquare } from 'lucide-react'
 import { ThemeSwitch } from './ThemeSwitch'
+import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
 // CampusSearch: Vùng 1 đã xóa theo yêu cầu
 
 interface AppHeaderProps {
@@ -45,19 +46,7 @@ export const AppHeader = memo(function AppHeader({
         <div className="flex items-center gap-2.5 sm:gap-6 min-w-0 flex-1">
           {/* Brand logo (visible across desktop & mobile) */}
           <NavLink to="/" className="flex items-center gap-2.5 group shrink-0 select-none rounded-xl py-1 pr-1 sm:pr-2 hover:opacity-90 transition-opacity">
-            <div className="relative flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-sky-500/25 via-indigo-500/20 to-purple-500/25 border-2 border-sky-400/60 text-sky-400 shadow-[0_0_25px_rgba(56,189,248,0.4)] group-hover:scale-105 group-hover:border-sky-400/90 transition-all duration-300">
-              {/* Animated glow aura */}
-              <span className="absolute -inset-1 rounded-xl sm:rounded-2xl bg-gradient-to-r from-sky-400/50 via-indigo-400/40 to-purple-400/50 blur-[5px] animate-pulse pointer-events-none" />
-              <img
-                src="/assets/brand/app-logo.png"
-                alt="Digital Campus Logo"
-                className="relative h-6.5 w-6.5 sm:h-8 sm:w-8 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,1)] transition-transform duration-300 group-hover:scale-110"
-              />
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500" />
-              </span>
-            </div>
+            <DigitalCampusLogo size="md" />
             <div className="min-w-0">
               <span className="block text-sm sm:text-base font-extrabold tracking-tight text-text-primary leading-tight">
                 Digital Campus

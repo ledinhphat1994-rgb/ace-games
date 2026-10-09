@@ -3,7 +3,8 @@
 
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
 
 const NGAY_CAP_NHAT = '30/09/2026'
 
@@ -25,10 +26,8 @@ export function PrivacyPage() {
     <div className="min-h-svh bg-background px-4 py-10 sm:px-6">
       <article className="mx-auto max-w-3xl space-y-8" data-testid="privacy-page">
         <header className="space-y-4">
-          <div className="flex items-center gap-2 select-none">
-            <span className="flex size-8 items-center justify-center rounded-xl border border-brand/30 bg-brand/10 text-brand">
-              <GraduationCap className="size-4" />
-            </span>
+          <div className="flex items-center gap-2.5 select-none">
+            <DigitalCampusLogo size="sm" />
             <span className="text-xs font-semibold tracking-wider text-text-tertiary uppercase">Digital Campus · GDTX Định Quán</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">Chính sách bảo mật</h1>

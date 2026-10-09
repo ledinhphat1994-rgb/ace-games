@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useSearchParams } from 'react-router'
 import { KhungChoTrang } from '@/components/layout/KhungChoTrang'
-import { GraduationCap, Loader2, WifiOff } from 'lucide-react'
+import { Loader2, WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { dangXuat, layPhienHienTai, layTrangThaiGoogle, LoiApi } from '@/lib/api
 import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { toast } from 'sonner'
 import type { KetQuaGoogle } from '@shared/protocol/google'
+import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
 
 // Máy chủ quay về với ?google=<kết quả> sau đăng nhập / liên kết Google; huỷ giữa chừng thì không báo gì.
 const THONG_BAO_GOOGLE: Partial<Record<KetQuaGoogle, { loai: 'success' | 'error'; noiDung: string }>> = {
@@ -196,10 +197,8 @@ function KhungNen({ children }: { children: ReactNode }) {
 function LogoCampus() {
   return (
     <span className="inline-flex items-center gap-2.5 select-none">
-      <span className="flex size-9 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand">
-        <GraduationCap className="size-[18px]" />
-      </span>
-      <span className="text-[0.9375rem] font-semibold tracking-tight text-text-primary">Digital Campus</span>
+      <DigitalCampusLogo size="sm" />
+      <span className="text-[0.9375rem] font-bold tracking-tight text-text-primary">Digital Campus</span>
     </span>
   )
 }

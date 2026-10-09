@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import gameLobbyRaw from '../src/features/games/GameLobbyView.tsx?raw'
 import thePhongGameRaw from '../src/features/games/ThePhongGame.tsx?raw'
 
-describe('Game Lobby Vùng 1 & Vùng 2 Enhancements', () => {
-  describe('Vùng 1: Card từng game to rõ, icon to rõ, kéo qua kéo lại', () => {
-    it('hiển thị danh sách card lọc game to rõ với các icon 3D và Lucide', () => {
+describe('Game Lobby App Icon Grid 2 Hàng & Tạo Phòng Theo Game (User Request)', () => {
+  describe('Vùng 1: App Icon squircle chuẩn Hình 1, xếp 2 hàng tĩnh, bấm game tạo phòng game đó', () => {
+    it('hiển thị danh sách App Icon game với các icon 3D và Lucide', () => {
       expect(gameLobbyRaw).toContain('gameFilterCards')
       expect(gameLobbyRaw).toContain('<IconCrown3D')
       expect(gameLobbyRaw).toContain('<IconXiangqiPiece3D')
@@ -16,14 +16,23 @@ describe('Game Lobby Vùng 1 & Vùng 2 Enhancements', () => {
       expect(gameLobbyRaw).toContain('<Users')
     })
 
-    it('hỗ trợ tương tác kéo qua kéo lại (drag-to-scroll) mượt mà bằng chuột và 2 nút điều hướng', () => {
-      expect(gameLobbyRaw).toContain('handleDragStart')
-      expect(gameLobbyRaw).toContain('handleDragMove')
-      expect(gameLobbyRaw).toContain('handleDragEnd')
-      expect(gameLobbyRaw).toContain('carouselRef')
-      expect(gameLobbyRaw).toContain('cuonTrai')
-      expect(gameLobbyRaw).toContain('cuonPhai')
-      expect(gameLobbyRaw).toContain('cursor-grab active:cursor-grabbing')
+    it('xếp các game thành 2 hàng cố định không kéo ngang, kích thước icon app squircle chuẩn Hình 1', () => {
+      // Kích thước icon chuẩn squircle như Hình 1 (size-14 sm:size-16 rounded-2xl)
+      expect(gameLobbyRaw).toContain('size-14 sm:size-16')
+      expect(gameLobbyRaw).toContain('rounded-2xl')
+      // Lưới 3 cột x 2 hàng không còn thanh trượt ngang
+      expect(gameLobbyRaw).toContain('grid grid-cols-3')
+      // Không còn cuộn kéo ngang carouselRef hay cursor-grab
+      expect(gameLobbyRaw).not.toContain('cursor-grab active:cursor-grabbing')
+      expect(gameLobbyRaw).not.toContain('carouselRef')
+    })
+
+    it('bấm vào game và bấm vào tạo phòng thì tự động tạo phòng đúng game đó', () => {
+      expect(gameLobbyRaw).toContain('handleCardSelect')
+      expect(gameLobbyRaw).toContain('setGameMoiChon')
+      expect(gameLobbyRaw).toContain('setTenPhongMoi')
+      expect(gameLobbyRaw).toContain('data-testid="create-table-btn"')
+      expect(gameLobbyRaw).toContain('setMoTaoBanModal(true)')
     })
 
     it('hiển thị số lượng phòng trên mỗi card và highlight khi chọn', () => {
