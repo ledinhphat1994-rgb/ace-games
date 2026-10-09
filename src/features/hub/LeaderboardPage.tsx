@@ -231,8 +231,10 @@ export function LeaderboardPage() {
         {/* Artwork anime vinh danh danh dự toàn cảnh */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
           <img
-            src="/assets/banners/leaderboard_hero_cyber.jpg"
+            src="/assets/banners/leaderboard_hero_cyber.webp"
             alt="Bảng xếp hạng Digital Campus"
+            loading="eager"
+            decoding="async"
             className="w-full h-full object-cover object-center opacity-85 lg:opacity-90"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0d0903] via-[#0d0903]/85 via-45% to-transparent" />

@@ -1,7 +1,7 @@
 // Digital Campus v2: Canonical Learning Room Lobby
 // src/features/hub/LearningPage.tsx
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, memo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
@@ -130,6 +130,146 @@ const PLATFORM_DEFAULT_STUDY_ROOMS: PhongSanh[] = [
   },
 ]
 
+const LEARNING_BANNER_SLIDES = [
+  {
+    id: 'lobby',
+    badge: 'PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN',
+    title: 'Sảnh Học Tập Trực Tuyến',
+    desc: 'Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.',
+    bgImage: '/assets/banners/learning_hero_cyber.webp',
+    gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
+  },
+  {
+    id: 'materials',
+    badge: 'TÀI LIỆU & ĐỀ CƯƠNG • CHUẨN SGK',
+    title: 'Ôn Luyện Chuyên Sâu, Chinh Phục Điểm Cao',
+    desc: 'Kho đề thi, đề cương ôn tập các môn Toán, Vật lý, Hoá học, Ngữ văn được cập nhật liên tục theo chương trình GDPT.',
+    bgImage: '/assets/banners/learn_materials_hero.webp',
+    gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
+  },
+  {
+    id: 'interactive',
+    badge: 'TƯƠNG TÁC THỜI GIAN THỰC • BẢNG VẼ & YOUTUBE',
+    title: 'Học Nhóm Hiệu Quả Cùng Bạn Bè',
+    desc: 'Đồng bộ video bài giảng YouTube, cùng vẽ và ghi chú trực tiếp trên tài liệu ôn thi với bạn học theo thời gian thực.',
+    bgImage: '/assets/banners/learn_interactive_hero.webp',
+    gradient: 'from-[#031d1a] via-[#031d1a]/85 to-transparent',
+  },
+] as const
+
+interface LearningHeroBannerProps {
+  onTaoPhong: () => void
+}
+
+const LearningHeroBanner = memo(function LearningHeroBanner({ onTaoPhong }: LearningHeroBannerProps) {
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+
+  useEffect(() => {
+    if (isPaused) return
+    const timer = setInterval(() => {
+      setSlideIndex((prev) => (prev + 1) % LEARNING_BANNER_SLIDES.length)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [isPaused])
+
+  return (
+    <section
+      aria-label="Giới thiệu sảnh học tập"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.15)] group select-none"
+    >
+      {LEARNING_BANNER_SLIDES.map((slide, idx) => {
+        const isCurrent = idx === slideIndex
+        return (
+          <div
+            key={slide.id}
+            className={cn(
+              'absolute inset-0 transition-opacity duration-700 ease-in-out',
+              isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none',
+            )}
+          >
+            <div className="absolute inset-0 z-0 overflow-hidden">
+              <img
+                src={slide.bgImage}
+                alt={slide.title}
+                loading={idx === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+              />
+              <div className={cn('absolute inset-0 bg-gradient-to-r', slide.gradient)} />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
+            </div>
+
+            <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+                <span>{slide.badge}</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
+                {slide.title}
+              </h1>
+
+              <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+                {slide.desc}
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Button
+                  size="default"
+                  onClick={onTaoPhong}
+                  className="h-11 px-6 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-colors duration-150 cursor-pointer gap-2"
+                >
+                  <Plus className="size-4" />
+                  <span>Tạo phòng học mới</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Nút điều hướng Carousel (Prev/Next & Dots) giống trang chủ */}
+      <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSlideIndex((prev) => (prev - 1 + LEARNING_BANNER_SLIDES.length) % LEARNING_BANNER_SLIDES.length)}
+          aria-label="Banner trước"
+          className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer backdrop-blur-md shadow-md"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
+          {LEARNING_BANNER_SLIDES.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setSlideIndex(idx)}
+              aria-label={`Chuyển đến banner ${idx + 1}`}
+              className={cn(
+                'transition-[width,background-color] duration-300 rounded-full cursor-pointer',
+                idx === slideIndex
+                  ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                  : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80',
+              )}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setSlideIndex((prev) => (prev + 1) % LEARNING_BANNER_SLIDES.length)}
+          aria-label="Banner tiếp theo"
+          className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer backdrop-blur-md shadow-md"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+    </section>
+  )
+})
+
 export function LearningPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -234,45 +374,9 @@ export function LearningPage() {
     [lobbyState.status, allStudyRooms, roomFriendsMap],
   )
 
-  // Danh sách các Slide tự chạy cho Hero Banner Sảnh học tập (VÙNG 6)
-  const [slideIndex, setSlideIndex] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
-
-  const bannerSlides = useMemo(() => [
-    {
-      id: 'lobby',
-      badge: 'PHÒNG HỌC TRỰC TUYẾN • GDTX ĐỊNH QUÁN',
-      title: 'Sảnh Học Tập Trực Tuyến',
-      desc: 'Tạo hoặc tham gia phòng học nhóm tương tác với bảng vẽ, tài liệu PDF và video bài giảng cùng bạn học.',
-      bgImage: '/assets/banners/learning_hero_cyber.jpg',
-      gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
-    },
-    {
-      id: 'materials',
-      badge: 'TÀI LIỆU & ĐỀ CƯƠNG • CHUẨN SGK',
-      title: 'Ôn Luyện Chuyên Sâu, Chinh Phục Điểm Cao',
-      desc: 'Kho đề thi, đề cương ôn tập các môn Toán, Vật lý, Hoá học, Ngữ văn được cập nhật liên tục theo chương trình GDPT.',
-      bgImage: '/assets/banners/learn_materials_hero.jpg',
-      gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
-    },
-    {
-      id: 'interactive',
-      badge: 'TƯƠNG TÁC THỜI GIAN THỰC • BẢNG VẼ & YOUTUBE',
-      title: 'Học Nhóm Hiệu Quả Cùng Bạn Bè',
-      desc: 'Đồng bộ video bài giảng YouTube, cùng vẽ và ghi chú trực tiếp trên tài liệu ôn thi với bạn học theo thời gian thực.',
-      bgImage: '/assets/banners/learn_interactive_hero.jpg',
-      gradient: 'from-[#031d1a] via-[#031d1a]/85 to-transparent',
-    },
-  ], [])
-
-  // Cơ chế tự chạy Banner (Carousel Auto-play 4.5s) — Dừng khi hover chuột (Pause on hover)
-  useEffect(() => {
-    if (isPaused) return
-    const timer = setInterval(() => {
-      setSlideIndex((prev) => (prev + 1) % bannerSlides.length)
-    }, 4500)
-    return () => clearInterval(timer)
-  }, [isPaused, bannerSlides.length])
+  const handleTaoPhong = useCallback(() => {
+    canDangNhap(() => setMoTaoPhong(true))()
+  }, [canDangNhap])
 
   const vaoPhongNhanh = () => {
     if (!quickJoinRoom) return
@@ -281,98 +385,8 @@ export function LearningPage() {
 
   return (
     <div className="pb-12 space-y-8">
-      {/* 1. Hero Banner Sảnh học tập (VÙNG 6: Tự động chuyển banner qua lại giống trang chủ) */}
-      <section
-        aria-label="Giới thiệu sảnh học tập"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.15)] group select-none"
-      >
-        {bannerSlides.map((slide, idx) => {
-          const isCurrent = idx === slideIndex
-          return (
-            <div
-              key={slide.id}
-              className={cn(
-                'absolute inset-0 transition-opacity duration-700 ease-in-out',
-                isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none',
-              )}
-            >
-              <div className="absolute inset-0 z-0 overflow-hidden">
-                <img
-                  src={slide.bgImage}
-                  alt={slide.title}
-                  className="h-full w-full object-cover object-right opacity-80 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
-                />
-                <div className={cn('absolute inset-0 bg-gradient-to-r', slide.gradient)} />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
-              </div>
-
-              <div className="relative z-10 p-8 sm:p-12 lg:p-16 max-w-3xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-sky-400 mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-                  <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
-                  <span>{slide.badge}</span>
-                </div>
-
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
-                  {slide.title}
-                </h1>
-
-                <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-                  {slide.desc}
-                </p>
-
-                <div className="mt-8 flex flex-wrap items-center gap-4">
-                  <Button
-                    size="default"
-                    onClick={canDangNhap(() => setMoTaoPhong(true))}
-                    className="h-11 px-6 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all cursor-pointer gap-2"
-                  >
-                    <Plus className="size-4" />
-                    <span>Tạo phòng học mới</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-
-        {/* Nút điều hướng Carousel (Prev/Next & Dots) giống trang chủ — SÁT CHÍNH GIỮA CẠNH DƯỚI (VÙNG 3) */}
-        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSlideIndex((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
-            aria-label="Banner trước"
-            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-md">
-            {bannerSlides.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setSlideIndex(idx)}
-                aria-label={`Chuyển đến banner ${idx + 1}`}
-                className={cn(
-                  'transition-all duration-300 rounded-full cursor-pointer',
-                  idx === slideIndex
-                    ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
-                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80',
-                )}
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setSlideIndex((prev) => (prev + 1) % bannerSlides.length)}
-            aria-label="Banner tiếp theo"
-            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/50 hover:bg-black/80 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-md shadow-md"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      </section>
+      {/* 1. Hero Banner Sảnh học tập (Tự động chuyển banner cách ly, Zero Re-render) */}
+      <LearningHeroBanner onTaoPhong={handleTaoPhong} />
 
       <div className="space-y-6 min-w-0">
         {/* ── Khu vực chính giữa: Danh sách phòng học đang mở ── */}

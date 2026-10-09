@@ -1,6 +1,4 @@
-// Digital Campus v2: Canonical Global Header (Approved Reference Design)
-// src/components/layout/AppHeader.tsx
-
+import { memo } from 'react'
 import { NavLink } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { NotificationCenter } from '@/components/NotificationCenter'
@@ -27,7 +25,7 @@ interface AppHeaderProps {
   onMoAuthModal?: (mode?: 'dang_nhap' | 'dang_ky' | 'quen_mat_khau') => void
 }
 
-export function AppHeader({
+export const AppHeader = memo(function AppHeader({
   nguoiDung,
   trangThai,
   onlineCount,
@@ -136,4 +134,4 @@ export function AppHeader({
       </div>
     </header>
   )
-}
+})

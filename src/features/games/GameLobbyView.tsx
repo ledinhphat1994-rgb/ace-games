@@ -166,7 +166,7 @@ const BANNER_SLIDES = [
     badge: 'ĐẤU TRƯỜNG TRÒ CHƠI • DIGITAL CAMPUS',
     title: 'Đấu Trí Chiến Thuật & Giải Trí',
     desc: 'Thi đấu cờ vua, cờ tướng, cờ caro đối kháng trực tuyến hoặc luyện tập trí tuệ và phản xạ cùng bạn học.',
-    bgImage: '/assets/games/game_hero_clean.jpg',
+    bgImage: '/assets/games/game_hero_clean.webp',
     gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
   },
   {
@@ -174,7 +174,7 @@ const BANNER_SLIDES = [
     badge: 'THI ĐẤU ĐỐI KHÁNG 1V1 • XẾP HẠNG ELO',
     title: 'Tranh Tài Cao Thủ, Khẳng Định Bản Lĩnh',
     desc: 'Hệ thống ghép trận thời gian thực, bảng xếp hạng Elo chuẩn quốc tế và xác thực máy chủ chống gian lận.',
-    bgImage: '/assets/banners/game_pvp_hero.jpg',
+    bgImage: '/assets/banners/game_pvp_hero.webp',
     gradient: 'from-[#031535] via-[#031535]/85 to-transparent',
   },
   {
@@ -182,7 +182,7 @@ const BANNER_SLIDES = [
     badge: 'RÈN LUYỆN TRÍ TUỆ • ĐA DẠNG THỂ LOẠI',
     title: 'Giải Trí Lành Mạnh Cùng Bạn Học',
     desc: 'Rèn luyện tư duy logic, phản xạ nhanh nhạy với các trò chơi cờ chiến thuật, giải đố và arcade kinh điển.',
-    bgImage: '/assets/games/game_hero_clean.jpg',
+    bgImage: '/assets/games/game_hero_clean.webp',
     gradient: 'from-[#021330] via-[#021330]/85 to-transparent',
   },
 ] as const

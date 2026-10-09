@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, memo, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
@@ -61,15 +61,297 @@ const QUICK_NAV = [
   },
 ]
 
+const BANNER_SLIDES = [
+  {
+    id: 'overview',
+    badge: 'DIGITAL CAMPUS',
+    title: (
+      <>
+        Học tập · Kết nối
+        <br />
+        Chơi game · Phát triển
+        <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-indigo-400">
+          Tất cả trong một nơi.
+        </span>
+      </>
+    ),
+    desc: 'Cùng nhau học tập, chơi game, kết nối bạn bè và phát triển kỹ năng để tạo nên một cộng đồng học sinh mạnh mẽ hơn.',
+    bgImage: '/assets/banners/home_hero_overview.webp',
+    gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
+    primaryAction: {
+      label: 'Bắt đầu khám phá',
+      to: '/learn',
+      icon: BookOpen,
+      className: 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-[0_0_20px_rgba(56,189,248,0.4)]',
+    },
+    secondaryAction: {
+      label: 'Xem đấu trường game',
+      to: '/arena',
+      icon: Gamepad2,
+    },
+  },
+  {
+    id: 'learning',
+    badge: 'PHÒNG HỌC TRỰC TUYẾN',
+    title: (
+      <>
+        Khám phá tri thức,
+        <br />
+        kiến tạo tương lai.
+        <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400">
+          Học nhóm & Tương tác trực tiếp.
+        </span>
+      </>
+    ),
+    desc: 'Không gian học nhóm tương tác với bảng vẽ trực tiếp, tài liệu ôn thi chuẩn SGK và video bài giảng đồng bộ cùng bạn học.',
+    bgImage: '/assets/banners/learning_hero_cyber.webp',
+    gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
+    primaryAction: {
+      label: 'Vào sảnh học tập',
+      to: '/learn',
+      icon: BookOpen,
+      className: 'bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 shadow-[0_0_20px_rgba(6,182,212,0.4)]',
+    },
+    secondaryAction: {
+      label: 'Tạo phòng học mới',
+      action: 'create_room' as const,
+      icon: Sparkles,
+    },
+  },
+  {
+    id: 'games',
+    badge: 'ĐẤU TRƯỜNG TRÒ CHƠI',
+    title: (
+      <>
+        Đấu Trí Chiến Thuật
+        <br />
+        & Thử Thách Trí Tuệ.
+        <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-300 to-pink-400">
+          Cờ Vua, Cờ Tướng, Cờ Caro 1v1.
+        </span>
+      </>
+    ),
+    desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 với bạn bè hoặc rèn luyện cùng AI đa cấp độ, xác thực máy chủ Cloudflare chống gian lận.',
+    bgImage: '/assets/banners/game_pvp_hero.webp',
+    gradient: 'from-[#14062a] via-[#14062a]/85 to-transparent',
+    primaryAction: {
+      label: 'Vào Đấu trường game',
+      to: '/arena',
+      icon: Gamepad2,
+      className: 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
+    },
+    secondaryAction: {
+      label: 'Xem bảng xếp hạng',
+      to: '/leaderboard',
+      icon: Trophy,
+    },
+  },
+  {
+    id: 'leaderboard',
+    badge: 'BẢNG VINH DANH',
+    title: (
+      <>
+        Vinh Danh Thành Tích,
+        <br />
+        Khẳng Định Bản Lĩnh.
+        <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500">
+          Bảng Vàng Danh Dự Toàn Trường.
+        </span>
+      </>
+    ),
+    desc: 'Tôn vinh học sinh tiêu biểu, kỳ thủ xuất sắc và kỷ lục điểm số các trò chơi trí tuệ theo thời gian thực.',
+    bgImage: '/assets/banners/leaderboard_hero_cyber.webp',
+    gradient: 'from-[#1c1204] via-[#1c1204]/85 to-transparent',
+    primaryAction: {
+      label: 'Xem Bảng vinh danh',
+      to: '/leaderboard',
+      icon: Trophy,
+      className: 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-stone-950 font-bold',
+    },
+    secondaryAction: {
+      label: 'Vào Đấu trường game',
+      to: '/arena',
+      icon: Gamepad2,
+    },
+  },
+] as const
+
+interface HomeHeroBannerProps {
+  onNavigate: (to: string) => void
+  onCreateRoom: () => void
+  onOpenChat: () => void
+}
+
+const HomeHeroBanner = memo(function HomeHeroBanner({
+  onNavigate,
+  onCreateRoom,
+  onOpenChat,
+}: HomeHeroBannerProps) {
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+
+  useEffect(() => {
+    if (isPaused) return
+    const timer = setInterval(() => {
+      setSlideIndex((prev) => (prev + 1) % BANNER_SLIDES.length)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [isPaused])
+
+  return (
+    <section
+      aria-label="Chào mừng bạn học"
+      className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[440px] lg:min-h-[480px] flex flex-col justify-center group"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Khung chuyển slide tự động (Auto-playing Carousel Stage) */}
+      <div className="relative w-full min-h-[440px] lg:min-h-[480px] overflow-hidden flex flex-col justify-center">
+        {BANNER_SLIDES.map((slide, idx) => {
+          const isActive = slideIndex === idx
+          const PrimaryIcon = slide.primaryAction.icon
+          return (
+            <div
+              key={slide.id}
+              className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 pb-16 sm:pb-18 lg:pb-18 transition-[opacity,transform] duration-700 ease-in-out ${
+                isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
+              }`}
+            >
+              {/* Background image & gradient overlay */}
+              <div className="absolute inset-0 overflow-hidden -z-10">
+                <img
+                  src={slide.bgImage}
+                  alt=""
+                  loading={idx === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  className="h-full w-full object-cover object-right opacity-75 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+                />
+                <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#040e29] via-[#040e29]/40 to-transparent" />
+              </div>
+
+              {/* Nội dung slide */}
+              <div className="relative z-10 max-w-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                  <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span>{slide.badge}</span>
+                </div>
+
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+                  {slide.title}
+                </h1>
+
+                <p className="mt-3.5 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
+                  {slide.desc}
+                </p>
+
+                <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3.5">
+                  <Button
+                    size="lg"
+                    onClick={() => onNavigate(slide.primaryAction.to)}
+                    className={`h-11 px-6 rounded-xl text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2 ${slide.primaryAction.className}`}
+                  >
+                    <PrimaryIcon className="size-4" />
+                    <span>{slide.primaryAction.label}</span>
+                    <ArrowRight className="size-3.5" />
+                  </Button>
+                  {slide.secondaryAction && (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={() => {
+                        const sec = slide.secondaryAction
+                        if ('action' in sec) {
+                          if (sec.action === 'create_room') {
+                            onCreateRoom()
+                          } else if (sec.action === 'open_chat') {
+                            onOpenChat()
+                          }
+                        } else if ('to' in sec && sec.to) {
+                          onNavigate(sec.to)
+                        }
+                      }}
+                      className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2"
+                    >
+                      {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-4 text-purple-300" />}
+                      <span>{slide.secondaryAction.label}</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) ── */}
+        <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSlideIndex((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}
+            aria-label="Banner trước"
+            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/20 shadow-md">
+            {BANNER_SLIDES.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSlideIndex(idx)}
+                aria-label={`Chuyển đến banner ${idx + 1}`}
+                className={`transition-[width,background-color] duration-300 rounded-full cursor-pointer ${
+                  slideIndex === idx
+                    ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
+                    : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
+                }`}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSlideIndex((prev) => (prev + 1) % BANNER_SLIDES.length)}
+            aria-label="Banner tiếp theo"
+            className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+})
+
 export function HomePage() {
   const navigate = useNavigate()
   const { nguoiDung, moAuthModal } = usePhien()
   const { rooms, socialState, presenceMap, presenceReady, trangThai, messages } = useCampus()
 
-  const [slideIndex, setSlideIndex] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
+
+  const handleCreateRoom = useCallback(() => {
+    if (!nguoiDung) { moAuthModal('dang_nhap'); return }
+    setMoTaoPhong(true)
+  }, [nguoiDung, moAuthModal])
+
+  const xuLyVaoPhong = (room: PhongSanh) => {
+    if (room.soNguoi >= room.sucChua) {
+      toast.error('Phòng học đã đầy')
+      return
+    }
+    if (room.coMatKhau) {
+      setPhongCanMatKhau(room)
+      return
+    }
+    navigate(`/room/phong-${room.id}`)
+  }
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -111,148 +393,7 @@ export function HomePage() {
   }, [messages])
   void recentMessagesPreview
 
-  // Danh sách các Slide tự chạy cho VÙNG 1
-  const bannerSlides = useMemo(() => [
-    {
-      id: 'overview',
-      badge: 'DIGITAL CAMPUS',
-      title: (
-        <>
-          Học tập · Kết nối
-          <br />
-          Chơi game · Phát triển
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-indigo-400">
-            Tất cả trong một nơi.
-          </span>
-        </>
-      ),
-      desc: 'Cùng nhau học tập, chơi game, kết nối bạn bè và phát triển kỹ năng để tạo nên một cộng đồng học sinh mạnh mẽ hơn.',
-      bgImage: '/assets/banners/home_hero_overview.jpg',
-      gradient: 'from-[#020c24] via-[#020c24]/85 to-transparent',
-      primaryAction: {
-        label: 'Bắt đầu khám phá',
-        to: '/learn',
-        icon: BookOpen,
-        className: 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-[0_0_20px_rgba(56,189,248,0.4)]',
-      },
-      secondaryAction: {
-        label: 'Xem đấu trường game',
-        to: '/arena',
-        icon: Gamepad2,
-      },
-    },
-    {
-      id: 'learning',
-      badge: 'PHÒNG HỌC TRỰC TUYẾN',
-      title: (
-        <>
-          Khám phá tri thức,
-          <br />
-          kiến tạo tương lai.
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400">
-            Học nhóm & Tương tác trực tiếp.
-          </span>
-        </>
-      ),
-      desc: 'Không gian học nhóm tương tác với bảng vẽ trực tiếp, tài liệu ôn thi chuẩn SGK và video bài giảng đồng bộ cùng bạn học.',
-      bgImage: '/assets/banners/learning_hero_cyber.jpg',
-      gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
-      primaryAction: {
-        label: 'Vào sảnh học tập',
-        to: '/learn',
-        icon: BookOpen,
-        className: 'bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 shadow-[0_0_20px_rgba(6,182,212,0.4)]',
-      },
-      secondaryAction: {
-        label: 'Tạo phòng học mới',
-        action: 'create_room' as const,
-        icon: Sparkles,
-      },
-    },
-    {
-      id: 'games',
-      badge: 'ĐẤU TRƯỜNG TRÒ CHƠI',
-      title: (
-        <>
-          Đấu Trí Chiến Thuật
-          <br />
-          & Thử Thách Trí Tuệ.
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-300 to-pink-400">
-            Cờ Vua, Cờ Tướng, Cờ Caro 1v1.
-          </span>
-        </>
-      ),
-      desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 với bạn bè hoặc rèn luyện cùng AI đa cấp độ, xác thực máy chủ Cloudflare chống gian lận.',
-      bgImage: '/assets/banners/game_pvp_hero.jpg',
-      gradient: 'from-[#14062a] via-[#14062a]/85 to-transparent',
-      primaryAction: {
-        label: 'Vào Đấu trường game',
-        to: '/arena',
-        icon: Gamepad2,
-        className: 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
-      },
-      secondaryAction: {
-        label: 'Xem bảng xếp hạng',
-        to: '/leaderboard',
-        icon: Trophy,
-      },
-    },
-    {
-      id: 'leaderboard',
-      badge: 'BẢNG VINH DANH',
-      title: (
-        <>
-          Vinh Danh Thành Tích,
-          <br />
-          Khẳng Định Bản Lĩnh.
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500">
-            Bảng Vàng Danh Dự Toàn Trường.
-          </span>
-        </>
-      ),
-      desc: 'Tôn vinh học sinh tiêu biểu, kỳ thủ xuất sắc và kỷ lục điểm số các trò chơi trí tuệ theo thời gian thực.',
-      bgImage: '/assets/banners/leaderboard_hero_cyber.jpg',
-      gradient: 'from-[#1c1204] via-[#1c1204]/85 to-transparent',
-      primaryAction: {
-        label: 'Xem Bảng vinh danh',
-        to: '/leaderboard',
-        icon: Trophy,
-        className: 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-stone-950 font-bold',
-      },
-      secondaryAction: {
-        label: 'Vào Đấu trường game',
-        to: '/arena',
-        icon: Gamepad2,
-      },
-    },
-  ], [])
-
-  // Cơ chế tự chạy Banner (Carousel Auto-play 4.5s) — Dừng khi hover chuột (Pause on hover)
-  useEffect(() => {
-    if (isPaused) return
-    const timer = setInterval(() => {
-      setSlideIndex((prev) => (prev + 1) % bannerSlides.length)
-    }, 4500)
-    return () => clearInterval(timer)
-  }, [isPaused, bannerSlides.length])
-
-  const xuLyVaoPhong = (room: PhongSanh) => {
-    if (room.soNguoi >= room.sucChua) {
-      toast.error('Phòng học đã đầy')
-      return
-    }
-    if (room.coMatKhau) {
-      setPhongCanMatKhau(room)
-      return
-    }
-    navigate(`/room/phong-${room.id}`)
-  }
-
-  const handleOpenCampusChat = (dmUser?: { id: number; name: string }) => {
+  const handleOpenCampusChat = useCallback((dmUser?: { id: number; name: string }) => {
     if (!nguoiDung) { moAuthModal?.('dang_nhap'); return }
     if (dmUser) {
       window.dispatchEvent(
@@ -263,7 +404,7 @@ export function HomePage() {
     } else {
       window.dispatchEvent(new CustomEvent('campus:open-chat'))
     }
-  }
+  }, [nguoiDung, moAuthModal])
 
   // Vùng 3: Hoạt động nổi bật — dữ liệu thật từ hệ thống
   const hoatDongNoiBat = useMemo(() => {
@@ -311,143 +452,24 @@ export function HomePage() {
   return (
     <div className="pb-12 space-y-6">
 
-      {/* ── BANNER: Full-Width Cyber Hero Banner + Auto-Slider ── */}
-      <section
-        aria-label="Chào mừng bạn học"
-        className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[440px] lg:min-h-[480px] flex flex-col justify-center group"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-      >
-        {/* Khung chuyển slide tự động (Auto-playing Carousel Stage) */}
-        <div className="relative w-full min-h-[440px] lg:min-h-[480px] overflow-hidden flex flex-col justify-center">
-          {bannerSlides.map((slide, idx) => {
-            const isActive = slideIndex === idx
-            const PrimaryIcon = slide.primaryAction.icon
-            return (
-              <div
-                key={slide.id}
-                className={`absolute inset-0 flex flex-col justify-center p-8 sm:p-12 lg:p-16 pb-16 sm:pb-18 lg:pb-18 transition-[opacity,transform] duration-700 ease-in-out ${
-                  isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
-                }`}
-              >
-                {/* Background image & gradient overlay */}
-                <div className="absolute inset-0 overflow-hidden -z-10">
-                  <img
-                    src={slide.bgImage}
-                    alt=""
-                    loading={idx === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                    className="h-full w-full object-cover object-right opacity-75 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#040e29] via-[#040e29]/40 to-transparent" />
-                </div>
-
-                {/* Nội dung slide */}
-                <div className="relative z-10 max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1 text-xs font-bold tracking-wider text-sky-400 mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-                    <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
-                    <span>{slide.badge}</span>
-                  </div>
-
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
-                    {slide.title}
-                  </h1>
-
-                  <p className="mt-3.5 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-                    {slide.desc}
-                  </p>
-
-                  <div className="mt-6 sm:mt-7 flex flex-wrap items-center gap-3.5">
-                    <Button
-                      size="lg"
-                      onClick={() => navigate(slide.primaryAction.to)}
-                      className={`h-11 px-6 rounded-xl text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2 ${slide.primaryAction.className}`}
-                    >
-                      <PrimaryIcon className="size-4" />
-                      <span>{slide.primaryAction.label}</span>
-                      <ArrowRight className="size-3.5" />
-                    </Button>
-                    {slide.secondaryAction && (
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={() => {
-                          if (slide.secondaryAction.action === 'create_room') {
-                            if (!nguoiDung) { moAuthModal('dang_nhap'); return }
-                            setMoTaoPhong(true)
-                          } else if (slide.secondaryAction.action === 'open_chat') {
-                            handleOpenCampusChat()
-                          } else if (slide.secondaryAction.to) {
-                            navigate(slide.secondaryAction.to)
-                          }
-                        }}
-                        className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors duration-150 cursor-pointer gap-2"
-                      >
-                        {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-4 text-purple-300" />}
-                        <span>{slide.secondaryAction.label}</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-
-          {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) — SÁT CHÍNH GIỮA CẠNH DƯỚI CỦA BANNER ── */}
-          <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSlideIndex((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)}
-              aria-label="Banner trước"
-              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-
-            {/* Mấy dấu chấm chuyển banner tự động */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/20 shadow-md">
-              {bannerSlides.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setSlideIndex(idx)}
-                  aria-label={`Chuyển đến banner ${idx + 1}`}
-                  className={`transition-[width,background-color] duration-300 rounded-full cursor-pointer ${
-                    slideIndex === idx
-                      ? 'w-7 h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
-                      : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
-                  }`}
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSlideIndex((prev) => (prev + 1) % bannerSlides.length)}
-              aria-label="Banner tiếp theo"
-              className="size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* ── BANNER: Full-Width Cyber Hero Banner + Auto-Slider (Isolate Carousel Re-render) ── */}
+      <HomeHeroBanner
+        onNavigate={navigate}
+        onCreateRoom={handleCreateRoom}
+        onOpenChat={handleOpenCampusChat}
+      />
 
       {/* ── Quick Nav Cards — Các card Học tập, Game, Bảng xếp hạng ── */}
       <section aria-label="Điều hướng nhanh">
         <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative card-campus-glow">
           <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle">
-            {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }, idx) => {
-              const isCurrentSlide = slideIndex === idx
+            {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }) => {
               return (
                 <button
                   key={to}
                   type="button"
                   onClick={() => navigate(to)}
-                  className={`group relative flex flex-col items-center gap-4 py-7 px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-surface-raised ${
-                    isCurrentSlide ? 'bg-surface-raised/40' : ''
-                  } ${hover}`}
+                  className={`group relative flex flex-col items-center gap-4 py-7 px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-surface-raised ${hover}`}
                 >
                   {hubImg && (
                     <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-300">

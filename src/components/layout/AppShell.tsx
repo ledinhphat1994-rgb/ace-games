@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { KhungChoTrang } from './KhungChoTrang'
 import { usePhien } from '@/app/phien'
@@ -96,7 +96,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const [activeDmTarget, setActiveDmTarget] = useState<import('./CampusChatSheet').DmTargetUser | null>(null)
 
-  const datMoChat = (mo: boolean) => {
+  const datMoChat = useCallback((mo: boolean) => {
     if (!nguoiDung) {
       moAuthModal('dang_nhap')
       return
@@ -110,7 +110,15 @@ export function AppShell({ children }: AppShellProps) {
       setIdTinDaXem(tinCuoi.id)
       ghiTinDaXem(nguoiDung.accountId, tinCuoi.id)
     }
-  }
+  }, [nguoiDung, moAuthModal, tinCuoi])
+
+  const handleDangXuat = useCallback(() => {
+    void dangXuat()
+  }, [dangXuat])
+
+  const handleToggleChatClick = useCallback(() => {
+    datMoChat(!isChatOpen)
+  }, [datMoChat, isChatOpen])
 
   useEffect(() => {
     const handleOpenChat = () => {
@@ -235,8 +243,8 @@ export function AppShell({ children }: AppShellProps) {
             coTinNhanMoi={coTinNhanMoi}
             onDoDoTre={doDoTre}
             onKetNoiLai={ketNoiLai}
-            onDangXuat={() => void dangXuat()}
-            onToggleChat={() => datMoChat(!isChatOpen)}
+            onDangXuat={handleDangXuat}
+            onToggleChat={handleToggleChatClick}
             onLamMoiPhien={lamMoiPhien}
             onMoAuthModal={moAuthModal}
           />

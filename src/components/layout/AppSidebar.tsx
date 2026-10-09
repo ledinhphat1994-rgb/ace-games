@@ -1,6 +1,4 @@
-// Digital Campus v2: Canonical Left Navigation Sidebar (Approved Reference Design)
-// src/components/layout/AppSidebar.tsx
-
+import { memo } from 'react'
 import { NavLink } from 'react-router'
 import { cn } from '@/lib/utils'
 import { MAIN_NAV_ITEMS } from './navigation-config'
@@ -9,7 +7,7 @@ interface AppSidebarProps {
   className?: string
 }
 
-export function AppSidebar({ className }: AppSidebarProps) {
+export const AppSidebar = memo(function AppSidebar({ className }: AppSidebarProps) {
   return (
     <aside
       aria-label="Thanh điều hướng chính"
@@ -29,7 +27,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
               end={item.exact}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                  'group flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-semibold transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-brand',
                   isActive
                     ? 'bg-brand/15 text-brand border border-brand/30 shadow-[0_0_16px_rgba(56,189,248,0.18)]'
                     : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary border border-transparent',
@@ -40,7 +38,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 <>
                   <Icon
                     className={cn(
-                      'h-5 w-5 shrink-0 transition-transform group-hover:scale-110',
+                      'h-5 w-5 shrink-0 transition-transform duration-150 group-hover:scale-110',
                       isActive ? 'text-brand' : 'text-text-tertiary group-hover:text-text-secondary',
                     )}
                   />
@@ -56,4 +54,4 @@ export function AppSidebar({ className }: AppSidebarProps) {
       <div className="flex-1" />
     </aside>
   )
-}
+})

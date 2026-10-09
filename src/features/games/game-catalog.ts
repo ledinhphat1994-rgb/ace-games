@@ -44,7 +44,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '🏮',
     description: 'Bàn cờ 9×10, sông Sở Hà Hán Giới. Đấu trí chiến thuật 1v1 hoặc luyện tập với AI.',
     boardLabel: '9×10',
-    cover: '/assets/games/cover_xiangqi.jpg',
+    cover: '/assets/games/cover_xiangqi.webp',
   },
   {
     id: 'caro_15',

@@ -14,11 +14,11 @@ export const ASSET_BANNERS = {
     art: '/assets/banners/home/hero_art.webp',
   },
   learn: {
-    bg: '/assets/banners/learn/hero_bg.jpg',
+    bg: '/assets/banners/learn/hero_bg.webp',
     art: '/assets/banners/learn/hero_art.webp',
   },
   arena: {
-    bg: '/assets/banners/arena/hero_bg.jpg',
+    bg: '/assets/banners/arena/hero_bg.webp',
     art: '/assets/banners/arena/hero_art.webp',
   },
   community: {
@@ -26,18 +26,18 @@ export const ASSET_BANNERS = {
     art: '/assets/banners/community/hero_art.webp',
   },
   leaderboard: {
-    bg: '/assets/banners/leaderboard/hero_bg.jpg',
+    bg: '/assets/banners/leaderboard/hero_bg.webp',
     podium: '/assets/banners/leaderboard/podium_art.webp',
   },
   profile: {
-    cover: '/assets/banners/profile/cover_default.jpg',
+    cover: '/assets/banners/profile/cover_default.webp',
   },
 } as const
 
 export const ASSET_THUMBNAILS = {
   games: {
     chess: '/assets/thumbnails/games/chess.webp',
-    xiangqi: '/assets/thumbnails/games/xiangqi.jpg',
+    xiangqi: '/assets/thumbnails/games/xiangqi.webp',
     caro: '/assets/thumbnails/games/caro.webp',
     memory: '/assets/thumbnails/games/memory.webp',
     snake: '/assets/thumbnails/games/snake.webp',
