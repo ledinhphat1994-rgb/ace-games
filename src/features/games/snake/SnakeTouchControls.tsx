@@ -12,10 +12,11 @@ export interface SnakeJoystickProps {
 export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps) {
   const pointer = useRef<number | null>(null)
   const thumbRef = useRef<HTMLSpanElement | null>(null)
+  const rectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null)
 
   const move = (e: PointerEvent<HTMLDivElement>) => {
     if (pointer.current !== e.pointerId) return
-    const rect = e.currentTarget.getBoundingClientRect()
+    const rect = rectRef.current || e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left - rect.width / 2
     const y = e.clientY - rect.top - rect.height / 2
     const distance = Math.hypot(x, y)
@@ -32,6 +33,7 @@ export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps
 
   const release = () => {
     pointer.current = null
+    rectRef.current = null
     if (thumbRef.current) {
       thumbRef.current.style.transform = 'translate3d(0px, 0px, 0)'
     }
@@ -59,6 +61,7 @@ export function SnakeJoystick({ player, onSteer, className }: SnakeJoystickProps
       onPointerDown={(e) => {
         if (pointer.current !== null) return
         pointer.current = e.pointerId
+        rectRef.current = e.currentTarget.getBoundingClientRect()
         e.currentTarget.setPointerCapture(e.pointerId)
         move(e)
       }}

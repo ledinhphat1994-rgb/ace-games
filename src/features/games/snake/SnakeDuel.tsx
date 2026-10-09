@@ -323,7 +323,7 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
             ready: m.isHost || Boolean(sanSangMap[m.id]),
           }))}
           onScoreUpdate={(s) => {
-            setPlayerScore(s)
+            setPlayerScore((prev) => (prev === s ? prev : s))
           }}
           onGameOver={handleGameOver}
           onStartGame={handleStartGame}

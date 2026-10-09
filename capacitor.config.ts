@@ -12,6 +12,8 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
     backgroundColor: '#020c24',
+    captureInput: true,
+    webContentsDebuggingEnabled: false,
   },
   plugins: {
     StatusBar: {
