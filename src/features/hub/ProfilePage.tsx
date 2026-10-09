@@ -228,7 +228,6 @@ export function ProfilePage() {
                       placeholder="Nhập suy nghĩ của bạn…"
                       maxLength={150}
                       className="h-8 text-xs bg-surface border-border-default text-text-primary"
-                      autoFocus
                     />
                     <div className="flex flex-wrap items-center gap-1">
                       <span className="text-[10px] text-text-tertiary mr-1">Icon:</span>

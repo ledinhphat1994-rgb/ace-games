@@ -46,6 +46,7 @@ function DialogContent({
   showCloseButton = true,
   style,
   onPointerDownCapture,
+  initialFocus = false,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
@@ -56,6 +57,7 @@ function DialogContent({
       <DialogOverlay style={{ zIndex }} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        initialFocus={initialFocus}
         style={{ zIndex: zIndex + 1, ...style }}
         onPointerDownCapture={(e) => {
           bringToFront()

@@ -188,7 +188,11 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
       if (doc.exitFullscreen) doc.exitFullscreen().catch?.(() => {})
       else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen().catch?.(() => {})
     }
-    onBack?.()
+    if (onBack) {
+      onBack()
+    } else {
+      window.location.href = '/arena'
+    }
   }, [onBack])
 
   // Đổi thiết lập độ khó
@@ -339,61 +343,71 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
         />
       </div>
 
-      {/* ── 2. CỤM NÚT THAO TÁC NHANH DƯỚI ĐÁY MÀN HÌNH (CĂN GIỮA, KHOẢNG CÁCH AN TOÀN VỚI PHÍM ĐIỀU HƯỚNG ANDROID) ── */}
-      <div
-        className={cn(
-          'snake-quick-actions absolute z-30 flex items-center justify-center gap-3 sm:gap-4 pointer-events-auto select-none transition-colors',
-          'bottom-3 sm:bottom-3.5 left-1/2 -translate-x-1/2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
-        )}
-        data-testid="snake-quick-actions"
-      >
-        <button
-          type="button"
-          onClick={handleBackRoom}
-          title="Sảnh (Q)"
-          aria-label="Sảnh"
-          data-testid="nut-nhanh-sanh"
-          className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
-        >
-          <ArrowLeft className="size-4 sm:size-4.5" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setIsConfigOpen((prev: boolean) => !prev)}
-          title="Cài đặt (O)"
-          aria-label="Cài đặt"
-          data-testid="nut-che-do-choi"
+      {/* ── 2. CỤM NÚT THAO TÁC NHANH DƯỚI ĐÁY MÀN HÌNH: CHỈ HIỂN THỊ KHI ĐANG TRONG TRẬN, ẨN 100% KHI CHẾT HOẶC MỞ CONFIG ── */}
+      {isRunning && !isGameOver && !isConfigOpen && (
+        <div
           className={cn(
-            'size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150',
-            isConfigOpen && 'border-emerald-400 bg-emerald-950/80',
+            'snake-quick-actions absolute z-30 flex items-center justify-center gap-3 sm:gap-4 pointer-events-auto select-none transition-colors',
+            'bottom-3 sm:bottom-3.5 left-1/2 -translate-x-1/2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
           )}
+          data-testid="snake-quick-actions"
         >
-          <Gamepad2 className="size-4 sm:size-4.5" />
-        </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={handleBackRoom}
+            title="Sảnh (Q)"
+            aria-label="Sảnh"
+            data-testid="nut-nhanh-sanh"
+            className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+          >
+            <ArrowLeft className="size-4 sm:size-4.5" />
+          </button>
 
-        <button
-          type="button"
-          onClick={handleStartGame}
-          title="Chơi lại (R)"
-          aria-label="Chơi lại"
-          data-testid="nut-nhanh-choi-lai"
-          className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
-        >
-          <RotateCcw className="size-4 sm:size-4.5" />
-        </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={() => setIsConfigOpen((prev: boolean) => !prev)}
+            title="Cài đặt (O)"
+            aria-label="Cài đặt"
+            data-testid="nut-che-do-choi"
+            className={cn(
+              'size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-emerald-400 hover:text-emerald-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150',
+              isConfigOpen && 'border-emerald-400 bg-emerald-950/80',
+            )}
+          >
+            <Gamepad2 className="size-4 sm:size-4.5" />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent('campus:toggle-chat'))}
-          title="Trò chuyện (C)"
-          aria-label="Trò chuyện"
-          data-testid="nut-nhanh-chat"
-          className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
-        >
-          <MessageSquare className="size-4 sm:size-4.5" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={handleStartGame}
+            title="Chơi lại (R)"
+            aria-label="Chơi lại"
+            data-testid="nut-nhanh-choi-lai"
+            className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-amber-400 hover:text-amber-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+          >
+            <RotateCcw className="size-4 sm:size-4.5" />
+          </button>
+
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={() => window.dispatchEvent(new CustomEvent('campus:toggle-chat'))}
+            title="Trò chuyện (C)"
+            aria-label="Trò chuyện"
+            data-testid="nut-nhanh-chat"
+            className="size-8.5 sm:size-9.5 rounded-full bg-slate-900/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-white/20 text-sky-400 hover:text-sky-300 flex items-center justify-center cursor-pointer shadow-lg transition-colors duration-150"
+          >
+            <MessageSquare className="size-4 sm:size-4.5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

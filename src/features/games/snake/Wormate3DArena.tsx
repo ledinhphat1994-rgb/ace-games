@@ -2307,7 +2307,7 @@ export function Wormate3DArena({
           data-testid="ran-man-san-sang"
           className="absolute inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs select-none"
         >
-          <div className="w-[min(480px,calc(100vw-1.5rem))] max-h-[calc(100dvh-1rem)] sm:h-[400px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-3 sm:p-5 flex flex-col justify-between overflow-hidden">
+          <div className="w-[min(540px,calc(100vw-1.5rem))] h-[500px] min-h-[500px] max-h-[500px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-4 sm:p-5 flex flex-col justify-between overflow-hidden">
             {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab Skin Rắn, Cấu hình phòng & Âm Thanh */}
             <div className="flex items-center justify-between pb-2 sm:pb-3 border-b border-slate-800 h-9 sm:h-10 shrink-0">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -2354,11 +2354,11 @@ export function Wormate3DArena({
               </div>
             </div>
 
-            {/* Nội dung trung tâm: Co giãn linh hoạt theo viewport */}
-            <div className="flex-1 min-h-0 flex flex-col justify-between py-1.5 sm:py-2 overflow-y-auto">
+            {/* Nội dung trung tâm: Cố định h-[360px] cho cả 2 tab để triệt tiêu mọi layout shift */}
+            <div className="h-[360px] min-h-[360px] max-h-[360px] flex flex-col justify-start py-1.5 overflow-hidden">
               {configTab === 'audio' ? (
                 /* TAB ÂM THANH & PHÍM TẮT: Bật/tắt BGM 132BPM, SFX, và danh sách Hotkey PC */
-                <div className="flex flex-col gap-2 min-h-0">
+                <div className="flex flex-col gap-2.5 h-[360px] max-h-[360px] overflow-y-auto pr-0.5 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   {/* Mục 1: Nhạc nền Arcade BGM */}
                   <div className="p-2.5 rounded-xl border-2 border-slate-800 bg-slate-800/60 flex flex-col gap-1.5 shrink-0">
                     <div className="flex items-center justify-between">
@@ -2482,11 +2482,9 @@ export function Wormate3DArena({
                 </div>
               ) : (
                 /* TAB SKIN RẮN: Chọn trang phục rắn độc đáo, rực rỡ với hiệu ứng 3D */
-                /* Ghi chú bảo toàn hợp đồng: pveCapacity >= 50, pvpTargetCount >= 50, canStartPvp, onPvpTargetCountChange, isSessionLocked, Hủy phòng được quản lý tại SnakeDuel */
-                <div className="flex flex-col gap-2 min-h-0">
+                <div className="flex flex-col h-[360px] max-h-[360px]">
                   <div
-                    className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-[235px] h-[235px] overflow-y-auto pr-0.5 content-start shrink-0"
-                    style={{ scrollbarWidth: 'thin' }}
+                    className="grid grid-cols-2 gap-3 h-full max-h-[360px] overflow-y-auto content-start p-1 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                   >
                     {SNAKE_SKINS.map((skin) => {
                       const isSelected = selectedSkinId === skin.id
@@ -2497,34 +2495,34 @@ export function Wormate3DArena({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleSelectSkin(skin.id)}
                           className={cn(
-                            'h-24 min-h-24 max-h-24 p-2 rounded-xl border-2 flex flex-col items-center justify-between transition-colors duration-150 cursor-pointer relative group select-none',
+                            'w-full h-26 min-h-26 max-h-26 p-2.5 rounded-xl border-2 flex flex-col items-center justify-between transition-colors duration-150 cursor-pointer relative group select-none',
                             isSelected
                               ? 'border-emerald-500 bg-emerald-500/15 shadow-md shadow-emerald-500/10'
                               : 'border-slate-800 bg-slate-800/70 hover:border-slate-700 hover:bg-slate-800',
                           )}
                         >
-                          {/* Huy hiệu đã chọn */}
+                          {/* Huy hiệu đã chọn: Giữ nguyên slot trong DOM để chống layout shift */}
                           <div
                             className={cn(
-                              'absolute top-1.5 right-1.5 size-4 rounded-full flex items-center justify-center transition-opacity duration-150',
-                              isSelected ? 'bg-emerald-500 text-white opacity-100' : 'opacity-0',
+                              'absolute top-2 right-2 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center transition-opacity duration-150',
+                              isSelected ? 'opacity-100' : 'opacity-0 pointer-events-none',
                             )}
                           >
                             <Check className="size-2.5 stroke-[3]" />
                           </div>
 
                           {/* Preview dáng rắn 3 đốt màu sắc thực tế */}
-                          <div className="flex items-center -space-x-1.5 pt-1.5">
+                          <div className="flex items-center -space-x-1.5 pt-2">
                             <span
-                              className="size-5 rounded-full border border-white/40 shadow-sm shrink-0"
+                              className="size-5.5 rounded-full border border-white/40 shadow-sm shrink-0"
                               style={{ backgroundColor: skin.c1 }}
                             />
                             <span
-                              className="size-4.5 rounded-full border border-white/30 shadow-xs shrink-0"
+                              className="size-5 rounded-full border border-white/30 shadow-xs shrink-0"
                               style={{ backgroundColor: skin.stripe }}
                             />
                             <span
-                              className="size-4 rounded-full border border-white/20 shadow-xs shrink-0"
+                              className="size-4.5 rounded-full border border-white/20 shadow-xs shrink-0"
                               style={{ backgroundColor: skin.c2 }}
                             />
                           </div>
@@ -2532,7 +2530,7 @@ export function Wormate3DArena({
                           {/* Tiêu đề skin (Chỉ ghi tiêu đề, không chú thích theo Rule 6 & 8) */}
                           <span
                             className={cn(
-                              'text-xs font-bold truncate max-w-full pb-0.5',
+                              'text-xs font-bold truncate max-w-full pb-0.5 text-center',
                               isSelected ? 'text-emerald-300' : 'text-slate-300 group-hover:text-white',
                             )}
                           >

@@ -1288,7 +1288,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
           initialFocus={false}
-          className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-24 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:h-auto max-sm:max-h-[calc(100svh-6rem)] sm:max-w-[540px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
+          className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-24 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:h-[calc(100svh-6rem)] max-sm:max-h-[calc(100svh-6rem)] sm:max-w-[540px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
         >
           {/* Thanh gạt vuốt (Swipe handle) chuẩn mobile */}
           <div className="sm:hidden flex justify-center pb-2 pt-0.5 -mt-1 cursor-grab">
@@ -1307,7 +1307,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0 space-y-2 sm:space-y-2.5 overflow-y-auto pr-0.5">
+          <div className="flex-1 flex flex-col justify-between py-1.5 min-h-0 space-y-2.5 sm:space-y-3 overflow-y-auto pr-0.5">
             {/* 1. Tên phòng */}
             <div className="space-y-1.5 shrink-0">
               <div className="flex items-center gap-2">

@@ -47,6 +47,7 @@ function AlertDialogContent({
   size = "default",
   style,
   onPointerDownCapture,
+  initialFocus = false,
   ...props
 }: AlertDialogPrimitive.Popup.Props & {
   size?: "default" | "sm"
@@ -57,6 +58,7 @@ function AlertDialogContent({
       <AlertDialogOverlay style={{ zIndex }} />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
+        initialFocus={initialFocus}
         data-size={size}
         style={{ zIndex: zIndex + 1, ...style }}
         onPointerDownCapture={(e) => {

@@ -23,7 +23,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { BlueprintStudyPattern } from '@/components/ui/blueprint-patterns'
 import type { PhongSanh } from '@shared/protocol/campus'
 import { AlertCircle, Loader2, Lock } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 
 interface PasswordRoomDialogProps {
   room: PhongSanh | null
@@ -45,14 +45,6 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
     setError(null)
     setLoading(false)
   }
-
-  // Focus sau khi dialog animate vào (không dùng autoFocus để tránh cuộn trang)
-  useEffect(() => {
-    if (room) {
-      const t = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 80)
-      return () => clearTimeout(t)
-    }
-  }, [room])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

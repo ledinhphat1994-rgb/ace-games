@@ -122,7 +122,6 @@ export function GhiChuSuyNghiModal({
                 onChange={(e) => setSuyNghi(e.target.value.slice(0, 100))}
                 placeholder="Chia sẻ suy nghĩ…"
                 maxLength={100}
-                autoFocus
                 className="w-full text-center text-xs font-medium text-text-primary placeholder:text-text-tertiary bg-transparent outline-none"
               />
               {suyNghi.length > 70 && (
@@ -314,7 +313,6 @@ export function GhiChuSuyNghiModal({
                 onChange={(e) => setSuyNghi(e.target.value.slice(0, 100))}
                 placeholder="Chia sẻ suy nghĩ…"
                 maxLength={100}
-                autoFocus
                 className="w-full text-center text-sm font-medium text-text-primary placeholder:text-text-tertiary bg-transparent outline-none"
               />
               {suyNghi.length > 70 && (

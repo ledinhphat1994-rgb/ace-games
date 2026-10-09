@@ -46,6 +46,7 @@ function SheetContent({
   floating = false,
   style,
   onPointerDownCapture,
+  initialFocus = false,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
@@ -60,6 +61,7 @@ function SheetContent({
       {!hideOverlay && <SheetOverlay style={{ zIndex }} />}
       <SheetPrimitive.Popup
         data-slot="sheet-content"
+        initialFocus={initialFocus}
         data-side={side}
         style={{ zIndex: zIndex + 1, ...style }}
         onPointerDownCapture={(e) => {

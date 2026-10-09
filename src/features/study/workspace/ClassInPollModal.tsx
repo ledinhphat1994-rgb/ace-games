@@ -1180,7 +1180,6 @@ export function ClassInPollModal({
                         placeholder="Nhập câu trả lời của bạn..."
                         className="w-full rounded-xl border border-border-default bg-surface px-3 py-2 text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                         required
-                        autoFocus
                       />
                       <button
                         type="submit"

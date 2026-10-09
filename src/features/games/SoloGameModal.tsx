@@ -46,7 +46,7 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
           </DialogDescription>
         </DialogHeader>
         <div className="relative z-10 flex justify-center py-2 flex-1 overflow-y-auto">
-          <SoloGameStage gameType={gameType} onSaveScore={luuDiem} />
+          <SoloGameStage gameType={gameType} onSaveScore={luuDiem} onBack={onClose} />
         </div>
       </DialogContent>
     </Dialog>
