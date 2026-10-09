@@ -47,6 +47,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { EloRankAvatarFrame } from '../EloRankAvatarFrame'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { layHoSoNguoiDung } from '@/lib/api'
 import { tinhLevel } from '../GameLeaderboard'
@@ -2096,12 +2097,19 @@ export function XiangqiBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, CÂN ĐỐI CÔNG THÁI HỌC 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-1 sm:py-1.5 xl:py-0.5 min-h-0">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-center gap-1 sm:gap-2 mx-auto relative py-1 xl:py-0.5 min-h-0">
         {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
+        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-0.5 select-none z-20 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <EloRankAvatarFrame
+              ten={opponentName}
+              avatar={opponentAvatarUrl}
+              elo={opponentElo}
+              isBot={isPveMode}
+              hasPlayer={hasOpponent}
+              isTurn={isPlaying && !isOver && isOpponentTurn}
+              turnSide={opponentSide === RED ? 'red' : 'black'}
+              sizeClassName="size-11 sm:size-12"
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
@@ -2140,14 +2148,6 @@ export function XiangqiBoard({
                   },
                 })
               }}
-              className={cn(
-                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                !hasOpponent
-                  ? 'border-dashed border-white/20 bg-white/5 text-stone-400'
-                  : isOpponentTurn
-                    ? 'border-red-400 ring-2 ring-red-400/30'
-                    : 'border-white/15 bg-[#121620]'
-              )}
               title={
                 !hasOpponent
                   ? online && !online.mySide
@@ -2155,34 +2155,21 @@ export function XiangqiBoard({
                     : 'Mời bạn bè'
                   : isPveMode
                     ? 'Người chơi AI'
-                    : opponentName
+                    : `${opponentName} (Lv.${opponentLevel} · Elo ${opponentElo})`
               }
-            >
-              {!hasOpponent ? (
-                <UserPlus className="size-4 text-stone-400" />
-              ) : isPveMode ? (
-                <Bot className="size-5 text-sky-400" />
-              ) : (
-                <AnhNguoiDung ten={opponentName} avatar={opponentAvatarUrl} className="size-full rounded-full pointer-events-none" />
-              )}
-              <div
-                className={cn(
-                  'absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-han font-black text-[9px] shadow-sm pointer-events-none',
-                  !hasOpponent && 'opacity-60',
-                  opponentSide === RED
-                    ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                    : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                )}
-                title={opponentSide === RED ? 'Cầm quân Đỏ' : 'Cầm quân Đen'}
-              >
-                {opponentSide === RED ? '帥' : '將'}
-              </div>
-            </button>
+              ariaLabel={
+                !hasOpponent
+                  ? 'Mời bạn bè'
+                  : isPveMode
+                    ? 'Người chơi AI'
+                    : `${opponentName} - Bấm để xem hồ sơ`
+              }
+            />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+              <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[130px]">
                 {hasOpponent ? (isPveMode ? 'AI Cấp 10' : opponentName) : 'Chờ đối thủ'}
               </span>
-              <span className="text-[10px] text-amber-300 font-semibold leading-none">
+              <span className="text-[11px] text-amber-300 font-semibold leading-tight">
                 {hasOpponent ? (isPveMode ? 'Elo 1500' : `Lv.${opponentLevel} · Elo ${opponentElo}`) : 'Phòng mở'}
               </span>
             </div>
@@ -2197,7 +2184,7 @@ export function XiangqiBoard({
           {/* Đồng hồ đối thủ trên mobile */}
           <div
             className={cn(
-              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
               !hasOpponent
                 ? 'border-white/10 bg-[#121620]/60 text-stone-500 opacity-60'
                 : isOpponentTimedOut
@@ -2212,7 +2199,7 @@ export function XiangqiBoard({
             )}
             title="Thời gian đối thủ"
           >
-            <Clock className="size-3 text-sky-400 shrink-0" />
+            <Clock className="size-3.5 text-sky-400 shrink-0" />
             <span>
               {!hasOpponent
                 ? '--:--'
@@ -2236,7 +2223,7 @@ export function XiangqiBoard({
           style={{
             aspectRatio: '9 / 10',
           }}
-          className="game-board-xiangqi relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none my-auto xl:my-0"
+          className="game-board-xiangqi relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none my-0"
         >
           {/* SVG VẼ ĐƯỜNG KẺ, CỬU CUNG, SÔNG SỞ HÀ - HÁN GIỚI & DẤU HOA VĂN GÓC */}
           <svg
@@ -2687,12 +2674,18 @@ export function XiangqiBoard({
         </section>
 
         {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
-        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] mt-auto select-none z-20">
+        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1.5 pt-0.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
-          <div className="flex w-full h-10 px-2 items-center justify-between select-none">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
+          <div className="flex w-full h-12 px-2 items-center justify-between select-none">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <EloRankAvatarFrame
+                ten={myName}
+                avatar={myAvatarUrl}
+                elo={myElo}
+                hasPlayer={true}
+                isTurn={isPlaying && !isOver && isMyTurn}
+                turnSide={mySide === RED ? 'red' : 'black'}
+                sizeClassName="size-11 sm:size-12"
                 onClick={(e) => {
                   e.stopPropagation()
                   if (laOnlinePvp && !online?.mySide) {
@@ -2702,34 +2695,14 @@ export function XiangqiBoard({
                     setIsSettingsModalOpen(true)
                   }
                 }}
-                className={cn(
-                  'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                  isMyTurn
-                    ? 'border-sky-400 ring-2 ring-sky-400/30'
-                    : 'border-white/15 bg-[#121620]'
-                )}
                 title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
-              >
-                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
-                {(!laOnlinePvp || Boolean(online?.mySide)) && (
-                  <div
-                    className={cn(
-                      'absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-han font-black text-[9px] shadow-sm pointer-events-none',
-                      mySide === RED
-                        ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                        : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                    )}
-                    title={mySide === RED ? 'Cầm quân Đỏ' : 'Cầm quân Đen'}
-                  >
-                    {mySide === RED ? '帥' : '將'}
-                  </div>
-                )}
-              </button>
+                ariaLabel={myName ? `${myName} - Mở cài đặt` : 'Cài đặt'}
+              />
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[130px]">
                   {myName || 'Bạn'}
                 </span>
-                <span className="text-[10px] text-sky-300 font-semibold leading-none">
+                <span className="text-[11px] text-sky-300 font-semibold leading-tight">
                   Lv.{myLevel} · Elo {myElo}
                 </span>
               </div>
@@ -2744,7 +2717,7 @@ export function XiangqiBoard({
             {/* Đồng hồ người chơi trên mobile */}
             <div
               className={cn(
-                'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+                'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
                 isPlayerTimedOut
                   ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
                   : isPlaying && !isOver && isMyTurn
@@ -2757,7 +2730,7 @@ export function XiangqiBoard({
               )}
               title="Thời gian của Bạn"
             >
-              <Clock className="size-3 text-sky-400 shrink-0" />
+              <Clock className="size-3.5 text-sky-400 shrink-0" />
               <span>
                 {isPlayerTimedOut
                   ? '00:00'
@@ -2773,7 +2746,7 @@ export function XiangqiBoard({
           </div>
 
           {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
-          <div className="flex w-full h-11 px-2 items-center justify-center gap-2.5 select-none">
+          <div className="flex w-full h-10 px-2 items-center justify-center gap-2 select-none">
             {pinnedTools.map((toolId) => {
               const tool = toolDefinitions[toolId]
               if (!tool) return null
@@ -2784,7 +2757,7 @@ export function XiangqiBoard({
                   onClick={tool.onClick}
                   disabled={tool.disabled}
                   className={cn(
-                    'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                    'size-9 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
                     tool.bubbleClassName
                   )}
                   title={tool.title}
@@ -2798,7 +2771,7 @@ export function XiangqiBoard({
               <button
                 type="button"
                 onClick={() => setIsSettingsModalOpen(true)}
-                className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-sky-400 text-gray-300 hover:text-sky-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+                className="size-9 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-sky-400 text-gray-300 hover:text-sky-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
                 title="Cài đặt"
                 aria-label="Cài đặt"
               >
@@ -2947,55 +2920,36 @@ export function XiangqiBoard({
               })}
 
               {/* AVATAR TRÒN TRUNG TÂM (GIỮ KÉO TỰ DO TRONG VÙNG 4 HOẶC CLICK ĐỂ MỞ CÀI ĐẶT & GHIM CÔNG CỤ) */}
-              <button
-                type="button"
+              <div
                 onPointerDown={handleAvatarPointerDown}
                 onPointerMove={handleAvatarPointerMove}
                 onPointerUp={handleAvatarPointerUp}
                 onPointerCancel={handleAvatarPointerUp}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!hasMovedAvatarRef.current) {
-                    if (laOnline && !online?.mySide) {
-                      online?.joinGame()
-                      showGameNotice('ĐÃ VÀO BÀN')
-                    } else {
-                      setIsSettingsModalOpen(true)
-                    }
-                  }
-                }}
-                className={cn(
-                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 cursor-grab active:cursor-grabbing shadow-xl flex items-center justify-center outline-none group hover:scale-105 select-none touch-none',
-                  isMyTurn
-                    ? mySide === RED
-                      ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
-                      : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
-                    : 'border-sky-500/40 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
-                )}
-                title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ)` : 'Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ'}
-                aria-label={myName ? `${myName} - Cài đặt & ghim công cụ` : 'Cài đặt & ghim công cụ'}
+                className="cursor-grab active:cursor-grabbing hover:scale-105 transition-transform duration-150 select-none touch-none"
               >
-                <AnhNguoiDung
+                <EloRankAvatarFrame
                   ten={myName}
                   avatar={myAvatarUrl}
-                  className="size-full rounded-full pointer-events-none"
+                  elo={myElo}
+                  hasPlayer={true}
+                  isTurn={isPlaying && !isOver && isMyTurn}
+                  turnSide={mySide === RED ? 'red' : 'black'}
+                  sizeClassName="size-14 sm:size-16"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!hasMovedAvatarRef.current) {
+                      if (laOnline && !online?.mySide) {
+                        online?.joinGame()
+                        showGameNotice('ĐÃ VÀO BÀN')
+                      } else {
+                        setIsSettingsModalOpen(true)
+                      }
+                    }
+                  }}
+                  title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ)` : 'Nhấn giữ kéo tự do, click để mở cài đặt & ghim công cụ'}
+                  ariaLabel={myName ? `${myName} - Cài đặt & ghim công cụ` : 'Cài đặt & ghim công cụ'}
                 />
-
-                {/* Đĩa cờ nhỏ thể hiện phe Đỏ / Đen ở góc avatar (chỉ hiện khi đã vào ghế thi đấu) */}
-                {(!laOnlinePvp || Boolean(online?.mySide)) && (
-                  <div
-                    className={cn(
-                      'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
-                      mySide === RED
-                        ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                        : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                    )}
-                    title={mySide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
-                  >
-                    {mySide === RED ? '帥' : '將'}
-                  </div>
-                )}
-              </button>
+              </div>
             </div>
 
             {/* 4. KHI TỚI LƯỢT: HIỆN THỜI GIAN CHẠY Ở PHÍA DƯỚI AVATAR 1 TÍ */}
@@ -3072,113 +3026,77 @@ export function XiangqiBoard({
             )}
 
             {/* AVATAR TRÒN TRUNG TÂM CỦA ĐỐI THỦ: BẤM ĐỂ MỞ HỒ SƠ CÁ NHÂN & ELO TRÒ CHƠI HOẶC MỜI BẠN KHI CHƯA CÓ ĐỐI THỦ */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (!hasOpponent) {
-                  if (online && !online.mySide) {
-                    online.joinGame('O')
-                    return
-                  }
-                  if (onInvite) {
-                    onInvite()
-                  } else {
-                    try {
-                      navigator.clipboard.writeText(window.location.href)
-                      showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
-                    } catch {
-                      showGameNotice('MỜI BẠN BÈ')
-                    }
-                  }
-                  return
-                }
-                if (isPveMode) {
-                  showGameNotice('AI CẤP 10 · ELO 1500')
-                  return
-                }
-                const rect = e.currentTarget.getBoundingClientRect()
-                setSelectedProfileUser({
-                  id: oppAccountId || 1,
-                  ten: opponentName,
-                  avatar: opponentAvatarUrl,
-                  gameElo: opponentElo,
-                  gameName: 'Cờ Tướng',
-                  anchorRect: {
-                    top: rect.top,
-                    left: rect.left,
-                    right: rect.right,
-                    bottom: rect.bottom,
-                  },
-                })
-              }}
-              className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
-                !hasOpponent
-                  ? 'border-dashed border-white/20 bg-white/[0.02] hover:border-amber-400/60 hover:bg-white/5 text-stone-400 hover:text-amber-300'
-                  : isOpponentTurn
-                    ? opponentSide === RED
-                      ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.7)] ring-4 ring-red-500/20'
-                      : 'border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.7)] ring-4 ring-sky-400/20'
-                    : 'border-white/10 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
-              )}
-              title={
-                !hasOpponent
-                  ? online && !online.mySide
-                    ? 'Tham gia'
-                    : 'Mời bạn bè'
-                  : isPveMode
-                    ? 'Người chơi AI (Cấp 10 · Elo 1500)'
-                    : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo})`
-              }
-              aria-label={
-                !hasOpponent
-                  ? online && !online.mySide
-                    ? 'Tham gia'
-                    : 'Mời bạn bè'
-                  : isPveMode
-                    ? 'Người chơi AI'
-                    : `${opponentName} - Bấm để xem hồ sơ`
-              }
-            >
-              {!hasOpponent ? (
-                <div className="size-full rounded-full flex flex-col items-center justify-center">
-                  <UserPlus className="size-5 sm:size-6 text-stone-400 group-hover:text-amber-300 transition-colors duration-150" />
-                </div>
-              ) : isPveMode ? (
-                <div
-                  className="size-full rounded-full flex items-center justify-center bg-sky-950/60"
-                  title="Người chơi AI"
-                >
-                  <Bot className="size-7 text-sky-400" />
-                </div>
-              ) : (
-                <AnhNguoiDung
+            <div className="hover:scale-105 transition-transform duration-150 select-none">
+                <EloRankAvatarFrame
                   ten={opponentName}
                   avatar={opponentAvatarUrl}
-                  className="size-full rounded-full pointer-events-none"
+                  elo={opponentElo}
+                  isBot={isPveMode}
+                  hasPlayer={hasOpponent}
+                  isTurn={isPlaying && !isOver && isOpponentTurn}
+                  turnSide={opponentSide === RED ? 'red' : 'black'}
+                  sizeClassName="size-14 sm:size-16"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!hasOpponent) {
+                      if (online && !online.mySide) {
+                        online.joinGame('O')
+                        return
+                      }
+                      if (onInvite) {
+                        onInvite()
+                      } else {
+                        try {
+                          navigator.clipboard.writeText(window.location.href)
+                          showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
+                        } catch {
+                          showGameNotice('MỜI BẠN BÈ')
+                        }
+                      }
+                      return
+                    }
+                    if (isPveMode) {
+                      showGameNotice('AI CẤP 10 · ELO 1500')
+                      return
+                    }
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setSelectedProfileUser({
+                      id: oppAccountId || 1,
+                      ten: opponentName,
+                      avatar: opponentAvatarUrl,
+                      gameElo: opponentElo,
+                      gameName: 'Cờ Tướng',
+                      anchorRect: {
+                        top: rect.top,
+                        left: rect.left,
+                        right: rect.right,
+                        bottom: rect.bottom,
+                      },
+                    })
+                  }}
+                  title={
+                    !hasOpponent
+                      ? online && !online.mySide
+                        ? 'Tham gia'
+                        : 'Mời bạn bè'
+                      : isPveMode
+                        ? 'Người chơi AI (Cấp 10 · Elo 1500)'
+                        : `${opponentName} (Cấp ${opponentLevel} · Elo ${opponentElo})`
+                  }
+                  ariaLabel={
+                    !hasOpponent
+                      ? 'Mời bạn bè'
+                      : isPveMode
+                        ? 'Người chơi AI'
+                        : `${opponentName} - Bấm để xem hồ sơ`
+                  }
                 />
-              )}
-
-              {/* Đĩa cờ nhỏ thể hiện phe của đối thủ (帥 / 將) */}
-              <div
-                className={cn(
-                  'absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-han font-black text-[11px] shadow-md z-10 pointer-events-none',
-                  !hasOpponent && 'opacity-60',
-                  opponentSide === RED
-                    ? 'bg-[#fff5eb] border-[#9c6332] text-[#b91c1c]'
-                    : 'bg-[#2b2b2b] border-[#555] text-[#e2e8f0]'
-                )}
-                title={opponentSide === RED ? 'Cầm quân Đỏ (Đi trước)' : 'Cầm quân Đen'}
-              >
-                {opponentSide === RED ? '帥' : '將'}
               </div>
 
               {/* Tên đối thủ ẩn dưới dạng accessibility / selector */}
               <span id="player-black-name" className="sr-only">
                 {hasOpponent ? opponentName : 'Đang chờ đối thủ'}
               </span>
-            </button>
 
             {/* 2. KHI TỚI LƯỢT: HIỆN THỜI GIAN CHẠY Ở PHÍA DƯỚI AVATAR 1 TÍ */}
             <div

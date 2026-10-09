@@ -32,7 +32,6 @@ import {
   Bot,
   Users,
   X,
-  UserPlus,
   Settings,
   Volume2,
   VolumeX,
@@ -41,6 +40,7 @@ import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { EloRankAvatarFrame } from '../EloRankAvatarFrame'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { layHoSoNguoiDung } from '@/lib/api'
 import { tinhLevel } from '../GameLeaderboard'
@@ -1170,12 +1170,19 @@ export function ChessBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, THOÁNG MẮT, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-1 sm:py-1.5 xl:py-0.5 min-h-0">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-center gap-1 sm:gap-2 mx-auto relative py-1 xl:py-0.5 min-h-0">
         {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
+        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-0.5 select-none z-20 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <EloRankAvatarFrame
+              ten={opponentName}
+              avatar={opponentAvatarUrl}
+              elo={opponentElo}
+              isBot={mode === 'ai'}
+              hasPlayer={hasOpponent}
+              isTurn={isOpponentTurn && isPlaying}
+              turnSide={mauCuaToi === WHITE ? 'black' : 'white'}
+              sizeClassName="size-11 sm:size-12"
               onClick={(e) => {
                 e.stopPropagation()
                 if (!hasOpponent) {
@@ -1214,35 +1221,14 @@ export function ChessBoard({
                   },
                 })
               }}
-              className={cn(
-                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                !hasOpponent
-                  ? 'border-dashed border-white/30 bg-white/5 text-stone-400'
-                  : isOpponentTurn
-                    ? 'border-amber-400 ring-2 ring-amber-400/30'
-                    : 'border-white/15 bg-[#121620]'
-              )}
-              title={hasOpponent ? opponentName : online && !online.mySide ? 'Tham gia' : 'Mời bạn bè'}
-            >
-              {hasOpponent ? (
-                <AnhNguoiDung ten={opponentName} avatar={opponentAvatarUrl} className="size-full rounded-full pointer-events-none" />
-              ) : (
-                <UserPlus className="size-4 text-stone-400 pointer-events-none" />
-              )}
-              {hasOpponent && (
-                <div
-                  className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#2b2b2b] border-[#555] text-[#e2e8f0]"
-                  title={mauCuaToi === WHITE ? 'Đối thủ cầm quân Đen' : 'Đối thủ cầm quân Trắng'}
-                >
-                  {mauCuaToi === WHITE ? '♚' : '♔'}
-                </div>
-              )}
-            </button>
+              title={hasOpponent ? `${opponentName} (Lv.${opponentLevel} · Elo ${opponentElo})` : online && !online.mySide ? 'Tham gia' : 'Mời bạn bè'}
+              ariaLabel={hasOpponent ? `${opponentName} - Bấm để xem hồ sơ` : 'Mời bạn bè'}
+            />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+              <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[130px]">
                 {hasOpponent ? opponentName : 'Chờ đối thủ'}
               </span>
-              <span className="text-[10px] text-amber-400 font-semibold leading-none">
+              <span className="text-[11px] text-amber-400 font-semibold leading-tight">
                 {hasOpponent ? (mode === 'ai' ? `AI Cấp ${opponentLevel}` : `Lv.${opponentLevel} · Elo ${opponentElo}`) : 'Chạm để mời'}
               </span>
             </div>
@@ -1256,7 +1242,7 @@ export function ChessBoard({
           {/* Đồng hồ đối thủ trên mobile */}
           <div
             className={cn(
-              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
               pos.turn !== mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
                 ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
                 : pos.turn !== mauCuaToi && isPlaying
@@ -1265,7 +1251,7 @@ export function ChessBoard({
             )}
             title="Thời gian đối thủ"
           >
-            <Clock className="size-3 text-amber-400 shrink-0" />
+            <Clock className="size-3.5 text-amber-400 shrink-0" />
             <span>{formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
           </div>
         </div>
@@ -1275,7 +1261,7 @@ export function ChessBoard({
           style={{
             aspectRatio: '1 / 1',
           }}
-          className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10 my-auto xl:my-0"
+          className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10 my-0"
         >
           {/* Grid bàn cờ 8x8 */}
           <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
@@ -1411,12 +1397,18 @@ export function ChessBoard({
         </section>
 
         {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
-        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] mt-auto select-none z-20">
+        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1.5 pt-0.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
-          <div className="flex w-full h-10 px-2 items-center justify-between select-none">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
+          <div className="flex w-full h-12 px-2 items-center justify-between select-none">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <EloRankAvatarFrame
+                ten={myName}
+                avatar={myAvatarUrl}
+                elo={myElo}
+                hasPlayer={true}
+                isTurn={isMyTurn}
+                turnSide={mauCuaToi === WHITE ? 'white' : 'black'}
+                sizeClassName="size-11 sm:size-12"
                 onClick={(e) => {
                   e.stopPropagation()
                   if (laOnlinePvp && !banOnline?.mySide) {
@@ -1426,29 +1418,14 @@ export function ChessBoard({
                     setIsSettingsModalOpen(true)
                   }
                 }}
-                className={cn(
-                  'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                  isMyTurn
-                    ? 'border-cyan-400 ring-2 ring-cyan-400/30'
-                    : 'border-white/15 bg-[#121620]'
-                )}
                 title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
-              >
-                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
-                {(!laOnlinePvp || Boolean(banOnline?.mySide)) && (
-                  <div
-                    className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#fff5eb] border-[#9c6332] text-[#9c6332]"
-                    title={mauCuaToi === WHITE ? 'Cầm quân Trắng' : 'Cầm quân Đen'}
-                  >
-                    {mauCuaToi === WHITE ? '♔' : '♚'}
-                  </div>
-                )}
-              </button>
+                ariaLabel={myName ? `${myName} - Mở cài đặt` : 'Cài đặt'}
+              />
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[130px]">
                   {myName || 'Bạn'}
                 </span>
-                <span className="text-[10px] text-cyan-300 font-semibold leading-none">
+                <span className="text-[11px] text-cyan-300 font-semibold leading-tight">
                   Lv.{myLevel} · Elo {myElo}
                 </span>
               </div>
@@ -1462,7 +1439,7 @@ export function ChessBoard({
             {/* Đồng hồ người chơi trên mobile */}
             <div
               className={cn(
-                'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+                'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
                 pos.turn === mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
                   ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
                   : pos.turn === mauCuaToi && isPlaying
@@ -1471,13 +1448,13 @@ export function ChessBoard({
               )}
               title="Thời gian của Bạn"
             >
-              <Clock className="size-3 text-cyan-400 shrink-0" />
+              <Clock className="size-3.5 text-cyan-400 shrink-0" />
               <span>{formatClockTime(pos.turn === mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
             </div>
           </div>
 
           {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
-          <div id="mobile-tools-bar" className="flex w-full h-11 px-2 items-center justify-center gap-2 select-none">
+          <div id="mobile-tools-bar" className="flex w-full h-10 px-2 items-center justify-center gap-2 select-none">
             {chessTools.map((tool) => (
               <button
                 key={tool.id}
@@ -1486,7 +1463,7 @@ export function ChessBoard({
                 onClick={tool.onClick}
                 disabled={tool.disabled}
                 className={cn(
-                  'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                  'size-9 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
                   tool.className
                 )}
                 title={tool.title}
@@ -1607,42 +1584,36 @@ export function ChessBoard({
               })}
 
               {/* Avatar người chơi tròn (Nhấn giữ kéo tự do hoặc click để mở cài đặt & hồ sơ kỳ thủ) */}
-              <button
-                type="button"
+              <div
                 onPointerDown={handleAvatarPointerDown}
                 onPointerMove={handleAvatarPointerMove}
                 onPointerUp={handleAvatarPointerUp}
                 onPointerCancel={handleAvatarPointerUp}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!hasMovedAvatarRef.current) {
-                    if (laOnlinePvp && !banOnline?.mySide) {
-                      banOnline?.joinGame()
-                      toast.info('Đã vào bàn thi đấu')
-                    } else {
-                      setIsSettingsModalOpen(true)
-                    }
-                  }
-                }}
-                className={cn(
-                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-grab active:cursor-grabbing hover:scale-105 touch-none group',
-                  isMyTurn
-                    ? 'border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.7)] ring-4 ring-cyan-400/20'
-                    : 'border-cyan-500/40 hover:border-cyan-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
-                )}
-                title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & thông tin kỳ thủ)` : 'Nhấn giữ kéo tự do, click để mở cài đặt & thông tin kỳ thủ'}
-                aria-label={myName ? `${myName} - Cài đặt & thông tin kỳ thủ` : 'Cài đặt & thông tin kỳ thủ'}
+                className="cursor-grab active:cursor-grabbing hover:scale-105 transition-transform duration-150 select-none touch-none"
               >
-                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
-                {(!laOnlinePvp || Boolean(banOnline?.mySide)) && (
-                  <div
-                    className="absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-bold text-[10px] shadow-md z-10 pointer-events-none bg-[#fff5eb] border-[#9c6332] text-[#9c6332]"
-                    title={mauCuaToi === WHITE ? 'Cầm quân Trắng' : 'Cầm quân Đen'}
-                  >
-                    {mauCuaToi === WHITE ? '♔' : '♚'}
-                  </div>
-                )}
-              </button>
+                <EloRankAvatarFrame
+                  ten={myName}
+                  avatar={myAvatarUrl}
+                  elo={myElo}
+                  hasPlayer={true}
+                  isTurn={isMyTurn}
+                  turnSide={mauCuaToi === WHITE ? 'white' : 'black'}
+                  sizeClassName="size-14 sm:size-16"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!hasMovedAvatarRef.current) {
+                      if (laOnlinePvp && !banOnline?.mySide) {
+                        banOnline?.joinGame()
+                        toast.info('Đã vào bàn thi đấu')
+                      } else {
+                        setIsSettingsModalOpen(true)
+                      }
+                    }
+                  }}
+                  title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & thông tin kỳ thủ)` : 'Nhấn giữ kéo tự do, click để mở cài đặt & thông tin kỳ thủ'}
+                  ariaLabel={myName ? `${myName} - Cài đặt & thông tin kỳ thủ` : 'Cài đặt & thông tin kỳ thủ'}
+                />
+              </div>
             </div>
 
             {/* Đồng hồ đếm ngược người chơi */}
@@ -1693,87 +1664,74 @@ export function ChessBoard({
             )}
 
             {/* Avatar tròn đối thủ (Bấm để xem hồ sơ kỳ thủ & Elo hoặc mời bạn bè) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (!hasOpponent) {
-                  if (online && !online.mySide) {
-                    online.joinGame('O')
-                    return
-                  }
-                  if (onInvite) {
-                    onInvite()
-                  } else {
-                    try {
-                      navigator.clipboard.writeText(window.location.href)
-                      toast.success('Đã sao chép liên kết mời bạn bè')
-                    } catch {
-                      toast.info('Mời bạn bè vào phòng')
+            <div className="hover:scale-105 transition-transform duration-150 select-none">
+                <EloRankAvatarFrame
+                  ten={opponentName}
+                  avatar={opponentAvatarUrl}
+                  elo={opponentElo}
+                  isBot={mode === 'ai'}
+                  hasPlayer={hasOpponent}
+                  isTurn={isOpponentTurn && isPlaying}
+                  turnSide={mauCuaToi === WHITE ? 'black' : 'white'}
+                  sizeClassName="size-14 sm:size-16"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!hasOpponent) {
+                      if (online && !online.mySide) {
+                        online.joinGame('O')
+                        return
+                      }
+                      if (onInvite) {
+                        onInvite()
+                      } else {
+                        try {
+                          navigator.clipboard.writeText(window.location.href)
+                          toast.success('Đã sao chép liên kết mời bạn bè')
+                        } catch {
+                          toast.info('Mời bạn bè vào phòng')
+                        }
+                      }
+                      return
                     }
+                    if (mode === 'ai') {
+                      toast.info(`Stockfish AI · Cấp ${opponentLevel} · Elo ${opponentElo}`)
+                      return
+                    }
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setSelectedProfileUser({
+                      id: oppAccountId || 2,
+                      ten: opponentName,
+                      avatar: opponentAvatarUrl,
+                      gameElo: opponentElo,
+                      gameName: 'Cờ Vua',
+                      anchorRect: {
+                        top: rect.top,
+                        left: rect.left,
+                        right: rect.right,
+                        bottom: rect.bottom,
+                      },
+                    })
+                  }}
+                  title={
+                    !hasOpponent
+                      ? online && !online.mySide
+                        ? 'Tham gia'
+                        : 'Mời bạn bè'
+                      : mode === 'ai'
+                        ? `Stockfish AI · Cấp ${opponentLevel} · Elo ${opponentElo}`
+                        : `${opponentName} (Elo ${opponentElo})`
                   }
-                  return
-                }
-                if (mode === 'ai') {
-                  toast.info(`Stockfish AI · Cấp ${opponentLevel} · Elo ${opponentElo}`)
-                  return
-                }
-                const rect = e.currentTarget.getBoundingClientRect()
-                setSelectedProfileUser({
-                  id: oppAccountId || 2,
-                  ten: opponentName,
-                  avatar: opponentAvatarUrl,
-                  gameElo: opponentElo,
-                  gameName: 'Cờ Vua',
-                  anchorRect: {
-                    top: rect.top,
-                    left: rect.left,
-                    right: rect.right,
-                    bottom: rect.bottom,
-                  },
-                })
-              }}
-              className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
-                !hasOpponent
-                  ? 'border-dashed border-white/20 bg-white/[0.02] hover:border-amber-400/60 hover:bg-white/5 text-stone-400 hover:text-amber-300'
-                  : isOpponentTurn
-                    ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.7)] ring-4 ring-amber-400/20'
-                    : 'border-white/10 hover:border-cyan-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] bg-[#121620]/90'
-              )}
-              title={
-                !hasOpponent
-                  ? online && !online.mySide
-                    ? 'Tham gia'
-                    : 'Mời bạn bè'
-                  : mode === 'ai'
-                    ? `Stockfish AI · Cấp ${opponentLevel} · Elo ${opponentElo}`
-                    : `${opponentName} (Elo ${opponentElo})`
-              }
-              aria-label={
-                !hasOpponent
-                  ? online && !online.mySide
-                    ? 'Tham gia'
-                    : 'Mời bạn bè'
-                  : mode === 'ai'
-                    ? 'Thông tin AI'
-                    : `${opponentName} - Hồ sơ kỳ thủ`
-              }
-            >
-              {hasOpponent ? (
-                <AnhNguoiDung ten={opponentName} avatar={opponentAvatarUrl} className="size-full rounded-full pointer-events-none" />
-              ) : (
-                <UserPlus className="size-6 text-stone-400 group-hover:text-amber-300 transition-colors pointer-events-none" />
-              )}
-              {hasOpponent && (
-                <div
-                  className="absolute -bottom-1 -right-1 size-5 rounded-full flex items-center justify-center border font-bold text-[10px] shadow-md z-10 pointer-events-none bg-[#2b2b2b] border-[#555] text-[#e2e8f0]"
-                  title={mauCuaToi === WHITE ? 'Đối thủ cầm quân Đen' : 'Đối thủ cầm quân Trắng'}
-                >
-                  {mauCuaToi === WHITE ? '♚' : '♔'}
-                </div>
-              )}
-            </button>
+                  ariaLabel={
+                    !hasOpponent
+                      ? online && !online.mySide
+                        ? 'Tham gia'
+                        : 'Mời bạn bè'
+                      : mode === 'ai'
+                        ? 'Thông tin AI'
+                        : `${opponentName} - Hồ sơ kỳ thủ`
+                  }
+                />
+              </div>
 
             {/* Đồng hồ đối thủ */}
             <div
