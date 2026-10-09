@@ -18,7 +18,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
-import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { EloRankAvatarFrame } from '../EloRankAvatarFrame'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { layHoSoNguoiDung } from '@/lib/api'
 import { tinhLevel } from '@/features/games/GameLeaderboard'
@@ -906,11 +906,17 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
 
       {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA CHUẨN CỜ TƯỚNG */}
       <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
-        {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CHƠI, KHÔNG ĐÈ THẺ ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
+        {/* ==================== VÙNG 2: THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl) ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-1 select-none z-20">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <EloRankAvatarFrame
+              ten={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+              elo={mode === 'pve' ? (difficulty === 'hard' ? 1700 : difficulty === 'medium' ? 1450 : 1200) : 1300}
+              isBot={mode === 'pve'}
+              hasPlayer={true}
+              isTurn={turn === 2 && !isGameOver}
+              turnSide="black"
+              sizeClassName="size-11 sm:size-12"
               onClick={(e) => {
                 e.stopPropagation()
                 if (mode === 'pve') {
@@ -930,35 +936,19 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                   },
                 })
               }}
-              className={cn(
-                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                turn === 2 && !isGameOver
-                  ? 'border-violet-400 ring-2 ring-violet-400/30'
-                  : 'border-white/15 bg-[#121620]'
-              )}
               title={mode === 'pve' ? 'Máy AI Trí Nhớ' : 'Người chơi 2'}
-            >
-              {mode === 'pve' ? (
-                <div className="size-full rounded-full bg-violet-950/60 flex items-center justify-center text-violet-300 pointer-events-none">
-                  <Bot className="size-4.5" />
-                </div>
-              ) : (
-                <div className="size-full rounded-full bg-slate-800 flex items-center justify-center text-violet-300 pointer-events-none">
-                  <User className="size-4.5" />
-                </div>
-              )}
-              <div
-                className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#0c2340] border-violet-500/60 text-violet-400"
-                title="Điểm số đối thủ"
-              >
-                {score2}
-              </div>
-            </button>
+              ariaLabel={mode === 'pve' ? 'Máy AI Trí Nhớ' : 'Người chơi 2'}
+            />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
-                {mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
-              </span>
-              <span className="text-[10px] text-violet-300 font-semibold leading-none">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[110px]">
+                  {mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 font-extrabold text-[10px] leading-tight shrink-0">
+                  {score2} điểm
+                </span>
+              </div>
+              <span className="text-[11px] text-violet-300 font-semibold leading-tight">
                 {mode === 'pve' ? (difficulty === 'hard' ? 'AI Cấp 3' : difficulty === 'medium' ? 'AI Cấp 2' : 'AI Cấp 1') : 'Người chơi 2'}
               </span>
             </div>
@@ -1113,30 +1103,34 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
           )}
         </section>
 
-        {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE (< xl): NẰM DƯỚI BÀN CHƠI, KHÔNG ĐÈ THẺ ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mt-1 select-none z-20">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={() => setIsSettingsModalOpen(true)}
-              className={cn(
-                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                turn === 1 && !isGameOver
-                  ? 'border-emerald-400 ring-2 ring-emerald-400/30'
-                  : 'border-white/15 bg-[#121620]'
-              )}
+        {/* ==================== VÙNG 3: KHU VỰC NGƯỜI CHƠI CHÂN MÀN HÌNH (< xl) ==================== */}
+        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mt-1 select-none z-20">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <EloRankAvatarFrame
+              ten={myName}
+              avatar={myAvatarUrl}
+              elo={myElo}
+              hasPlayer={true}
+              isTurn={turn === 1 && !isGameOver}
+              turnSide="red"
+              sizeClassName="size-11 sm:size-12"
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsSettingsModalOpen(true)
+              }}
               title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
-            >
-              <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
-              <div className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#0c2340] border-emerald-500/60 text-emerald-400">
-                {score1}
-              </div>
-            </button>
+              ariaLabel={myName ? `${myName} - Mở cài đặt` : 'Cài đặt'}
+            />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
-                {myName || 'Bạn'}
-              </span>
-              <span className="text-[10px] text-emerald-300 font-semibold leading-none">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[110px]">
+                  {myName || 'Bạn'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] leading-tight shrink-0">
+                  {score1} điểm
+                </span>
+              </div>
+              <span className="text-[11px] text-emerald-300 font-semibold leading-tight">
                 Lv.{myLevel} · Elo {myElo}
               </span>
             </div>
@@ -1292,36 +1286,32 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                 )
               })}
 
-              {/* Avatar người chơi tròn (Nhấn giữ kéo tự do mượt mà chuẩn cờ tướng, click để mở cài đặt & hồ sơ) */}
-              <button
-                type="button"
+              {/* Avatar người chơi tròn (Nhấn giữ kéo tự do mượt mà, click để mở cài đặt & hồ sơ) */}
+              <div
                 onPointerDown={handleAvatarPointerDown}
                 onPointerMove={handleAvatarPointerMove}
                 onPointerUp={handleAvatarPointerUp}
                 onPointerCancel={handleAvatarPointerUp}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (!hasMovedAvatarRef.current) {
-                    setIsSettingsModalOpen(true)
-                  }
-                }}
-                className={cn(
-                  'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-grab active:cursor-grabbing touch-none hover:scale-105 group',
-                  turn === 1 && !isGameOver
-                    ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.7)] ring-4 ring-emerald-400/20'
-                    : 'border-violet-500/40 hover:border-violet-400 bg-[#121620]/90'
-                )}
-                title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt & thông tin người chơi)` : 'Nhấn giữ kéo tự do, click để mở cài đặt'}
-                aria-label={myName ? `${myName} - Cài đặt & thông tin người chơi` : 'Cài đặt & thông tin người chơi'}
+                className="cursor-grab active:cursor-grabbing hover:scale-105 transition-transform duration-150 select-none touch-none"
               >
-                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
-                <div
-                  className="absolute -bottom-1 -right-1 px-1.5 h-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-md z-10 pointer-events-none bg-[#0c2340] border-emerald-500/60 text-emerald-400"
-                  title="Điểm số của bạn"
-                >
-                  {score1}
-                </div>
-              </button>
+                <EloRankAvatarFrame
+                  ten={myName}
+                  avatar={myAvatarUrl}
+                  elo={myElo}
+                  hasPlayer={true}
+                  isTurn={turn === 1 && !isGameOver}
+                  turnSide="red"
+                  sizeClassName="size-14 sm:size-16"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!hasMovedAvatarRef.current) {
+                      setIsSettingsModalOpen(true)
+                    }
+                  }}
+                  title={myName ? `${myName} (Nhấn giữ kéo tự do, click để mở cài đặt)` : 'Nhấn giữ kéo tự do, click để mở cài đặt'}
+                  ariaLabel={myName ? `${myName} - Cài đặt` : 'Cài đặt'}
+                />
+              </div>
             </div>
 
             {/* Đồng hồ đếm ngược người chơi */}
@@ -1374,52 +1364,38 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
             )}
 
             {/* Avatar đối thủ (Bấm để xem thông tin) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (mode === 'pve') {
-                  toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 3' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 2' : 'AI Trí Nhớ · Cấp 1')
-                  return
-                }
-                const rect = e.currentTarget.getBoundingClientRect()
-                setSelectedProfileUser({
-                  id: 2,
-                  ten: 'Người chơi 2',
-                  gameName: 'Trí Nhớ',
-                  anchorRect: {
-                    top: rect.top,
-                    left: rect.left,
-                    right: rect.right,
-                    bottom: rect.bottom,
-                  },
-                })
-              }}
-              className={cn(
-                'relative size-14 sm:size-16 rounded-full border-2 p-0.5 transition-colors duration-150 shadow-xl flex items-center justify-center outline-none select-none cursor-pointer hover:scale-105 group',
-                turn === 2 && !isGameOver
-                  ? 'border-violet-400 shadow-[0_0_20px_rgba(167,139,250,0.7)] ring-4 ring-violet-400/20'
-                  : 'border-violet-500/40 hover:border-violet-400 bg-[#121620]/90'
-              )}
-              title={mode === 'pve' ? 'Máy AI Trí Nhớ - Bấm để xem thông tin' : 'Người chơi 2 - Bấm để xem thông tin'}
-              aria-label={mode === 'pve' ? 'Thông tin Máy AI' : 'Người chơi 2'}
-            >
-              {mode === 'pve' ? (
-                <div className="size-full rounded-full bg-violet-950/60 flex items-center justify-center text-violet-300 pointer-events-none">
-                  <Bot className="size-7" />
-                </div>
-              ) : (
-                <div className="size-full rounded-full bg-slate-800 flex items-center justify-center text-violet-300 pointer-events-none">
-                  <User className="size-7" />
-                </div>
-              )}
-              <div
-                className="absolute -bottom-1 -right-1 px-1.5 h-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-md z-10 pointer-events-none bg-[#0c2340] border-violet-500/60 text-violet-400"
-                title="Điểm số đối thủ"
-              >
-                {score2}
-              </div>
-            </button>
+            <div className="hover:scale-105 transition-transform duration-150 select-none">
+              <EloRankAvatarFrame
+                ten={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+                elo={mode === 'pve' ? (difficulty === 'hard' ? 1700 : difficulty === 'medium' ? 1450 : 1200) : 1300}
+                isBot={mode === 'pve'}
+                hasPlayer={true}
+                isTurn={turn === 2 && !isGameOver}
+                turnSide="black"
+                sizeClassName="size-14 sm:size-16"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (mode === 'pve') {
+                    toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 3' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 2' : 'AI Trí Nhớ · Cấp 1')
+                    return
+                  }
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setSelectedProfileUser({
+                    id: 2,
+                    ten: 'Người chơi 2',
+                    gameName: 'Trí Nhớ',
+                    anchorRect: {
+                      top: rect.top,
+                      left: rect.left,
+                      right: rect.right,
+                      bottom: rect.bottom,
+                    },
+                  })
+                }}
+                title={mode === 'pve' ? 'Máy AI Trí Nhớ - Bấm để xem thông tin' : 'Người chơi 2 - Bấm để xem thông tin'}
+                ariaLabel={mode === 'pve' ? 'Thông tin Máy AI' : 'Người chơi 2'}
+              />
+            </div>
 
             {/* Đồng hồ đếm ngược đối thủ */}
             <div
@@ -1615,9 +1591,13 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
                 title="Bấm để xem hồ sơ người chơi & thành tựu"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative size-11 rounded-full border-2 border-violet-400/60 p-0.5 shrink-0 shadow-md">
-                    <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full" />
-                  </div>
+                  <EloRankAvatarFrame
+                    ten={myName}
+                    avatar={myAvatarUrl}
+                    elo={myElo}
+                    hasPlayer={true}
+                    sizeClassName="size-11 sm:size-12"
+                  />
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-gray-100 truncate group-hover:text-violet-300 transition-colors">{myName}</div>
                     <div className="text-[11px] text-violet-300/80 font-medium">Người chơi trí nhớ</div>

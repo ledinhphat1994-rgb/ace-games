@@ -20,7 +20,6 @@ import {
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
-import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { EloRankAvatarFrame } from '../EloRankAvatarFrame'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { layHoSoNguoiDung } from '@/lib/api'
@@ -1764,9 +1763,13 @@ export function CaroBoard({
                 title="Bấm để xem hồ sơ kỳ thủ & thành tựu"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative size-11 rounded-full border-2 border-cyan-400/60 p-0.5 shrink-0 shadow-md">
-                    <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full" />
-                  </div>
+                  <EloRankAvatarFrame
+                    ten={myName}
+                    avatar={myAvatarUrl}
+                    elo={myElo}
+                    hasPlayer={true}
+                    sizeClassName="size-11 sm:size-12"
+                  />
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-gray-100 truncate group-hover:text-cyan-300 transition-colors">{myName}</div>
                     <div className="text-[11px] text-cyan-300/80 font-medium">Kỳ thủ cờ caro</div>

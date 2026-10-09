@@ -46,7 +46,6 @@ import {
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
-import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { EloRankAvatarFrame } from '../EloRankAvatarFrame'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { layHoSoNguoiDung } from '@/lib/api'
@@ -3191,9 +3190,13 @@ export function XiangqiBoard({
               {/* THẺ HỒ SƠ KỲ THỦ HIỂN THỊ ELO & LEVEL (VÙNG 3 TRONG CÀI ĐẶT) */}
               <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-sky-950/40 border border-amber-500/30 flex items-center justify-between shadow-inner">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative size-11 rounded-full border-2 border-amber-400/60 p-0.5 shrink-0 shadow-md">
-                    <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full" />
-                  </div>
+                  <EloRankAvatarFrame
+                    ten={myName}
+                    avatar={myAvatarUrl}
+                    elo={myElo}
+                    hasPlayer={true}
+                    sizeClassName="size-11 sm:size-12"
+                  />
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-gray-100 truncate">{myName}</div>
                     <div className="text-[11px] text-amber-300/80 font-medium">Kỳ thủ cờ tướng</div>

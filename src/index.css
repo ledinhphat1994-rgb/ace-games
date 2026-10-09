@@ -1155,8 +1155,8 @@ body { min-width: 280px; }
 
 /* 4. Trò chơi Lật Thẻ Trí Nhớ (Tỷ lệ 1:1, lưới 4x4) */
 .game-board-memory {
-  width: min(calc(100vw - 32px), min(70vh, 520px));
-  max-height: min(70vh, 520px);
+  width: min(calc(100vw - 6px), calc(100dvh - 165px));
+  max-height: calc(100dvh - 165px);
   aspect-ratio: 1 / 1;
 }
 @media (min-width: 1280px) {

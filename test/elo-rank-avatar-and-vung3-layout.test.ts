@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
-import { getEloRankTier } from '../src/features/games/EloRankAvatarFrame'
+import { getEloRankTier } from '../src/features/games/elo-rank'
 import xiangqiRaw from '../src/features/games/xiangqi/XiangqiBoard.tsx?raw'
 import chessRaw from '../src/features/games/chess/ChessBoard.tsx?raw'
 import caroRaw from '../src/features/games/caro/CaroBoard.tsx?raw'
+import memoryRaw from '../src/features/games/memory/MemoryGame.tsx?raw'
 
 const indexCssRaw = ((env as any).INDEX_CSS ?? '') as string
 
@@ -69,12 +70,27 @@ describe('EloRankAvatarFrame & Vùng 3 đồng bộ Vùng 2', () => {
     expect(caroRaw).toContain('sizeClassName="size-11 sm:size-12"')
   })
 
+  it('Lật Thẻ Trí Nhớ: Tích hợp EloRankAvatarFrame, bỏ badge đính kèm góc avatar, Vùng 3 đồng bộ Vùng 2', () => {
+    expect(memoryRaw).toContain('EloRankAvatarFrame')
+    expect(memoryRaw).not.toContain('absolute -bottom-0.5 -right-0.5')
+    expect(memoryRaw).not.toContain('absolute -bottom-1 -right-1')
+    expect(memoryRaw).toContain('sizeClassName="size-11 sm:size-12"')
+  })
+
+  it('Modal Cài đặt trong cả 4 game sử dụng EloRankAvatarFrame đồng bộ', () => {
+    expect(xiangqiRaw).toContain('EloRankAvatarFrame')
+    expect(chessRaw).toContain('EloRankAvatarFrame')
+    expect(caroRaw).toContain('EloRankAvatarFrame')
+    expect(memoryRaw).toContain('EloRankAvatarFrame')
+  })
+
   it('Bàn cờ nở tối đa theo chiều cao còn lại của màn hình trong CSS', () => {
     if (indexCssRaw) {
       expect(indexCssRaw).toContain('.game-board-xiangqi')
       expect(indexCssRaw).toContain('max-height: calc(100dvh - 165px)')
       expect(indexCssRaw).toContain('.game-board-chess')
       expect(indexCssRaw).toContain('.game-board-caro')
+      expect(indexCssRaw).toContain('.game-board-memory')
     }
   })
 })
