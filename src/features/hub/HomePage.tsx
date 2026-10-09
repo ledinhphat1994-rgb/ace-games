@@ -15,6 +15,7 @@ import {
   Sparkles,
   Trophy,
 } from 'lucide-react'
+import { GamingLevelBar } from '@/features/games/GamingLevelBar'
 
 // Vùng 2: Quick Nav — Các mục điều hướng nhanh chuyên nghiệp cho App Game
 const QUICK_NAV = [
@@ -171,19 +172,19 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
   return (
     <section
       aria-label="Chào mừng bạn học"
-      className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[190px] sm:min-h-[300px] lg:min-h-[440px] flex flex-col justify-center group"
+      className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[145px] sm:min-h-[280px] lg:min-h-[420px] flex flex-col justify-center group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       {/* Khung chuyển slide tự động (Auto-playing Carousel Stage) */}
-      <div className="relative w-full min-h-[190px] sm:min-h-[300px] lg:min-h-[440px] overflow-hidden flex flex-col justify-center">
+      <div className="relative w-full min-h-[145px] sm:min-h-[280px] lg:min-h-[420px] overflow-hidden flex flex-col justify-center">
         {BANNER_SLIDES.map((slide, idx) => {
           const isActive = slideIndex === idx
           const PrimaryIcon = slide.primaryAction.icon
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 flex flex-col justify-center p-3.5 sm:p-8 lg:p-14 pb-9 sm:pb-14 lg:pb-16 transition-[opacity,transform] duration-700 ease-in-out ${
+              className={`absolute inset-0 flex flex-col justify-center p-3 sm:p-8 lg:p-14 pb-8 sm:pb-14 lg:pb-16 transition-[opacity,transform] duration-700 ease-in-out ${
                 isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
               }`}
             >
@@ -202,12 +203,12 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
 
               {/* Nội dung slide */}
               <div className="relative z-10 max-w-2xl">
-                <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 sm:px-3.5 sm:py-1 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1.5 sm:mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 sm:px-3.5 sm:py-1 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1 sm:mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
                   <span className="size-1.5 sm:size-2 rounded-full bg-sky-400 animate-pulse" />
                   <span>{slide.badge}</span>
                 </div>
 
-                <h1 className="text-lg sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+                <h1 className="text-base sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
                   {slide.title}
                 </h1>
 
@@ -383,6 +384,9 @@ export function HomePage() {
         onCreateRoom={handleCreateRoom}
         onOpenChat={handleOpenCampusChat}
       />
+
+      {/* ── Gaming Level Bar: Cấp bậc game thủ, Level 1–100 & XP ── */}
+      <GamingLevelBar />
 
       {/* ── Quick Nav Cards — Các card Game 1v1, Arcade Sinh Tồn, Bảng Xếp Hạng ── */}
       <section aria-label="Điều hướng nhanh">

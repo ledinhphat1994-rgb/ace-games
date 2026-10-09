@@ -277,8 +277,8 @@ export function AppShell({ children }: AppShellProps) {
                 : isGameRoom
                   ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-0.5 pb-1 sm:pb-2 mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
                   : isWidePage
-                    ? 'max-w-[1600px] px-2.5 sm:px-6 pt-2 sm:pt-5 pb-[calc(56px+env(safe-area-inset-bottom,0px)+10px)] lg:pb-8 mx-auto'
-                    : 'max-w-[1440px] px-2.5 pt-2 pb-[calc(56px+env(safe-area-inset-bottom,0px)+10px)] sm:px-6 sm:pt-5 lg:pb-10 mx-auto'
+                    ? 'max-w-[1600px] px-2.5 sm:px-6 pt-2 sm:pt-4 pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-8 mx-auto'
+                    : 'max-w-[1440px] px-2.5 pt-2 pb-[calc(72px+env(safe-area-inset-bottom,0px))] sm:px-6 sm:pt-4 lg:pb-10 mx-auto'
           )}
         >
         {/* Single-device policy warning banner */}

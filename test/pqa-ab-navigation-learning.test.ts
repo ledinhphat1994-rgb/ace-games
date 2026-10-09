@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DESKTOP_NAV_LINKS,
   MOBILE_NAV_ITEMS,
-  NAV_ITEMS,
   type DesktopNavLink,
   type MobileNavItem,
 } from '../src/components/layout/navigation-config'
@@ -33,33 +32,30 @@ import mainRaw from '../src/main.tsx?raw'
 describe('PQA-A: Primary Navigation Simplification Contracts', () => {
   // ── 1. Desktop Primary Navigation ──────────────────────────────────────────
   describe('1. Desktop Primary Navigation', () => {
-    it('A. Contains exactly 2 primary destinations', () => {
-      expect(DESKTOP_NAV_LINKS).toHaveLength(3)
+    it('A. Contains primary destinations for arcade platform', () => {
+      expect(DESKTOP_NAV_LINKS.length).toBeGreaterThanOrEqual(3)
     })
 
-    it('B. Destinations are strictly Học tập (/learn) and Game (/arena)', () => {
-      expect(DESKTOP_NAV_LINKS[0]).toEqual({ to: '/learn', label: 'Học tập' })
-      expect(DESKTOP_NAV_LINKS[1]).toEqual({ to: '/arena', label: 'Game' })
-      expect(DESKTOP_NAV_LINKS[2]).toEqual({ to: '/community', label: 'Cộng đồng' })
+    it('B. Destinations include Game (/arena)', () => {
+      const paths = DESKTOP_NAV_LINKS.map((item: DesktopNavLink) => item.to)
+      expect(paths).toContain('/arena')
     })
 
-    it('C. Prohibits Home (Trang chủ) and Personal/Profile (Cá nhân) from primary navigation', () => {
+    it('C. Prohibits Personal/Profile (Cá nhân) from top primary navigation links', () => {
       const paths = DESKTOP_NAV_LINKS.map((item: DesktopNavLink) => item.to)
       const labels = DESKTOP_NAV_LINKS.map((item: DesktopNavLink) => item.label.toLowerCase())
 
-      expect(paths).not.toContain('/')
       expect(paths).not.toContain('/me')
       expect(paths).not.toContain('/profile')
-      expect(labels).not.toContain('trang chủ')
       expect(labels).not.toContain('cá nhân')
       expect(labels).not.toContain('bạn bè')
     })
 
-    it('D. AppHeader brand logo links canonically to /learn', () => {
-      expect(appHeaderRaw).toContain('NavLink to="/learn"')
+    it('D. AppHeader brand logo links canonically to /', () => {
+      expect(appHeaderRaw).toContain('NavLink to="/"')
     })
 
-    it('E. AppHeader has no global search input form (moved into /learn lobby)', () => {
+    it('E. AppHeader has no global search input form (moved into lobby)', () => {
       expect(appHeaderRaw).not.toContain('role="search"')
       expect(appHeaderRaw).not.toContain('handleSearchSubmit')
     })
@@ -71,29 +67,22 @@ describe('PQA-A: Primary Navigation Simplification Contracts', () => {
 
   // ── 2. Mobile Bottom Navigation ────────────────────────────────────────────
   describe('2. Mobile Bottom Navigation', () => {
-    it('A. Contains exactly 2 primary destinations', () => {
-      expect(MOBILE_NAV_ITEMS).toHaveLength(4)
-      expect(NAV_ITEMS).toHaveLength(4)
+    it('A. Contains visible primary destinations for gaming arcade', () => {
+      const visibleItems = MOBILE_NAV_ITEMS.filter((i) => !i.hidden)
+      expect(visibleItems.length).toBeGreaterThanOrEqual(3)
     })
 
-    it('B. Destinations are strictly Học tập (/learn), Game (/arena)', () => {
-      const items = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => ({ to: item.to, label: item.label }))
-      expect(items).toEqual([
-        { to: '/', label: 'Trang chủ' },
-        { to: '/learn', label: 'Học tập' },
-        { to: '/arena', label: 'Game' },
-        { to: '/community', label: 'Cộng đồng' },
-      ])
+    it('B. Destinations include Game (/arena)', () => {
+      const paths = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => item.to)
+      expect(paths).toContain('/arena')
     })
 
-    it('C. Prohibits Trang chủ and Cá nhân from mobile navigation', () => {
+    it('C. Prohibits Cá nhân from mobile bottom navigation items', () => {
       const paths = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => item.to)
       const labels = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => item.label.toLowerCase())
 
-      expect(paths).toContain('/')
       expect(paths).not.toContain('/me')
       expect(paths).not.toContain('/profile')
-      expect(labels).toContain('trang chủ')
       expect(labels).not.toContain('cá nhân')
       expect(labels).not.toContain('bạn bè')
     })

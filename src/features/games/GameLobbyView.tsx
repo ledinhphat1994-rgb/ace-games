@@ -26,6 +26,7 @@ import { CAC_GAME_1V1, type BanSanh, type GameType } from '@shared/protocol/game
 import { useGameRooms } from '../../hooks/use-game-rooms'
 import { ThongKeGame } from './ThongKeGame'
 import { GameArt } from './GameArt'
+import { GamingLevelBar } from './GamingLevelBar'
 import {
   IconCrown3D,
   IconXiangqiPiece3D,
@@ -204,7 +205,7 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
       aria-label="Đấu trường game Digital Campus"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative w-full min-h-[180px] sm:min-h-[290px] lg:min-h-[420px] flex flex-col justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(2,132,199,0.15)] group select-none"
+      className="relative w-full min-h-[145px] sm:min-h-[260px] lg:min-h-[380px] flex flex-col justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(2,132,199,0.15)] group select-none"
     >
       {BANNER_SLIDES.map((slide, idx) => {
         const isCurrent = idx === slideIndex
@@ -226,13 +227,13 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
               <div className="absolute inset-0 bg-gradient-to-t from-[#020c24]/90 via-transparent to-transparent" />
             </div>
 
-            <div className="relative z-10 p-3.5 sm:p-8 lg:p-14 pb-8 sm:pb-12 lg:pb-14 max-w-3xl">
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 sm:px-4 sm:py-1.5 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1.5 sm:mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
+            <div className="relative z-10 p-3 sm:p-8 lg:p-14 pb-7 sm:pb-12 lg:pb-14 max-w-3xl">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 sm:px-4 sm:py-1.5 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1 sm:mb-4 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
                 <span className="size-1.5 sm:size-2 rounded-full bg-sky-400 animate-pulse" />
                 <span>{slide.badge}</span>
               </div>
 
-              <h1 className="text-lg sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+              <h1 className="text-base sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
                 {slide.title}
               </h1>
 
@@ -1171,6 +1172,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* 1. Hero Banner Sảnh trò chơi (Chuẩn màu Sky/Blue, không dùng tím/hồng) */}
       <GameLobbyHeroBanner />
 
+      {/* 1b. Thanh cấp bậc game thủ & tiến trình XP */}
+      <GamingLevelBar />
+
       {/* Sảnh trực tiếp cho tất cả các game */}
       <div className="space-y-3.5 sm:space-y-6 min-w-0">
         {/* ── Khu vực chính: Phòng game trực tuyến ── */}
@@ -1179,15 +1183,29 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           <section aria-label="Sảnh phòng game trực tuyến" className="space-y-2.5 sm:space-y-4">
             {/* Header & Cụm hành động */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3.5">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
-                <h2 className="text-base sm:text-lg font-bold text-text-primary">
-                  Phòng game trực tuyến
-                </h2>
+              <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
+                  <h2 className="text-base sm:text-lg font-bold text-text-primary">
+                    Phòng game trực tuyến
+                  </h2>
+                </div>
+                {/* Nút Tạo bàn đấu nổi bật bên phải tiêu đề trên mobile */}
+                <div className="sm:hidden">
+                  <Button
+                    data-testid="create-table-btn"
+                    size="sm"
+                    onClick={canDangNhap(() => setMoTaoBanModal(true))}
+                    className="h-8 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold shadow-xs cursor-pointer shrink-0"
+                  >
+                    <Plus className="size-3.5 mr-1" />
+                    <span>Tạo bàn</span>
+                  </Button>
+                </div>
               </div>
 
-              {/* Action Cluster */}
-              <div className="flex flex-wrap items-center gap-2">
+              {/* Action Cluster: Search + Chơi ngay + Đặt lại sảnh + Tạo bàn (desktop) */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 {/* Search input (tìm theo tên phòng, chủ phòng, game...) */}
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary pointer-events-none" />
@@ -1196,7 +1214,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     type="text"
                     value={tuKhoa}
                     onChange={(e) => setTuKhoa(e.target.value)}
-                    placeholder="Tìm theo số phòng, tên game, người chơi..."
+                    placeholder="Tìm số phòng, tên game..."
                     className="w-full h-8 pl-8 pr-7 rounded-lg border border-border-default/80 bg-surface text-xs text-text-primary placeholder:text-text-tertiary focus:border-brand focus:outline-hidden"
                   />
                   {tuKhoa && (
@@ -1228,7 +1246,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     }
                     setMoPopupChoiNgay(true)
                   }}
-                  className="h-8 px-3 rounded-lg border-border-default text-xs font-semibold cursor-pointer hover:bg-surface-raised gap-1.5 select-none active:scale-95 transition-all"
+                  className="h-8 px-2.5 sm:px-3 rounded-lg border-border-default text-xs font-semibold cursor-pointer hover:bg-surface-raised gap-1.5 select-none active:scale-95 transition-all shrink-0"
                   title={
                     cacGameGhiNho.length > 0
                       ? `Chơi ngay: ${cacGameGhiNho.map((g) => GAME_CATALOG_BY_ID[g]?.shortTitle || g).join(', ')} • Bấm giữ để chọn game`
@@ -1251,23 +1269,25 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                     variant="outline"
                     size="sm"
                     onClick={canDangNhap(datLaiTatCaPhong)}
-                    className="h-8 px-2.5 rounded-lg border-border-default/80 hover:bg-surface-raised text-text-tertiary hover:text-amber-400 text-xs font-semibold cursor-pointer gap-1 transition-colors"
+                    className="h-8 px-2 rounded-lg border-border-default/80 hover:bg-surface-raised text-text-tertiary hover:text-amber-400 text-xs font-semibold cursor-pointer gap-1 transition-colors shrink-0 hidden sm:inline-flex"
                     title="Xóa tất cả phòng test để làm sạch sảnh"
                   >
                     <RotateCcw className="size-3.5" />
-                    <span>Đặt lại sảnh</span>
+                    <span>Đặt lại</span>
                   </Button>
                 )}
 
-                <Button
-                  data-testid="create-table-btn"
-                  size="sm"
-                  onClick={canDangNhap(() => setMoTaoBanModal(true))}
-                  className="h-8 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold shadow-xs cursor-pointer"
-                >
-                  <Plus className="size-3.5 mr-1" />
-                  <span>Tạo bàn đấu</span>
-                </Button>
+                <div className="hidden sm:block">
+                  <Button
+                    data-testid="create-table-btn"
+                    size="sm"
+                    onClick={canDangNhap(() => setMoTaoBanModal(true))}
+                    className="h-8 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    <Plus className="size-3.5 mr-1" />
+                    <span>Tạo bàn đấu</span>
+                  </Button>
+                </div>
               </div>
             </div>
 
