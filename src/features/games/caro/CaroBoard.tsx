@@ -1231,7 +1231,7 @@ export function CaroBoard({
         </section>
 
         {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
-        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1 pt-1 pb-1 sm:pb-2 select-none z-20">
+        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] mt-auto select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
           <div className="flex w-full h-10 px-2 items-center justify-between select-none">
             <div className="flex items-center gap-2 min-w-0">

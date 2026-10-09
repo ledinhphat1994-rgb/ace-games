@@ -217,16 +217,16 @@ const GameLobbyHeroBanner = memo(function GameLobbyHeroBanner() {
               isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none',
             )}
           >
-            <div className="absolute inset-0 z-0 overflow-hidden">
+            <div className="absolute inset-0 z-0 overflow-hidden flex items-center justify-end">
               <img
                 src={slide.bgImage}
                 alt={slide.title}
-                className="h-full w-full object-cover object-[85%_center] sm:object-right opacity-90 lg:opacity-95 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+                className="h-full w-auto max-w-[65%] sm:max-w-[55%] lg:max-w-[50%] object-contain object-right opacity-90 lg:opacity-95 crisp-image transition-transform duration-700 pointer-events-none select-none"
               />
               {/* Lớp phủ gradient điện ảnh: Vùng chữ bên trái tương phản cao, vùng ảnh 3D bên phải trong suốt khoe trọn mô hình khớp khung */}
               <div className={cn('absolute inset-0 bg-gradient-to-r', slide.gradient)} />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#071126] via-[#071126]/85 via-55% sm:via-45% to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 h-24 sm:h-32 bg-gradient-to-t from-[#081226] via-[#081226]/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#071126] via-[#071126]/85 via-55% sm:via-45% to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-24 sm:h-32 bg-gradient-to-t from-[#081226] via-[#081226]/80 to-transparent pointer-events-none" />
             </div>
 
             <div className="relative z-10 p-5 sm:p-10 lg:p-14 pb-10 sm:pb-14 lg:pb-16 max-w-xl lg:max-w-3xl pr-14 sm:pr-10">
@@ -1178,41 +1178,20 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           {/* Header & Thanh công cụ chuẩn chuyên nghiệp */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Tiêu đề sảnh & Số lượng phòng */}
-            <div className="flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
-                <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                  Phòng game trực tuyến
-                </h2>
-                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800/60 text-slate-400 border border-slate-700/50">
-                  {allRooms.length > 0 ? `${allRooms.length} bàn đang mở` : 'Sảnh mở'}
-                </span>
-              </div>
-
-              {/* Nút Tạo bàn đấu nổi bật duy nhất trên mobile */}
-              <div className="sm:hidden">
-                <Button
-                  data-testid="create-table-btn"
-                  size="sm"
-                  onClick={canDangNhap(() => {
-                    playUiTapSound()
-                    if (!tenPhongMoi.trim()) {
-                      setTenPhongMoi(`Bàn đấu #${Math.floor(Math.random() * 89) + 11}`)
-                    }
-                    setMoTaoBanModal(true)
-                  })}
-                  className="h-8.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer shrink-0"
-                >
-                  <Plus className="size-3.5 mr-1 stroke-[3]" />
-                  <span>Tạo bàn</span>
-                </Button>
-              </div>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
+              <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
+                Phòng game trực tuyến
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800/60 text-slate-400 border border-slate-700/50">
+                {allRooms.length > 0 ? `${allRooms.length} bàn đang mở` : 'Sảnh mở'}
+              </span>
             </div>
 
-            {/* Cụm công cụ: Tìm kiếm + Chơi ngay tinh tế + Nút Tạo bàn desktop */}
+            {/* Cụm công cụ: Tìm kiếm + Chơi nhanh + DUY NHẤT 1 NÚT Tạo bàn */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {/* Search input (tìm theo tên phòng, chủ phòng, game...) */}
-              <div className="relative flex-1 sm:w-64">
+              <div className="relative flex-1 sm:w-56">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary pointer-events-none" />
                 <input
                   data-testid="game-search-input"
@@ -1233,7 +1212,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 )}
               </div>
 
-              {/* Nút Chơi ngay phụ trợ (Ghép trận nhanh) */}
+              {/* Nút Chơi nhanh nổi bật, luôn hiển thị chữ rõ ràng */}
               <Button
                 data-testid="quick-play-btn"
                 variant="outline"
@@ -1251,20 +1230,20 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                   }
                   setMoPopupChoiNgay(true)
                 }}
-                className="h-8.5 px-3 rounded-xl border-amber-400/30 bg-[#0c1527] text-xs font-semibold text-amber-300 cursor-pointer hover:bg-amber-500/10 gap-1.5 select-none active:scale-95 transition-all shrink-0"
+                className="h-8.5 px-3 rounded-xl border-amber-400/40 bg-amber-500/10 text-xs font-bold text-amber-300 cursor-pointer hover:bg-amber-500/20 gap-1.5 select-none active:scale-95 transition-all shrink-0"
                 title={
                   cacGameGhiNho.length > 0
-                    ? `Chơi ngay: ${cacGameGhiNho.map((g) => GAME_CATALOG_BY_ID[g]?.shortTitle || g).join(', ')} • Bấm giữ để chọn game`
-                    : 'Chơi ngay • Bấm giữ để chọn game'
+                    ? `Chơi nhanh: ${cacGameGhiNho.map((g) => GAME_CATALOG_BY_ID[g]?.shortTitle || g).join(', ')} • Bấm giữ để chọn game`
+                    : 'Chơi nhanh • Bấm giữ để chọn game'
                 }
               >
-                <Sparkles className="size-3.5 text-amber-400" />
-                <span className="hidden xs:inline">Chơi ngay</span>
+                <Sparkles className="size-3.5 text-amber-400 shrink-0" />
+                <span>Chơi nhanh</span>
                 {cacGameGhiNho.length > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 font-bold">
                     {cacGameGhiNho.length === ALL_QUICK_GAME_IDS.length
                       ? 'Tất cả'
-                      : `${cacGameGhiNho.length} game`}
+                      : `${cacGameGhiNho.length}`}
                   </span>
                 )}
               </Button>
@@ -1282,24 +1261,22 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 </Button>
               )}
 
-              {/* Nút Tạo bàn đấu nổi bật trên desktop */}
-              <div className="hidden sm:block">
-                <Button
-                  data-testid="create-table-btn"
-                  size="sm"
-                  onClick={canDangNhap(() => {
-                    playUiTapSound()
-                    if (!tenPhongMoi.trim()) {
-                      setTenPhongMoi(`Bàn đấu #${Math.floor(Math.random() * 89) + 11}`)
-                    }
-                    setMoTaoBanModal(true)
-                  })}
-                  className="h-8.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer"
-                >
-                  <Plus className="size-3.5 mr-1 stroke-[3]" />
-                  <span>Tạo bàn đấu</span>
-                </Button>
-              </div>
+              {/* DUY NHẤT 1 NÚT TẠO BÀN TRÊN SẢNH */}
+              <Button
+                data-testid="create-table-btn"
+                size="sm"
+                onClick={canDangNhap(() => {
+                  playUiTapSound()
+                  if (!tenPhongMoi.trim()) {
+                    setTenPhongMoi(`Bàn đấu #${Math.floor(Math.random() * 89) + 11}`)
+                  }
+                  setMoTaoBanModal(true)
+                })}
+                className="h-8.5 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black shadow-[0_0_12px_rgba(245,158,11,0.35)] cursor-pointer shrink-0"
+              >
+                <Plus className="size-3.5 mr-1 stroke-[3]" />
+                <span>Tạo bàn</span>
+              </Button>
             </div>
           </div>
 
@@ -1442,6 +1419,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* ── Dialog tạo bàn đấu mới trực tiếp (Card luôn cố định kích thước, đúng chuẩn thiết kế mockup) ── */}
       <Dialog open={moTaoBanModal} onOpenChange={setMoTaoBanModal}>
         <DialogContent
+          initialFocus={false}
           className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 max-sm:max-h-[88svh] sm:max-w-[520px] sm:w-full sm:max-h-[calc(100svh-2rem)] flex flex-col p-4 sm:p-5 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl justify-between overflow-hidden text-text-primary z-50 transition-transform duration-200"
         >
           {/* Thanh gạt vuốt (Swipe handle) chuẩn mobile */}
@@ -1880,6 +1858,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
       {/* ── Dialog Chọn game Chơi Ngay (Nhỏ gọn, vừa vặn nội dung, chỉ ghi Chơi ngay, xóa vùng 4) ── */}
       <Dialog open={moPopupChoiNgay} onOpenChange={setMoPopupChoiNgay}>
         <DialogContent
+          initialFocus={false}
           data-testid="quick-play-dialog"
           className="sm:max-w-sm w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col p-4 bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden"
         >

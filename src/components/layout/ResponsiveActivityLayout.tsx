@@ -64,8 +64,8 @@ export function ResponsiveActivityLayout({
   const inlinePanels = desktop && utilityMode === 'inline' && panels.length > 0
 
   return (
-    <div data-testid={testId} className={cn('activity-layout grid w-full min-w-0 grid-cols-1 items-start gap-5', inlinePanels && 'xl:grid-cols-[240px_minmax(0,1fr)_280px] 2xl:grid-cols-[260px_minmax(0,1fr)_300px]', isFullscreen && 'activity-layout--fullscreen')}>
-      <div className={cn('min-w-0', inlinePanels && 'xl:col-start-2 xl:row-start-1')}>{children}</div>
+    <div data-testid={testId} className={cn('activity-layout grid w-full min-w-0 grid-cols-1 items-start gap-5', utilityMode === 'floating' && 'h-full flex-1 min-h-0', inlinePanels && 'xl:grid-cols-[240px_minmax(0,1fr)_280px] 2xl:grid-cols-[260px_minmax(0,1fr)_300px]', isFullscreen && 'activity-layout--fullscreen')}>
+      <div className={cn('min-w-0', utilityMode === 'floating' && 'h-full flex-1 flex flex-col min-h-0', inlinePanels && 'xl:col-start-2 xl:row-start-1')}>{children}</div>
       {!inlinePanels && !isFullscreen && panels.length > 0 && showFloatingTrigger && (
         <DraggableBubble id="activity" bottomOffset={bubbleBottomOffset} label="Mở tiện ích" icon={<LayoutGrid className="size-5" />} suspended={panel !== null}
           actions={panels.map(item => ({ id: item.id, label: item.label, icon: item.icon, onSelect: () => setPanel(item.id) }))} />
