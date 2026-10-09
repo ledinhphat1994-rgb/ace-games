@@ -13,7 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView, type WebViewNavigation } from 'react-native-webview'
 import * as Haptics from 'expo-haptics'
 
-const WEB_URL = 'https://gdtxdinhquan.com'
+const WEB_URL = 'https://gdtxdinhquan.com/arena'
 
 export default function App() {
   const webViewRef = useRef<any>(null)
