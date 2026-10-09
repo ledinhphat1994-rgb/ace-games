@@ -1822,6 +1822,7 @@ export function Wormate3DArena({
         ctx.restore()
       }
 
+      const enableGlow = w >= 640
       // Vẽ các món bánh kẹo & đồ ngọt (Pastries) kèm Viewport Culling
       for (const f of eng.foods) {
         f.rotation += f.rotSpeed
@@ -1829,7 +1830,7 @@ export function Wormate3DArena({
         if (f.x < viewBounds.minX || f.x > viewBounds.maxX || f.y < viewBounds.minY || f.y > viewBounds.maxY) {
           continue
         }
-        drawPastryItem(ctx, f)
+        drawPastryItem(ctx, f, enableGlow)
       }
 
       // Vẽ các hạt bụi bánh ngọt kèm Viewport Culling
@@ -3014,7 +3015,7 @@ function drawGoldenCrown(ctx: CanvasRenderingContext2D, segRadius: number) {
 
 // ── VẼ BÁNH NGỌT & ĐỒ ĂN ──
 // ── VẼ BÁNH NGỌT & ĐỒ ĂN ĐA DẠNG ──
-function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
+function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem, enableGlow = true) {
   ctx.save()
   ctx.translate(f.x, f.y)
   ctx.rotate(f.rotation)
@@ -3036,13 +3037,17 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
     gemGrad.addColorStop(0.5, '#facc15')
     gemGrad.addColorStop(1, '#eab308')
     ctx.fillStyle = gemGrad
-    ctx.shadowColor = 'rgba(250, 204, 21, 0.75)'
-    ctx.shadowBlur = 8
+    if (enableGlow) {
+      ctx.shadowColor = 'rgba(250, 204, 21, 0.75)'
+      ctx.shadowBlur = 8
+    }
     ctx.fill()
     ctx.strokeStyle = '#ca8a04'
     ctx.lineWidth = 1.2
     ctx.stroke()
-    ctx.shadowColor = 'transparent'
+    if (enableGlow) {
+      ctx.shadowColor = 'transparent'
+    }
     // Điểm sáng kim cương
     ctx.beginPath()
     ctx.arc(-f.r * 0.25, -f.r * 0.25, 2.5, 0, Math.PI * 2)
@@ -3147,10 +3152,14 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
     ctx.beginPath()
     ctx.arc(0, 0, f.r * 0.8, Math.PI, 0)
     ctx.fillStyle = '#7e22ce'
-    ctx.shadowColor = 'rgba(168, 85, 247, 0.6)'
-    ctx.shadowBlur = 6
+    if (enableGlow) {
+      ctx.shadowColor = 'rgba(168, 85, 247, 0.6)'
+      ctx.shadowBlur = 6
+    }
     ctx.fill()
-    ctx.shadowColor = 'transparent'
+    if (enableGlow) {
+      ctx.shadowColor = 'transparent'
+    }
     ctx.fillStyle = '#f43f5e'
     const dots = [[-f.r * 0.4, -f.r * 0.3], [0, -f.r * 0.55], [f.r * 0.4, -f.r * 0.3]]
     dots.forEach(([dx, dy]) => {
@@ -3213,10 +3222,14 @@ function drawPastryItem(ctx: CanvasRenderingContext2D, f: FoodItem) {
     ctx.beginPath()
     ctx.arc(0, 0, f.r, 0, Math.PI * 2)
     ctx.fillStyle = '#f59e0b'
-    ctx.shadowColor = 'rgba(245, 158, 11, 0.4)'
-    ctx.shadowBlur = 6
+    if (enableGlow) {
+      ctx.shadowColor = 'rgba(245, 158, 11, 0.4)'
+      ctx.shadowBlur = 6
+    }
     ctx.fill()
-    ctx.shadowColor = 'transparent'
+    if (enableGlow) {
+      ctx.shadowColor = 'transparent'
+    }
 
     ctx.beginPath()
     ctx.arc(0, 0, f.r * 0.85, 0, Math.PI * 2)
