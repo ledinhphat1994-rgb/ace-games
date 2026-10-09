@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { usePhien } from '@/app/phien'
 import type { HighScoreRecord } from './GameLeaderboard'
 import { tinhLevel } from './GameLeaderboard'
+import { EloRankAvatarFrame } from './EloRankAvatarFrame'
 
 /** Bảng xếp hạng chung toàn web: tab Học tập (tổng XP học tập) + các tab game (kỷ lục đã xác thực). */
 export type TabXepHang = GameType | 'hoc_tap'
@@ -60,7 +61,7 @@ async function layBangXepHangHocTap(): Promise<HighScoreRecord[]> {
   }))
 }
 
-// ─── Một dòng xếp hạng: hạng · tên · level · điểm ─────────────────────────────
+// ─── Một dòng xếp hạng: hạng · avatar elo · tên · level · điểm ───────────────
 
 const MAU_HANG: Record<number, string> = { 1: 'text-warning', 2: 'text-text-secondary', 3: 'text-orange-400' }
 
@@ -69,12 +70,17 @@ function LeaderboardRow({ record, rank, laToi }: { record: HighScoreRecord; rank
   return (
     <li
       className={cn(
-        'grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 transition-colors',
+        'grid grid-cols-[1.75rem_auto_minmax(0,1fr)_auto_auto] items-center gap-2.5 rounded-xl px-3 py-2 transition-colors',
         laToi ? 'bg-brand/10 ring-1 ring-brand/25' : rank <= 3 ? 'bg-surface-overlay hover:bg-surface-overlay' : 'hover:bg-surface-overlay',
       )}
       data-testid={`xep-hang-dong-${rank}`}
     >
       <span className={cn('text-center text-sm font-black tabular-nums', MAU_HANG[rank] ?? 'text-text-tertiary')}>{rank}</span>
+      <EloRankAvatarFrame
+        ten={record.playerName}
+        elo={record.score}
+        sizeClassName="size-8"
+      />
       <span
         className={cn('min-w-0 truncate text-sm', rank <= 3 || laToi ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary')}
         title={record.playerName}
@@ -95,8 +101,9 @@ function SkeletonLeaderboard() {
   return (
     <ul className="flex-1 min-h-0 space-y-1 p-2" aria-busy="true" aria-label="Đang tải bảng xếp hạng">
       {Array.from({ length: 8 }, (_, i) => (
-        <li key={i} className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 animate-pulse">
+        <li key={i} className="grid grid-cols-[1.75rem_auto_minmax(0,1fr)_auto_auto] items-center gap-2.5 rounded-xl px-3 py-2 animate-pulse">
           <div className="mx-auto h-3 w-3 rounded bg-surface-overlay" />
+          <div className="size-8 rounded-full bg-surface-overlay" />
           <div className="h-3 rounded bg-surface-overlay" />
           <div className="h-4 w-9 rounded bg-surface-overlay" />
           <div className="h-3 w-12 rounded bg-surface-overlay" />
@@ -331,7 +338,45 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {records.length >= 3 && <div className="grid grid-cols-3 items-end gap-2 px-4 pt-5 pb-4" data-testid="leaderboard-podium">{[1, 0, 2].map(index => <div key={records[index].id} className={cn('min-w-0 rounded-xl px-2 py-3 text-center', index === 0 ? 'bg-achievement-muted pb-5' : 'bg-canvas')}><Trophy className={cn('mx-auto mb-2 size-5', index === 0 ? 'text-achievement' : 'text-text-tertiary')} /><p className="text-xs font-semibold text-text-secondary">#{index + 1}</p><p className="mt-1 break-words text-xs font-semibold text-text-primary">{records[index].playerName}</p><p className="mt-2 text-sm font-bold tabular-nums text-achievement">{records[index].score.toLocaleString('vi-VN')}</p></div>)}</div>}
+          {records.length >= 3 && (
+            <div className="grid grid-cols-3 items-end gap-2 px-4 pt-5 pb-4 select-none" data-testid="leaderboard-podium">
+              {[1, 0, 2].map((index) => (
+                <div
+                  key={records[index].id}
+                  className={cn(
+                    'min-w-0 rounded-xl px-2 py-3 text-center flex flex-col items-center justify-end',
+                    index === 0 ? 'bg-achievement-muted pb-4 pt-3' : 'bg-canvas'
+                  )}
+                >
+                  <div className="mb-2 relative">
+                    <EloRankAvatarFrame
+                      ten={records[index].playerName}
+                      elo={records[index].score}
+                      sizeClassName={index === 0 ? 'size-13 sm:size-14' : 'size-10 sm:size-11'}
+                    />
+                    <div
+                      className={cn(
+                        'absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full text-[10px] font-black z-20 shadow-md ring-1 ring-background',
+                        index === 0
+                          ? 'bg-amber-400 text-slate-950 ring-amber-300'
+                          : index === 1
+                            ? 'bg-slate-300 text-slate-950'
+                            : 'bg-amber-700 text-amber-100'
+                      )}
+                    >
+                      #{index + 1}
+                    </div>
+                  </div>
+                  <p className="mt-1 break-words text-xs font-semibold text-text-primary line-clamp-1 max-w-[90px] sm:max-w-[110px]" title={records[index].playerName}>
+                    {records[index].playerName}
+                  </p>
+                  <p className="mt-1 text-sm font-bold tabular-nums text-achievement">
+                    {records[index].score.toLocaleString('vi-VN')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
           <ol className="space-y-0.5 p-2">
             {records.slice(records.length >= 3 ? 3 : 0).map((row, i) => (
               <LeaderboardRow

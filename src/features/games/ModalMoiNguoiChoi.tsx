@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useCampus } from '@/hooks/use-campus'
 import { timKiemNguoiDung, guiTinNhanRieng } from '@/lib/api'
 import type { SearchResultItem, FriendItem } from '@shared/protocol/social'
-import { Search, UserPlus, Check, Copy, User, Users, Eye } from 'lucide-react'
+import { Search, UserPlus, Check, Copy, Users, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
+import { EloRankAvatarFrame } from './EloRankAvatarFrame'
 
 export interface KhanGiaTrongPhong {
   key: string
@@ -164,13 +165,11 @@ export function ModalMoiNguoiChoi({
                     className="flex items-center justify-between p-2.5 rounded-xl skeuo-subcard-base transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-8 rounded-full bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0 overflow-hidden">
-                        {u.avatar ? (
-                          <img src={u.avatar} alt="" className="size-full object-cover" />
-                        ) : (
-                          <User className="size-4" />
-                        )}
-                      </div>
+                      <EloRankAvatarFrame
+                        ten={u.displayName || u.username}
+                        avatar={u.avatar}
+                        sizeClassName="size-8"
+                      />
                       <div className="min-w-0 flex flex-col">
                         <span className="text-xs font-semibold text-white truncate">
                           {u.displayName || u.username}
@@ -231,14 +230,13 @@ export function ModalMoiNguoiChoi({
                         className="flex items-center justify-between p-2.5 rounded-xl skeuo-subcard-base transition-colors"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="relative size-8 rounded-full bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0 overflow-hidden">
-                            {s.avatar ? (
-                              <img src={s.avatar} alt="" className="size-full object-cover" />
-                            ) : (
-                              <User className="size-4" />
-                            )}
-                            <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-400 ring-1 ring-slate-900 animate-pulse" />
-                          </div>
+                          <EloRankAvatarFrame
+                            ten={s.ten}
+                            avatar={s.avatar}
+                            sizeClassName="size-8"
+                          >
+                            <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-400 ring-1 ring-slate-900 animate-pulse z-20" />
+                          </EloRankAvatarFrame>
                           <div className="min-w-0 flex flex-col">
                             <span className="text-xs font-semibold text-white truncate">
                               {s.ten}
@@ -295,16 +293,15 @@ export function ModalMoiNguoiChoi({
                     className="flex items-center justify-between p-2.5 rounded-xl skeuo-subcard-base transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="relative size-8 rounded-full bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0 overflow-hidden">
-                        {f.avatar ? (
-                          <img src={f.avatar} alt="" className="size-full object-cover" />
-                        ) : (
-                          <User className="size-4" />
-                        )}
+                      <EloRankAvatarFrame
+                        ten={f.displayName || f.username}
+                        avatar={f.avatar}
+                        sizeClassName="size-8"
+                      >
                         {friendsPresence?.[f.id]?.state === 'online' && (
-                          <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-400 ring-1 ring-slate-900 animate-pulse" />
+                          <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-400 ring-1 ring-slate-900 animate-pulse z-20" />
                         )}
-                      </div>
+                      </EloRankAvatarFrame>
                       <div className="min-w-0 flex flex-col">
                         <span className="text-xs font-semibold text-white truncate">
                           {f.displayName || f.username}

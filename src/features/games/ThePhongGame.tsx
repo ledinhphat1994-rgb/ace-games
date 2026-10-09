@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, Eye, Lock, Sparkles, Swords, Trophy, Users, Trash2, Gamepad2, User } from 'lucide-react'
+import { ArrowRight, Clock, Eye, Lock, Sparkles, Swords, Trophy, Users, Trash2, Gamepad2 } from 'lucide-react'
 import type { GameType } from '@shared/protocol/game'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ import { GameArt } from './GameArt'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
 import { laTroChoiDon } from './game-ids'
 import { playUiTapSound } from './game-audio'
+import { EloRankAvatarFrame } from './EloRankAvatarFrame'
 
 export interface PhongGameItem {
   id: string
@@ -65,14 +66,6 @@ const MAU_GAME: Record<GameType, { badge: string; borderHover: string; glow: str
     borderHover: 'hover:border-blue-500/40',
     glow: 'shadow-[0_0_12px_rgba(59,130,246,0.15)]',
   },
-}
-
-/** Lấy tên viết tắt 2 ký tự từ tên người chơi */
-function layTenTat(ten: string | null): string {
-  if (!ten) return '?'
-  const parts = ten.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  return ten.slice(0, 2).toUpperCase()
 }
 
 /** Render game icon 3D theo loại */
@@ -166,12 +159,11 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
         <div className="flex items-center justify-center gap-2 sm:gap-3 py-1">
           {/* Cột trái: Chủ bàn */}
           <div className="flex flex-col items-center gap-1.5 min-w-0 flex-1">
-            <div className={cn(
-              'size-11 sm:size-12 rounded-xl border-2 flex items-center justify-center text-sm font-black shrink-0',
-              'bg-gradient-to-br from-sky-500/20 to-sky-600/10 border-sky-400/50 text-sky-300',
-            )}>
-              {layTenTat(room.tenChu)}
-            </div>
+            <EloRankAvatarFrame
+              ten={room.tenChu || 'Ẩn danh'}
+              hasPlayer={true}
+              sizeClassName="size-11 sm:size-12"
+            />
             <span className="text-[11px] font-semibold text-text-secondary truncate max-w-full text-center leading-tight">
               {room.tenChu || 'Ẩn danh'}
             </span>
@@ -193,28 +185,17 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
 
           {/* Cột phải: Đối thủ / Slot mời */}
           <div className="flex flex-col items-center gap-1.5 min-w-0 flex-1">
-            {room.tenKhach ? (
-              <>
-                <div className={cn(
-                  'size-11 sm:size-12 rounded-xl border-2 flex items-center justify-center text-sm font-black shrink-0',
-                  'bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-amber-400/50 text-amber-300',
-                )}>
-                  {layTenTat(room.tenKhach)}
-                </div>
-                <span className="text-[11px] font-semibold text-text-secondary truncate max-w-full text-center leading-tight">
-                  {room.tenKhach}
-                </span>
-              </>
-            ) : (
-              <>
-                <div className="size-11 sm:size-12 rounded-xl border-2 border-dashed border-amber-400/40 bg-amber-500/5 flex items-center justify-center shrink-0">
-                  <User className="size-5 text-amber-400/50" />
-                </div>
-                <span className="text-[10px] font-medium text-amber-400/60 text-center leading-tight">
-                  Chờ đối thủ
-                </span>
-              </>
-            )}
+            <EloRankAvatarFrame
+              ten={room.tenKhach || 'Chờ đối thủ'}
+              hasPlayer={Boolean(room.tenKhach)}
+              sizeClassName="size-11 sm:size-12"
+            />
+            <span className={cn(
+              'text-[11px] truncate max-w-full text-center leading-tight',
+              room.tenKhach ? 'font-semibold text-text-secondary' : 'font-medium text-amber-400/60'
+            )}>
+              {room.tenKhach || 'Chờ đối thủ'}
+            </span>
           </div>
         </div>
       ) : (

@@ -5,6 +5,7 @@ import type { GameType } from '@shared/protocol/game'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
+import { EloRankAvatarFrame } from './EloRankAvatarFrame'
 
 export interface HighScoreRecord {
   id: number
@@ -141,6 +142,7 @@ export function GameLeaderboard({ gameType, verifiedOnly = false, limit = 50 }: 
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="size-4 animate-pulse rounded bg-white/10 shrink-0" />
+                  <div className="size-7 animate-pulse rounded-full bg-white/10 shrink-0" />
                   <div className="h-3 flex-1 animate-pulse rounded bg-white/10" />
                 </div>
                 <div className="h-3 w-12 animate-pulse rounded bg-white/10 ml-auto" />
@@ -194,6 +196,11 @@ export function GameLeaderboard({ gameType, verifiedOnly = false, limit = 50 }: 
                     >
                       {isTop1 ? '🥇' : isTop2 ? '🥈' : isTop3 ? '🥉' : `#${i + 1}`}
                     </span>
+                    <EloRankAvatarFrame
+                      ten={row.playerName}
+                      elo={row.score}
+                      sizeClassName="size-7"
+                    />
                     <span
                       className={cn(
                         'truncate font-semibold',

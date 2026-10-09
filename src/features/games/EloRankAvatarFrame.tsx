@@ -20,6 +20,7 @@ export interface EloRankAvatarFrameProps {
   onClick?: (e: React.MouseEvent<HTMLElement>) => void
   title?: string
   ariaLabel?: string
+  children?: React.ReactNode
 }
 
 export const EloRankAvatarFrame = React.memo(function EloRankAvatarFrame({
@@ -35,6 +36,7 @@ export const EloRankAvatarFrame = React.memo(function EloRankAvatarFrame({
   onClick,
   title,
   ariaLabel,
+  children,
 }: EloRankAvatarFrameProps) {
   const rank = getEloRankTier(elo, isBot)
 
@@ -176,6 +178,9 @@ export const EloRankAvatarFrame = React.memo(function EloRankAvatarFrame({
           <AnhNguoiDung ten={ten} avatar={avatar} className="size-full rounded-full pointer-events-none" />
         )}
       </div>
+
+      {/* 5. PHẦN TỬ CON BỔ SUNG (VÍ DỤ: CHẤM TRẠNG THÁI PRESENCE HOẶC BADGE) */}
+      {children}
     </div>
   )
 })

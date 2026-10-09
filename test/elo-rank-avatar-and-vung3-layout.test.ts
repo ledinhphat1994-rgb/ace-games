@@ -6,6 +6,13 @@ import chessRaw from '../src/features/games/chess/ChessBoard.tsx?raw'
 import caroRaw from '../src/features/games/caro/CaroBoard.tsx?raw'
 import memoryRaw from '../src/features/games/memory/MemoryGame.tsx?raw'
 
+import arenaLeaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
+import gameLeaderboardRaw from '../src/features/games/GameLeaderboard.tsx?raw'
+import socialSidebarRaw from '../src/features/games/GameSocialSidebar.tsx?raw'
+import thePhongRaw from '../src/features/games/ThePhongGame.tsx?raw'
+import theBanRaw from '../src/features/games/TheBanGame.tsx?raw'
+import modalMoiRaw from '../src/features/games/ModalMoiNguoiChoi.tsx?raw'
+
 const indexCssRaw = ((env as any).INDEX_CSS ?? '') as string
 
 describe('EloRankAvatarFrame & Vùng 3 đồng bộ Vùng 2', () => {
@@ -82,6 +89,22 @@ describe('EloRankAvatarFrame & Vùng 3 đồng bộ Vùng 2', () => {
     expect(chessRaw).toContain('EloRankAvatarFrame')
     expect(caroRaw).toContain('EloRankAvatarFrame')
     expect(memoryRaw).toContain('EloRankAvatarFrame')
+  })
+
+  it('Bảng xếp hạng (GameArenaLeaderboard & GameLeaderboard): Tích hợp EloRankAvatarFrame cho Podium và từng hàng', () => {
+    expect(arenaLeaderboardRaw).toContain('EloRankAvatarFrame')
+    expect(arenaLeaderboardRaw).toContain('leaderboard-podium')
+    expect(gameLeaderboardRaw).toContain('EloRankAvatarFrame')
+  })
+
+  it('Social Sidebar: Tích hợp EloRankAvatarFrame cho chat phòng, danh sách bạn bè và hội thoại 1-1', () => {
+    expect(socialSidebarRaw).toContain('EloRankAvatarFrame')
+  })
+
+  it('Thẻ phòng & Thẻ bàn & Modal mời người: Tích hợp EloRankAvatarFrame đồng bộ', () => {
+    expect(thePhongRaw).toContain('EloRankAvatarFrame')
+    expect(theBanRaw).toContain('EloRankAvatarFrame')
+    expect(modalMoiRaw).toContain('EloRankAvatarFrame')
   })
 
   it('Bàn cờ nở tối đa theo chiều cao còn lại của màn hình trong CSS', () => {

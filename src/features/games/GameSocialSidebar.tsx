@@ -17,11 +17,11 @@ import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn, getInitials } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { layTinNhanRieng, guiTinNhanRieng } from '@/lib/api'
 import { CampusChatDrawer } from '@/features/hub/CampusChatDrawer'
 import { GameInviteBubble, parseGameInvite } from '@/components/chat/GameInviteBubble'
-import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { EloRankAvatarFrame } from './EloRankAvatarFrame'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { NutQuanHe } from '@/components/social/NutQuanHe'
 import { nhanVaiTro } from '@/components/social/quan-he'
@@ -466,12 +466,12 @@ export function GameSocialSidebar({
                       isMe ? 'ml-auto flex-row-reverse' : 'mr-auto flex-row'
                     )}
                   >
-                    <span
-                      aria-hidden
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-[10px] font-bold text-text-secondary"
-                    >
-                      {getInitials(tenNguoiGui)}
-                    </span>
+                    <EloRankAvatarFrame
+                      ten={tenNguoiGui}
+                      avatar={isMe ? (nguoiDung?.avatar || null) : null}
+                      sizeClassName="size-7"
+                      className="shrink-0"
+                    />
                     <div className={cn('flex flex-col min-w-0', isMe ? 'items-end' : 'items-start')}>
                       {/* Tên người gửi & vai trò */}
                       <div className={cn('flex items-center gap-1.5 mb-1 px-1', isMe && 'flex-row-reverse')}>
@@ -778,8 +778,8 @@ export function GameSocialSidebar({
                           className="flex min-w-0 flex-wrap items-center gap-3 border-b border-border-subtle p-3 hover:bg-surface-overlay transition-colors cursor-pointer group"
                         >
                           <div className="flex min-w-0 grow basis-48 items-center gap-3">
-                            <button
-                              type="button"
+                            <div
+                              role="button"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 const rect = e.currentTarget.getBoundingClientRect()
@@ -788,12 +788,17 @@ export function GameSocialSidebar({
                                 )
                               }}
                               aria-label={`Xem thông tin ${friend.displayName}`}
-                              className="relative size-11 shrink-0 cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                              className="relative shrink-0 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
                               data-testid={`ban-be-anh-${friend.id}`}
                             >
-                              <AnhNguoiDung ten={friend.displayName} avatar={friend.avatar} className="size-11 text-sm" />
-                              <span className={cn('absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background', pres.color)} />
-                            </button>
+                              <EloRankAvatarFrame
+                                ten={friend.displayName}
+                                avatar={friend.avatar}
+                                sizeClassName="size-11"
+                              >
+                                <span className={cn('absolute bottom-0 right-0 size-2.5 rounded-full ring-2 ring-background z-20', pres.color)} />
+                              </EloRankAvatarFrame>
+                            </div>
                             <div className="min-w-0">
                               <p className="break-words text-sm font-semibold text-text-primary">
                                 {friend.displayName}
@@ -945,7 +950,7 @@ function HangNguoi({
         aria-label={`Xem thông tin ${ten}`}
         className="flex min-h-11 min-w-0 grow basis-48 cursor-pointer items-center gap-3 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
       >
-        <AnhNguoiDung ten={ten} avatar={avatar} className="size-10 text-sm" />
+        <EloRankAvatarFrame ten={ten} avatar={avatar} sizeClassName="size-10" />
         <span className="min-w-0">
           <span className="block break-words text-sm font-semibold text-text-primary">{ten}</span>
           {phu && <span className="block break-words text-xs text-text-secondary">{phu}</span>}
@@ -1067,15 +1072,18 @@ function HopChatRieng11({
             title="Xem hồ sơ & thao tác"
           >
             <div className="relative shrink-0">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold ring-1 ring-white/10 group-hover:ring-brand/40 transition-all">
-                {getInitials(friend.displayName)}
-              </div>
-              <span
-                className={cn(
-                  'absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background',
-                  presenceInfo.color
-                )}
-              />
+              <EloRankAvatarFrame
+                ten={friend.displayName}
+                avatar={friend.avatar}
+                sizeClassName="size-10"
+              >
+                <span
+                  className={cn(
+                    'absolute bottom-0 right-0 size-2.5 rounded-full ring-2 ring-background z-20',
+                    presenceInfo.color
+                  )}
+                />
+              </EloRankAvatarFrame>
             </div>
             <div className="min-w-0">
               <p className="break-words text-sm font-semibold text-text-primary group-hover:text-brand transition-colors">

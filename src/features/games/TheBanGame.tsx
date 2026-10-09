@@ -4,33 +4,21 @@ import { ArrowRight, Clock, Eye } from 'lucide-react'
 import type { BanSanh } from '@shared/protocol/game'
 import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
+import { EloRankAvatarFrame } from './EloRankAvatarFrame'
 
 interface TheBanGameProps {
   ban: BanSanh
   onVao: () => void
 }
 
-const MAU = ['bg-sky-500', 'bg-rose-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-teal-500']
-
 function ChuCai({ ten }: { ten: string | null }) {
-  if (!ten) {
-    return (
-      <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-border-default text-xs text-text-tertiary bg-surface-raised">
-        ?
-      </span>
-    )
-  }
-  let h = 0
-  for (let i = 0; i < ten.length; i++) h = (h * 31 + ten.charCodeAt(i)) % 997
   return (
-    <span
-      className={cn(
-        'flex size-7 items-center justify-center rounded-full text-xs font-bold text-white ring-2 ring-surface',
-        MAU[h % MAU.length],
-      )}
-    >
-      {ten.trim().charAt(0).toUpperCase()}
-    </span>
+    <EloRankAvatarFrame
+      ten={ten || 'Chờ đối thủ'}
+      hasPlayer={Boolean(ten)}
+      sizeClassName="size-7"
+      className="ring-2 ring-surface"
+    />
   )
 }
 
