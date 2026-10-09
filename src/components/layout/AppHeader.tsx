@@ -6,7 +6,7 @@ import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ConnectionIndicator } from './ConnectionIndicator'
 import type { NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
-import { GraduationCap, MessageSquare } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import { ThemeSwitch } from './ThemeSwitch'
 // CampusSearch: Vùng 1 đã xóa theo yêu cầu
 
@@ -48,7 +48,11 @@ export const AppHeader = memo(function AppHeader({
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 via-indigo-500/15 to-purple-500/20 border border-sky-400/40 text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.25)] group-hover:scale-105 group-hover:border-sky-400/70 transition-all duration-300">
               {/* Animated glow aura */}
               <span className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-sky-400/40 via-indigo-400/30 to-purple-400/40 blur-[3px] animate-pulse pointer-events-none" />
-              <GraduationCap className="relative h-5 w-5 drop-shadow-[0_0_8px_rgba(56,189,248,0.9)] transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+              <img
+                src="/assets/brand/app-logo.png"
+                alt="Digital Campus Logo"
+                className="relative h-6 w-6 object-contain drop-shadow-[0_0_8px_rgba(56,189,248,0.9)] transition-transform duration-300 group-hover:scale-110"
+              />
               <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500" />
