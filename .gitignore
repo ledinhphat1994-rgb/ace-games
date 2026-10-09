@@ -39,3 +39,4 @@ artifacts/
 unrealworld/
 game-rpg/
 mobile-apk/
+*.apk
