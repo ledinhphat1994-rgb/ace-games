@@ -84,12 +84,12 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
       data-testid={`game-room-card-${room.id}`}
       onClick={onVao}
       className={cn(
-        'group relative flex flex-col justify-between gap-3.5 rounded-2xl p-4 transition-colors duration-150 cursor-pointer select-none h-full min-h-[168px]',
+        'group relative flex flex-col justify-between gap-3.5 rounded-2xl p-4 transition-colors duration-150 cursor-pointer select-none h-full min-h-[168px] border-2',
         isVip
-          ? 'skeuo-subcard-active-amber'
+          ? 'border-amber-400 bg-amber-500/10 shadow-[0_0_18px_rgba(245,158,11,0.25)]'
           : hasFriends
-            ? 'skeuo-subcard-active-cyan'
-            : 'skeuo-subcard-base hover:border-sky-400/50',
+            ? 'border-sky-400/60 bg-[#0c1527] shadow-[0_0_14px_rgba(56,189,248,0.2)]'
+            : 'border-slate-800 bg-[#0c1527] hover:border-amber-400/60 hover:bg-[#0f1b33]',
       )}
     >
       {/* ── Hàng trên cùng: Nhãn game + Badge VIP / Bạn bè + Số phòng ── */}
@@ -240,10 +240,10 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
             size="sm"
             onClick={onVao}
             className={cn(
-              'h-8 px-3.5 rounded-xl font-bold text-xs shrink-0 cursor-pointer shadow-xs gap-1.5 transition-colors duration-150',
+              'h-8 px-3.5 rounded-xl font-black text-xs shrink-0 cursor-pointer shadow-xs gap-1.5 transition-colors duration-150',
               dangCho || isSolo
-                ? 'skeuo-btn-cta-amber'
-                : 'skeuo-btn-cancel',
+                ? 'border border-amber-400 bg-amber-400 hover:bg-amber-300 text-amber-950 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                : 'border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700',
             )}
           >
             {isSolo ? (

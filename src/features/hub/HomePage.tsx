@@ -60,26 +60,26 @@ const QUICK_NAV = [
 const BANNER_SLIDES = [
   {
     id: 'games-1v1',
-    badge: 'ĐẤU TRƯỜNG CHIẾN THUẬT',
+    badge: 'ĐẤU TRƯỜNG CHIẾN THUẬT • CỜ VUA & CỜ TƯỚNG',
     title: (
       <>
         Đấu Trí Chiến Thuật
         <br />
         & Thách Đấu Bạn Bè.
         <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-blue-400">
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500">
           Cờ Vua, Cờ Tướng, Cờ Caro 1v1.
         </span>
       </>
     ),
     desc: 'Thi đấu trí tuệ đối kháng trực tuyến 1v1 với bạn bè hoặc rèn luyện cùng AI đa cấp độ, xác thực máy chủ Cloudflare chống gian lận.',
-    bgImage: '/assets/banners/game_pvp_hero.webp',
-    gradient: 'from-[#03132e] via-[#03132e]/85 to-transparent',
+    bgImage: '/assets/banners/banner_3d_chess.jpg',
+    gradient: 'from-[#071126] via-[#071126]/85 to-transparent',
     primaryAction: {
       label: 'Vào Đấu trường game',
       to: '/arena',
       icon: Gamepad2,
-      className: 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-[0_0_20px_rgba(56,189,248,0.4)]',
+      className: 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.6)]',
     },
     secondaryAction: {
       label: 'Xem bảng xếp hạng',
@@ -89,7 +89,7 @@ const BANNER_SLIDES = [
   },
   {
     id: 'snake-3d',
-    badge: 'ARCADE SINH TỒN 120HZ',
+    badge: 'ARCADE SINH TỒN 120HZ • RẮN SĂN MỒI 3D',
     title: (
       <>
         Rắn Săn Mồi 3D Arena,
@@ -97,18 +97,18 @@ const BANNER_SLIDES = [
         Bứt Tốc Đua Top.
         <br />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-          Bo Sinh Tồn & Hiệu Ứng Bùng Nổ.
+          Bo Sinh Tồn & Bánh Kẹo Neon.
         </span>
       </>
     ),
     desc: 'Trải nghiệm điều khiển 120Hz siêu mượt, ăn kẹo bánh, săn mồi xé gió và trụ vững trước vòng bo khốc liệt.',
-    bgImage: '/assets/games/game_hero_clean.webp',
-    gradient: 'from-[#021c1e] via-[#021c1e]/85 to-transparent',
+    bgImage: '/assets/banners/banner_3d_snake.jpg',
+    gradient: 'from-[#05181b] via-[#05181b]/85 to-transparent',
     primaryAction: {
       label: 'Chơi Rắn Săn Mồi',
       to: '/arena?game=solo_snake',
       icon: Sparkles,
-      className: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]',
+      className: 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.6)]',
     },
     secondaryAction: {
       label: 'Vào sảnh tất cả game',
@@ -118,7 +118,7 @@ const BANNER_SLIDES = [
   },
   {
     id: 'leaderboard',
-    badge: 'BẢNG VINH DANH CAO THỦ',
+    badge: 'BẢNG VINH DANH CAO THỦ • XẾP HẠNG ELO',
     title: (
       <>
         Vinh Danh Thành Tích,
@@ -131,13 +131,13 @@ const BANNER_SLIDES = [
       </>
     ),
     desc: 'Tôn vinh học sinh tiêu biểu, kỳ thủ xuất sắc và kỷ lục điểm số các trò chơi trí tuệ theo thời gian thực.',
-    bgImage: '/assets/banners/leaderboard_hero_cyber.webp',
-    gradient: 'from-[#1c1204] via-[#1c1204]/85 to-transparent',
+    bgImage: '/assets/banners/banner_3d_trophy.jpg',
+    gradient: 'from-[#140e04] via-[#140e04]/85 to-transparent',
     primaryAction: {
       label: 'Xem Bảng vinh danh',
       to: '/leaderboard',
       icon: Trophy,
-      className: 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-stone-950 font-bold',
+      className: 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.6)]',
     },
     secondaryAction: {
       label: 'Thách đấu bạn bè',
@@ -172,19 +172,19 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
   return (
     <section
       aria-label="Chào mừng bạn học"
-      className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/25 bg-[#040e29] shadow-[0_0_40px_rgba(56,189,248,0.12)] min-h-[145px] sm:min-h-[280px] lg:min-h-[420px] flex flex-col justify-center group"
+      className="relative overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-amber-400/35 bg-[#081226] shadow-[0_0_35px_rgba(245,158,11,0.2)] min-h-[220px] sm:min-h-[300px] lg:min-h-[420px] flex flex-col justify-center group select-none"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       {/* Khung chuyển slide tự động (Auto-playing Carousel Stage) */}
-      <div className="relative w-full min-h-[145px] sm:min-h-[280px] lg:min-h-[420px] overflow-hidden flex flex-col justify-center">
+      <div className="relative w-full min-h-[220px] sm:min-h-[300px] lg:min-h-[420px] overflow-hidden flex flex-col justify-center">
         {BANNER_SLIDES.map((slide, idx) => {
           const isActive = slideIndex === idx
           const PrimaryIcon = slide.primaryAction.icon
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 flex flex-col justify-center p-3 sm:p-8 lg:p-14 pb-8 sm:pb-14 lg:pb-16 transition-[opacity,transform] duration-700 ease-in-out ${
+              className={`absolute inset-0 flex flex-col justify-center p-3.5 sm:p-8 lg:p-14 pb-8 sm:pb-14 lg:pb-16 transition-[opacity,transform] duration-700 ease-in-out ${
                 isActive ? 'opacity-100 z-10 pointer-events-auto translate-x-0' : 'opacity-0 z-0 pointer-events-none -translate-x-4'
               }`}
             >
@@ -195,36 +195,37 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
                   alt=""
                   loading={idx === 0 ? 'eager' : 'lazy'}
                   decoding="async"
-                  className="h-full w-full object-cover object-right opacity-75 dark:opacity-85 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
+                  className="h-full w-full object-cover object-right opacity-90 crisp-image scale-100 group-hover:scale-102 transition-transform duration-700"
                 />
                 <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#040e29] via-[#040e29]/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#081226]/95 via-transparent to-transparent" />
               </div>
 
               {/* Nội dung slide */}
               <div className="relative z-10 max-w-2xl">
-                <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 sm:px-3.5 sm:py-1 text-[10px] sm:text-xs font-bold tracking-wider text-sky-400 mb-1 sm:mb-3 shadow-[0_0_12px_rgba(56,189,248,0.2)]">
-                  <span className="size-1.5 sm:size-2 rounded-full bg-sky-400 animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 sm:px-3.5 sm:py-1 text-[10px] sm:text-xs font-black tracking-wider text-amber-300 mb-1.5 sm:mb-3 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                  <span className="size-1.5 sm:size-2 rounded-full bg-amber-400 animate-pulse" />
                   <span>{slide.badge}</span>
                 </div>
 
-                <h1 className="text-base sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+                <h1 className="text-lg sm:text-3xl lg:text-5xl font-black text-white tracking-tight leading-[1.2] drop-shadow-md">
                   {slide.title}
                 </h1>
 
-                <p className="mt-1.5 sm:mt-3 text-xs sm:text-base text-slate-300 leading-relaxed max-w-xl line-clamp-2 sm:line-clamp-none">
+                {/* Ẩn mô tả dài trên mobile để triệt tiêu hoàn toàn hiện tượng chồng chéo nội dung */}
+                <p className="hidden sm:block mt-1.5 sm:mt-3 text-xs sm:text-base text-slate-200 leading-relaxed max-w-xl">
                   {slide.desc}
                 </p>
 
-                <div className="mt-3 sm:mt-6 flex flex-wrap items-center gap-2 sm:gap-3.5">
+                <div className="mt-2.5 sm:mt-6 flex flex-wrap items-center gap-2 sm:gap-3.5">
                   <Button
                     size="sm"
                     onClick={() => onNavigate(slide.primaryAction.to)}
-                    className={`h-8 sm:h-11 px-3.5 sm:px-6 rounded-lg sm:rounded-xl text-white font-bold text-xs sm:text-sm transition-colors duration-150 cursor-pointer gap-1.5 sm:gap-2 ${slide.primaryAction.className}`}
+                    className={`h-8 sm:h-11 px-3.5 sm:px-6 rounded-lg sm:rounded-xl text-slate-950 font-black text-xs sm:text-sm transition-colors duration-150 cursor-pointer gap-1.5 sm:gap-2 ${slide.primaryAction.className}`}
                   >
                     <PrimaryIcon className="size-3.5 sm:size-4" />
                     <span>{slide.primaryAction.label}</span>
-                    <ArrowRight className="size-3 sm:size-3.5" />
+                    <ArrowRight className="size-3 sm:size-3.5 stroke-[2.5]" />
                   </Button>
                   {slide.secondaryAction && (
                     <Button
@@ -242,9 +243,9 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
                           onNavigate(sec.to)
                         }
                       }}
-                      className="h-8 sm:h-11 px-3 sm:px-5 rounded-lg sm:rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm transition-colors duration-150 cursor-pointer gap-1.5 sm:gap-2"
+                      className="hidden sm:inline-flex h-8 sm:h-11 px-3 sm:px-5 rounded-lg sm:rounded-xl border border-amber-400/40 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-300 font-bold text-xs sm:text-sm transition-colors duration-150 cursor-pointer gap-1.5 sm:gap-2 shadow-sm"
                     >
-                      {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-3.5 sm:size-4 text-purple-300" />}
+                      {slide.secondaryAction.icon && <slide.secondaryAction.icon className="size-3.5 sm:size-4 text-amber-400" />}
                       <span>{slide.secondaryAction.label}</span>
                     </Button>
                   )}
@@ -254,28 +255,28 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
           )
         })}
 
-        {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) ── */}
-        <div className="absolute bottom-2 sm:bottom-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2">
+        {/* ── VÙNG 3: Dấu chấm điều hướng (Pagination Dots) đặt góc dưới bên phải an toàn ── */}
+        <div className="absolute bottom-2.5 sm:bottom-4 right-3 sm:right-6 z-20 flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setSlideIndex((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}
             aria-label="Banner trước"
-            className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
+            className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-amber-400/30 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-200 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
           >
             <ChevronLeft className="size-3.5 sm:size-4" />
           </button>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-black/60 border border-white/20 shadow-md">
+          <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-full bg-[#0c1527]/80 border border-amber-400/30 shadow-md">
             {BANNER_SLIDES.map((_, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setSlideIndex(idx)}
                 aria-label={`Chuyển đến banner ${idx + 1}`}
-                className={`transition-[width,background-color] duration-300 rounded-full cursor-pointer ${
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
                   slideIndex === idx
-                    ? 'w-5 sm:w-7 h-2 sm:h-2.5 bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]'
-                    : 'w-2 sm:w-2.5 h-2 sm:h-2.5 bg-white/40 hover:bg-white/80'
+                    ? 'w-4 sm:w-6 h-1.5 sm:h-2 bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.9)]'
+                    : 'w-1.5 sm:w-2 h-1.5 sm:h-2 bg-slate-500 hover:bg-slate-300'
                 }`}
               />
             ))}
@@ -285,7 +286,7 @@ const HomeHeroBanner = memo(function HomeHeroBanner({
             type="button"
             onClick={() => setSlideIndex((prev) => (prev + 1) % BANNER_SLIDES.length)}
             aria-label="Banner tiếp theo"
-            className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-white/20 bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
+            className="size-6 sm:size-7 flex items-center justify-center rounded-full border border-amber-400/30 bg-[#0c1527]/80 hover:bg-[#0c1527] text-amber-200 hover:text-white transition-colors duration-150 cursor-pointer shadow-md"
           >
             <ChevronRight className="size-3.5 sm:size-4" />
           </button>
@@ -390,15 +391,15 @@ export function HomePage() {
 
       {/* ── Quick Nav Cards — Các card Game 1v1, Arcade Sinh Tồn, Bảng Xếp Hạng ── */}
       <section aria-label="Điều hướng nhanh">
-        <div className="rounded-2xl border border-sky-400/20 bg-surface/85 backdrop-blur-md shadow-sm overflow-hidden relative card-campus-glow">
-          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border-subtle">
+        <div className="rounded-2xl border-2 border-amber-400/25 bg-[#0c1527] shadow-[0_0_20px_rgba(245,158,11,0.12)] overflow-hidden relative">
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
             {QUICK_NAV.map(({ to, Icon, label, desc, hubImg, iconBg, glow, border, hover, accent }) => {
               return (
                 <button
                   key={to}
                   type="button"
                   onClick={() => navigate(to)}
-                  className={`group relative flex flex-col items-center gap-2 sm:gap-4 py-3.5 px-3 sm:py-7 sm:px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-surface-raised ${hover}`}
+                  className={`group relative flex flex-col items-center gap-2 sm:gap-4 py-3.5 px-3 sm:py-7 sm:px-5 text-center cursor-pointer transition-colors duration-150 hover:bg-[#101c33] ${hover}`}
                 >
                   {hubImg && (
                     <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-300">
@@ -412,7 +413,7 @@ export function HomePage() {
                     <p className={`text-xs sm:text-sm font-bold ${accent} leading-tight`}>{label}</p>
                     <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] text-text-tertiary leading-relaxed whitespace-pre-line">{desc}</p>
                   </div>
-                  <div className={`relative flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-surface-raised border ${border} transition-transform duration-200 group-hover:scale-110`}>
+                  <div className={`relative flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-900 border ${border} transition-transform duration-200 group-hover:scale-110`}>
                     <ArrowRight className={`size-3 sm:size-3.5 ${accent}`} />
                   </div>
                 </button>
@@ -434,7 +435,7 @@ export function HomePage() {
             </div>
             <Link
               to="/arena"
-              className="inline-flex items-center gap-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors"
             >
               <span>Xem tất cả game</span>
               <ArrowRight className="size-3.5" />
@@ -447,7 +448,7 @@ export function HomePage() {
                 key={item.id}
                 type="button"
                 onClick={item.onClick}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-border-default/80 cursor-pointer text-left transition-colors duration-150 hover:border-sky-400/50 bg-surface/90 backdrop-blur-sm card-campus-glow"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-slate-800 cursor-pointer text-left transition-colors duration-150 hover:border-amber-400/60 bg-[#0c1527] shadow-sm hover:shadow-[0_0_18px_rgba(245,158,11,0.25)]"
               >
                 {/* Ảnh bìa game cover */}
                 <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
@@ -463,27 +464,27 @@ export function HomePage() {
                     {item.badge}
                   </span>
                   {item.boardLabel && (
-                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold text-sky-300 bg-black/60 border border-sky-400/30 backdrop-blur-sm">
+                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold text-amber-300 bg-black/60 border border-amber-400/40 backdrop-blur-sm">
                       {item.boardLabel}
                     </span>
                   )}
                 </div>
                 {/* Nội dung thẻ game */}
-                <div className="flex flex-col flex-1 p-3.5 bg-surface gap-1">
+                <div className="flex flex-col flex-1 p-3.5 bg-[#0c1527] gap-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-base">{item.icon}</span>
-                    <h3 className="text-sm font-bold text-text-primary line-clamp-1 leading-snug group-hover:text-sky-400 transition-colors">
+                    <h3 className="text-sm font-bold text-white line-clamp-1 leading-snug group-hover:text-amber-400 transition-colors">
                       {item.title}
                     </h3>
                   </div>
-                  <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
                     {item.desc}
                   </p>
-                  <div className="mt-2 pt-2 border-t border-border-subtle/50 flex items-center justify-between text-xs">
+                  <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
                     <span className="text-[11px] font-medium text-slate-400">
                       {item.category === '1v1' ? 'Đấu 1v1 & Đấu Máy' : 'Arcade Đua Top'}
                     </span>
-                    <span className="text-sky-400 font-bold text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                    <span className="text-amber-400 font-black text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
                       Chơi ngay <ArrowRight className="size-3" />
                     </span>
                   </div>
