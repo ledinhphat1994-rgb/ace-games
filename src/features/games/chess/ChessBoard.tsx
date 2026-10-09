@@ -1128,7 +1128,7 @@ export function ChessBoard({
   ]
 
   return (
-    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden relative select-none">
+    <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, NÚT SẢNH & SỐ PHÒNG */}
       <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
@@ -1169,10 +1169,10 @@ export function ChessBoard({
         </div>
       </header>
 
-      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, THOÁNG MẮT CHUẨN CỜ TƯỚNG */}
-      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
+      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, THOÁNG MẮT, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-1 sm:py-1.5 xl:py-0.5 min-h-0">
         {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20">
+        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
@@ -1275,7 +1275,7 @@ export function ChessBoard({
           style={{
             aspectRatio: '1 / 1',
           }}
-          className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10"
+          className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10 my-auto xl:my-0"
         >
           {/* Grid bàn cờ 8x8 */}
           <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
@@ -1410,98 +1410,101 @@ export function ChessBoard({
           />
         </section>
 
-        {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE (< xl): NẰM DƯỚI BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mt-1 select-none z-20">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (laOnlinePvp && !banOnline?.mySide) {
-                  banOnline?.joinGame()
-                  toast.info('Đã vào bàn thi đấu')
-                } else {
-                  setIsSettingsModalOpen(true)
-                }
-              }}
-              className={cn(
-                'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
-                isMyTurn
-                  ? 'border-cyan-400 ring-2 ring-cyan-400/30'
-                  : 'border-white/15 bg-[#121620]'
-              )}
-              title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
-            >
-              <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
-              {(!laOnlinePvp || Boolean(banOnline?.mySide)) && (
-                <div
-                  className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#fff5eb] border-[#9c6332] text-[#9c6332]"
-                  title={mauCuaToi === WHITE ? 'Cầm quân Trắng' : 'Cầm quân Đen'}
-                >
-                  {mauCuaToi === WHITE ? '♔' : '♚'}
+        {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
+        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1 pt-1 pb-1 sm:pb-2 select-none z-20">
+          {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
+          <div className="flex w-full h-10 px-2 items-center justify-between select-none">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (laOnlinePvp && !banOnline?.mySide) {
+                    banOnline?.joinGame()
+                    toast.info('Đã vào bàn thi đấu')
+                  } else {
+                    setIsSettingsModalOpen(true)
+                  }
+                }}
+                className={cn(
+                  'relative size-8.5 rounded-full border p-0.5 shadow-md flex items-center justify-center outline-none shrink-0 transition-colors cursor-pointer',
+                  isMyTurn
+                    ? 'border-cyan-400 ring-2 ring-cyan-400/30'
+                    : 'border-white/15 bg-[#121620]'
+                )}
+                title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
+              >
+                <AnhNguoiDung ten={myName} avatar={myAvatarUrl} className="size-full rounded-full pointer-events-none" />
+                {(!laOnlinePvp || Boolean(banOnline?.mySide)) && (
+                  <div
+                    className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full flex items-center justify-center border font-bold text-[9px] shadow-sm pointer-events-none bg-[#fff5eb] border-[#9c6332] text-[#9c6332]"
+                    title={mauCuaToi === WHITE ? 'Cầm quân Trắng' : 'Cầm quân Đen'}
+                  >
+                    {mauCuaToi === WHITE ? '♔' : '♚'}
+                  </div>
+                )}
+              </button>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
+                  {myName || 'Bạn'}
+                </span>
+                <span className="text-[10px] text-cyan-300 font-semibold leading-none">
+                  Lv.{myLevel} · Elo {myElo}
+                </span>
+              </div>
+              {playerBubble && (
+                <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-amber-400/50 text-[11px] font-bold text-amber-300 truncate max-w-[100px]">
+                  {playerBubble.emoji} {playerBubble.quote}
                 </div>
               )}
-            </button>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-text-primary truncate max-w-[120px]">
-                {myName || 'Bạn'}
-              </span>
-              <span className="text-[10px] text-cyan-300 font-semibold leading-none">
-                Lv.{myLevel} · Elo {myElo}
-              </span>
             </div>
-            {playerBubble && (
-              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-amber-400/50 text-[11px] font-bold text-amber-300 truncate max-w-[100px]">
-                {playerBubble.emoji} {playerBubble.quote}
-              </div>
-            )}
-          </div>
 
-          {/* Đồng hồ người chơi trên mobile */}
-          <div
-            className={cn(
-              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
-              pos.turn === mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
-                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
-                : pos.turn === mauCuaToi && isPlaying
-                  ? 'border-cyan-500/80 bg-cyan-950/80 text-cyan-300'
-                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
-            )}
-            title="Thời gian của Bạn"
-          >
-            <Clock className="size-3 text-cyan-400 shrink-0" />
-            <span>{formatClockTime(pos.turn === mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
-          </div>
-        </div>
-
-        {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
-        <div id="mobile-tools-bar" className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20">
-          {chessTools.map((tool) => (
-            <button
-              key={tool.id}
-              type="button"
-              id={`mobile-tool-${tool.id}`}
-              onClick={tool.onClick}
-              disabled={tool.disabled}
+            {/* Đồng hồ người chơi trên mobile */}
+            <div
               className={cn(
-                'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
-                tool.className
+                'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+                pos.turn === mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                  : pos.turn === mauCuaToi && isPlaying
+                    ? 'border-cyan-500/80 bg-cyan-950/80 text-cyan-300'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
-              title={tool.title}
-              aria-label={tool.title}
+              title="Thời gian của Bạn"
             >
-              {tool.icon}
+              <Clock className="size-3 text-cyan-400 shrink-0" />
+              <span>{formatClockTime(pos.turn === mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
+            </div>
+          </div>
+
+          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
+          <div id="mobile-tools-bar" className="flex w-full h-11 px-2 items-center justify-center gap-2 select-none">
+            {chessTools.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                id={`mobile-tool-${tool.id}`}
+                onClick={tool.onClick}
+                disabled={tool.disabled}
+                className={cn(
+                  'size-9.5 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                  tool.className
+                )}
+                title={tool.title}
+                aria-label={tool.title}
+              >
+                {tool.icon}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-cyan-400 text-gray-300 hover:text-cyan-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+              title="Cài đặt"
+              aria-label="Cài đặt"
+            >
+              <Settings className="size-4" />
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-cyan-400 text-gray-300 hover:text-cyan-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
-            title="Cài đặt"
-            aria-label="Cài đặt"
-          >
-            <Settings className="size-4" />
-          </button>
+          </div>
         </div>
 
         {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CỜ HAY NỘI DUNG KHÁC ==================== */}

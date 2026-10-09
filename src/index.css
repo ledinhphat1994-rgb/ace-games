@@ -1116,8 +1116,8 @@ body { min-width: 280px; }
 
 /* 1. Bàn Cờ Tướng (Tỷ lệ 9:10) */
 .game-board-xiangqi {
-  width: min(calc(100vw - 20px), min(calc((100dvh - 215px) * 0.9), 480px));
-  max-height: min(calc(100dvh - 215px), 533px);
+  width: min(calc(100vw - 12px), min(calc((100dvh - 175px) * 0.9), 500px));
+  max-height: min(calc(100dvh - 175px), 555px);
   aspect-ratio: 9 / 10;
 }
 @media (min-width: 1280px) {
@@ -1129,8 +1129,8 @@ body { min-width: 280px; }
 
 /* 2. Bàn Cờ Vua (Tỷ lệ 1:1) */
 .game-board-chess {
-  width: min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px));
-  max-height: min(calc(100dvh - 215px), 480px);
+  width: min(calc(100vw - 12px), min(calc(100dvh - 175px), 500px));
+  max-height: min(calc(100dvh - 175px), 500px);
   aspect-ratio: 1 / 1;
 }
 @media (min-width: 1280px) {
@@ -1142,8 +1142,8 @@ body { min-width: 280px; }
 
 /* 3. Bàn Cờ Caro (Tỷ lệ 1:1, lưới 15x15) */
 .game-board-caro {
-  width: min(calc(100vw - 20px), min(calc(100dvh - 215px), 480px));
-  max-height: min(calc(100dvh - 215px), 480px);
+  width: min(calc(100vw - 12px), min(calc(100dvh - 175px), 500px));
+  max-height: min(calc(100dvh - 175px), 500px);
   aspect-ratio: 1 / 1;
 }
 @media (min-width: 1280px) {
