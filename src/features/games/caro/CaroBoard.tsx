@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Lock,
   Clock,
-  Flag,
   Handshake,
   Smile,
   Bot,
@@ -16,6 +15,7 @@ import {
   Settings,
   Volume2,
   VolumeX,
+  UserPlus,
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -134,7 +134,12 @@ export function CaroBoard({
   const [heroicBanner, setHeroicBanner] = useState<{
     type: HeroicBannerType
     title?: string
+    subtitle?: string
   } | null>(null)
+
+  const showGameNotice = useCallback((title: string, subtitle?: string) => {
+    setHeroicBanner({ type: 'notice', title, subtitle })
+  }, [])
   const [isLocalStarted, setIsLocalStarted] = useState(false)
   const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   // Ván đơn: người chơi luôn cầm quân X và đi trước, máy cầm quân O
@@ -499,6 +504,7 @@ export function CaroBoard({
           online.offerDraw?.()
         } catch {}
         online.guiChat('[SYS_CARO_PROP]:draw_offer')
+        showGameNotice('ĐÃ XIN HÒA', 'Đang chờ đối thủ xác nhận...')
         toast.info('Đã gửi đề nghị hòa cờ, chờ đối thủ xác nhận...')
         return
       }
@@ -799,59 +805,86 @@ export function CaroBoard({
     if (laOnlinePvp && banOnline) {
       if (!banOnline.meta?.playerX || !banOnline.meta?.playerO) {
         // Ngăn chặn hoàn toàn khi chưa đủ 2 người chơi
+        showGameNotice('CHƯA ĐỦ NGƯỜI CHƠI', 'Đang chờ đối thủ vào phòng...')
         return
       }
       if (!banOnline.mySide) {
         banOnline.joinGame()
+        showGameNotice('ĐÃ VÀO BÀN THI ĐẤU')
         return
       }
       banOnline.startGame()
+      showGameNotice('BẮT ĐẦU VÁN ĐẤU')
       return
     }
     setIsLocalStarted(true)
     resetGame(true)
+    showGameNotice('BẮT ĐẦU VÁN ĐẤU')
   }
 
   const caroTools = [
     {
+      id: 'settings',
+      title: 'Cài đặt ván đấu',
+      icon: <Settings className="size-5 sm:size-5.5 text-sky-400" />,
+      onClick: () => setIsSettingsModalOpen(true),
+      className: 'border-sky-500/50 bg-[#121926]/95 hover:border-sky-400 hover:bg-sky-500/20 text-sky-400 shadow-sky-500/15',
+    },
+    {
+      id: 'emoji',
+      title: 'Biểu cảm & Tin nhanh',
+      icon: <Smile className={cn('size-5 sm:size-5.5', isQuickMenuOpen ? 'text-amber-200' : 'text-amber-400')} />,
+      onClick: (e: React.MouseEvent) => handleOpenQuickMenu(e),
+      className: cn(
+        'border-amber-400/50 bg-[#161a24]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300 shadow-amber-500/15',
+        isQuickMenuOpen && 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+      ),
+    },
+    {
       id: 'mode',
-      title: mode === 'ai' ? 'Đổi sang Đấu 2 người' : 'Đổi sang Đấu với Máy AI',
-      icon: mode === 'ai' ? <Bot className="size-4 text-cyan-400" /> : <Users className="size-4 text-amber-400" />,
-      onClick: () => doiCheDo(mode === 'ai' ? 'pass_and_play' : 'ai'),
-      className: 'border-cyan-500/40 bg-[#121622]/95 hover:border-cyan-400 hover:bg-cyan-500/20 text-cyan-300',
+      title: mode === 'ai' ? 'Chế độ PvE' : 'Chế độ PvP',
+      icon: mode === 'ai' ? <Bot className="size-5 sm:size-5.5 text-sky-400" /> : <Users className="size-5 sm:size-5.5 text-amber-400" />,
+      onClick: () => {
+        const nextMode = mode === 'ai' ? 'pass_and_play' : 'ai'
+        doiCheDo(nextMode)
+        showGameNotice(nextMode === 'ai' ? 'ĐẤU VỚI MÁY' : 'ĐẤU ĐỐI KHÁNG')
+      },
+      className: mode === 'ai'
+        ? 'border-sky-500/50 bg-[#121926]/95 hover:border-sky-400 hover:bg-sky-500/20 text-sky-400 shadow-sky-500/15'
+        : 'border-amber-500/50 bg-[#1a1714]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-400 shadow-amber-500/15',
+    },
+    {
+      id: 'invite',
+      title: 'Mời bạn bè',
+      icon: <UserPlus className="size-5 sm:size-5.5 text-emerald-400" />,
+      onClick: () => {
+        if (onInvite) {
+          onInvite()
+        } else {
+          try {
+            navigator.clipboard.writeText(window.location.href)
+            showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
+          } catch {
+            showGameNotice('MỜI BẠN BÈ')
+          }
+        }
+      },
+      className: 'border-emerald-500/50 bg-[#121a18]/95 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-400 shadow-emerald-500/15',
     },
     {
       id: 'draw',
-      title: 'Đề nghị hòa cờ',
-      icon: <Handshake className="size-4 text-amber-400" />,
+      title: isDrawOfferedByMe ? 'Đã xin hòa' : 'Xin hòa',
+      icon: <Handshake className="size-5 sm:size-5.5 text-amber-400" />,
       disabled: isDrawOfferedByMe || Boolean(winner) || isAiThinking || !isPlaying,
       onClick: handleOfferDraw,
-      className: 'border-amber-500/40 bg-[#121622]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300',
-    },
-    {
-      id: 'surrender',
-      title: 'Xin thua / Đầu hàng',
-      icon: <Flag className="size-4 text-rose-400" />,
-      disabled: Boolean(winner) || isAiThinking,
-      onClick: () => setIsSurrenderModalOpen(true),
-      className: 'border-rose-500/40 bg-[#121622]/95 hover:border-rose-400 hover:bg-rose-500/20 text-rose-300',
-    },
-    {
-      id: 'emote',
-      title: 'Biểu cảm & Tin nhanh',
-      icon: <Smile className={cn('size-4', isQuickMenuOpen ? 'text-cyan-200' : 'text-cyan-400')} />,
-      onClick: (e: React.MouseEvent) => handleOpenQuickMenu(e),
-      className: cn(
-        'border-cyan-400/50 bg-[#161a24]/95 hover:border-cyan-400 hover:bg-cyan-500/20 text-cyan-300',
-        isQuickMenuOpen && 'border-cyan-400 bg-cyan-500/30 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-      ),
+      className: 'border-amber-500/50 bg-[#181614]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-400 shadow-amber-500/15',
     },
   ]
 
   return (
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, SỐ PHÒNG TIÊU CHUẨN CỜ TƯỚNG */}
-      <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 pt-[max(0.25rem,calc(env(safe-area-inset-top,0px)+0.25rem))] pb-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           {roomName && (
             <div
@@ -956,8 +989,9 @@ export function CaroBoard({
               </span>
             </div>
             {bongDoiThu && (
-              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-cyan-400/50 text-[11px] font-bold text-cyan-300 truncate max-w-[100px]">
-                {bongDoiThu.emoji} {bongDoiThu.quote}
+              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-sky-400 text-[11px] sm:text-xs font-bold text-sky-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                {bongDoiThu.emoji && <span className="text-sm shrink-0">{bongDoiThu.emoji}</span>}
+                <span>{bongDoiThu.quote}</span>
               </div>
             )}
           </div>
@@ -1209,6 +1243,7 @@ export function CaroBoard({
           <GameHeroicBanner
             type={heroicBanner?.type ?? null}
             title={heroicBanner?.title}
+            subtitle={heroicBanner?.subtitle}
             visible={Boolean(heroicBanner)}
             onClose={() => setHeroicBanner(null)}
           />
@@ -1248,8 +1283,9 @@ export function CaroBoard({
                 </span>
               </div>
               {playerBubble && (
-                <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-cyan-400/50 text-[11px] font-bold text-cyan-300 truncate max-w-[100px]">
-                  {playerBubble.emoji} {playerBubble.quote}
+                <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-amber-400 text-[11px] sm:text-xs font-bold text-amber-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                  {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
+                  <span>{playerBubble.quote}</span>
                 </div>
               )}
             </div>
@@ -1290,15 +1326,6 @@ export function CaroBoard({
                 {tool.icon}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setIsSettingsModalOpen(true)}
-              className="size-11 sm:size-12 rounded-2xl border-2 border-white/10 bg-[#121622]/95 hover:border-cyan-400 text-gray-300 hover:text-cyan-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-md"
-              title="Cài đặt"
-              aria-label="Cài đặt"
-            >
-              <Settings className="size-5 sm:size-5.5" />
-            </button>
           </div>
         </div>
 

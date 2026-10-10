@@ -4,11 +4,11 @@ import {
   Bot,
   Brain,
   Clock,
-  Flag,
   Handshake,
   Smile,
   Sparkles,
   User,
+  UserPlus,
   Users,
   X,
   Settings,
@@ -30,6 +30,7 @@ import { GameDrawModal } from '../GameDrawModal'
 import { useGameClock } from '../use-game-clock'
 import { TIME_PRESETS } from '../GameClockWidget'
 import { toast } from 'sonner'
+import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import {
   GameQuickEmote,
   GameOpponentBubble,
@@ -166,10 +167,11 @@ import { tinhDiemKetThucMemory } from './memoryScore'
 interface MemoryGameProps {
   onSaveScore?: (score: number) => void
   onBack?: () => void
+  onInvite?: () => void
   initialTurnSeconds?: number
 }
 
-export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGameProps) {
+export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }: MemoryGameProps) {
   const [mode, setMode] = useState<MemoryMode>('pve')
   const [difficulty, setDifficulty] = useState<MemoryDifficulty>('medium')
   const [cards, setCards] = useState<CardItem[]>(() => xaoBai())
@@ -185,6 +187,17 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
   const [surrenderWinner, setSurrenderWinner] = useState<boolean | null>(null)
   const [surrenderAttempts, setSurrenderAttempts] = useState(0)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
+
+  // Thông báo anh hùng tiêu chuẩn cờ tướng
+  const [heroicBanner, setHeroicBanner] = useState<{
+    type: HeroicBannerType
+    title: string
+    subtitle?: string
+  } | null>(null)
+
+  const showGameNotice = useCallback((title: string, subtitle?: string, type: HeroicBannerType = 'notice') => {
+    setHeroicBanner({ type, title, subtitle })
+  }, [])
 
   // ─ Xử lý Xin hòa chuẩn thi đấu (Offer Draw) ─
   const [isDrawAgreed, setIsDrawAgreed] = useState(false)
@@ -295,7 +308,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
     if (!isQuickMenuOpen) return
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (quickMenuRef.current && !quickMenuRef.current.contains(e.target as Node)) {
-        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emote, #mobile-tool-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emoji, #mobile-tool-emoji, #tool-bubble-emote, #mobile-tool-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
         if (!trigger) {
           setIsQuickMenuOpen(false)
         }
@@ -416,6 +429,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
       if (mode === 'pve') {
         setIsDrawAgreed(true)
         playSound('match', muted)
+        setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
         toast.info('Máy AI đã đồng ý hòa!')
         return
       }
@@ -424,6 +438,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
     } else {
       setIsDrawAgreed(true)
       playSound('match', muted)
+      setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
       toast.info('Hai bên đồng thuận hòa ván đấu!')
     }
   }, [drawModalType, mode, muted])
@@ -494,6 +509,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
     setPlayerBubble(null)
     setOpponentBubble(null)
     aiMemoryRef.current.clear()
+    setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
   }, [])
 
   const score1Ref = useRef(score1)
@@ -539,13 +555,23 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
             if (mode === 'pve') {
               if (finalScore1 > finalScore2) {
                 playSound('win', muted)
+                setHeroicBanner({ type: 'win', title: 'BẠN THẮNG', subtitle: 'Trí nhớ tuyệt đỉnh!' })
               } else if (finalScore1 < finalScore2) {
                 playSound('lose', muted)
+                setHeroicBanner({ type: 'lose', title: 'BẠN THUA', subtitle: 'Chúc bạn may mắn lần sau!' })
               } else {
                 playSound('match', muted)
+                setHeroicBanner({ type: 'draw', title: 'HOÀ NHAU', subtitle: 'Hai bên ngang tài ngang sức!' })
               }
             } else {
               playSound('win', muted)
+              if (finalScore1 > finalScore2) {
+                setHeroicBanner({ type: 'win', title: 'BẠN THẮNG', subtitle: 'Người chơi 1 chiến thắng!' })
+              } else if (finalScore2 > finalScore1) {
+                setHeroicBanner({ type: 'lose', title: 'BẠN THUA', subtitle: 'Người chơi 2 chiến thắng!' })
+              } else {
+                setHeroicBanner({ type: 'draw', title: 'HOÀ NHAU', subtitle: 'Hai bên ngang tài ngang sức!' })
+              }
             }
             if (onSaveScore) {
               const finalScore = Math.max(10, 1000 - (totalMoves + 1) * 25)
@@ -730,35 +756,16 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
 
   const memoryTools = [
     {
-      id: 'mode',
-      title: mode === 'pve' ? 'Đổi sang Chơi 2 người' : 'Đổi sang Đấu với Máy AI',
-      icon: mode === 'pve' ? <Bot className="size-4 text-violet-400" /> : <Users className="size-4 text-amber-400" />,
-      onClick: () => {
-        setMode((m) => (m === 'pve' ? 'pvp' : 'pve'))
-        resetGame()
-      },
-      className: 'border-violet-500/40 bg-[#121622]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+      id: 'settings',
+      title: 'Cài đặt ván đấu',
+      icon: <Settings className="size-5 sm:size-5.5 text-sky-400" />,
+      onClick: () => setIsSettingsModalOpen(true),
+      className: 'border-sky-500/50 bg-[#121926]/95 hover:border-sky-400 hover:bg-sky-500/20 text-sky-400 shadow-sky-500/15',
     },
     {
-      id: 'draw',
-      title: 'Đề nghị hòa',
-      icon: <Handshake className="size-4 text-amber-400" />,
-      disabled: isGameOver || isAiThinking,
-      onClick: handleOfferDraw,
-      className: 'border-amber-500/40 bg-[#121622]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300',
-    },
-    {
-      id: 'surrender',
-      title: 'Xin thua / Đầu hàng',
-      icon: <Flag className="size-4 text-rose-400" />,
-      disabled: isGameOver || isAiThinking,
-      onClick: handleResetOrSurrender,
-      className: 'border-rose-500/40 bg-[#121622]/95 hover:border-rose-400 hover:bg-rose-500/20 text-rose-300',
-    },
-    {
-      id: 'emote',
+      id: 'emoji',
       title: 'Biểu cảm & Tin nhanh',
-      icon: <Smile className={cn('size-4', (isQuickMenuOpen || isEmotePickerOpen) ? 'text-violet-200' : 'text-violet-400')} />,
+      icon: <Smile className={cn('size-5 sm:size-5.5', (isQuickMenuOpen || isEmotePickerOpen) ? 'text-amber-200' : 'text-amber-400')} />,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
         if (typeof window !== 'undefined' && window.innerWidth < 1280) {
           setIsQuickMenuOpen((prev) => !prev)
@@ -770,9 +777,49 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
         }
       },
       className: cn(
-        'border-violet-400/50 bg-[#161a24]/95 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
-        (isQuickMenuOpen || isEmotePickerOpen) && 'border-violet-400 bg-violet-500/30 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,0.5)]'
+        'border-amber-400/50 bg-[#161a24]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300 shadow-amber-500/15',
+        (isQuickMenuOpen || isEmotePickerOpen) && 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
       ),
+    },
+    {
+      id: 'mode',
+      title: mode === 'pve' ? 'Chế độ PvE' : 'Chế độ PvP',
+      icon: mode === 'pve' ? <Bot className="size-5 sm:size-5.5 text-sky-400" /> : <Users className="size-5 sm:size-5.5 text-amber-400" />,
+      onClick: () => {
+        const nextMode = mode === 'pve' ? 'pvp' : 'pve'
+        setMode(nextMode)
+        resetGame()
+        showGameNotice(nextMode === 'pve' ? 'ĐẤU VỚI MÁY' : 'ĐẤU ĐỐI KHÁNG')
+      },
+      className: mode === 'pve'
+        ? 'border-sky-500/50 bg-[#121926]/95 hover:border-sky-400 hover:bg-sky-500/20 text-sky-400 shadow-sky-500/15'
+        : 'border-amber-500/50 bg-[#1a1714]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-400 shadow-amber-500/15',
+    },
+    {
+      id: 'invite',
+      title: 'Mời bạn bè',
+      icon: <UserPlus className="size-5 sm:size-5.5 text-emerald-400" />,
+      onClick: () => {
+        if (onInvite) {
+          onInvite()
+        } else {
+          try {
+            navigator.clipboard.writeText(window.location.href)
+            showGameNotice('ĐÃ SAO CHÉP LIÊN KẾT', 'Gửi link cho bạn bè để cùng chơi')
+          } catch {
+            showGameNotice('MỜI BẠN BÈ')
+          }
+        }
+      },
+      className: 'border-emerald-500/50 bg-[#121a18]/95 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-400 shadow-emerald-500/15',
+    },
+    {
+      id: 'draw',
+      title: isDrawAgreed ? 'Đã hòa' : 'Xin hòa',
+      icon: <Handshake className="size-5 sm:size-5.5 text-amber-400" />,
+      disabled: isGameOver || isAiThinking,
+      onClick: handleOfferDraw,
+      className: 'border-amber-500/50 bg-[#181614]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-400 shadow-amber-500/15',
     },
   ]
 
@@ -873,7 +920,7 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
   return (
     <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ TRÊN CÙNG: TÊN GAME TIÊU CHUẨN CỜ TƯỚNG */}
-      <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 pt-[max(0.25rem,calc(env(safe-area-inset-top,0px)+0.25rem))] pb-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           <div
             id="room-number-badge-header"
@@ -942,8 +989,9 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               </span>
             </div>
             {opponentBubble && (
-              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-violet-400/50 text-[11px] font-bold text-violet-300 truncate max-w-[100px]">
-                {opponentBubble.emoji} {opponentBubble.quote}
+              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-sky-400 text-[11px] sm:text-xs font-bold text-sky-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                {opponentBubble.emoji && <span className="text-sm shrink-0">{opponentBubble.emoji}</span>}
+                <span>{opponentBubble.quote}</span>
               </div>
             )}
           </div>
@@ -1090,6 +1138,15 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               </button>
             </div>
           )}
+          {/* THÔNG BÁO HOÀNH TRÁNG CHUẨN CỜ TƯỚNG */}
+          <GameHeroicBanner
+            type={heroicBanner?.type ?? null}
+            title={heroicBanner?.title}
+            subtitle={heroicBanner?.subtitle}
+            visible={Boolean(heroicBanner)}
+            autoDismissMs={2200}
+            onClose={() => setHeroicBanner(null)}
+          />
         </section>
 
         {/* ==================== VÙNG 3: KHU VỰC NGƯỜI CHƠI CHÂN MÀN HÌNH (< xl) ==================== */}
@@ -1124,8 +1181,9 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               </span>
             </div>
             {playerBubble && (
-              <div className="px-2 py-0.5 rounded-lg bg-[#161a22] border border-emerald-400/50 text-[11px] font-bold text-emerald-300 truncate max-w-[100px]">
-                {playerBubble.emoji} {playerBubble.quote}
+              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-amber-400 text-[11px] sm:text-xs font-bold text-amber-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
+                <span>{playerBubble.quote}</span>
               </div>
             )}
           </div>
@@ -1166,15 +1224,6 @@ export function MemoryGame({ onSaveScore, onBack, initialTurnSeconds }: MemoryGa
               {tool.icon}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="size-11 sm:size-12 rounded-2xl border-2 border-white/10 bg-[#121622]/95 hover:border-violet-400 text-gray-300 hover:text-violet-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-md"
-            title="Cài đặt"
-            aria-label="Cài đặt"
-          >
-            <Settings className="size-5 sm:size-5.5" />
-          </button>
         </div>
 
         {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CHƠI HAY NỘI DUNG KHÁC ==================== */}

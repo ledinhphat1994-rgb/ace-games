@@ -2057,7 +2057,7 @@ export function XiangqiBoard({
   return (
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, VÙNG 3 SÁT GÓC TRÁI & ĐỒNG HỒ CHÍNH GIỮA */}
-      <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 pt-[max(0.25rem,calc(env(safe-area-inset-top,0px)+0.25rem))] pb-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         {/* CỤM TRÁI: VÙNG 2 THAY THẾ VÙNG 1 (SỐ BÀN ĐẤU ĐƯA LÊN HEADER) & BADGE RIÊNG TƯ */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           {roomName && (
