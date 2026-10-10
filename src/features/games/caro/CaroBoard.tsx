@@ -733,38 +733,74 @@ export function CaroBoard({
 
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const quickMenuRef = useRef<HTMLDivElement>(null)
+  const lastEmojiTriggerRef = useRef<HTMLElement | null>(null)
   const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
 
-  const handleOpenQuickMenu = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-      setIsQuickMenuOpen((prev) => !prev)
+  const updateQuickMenuPos = useCallback((customTrigger?: HTMLElement | null) => {
+    if (typeof window === 'undefined') return
+    const isMobile = window.innerWidth < 1280
+    const POPUP_W = isMobile ? 240 : 280
+    const POPUP_H = 268
+
+    if (!isMobile) {
+      const asideEl = document.getElementById('vung-4-plus-desk')
+      const asideRect = asideEl ? asideEl.getBoundingClientRect() : null
+      const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
+      const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
+      const padding = 16
+
+      const minSafeLeft = 248
+      const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
+
+      let left = asideRect ? asideRect.left + (asideRect.width - POPUP_W) / 2 : 20
+      left = Math.max(minSafeLeft, Math.min(maxSafeRight - POPUP_W, left))
+
+      let top = asideRect ? asideRect.top - POPUP_H - padding : 200
+      if (top < 12 && asideRect) {
+        top = asideRect.bottom + padding
+      }
+      top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
+      setQuickMenuPos({ left, top })
       return
     }
-    const asideEl = document.getElementById('vung-4-plus-desk')
-    const asideRect = asideEl ? asideEl.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-    const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
-    const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
-    const menuWidth = 280
-    const menuHeight = 220
-    const padding = 16
 
-    // Giới hạn chiều ngang: không bị sidebar che (>= 248px trên desktop) và không đè lên bàn cờ
-    const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
-    const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
+    // Trên Mobile (< 1280px): Neo chuẩn xác phía trên nút Biểu cảm
+    const triggerEl =
+      customTrigger ||
+      lastEmojiTriggerRef.current ||
+      document.getElementById('mobile-tool-emoji') ||
+      document.querySelector('[id*="emoji"]')
 
-    let left = asideRect.left + (asideRect.width - menuWidth) / 2
-    left = Math.max(minSafeLeft, Math.min(maxSafeRight - menuWidth, left))
-
-    // Chiều dọc: Nằm phía trên cụm avatar và các nút công cụ, cách đỉnh 16px
-    let top = asideRect.top - menuHeight - padding
-    // Nếu avatar bị kéo sát đỉnh viewport: chuyển menu xuống phía dưới đồng hồ
-    if (top < 12) {
-      top = asideRect.bottom + padding
+    if (!triggerEl) {
+      setQuickMenuPos({
+        left: Math.max(12, (window.innerWidth - POPUP_W) / 2),
+        top: Math.max(12, window.innerHeight - POPUP_H - 80),
+      })
+      return
     }
-    top = Math.max(12, Math.min(window.innerHeight - menuHeight - 12, top))
+
+    const rect = triggerEl.getBoundingClientRect()
+    let left = rect.left + rect.width / 2 - POPUP_W / 2
+    left = Math.max(12, Math.min(window.innerWidth - POPUP_W - 12, left))
+
+    let top = rect.top - POPUP_H - 8
+    if (top < 12) {
+      top = rect.bottom + 8
+    }
+    top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
 
     setQuickMenuPos({ left, top })
+  }, [])
+
+  const handleOpenQuickMenu = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    const target = (e?.currentTarget as HTMLElement) || document.getElementById('mobile-tool-emoji')
+    if (target) {
+      lastEmojiTriggerRef.current = target
+      updateQuickMenuPos(target)
+    } else {
+      updateQuickMenuPos()
+    }
     setIsQuickMenuOpen((prev) => !prev)
   }
 
@@ -773,7 +809,7 @@ export function CaroBoard({
     if (!isQuickMenuOpen) return
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (quickMenuRef.current && !quickMenuRef.current.contains(e.target as Node)) {
-        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emoji, #mobile-tool-emoji, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
         if (!trigger) {
           setIsQuickMenuOpen(false)
         }
@@ -1333,15 +1369,23 @@ export function CaroBoard({
           </div>
         </div>
 
-        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CỜ HAY NỘI DUNG KHÁC ==================== */}
-        {isQuickMenuOpen && (
-          <div
-            id="mobile-quick-menu-container"
-            ref={quickMenuRef}
-            aria-label="Tin nhắn nhanh"
-            className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
-          >
-            <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-cyan-400/40 shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2">
+        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): ĐỊNH VỊ CHUẨN XÁC NƠI CLICK THEO CHUẨN CỜ TƯỚNG ==================== */}
+        {isQuickMenuOpen &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              id="mobile-quick-menu-container"
+              ref={quickMenuRef}
+              aria-label="Tin nhắn nhanh"
+              style={{
+                position: 'fixed',
+                left: `${quickMenuPos.left}px`,
+                top: `${quickMenuPos.top}px`,
+                zIndex: 90,
+                width: '240px',
+              }}
+              className="flex xl:hidden w-full max-w-[480px] p-3 rounded-2xl bg-[#141824]/98 border border-cyan-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.9)] backdrop-blur-md flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0 pointer-events-auto"
+            >
               <div className="flex items-center justify-between pb-1 border-b border-white/10">
                 <span className="text-[11px] font-bold text-cyan-300 tracking-wide flex items-center gap-1.5">
                   <span>💬</span>
@@ -1358,8 +1402,27 @@ export function CaroBoard({
                 </button>
               </div>
 
+              {/* Lưới 8 Emoji cờ Caro độc lập chuẩn Cờ Tướng */}
+              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                {QUICK_EMOTES_CARO.slice(0, 8).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleQuickEmote(item)
+                      setIsQuickMenuOpen(false)
+                    }}
+                    className="p-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                    title={`${item.emoji} ${item.label}`}
+                  >
+                    {item.emoji}
+                  </button>
+                ))}
+              </div>
+
               {/* Danh sách 8 câu tin nhắn nhanh Caro: Hiển thị đầy đủ Icon + Nội dung chữ, xếp 2 cột thoáng mắt */}
-              <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
+              <div className="h-[1px] bg-white/10 my-0.5" />
+              <div className="grid grid-cols-2 gap-1 max-h-[140px] overflow-y-auto pr-0.5">
                 {QUICK_EMOTES_CARO.map((item) => (
                   <button
                     key={item.id}
@@ -1368,21 +1431,17 @@ export function CaroBoard({
                       handleQuickEmote(item)
                       setIsQuickMenuOpen(false)
                     }}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/50 text-left transition-colors cursor-pointer active:scale-95 group min-h-[38px]"
+                    className="px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-gray-200 hover:text-cyan-300 bg-white/5 hover:bg-cyan-500/15 border border-white/5 hover:border-cyan-400/30 transition cursor-pointer truncate flex items-center gap-1.5"
                     title={`${item.emoji} ${item.quote}`}
                   >
-                    <span className="text-base shrink-0 group-hover:scale-110 transition-transform">
-                      {item.emoji}
-                    </span>
-                    <span className="text-[11px] font-semibold text-slate-200 group-hover:text-cyan-200 truncate leading-tight">
-                      {item.quote}
-                    </span>
+                    <span className="text-xs shrink-0">{item.emoji}</span>
+                    <span className="truncate">{item.quote}</span>
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body
+          )}
 
         {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI - DESKTOP XL DUY NHẤT) ==================== */}
         <aside

@@ -299,10 +299,10 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
   const myAvatarUrl = nguoiDung?.avatar || ''
   const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false)
-  const [emoteAnchorEl, setEmoteAnchorEl] = useState<HTMLElement | null>(null)
   const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const quickMenuRef = useRef<HTMLDivElement>(null)
+  const lastEmojiTriggerRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!isQuickMenuOpen) return
@@ -350,31 +350,61 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
     return 1500
   })
 
-  const updateQuickMenuPos = useCallback((anchor?: HTMLElement | null) => {
-    const el = anchor || emoteAnchorEl || document.getElementById('tool-bubble-emote')
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const POPUP_W = 280
-    const POPUP_H = 175
-    const padding = 12
+  const updateQuickMenuPos = useCallback((customTrigger?: HTMLElement | null) => {
+    if (typeof window === 'undefined') return
+    const isMobile = window.innerWidth < 1280
+    const POPUP_W = isMobile ? 240 : 280
+    const POPUP_H = 268
 
-    let left = rect.left + rect.width / 2 - POPUP_W / 2
-    const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
-    const boardEl = document.querySelector('section[aria-label*="Bàn chơi"]') || document.querySelector('section')
-    const maxSafeRight = boardEl ? boardEl.getBoundingClientRect().left - 12 : window.innerWidth - 12
-    left = Math.max(minSafeLeft, Math.min(maxSafeRight - POPUP_W, left))
-    if (left + POPUP_W > window.innerWidth - 12) {
-      left = window.innerWidth - POPUP_W - 12
+    if (!isMobile) {
+      const asideEl = document.getElementById('vung-4-plus-desk')
+      const asideRect = asideEl ? asideEl.getBoundingClientRect() : null
+      const boardEl = document.querySelector('section[aria-label*="Bàn chơi"]') || document.querySelector('section')
+      const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
+      const padding = 16
+
+      const minSafeLeft = 248
+      const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
+
+      let left = asideRect ? asideRect.left + (asideRect.width - POPUP_W) / 2 : 20
+      left = Math.max(minSafeLeft, Math.min(maxSafeRight - POPUP_W, left))
+
+      let top = asideRect ? asideRect.top - POPUP_H - padding : 200
+      if (top < 12 && asideRect) {
+        top = asideRect.bottom + padding
+      }
+      top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
+      setQuickMenuPos({ left, top })
+      return
     }
 
-    let top = rect.top - POPUP_H - padding
+    // Trên Mobile (< 1280px): Neo chuẩn xác phía trên nút Biểu cảm
+    const triggerEl =
+      customTrigger ||
+      lastEmojiTriggerRef.current ||
+      document.getElementById('mobile-tool-emoji') ||
+      document.querySelector('[id*="emoji"]')
+
+    if (!triggerEl) {
+      setQuickMenuPos({
+        left: Math.max(12, (window.innerWidth - POPUP_W) / 2),
+        top: Math.max(12, window.innerHeight - POPUP_H - 80),
+      })
+      return
+    }
+
+    const rect = triggerEl.getBoundingClientRect()
+    let left = rect.left + rect.width / 2 - POPUP_W / 2
+    left = Math.max(12, Math.min(window.innerWidth - POPUP_W - 12, left))
+
+    let top = rect.top - POPUP_H - 8
     if (top < 12) {
-      top = rect.bottom + padding
+      top = rect.bottom + 8
     }
     top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
 
     setQuickMenuPos({ left, top })
-  }, [emoteAnchorEl])
+  }, [])
 
   const isGameOver = matched.length === cards.length || surrenderWinner !== null || isDrawAgreed
 
@@ -768,10 +798,16 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
       icon: <Smile className={cn('size-5 sm:size-5.5', (isQuickMenuOpen || isEmotePickerOpen) ? 'text-amber-200' : 'text-amber-400')} />,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
         if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+          const target = e.currentTarget || document.getElementById('mobile-tool-emoji')
+          if (target) {
+            lastEmojiTriggerRef.current = target
+            updateQuickMenuPos(target)
+          } else {
+            updateQuickMenuPos()
+          }
           setIsQuickMenuOpen((prev) => !prev)
         } else {
           const el = e.currentTarget
-          setEmoteAnchorEl(el)
           updateQuickMenuPos(el)
           setIsEmotePickerOpen((prev) => !prev)
         }
@@ -944,9 +980,9 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
 
       {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
       <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
-        {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
+        {/* ==================== KHỐI TRÊN MOBILE (< xl): THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl) ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
-          <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
+          <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-1 select-none z-20 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <EloRankAvatarFrame
                 ten={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
@@ -1153,10 +1189,10 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           />
         </section>
 
-        {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
+        {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): KHU VỰC NGƯỜI CHƠI CHÂN MÀN HÌNH (< xl) ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
-          <div className="flex w-full h-12 px-2 items-center justify-between select-none">
+          <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mt-1 select-none z-20">
             <div className="flex items-center gap-2.5 min-w-0">
               <EloRankAvatarFrame
                 ten={myName}
@@ -1212,7 +1248,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           </div>
 
           {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG, ICON TO RÕ THEO CHUẨN CỜ TƯỚNG ==================== */}
-          <div id="mobile-tools-bar" className="flex w-full h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 select-none">
+          <div id="mobile-tools-bar" className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 select-none">
             {memoryTools.map((tool) => (
               <button
                 key={tool.id}
@@ -1233,55 +1269,81 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           </div>
         </div>
 
-        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CHƠI HAY NỘI DUNG KHÁC ==================== */}
-        {isQuickMenuOpen && (
-          <div
-            id="mobile-quick-menu-container"
-            ref={quickMenuRef}
-            aria-label="Tin nhắn nhanh"
-            className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
-          >
-            <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-violet-400/40 shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2">
-              <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                <span className="text-[11px] font-bold text-violet-300 tracking-wide flex items-center gap-1.5">
-                  <span>💬</span>
-                  <span>Tin nhắn nhanh</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsQuickMenuOpen(false)}
-                  className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                  aria-label="Đóng tin nhắn nhanh"
-                  title="Đóng"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
-                {DANH_SACH_THAI_DO_MEMORY.map((item) => (
+        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): ĐỊNH VỊ CHUẨN XÁC NƠI CLICK THEO CHUẨN CỜ TƯỚNG ==================== */}
+        {isQuickMenuOpen &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              id="mobile-quick-menu-container"
+              ref={quickMenuRef}
+              aria-label="Tin nhắn nhanh"
+              style={{
+                position: 'fixed',
+                left: `${quickMenuPos.left}px`,
+                top: `${quickMenuPos.top}px`,
+                zIndex: 90,
+                width: '240px',
+              }}
+              className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
+            >
+              <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-violet-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.9)] backdrop-blur-md flex flex-col gap-2">
+                <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                  <span className="text-[11px] font-bold text-violet-300 tracking-wide flex items-center gap-1.5">
+                    <span>💬</span>
+                    <span>Tin nhắn nhanh</span>
+                  </span>
                   <button
-                    key={item.id}
                     type="button"
-                    onClick={() => {
-                      handleQuickEmote(item)
-                      setIsQuickMenuOpen(false)
-                    }}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-violet-500/20 border border-white/10 hover:border-violet-400/50 text-left transition-colors cursor-pointer active:scale-95 group min-h-[38px]"
-                    title={`${item.emoji} ${item.quote}`}
+                    onClick={() => setIsQuickMenuOpen(false)}
+                    className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                    aria-label="Đóng tin nhắn nhanh"
+                    title="Đóng"
                   >
-                    <span className="text-base shrink-0 group-hover:scale-110 transition-transform">
-                      {item.emoji}
-                    </span>
-                    <span className="text-[11px] font-semibold text-slate-200 group-hover:text-violet-200 truncate leading-tight">
-                      {item.quote}
-                    </span>
+                    <X className="size-3.5" />
                   </button>
-                ))}
+                </div>
+
+                {/* Lưới 8 Emoji trí nhớ độc lập chuẩn Cờ Tướng */}
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                  {DANH_SACH_THAI_DO_MEMORY.slice(0, 8).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        handleQuickEmote(item)
+                        setIsQuickMenuOpen(false)
+                      }}
+                      className="p-1 rounded-xl bg-white/5 hover:bg-violet-500/20 hover:border-violet-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                      title={`${item.emoji} ${item.label}`}
+                    >
+                      {item.emoji}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Danh sách 8 câu tin nhắn nhanh Trí nhớ: Hiển thị đầy đủ Icon + Nội dung chữ, xếp 2 cột thoáng mắt */}
+                <div className="h-[1px] bg-white/10 my-0.5" />
+                <div className="grid grid-cols-2 gap-1 max-h-[140px] overflow-y-auto pr-0.5">
+                  {DANH_SACH_THAI_DO_MEMORY.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        handleQuickEmote(item)
+                        setIsQuickMenuOpen(false)
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-gray-200 hover:text-violet-300 bg-white/5 hover:bg-violet-500/15 border border-white/5 hover:border-violet-400/30 transition cursor-pointer truncate flex items-center gap-1.5"
+                      title={`${item.emoji} ${item.quote}`}
+                    >
+                      <span className="text-xs shrink-0">{item.emoji}</span>
+                      <span className="truncate">{item.quote}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body
+          )}
 
         {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI) ==================== */}
         <aside
