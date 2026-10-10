@@ -1,0 +1,8 @@
+{
+  "name": "Ace Games - Digital Campus",
+  "description": "Nền tảng Digital Campus và Đấu Trường Trò Chơi Trực Tuyến Lớp 10A7 Trung tâm GDTX Định Quán.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
