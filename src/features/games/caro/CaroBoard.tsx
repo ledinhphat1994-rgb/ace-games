@@ -850,32 +850,21 @@ export function CaroBoard({
 
   return (
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden relative select-none">
-      {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, NÚT SẢNH & SỐ PHÒNG */}
+      {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, SỐ PHÒNG TIÊU CHUẨN CỜ TƯỚNG */}
       <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
-          <button
-            type="button"
-            id="game-leave-btn"
-            onClick={onBack}
-            className="h-8 px-2.5 rounded-lg text-xs gap-1.5 inline-flex items-center font-medium text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-colors duration-150 shrink-0"
-            title="Quay lại sảnh"
-            aria-label="Quay lại sảnh"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>Sảnh</span>
-          </button>
-
           {roomName && (
             <div
-              className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-cyan-950/30 via-slate-900/60 to-slate-900/40 border border-cyan-500/25 shadow-[0_2px_8px_rgba(0,0,0,0.4)] shrink-0 select-none hover:border-cyan-500/40 transition-colors duration-150"
+              id="room-number-badge-header"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-cyan-950/40 via-slate-900/80 to-slate-900/60 border border-cyan-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.5)] shrink-0 select-none hover:border-cyan-500/50 transition-colors duration-150"
               title={`Phòng Cờ Caro #${soPhongHienThi || '1'}`}
             >
-              <div className="relative size-8 sm:size-9 rounded-full bg-gradient-to-br from-[#0c2340] via-[#081b33] to-[#041021] border-2 border-cyan-500/50 shadow-[0_3px_8px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                <span className="text-sm font-black text-cyan-400 leading-none">
+              <div className="relative size-7 sm:size-8 rounded-full bg-gradient-to-br from-[#0c2340] via-[#081b33] to-[#041021] border-2 border-cyan-500/60 shadow-[0_2px_6px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="font-cinzel font-black text-xs sm:text-sm text-cyan-400 leading-none">
                   XO
                 </span>
               </div>
-              <span className="font-cinzel font-black text-sm sm:text-base text-cyan-300 tracking-wider shrink-0">
+              <span className="font-cinzel font-black text-xs sm:text-sm text-cyan-300 tracking-wider">
                 #{soPhongHienThi || '1'}
               </span>
             </div>
@@ -1282,8 +1271,8 @@ export function CaroBoard({
             </div>
           </div>
 
-          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG ==================== */}
-          <div id="mobile-tools-bar" className="flex w-full h-10 px-2 items-center justify-center gap-2 select-none">
+          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG, ICON TO RÕ THEO CHUẨN CỜ TƯỚNG ==================== */}
+          <div id="mobile-tools-bar" className="flex w-full h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 select-none">
             {caroTools.map((tool) => (
               <button
                 key={tool.id}
@@ -1292,7 +1281,7 @@ export function CaroBoard({
                 onClick={tool.onClick}
                 disabled={tool.disabled}
                 className={cn(
-                  'size-9 rounded-xl border flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs',
+                  'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5',
                   tool.className
                 )}
                 title={tool.title}
@@ -1304,11 +1293,11 @@ export function CaroBoard({
             <button
               type="button"
               onClick={() => setIsSettingsModalOpen(true)}
-              className="size-9.5 rounded-xl border border-white/10 bg-[#121622]/95 hover:border-cyan-400 text-gray-300 hover:text-cyan-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-xs"
+              className="size-11 sm:size-12 rounded-2xl border-2 border-white/10 bg-[#121622]/95 hover:border-cyan-400 text-gray-300 hover:text-cyan-300 flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-md"
               title="Cài đặt"
               aria-label="Cài đặt"
             >
-              <Settings className="size-4" />
+              <Settings className="size-5 sm:size-5.5" />
             </button>
           </div>
         </div>
@@ -1883,6 +1872,19 @@ export function CaroBoard({
           </div>
         </div>
       )}
+
+      {/* VÙNG 1 CÙNG HÀNG VỚI ICON TIN NHẮN NỔI (NÚT QUAY LẠI SẢNH) THEO CHUẨN CỜ TƯỚNG — CHỐNG BỊ CHE / CLIP BỞI SAFE AREA */}
+      <button
+        type="button"
+        id="game-leave-btn"
+        onClick={onBack}
+        className="fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5 z-40 h-9.5 sm:h-10 px-3.5 rounded-full text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 shadow-lg backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
+        title="Quay lại sảnh"
+        aria-label="Quay lại sảnh"
+      >
+        <ArrowLeft className="size-4" />
+        <span>Sảnh</span>
+      </button>
 
       {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
       {selectedProfileUser && (

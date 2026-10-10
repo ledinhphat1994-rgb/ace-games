@@ -3407,12 +3407,12 @@ export function XiangqiBoard({
       <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
         <GamePlayToolbar mode={mode} onModeChange={handleModeChange} onReset={resetGame} />
       </div>
-      {/* VÙNG 1 CÙNG HÀNG VỚI ICON TIN NHẮN NỔI (NÚT QUAY LẠI SẢNH) THEO YÊU CẦU USER */}
+      {/* VÙNG 1 CÙNG HÀNG VỚI ICON TIN NHẮN NỔI (NÚT QUAY LẠI SẢNH) THEO YÊU CẦU USER — CHỐNG BỊ CHE / CLIP BỞI SAFE AREA & GESTURE BAR */}
       <button
         type="button"
         id="game-leave-btn"
         onClick={handleBackLobby}
-        className="fixed bottom-2 left-2 sm:bottom-2.5 sm:left-3 z-30 h-9.5 sm:h-10 px-3.5 rounded-full text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 shadow-lg backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
+        className="fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5 z-40 h-9.5 sm:h-10 px-3.5 rounded-full text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 shadow-lg backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
         title="Quay lại sảnh"
         aria-label="Quay lại sảnh"
       >

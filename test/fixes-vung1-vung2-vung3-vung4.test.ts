@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest'
 import gameLobbyRaw from '../src/features/games/GameLobbyView.tsx?raw'
 import xiangqiBoardRaw from '../src/features/games/xiangqi/XiangqiBoard.tsx?raw'
 import thePhongGameRaw from '../src/features/games/ThePhongGame.tsx?raw'
+import chessBoardRaw from '../src/features/games/chess/ChessBoard.tsx?raw'
+import caroBoardRaw from '../src/features/games/caro/CaroBoard.tsx?raw'
+import memoryGameRaw from '../src/features/games/memory/MemoryGame.tsx?raw'
+import appShellRaw from '../src/components/layout/AppShell.tsx?raw'
 
 describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)', () => {
   describe('Yêu cầu 1 (Ảnh 1): Vùng 1 tiêu đề là "Bàn đấu", các nội dung trong vùng để trống', () => {
@@ -44,9 +48,9 @@ describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)'
       expect(headerArea).not.toContain('id="game-leave-btn"')
     })
 
-    it('Vùng 1 (nút Sảnh) được chuyển xuống cùng hàng với icon tin nhắn nổi (bottom-2 left-2 sm:bottom-2.5 sm:left-3)', () => {
+    it('Vùng 1 (nút Sảnh) được chuyển xuống cùng hàng với icon tin nhắn nổi và bảo vệ safe area chống bị che', () => {
       expect(xiangqiBoardRaw).toContain('id="game-leave-btn"')
-      expect(xiangqiBoardRaw).toContain('fixed bottom-2 left-2 sm:bottom-2.5 sm:left-3')
+      expect(xiangqiBoardRaw).toContain('fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5')
       expect(xiangqiBoardRaw).not.toContain('id="room-number-badge-bottom-left"')
     })
   })
@@ -94,6 +98,52 @@ describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)'
       const roomsListIdx = gameLobbyRaw.indexOf('data-testid="game-rooms-list"')
       expect(searchIdx).toBeGreaterThan(0)
       expect(roomsListIdx).toBeGreaterThan(searchIdx)
+    })
+  })
+
+  describe('Yêu cầu mới: Fix vùng 1 bị che & Lấy cờ tướng làm chuẩn cho cờ vua, caro, trí nhớ', () => {
+    it('Fix vùng 1 bị che: nút Sảnh và chat nổi đều có safe area offset bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))]', () => {
+      expect(xiangqiBoardRaw).toContain("bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))]")
+      expect(appShellRaw).toContain("bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))]")
+    })
+
+    it('Cờ Vua áp dụng chuẩn cờ tướng: header có id="room-number-badge-header", không có nút Sảnh ở header, nút Sảnh ở đáy trái', () => {
+      const headerArea = chessBoardRaw.slice(
+        chessBoardRaw.indexOf('<header'),
+        chessBoardRaw.indexOf('</header>')
+      )
+      expect(headerArea).toContain('id="room-number-badge-header"')
+      expect(headerArea).not.toContain('id="game-leave-btn"')
+      expect(chessBoardRaw).toContain('id="game-leave-btn"')
+      expect(chessBoardRaw).toContain('fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5')
+      expect(chessBoardRaw).toContain('size-11 sm:size-12 rounded-2xl')
+      expect(chessBoardRaw).toContain('[&_svg]:size-5 [&_svg]:sm:size-5.5')
+    })
+
+    it('Cờ Caro áp dụng chuẩn cờ tướng: header có id="room-number-badge-header", không có nút Sảnh ở header, nút Sảnh ở đáy trái', () => {
+      const headerArea = caroBoardRaw.slice(
+        caroBoardRaw.indexOf('<header'),
+        caroBoardRaw.indexOf('</header>')
+      )
+      expect(headerArea).toContain('id="room-number-badge-header"')
+      expect(headerArea).not.toContain('id="game-leave-btn"')
+      expect(caroBoardRaw).toContain('id="game-leave-btn"')
+      expect(caroBoardRaw).toContain('fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5')
+      expect(caroBoardRaw).toContain('size-11 sm:size-12 rounded-2xl')
+      expect(caroBoardRaw).toContain('[&_svg]:size-5 [&_svg]:sm:size-5.5')
+    })
+
+    it('Trí Nhớ áp dụng chuẩn cờ tướng: header có id="room-number-badge-header", không có nút Sảnh ở header, nút Sảnh ở đáy trái', () => {
+      const headerArea = memoryGameRaw.slice(
+        memoryGameRaw.indexOf('<header'),
+        memoryGameRaw.indexOf('</header>')
+      )
+      expect(headerArea).toContain('id="room-number-badge-header"')
+      expect(headerArea).not.toContain('id="game-leave-btn"')
+      expect(memoryGameRaw).toContain('id="game-leave-btn"')
+      expect(memoryGameRaw).toContain('fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5')
+      expect(memoryGameRaw).toContain('size-11 sm:size-12 rounded-2xl')
+      expect(memoryGameRaw).toContain('[&_svg]:size-5 [&_svg]:sm:size-5.5')
     })
   })
 })
