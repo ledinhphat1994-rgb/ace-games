@@ -98,3 +98,26 @@ export interface SessionEngagementFacts {
   taskCompletions?: Array<{ taskId: string; accountId: number }>
   pollVotes?: Array<{ pollId: string; accountId: number }>
 }
+
+export interface DailyCheckInStatus {
+  canCheckIn: boolean
+  todayDate: string
+  currentStreak: number
+  longestStreak: number
+  totalXp: number
+  cycleDay: number
+  rewardXp: number
+  claimedAt: number | null
+  rewards: number[]
+}
+
+export interface ClaimDailyCheckInResult {
+  ok: boolean
+  rewardXp?: number
+  currentStreak?: number
+  totalXp?: number
+  todayXp?: number
+  cycleDay?: number
+  alreadyClaimed?: boolean
+  loi?: string
+}

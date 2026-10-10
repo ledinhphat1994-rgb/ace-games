@@ -1,6 +1,6 @@
-# Digital Campus (gdtxdinhquan.com)
+# Ace Games
 
-Hệ thống Digital Campus trường GDTX Định Quán: Vite + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI), chạy trên Cloudflare Workers + static assets + Durable Objects (SQLite, WebSocket Hibernation API), tích hợp cơ sở dữ liệu Cloudflare D1, KV và R2.
+Đấu Trường Trò Chơi Trực Tuyến 100% Mobile: Vite + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI), chạy trên Cloudflare Workers + static assets + Durable Objects (SQLite, WebSocket Hibernation API), tích hợp cơ sở dữ liệu Cloudflare D1, KV và R2.
 
 ## Yêu cầu môi trường
 

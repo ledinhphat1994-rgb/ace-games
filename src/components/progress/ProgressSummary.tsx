@@ -21,6 +21,7 @@ import type {
 import { ClassLeaderboardModal } from '@/features/engagement/ClassLeaderboardModal'
 import { AchievementsModal } from '@/features/engagement/AchievementsModal'
 import { ClassChallengeModal } from '@/features/engagement/ClassChallengeModal'
+import { DailyCheckInButton } from '@/features/engagement'
 import {
   deriveProgressState,
   type ProgressDataResponse,
@@ -183,6 +184,8 @@ export function ProgressSummary({
 
           {/* Right: Actions (Desktop has modals, Mobile has clean compact 'Chi tiết' button) */}
           <div className="flex items-center justify-end gap-1.5 shrink-0">
+            <DailyCheckInButton variant="compact" />
+
             <Button
               variant="ghost"
               size="sm"

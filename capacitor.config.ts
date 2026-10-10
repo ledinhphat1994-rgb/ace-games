@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
-  appId: 'com.gdtxdinhquan.campus',
-  appName: 'Digital Campus',
+  appId: 'com.acegames.app',
+  appName: 'Ace Games',
   webDir: 'dist/client',
   server: {
     url: 'https://gdtxdinhquan.com',

@@ -111,6 +111,14 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
     rewardXp: 50,
   },
   {
+    key: 'first_checkin',
+    title: 'Khởi đầu chuyên cần',
+    description: 'Điểm danh hằng ngày nhận quà đăng nhập',
+    category: 'streak',
+    icon: 'CalendarCheck',
+    rewardXp: 15,
+  },
+  {
     key: 'task_finisher_5',
     title: 'Chuyên gia nhiệm vụ',
     description: 'Tích hoàn thành 5 nhiệm vụ học tập',
@@ -694,9 +702,17 @@ export async function evaluateAchievements(
   if (sessionCount >= 1) await checkAndUnlock('first_session', `session_count:1:acc:${accountId}`)
   if (sessionCount >= 5) await checkAndUnlock('study_regular_5', `session_count:5:acc:${accountId}`)
 
-  // 2. Streaks
+  // 2. Streaks & Check-in
   if (profile.currentStreak >= 3) await checkAndUnlock('streak_3', `streak:3:acc:${accountId}`)
   if (profile.currentStreak >= 7) await checkAndUnlock('streak_7', `streak:7:acc:${accountId}`)
+
+  const checkinCountRow = await db
+    .prepare(`SELECT COUNT(*) as cnt FROM xp_ledger WHERE account_id = ?1 AND reason = 'Điểm danh hằng ngày'`)
+    .bind(accountId)
+    .first<{ cnt: number }>()
+  if ((checkinCountRow?.cnt || 0) >= 1) {
+    await checkAndUnlock('first_checkin', `checkin:1:acc:${accountId}`)
+  }
 
   // 3. Task Completions (authoritative from ledger)
   const taskCountRow = await db

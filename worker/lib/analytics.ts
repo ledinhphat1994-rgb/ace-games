@@ -297,6 +297,57 @@ export function normalizeAnalyticsRoute(pathname: string): string {
     .slice(0, 128)
 }
 
+const CREATE_ANALYTICS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS analytics_events (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  event           TEXT NOT NULL,
+  actor_id        INTEGER,
+  session_id      TEXT,
+  room_id         INTEGER,
+  route           TEXT,
+  status_code     INTEGER,
+  duration_ms     INTEGER,
+  error_class     TEXT,
+  properties_json TEXT,
+  created_at      INTEGER NOT NULL,
+  created_date    TEXT NOT NULL
+)`
+
+const CREATE_ANALYTICS_INDEX_SQLS = [
+  'CREATE INDEX IF NOT EXISTS idx_analytics_date_event ON analytics_events(created_date, event)',
+  'CREATE INDEX IF NOT EXISTS idx_analytics_actor_date ON analytics_events(actor_id, created_date)',
+  'CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_analytics_room_event ON analytics_events(room_id, event)',
+  'CREATE INDEX IF NOT EXISTS idx_analytics_route_status ON analytics_events(route, status_code)',
+]
+
+const schemaEnsuredDbs = new WeakSet<D1Database>()
+let schemaInitPromise: Promise<void> | null = null
+
+export async function ensureAnalyticsSchema(analyticsDb: D1Database): Promise<void> {
+  if (schemaEnsuredDbs.has(analyticsDb)) return
+  if (schemaInitPromise) {
+    await schemaInitPromise
+    return
+  }
+
+  schemaInitPromise = (async () => {
+    try {
+      await analyticsDb.prepare(CREATE_ANALYTICS_TABLE_SQL).run()
+      for (const idxSql of CREATE_ANALYTICS_INDEX_SQLS) {
+        await analyticsDb.prepare(idxSql).run().catch(() => {})
+      }
+      schemaEnsuredDbs.add(analyticsDb)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.warn('[Analytics] Lỗi khởi tạo schema analytics_events:', msg)
+    } finally {
+      schemaInitPromise = null
+    }
+  })()
+
+  await schemaInitPromise
+}
+
 /**
  * Asynchronously and non-blockingly records a telemetry/analytics event into the isolated ANALYTICS_DB.
  *
@@ -318,7 +369,7 @@ export function recordAnalyticsEvent(
   const propsJson = cleanProps ? JSON.stringify(cleanProps) : null
 
   try {
-    const task = analyticsDb
+    const stmt = analyticsDb
       .prepare(
         `INSERT INTO analytics_events (
           event, actor_id, session_id, room_id, route, status_code, duration_ms, error_class, properties_json, created_at, created_date
@@ -339,10 +390,23 @@ export function recordAnalyticsEvent(
         now,
         dateStr,
       )
+
+    const task = stmt
       .run()
-      .catch((err: unknown) => {
-        // Non-blocking fail-safe: warning only
+      .catch(async (err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('no such table: analytics_events')) {
+          await ensureAnalyticsSchema(analyticsDb)
+          try {
+            await stmt.run()
+            return
+          } catch (retryErr: unknown) {
+            const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr)
+            console.warn(`[Analytics] Lỗi ghi analytics event (${input.event}) sau khi tạo bảng:`, retryMsg)
+            return
+          }
+        }
+        // Non-blocking fail-safe: warning only
         console.warn(`[Analytics] Lỗi ghi analytics event (${input.event}):`, msg)
       })
 
@@ -374,6 +438,11 @@ export async function pruneExpiredAnalytics(
       .run()
     return res.meta?.changes ?? 0
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('no such table: analytics_events')) {
+      await ensureAnalyticsSchema(analyticsDb)
+      return 0
+    }
     console.warn('[Analytics] Lỗi dọn dẹp analytics cũ:', err)
     return 0
   }
@@ -386,6 +455,7 @@ export async function computeAnalyticsOverview(
   analyticsDb: D1Database,
   window: 'today' | '7d' | '30d',
 ): Promise<AnalyticsOverview> {
+  await ensureAnalyticsSchema(analyticsDb)
   const now = Date.now()
   const todayStr = new Date(now).toISOString().split('T')[0]
 
