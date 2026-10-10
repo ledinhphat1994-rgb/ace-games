@@ -13,7 +13,7 @@ interface DigitalCampusLogoProps {
  * Biểu tượng thương hiệu Ace Games / Digital Campus chuẩn (chữ A cách điệu)
  * Thiết kế chuẩn icon ứng dụng Mobile squircle với hiệu ứng animated phát sáng rực rỡ
  * - Đã loại bỏ hoàn toàn dấu chấm tròn theo yêu cầu
- * - Hỗ trợ chế độ loading với tia sáng animated chạy dọc thân chữ A
+ * - Hỗ trợ chế độ loading với tia sáng animated laser chạy mượt mà dọc thân chữ A
  */
 export const DigitalCampusLogo = memo(function DigitalCampusLogo({
   className,
@@ -93,20 +93,10 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
             </linearGradient>
 
-            {/* Gradient tia sáng chạy dọc thân chữ A */}
-            <linearGradient id="dc-trace-glow" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0" />
-              <stop offset="50%" stopColor="#38bdf8" stopOpacity="1" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
-            </linearGradient>
-
-            {/* Mask cắt hình dáng chữ A cho hiệu ứng quét ánh sáng */}
-            <mask id="dc-a-mask">
-              <path
-                d="M50 16C43.5 16 35.8 28.5 28.5 44.5C21.8 59.2 17.5 73.2 18.2 78.4C18.8 82.5 22.8 84.5 26.8 82.8C32.5 80.4 39.5 70.8 44.2 60.5C46.8 54.8 48.8 49.8 50 49.8C51.2 49.8 53.2 54.8 55.8 60.5C60.5 70.8 67.5 80.4 73.2 82.8C77.2 84.5 81.2 82.5 81.8 78.4C82.5 73.2 78.2 59.2 71.5 44.5C64.2 28.5 56.5 16 50 16Z"
-                fill="#ffffff"
-              />
-            </mask>
+            {/* ClipPath chuẩn xác giới hạn tia sáng nằm 100% bên trong hình dáng chữ A */}
+            <clipPath id="dc-a-laser-clip">
+              <path d="M50 16C43.5 16 35.8 28.5 28.5 44.5C21.8 59.2 17.5 73.2 18.2 78.4C18.8 82.5 22.8 84.5 26.8 82.8C32.5 80.4 39.5 70.8 44.2 60.5C46.8 54.8 48.8 49.8 50 49.8C51.2 49.8 53.2 54.8 55.8 60.5C60.5 70.8 67.5 80.4 73.2 82.8C77.2 84.5 81.2 82.5 81.8 78.4C82.5 73.2 78.2 59.2 71.5 44.5C64.2 28.5 56.5 16 50 16Z" />
+            </clipPath>
           </defs>
 
           {/* Biểu tượng chữ A cách điệu: Vòm cong uyển chuyển vững chãi với đỉnh nhọn bo tròn */}
@@ -122,40 +112,28 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
             opacity="0.65"
           />
 
-          {/* Hiệu ứng animated chạy dọc chữ A khi chờ (loading) */}
+          {/* Hiệu ứng animated laser chạy uốn lượn chính xác dọc thân chữ A (từ chân trái lên đỉnh qua chân phải) */}
           {loading && (
-            <>
-              {/* Lớp quét ánh sáng dọc thân chữ A */}
-              <g mask="url(#dc-a-mask)">
-                <rect
-                  x="10"
-                  y="10"
-                  width="80"
-                  height="26"
-                  fill="url(#dc-logo-shine)"
-                  opacity="0.75"
-                  className="dc-a-scan-bar"
-                />
-              </g>
-
-              {/* Tia sáng năng lượng neon chạy uốn lượn dọc sống lưng chữ A (từ chân trái lên đỉnh qua chân phải) */}
+            <g clipPath="url(#dc-a-laser-clip)">
+              {/* Lớp hào quang tia sáng neon cyan */}
               <path
-                d="M 23 81 C 31 67, 43 28, 50 17 C 57 28, 69 67, 77 81"
+                d="M 23 81 C 26 58, 41 21, 50 18 C 59 21, 74 58, 77 81"
                 fill="none"
                 stroke="#38bdf8"
-                strokeWidth="4"
+                strokeWidth="7"
                 strokeLinecap="round"
                 className="dc-a-pulse-outer"
               />
+              {/* Lớp tia sáng trắng tinh khiết ở tâm */}
               <path
-                d="M 23 81 C 31 67, 43 28, 50 17 C 57 28, 69 67, 77 81"
+                d="M 23 81 C 26 58, 41 21, 50 18 C 59 21, 74 58, 77 81"
                 fill="none"
                 stroke="#ffffff"
-                strokeWidth="2.2"
+                strokeWidth="3"
                 strokeLinecap="round"
                 className="dc-a-pulse-inner"
               />
-            </>
+            </g>
           )}
         </svg>
 
@@ -165,7 +143,7 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
             {`
               @keyframes dcPulseTrace {
                 0% {
-                  stroke-dasharray: 40 160;
+                  stroke-dasharray: 45 160;
                   stroke-dashoffset: 160;
                   opacity: 0;
                 }
@@ -176,37 +154,18 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
                   opacity: 1;
                 }
                 100% {
-                  stroke-dasharray: 40 160;
+                  stroke-dasharray: 45 160;
                   stroke-dashoffset: -160;
                   opacity: 0;
                 }
               }
-              @keyframes dcScanFlow {
-                0% {
-                  transform: translateY(70px);
-                  opacity: 0;
-                }
-                25% {
-                  opacity: 0.85;
-                }
-                75% {
-                  opacity: 0.85;
-                }
-                100% {
-                  transform: translateY(-25px);
-                  opacity: 0;
-                }
-              }
               .dc-a-pulse-outer {
-                animation: dcPulseTrace 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-                filter: drop-shadow(0 0 5px #38bdf8);
+                animation: dcPulseTrace 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                filter: drop-shadow(0 0 6px #38bdf8);
               }
               .dc-a-pulse-inner {
-                animation: dcPulseTrace 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-                filter: drop-shadow(0 0 2px #ffffff);
-              }
-              .dc-a-scan-bar {
-                animation: dcScanFlow 1.6s ease-in-out infinite;
+                animation: dcPulseTrace 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                filter: drop-shadow(0 0 3px #ffffff);
               }
             `}
           </style>

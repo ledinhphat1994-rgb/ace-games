@@ -33,7 +33,6 @@ import {
   Flag,
   Handshake,
   Lock,
-  Pin,
   RotateCcw,
   Settings,
   Smile,
@@ -496,41 +495,8 @@ export function XiangqiBoard({
   // Danh sách định danh công cụ có thể ghim thành bong bóng quanh Avatar
   const DEFAULT_PINNED_TOOLS: XiangqiToolId[] = ['settings', 'emoji', 'mode', 'invite', 'draw']
 
-  // Danh sách công cụ được ghim thành các bong bóng nhỏ quanh Avatar
-  const [pinnedTools, setPinnedTools] = useState<XiangqiToolId[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('dc_xiangqi_pinned_tools')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.slice(0, 5) as XiangqiToolId[]
-          }
-        }
-      } catch {}
-    }
-    return DEFAULT_PINNED_TOOLS
-  })
-
-  const handleTogglePinTool = useCallback((toolId: XiangqiToolId) => {
-    setPinnedTools((prev) => {
-      let next: XiangqiToolId[]
-      if (prev.includes(toolId)) {
-        next = prev.filter((id) => id !== toolId)
-      } else {
-        if (prev.length >= 5) {
-          // Giữ tối đa 5 bong bóng quanh avatar để khoảng cách và nhịp điệu luôn thoáng mắt
-          next = [...prev.slice(1), toolId]
-        } else {
-          next = [...prev, toolId]
-        }
-      }
-      try {
-        localStorage.setItem('dc_xiangqi_pinned_tools', JSON.stringify(next))
-      } catch {}
-      return next
-    })
-  }, [])
+  // Danh sách công cụ được hiển thị trên thanh công cụ
+  const [pinnedTools] = useState<XiangqiToolId[]>(DEFAULT_PINNED_TOOLS)
 
   // Tính toán tọa độ (x, y) của các bong bóng nhỏ xoay quanh Avatar (cách đều, thoáng mắt, không đè avatar và đồng hồ)
   const getBubbleCoordinates = (index: number, total: number) => {
@@ -3113,8 +3079,28 @@ export function XiangqiBoard({
 
             {/* Danh Sách Cài Đặt (Cuộn êm nếu dài) */}
             <div className="p-5 flex flex-col gap-4 text-xs max-h-[75vh] overflow-y-auto pr-3.5">
-              {/* THẺ HỒ SƠ KỲ THỦ HIỂN THỊ ELO & LEVEL (VÙNG 3 TRONG CÀI ĐẶT) */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-sky-950/40 border border-amber-500/30 flex items-center justify-between shadow-inner">
+              {/* THẺ HỒ SƠ KỲ THỦ HIỂN THỊ ELO & LEVEL - BẤM ĐỂ MỞ HỒ SƠ CHI TIẾT */}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setSelectedProfileUser({
+                    id: myAccountId || 1,
+                    ten: myName,
+                    avatar: myAvatarUrl,
+                    gameElo: myElo,
+                    gameName: 'Cờ Tướng',
+                    anchorRect: {
+                      top: rect.top,
+                      left: rect.left,
+                      right: rect.right,
+                      bottom: rect.bottom,
+                    },
+                  })
+                }}
+                className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-sky-950/40 border border-amber-500/30 flex items-center justify-between shadow-inner cursor-pointer group"
+                title="Bấm để xem hồ sơ kỳ thủ & thành tựu"
+              >
                 <div className="flex items-center gap-3 min-w-0">
                   <EloRankAvatarFrame
                     ten={myName}
@@ -3124,7 +3110,7 @@ export function XiangqiBoard({
                     sizeClassName="size-11 sm:size-12"
                   />
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-gray-100 truncate">{myName}</div>
+                    <div className="text-sm font-bold text-gray-100 truncate group-hover:text-amber-300 transition-colors">{myName}</div>
                     <div className="text-[11px] text-amber-300/80 font-medium">Kỳ thủ cờ tướng</div>
                   </div>
                 </div>
@@ -3135,73 +3121,6 @@ export function XiangqiBoard({
                   <span className="px-3 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-extrabold tracking-wide shadow-xs">
                     Elo {myElo}
                   </span>
-                </div>
-              </div>
-
-              {/* MỤC 1: GHIM CÔNG CỤ QUANH AVATAR (TIỆN BẤM 1 LẦN ĐỂ SỬ DỤNG) */}
-              <div className="flex flex-col gap-2.5 p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Pin className="w-3.5 h-3.5 text-sky-400 fill-sky-400 rotate-45" />
-                    <span className="font-bold text-gray-200">Công cụ quanh avatar</span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-sky-400">
-                    {pinnedTools.length}/5 đã ghim
-                  </span>
-                </div>
-
-                {/* Danh sách 9 công cụ với nút Ghim và thao tác trực tiếp */}
-                <div className="flex flex-col divide-y divide-white/5 bg-[#11141c] border border-white/5 rounded-xl overflow-hidden">
-                  {(
-                    [
-                      'settings',
-                      'emoji',
-                      'mode',
-                      'hints',
-                      'invite',
-                      'draw',
-                      'resign',
-                      'win',
-                      'flip',
-                      'sound',
-                    ] as XiangqiToolId[]
-                  ).map((toolId) => {
-                    const tool = toolDefinitions[toolId]
-                    const isPinned = pinnedTools.includes(toolId)
-                    return (
-                      <div
-                        key={toolId}
-                        className="flex items-center justify-between px-3 py-2 hover:bg-white/[0.02] transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn('size-7 rounded-lg border flex items-center justify-center', tool.bubbleClassName)}>
-                            {tool.renderIcon(true)}
-                          </div>
-                          <span className="font-semibold text-gray-200 text-xs">
-                            {tool.title}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          {/* Nút Ghim vào cụm bong bóng quanh avatar */}
-                          <button
-                            type="button"
-                            onClick={() => handleTogglePinTool(toolId)}
-                            className={cn(
-                              'h-6 px-2 rounded-md border text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors duration-150',
-                              isPinned
-                                ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
-                                : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
-                            )}
-                            title={isPinned ? 'Bỏ ghim khỏi avatar' : 'Ghim vào xung quanh avatar'}
-                          >
-                            <Pin className={cn('w-2.5 h-2.5 transition-transform duration-150', isPinned && 'fill-sky-400 rotate-45')} />
-                            <span>{isPinned ? 'Đã ghim' : 'Ghim'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
                 </div>
               </div>
 

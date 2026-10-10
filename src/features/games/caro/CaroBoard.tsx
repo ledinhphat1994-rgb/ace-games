@@ -517,6 +517,7 @@ export function CaroBoard({
   const [selectedProfileUser, setSelectedProfileUser] = useState<NguoiXem | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [showHints, setShowHints] = useState(false)
   const [isFlipped, setIsFlipped] = useState(false)
   const [customMinutesInput, setCustomMinutesInput] = useState<number>(10)
   const [, setRecentlyChangedTime] = useState<number | null>(null)
@@ -2103,9 +2104,9 @@ export function CaroBoard({
                 </div>
               </div>
 
-              {/* MỤC 2: ÂM THANH */}
+              {/* MỤC 2: ÂM THANH CỜ */}
               <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
-                <span className="font-semibold text-gray-200">Âm thanh</span>
+                <span className="font-semibold text-gray-200">Âm thanh cờ</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -2118,7 +2119,22 @@ export function CaroBoard({
                 </label>
               </div>
 
-              {/* MỤC 3: XOAY BÀN CỜ */}
+              {/* MỤC 3: GỢI Ý NƯỚC ĐI */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
+                <span className="font-semibold text-gray-200">Gợi ý nước đi</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="btn-toggle-hints"
+                    checked={showHints}
+                    onChange={(e) => setShowHints(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                </label>
+              </div>
+
+              {/* MỤC 4: XOAY BÀN CỜ */}
               <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
                 <span className="font-semibold text-gray-200">Xoay bàn cờ</span>
                 <button

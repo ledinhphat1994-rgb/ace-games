@@ -329,6 +329,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   const [selectedProfileUser, setSelectedProfileUser] = useState<NguoiXem | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [showHints, setShowHints] = useState(false)
   const [customMinutesInput, setCustomMinutesInput] = useState<number>(10)
 
   const myAccountId = nguoiDung?.accountId ?? 0
@@ -1747,7 +1748,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                   />
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-gray-100 truncate group-hover:text-amber-300 transition-colors">{myName}</div>
-                    <div className="text-[11px] text-amber-300/80 font-medium">Người chơi trí nhớ</div>
+                    <div className="text-[11px] text-amber-300/80 font-medium">Kỳ thủ trí nhớ</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1835,9 +1836,9 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                 </div>
               </div>
 
-              {/* MỤC 2: ÂM THANH */}
+              {/* MỤC 2: ÂM THANH CỜ */}
               <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
-                <span className="font-semibold text-gray-200">Âm thanh</span>
+                <span className="font-semibold text-gray-200">Âm thanh cờ</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -1850,7 +1851,22 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                 </label>
               </div>
 
-              {/* MỤC 3: ĐẶT LẠI VÁN ĐẤU */}
+              {/* MỤC 3: GỢI Ý NƯỚC ĐI */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
+                <span className="font-semibold text-gray-200">Gợi ý nước đi</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="btn-toggle-hints"
+                    checked={showHints}
+                    onChange={(e) => setShowHints(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                </label>
+              </div>
+
+              {/* MỤC 4: ĐẶT LẠI VÁN ĐẤU */}
               <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-400" />
