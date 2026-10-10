@@ -1533,3 +1533,145 @@ export function BlueprintArcadePattern({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. HỌC TẬP: MŨ CỬ NHÂN & CUỐN SÁCH TRI THỨC 3D (Study Cap & Wisdom Book 3D)
+// Đồng bộ 100% phong cách App Icon Squircle Tím Sang Trọng
+// ─────────────────────────────────────────────────────────────────────────────
+export function IconStudy3D({ className, size = 32, ...props }: Icon3DProps) {
+  const id = `study${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      width={size}
+      height={size}
+      className={cn('shrink-0 select-none overflow-visible', className)}
+      fill="none"
+      {...props}
+    >
+      <defs>
+        {/* Khung squircle tím 3D */}
+        <linearGradient id={`${id}-bg`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2c146d" />
+          <stop offset="50%" stopColor="#210d57" />
+          <stop offset="100%" stopColor="#140638" />
+        </linearGradient>
+        <linearGradient id={`${id}-border`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#4c1d95" />
+        </linearGradient>
+        <linearGradient id={`${id}-gloss`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
+        </linearGradient>
+
+        {/* Mũ cử nhân Sapphire & Navy 3D */}
+        <linearGradient id={`${id}-cap-top`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="40%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#0f172a" />
+        </linearGradient>
+        <linearGradient id={`${id}-cap-base`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#082f49" />
+        </linearGradient>
+
+        {/* Tua rua vàng kim óng ánh */}
+        <linearGradient id={`${id}-tassel`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fef08a" />
+          <stop offset="50%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+
+        {/* Cuốn sách tri thức mở vàng gold & hổ phách */}
+        <linearGradient id={`${id}-book-pages`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#fefce8" />
+          <stop offset="50%" stopColor="#fef08a" />
+          <stop offset="100%" stopColor="#fde047" />
+        </linearGradient>
+        <linearGradient id={`${id}-book-cover`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#78350f" />
+        </linearGradient>
+
+        <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3.5" stdDeviation="2.5" floodColor="#080218" floodOpacity="0.8" />
+        </filter>
+        <filter id={`${id}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#f59e0b" floodOpacity="0.6" />
+        </filter>
+      </defs>
+
+      {/* ── Khung Squircle Tím Sang Trọng ── */}
+      <rect x="2" y="2" width="60" height="60" rx="16" fill={`url(#${id}-bg)`} stroke={`url(#${id}-border)`} strokeWidth="2.5" />
+      <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" stroke="#1b0846" strokeWidth="1.5" />
+      <path d="M5 20 C5 10 10 5 20 5 L44 5 C54 5 59 10 59 20 C59 28 50 34 32 34 C14 34 5 28 5 20 Z" fill={`url(#${id}-gloss)`} />
+
+      {/* ── MŨ CỬ NHÂN & CUỐN SÁCH TRI THỨC 3D ── */}
+      <g filter={`url(#${id}-shadow)`}>
+        {/* 1. Cuốn sách mở ở phía dưới */}
+        <g transform="translate(10, 32)">
+          {/* Bìa sách dưới */}
+          <path
+            d="M2 13 C12 8 20 12 22 13 C24 12 32 8 42 13 L40 18 C30 13 24 16 22 17 C20 16 14 13 4 18 Z"
+            fill={`url(#${id}-book-cover)`}
+          />
+          {/* Trang sách phát sáng uốn lượn */}
+          <path
+            d="M3 11 C13 6 20 10 22 11 C24 10 31 6 41 11 L40 15 C30 10 24 13 22 14 C20 13 14 10 4 15 Z"
+            fill={`url(#${id}-book-pages)`}
+            stroke="#fef08a"
+            strokeWidth="0.6"
+          />
+          {/* Gáy sách trung tâm */}
+          <line x1="22" y1="11" x2="22" y2="17" stroke="#b45309" strokeWidth="1" />
+        </g>
+
+        {/* 2. Mũ cử nhân 3D ở phía trên */}
+        <g transform="translate(10, 11)">
+          {/* Thân chóp tròn mũ */}
+          <path
+            d="M13 14 C13 18 17 21 22 21 C27 21 31 18 31 14 Z"
+            fill={`url(#${id}-cap-base)`}
+            stroke="#0284c7"
+            strokeWidth="0.8"
+          />
+          {/* Vành phẳng hình thoi vát 3D (Mortarboard rhombus) */}
+          <polygon
+            points="22,3 42,10 22,17 2,10"
+            fill={`url(#${id}-cap-top)`}
+            stroke="#38bdf8"
+            strokeWidth="1.2"
+          />
+          {/* Ánh sáng gương trên mặt phẳng mũ */}
+          <path d="M7 10 L22 5 L37 10" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
+
+          {/* Nút đính trung tâm */}
+          <circle cx="22" cy="10" r="2.2" fill={`url(#${id}-tassel)`} stroke="#fef08a" strokeWidth="0.5" />
+
+          {/* Dải dây tua rua vàng kim (Golden Tassel) uốn lượn */}
+          <path
+            d="M22 10 Q28 12 30 16 Q32 19 33 24"
+            stroke={`url(#${id}-tassel)`}
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            fill="none"
+          />
+          {/* Chùm quả chuông tua rua ở đuôi dây */}
+          <rect x="31" y="24" width="4" height="6" rx="1.5" fill={`url(#${id}-tassel)`} stroke="#fef08a" strokeWidth="0.5" />
+          <line x1="31.5" y1="30" x2="31.5" y2="33" stroke="#f59e0b" strokeWidth="0.8" />
+          <line x1="33" y1="30" x2="33" y2="33.5" stroke="#fef08a" strokeWidth="0.8" />
+          <line x1="34.5" y1="30" x2="34.5" y2="33" stroke="#f59e0b" strokeWidth="0.8" />
+        </g>
+
+        {/* 3. Ngôi sao tri thức lấp lánh bay lên */}
+        <polygon
+          points="13,8 14.2,11 17,11.5 14.8,13.5 15.5,16.5 13,15 10.5,16.5 11.2,13.5 9,11.5 11.8,11"
+          fill="#fef08a"
+          filter={`url(#${id}-glow)`}
+        />
+        <circle cx="50" cy="22" r="1.5" fill="#fef08a" filter={`url(#${id}-glow)`} />
+      </g>
+    </svg>
+  )
+}

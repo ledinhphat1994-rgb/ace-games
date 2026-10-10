@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router'
 import { Trophy, RefreshCw, Crown, Flame, AlertCircle, Medal } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { tinhLevel, type HighScoreRecord } from '@/features/games/GameLeaderboard'
+import {
+  IconStudy3D,
+  IconCrown3D,
+  IconXiangqiPiece3D,
+  IconCaroCubes3D,
+  IconSnakeApple3D,
+  IconManaCrystal3D,
+} from '@/features/games/GameArt3D'
 import type { SchoolStudyLeaderboardItem } from '@shared/protocol/engagement'
 
 export type LeaderboardCategory =
@@ -21,19 +29,22 @@ export type LeaderboardCategory =
 interface CategoryConfig {
   id: LeaderboardCategory
   label: string
-  icon: string
   sublabel: string
   metricLabel: string
+  Icon: React.ComponentType<{ size?: number | string; className?: string }>
 }
 
 const CATEGORIES: CategoryConfig[] = [
-  { id: 'hoc_tap', label: 'Học tập', icon: '📚', sublabel: 'XP học tập', metricLabel: 'XP' },
-  { id: 'chess', label: 'Cờ Vua', icon: '♟️', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm' },
-  { id: 'xiangqi', label: 'Cờ Tướng', icon: '🏮', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm' },
-  { id: 'caro_15', label: 'Caro', icon: '⚔️', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm' },
-  { id: 'solo_snake', label: 'Rắn Săn Mồi', icon: '🐍', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm' },
-  { id: 'solo_memory', label: 'Trí Nhớ', icon: '🧠', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm' },
+  { id: 'hoc_tap', label: 'Học tập', sublabel: 'XP học tập', metricLabel: 'XP', Icon: IconStudy3D },
+  { id: 'chess', label: 'Cờ Vua', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconCrown3D },
+  { id: 'xiangqi', label: 'Cờ Tướng', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconXiangqiPiece3D },
+  { id: 'caro_15', label: 'Caro', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconCaroCubes3D },
+  { id: 'solo_snake', label: 'Rắn Săn Mồi', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconSnakeApple3D },
+  { id: 'solo_memory', label: 'Trí Nhớ', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconManaCrystal3D },
 ]
+
+// Nhân bản 3 lần danh sách danh mục để tạo đường trượt vô tận mượt mà
+const REPEATED_CATEGORIES = [...CATEGORIES, ...CATEGORIES, ...CATEGORIES]
 
 interface UnifiedRankingEntry {
   rank: number
@@ -71,6 +82,15 @@ export function LeaderboardPage() {
   const [category, setCategoryState] = useState<LeaderboardCategory>(initialCat)
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
 
+  // ── Drag & Slow Auto-scroll State cho Vùng 2 (Tabs Game Logos) ──
+  const scrollTrackRef = useRef<HTMLDivElement>(null)
+  const isInteractingRef = useRef(false)
+  const startXRef = useRef(0)
+  const scrollStartRef = useRef(0)
+  const hasMovedRef = useRef(false)
+  const rafAutoScrollId = useRef<number | null>(null)
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const setCategory = useCallback(
     (newCat: LeaderboardCategory) => {
       setCategoryState(newCat)
@@ -86,6 +106,136 @@ export function LeaderboardPage() {
       )
     },
     [setSearchParams],
+  )
+
+  // ── Hiệu ứng Auto-scroll chạy ngang từ từ & Hold-and-Drag linh hoạt ──
+  useEffect(() => {
+    const el = scrollTrackRef.current
+    if (!el) return
+
+    // Canh giữa track ban đầu
+    const oneSetWidth = el.scrollWidth / 3
+    if (el.scrollLeft === 0 && oneSetWidth > 0) {
+      el.scrollLeft = oneSetWidth
+    }
+
+    const autoScrollLoop = () => {
+      if (!isInteractingRef.current && el) {
+        el.scrollLeft += 0.45 // Tốc độ chạy ngang từ từ êm dịu
+        const currentOneSet = el.scrollWidth / 3
+        if (currentOneSet > 0) {
+          if (el.scrollLeft >= currentOneSet * 2) {
+            el.scrollLeft -= currentOneSet
+          } else if (el.scrollLeft <= 0) {
+            el.scrollLeft += currentOneSet
+          }
+        }
+      }
+      rafAutoScrollId.current = requestAnimationFrame(autoScrollLoop)
+    }
+
+    rafAutoScrollId.current = requestAnimationFrame(autoScrollLoop)
+
+    return () => {
+      if (rafAutoScrollId.current) cancelAnimationFrame(rafAutoScrollId.current)
+      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
+    }
+  }, [])
+
+  const pauseAutoScroll = useCallback(() => {
+    isInteractingRef.current = true
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
+  }, [])
+
+  const scheduleResumeAutoScroll = useCallback(() => {
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
+    resumeTimeoutRef.current = setTimeout(() => {
+      isInteractingRef.current = false
+    }, 1500)
+  }, [])
+
+  // Mouse Drag Handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !scrollTrackRef.current) return
+    pauseAutoScroll()
+    startXRef.current = e.pageX
+    scrollStartRef.current = scrollTrackRef.current.scrollLeft
+    hasMovedRef.current = false
+  }, [pauseAutoScroll])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isInteractingRef.current || e.buttons !== 1 || !scrollTrackRef.current) return
+    const deltaX = e.pageX - startXRef.current
+    if (Math.abs(deltaX) > 4) {
+      hasMovedRef.current = true
+    }
+    const el = scrollTrackRef.current
+    el.scrollLeft = scrollStartRef.current - deltaX
+    const oneSet = el.scrollWidth / 3
+    if (oneSet > 0) {
+      if (el.scrollLeft >= oneSet * 2) {
+        el.scrollLeft -= oneSet
+        scrollStartRef.current -= oneSet
+      } else if (el.scrollLeft <= 0) {
+        el.scrollLeft += oneSet
+        scrollStartRef.current += oneSet
+      }
+    }
+  }, [])
+
+  const handleMouseUp = useCallback(() => {
+    scheduleResumeAutoScroll()
+    setTimeout(() => {
+      hasMovedRef.current = false
+    }, 60)
+  }, [scheduleResumeAutoScroll])
+
+  // Touch Drag Handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!scrollTrackRef.current || e.touches.length !== 1) return
+    pauseAutoScroll()
+    startXRef.current = e.touches[0].pageX
+    scrollStartRef.current = scrollTrackRef.current.scrollLeft
+    hasMovedRef.current = false
+  }, [pauseAutoScroll])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isInteractingRef.current || !scrollTrackRef.current || e.touches.length !== 1) return
+    const deltaX = e.touches[0].pageX - startXRef.current
+    if (Math.abs(deltaX) > 4) {
+      hasMovedRef.current = true
+    }
+    const el = scrollTrackRef.current
+    el.scrollLeft = scrollStartRef.current - deltaX
+    const oneSet = el.scrollWidth / 3
+    if (oneSet > 0) {
+      if (el.scrollLeft >= oneSet * 2) {
+        el.scrollLeft -= oneSet
+        scrollStartRef.current -= oneSet
+      } else if (el.scrollLeft <= 0) {
+        el.scrollLeft += oneSet
+        scrollStartRef.current += oneSet
+      }
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    scheduleResumeAutoScroll()
+    setTimeout(() => {
+      hasMovedRef.current = false
+    }, 60)
+  }, [scheduleResumeAutoScroll])
+
+  const handleCategoryClick = useCallback(
+    (catId: LeaderboardCategory, e: React.MouseEvent) => {
+      if (hasMovedRef.current) {
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+      setCategory(catId)
+    },
+    [setCategory],
   )
 
   // ── 1. Fetch School-wide Study Leaderboard (Toàn trường) ──
@@ -224,110 +374,110 @@ export function LeaderboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12" data-testid="leaderboard-page">
-      {/* ── 1. Cyber Hero Banner (Bảng xếp hạng & Vinh danh) ── */}
-      <div className="relative w-full min-h-[440px] lg:min-h-[480px] flex flex-col justify-center overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-r from-[#0d0903] via-[#1a1205] to-[#0a0702] p-8 sm:p-12 lg:p-16 shadow-[0_0_40px_rgba(245,158,11,0.18)] select-none">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.18),rgba(255,255,255,0))]" />
-
-        {/* Artwork anime vinh danh danh dự toàn cảnh */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+      {/* ── 1. Cyber Hero Banner (Vùng 1: Tiêu đề ngắn gọn, show trọn vẹn toàn cảnh ảnh gốc không cắt góc) ── */}
+      <div className="relative w-full aspect-[16/9] max-h-[320px] sm:max-h-[380px] lg:max-h-[420px] flex flex-col justify-end overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/30 bg-gradient-to-r from-[#0d0903] via-[#1a1205] to-[#0a0702] p-4 sm:p-6 lg:p-8 shadow-[0_0_35px_rgba(245,158,11,0.18)] select-none">
+        {/* Artwork anime vinh danh toàn cảnh - Hiển thị toàn vẹn 100% ảnh gốc, không bị cắt góc */}
+        <div className="absolute inset-0 pointer-events-none select-none">
           <img
             src="/assets/banners/leaderboard_hero_cyber.webp"
-            alt="Bảng xếp hạng Ace Games"
+            alt="Bảng xếp hạng"
             loading="eager"
             decoding="async"
-            className="w-full h-full object-cover object-center opacity-85 lg:opacity-90"
+            className="w-full h-full object-contain sm:object-cover object-center opacity-95"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0d0903] via-[#0d0903]/85 via-45% to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0a0702] via-[#0a0702]/80 to-transparent" />
+          {/* Lớp gradient mỏng nhẹ chỉ để tôn chữ tiêu đề mà không che khuất bức tranh gốc */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
         </div>
 
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-bold text-amber-400 backdrop-blur-md mb-4 shadow-sm">
-            <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="tracking-wider uppercase">BẢNG XẾP HẠNG TOÀN TRƯỜNG</span>
+        {/* Tiêu đề ngắn gọn & Nút làm mới dữ liệu - Obvious UI Chỉ ghi tiêu đề ngắn gọn */}
+        <div className="relative z-10 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
+              Bảng xếp hạng
+            </h1>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
-            Tôn vinh nỗ lực,
-            <br />
-            chinh phục đỉnh cao.
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200">
-              Vinh danh thành tích học sinh toàn trường.
-            </span>
-          </h1>
-
-          <div className="mt-4 flex items-center gap-2 text-sm text-slate-300 leading-relaxed max-w-xl">
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Xác thực máy chủ tự động · Cập nhật thời gian thực</span>
-          </div>
-
-          <div className="mt-8 flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isLoading || isRefetching}
-              className="h-11 gap-2 rounded-xl border-amber-500/40 bg-amber-500/15 px-5 text-sm font-bold text-amber-300 hover:bg-amber-500/25 hover:text-white transition-colors cursor-pointer shadow-md"
-              title="Làm mới bảng xếp hạng"
-              aria-label="Làm mới bảng xếp hạng"
-            >
-              <RefreshCw className={cn('size-4', (isLoading || isRefetching) && 'animate-spin')} />
-              <span>Làm mới dữ liệu</span>
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading || isRefetching}
+            className="h-8 sm:h-9 px-3 gap-1.5 rounded-xl border-amber-500/40 bg-black/50 hover:bg-amber-500/20 text-amber-300 text-xs font-bold backdrop-blur-md cursor-pointer transition-colors shadow-sm"
+            title="Làm mới bảng xếp hạng"
+            aria-label="Làm mới bảng xếp hạng"
+          >
+            <RefreshCw className={cn('size-3.5', (isLoading || isRefetching) && 'animate-spin')} />
+            <span className="hidden xs:inline">Làm mới</span>
+          </Button>
         </div>
       </div>
 
       {/* ── Bảng xếp hạng chính (Full width) ── */}
       <div className="space-y-6 min-w-0">
         <div className="min-w-0 space-y-6">
-          {/* ── 2. Category Selector (Authoritative Tabs - Fixed Grid & Uniform Dimensions) ── */}
-          <section aria-label="Lựa chọn danh mục xếp hạng">
+          {/* ── 2. Category Selector (Vùng 2: Logo Game Tabs - Chạy ngang từ từ & Hold-and-drag kéo qua kéo lại để chọn) ── */}
+          <section aria-label="Lựa chọn danh mục xếp hạng" className="relative group">
             <div
               role="tablist"
               aria-label="Danh mục bảng xếp hạng"
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5"
+              ref={scrollTrackRef}
               data-testid="category-tabs"
+              className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1.5 px-0.5 cursor-grab active:cursor-grabbing select-none"
+              onMouseEnter={pauseAutoScroll}
+              onMouseLeave={scheduleResumeAutoScroll}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
-              {CATEGORIES.map((cat) => {
+              {REPEATED_CATEGORIES.map((cat, idx) => {
                 const isActive = category === cat.id
+                const IconComp = cat.Icon
                 return (
                   <button
-                    key={cat.id}
+                    key={`${cat.id}-${idx}`}
                     role="tab"
                     type="button"
                     aria-selected={isActive}
-                    onClick={() => setCategory(cat.id)}
+                    onClick={(e) => handleCategoryClick(cat.id, e)}
                     className={cn(
-                      'h-12 flex items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs sm:text-sm font-bold transition-colors duration-150 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand border-2',
+                      'w-[104px] sm:w-[120px] shrink-0 p-2.5 sm:p-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-colors duration-150 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand border-2',
                       isActive
-                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/60 shadow-xs'
-                        : 'border-border-default/80 bg-surface/80 text-text-secondary hover:bg-surface-overlay hover:text-text-primary hover:border-border-default',
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/40'
+                        : 'border-border-default/80 bg-surface/85 text-text-secondary hover:bg-surface-overlay hover:text-text-primary hover:border-amber-500/40',
                     )}
+                    title={cat.label}
                   >
-                    <span>{cat.icon}</span>
-                    <span className="truncate">{cat.label}</span>
+                    <div className="size-11 sm:size-12 flex items-center justify-center">
+                      <IconComp size={44} />
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold truncate max-w-full">
+                      {cat.label}
+                    </span>
                   </button>
                 )
               })}
             </div>
           </section>
 
-          {/* ── 3. Khung Card Chính Cố Định (Fixed Stage Container - Zero Layout Shift) ── */}
+          {/* ── 3. Khung Card Chính Cố Định (Vùng 3: Thẩm mỹ cao, màu sắc sang trọng, chuyên nghiệp, không dài dòng) ── */}
           <section
             aria-label="Bảng vinh danh chính"
-            className="rounded-3xl border-2 border-border-default/80 bg-surface/90 backdrop-blur-md shadow-sm min-h-[580px] lg:min-h-[640px] flex flex-col overflow-hidden"
+            className="rounded-3xl border-2 border-amber-500/30 bg-surface/90 backdrop-blur-md shadow-lg min-h-[580px] lg:min-h-[640px] flex flex-col overflow-hidden relative"
           >
             {/* Header Cố Định Tại Đỉnh Card Chính */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-border-subtle bg-surface-raised/40 shrink-0">
               <div className="flex items-center gap-2.5">
-                <Trophy className="size-5 text-amber-500 shrink-0" />
-                <h2 className="font-bold text-sm sm:text-base text-text-primary">
+                <div className="size-8 sm:size-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-xs">
+                  <Trophy className="size-4.5 sm:size-5 text-amber-500" />
+                </div>
+                <h2 className="font-bold text-base sm:text-lg text-text-primary">
                   Bảng vinh danh {activeCategoryConfig.label}
                 </h2>
               </div>
-              <div className="inline-flex items-center gap-1.5 text-xs text-text-tertiary font-medium">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-400">
                 <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                 <span>Thời gian thực</span>
               </div>
@@ -595,6 +745,8 @@ export function LeaderboardPage() {
                       <div className="divide-y divide-border-subtle">
                         {restEntries.map((item) => {
                           const isClickable = Boolean(item.accountId)
+                          const isTop5 = item.rank <= 5
+                          const isTop10 = item.rank <= 10
                           return (
                             <div
                               key={item.id}
@@ -607,9 +759,20 @@ export function LeaderboardPage() {
                               )}
                             >
                               {/* Rank */}
-                              <span className="text-center text-sm font-black text-text-tertiary tabular-nums">
-                                #{item.rank}
-                              </span>
+                              <div className="flex justify-center items-center">
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center justify-center size-6 sm:size-7 rounded-lg text-xs tabular-nums select-none',
+                                    isTop5
+                                      ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-black shadow-xs'
+                                      : isTop10
+                                        ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold'
+                                        : 'bg-surface-raised/80 text-text-secondary border border-border-subtle font-semibold',
+                                  )}
+                                >
+                                  {item.rank}
+                                </span>
+                              </div>
 
                               {/* Member info */}
                               <div className="flex items-center gap-3 min-w-0 pr-2">
@@ -621,7 +784,7 @@ export function LeaderboardPage() {
                                       onClick={(e) =>
                                         moHoSo(item.accountId!, item.name, item.avatar, e.currentTarget.getBoundingClientRect())
                                       }
-                                      className="text-left font-bold text-xs sm:text-sm text-text-primary hover:text-brand transition-colors truncate block max-w-full cursor-pointer outline-none focus-visible:underline"
+                                      className="text-left font-bold text-xs sm:text-sm text-text-primary hover:text-amber-400 transition-colors truncate block max-w-full cursor-pointer outline-none focus-visible:underline"
                                     >
                                       {item.name}
                                     </button>
@@ -658,7 +821,7 @@ export function LeaderboardPage() {
 
                               {/* Score */}
                               <div className="text-right">
-                                <span className="font-mono text-xs sm:text-sm font-bold text-text-primary tabular-nums">
+                                <span className="font-mono text-xs sm:text-sm font-black text-amber-500 dark:text-amber-400 tabular-nums">
                                   {item.score.toLocaleString('vi-VN')}
                                 </span>
                                 <span className="ml-1 text-[11px] text-text-tertiary font-normal">
