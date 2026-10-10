@@ -19,14 +19,13 @@ describe('Cửa hàng vật phẩm Separation & Sidebar Integration', () => {
     expect(achievementsModalRaw).toContain('Thoát')
   })
 
-  it('2. Vùng 2: Cửa hàng vật phẩm nằm ở cuối danh sách sidebar', () => {
-    // MAIN_NAV_ITEMS có item cuối cùng là /shop với label 'Cửa hàng vật phẩm'
-    const visibleItems = MAIN_NAV_ITEMS.filter((item) => !item.hidden)
-    const lastItem = visibleItems[visibleItems.length - 1]
+  it('2. Vùng 2: Cửa hàng vật phẩm được ẩn ở bên sidebar theo yêu cầu', () => {
+    // MAIN_NAV_ITEMS có item /shop được ẩn (hidden: true)
+    expect(MAIN_NAV_ITEMS.find((item) => item.to === '/shop')?.hidden).toBe(true)
 
-    expect(lastItem.to).toBe('/shop')
-    expect(lastItem.label).toBe('Cửa hàng vật phẩm')
-    expect(lastItem.shortLabel).toBe('Cửa hàng')
+    // Các item hiển thị trên sidebar không bao gồm /shop
+    const visibleItems = MAIN_NAV_ITEMS.filter((item) => !item.hidden)
+    expect(visibleItems.some((item) => item.to === '/shop')).toBe(false)
 
     // AppSidebar sử dụng MAIN_NAV_ITEMS để render danh sách điều hướng
     expect(appSidebarRaw).toContain('MAIN_NAV_ITEMS')

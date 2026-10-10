@@ -631,7 +631,7 @@ export function CampusChatSheet({
                 )}
               </button>
 
-              {/* Tab 2: Toàn trường */}
+              {/* Tab 2: Toàn trường -> Chung */}
               <button
                 type="button"
                 onClick={() => {
@@ -644,11 +644,11 @@ export function CampusChatSheet({
                     ? 'border-brand/40 bg-brand/12 text-brand'
                     : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
                 )}
-                title="Toàn trường"
-                aria-label="Tab Toàn trường"
+                title="Chung"
+                aria-label="Tab Chung"
               >
                 <School className="size-3.5 shrink-0" />
-                <span>Trường</span>
+                <span>Chung</span>
                 {coTinNhanMoiCampus && (
                   <span className="size-2 rounded-full bg-destructive animate-pulse" />
                 )}
@@ -798,8 +798,8 @@ export function CampusChatSheet({
                 onDeleteMessage={onDeleteMessage}
                 hideHeader
                 className="min-h-0 flex-1"
-                placeholder="Nhập tin nhắn toàn trường…"
-                emptyMessage={searchQuery ? 'Không tìm thấy tin nhắn nào khớp.' : 'Chưa có tin nhắn toàn trường.'}
+                placeholder="Nhập tin nhắn chung…"
+                emptyMessage={searchQuery ? 'Không tìm thấy tin nhắn nào khớp.' : 'Chưa có tin nhắn chung.'}
               />
             ) : currentDmTarget ? (
               <DirectMessageThread

@@ -9,7 +9,6 @@ import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { tinhLevel, type HighScoreRecord } from '@/features/games/GameLeaderboard'
 import {
-  IconStudy3D,
   IconCrown3D,
   IconXiangqiPiece3D,
   IconCaroCubes3D,
@@ -35,7 +34,6 @@ interface CategoryConfig {
 }
 
 const CATEGORIES: CategoryConfig[] = [
-  { id: 'hoc_tap', label: 'Học tập', sublabel: 'XP học tập', metricLabel: 'XP', Icon: IconStudy3D },
   { id: 'chess', label: 'Cờ Vua', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconCrown3D },
   { id: 'xiangqi', label: 'Cờ Tướng', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconXiangqiPiece3D },
   { id: 'caro_15', label: 'Caro', sublabel: 'Kỷ lục xác thực', metricLabel: 'điểm', Icon: IconCaroCubes3D },
@@ -61,15 +59,15 @@ interface UnifiedRankingEntry {
 }
 
 function parseCategoryParam(raw: string | null): LeaderboardCategory {
-  if (!raw) return 'hoc_tap'
+  if (!raw) return 'chess'
   const clean = raw.toLowerCase().trim()
-  if (clean === 'study' || clean === 'hoc_tap') return 'hoc_tap'
   if (clean === 'chess') return 'chess'
   if (clean === 'xiangqi') return 'xiangqi'
   if (clean === 'caro' || clean === 'caro_15') return 'caro_15'
   if (clean === 'snake' || clean === 'solo_snake') return 'solo_snake'
   if (clean === 'memory' || clean === 'solo_memory') return 'solo_memory'
-  return 'hoc_tap'
+  if (clean === 'study' || clean === 'hoc_tap') return 'hoc_tap'
+  return 'chess'
 }
 
 export function LeaderboardPage() {

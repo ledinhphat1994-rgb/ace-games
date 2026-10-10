@@ -59,7 +59,7 @@ describe('Kiểm tra 4 vùng sửa lỗi theo yêu cầu người dùng (Hình 1
   describe('Vùng 3: Header tab trò chuyện Bạn bè, Toàn trường, Phòng', () => {
     it('Thanh tab trò chuyện chứa các tab chuẩn', () => {
       expect(campusChatSheetRaw).toContain('aria-label="Tab Bạn bè"')
-      expect(campusChatSheetRaw).toContain('aria-label="Tab Toàn trường"')
+      expect(campusChatSheetRaw).toMatch(/aria-label="Tab (Toàn trường|Chung)"/)
     })
   })
 

@@ -40,7 +40,7 @@ export interface SidebarNavItem {
 export const MAIN_NAV_ITEMS: SidebarNavItem[] = [
   { to: '/arena', label: 'Đấu trường Game', shortLabel: 'Game', icon: Gamepad2 },
   { to: '/leaderboard', label: 'Bảng xếp hạng', shortLabel: 'Xếp hạng', icon: Trophy },
-  { to: '/shop', label: 'Cửa hàng vật phẩm', shortLabel: 'Cửa hàng', icon: ShoppingBag },
+  { to: '/shop', label: 'Cửa hàng vật phẩm', shortLabel: 'Cửa hàng', icon: ShoppingBag, hidden: true },
   { to: '/', label: 'Trang chủ', shortLabel: 'Trang chủ', icon: Home, exact: true, hidden: true },
   { to: '/learn', label: 'Học tập', shortLabel: 'Học tập', icon: BookOpen, hidden: true },
   { to: '/community', label: 'Cộng đồng', shortLabel: 'Cộng đồng', icon: Users, hidden: true },
@@ -49,7 +49,7 @@ export const MAIN_NAV_ITEMS: SidebarNavItem[] = [
 export const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
   { to: '/arena', label: 'Đấu trường Game', icon: Gamepad2 },
   { to: '/leaderboard', label: 'Bảng xếp hạng', icon: Trophy },
-  { to: '/shop', label: 'Cửa hàng vật phẩm', icon: ShoppingBag },
+  { to: '/shop', label: 'Cửa hàng vật phẩm', icon: ShoppingBag, hidden: true },
   { to: '/', label: 'Trang chủ', icon: Home, exact: true, hidden: true },
   { to: '/learn', label: 'Học tập', icon: BookOpen, hidden: true },
   { to: '/community', label: 'Cộng đồng', icon: Users, hidden: true },
@@ -57,7 +57,7 @@ export const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
 
 export const SIDEBAR_SECONDARY_NAV: SidebarNavItem[] = [
   { to: '/leaderboard', label: 'Bảng xếp hạng', icon: Trophy },
-  { to: '/shop', label: 'Cửa hàng vật phẩm', icon: ShoppingBag },
+  { to: '/shop', label: 'Cửa hàng vật phẩm', icon: ShoppingBag, hidden: true },
 ]
 
 /**

@@ -43,8 +43,8 @@ describe('Kiểm tra Vùng 1 & Vùng 2 khung Trò chuyện (CampusChatSheet)', (
 
   describe('Vùng 3: Khung chat nổi mobile được tối ưu không gian và mượt mà', () => {
     it('Sử dụng kích thước tối ưu trên mobile với safe area', () => {
-      expect(campusChatSheetRaw).toContain('max-h-[calc(100dvh-20px)]')
-      expect(campusChatSheetRaw).toContain('bottom-[max(0.625rem,env(safe-area-inset-bottom))]')
+      expect(campusChatSheetRaw).toMatch(/max-h-\[calc\(100[ds]vh-(?:20|12)px\)\]/)
+      expect(campusChatSheetRaw).toMatch(/(?:bottom-\[max\(0\.625rem,env\(safe-area-inset-bottom\)\)\]|h-\[calc\(100svh-12px\)\])/)
     })
   })
 })

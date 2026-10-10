@@ -22,9 +22,9 @@ describe('Leaderboard Fixes — Vùng 1, Vùng 2, Vùng 3', () => {
   })
 
   // ── 2. Vùng 2: Logo Game Tabs — Chạy ngang từ từ & Hold-and-drag kéo qua kéo lại ──
-  it('3. Vùng 2: Sử dụng logo game 3D cho tất cả các tab bao gồm học tập', () => {
+  it('3. Vùng 2: Sử dụng logo game 3D cho các tab game và xóa logo học tập theo yêu cầu', () => {
     expect(gameArtRaw).toContain('export function IconStudy3D')
-    expect(leaderboardRaw).toContain('IconStudy3D')
+    expect(leaderboardRaw).not.toContain('IconStudy3D')
     expect(leaderboardRaw).toContain('IconCrown3D')
     expect(leaderboardRaw).toContain('IconXiangqiPiece3D')
     expect(leaderboardRaw).toContain('IconCaroCubes3D')
