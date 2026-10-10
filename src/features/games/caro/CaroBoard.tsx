@@ -733,6 +733,7 @@ export function CaroBoard({
 
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const quickMenuRef = useRef<HTMLDivElement>(null)
+  const desktopQuickMenuRef = useRef<HTMLDivElement>(null)
   const lastEmojiTriggerRef = useRef<HTMLElement | null>(null)
   const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
 
@@ -808,11 +809,17 @@ export function CaroBoard({
   useEffect(() => {
     if (!isQuickMenuOpen) return
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (quickMenuRef.current && !quickMenuRef.current.contains(e.target as Node)) {
-        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emoji, #mobile-tool-emoji, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
-        if (!trigger) {
-          setIsQuickMenuOpen(false)
-        }
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (
+        (quickMenuRef.current && quickMenuRef.current.contains(target)) ||
+        (desktopQuickMenuRef.current && desktopQuickMenuRef.current.contains(target))
+      ) {
+        return
+      }
+      const trigger = target.closest?.('#tool-bubble-emoji, #mobile-tool-emoji, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+      if (!trigger) {
+        setIsQuickMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -1377,6 +1384,7 @@ export function CaroBoard({
               id="mobile-quick-menu-container"
               ref={quickMenuRef}
               aria-label="Tin nhắn nhanh"
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 position: 'fixed',
                 left: `${quickMenuPos.left}px`,
@@ -1665,7 +1673,8 @@ export function CaroBoard({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            ref={quickMenuRef}
+            ref={desktopQuickMenuRef}
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
               left: `${quickMenuPos.left}px`,

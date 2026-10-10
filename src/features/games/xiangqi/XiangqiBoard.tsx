@@ -642,10 +642,35 @@ export function XiangqiBoard({
   }
 
   // Lắng nghe tin nhắn cảm xúc từ đối thủ qua online chat
+  const lastHandledEmojiMsgIdRef = useRef<string | number | null>(null)
+  const isFirstMountEmojiRef = useRef(true)
+
   useEffect(() => {
     if (!online?.chat || online.chat.length === 0) return
+
+    // Khi vừa vào phòng, ghi nhận ID tin nhắn cuối cùng hiện tại để không đọc lại lịch sử cũ
+    if (isFirstMountEmojiRef.current) {
+      isFirstMountEmojiRef.current = false
+      const initialLastMsg = online.chat[online.chat.length - 1]
+      if (initialLastMsg) {
+        lastHandledEmojiMsgIdRef.current =
+          initialLastMsg.id || (initialLastMsg as any).thoiGian || `${online.chat.length}_${initialLastMsg.text}`
+      }
+      return
+    }
+
     const lastMsg = online.chat[online.chat.length - 1]
-    if (lastMsg && typeof lastMsg.text === 'string' && lastMsg.text.startsWith('[SYS_XQ_EMOJI]:')) {
+    if (!lastMsg) return
+
+    // Bỏ qua tin nhắn do chính mình gửi (tránh hiển thị tin của mình lên đầu đối thủ)
+    const isFromMe = String(lastMsg.accountId) === online.myActorKey?.replace(/^acc:/, '')
+    if (isFromMe) return
+
+    const msgId = lastMsg.id || (lastMsg as any).thoiGian || `${online.chat.length}_${lastMsg.text}`
+    if (lastHandledEmojiMsgIdRef.current === msgId) return
+    lastHandledEmojiMsgIdRef.current = msgId
+
+    if (typeof lastMsg.text === 'string' && lastMsg.text.startsWith('[SYS_XQ_EMOJI]:')) {
       const content = lastMsg.text.replace('[SYS_XQ_EMOJI]:', '').trim()
       // Tách emoji nếu có (ví dụ: "👏 Nước cờ hay")
       const parts = content.split(' ')
@@ -657,7 +682,7 @@ export function XiangqiBoard({
       if (oppMsgTimerRef.current) clearTimeout(oppMsgTimerRef.current)
       oppMsgTimerRef.current = setTimeout(() => setOpponentQuickMessage(null), 4000)
     }
-  }, [online?.chat])
+  }, [online?.chat, online?.myActorKey])
 
   const handleSendQuickMessage = (text: string, emoji?: string) => {
     setIsQuickMenuOpen(false)
@@ -3431,6 +3456,7 @@ export function XiangqiBoard({
             data-testid="vung-2-quick-chat-container"
             ref={quickMenuRef}
             aria-label="Tin nhắn nhanh"
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
               left: `${quickMenuPos.left}px`,

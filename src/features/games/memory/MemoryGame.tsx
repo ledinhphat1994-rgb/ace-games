@@ -307,11 +307,14 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   useEffect(() => {
     if (!isQuickMenuOpen) return
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (quickMenuRef.current && !quickMenuRef.current.contains(e.target as Node)) {
-        const trigger = (e.target as HTMLElement).closest('#tool-bubble-emoji, #mobile-tool-emoji, #tool-bubble-emote, #mobile-tool-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
-        if (!trigger) {
-          setIsQuickMenuOpen(false)
-        }
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (quickMenuRef.current && quickMenuRef.current.contains(target)) {
+        return
+      }
+      const trigger = target.closest?.('#tool-bubble-emoji, #mobile-tool-emoji, #tool-bubble-emote, #mobile-tool-emote, [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+      if (!trigger) {
+        setIsQuickMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -1277,6 +1280,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
               id="mobile-quick-menu-container"
               ref={quickMenuRef}
               aria-label="Tin nhắn nhanh"
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 position: 'fixed',
                 left: `${quickMenuPos.left}px`,

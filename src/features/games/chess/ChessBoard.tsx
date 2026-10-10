@@ -1003,6 +1003,7 @@ export function ChessBoard({
   // Quick menu emoji & chat
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const quickMenuRef = useRef<HTMLDivElement>(null)
+  const desktopQuickMenuRef = useRef<HTMLDivElement>(null)
   const lastEmojiTriggerRef = useRef<HTMLElement | null>(null)
   const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
 
@@ -1080,11 +1081,15 @@ export function ChessBoard({
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement | null
       if (!target) return
-      if (quickMenuRef.current && !quickMenuRef.current.contains(target)) {
-        const trigger = target.closest?.('#mobile-tool-emoji, #tool-bubble-emote, [id*="emoji"], [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
-        if (!trigger) {
-          setIsQuickMenuOpen(false)
-        }
+      if (
+        (quickMenuRef.current && quickMenuRef.current.contains(target)) ||
+        (desktopQuickMenuRef.current && desktopQuickMenuRef.current.contains(target))
+      ) {
+        return
+      }
+      const trigger = target.closest?.('#mobile-tool-emoji, #tool-bubble-emote, [id*="emoji"], [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+      if (!trigger) {
+        setIsQuickMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -1541,6 +1546,7 @@ export function ChessBoard({
               id="mobile-quick-menu-container"
               ref={quickMenuRef}
               aria-label="Tin nhắn nhanh"
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 position: 'fixed',
                 left: `${quickMenuPos.left}px`,
@@ -1828,7 +1834,8 @@ export function ChessBoard({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            ref={quickMenuRef}
+            ref={desktopQuickMenuRef}
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
               left: `${quickMenuPos.left}px`,
