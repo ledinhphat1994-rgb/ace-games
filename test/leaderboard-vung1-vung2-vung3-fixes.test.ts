@@ -30,6 +30,7 @@ describe('Leaderboard Fixes — Vùng 1, Vùng 2, Vùng 3', () => {
     expect(leaderboardRaw).toContain('IconCaroCubes3D')
     expect(leaderboardRaw).toContain('IconSnakeApple3D')
     expect(leaderboardRaw).toContain('IconManaCrystal3D')
+    expect(leaderboardRaw).toContain('size={76}')
   })
 
   it('4. Vùng 2: Hỗ trợ cuộn ngang tự động (auto-scroll) và hold-and-drag chuột + cảm ứng', () => {

@@ -443,17 +443,21 @@ export function LeaderboardPage() {
                     aria-selected={isActive}
                     onClick={(e) => handleCategoryClick(cat.id, e)}
                     className={cn(
-                      'w-[104px] sm:w-[120px] shrink-0 p-2.5 sm:p-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-colors duration-150 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand border-2',
+                      'w-[110px] sm:w-[124px] shrink-0 p-1.5 sm:p-2 rounded-2xl flex flex-col items-center justify-between gap-1 transition-colors duration-150 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand border-2',
                       isActive
                         ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/40'
                         : 'border-border-default/80 bg-surface/85 text-text-secondary hover:bg-surface-overlay hover:text-text-primary hover:border-amber-500/40',
                     )}
                     title={cat.label}
                   >
-                    <div className="size-11 sm:size-12 flex items-center justify-center">
-                      <IconComp size={44} />
+                    {/* Logo game to rõ tràn viền theo yêu cầu người dùng */}
+                    <div className="w-full flex items-center justify-center py-0.5 overflow-visible">
+                      <IconComp
+                        size={76}
+                        className="w-[74px] h-[74px] sm:w-[86px] sm:h-[86px] drop-shadow-md select-none pointer-events-none"
+                      />
                     </div>
-                    <span className="text-xs sm:text-sm font-bold truncate max-w-full">
+                    <span className="text-xs sm:text-sm font-bold truncate max-w-full text-center pb-0.5">
                       {cat.label}
                     </span>
                   </button>

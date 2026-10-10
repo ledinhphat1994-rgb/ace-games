@@ -31,21 +31,22 @@ describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)'
     })
   })
 
-  describe('Yêu cầu 3 (Ảnh 3): Đưa Vùng 3 (Số bàn đấu) xuống Vùng X ở góc trái dưới cùng', () => {
-    it('badge số bàn không còn nằm trong top header cạnh nút Sảnh', () => {
-      // Header chỉ còn Sảnh và Riêng tư
+  describe('Yêu cầu hoán đổi Vùng 1, Vùng 2 và Vùng X theo ảnh mới nhất', () => {
+    it('Vùng 2 (số bàn đấu) thay thế Vùng 1 trên top header', () => {
       const headerArea = xiangqiBoardRaw.slice(
         xiangqiBoardRaw.indexOf('<header'),
         xiangqiBoardRaw.indexOf('</header>')
       )
-      expect(headerArea).not.toContain('soPhongHienThi')
-      expect(headerArea).not.toContain('帥')
+      expect(headerArea).toContain('id="room-number-badge-header"')
+      expect(headerArea).toContain('soPhongHienThi')
+      expect(headerArea).toContain('帥')
+      expect(headerArea).not.toContain('id="game-leave-btn"')
     })
 
-    it('badge số bàn được chuyển xuống vị trí Vùng X ở góc trái dưới cùng', () => {
-      expect(xiangqiBoardRaw).toContain('id="room-number-badge-bottom-left"')
-      expect(xiangqiBoardRaw).toContain('fixed bottom-3 left-3')
-      expect(xiangqiBoardRaw).toContain('#{soPhongHienThi || \'55\'}')
+    it('Vùng 1 (nút Sảnh) được chuyển xuống Vùng X (bottom-14 left-3) và xóa badge ở bottom-left', () => {
+      expect(xiangqiBoardRaw).toContain('id="game-leave-btn"')
+      expect(xiangqiBoardRaw).toContain('fixed bottom-14 left-3')
+      expect(xiangqiBoardRaw).not.toContain('id="room-number-badge-bottom-left"')
     })
   })
 

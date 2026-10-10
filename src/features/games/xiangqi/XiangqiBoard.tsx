@@ -2053,20 +2053,26 @@ export function XiangqiBoard({
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, VÙNG 3 SÁT GÓC TRÁI & ĐỒNG HỒ CHÍNH GIỮA */}
       <header className="w-full px-2 sm:px-4 py-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
-        {/* CỤM TRÁI: ĐIỀU HƯỚNG SẢNH & BADGE RIÊNG TƯ */}
+        {/* CỤM TRÁI: VÙNG 2 THAY THẾ VÙNG 1 (SỐ BÀN ĐẤU ĐƯA LÊN HEADER) & BADGE RIÊNG TƯ */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
-          {/* Nút Quay lại Sảnh */}
-          <button
-            type="button"
-            id="game-leave-btn"
-            onClick={handleBackLobby}
-            className="h-8 px-2.5 rounded-lg text-xs gap-1.5 inline-flex items-center font-medium text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer transition-colors duration-150 shrink-0"
-            title="Quay lại sảnh"
-            aria-label="Quay lại sảnh"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>Sảnh</span>
-          </button>
+          {roomName && (
+            <div
+              id="room-number-badge-header"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-slate-900/60 border border-amber-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.5)] shrink-0 select-none hover:border-amber-500/50 transition-colors duration-150"
+              title={`Phòng Cờ Tướng #${soPhongHienThi || '55'}`}
+            >
+              {/* Đĩa cờ gỗ ngà 3D */}
+              <div className="relative size-7 sm:size-8 rounded-full bg-gradient-to-br from-[#fffdf9] via-[#f7e8d0] to-[#d4a36e] border-2 border-[#9c6332] shadow-[0_2px_6px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
+                <span className="font-han font-black text-sm sm:text-base text-[#b91c1c] leading-none">
+                  帥
+                </span>
+              </div>
+              {/* Số phòng to rõ */}
+              <span className="font-cinzel font-black text-xs sm:text-sm text-amber-300 tracking-wider">
+                #{soPhongHienThi || '55'}
+              </span>
+            </div>
+          )}
 
           {/* Badge Riêng tư nếu có */}
           {isPrivate && (
@@ -3540,26 +3546,18 @@ export function XiangqiBoard({
       <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
         <GamePlayToolbar mode={mode} onModeChange={handleModeChange} onReset={resetGame} />
       </div>
-      {/* VÙNG 3 CHUYỂN XUỐNG VÙNG X GÓC TRÁI DƯỚI CÙNG THEO YÊU CẦU USER */}
-      {roomName && (
-        <div
-          id="room-number-badge-bottom-left"
-          className="fixed bottom-3 left-3 sm:bottom-4 sm:left-4 z-30 flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-slate-900/60 border border-amber-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.6)] shrink-0 select-none hover:border-amber-500/50 transition-colors duration-150 pointer-events-auto"
-          title={`Phòng Cờ Tướng #${soPhongHienThi || '55'}`}
-        >
-          {/* Đĩa cờ gỗ ngà 3D to rõ */}
-          <div className="relative size-8 sm:size-9 rounded-full bg-gradient-to-br from-[#fffdf9] via-[#f7e8d0] to-[#d4a36e] border-2 border-[#9c6332] shadow-[0_3px_8px_rgba(0,0,0,0.5),inset_0_1.5px_2px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(100,50,15,0.4)] flex items-center justify-center shrink-0">
-            <div className="inner-border absolute inset-[2px] rounded-full border border-[#b91c1c]/40 pointer-events-none" />
-            <span className="font-han font-black text-base sm:text-lg text-[#b91c1c] leading-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
-              帥
-            </span>
-          </div>
-          {/* Số phòng to rõ, màu vàng hoàng kim sắc sảo */}
-          <span className="font-cinzel font-black text-sm sm:text-base text-amber-300 tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] shrink-0">
-            #{soPhongHienThi || '55'}
-          </span>
-        </div>
-      )}
+      {/* VÙNG 1 CHUYỂN XUỐNG VÙNG X (NÚT QUAY LẠI SẢNH) THEO YÊU CẦU USER */}
+      <button
+        type="button"
+        id="game-leave-btn"
+        onClick={handleBackLobby}
+        className="fixed bottom-14 left-3 sm:bottom-16 sm:left-4 z-30 h-9 px-3 rounded-xl text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
+        title="Quay lại sảnh"
+        aria-label="Quay lại sảnh"
+      >
+        <ArrowLeft className="size-3.5" />
+        <span>Sảnh</span>
+      </button>
 
       {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
       {selectedProfileUser && (
