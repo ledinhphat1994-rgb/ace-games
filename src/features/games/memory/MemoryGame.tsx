@@ -503,7 +503,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
         opponentBubbleTimerRef.current = setTimeout(() => {
           setOpponentBubble(null)
         }, 3800)
-      }, 1500)
+      }, 700)
     }
   }
 
@@ -983,7 +983,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
       </header>
 
       {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-16 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-24 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl) ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
           {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}
@@ -1280,67 +1280,65 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
               style={{
                 position: 'fixed',
                 left: '50%',
-                bottom: 'calc(max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem)) + 3.75rem)',
+                bottom: 'calc(max(0.875rem, env(safe-area-inset-bottom, 0px) + 0.625rem) + 3.75rem)',
                 transform: 'translateX(-50%)',
                 zIndex: 90,
-                width: 'min(300px,calc(100vw-2rem))',
+                width: 'min(320px, calc(100vw - 1.5rem))',
               }}
-              className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
+              className="flex xl:hidden w-full max-w-[480px] p-3.5 rounded-2xl bg-[#141824]/98 border border-violet-400/40 shadow-[0_16px_40px_rgba(0,0,0,0.95)] backdrop-blur-md flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0 pointer-events-auto"
             >
-              <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-violet-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.9)] backdrop-blur-md flex flex-col gap-2">
-                <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                  <span className="text-[11px] font-bold text-violet-300 tracking-wide flex items-center gap-1.5">
-                    <span>💬</span>
-                    <span>Tin nhắn nhanh</span>
-                  </span>
+              <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+                <span className="text-xs font-bold text-violet-300 tracking-wide flex items-center gap-1.5">
+                  <span>💬</span>
+                  <span>Tin nhắn nhanh</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickMenuOpen(false)}
+                  className="size-6 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition cursor-pointer"
+                  aria-label="Đóng tin nhắn nhanh"
+                  title="Đóng"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+
+              {/* Lưới 8 Emoji trí nhớ độc lập chuẩn Cờ Tướng */}
+              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                {DANH_SACH_THAI_DO_MEMORY.slice(0, 8).map((item) => (
                   <button
+                    key={item.id}
                     type="button"
-                    onClick={() => setIsQuickMenuOpen(false)}
-                    className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                    aria-label="Đóng tin nhắn nhanh"
-                    title="Đóng"
+                    onClick={() => {
+                      handleQuickEmote(item)
+                      setIsQuickMenuOpen(false)
+                    }}
+                    className="h-11 rounded-xl bg-white/5 hover:bg-violet-500/20 hover:border-violet-400/40 border border-white/10 text-2xl flex items-center justify-center transition cursor-pointer hover:scale-105 active:scale-95"
+                    title={`${item.emoji} ${item.label}`}
                   >
-                    <X className="size-3.5" />
+                    {item.emoji}
                   </button>
-                </div>
+                ))}
+              </div>
 
-                {/* Lưới 8 Emoji trí nhớ độc lập chuẩn Cờ Tướng */}
-                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                  {DANH_SACH_THAI_DO_MEMORY.slice(0, 8).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        handleQuickEmote(item)
-                        setIsQuickMenuOpen(false)
-                      }}
-                      className="p-1 rounded-xl bg-white/5 hover:bg-violet-500/20 hover:border-violet-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                      title={`${item.emoji} ${item.label}`}
-                    >
-                      {item.emoji}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Danh sách 8 câu tin nhắn nhanh Trí nhớ: Hiển thị đầy đủ Icon + Nội dung chữ, xếp 2 cột thoáng mắt */}
-                <div className="h-[1px] bg-white/10 my-0.5" />
-                <div className="grid grid-cols-2 gap-1 max-h-[140px] overflow-y-auto pr-0.5">
-                  {DANH_SACH_THAI_DO_MEMORY.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        handleQuickEmote(item)
-                        setIsQuickMenuOpen(false)
-                      }}
-                      className="px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-gray-200 hover:text-violet-300 bg-white/5 hover:bg-violet-500/15 border border-white/5 hover:border-violet-400/30 transition cursor-pointer truncate flex items-center gap-1.5"
-                      title={`${item.emoji} ${item.quote}`}
-                    >
-                      <span className="text-xs shrink-0">{item.emoji}</span>
-                      <span className="truncate">{item.quote}</span>
-                    </button>
-                  ))}
-                </div>
+              {/* Danh sách 8 câu tin nhắn nhanh Trí nhớ: Hiển thị đầy đủ Icon + Nội dung chữ, xếp 2 cột thoáng mắt */}
+              <div className="h-px bg-white/10 my-0.5" />
+              <div className="grid grid-cols-2 gap-1.5">
+                {DANH_SACH_THAI_DO_MEMORY.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleQuickEmote(item)
+                      setIsQuickMenuOpen(false)
+                    }}
+                    className="h-9 px-2 rounded-lg text-left text-xs font-semibold text-gray-200 hover:text-violet-300 bg-white/5 hover:bg-violet-500/15 border border-white/10 hover:border-violet-400/30 transition cursor-pointer truncate flex items-center gap-1.5"
+                    title={`${item.emoji} ${item.quote}`}
+                  >
+                    <span className="text-sm shrink-0">{item.emoji}</span>
+                    <span className="truncate">{item.quote}</span>
+                  </button>
+                ))}
               </div>
             </div>,
             document.body
