@@ -2115,7 +2115,7 @@ export function XiangqiBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI CÔNG THÁI HỌC 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-16 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
           {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}
@@ -2134,7 +2134,7 @@ export function XiangqiBoard({
           <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <EloRankAvatarFrame
-                ten={opponentName}
+                ten={hasOpponent ? (isPveMode ? 'AI Cấp 10' : opponentName) : 'Chờ đối thủ'}
                 avatar={opponentAvatarUrl}
                 elo={opponentElo}
                 isBot={isPveMode}
@@ -2953,7 +2953,7 @@ export function XiangqiBoard({
             {/* AVATAR TRÒN TRUNG TÂM CỦA ĐỐI THỦ: BẤM ĐỂ MỞ HỒ SƠ CÁ NHÂN & ELO TRÒ CHƠI HOẶC MỜI BẠN KHI CHƯA CÓ ĐỐI THỦ */}
             <div className="hover:scale-105 transition-transform duration-150 select-none">
                 <EloRankAvatarFrame
-                  ten={opponentName}
+                  ten={hasOpponent ? (isPveMode ? 'AI Cấp 10' : opponentName) : 'Chờ đối thủ'}
                   avatar={opponentAvatarUrl}
                   elo={opponentElo}
                   isBot={isPveMode}

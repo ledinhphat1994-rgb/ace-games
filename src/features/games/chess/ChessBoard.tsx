@@ -645,18 +645,60 @@ export function ChessBoard({
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Lắng nghe tin nhắn cảm xúc từ đối thủ qua online chat
+  const lastHandledEmojiMsgIdRef = useRef<string | number | null>(null)
+  const isFirstMountEmojiRef = useRef(true)
+
+  useEffect(() => {
+    if (!online?.chat || online.chat.length === 0) return
+    if (isFirstMountEmojiRef.current) {
+      isFirstMountEmojiRef.current = false
+      const initialLastMsg = online.chat[online.chat.length - 1]
+      if (initialLastMsg) {
+        lastHandledEmojiMsgIdRef.current =
+          initialLastMsg.id || (initialLastMsg as any).thoiGian || `${online.chat.length}_${initialLastMsg.text}`
+      }
+      return
+    }
+
+    const lastMsg = online.chat[online.chat.length - 1]
+    if (!lastMsg) return
+    const isFromMe = String(lastMsg.accountId) === online.myActorKey?.replace(/^acc:/, '')
+    if (isFromMe) return
+
+    const msgId = lastMsg.id || (lastMsg as any).thoiGian || `${online.chat.length}_${lastMsg.text}`
+    if (lastHandledEmojiMsgIdRef.current === msgId) return
+    lastHandledEmojiMsgIdRef.current = msgId
+
+    if (typeof lastMsg.text === 'string' && lastMsg.text.startsWith('[SYS_CHESS_EMOJI]:')) {
+      const content = lastMsg.text.replace('[SYS_CHESS_EMOJI]:', '').trim()
+      const parts = content.split(' ')
+      const possibleEmoji = parts[0]
+      const isEmoji = /\p{Extended_Pictographic}/u.test(possibleEmoji)
+      const emoji = isEmoji ? possibleEmoji : undefined
+      const quote = isEmoji ? parts.slice(1).join(' ') : content
+      setOpponentBubble({ emoji: emoji || '', quote, sender: 'opponent' })
+      if (opponentBubbleTimerRef.current) clearTimeout(opponentBubbleTimerRef.current)
+      opponentBubbleTimerRef.current = setTimeout(() => setOpponentBubble(null), 4000)
+    }
+  }, [online?.chat, online?.myActorKey])
+
   const bongDoiThuOnline = useBongBieuCamDoiThu(online, DANH_SACH_THAI_DO_CHESS)
-  const bongDoiThu = laOnline ? bongDoiThuOnline : opponentBubble
+  const bongDoiThu = opponentBubble || bongDoiThuOnline
 
   const handleQuickEmote = (att: QuickEmoteItem) => {
-    if (laOnline && online) guiBieuCamOnline(online, att.emoji)
     setPlayerBubble({ emoji: att.emoji, quote: att.quote, sender: 'player' })
     if (playerBubbleTimerRef.current) clearTimeout(playerBubbleTimerRef.current)
     playerBubbleTimerRef.current = setTimeout(() => {
       setPlayerBubble(null)
-    }, 3800)
+    }, 4000)
 
-    if (mode === 'ai') {
+    if (laOnline && online) {
+      guiBieuCamOnline(online, att.emoji)
+      if (online.guiChat) {
+        online.guiChat(`[SYS_CHESS_EMOJI]:${att.emoji ? `${att.emoji} ` : ''}${att.quote}`)
+      }
+    } else if (mode === 'ai') {
       setTimeout(() => {
         const aiQuotes = [
           { id: 'ai1', emoji: '🤖', label: 'Stockfish Bot', quote: 'Độ sâu tính toán đã vượt 15 plies!' },
@@ -669,8 +711,8 @@ export function ChessBoard({
         if (opponentBubbleTimerRef.current) clearTimeout(opponentBubbleTimerRef.current)
         opponentBubbleTimerRef.current = setTimeout(() => {
           setOpponentBubble(null)
-        }, 3800)
-      }, 1500)
+        }, 4000)
+      }, 1200)
     }
   }
 
@@ -932,9 +974,15 @@ export function ChessBoard({
 
   const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
   const myAvatarUrl = nguoiDung?.avatar || undefined
-  const hasOpponent = laOnlinePvp
-    ? Boolean(banOnline?.mySide === 'X' ? banOnline?.meta.playerO : banOnline?.meta.playerX)
-    : true
+  const hasOpponent = useMemo(() => {
+    if (isPveMode) return true
+    if (laOnline) {
+      if (online?.mySide === 'X') return Boolean(online?.meta.playerO)
+      if (online?.mySide === 'O') return Boolean(online?.meta.playerX)
+      return Boolean(online?.meta.playerX && online?.meta.playerO)
+    }
+    return mode === 'pass_and_play'
+  }, [isPveMode, laOnline, online?.mySide, online?.meta.playerO, online?.meta.playerX, mode])
   const coDuNguoiChoi = !laOnlinePvp || Boolean(banOnline?.meta.playerX && banOnline?.meta.playerO)
 
   // Thành viên đối thủ khi chơi online
@@ -945,9 +993,15 @@ export function ChessBoard({
     return banOnline.thanhVien.find((m) => m.key === oppActorKey) || null
   }, [banOnline, hasOpponent])
 
-  const opponentName = laOnlinePvp && banOnline?.mySide
-    ? tenNguoiChoi(banOnline, banOnline.mySide === 'X' ? 'O' : 'X')
-    : mode === 'ai' ? 'Stockfish AI' : 'Bên Đen'
+  const opponentName = useMemo(() => {
+    if (isPveMode) return 'Stockfish AI'
+    if (laOnline) {
+      if (online?.mySide === 'X') return online?.meta.playerOName || (hasOpponent ? 'Người chơi' : '')
+      if (online?.mySide === 'O') return online?.meta.playerXName || (hasOpponent ? 'Người chơi' : '')
+      return online?.meta.playerOName || (hasOpponent ? 'Người chơi' : '')
+    }
+    return mode === 'pass_and_play' ? 'Bên Đen' : ''
+  }, [isPveMode, laOnline, online?.mySide, online?.meta.playerOName, online?.meta.playerXName, hasOpponent, mode])
 
   const myAccountId = nguoiDung?.accountId ?? 0
   const oppAccountId = useMemo(() => {
@@ -990,7 +1044,7 @@ export function ChessBoard({
     return 1500
   })
 
-  const opponentAvatarUrl = isPveMode ? undefined : (opponentMember?.avatar || undefined)
+  const opponentAvatarUrl = isPveMode ? undefined : (hasOpponent ? (opponentMember?.avatar || undefined) : undefined)
   const opponentLevel = mode === 'ai' ? (aiLevel === 'easy' ? '1' : aiLevel === 'medium' ? '5' : '10') : tinhLevel(opponentProfile?.totalXp ?? 0)
   const opponentElo = useMemo(() => {
     if (mode === 'ai') return aiLevel === 'easy' ? 1200 : aiLevel === 'medium' ? 1500 : 1800
@@ -1087,7 +1141,7 @@ export function ChessBoard({
       ) {
         return
       }
-      const trigger = target.closest?.('#mobile-tool-emoji, #tool-bubble-emote, [id*="emoji"], [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
+      const trigger = target.closest?.('#mobile-tool-emoji, #tool-bubble-emoji, #tool-bubble-emote, [id*="emoji"], [aria-label*="Biểu cảm"], [title*="Biểu cảm"]')
       if (!trigger) {
         setIsQuickMenuOpen(false)
       }
@@ -1228,12 +1282,12 @@ export function ChessBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI ĐỐI XỨNG 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 pb-16 xl:pb-0.5 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
           {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}
           <div className="w-full h-7 flex items-center justify-center pointer-events-none select-none">
-            {bongDoiThu && (
+            {hasOpponent && bongDoiThu && (
               <div
                 data-testid="opponent-quick-message-bubble"
                 className="px-3 py-1 rounded-full bg-[#161a22]/95 border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(245,158,11,0.3)] backdrop-blur-md flex items-center gap-1.5 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150"
@@ -1247,12 +1301,12 @@ export function ChessBoard({
           <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <EloRankAvatarFrame
-                ten={opponentName}
-                avatar={opponentAvatarUrl}
+                ten={hasOpponent ? (isPveMode ? `AI Cấp ${opponentLevel}` : opponentName) : 'Chờ đối thủ'}
+                avatar={hasOpponent ? opponentAvatarUrl : undefined}
                 elo={opponentElo}
-                isBot={mode === 'ai'}
+                isBot={isPveMode}
                 hasPlayer={hasOpponent}
-                isTurn={isOpponentTurn && isPlaying}
+                isTurn={hasOpponent && isOpponentTurn && isPlaying}
                 turnSide={mauCuaToi === WHITE ? 'black' : 'white'}
                 sizeClassName="size-11 sm:size-12"
                 onClick={(e) => {
@@ -1298,10 +1352,10 @@ export function ChessBoard({
             />
             <div className="flex flex-col min-w-0">
               <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[130px]">
-                {hasOpponent ? opponentName : 'Chờ đối thủ'}
+                {hasOpponent ? (isPveMode ? `AI Cấp ${opponentLevel}` : opponentName) : 'Chờ đối thủ'}
               </span>
               <span className="text-[11px] text-amber-400 font-semibold leading-tight">
-                {hasOpponent ? (mode === 'ai' ? `AI Cấp ${opponentLevel}` : `Lv.${opponentLevel} · Elo ${opponentElo}`) : 'Chạm để mời'}
+                {hasOpponent ? (isPveMode ? `Elo ${opponentElo}` : `Lv.${opponentLevel} · Elo ${opponentElo}`) : 'Chạm để mời'}
               </span>
             </div>
           </div>
@@ -1310,16 +1364,18 @@ export function ChessBoard({
           <div
             className={cn(
               'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
-              pos.turn !== mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
-                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
-                : pos.turn !== mauCuaToi && isPlaying
-                  ? 'border-amber-500/80 bg-amber-950/80 text-amber-300'
-                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+              !hasOpponent
+                ? 'border-white/10 bg-[#121620]/60 text-stone-500 opacity-60'
+                : pos.turn !== mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                  : pos.turn !== mauCuaToi && isPlaying
+                    ? 'border-amber-500/80 bg-amber-950/80 text-amber-300'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
             )}
             title="Thời gian đối thủ"
           >
             <Clock className="size-3.5 text-amber-400 shrink-0" />
-            <span>{formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
+            <span>{!hasOpponent ? '--:--' : formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
           </div>
         </div>
       </div>
@@ -1595,9 +1651,10 @@ export function ChessBoard({
                       handleQuickEmote(item)
                       setIsQuickMenuOpen(false)
                     }}
-                    className="px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
-                    title={item.quote}
+                    className="px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate flex items-center gap-1.5"
+                    title={`${item.emoji} ${item.quote}`}
                   >
+                    <span className="text-xs shrink-0">{item.emoji}</span>
                     <span className="truncate">{item.quote}</span>
                   </button>
                 ))}
@@ -1727,7 +1784,7 @@ export function ChessBoard({
             </div>
 
             {/* Bong bóng chat đối thủ */}
-            {bongDoiThu && (
+            {hasOpponent && bongDoiThu && (
               <div className="absolute bottom-full mb-2.5 right-0 px-3 py-1 rounded-2xl rounded-br-sm bg-[#161a22] border-2 border-cyan-400 text-xs font-bold text-cyan-300 shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center gap-1.5 whitespace-nowrap animate-bounce z-40 select-none pointer-events-none max-w-[200px]">
                 {bongDoiThu.emoji && <span className="text-sm shrink-0">{bongDoiThu.emoji}</span>}
                 <span className="truncate">{bongDoiThu.quote}</span>
@@ -1737,7 +1794,7 @@ export function ChessBoard({
             {/* Avatar tròn đối thủ (Bấm để xem hồ sơ kỳ thủ & Elo hoặc mời bạn bè) */}
             <div className="hover:scale-105 transition-transform duration-150 select-none">
                 <EloRankAvatarFrame
-                  ten={opponentName}
+                  ten={hasOpponent ? opponentName : 'Chờ đối thủ'}
                   avatar={opponentAvatarUrl}
                   elo={opponentElo}
                   isBot={mode === 'ai'}
@@ -1808,16 +1865,18 @@ export function ChessBoard({
             <div
               className={cn(
                 'mt-2 px-2.5 py-0.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider transition-colors duration-150 select-none shadow-md z-30 whitespace-nowrap',
-                pos.turn !== mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
-                  ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
-                  : pos.turn !== mauCuaToi && isPlaying
-                    ? 'border-amber-500/80 bg-amber-950/80 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
-                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+                !hasOpponent
+                  ? 'border-white/10 bg-[#161a22]/80 text-gray-400 opacity-60'
+                  : pos.turn !== mauCuaToi && isPlaying && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                    ? 'border-red-500 bg-red-950/90 text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.7)] animate-pulse'
+                    : pos.turn !== mauCuaToi && isPlaying
+                      ? 'border-amber-500/80 bg-amber-950/80 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                      : 'border-white/10 bg-[#161a22]/90 text-gray-300'
               )}
               title="Thời gian của Đối thủ"
             >
               <Clock className="size-3 text-amber-400 shrink-0" />
-              <span>{formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
+              <span>{!hasOpponent ? '--:--' : formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
             </div>
           </div>
         </aside>
@@ -2192,23 +2251,34 @@ export function ChessBoard({
           </button>
 
           {/* Các nút công cụ Vùng 1 được đưa xuống Vùng 2, icon không chữ cách đều */}
-          {chessTools.map((tool) => (
-            <button
-              key={tool.id}
-              type="button"
-              id={`mobile-tool-${tool.id}`}
-              onClick={tool.onClick}
-              disabled={tool.disabled}
-              className={cn(
-                'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
-                tool.className
-              )}
-              title={tool.title}
-              aria-label={tool.title}
-            >
-              {tool.icon}
-            </button>
-          ))}
+          {chessTools.map((tool) => {
+            const buttonId =
+              tool.id === 'mode'
+                ? 'mobile-mode-toggle-card'
+                : tool.id === 'draw'
+                  ? 'mobile-xin-xo-btn'
+                  : `mobile-tool-${tool.id}`
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                id={buttonId}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  tool.onClick(e)
+                }}
+                disabled={tool.disabled}
+                className={cn(
+                  'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
+                  tool.className
+                )}
+                title={tool.title}
+                aria-label={tool.title}
+              >
+                {tool.icon}
+              </button>
+            )
+          })}
 
           {/* Slot dành cho nút Chat nổi của AppShell tại góc phải để các nút cách đều nhau 100% */}
           <div className="size-11 sm:size-12 shrink-0 pointer-events-none" aria-hidden="true" />

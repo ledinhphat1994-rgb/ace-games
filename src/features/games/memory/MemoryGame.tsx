@@ -7,6 +7,7 @@ import {
   Handshake,
   Smile,
   Sparkles,
+  Swords,
   User,
   UserPlus,
   Users,
@@ -982,7 +983,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
       </header>
 
       {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-16 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl) ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
           {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}
@@ -1001,7 +1002,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-1 select-none z-20 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <EloRankAvatarFrame
-                ten={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+                ten={mode === 'pve' ? (difficulty === 'hard' ? 'AI Cấp 10' : difficulty === 'medium' ? 'AI Cấp 5' : 'AI Cấp 1') : 'Người chơi 2'}
                 elo={mode === 'pve' ? (difficulty === 'hard' ? 1700 : difficulty === 'medium' ? 1450 : 1200) : 1300}
                 isBot={mode === 'pve'}
                 hasPlayer={true}
@@ -1011,7 +1012,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                 onClick={(e) => {
                   e.stopPropagation()
                 if (mode === 'pve') {
-                  toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 3' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 2' : 'AI Trí Nhớ · Cấp 1')
+                  toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 10' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 5' : 'AI Trí Nhớ · Cấp 1')
                   return
                 }
                 const rect = e.currentTarget.getBoundingClientRect()
@@ -1033,14 +1034,14 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[110px]">
-                  {mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+                  {mode === 'pve' ? (difficulty === 'hard' ? 'AI Cấp 10' : difficulty === 'medium' ? 'AI Cấp 5' : 'AI Cấp 1') : 'Người chơi 2'}
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 font-extrabold text-[10px] leading-tight shrink-0">
                   {score2} điểm
                 </span>
               </div>
               <span className="text-[11px] text-violet-300 font-semibold leading-tight">
-                {mode === 'pve' ? (difficulty === 'hard' ? 'AI Cấp 3' : difficulty === 'medium' ? 'AI Cấp 2' : 'AI Cấp 1') : 'Người chơi 2'}
+                {mode === 'pve' ? `Elo ${difficulty === 'hard' ? 1700 : difficulty === 'medium' ? 1450 : 1200}` : 'Người chơi 2'}
               </span>
             </div>
           </div>
@@ -1048,7 +1049,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           {/* Đồng hồ đối thủ trên mobile */}
           <div
             className={cn(
-              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+              'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
               turn === 2 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
                 ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
                 : turn === 2 && !isGameOver
@@ -1057,7 +1058,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
             )}
             title="Thời gian đối thủ"
           >
-            <Clock className="size-3 text-violet-400 shrink-0" />
+            <Clock className="size-3.5 text-violet-400 shrink-0" />
             <span>{formatClockTime(turn === 2 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
           </div>
         </div>
@@ -1180,11 +1181,13 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
               </div>
               <button
                 type="button"
+                id="btn-bat-dau-river"
+                data-testid="btn-bat-dau-river"
                 onClick={resetGame}
-                className="btn-bat-dau-river group relative inline-flex items-center justify-center gap-2 px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full font-black text-sm sm:text-base xl:text-lg tracking-wider text-white shadow-[0_0_25px_rgba(139,92,246,0.6)] hover:shadow-[0_0_35px_rgba(139,92,246,0.9)] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer overflow-hidden border border-violet-400/50 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600"
+                className="btn-bat-dau-river group relative inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full font-black text-sm sm:text-base xl:text-lg tracking-widest text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)] hover:shadow-[0_0_35px_rgba(245,158,11,0.9)] hover:scale-105 active:scale-95 transition-all duration-150 cursor-pointer overflow-hidden border-2 border-amber-300 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500"
               >
-                <Sparkles className="size-4 animate-spin text-yellow-300" />
-                <span>Chơi lại</span>
+                <Swords className="w-5 h-5 transition-transform shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)] text-stone-950 group-hover:rotate-12" />
+                <span className="font-black uppercase drop-shadow text-stone-950">ĐẤU LẠI</span>
               </button>
             </div>
           )}
@@ -1237,7 +1240,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
             {/* Đồng hồ người chơi trên mobile */}
             <div
               className={cn(
-                'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+                'h-8 px-3 rounded-full border flex items-center justify-center gap-1.5 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
                 turn === 1 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
                   ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
                   : turn === 1 && !isGameOver
@@ -1246,7 +1249,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
               )}
               title="Thời gian của Bạn"
             >
-              <Clock className="size-3 text-emerald-400 shrink-0" />
+              <Clock className="size-3.5 text-emerald-400 shrink-0" />
               <span>{formatClockTime(turn === 1 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
             </div>
           </div>
@@ -1859,7 +1862,10 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
               key={tool.id}
               type="button"
               id={`mobile-tool-${tool.id}`}
-              onClick={tool.onClick}
+              onClick={(e) => {
+                e.stopPropagation()
+                tool.onClick(e)
+              }}
               disabled={tool.disabled}
               className={cn(
                 'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
