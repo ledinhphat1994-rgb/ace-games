@@ -881,10 +881,12 @@ export function CaroBoard({
     },
   ]
 
+  // Nhãn Xin thua / Đầu hàng đồng bộ chuẩn test & modal
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, SỐ PHÒNG TIÊU CHUẨN CỜ TƯỚNG */}
-      <header className="w-full px-2 sm:px-4 pt-[max(0.25rem,calc(env(safe-area-inset-top,0px)+0.25rem))] pb-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           {roomName && (
             <div
@@ -912,22 +914,23 @@ export function CaroBoard({
         </div>
       </header>
 
-      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, THOÁNG MẮT, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-center gap-1 sm:gap-2 mx-auto relative py-1 xl:py-0.5 min-h-0">
-        {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-0.5 select-none z-20 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <EloRankAvatarFrame
-              ten={opponentName}
-              avatar={opponentAvatarUrl}
-              elo={opponentElo}
-              isBot={mode === 'ai'}
-              hasPlayer={hasOpponent}
-              isTurn={isOpponentTurn && isPlaying}
-              turnSide={playerSide === 'X' ? 'black' : 'red'}
-              sizeClassName="size-11 sm:size-12"
-              onClick={(e) => {
-                e.stopPropagation()
+      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI ĐỐI XỨNG 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+        {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
+        <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
+          <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <EloRankAvatarFrame
+                ten={opponentName}
+                avatar={opponentAvatarUrl}
+                elo={opponentElo}
+                isBot={mode === 'ai'}
+                hasPlayer={hasOpponent}
+                isTurn={isOpponentTurn && isPlaying}
+                turnSide={playerSide === 'X' ? 'black' : 'red'}
+                sizeClassName="size-11 sm:size-12"
+                onClick={(e) => {
+                  e.stopPropagation()
                 if (!hasOpponent) {
                   if (banOnline && !banOnline.mySide) {
                     banOnline.joinGame('O')
@@ -1012,8 +1015,9 @@ export function CaroBoard({
             <span>{formatClockTime(isOpponentTurn && isPlaying && !winner ? clock.timeRemaining : clock.turnSeconds)}</span>
           </div>
         </div>
+      </div>
 
-        {/* Khung bàn cờ phẳng to hơn */}
+      {/* Khung bàn cờ phẳng to hơn */}
         <section
           style={{
             aspectRatio: '1 / 1',
@@ -1250,7 +1254,7 @@ export function CaroBoard({
         </section>
 
         {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
-        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1.5 pt-0.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
+        <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
           <div className="flex w-full h-12 px-2 items-center justify-between select-none">
             <div className="flex items-center gap-2.5 min-w-0">

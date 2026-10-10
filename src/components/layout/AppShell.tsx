@@ -275,7 +275,7 @@ export function AppShell({ children }: AppShellProps) {
               : isSnakeGame
                 ? 'flex flex-col p-0 m-0 max-w-none w-full h-full min-h-0 overflow-hidden touch-none'
                 : isGameRoom
-                  ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-[max(0.875rem,calc(env(safe-area-inset-top,0px)+0.625rem))] pb-1 sm:pb-2 mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
+                  ? 'w-full flex-1 min-h-0 h-full max-h-full px-1 sm:px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] mx-auto flex flex-col justify-start max-lg:landscape:h-[100dvh] max-lg:landscape:max-h-[100dvh] max-lg:landscape:p-0 overflow-hidden touch-none'
                   : isWidePage
                     ? 'max-w-[1600px] px-2.5 sm:px-6 pt-2 sm:pt-4 pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-8 mx-auto'
                     : 'max-w-[1440px] px-2.5 pt-2 pb-[calc(72px+env(safe-area-inset-bottom,0px))] sm:px-6 sm:pt-4 lg:pb-10 mx-auto'

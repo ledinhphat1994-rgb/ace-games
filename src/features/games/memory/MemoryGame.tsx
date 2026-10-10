@@ -823,6 +823,8 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
     },
   ]
 
+  // Nhãn Xin thua / Đầu hàng đồng bộ chuẩn test & modal
+
   // Khối đối thủ và người chơi bảo toàn cấu trúc cho kiểm thử
   const opponentSlotContent = (
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border-default shrink-0 min-w-0 relative">
@@ -920,7 +922,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   return (
     <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ TRÊN CÙNG: TÊN GAME TIÊU CHUẨN CỜ TƯỚNG */}
-      <header className="w-full px-2 sm:px-4 pt-[max(0.25rem,calc(env(safe-area-inset-top,0px)+0.25rem))] pb-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           <div
             id="room-number-badge-header"
@@ -940,21 +942,22 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
         </div>
       </header>
 
-      {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA CHUẨN CỜ TƯỚNG */}
-      <main className="w-fit flex flex-col items-center mx-auto shrink-0 relative py-0.5">
-        {/* ==================== VÙNG 2: THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl) ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-1 select-none z-20">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <EloRankAvatarFrame
-              ten={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
-              elo={mode === 'pve' ? (difficulty === 'hard' ? 1700 : difficulty === 'medium' ? 1450 : 1200) : 1300}
-              isBot={mode === 'pve'}
-              hasPlayer={true}
-              isTurn={turn === 2 && !isGameOver}
-              turnSide="black"
-              sizeClassName="size-11 sm:size-12"
-              onClick={(e) => {
-                e.stopPropagation()
+      {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+        {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
+        <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
+          <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <EloRankAvatarFrame
+                ten={mode === 'pve' ? 'Máy AI' : 'Người chơi 2'}
+                elo={mode === 'pve' ? (difficulty === 'hard' ? 1700 : difficulty === 'medium' ? 1450 : 1200) : 1300}
+                isBot={mode === 'pve'}
+                hasPlayer={true}
+                isTurn={turn === 2 && !isGameOver}
+                turnSide="black"
+                sizeClassName="size-11 sm:size-12"
+                onClick={(e) => {
+                  e.stopPropagation()
                 if (mode === 'pve') {
                   toast.info(difficulty === 'hard' ? 'AI Trí Nhớ · Cấp 3' : difficulty === 'medium' ? 'AI Trí Nhớ · Cấp 2' : 'AI Trí Nhớ · Cấp 1')
                   return
@@ -1012,6 +1015,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
             <span>{formatClockTime(turn === 2 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
           </div>
         </div>
+      </div>
 
         {/* Khung bàn chơi */}
         <section
@@ -1149,81 +1153,84 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           />
         </section>
 
-        {/* ==================== VÙNG 3: KHU VỰC NGƯỜI CHƠI CHÂN MÀN HÌNH (< xl) ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mt-1 select-none z-20">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <EloRankAvatarFrame
-              ten={myName}
-              avatar={myAvatarUrl}
-              elo={myElo}
-              hasPlayer={true}
-              isTurn={turn === 1 && !isGameOver}
-              turnSide="red"
-              sizeClassName="size-11 sm:size-12"
-              onClick={(e) => {
-                e.stopPropagation()
-                setIsSettingsModalOpen(true)
-              }}
-              title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
-              ariaLabel={myName ? `${myName} - Mở cài đặt` : 'Cài đặt'}
-            />
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[110px]">
-                  {myName || 'Bạn'}
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] leading-tight shrink-0">
-                  {score1} điểm
+        {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
+        <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
+          {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
+          <div className="flex w-full h-12 px-2 items-center justify-between select-none">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <EloRankAvatarFrame
+                ten={myName}
+                avatar={myAvatarUrl}
+                elo={myElo}
+                hasPlayer={true}
+                isTurn={turn === 1 && !isGameOver}
+                turnSide="red"
+                sizeClassName="size-11 sm:size-12"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsSettingsModalOpen(true)
+                }}
+                title={myName ? `${myName} (Chạm để mở cài đặt)` : 'Cài đặt'}
+                ariaLabel={myName ? `${myName} - Mở cài đặt` : 'Cài đặt'}
+              />
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm font-bold text-text-primary truncate max-w-[110px]">
+                    {myName || 'Bạn'}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] leading-tight shrink-0">
+                    {score1} điểm
+                  </span>
+                </div>
+                <span className="text-[11px] text-emerald-300 font-semibold leading-tight">
+                  Lv.{myLevel} · Elo {myElo}
                 </span>
               </div>
-              <span className="text-[11px] text-emerald-300 font-semibold leading-tight">
-                Lv.{myLevel} · Elo {myElo}
-              </span>
-            </div>
-            {playerBubble && (
-              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-amber-400 text-[11px] sm:text-xs font-bold text-amber-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
-                {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
-                <span>{playerBubble.quote}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Đồng hồ người chơi trên mobile */}
-          <div
-            className={cn(
-              'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
-              turn === 1 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
-                ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
-                : turn === 1 && !isGameOver
-                  ? 'border-emerald-500/80 bg-emerald-950/80 text-emerald-300'
-                  : 'border-white/10 bg-[#161a22]/90 text-gray-300'
-            )}
-            title="Thời gian của Bạn"
-          >
-            <Clock className="size-3 text-emerald-400 shrink-0" />
-            <span>{formatClockTime(turn === 1 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
-          </div>
-        </div>
-
-        {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG, ICON TO RÕ THEO CHUẨN CỜ TƯỚNG ==================== */}
-        <div id="mobile-tools-bar" className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 mt-1 select-none z-20">
-          {memoryTools.map((tool) => (
-            <button
-              key={tool.id}
-              type="button"
-              id={`mobile-tool-${tool.id}`}
-              onClick={tool.onClick}
-              disabled={tool.disabled}
-              className={cn(
-                'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5',
-                tool.className
+              {playerBubble && (
+                <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-amber-400 text-[11px] sm:text-xs font-bold text-amber-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                  {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
+                  <span>{playerBubble.quote}</span>
+                </div>
               )}
-              title={tool.title}
-              aria-label={tool.title}
+            </div>
+
+            {/* Đồng hồ người chơi trên mobile */}
+            <div
+              className={cn(
+                'h-7 px-2.5 rounded-full border flex items-center justify-center gap-1 font-mono text-xs font-bold tracking-wider select-none shrink-0 shadow-xs transition-colors',
+                turn === 1 && !isGameOver && clock.timeRemaining <= 10 && clock.timeRemaining > 0
+                  ? 'border-red-500 bg-red-950/90 text-red-400 animate-pulse'
+                  : turn === 1 && !isGameOver
+                    ? 'border-emerald-500/80 bg-emerald-950/80 text-emerald-300'
+                    : 'border-white/10 bg-[#161a22]/90 text-gray-300'
+              )}
+              title="Thời gian của Bạn"
             >
-              {tool.icon}
-            </button>
-          ))}
+              <Clock className="size-3 text-emerald-400 shrink-0" />
+              <span>{formatClockTime(turn === 1 && !isGameOver ? clock.timeRemaining : clock.turnSeconds)}</span>
+            </div>
+          </div>
+
+          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG, ICON TO RÕ THEO CHUẨN CỜ TƯỚNG ==================== */}
+          <div id="mobile-tools-bar" className="flex w-full h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 select-none">
+            {memoryTools.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                id={`mobile-tool-${tool.id}`}
+                onClick={tool.onClick}
+                disabled={tool.disabled}
+                className={cn(
+                  'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5',
+                  tool.className
+                )}
+                title={tool.title}
+                aria-label={tool.title}
+              >
+                {tool.icon}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ, TUYỆT ĐỐI KHÔNG ĐÈ LÊN BÀN CHƠI HAY NỘI DUNG KHÁC ==================== */}

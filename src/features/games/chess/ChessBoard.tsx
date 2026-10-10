@@ -1151,10 +1151,12 @@ export function ChessBoard({
     },
   ]
 
+  // Nhãn Xin thua / Đầu hàng đồng bộ chuẩn test & modal
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, SỐ PHÒNG TIÊU CHUẨN CỜ TƯỚNG */}
-      <header className="w-full px-2 sm:px-4 pt-[max(0.25rem,calc(env(safe-area-inset-top,0px)+0.25rem))] pb-1 mb-1 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 relative flex items-center min-h-[40px] shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
           {roomName && (
             <div
@@ -1182,22 +1184,23 @@ export function ChessBoard({
         </div>
       </header>
 
-      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA, THOÁNG MẮT, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-center gap-1 sm:gap-2 mx-auto relative py-1 xl:py-0.5 min-h-0">
-        {/* ==================== VÙNG ĐỐI THỦ TRÊN MOBILE (< xl): NẰM TRÊN BÀN CỜ, KHÔNG ĐÈ QUÂN ==================== */}
-        <div className="flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-0.5 select-none z-20 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <EloRankAvatarFrame
-              ten={opponentName}
-              avatar={opponentAvatarUrl}
-              elo={opponentElo}
-              isBot={mode === 'ai'}
-              hasPlayer={hasOpponent}
-              isTurn={isOpponentTurn && isPlaying}
-              turnSide={mauCuaToi === WHITE ? 'black' : 'white'}
-              sizeClassName="size-11 sm:size-12"
-              onClick={(e) => {
-                e.stopPropagation()
+      {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI ĐỐI XỨNG 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+        {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
+        <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
+          <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <EloRankAvatarFrame
+                ten={opponentName}
+                avatar={opponentAvatarUrl}
+                elo={opponentElo}
+                isBot={mode === 'ai'}
+                hasPlayer={hasOpponent}
+                isTurn={isOpponentTurn && isPlaying}
+                turnSide={mauCuaToi === WHITE ? 'black' : 'white'}
+                sizeClassName="size-11 sm:size-12"
+                onClick={(e) => {
+                  e.stopPropagation()
                 if (!hasOpponent) {
                   if (online && !online.mySide) {
                     online.joinGame('O')
@@ -1269,150 +1272,151 @@ export function ChessBoard({
             <span>{formatClockTime(pos.turn !== mauCuaToi && isPlaying ? clock.timeRemaining : clock.turnSeconds)}</span>
           </div>
         </div>
+      </div>
 
-        {/* 1. MẶT BÀN CỜ VUA TẬP TRUNG - TỶ LỆ 1:1 VUÔNG VỨC 100% */}
-        <section
-          style={{
-            aspectRatio: '1 / 1',
-          }}
-          className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10 my-0"
-        >
-          {/* Grid bàn cờ 8x8 */}
-          <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
-            {Array.from({ length: 64 }, (_, idx) => {
-              const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)
-              const f = latBan ? 7 - (idx % 8) : idx % 8
-              const sq = r * 8 + f
+      {/* 1. MẶT BÀN CỜ VUA TẬP TRUNG - TỶ LỆ 1:1 VUÔNG VỨC 100% */}
+      <section
+        style={{
+          aspectRatio: '1 / 1',
+        }}
+        className="game-board-chess relative board-surface rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shrink-0 select-none touch-none bg-gradient-to-br from-slate-900 via-[#0b1329] to-slate-900 border-2 border-cyan-500/30 shadow-[0_15px_50px_rgba(6,182,212,0.15)] ring-1 ring-white/10 my-0"
+      >
+        {/* Grid bàn cờ 8x8 */}
+        <div className="grid grid-cols-8 grid-rows-8 w-full aspect-square border border-cyan-500/30 rounded-lg overflow-hidden select-none shadow-2xl">
+          {Array.from({ length: 64 }, (_, idx) => {
+            const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)
+            const f = latBan ? 7 - (idx % 8) : idx % 8
+            const sq = r * 8 + f
 
-              const isDark = (r + f) % 2 === 0
-              const piece = pos.board[sq]
-              const isSelected = selectedSq === sq
-              const isValidTarget = validTargets.includes(sq)
-              const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
-              const isHintSq = hintMove && (hintMove.from === sq || hintMove.to === sq)
-              const isKingInCheck = inCheck && piece && typeOf(piece) === KING && colorOf(piece) === pos.turn
-              const toanDo = `${'abcdefgh'[f]}${r + 1}`
-              const tenQuan = piece > 0 ? `${colorOf(piece) === WHITE ? 'Trắng' : 'Đen'} ${tenLoaiQuanVua(typeOf(piece))}` : 'ô trống'
+            const isDark = (r + f) % 2 === 0
+            const piece = pos.board[sq]
+            const isSelected = selectedSq === sq
+            const isValidTarget = validTargets.includes(sq)
+            const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
+            const isHintSq = hintMove && (hintMove.from === sq || hintMove.to === sq)
+            const isKingInCheck = inCheck && piece && typeOf(piece) === KING && colorOf(piece) === pos.turn
+            const toanDo = `${'abcdefgh'[f]}${r + 1}`
+            const tenQuan = piece > 0 ? `${colorOf(piece) === WHITE ? 'Trắng' : 'Đen'} ${tenLoaiQuanVua(typeOf(piece))}` : 'ô trống'
 
-              const canAct = !isOver && !isAiThinking && (laOnlinePvp ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerColor : true)
-              const isActionable = canAct && (
-                selectedSq === null
-                  ? (piece > 0 && colorOf(piece) === pos.turn)
-                  : (isValidTarget || (piece > 0 && colorOf(piece) === pos.turn))
-              )
+            const canAct = !isOver && !isAiThinking && (laOnlinePvp ? toiDenLuotOnline : mode === 'ai' ? pos.turn === playerColor : true)
+            const isActionable = canAct && (
+              selectedSq === null
+                ? (piece > 0 && colorOf(piece) === pos.turn)
+                : (isValidTarget || (piece > 0 && colorOf(piece) === pos.turn))
+            )
 
-              return (
-                <div
-                  key={sq}
-                  role="button"
-                  tabIndex={isActionable ? 0 : -1}
-                  aria-disabled={isActionable ? undefined : true}
-                  onClick={() => handleSquareClick(sq)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      handleSquareClick(sq)
-                    }
-                  }}
-                  aria-label={`Ô ${toanDo}: ${tenQuan}${isValidTarget ? ' (nước đi hợp lệ)' : ''}`}
-                  className={cn(
-                    'relative flex items-center justify-center cursor-pointer transition-all duration-100 outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:z-20',
-                    isDark ? 'bg-[#1e293b] hover:bg-[#25334c]' : 'bg-[#334155] hover:bg-[#3d4f6a]',
-                    isLastMoveSq && 'bg-sky-500/25 ring-2 ring-inset ring-sky-400/40',
-                    isSelected && 'ring-4 ring-inset ring-cyan-400 bg-cyan-400/30 shadow-[0_0_20px_rgba(6,182,212,0.6)] z-10',
-                    isHintSq && 'ring-4 ring-inset ring-amber-400 bg-amber-400/25 shadow-[0_0_15px_rgba(251,191,36,0.6)] animate-pulse z-10',
-                    isKingInCheck && 'bg-rose-600/40 ring-4 ring-inset ring-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.7)]'
-                  )}
-                >
-                  {piece > 0 && (
-                    <div className="w-[90%] h-[90%] transition-transform duration-150 hover:scale-95 active:scale-90">
-                      <ChessPieceSvg type={typeOf(piece)} color={colorOf(piece)} />
-                    </div>
-                  )}
-
-                  {isValidTarget && (
-                    <span
-                      className={cn(
-                        'absolute rounded-full pointer-events-none transition-all',
-                        piece > 0
-                          ? 'size-full ring-4 ring-inset ring-cyan-400/80 bg-cyan-500/10'
-                          : 'size-3.5 bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.9)] animate-pulse'
-                      )}
-                    />
-                  )}
-
-                  {f === (latBan ? 7 : 0) && (
-                    <span className="absolute top-0.5 left-0.5 text-[9px] sm:text-[10px] xl:text-xs font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
-                      {r + 1}
-                    </span>
-                  )}
-                  {r === (latBan ? 7 : 0) && (
-                    <span className="absolute bottom-0.5 right-0.5 text-[9px] sm:text-[10px] xl:text-xs font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
-                      {'abcdefgh'[f]}
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* NÚT BẮT ĐẦU HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ CHUẨN CỜ TƯỚNG (Ẩn khi đang hiển thị heroicBanner để không đè chữ) */}
-          {((!isPlaying && !isOver && !heroicBanner) || (isOver && !isPlaying && !heroicBanner)) && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
-              <button
-                type="button"
-                id="btn-bat-dau-river"
-                data-testid="btn-bat-dau-river"
-                onClick={handleStartGameClick}
-                disabled={laOnlinePvp && !coDuNguoiChoi}
+            return (
+              <div
+                key={sq}
+                role="button"
+                tabIndex={isActionable ? 0 : -1}
+                aria-disabled={isActionable ? undefined : true}
+                onClick={() => handleSquareClick(sq)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleSquareClick(sq)
+                  }
+                }}
+                aria-label={`Ô ${toanDo}: ${tenQuan}${isValidTarget ? ' (nước đi hợp lệ)' : ''}`}
                 className={cn(
-                  'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none',
-                  laOnlinePvp && !coDuNguoiChoi
-                    ? 'bg-slate-800/80 border-slate-600/60 text-slate-400 opacity-50 cursor-not-allowed shadow-none'
-                    : isOver
-                      ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)] cursor-pointer active:scale-95 hover:scale-105'
-                      : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)] cursor-pointer active:scale-95 hover:scale-105'
+                  'relative flex items-center justify-center cursor-pointer transition-all duration-100 outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:z-20',
+                  isDark ? 'bg-[#1e293b] hover:bg-[#25334c]' : 'bg-[#334155] hover:bg-[#3d4f6a]',
+                  isLastMoveSq && 'bg-sky-500/25 ring-2 ring-inset ring-sky-400/40',
+                  isSelected && 'ring-4 ring-inset ring-cyan-400 bg-cyan-400/30 shadow-[0_0_20px_rgba(6,182,212,0.6)] z-10',
+                  isHintSq && 'ring-4 ring-inset ring-amber-400 bg-amber-400/25 shadow-[0_0_15px_rgba(251,191,36,0.6)] animate-pulse z-10',
+                  isKingInCheck && 'bg-rose-600/40 ring-4 ring-inset ring-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.7)]'
                 )}
-                title={
-                  laOnlinePvp && !coDuNguoiChoi
-                    ? 'Cần đủ 2 người chơi để bắt đầu ván đấu'
-                    : isOver
-                      ? 'Đấu lại ván mới'
-                      : 'Bắt đầu ván đấu'
-                }
               >
-                <Swords
-                  className={cn(
-                    'w-5 h-5 shrink-0 transition-transform',
-                    laOnlinePvp && !coDuNguoiChoi
-                      ? 'text-slate-500'
-                      : 'text-cyan-300 group-hover:rotate-12 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]'
-                  )}
-                />
-                <span
-                  className={cn(
-                    'font-black uppercase drop-shadow',
-                    laOnlinePvp && !coDuNguoiChoi ? 'text-slate-400' : 'text-cyan-100'
-                  )}
-                >
-                  {isOver ? 'ĐẤU LẠI' : 'BẮT ĐẦU'}
-                </span>
-              </button>
-            </div>
-          )}
+                {piece > 0 && (
+                  <div className="w-[90%] h-[90%] transition-transform duration-150 hover:scale-95 active:scale-90">
+                    <ChessPieceSvg type={typeOf(piece)} color={colorOf(piece)} />
+                  </div>
+                )}
 
-          {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
-          <GameHeroicBanner
-            type={heroicBanner?.type ?? null}
-            title={heroicBanner?.title}
-            subtitle={heroicBanner?.subtitle}
-            visible={Boolean(heroicBanner)}
-            onClose={() => setHeroicBanner(null)}
-          />
-        </section>
+                {isValidTarget && (
+                  <span
+                    className={cn(
+                      'absolute rounded-full pointer-events-none transition-all',
+                      piece > 0
+                        ? 'size-full ring-4 ring-inset ring-cyan-400/80 bg-cyan-500/10'
+                        : 'size-3.5 bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.9)] animate-pulse'
+                    )}
+                  />
+                )}
 
-        {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
-        <div className="flex xl:hidden flex-col items-center w-full max-w-[480px] shrink-0 gap-1.5 pt-0.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
+                {f === (latBan ? 7 : 0) && (
+                  <span className="absolute top-0.5 left-0.5 text-[9px] sm:text-[10px] xl:text-xs font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
+                    {r + 1}
+                  </span>
+                )}
+                {r === (latBan ? 7 : 0) && (
+                  <span className="absolute bottom-0.5 right-0.5 text-[9px] sm:text-[10px] xl:text-xs font-mono font-bold text-cyan-300/70 select-none drop-shadow-xs">
+                    {'abcdefgh'[f]}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* NÚT BẮT ĐẦU HOẶC ĐẤU LẠI Ở GIỮA BÀN CỜ CHUẨN CỜ TƯỚNG (Ẩn khi đang hiển thị heroicBanner để không đè chữ) */}
+        {((!isPlaying && !isOver && !heroicBanner) || (isOver && !isPlaying && !heroicBanner)) && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 pointer-events-auto select-none">
+            <button
+              type="button"
+              id="btn-bat-dau-river"
+              data-testid="btn-bat-dau-river"
+              onClick={handleStartGameClick}
+              disabled={laOnlinePvp && !coDuNguoiChoi}
+              className={cn(
+                'group relative px-6 sm:px-8 xl:px-10 py-2.5 sm:py-3 xl:py-3.5 rounded-full border-2 flex items-center justify-center gap-2.5 text-sm sm:text-base xl:text-lg font-black tracking-widest transition-colors duration-150 select-none',
+                laOnlinePvp && !coDuNguoiChoi
+                  ? 'bg-slate-800/80 border-slate-600/60 text-slate-400 opacity-50 cursor-not-allowed shadow-none'
+                  : isOver
+                    ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:via-amber-400 hover:to-amber-500 border-amber-300 text-stone-950 shadow-[0_0_24px_rgba(245,158,11,0.6)] cursor-pointer active:scale-95 hover:scale-105'
+                    : 'bg-gradient-to-r from-cyan-800 via-blue-900 to-cyan-800 hover:from-cyan-700 hover:via-blue-800 hover:to-cyan-700 border-cyan-400/90 text-white shadow-[0_0_24px_rgba(6,182,212,0.6)] cursor-pointer active:scale-95 hover:scale-105'
+              )}
+              title={
+                laOnlinePvp && !coDuNguoiChoi
+                  ? 'Cần đủ 2 người chơi để bắt đầu ván đấu'
+                  : isOver
+                    ? 'Đấu lại ván mới'
+                    : 'Bắt đầu ván đấu'
+              }
+            >
+              <Swords
+                className={cn(
+                  'w-5 h-5 shrink-0 transition-transform',
+                  laOnlinePvp && !coDuNguoiChoi
+                    ? 'text-slate-500'
+                    : 'text-cyan-300 group-hover:rotate-12 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                )}
+              />
+              <span
+                className={cn(
+                  'font-black uppercase drop-shadow',
+                  laOnlinePvp && !coDuNguoiChoi ? 'text-slate-400' : 'text-cyan-100'
+                )}
+              >
+                {isOver ? 'ĐẤU LẠI' : 'BẮT ĐẦU'}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
+        <GameHeroicBanner
+          type={heroicBanner?.type ?? null}
+          title={heroicBanner?.title}
+          subtitle={heroicBanner?.subtitle}
+          visible={Boolean(heroicBanner)}
+          onClose={() => setHeroicBanner(null)}
+        />
+      </section>
+
+      {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
+      <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
           <div className="flex w-full h-12 px-2 items-center justify-between select-none">
             <div className="flex items-center gap-2.5 min-w-0">
