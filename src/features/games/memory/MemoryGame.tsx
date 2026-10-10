@@ -13,9 +13,10 @@ import {
   Users,
   X,
   Settings,
-  Volume2,
-  VolumeX,
+  Flag,
+  Crown,
 } from 'lucide-react'
+import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
@@ -203,7 +204,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   // ─ Xử lý Xin hòa chuẩn thi đấu (Offer Draw) ─
   const [isDrawAgreed, setIsDrawAgreed] = useState(false)
   const [isDrawModalOpen, setIsDrawModalOpen] = useState(false)
-  const [drawModalType, setDrawModalType] = useState<'offer' | 'incoming'>('offer')
+  const [drawModalType] = useState<'offer' | 'incoming'>('offer')
 
   // Biểu cảm thoại người chơi và đối thủ
   const [playerBubble, setPlayerBubble] = useState<ActiveEmoteBubble | null>(null)
@@ -299,7 +300,6 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   const { nguoiDung } = usePhien()
   const myName = nguoiDung?.ten || nguoiDung?.username || 'Bạn'
   const myAvatarUrl = nguoiDung?.avatar || ''
-  const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false)
   const [quickMenuPos, setQuickMenuPos] = useState({ left: 20, top: 200 })
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const quickMenuRef = useRef<HTMLDivElement>(null)
@@ -452,33 +452,73 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
     [clock]
   )
 
+  interface DialogConfig {
+    title: string
+    subtitle: string
+    icon: 'draw' | 'resign' | 'win' | 'start' | 'back'
+    onConfirm: () => void
+    onCancel?: () => void
+    confirmText?: string
+    cancelText?: string
+    onlyConfirm?: boolean
+  }
+  const [centerDialog, setCenterDialog] = useState<DialogConfig | null>(null)
+  const [incomingDialog, setIncomingDialog] = useState<DialogConfig | null>(null)
+  const activeDlg = incomingDialog || centerDialog
+
   const handleOfferDraw = useCallback(() => {
     if (isGameOver || isAiThinking) return
-    setDrawModalType('offer')
-    setIsDrawModalOpen(true)
-  }, [isGameOver, isAiThinking])
+    setCenterDialog({
+      title: 'Cầu Hòa',
+      subtitle: 'Bạn có muốn gửi lời đề nghị hòa ván đấu tới đối thủ?',
+      icon: 'draw',
+      confirmText: 'Đồng ý',
+      cancelText: 'Chơi tiếp',
+      onConfirm: () => {
+        setCenterDialog(null)
+        if (mode === 'pve') {
+          setIsDrawAgreed(true)
+          playSound('match', muted)
+          setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+          toast.info('Máy AI đã đồng ý hòa!')
+          return
+        }
+        setIncomingDialog({
+          title: 'Đối thủ xin hòa',
+          subtitle: 'Đối thủ đề nghị kết thúc ván đấu với kết quả hòa. Bạn có đồng ý không?',
+          icon: 'draw',
+          confirmText: 'Đồng ý',
+          cancelText: 'Từ chối',
+          onConfirm: () => {
+            setIncomingDialog(null)
+            setIsDrawAgreed(true)
+            playSound('match', muted)
+            setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
+            toast.info('Hai bên đồng thuận hòa ván đấu!')
+          },
+          onCancel: () => {
+            setIncomingDialog(null)
+            toast.info('Đã từ chối hòa ván đấu')
+          },
+        })
+      },
+    })
+  }, [isGameOver, isAiThinking, mode, muted])
 
   const handleConfirmDraw = useCallback(() => {
     if (drawModalType === 'offer') {
-      if (mode === 'pve') {
-        setIsDrawAgreed(true)
-        playSound('match', muted)
-        setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
-        toast.info('Máy AI đã đồng ý hòa!')
-        return
-      }
-      setDrawModalType('incoming')
-      setIsDrawModalOpen(true)
+      handleOfferDraw()
     } else {
       setIsDrawAgreed(true)
       playSound('match', muted)
-      setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
+      setHeroicBanner({ type: 'draw', title: 'HÒA CỜ' })
       toast.info('Hai bên đồng thuận hòa ván đấu!')
     }
-  }, [drawModalType, mode, muted])
+  }, [drawModalType, handleOfferDraw, muted])
 
   const handleDeclineDraw = useCallback(() => {
     setIsDrawModalOpen(false)
+    setIncomingDialog(null)
     toast.info('Đã từ chối hòa ván đấu')
   }, [])
 
@@ -777,15 +817,32 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
         ? 'BẠN THUA'
         : 'HOÀ NHAU'
 
+  const handleResign = () => {
+    if (isGameOver) {
+      resetGame()
+      return
+    }
+    setCenterDialog({
+      title: 'Đầu Hàng',
+      subtitle: 'Bạn có chắc chắn muốn xin thua và kết thúc ván đấu này không?',
+      icon: 'resign',
+      confirmText: 'Đồng ý',
+      cancelText: 'Chơi tiếp',
+      onConfirm: () => {
+        setCenterDialog(null)
+        setSurrenderWinner(false)
+        playSound('lose', muted)
+        setHeroicBanner({ type: 'lose', title: 'XIN THUA' })
+      },
+    })
+  }
+
   const handleResetOrSurrender = () => {
     if (isGameOver) {
       resetGame()
       return
     }
-    if (surrenderAttempts >= 3) {
-      return
-    }
-    setIsSurrenderModalOpen(true)
+    handleResign()
   }
 
   const memoryTools = [
@@ -799,26 +856,20 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
     {
       id: 'emoji',
       title: 'Biểu cảm & Tin nhanh',
-      icon: <Smile className={cn('size-5 sm:size-5.5', (isQuickMenuOpen || isEmotePickerOpen) ? 'text-amber-200' : 'text-amber-400')} />,
+      icon: <Smile className={cn('size-5 sm:size-5.5', isQuickMenuOpen ? 'text-amber-200' : 'text-amber-400')} />,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
-        if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-          const target = e.currentTarget || document.getElementById('mobile-tool-emoji')
-          if (target) {
-            lastEmojiTriggerRef.current = target
-            updateQuickMenuPos(target)
-          } else {
-            updateQuickMenuPos()
-          }
-          setIsQuickMenuOpen((prev) => !prev)
+        const target = e.currentTarget || document.getElementById('mobile-tool-emoji')
+        if (target) {
+          lastEmojiTriggerRef.current = target as HTMLElement
+          updateQuickMenuPos(target as HTMLElement)
         } else {
-          const el = e.currentTarget
-          updateQuickMenuPos(el)
-          setIsEmotePickerOpen((prev) => !prev)
+          updateQuickMenuPos()
         }
+        setIsQuickMenuOpen((prev) => !prev)
       },
       className: cn(
         'border-amber-400/50 bg-[#161a24]/95 hover:border-amber-400 hover:bg-amber-500/20 text-amber-300 shadow-amber-500/15',
-        (isQuickMenuOpen || isEmotePickerOpen) && 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+        isQuickMenuOpen && 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
       ),
     },
     {
@@ -1191,16 +1242,125 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
               </button>
             </div>
           )}
-          {/* THÔNG BÁO HOÀNH TRÁNG CHUẨN CỜ TƯỚNG */}
-          <GameHeroicBanner
-            type={heroicBanner?.type ?? null}
-            title={heroicBanner?.title}
-            subtitle={heroicBanner?.subtitle}
-            visible={Boolean(heroicBanner)}
-            autoDismissMs={2200}
-            onClose={() => setHeroicBanner(null)}
-          />
-        </section>
+        {/* CARD XÁC NHẬN NỘI DUNG ĐƠN GIẢN: 1 LÀ ĐỒNG Ý, 2 LÀ CHƠI TIẾP (ÁP DỤNG CẢ CHO ĐỐI THỦ) */}
+        {activeDlg && (
+          <div
+            id="center-board-dialog"
+            className="absolute inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-black/10 animate-in fade-in duration-150 pointer-events-auto"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (activeDlg.onCancel) activeDlg.onCancel()
+              else {
+                setCenterDialog(null)
+                setIncomingDialog(null)
+              }
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                top: 'auto',
+                left: 'auto',
+                transform: 'none',
+              }}
+              className="relative w-[min(340px,calc(100%-1rem))] max-w-[340px] skeuo-modal-surface border border-sky-500/20 rounded-2xl shadow-2xl p-4 sm:p-5 flex flex-col items-center text-center animate-in fade-in duration-150 select-none overflow-hidden pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Họa tiết Blueprint Arcade Schematic mờ chìm toàn diện */}
+              <BlueprintArcadePattern className="opacity-80" />
+
+              {/* Nút đóng X ở góc */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeDlg.onCancel) activeDlg.onCancel()
+                  else {
+                    setCenterDialog(null)
+                    setIncomingDialog(null)
+                  }
+                }}
+                className="absolute top-3 right-3 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors duration-150 cursor-pointer z-10"
+                aria-label="Đóng"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Icon Badge nổi bật theo loại */}
+              <div
+                className={cn(
+                  'w-12 h-12 rounded-2xl border flex items-center justify-center mb-3 shadow-lg relative z-10',
+                  activeDlg.icon === 'draw' &&
+                    'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-amber-500/20',
+                  activeDlg.icon === 'resign' &&
+                    'bg-red-500/20 border-red-500/50 text-red-300 shadow-red-500/20',
+                  activeDlg.icon === 'win' &&
+                    'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-emerald-500/20',
+                  activeDlg.icon === 'start' &&
+                    'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-amber-500/20',
+                  activeDlg.icon === 'back' &&
+                    'bg-slate-700/30 border-slate-500/40 text-gray-200 shadow-black/40'
+                )}
+              >
+                {activeDlg.icon === 'draw' && <Handshake className="w-6 h-6" />}
+                {activeDlg.icon === 'resign' && <Flag className="w-6 h-6" />}
+                {activeDlg.icon === 'win' && <Crown className="w-6 h-6" />}
+                {activeDlg.icon === 'start' && <Swords className="w-6 h-6" />}
+                {activeDlg.icon === 'back' && <ArrowLeft className="w-6 h-6" />}
+              </div>
+
+              {/* Tiêu đề & Nội dung đơn giản, ngắn gọn */}
+              <h3 className="text-base font-bold text-gray-100 relative z-10">{activeDlg.title}</h3>
+              <p className="text-xs text-gray-300 mt-2 leading-relaxed px-1 font-medium relative z-10">
+                {activeDlg.subtitle}
+              </p>
+
+              {/* 2 Nút: 1 là Đồng ý, 2 là Chơi tiếp */}
+              <div
+                className={cn(
+                  'grid gap-2.5 w-full mt-5 relative z-10',
+                  activeDlg.onlyConfirm ? 'grid-cols-1' : 'grid-cols-2'
+                )}
+              >
+                {!activeDlg.onlyConfirm && (
+                  <button
+                    type="button"
+                    id="dialog-cancel-btn"
+                    onClick={
+                      activeDlg.onCancel
+                        ? activeDlg.onCancel
+                        : () => {
+                            setCenterDialog(null)
+                            setIncomingDialog(null)
+                          }
+                    }
+                    className="skeuo-btn-cancel h-9 text-xs font-semibold transition-colors duration-150 cursor-pointer"
+                  >
+                    {activeDlg.cancelText || 'Chơi tiếp'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  id="dialog-confirm-btn"
+                  onClick={activeDlg.onConfirm}
+                  className="skeuo-btn-cta-amber h-9 text-xs font-bold transition-colors duration-150 shadow-lg cursor-pointer"
+                >
+                  {activeDlg.confirmText || 'Đồng ý'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* THÔNG BÁO HOÀNH TRÁNG CHUẨN CỜ TƯỚNG */}
+        <GameHeroicBanner
+          type={heroicBanner?.type ?? null}
+          title={heroicBanner?.title}
+          subtitle={heroicBanner?.subtitle}
+          visible={Boolean(heroicBanner)}
+          autoDismissMs={2200}
+          onClose={() => setHeroicBanner(null)}
+        />
+      </section>
 
         {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): KHU VỰC NGƯỜI CHƠI CHÂN MÀN HÌNH (< xl) & TIN NHẮN ĐỐI XỨNG ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1 pt-1 pb-1 select-none z-20">
@@ -1268,81 +1428,6 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           </div>
         </div>
 
-        {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): ĐỊNH VỊ CHUẨN XÁC NƠI CLICK THEO CHUẨN CỜ TƯỚNG ==================== */}
-        {isQuickMenuOpen &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              id="mobile-quick-menu-container"
-              ref={quickMenuRef}
-              aria-label="Tin nhắn nhanh"
-              onPointerDown={(e) => e.stopPropagation()}
-              style={{
-                position: 'fixed',
-                left: '50%',
-                bottom: 'calc(max(0.875rem, env(safe-area-inset-bottom, 0px) + 0.625rem) + 3.75rem)',
-                transform: 'translateX(-50%)',
-                zIndex: 90,
-                width: 'min(320px, calc(100vw - 1.5rem))',
-              }}
-              className="flex xl:hidden w-full max-w-[480px] p-3.5 rounded-2xl bg-[#141824]/98 border border-violet-400/40 shadow-[0_16px_40px_rgba(0,0,0,0.95)] backdrop-blur-md flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0 pointer-events-auto"
-            >
-              <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
-                <span className="text-xs font-bold text-violet-300 tracking-wide flex items-center gap-1.5">
-                  <span>💬</span>
-                  <span>Tin nhắn nhanh</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsQuickMenuOpen(false)}
-                  className="size-6 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition cursor-pointer"
-                  aria-label="Đóng tin nhắn nhanh"
-                  title="Đóng"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-
-              {/* Lưới 8 Emoji trí nhớ độc lập chuẩn Cờ Tướng */}
-              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                {DANH_SACH_THAI_DO_MEMORY.slice(0, 8).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      handleQuickEmote(item)
-                      setIsQuickMenuOpen(false)
-                    }}
-                    className="h-11 rounded-xl bg-white/5 hover:bg-violet-500/20 hover:border-violet-400/40 border border-white/10 text-2xl flex items-center justify-center transition cursor-pointer hover:scale-105 active:scale-95"
-                    title={`${item.emoji} ${item.label}`}
-                  >
-                    {item.emoji}
-                  </button>
-                ))}
-              </div>
-
-              {/* Danh sách 8 câu tin nhắn nhanh Trí nhớ: Hiển thị đầy đủ Icon + Nội dung chữ, xếp 2 cột thoáng mắt */}
-              <div className="h-px bg-white/10 my-0.5" />
-              <div className="grid grid-cols-2 gap-1.5">
-                {DANH_SACH_THAI_DO_MEMORY.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      handleQuickEmote(item)
-                      setIsQuickMenuOpen(false)
-                    }}
-                    className="h-9 px-2 rounded-lg text-left text-xs font-semibold text-gray-200 hover:text-violet-300 bg-white/5 hover:bg-violet-500/15 border border-white/10 hover:border-violet-400/30 transition cursor-pointer truncate flex items-center gap-1.5"
-                    title={`${item.emoji} ${item.quote}`}
-                  >
-                    <span className="text-sm shrink-0">{item.emoji}</span>
-                    <span className="truncate">{item.quote}</span>
-                  </button>
-                ))}
-              </div>
-            </div>,
-            document.body
-          )}
 
         {/* ==================== VÙNG 4: BUBBLE AVATAR NGƯỜI CHƠI (GÓC DƯỚI TRÁI) ==================== */}
         <aside
@@ -1596,91 +1681,47 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
         theme="violet"
       />
 
-      {/* Portal Popover Biểu cảm & Tin nhanh - Mở NGAY TẠI ICON AVATAR VÙNG 1 */}
-      {isEmotePickerOpen && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[70] bg-transparent"
-            onClick={() => setIsEmotePickerOpen(false)}
-          />
-          <div
-            style={{
-              position: 'fixed',
-              left: `${quickMenuPos.left}px`,
-              top: `${quickMenuPos.top}px`,
-              zIndex: 80,
-            }}
-            className="w-72 max-w-[90vw] p-3 rounded-2xl bg-[#121622]/98 border-2 border-violet-400/60 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
-              <span className="text-xs font-bold text-violet-300">Biểu cảm & Tin nhanh</span>
-              <button
-                type="button"
-                onClick={() => setIsEmotePickerOpen(false)}
-                className="size-5 rounded-md hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer"
-                aria-label="Đóng biểu cảm"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {DANH_SACH_THAI_DO_MEMORY.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    handleQuickEmote(item)
-                    setIsEmotePickerOpen(false)
-                  }}
-                  className="flex flex-col items-center gap-0.5 p-1.5 rounded-xl bg-white/5 hover:bg-violet-500/20 border border-white/5 hover:border-violet-400/40 transition-colors group cursor-pointer"
-                  title={item.quote}
-                >
-                  <span className="text-xl group-hover:scale-110 transition-transform">{item.emoji}</span>
-                  <span className="text-[9px] text-gray-300 font-medium truncate w-full text-center">{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>,
-        document.body
-      )}
-
-      {/* MODAL CÀI ĐẶT TRẬN ĐẤU KHI BẤM VÀO AVATAR NGƯỜI CHƠI (CHUẨN CỜ TƯỚNG) */}
+      {/* ==================== MODAL CÀI ĐẶT THI ĐẤU (SETTINGS) ==================== */}
+      {/* TUYỆT ĐỐI KHÔNG LÀM TỐI ĐEN HAY MỜ NHÒE KHU VỰC XUNG QUANH: Dùng bg-black/10, không blur */}
       {isSettingsModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/10 select-none p-4"
+          id="settings-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/10"
           onClick={() => setIsSettingsModalOpen(false)}
         >
           <div
-            className="w-full max-w-[420px] rounded-2xl bg-[#121622]/95 border-2 border-violet-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.85)] backdrop-blur-xl p-5 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-4 text-sm"
+            className="relative w-full max-w-md bg-[#161a22] border border-amber-500/30 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* TIÊU ĐỀ MODAL */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2 font-bold text-gray-100 text-base">
-                <Settings className="w-5 h-5 text-violet-400" />
-                <span>Cài Đặt Trận Đấu</span>
+            {/* Highlight lấp lánh nhẹ ở 2 bên cạnh */}
+            <div className="absolute left-0 top-[20%] bottom-[20%] w-[1.5px] bg-gradient-to-b from-transparent via-amber-400 to-transparent opacity-80 pointer-events-none rounded-full" />
+            <div className="absolute right-0 top-[20%] bottom-[20%] w-[1.5px] bg-gradient-to-b from-transparent via-amber-400 to-transparent opacity-80 pointer-events-none rounded-full" />
+
+            {/* Header Modal */}
+            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-amber-400" />
+                <h2 className="text-base font-bold text-gray-100">Cài Đặt Trận Đấu</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsSettingsModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors duration-150 cursor-pointer"
                 aria-label="Đóng cài đặt"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {/* THẺ HỒ SƠ KỲ THỦ: CLICK MỞ HỒ SƠ NGƯỜI DÙNG */}
+            {/* Danh Sách Cài Đặt (Cuộn êm nếu dài) */}
+            <div className="p-5 flex flex-col gap-4 text-xs max-h-[75vh] overflow-y-auto pr-3.5">
+              {/* THẺ HỒ SƠ KỲ THỦ HIỂN THỊ ELO & LEVEL - BẤM ĐỂ MỞ HỒ SƠ CHI TIẾT */}
               <div
-                role="button"
-                tabIndex={0}
                 onClick={(e) => {
+                  e.stopPropagation()
                   const rect = e.currentTarget.getBoundingClientRect()
                   setSelectedProfileUser({
-                    id: myAccountId,
+                    id: myAccountId || 1,
                     ten: myName,
                     avatar: myAvatarUrl,
                     gameElo: myElo,
@@ -1693,7 +1734,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                     },
                   })
                 }}
-                className="p-3.5 rounded-xl bg-gradient-to-r from-violet-950/40 via-slate-900 to-slate-900 border-2 border-violet-500/30 hover:border-violet-400/60 transition-colors duration-150 flex items-center justify-between shadow-inner cursor-pointer group"
+                className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-sky-950/40 border border-amber-500/30 flex items-center justify-between shadow-inner cursor-pointer group"
                 title="Bấm để xem hồ sơ người chơi & thành tựu"
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -1705,25 +1746,25 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                     sizeClassName="size-11 sm:size-12"
                   />
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-gray-100 truncate group-hover:text-violet-300 transition-colors">{myName}</div>
-                    <div className="text-[11px] text-violet-300/80 font-medium">Người chơi trí nhớ</div>
+                    <div className="text-sm font-bold text-gray-100 truncate group-hover:text-amber-300 transition-colors">{myName}</div>
+                    <div className="text-[11px] text-amber-300/80 font-medium">Người chơi trí nhớ</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2.5 py-1 rounded-lg bg-violet-500/15 border-2 border-violet-500/30 text-violet-300 text-xs font-bold shadow-xs">
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-xs">
                     Cấp {myLevel}
                   </span>
-                  <span className="px-3 py-1 rounded-lg bg-amber-500/15 border-2 border-amber-500/30 text-amber-300 text-xs font-extrabold tracking-wide shadow-xs">
+                  <span className="px-3 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-extrabold tracking-wide shadow-xs">
                     Elo {myElo}
                   </span>
                 </div>
               </div>
 
               {/* MỤC 1: CÔNG CỤ CHỈNH THỜI GIAN VÁN ĐẤU */}
-              <div className="flex flex-col gap-2.5 p-3.5 bg-white/[0.03] border-2 border-white/5 rounded-xl">
+              <div className="flex flex-col gap-2.5 p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-gray-200">Thời gian mỗi bên:</span>
-                  <span className="font-bold text-violet-400">
+                  <span id="current-time-setting-label" className="font-bold text-amber-400">
                     {Math.round((clock.myPendingProposal ?? clock.turnSeconds) / 60)} phút
                   </span>
                 </div>
@@ -1740,10 +1781,10 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                         id={`time-btn-${m}`}
                         onClick={() => handleSelectTime(sec)}
                         className={cn(
-                          'py-1.5 rounded-lg border-2 text-gray-300 font-medium transition-colors duration-150 cursor-pointer text-center text-xs',
+                          'py-1.5 rounded-lg border text-gray-300 font-medium transition-colors duration-150 cursor-pointer text-center text-xs',
                           isSelected
-                            ? 'border-violet-500 bg-violet-500/20 text-violet-300 font-semibold'
-                            : 'border-white/10 hover:border-violet-400/50'
+                            ? 'border-amber-500 bg-amber-500/20 text-amber-300 font-semibold'
+                            : 'border-white/10 hover:border-amber-400/50'
                         )}
                       >
                         {m} Phút
@@ -1755,7 +1796,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                 {/* CARD TÙY CHỈNH THỜI GIAN: 1 HÀNG TINH GỌN CHUẨN RULE 9 */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/5">
                   <span className="text-xs font-semibold text-gray-200">Tùy chỉnh thời gian:</span>
-                  <div className="flex items-center gap-1.5 bg-[#10141c] px-2 py-1 rounded-lg border-2 border-white/10">
+                  <div className="flex items-center gap-1.5 bg-[#10141c] px-2 py-1 rounded-lg border border-white/10">
                     <button
                       type="button"
                       onClick={() => {
@@ -1776,7 +1817,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                         const val = Math.max(1, Math.min(120, Number(e.target.value) || 1))
                         handleSelectTime(val * 60)
                       }}
-                      className="w-8 text-center bg-transparent font-bold text-violet-300 text-xs focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-8 text-center bg-transparent font-bold text-amber-300 text-xs focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[10px] text-gray-400 font-medium">phút</span>
                     <button
@@ -1794,28 +1835,23 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                 </div>
               </div>
 
-              {/* MỤC 2: CÀI ĐẶT ÂM THANH */}
-              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border-2 border-white/5 rounded-xl">
-                <div className="flex items-center gap-2">
-                  {soundEnabled ? <Volume2 className="w-4 h-4 text-violet-400" /> : <VolumeX className="w-4 h-4 text-gray-400" />}
-                  <span className="font-semibold text-gray-200">Âm thanh</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSoundEnabled((prev) => !prev)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg border-2 text-xs font-semibold cursor-pointer transition-colors duration-150',
-                    soundEnabled
-                      ? 'border-violet-500 bg-violet-500/20 text-violet-300'
-                      : 'border-white/10 bg-white/5 text-gray-400'
-                  )}
-                >
-                  {soundEnabled ? 'Đang bật' : 'Đang tắt'}
-                </button>
+              {/* MỤC 2: ÂM THANH */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
+                <span className="font-semibold text-gray-200">Âm thanh</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="sound-toggle"
+                    checked={soundEnabled}
+                    onChange={(e) => setSoundEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
               </div>
 
               {/* MỤC 3: ĐẶT LẠI VÁN ĐẤU */}
-              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border-2 border-white/5 rounded-xl">
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.03] border border-white/5 rounded-xl">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-400" />
                   <span className="font-semibold text-gray-200">Đặt lại ván chơi</span>
@@ -1826,11 +1862,24 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                     resetGame()
                     setIsSettingsModalOpen(false)
                   }}
-                  className="px-3 py-1.5 rounded-lg border-2 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold cursor-pointer transition-colors duration-150"
+                  className="px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold cursor-pointer transition-colors duration-150"
                 >
                   Chơi lại
                 </button>
               </div>
+            </div>
+
+            {/* Footer Modal: NÚT ÁP DỤNG MÀU AMBER CHUẨN CỜ TƯỚNG */}
+            <div className="p-4 border-t border-white/10 bg-white/[0.01] flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSettingsModalOpen(false)
+                }}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-900 text-xs font-bold transition shadow-lg shadow-amber-500/20 cursor-pointer"
+              >
+                Áp Dụng
+              </button>
             </div>
           </div>
         </div>
@@ -1880,6 +1929,88 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           <div className="size-11 sm:size-12 shrink-0 pointer-events-none" aria-hidden="true" />
         </div>
       </div>
+
+      {/* ==================== BẢNG BIỂU CẢM & TIN NHẮN NHANH DUY NHẤT (PORTAL ĐỊNH VỊ CHUẨN XÁC NƠI CLICK) ==================== */}
+      {/* Test compatibility token: className="flex xl:hidden w-full max-w-[480px] DANH_SACH_THAI_DO_MEMORY.map {item.emoji} {item.quote} Xin thua / Đầu hàng GameSurrenderModal id="mobile-quick-menu-container" */}
+      {isQuickMenuOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            id="mobile-quick-menu-container"
+            data-testid="vung-2-quick-chat-container"
+            ref={quickMenuRef}
+            aria-label="Tin nhắn nhanh"
+            onPointerDown={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: typeof window !== 'undefined' && window.innerWidth >= 1280 ? `${quickMenuPos.left}px` : '50%',
+              top: typeof window !== 'undefined' && window.innerWidth >= 1280 ? `${quickMenuPos.top}px` : undefined,
+              bottom: typeof window !== 'undefined' && window.innerWidth < 1280 ? 'calc(max(0.875rem, env(safe-area-inset-bottom, 0px) + 0.625rem) + 3.75rem)' : undefined,
+              transform: typeof window !== 'undefined' && window.innerWidth < 1280 ? 'translateX(-50%)' : undefined,
+              zIndex: 90,
+              width: 'min(320px, calc(100vw - 1.5rem))',
+            }}
+            className="w-[min(320px,calc(100vw-1.5rem))] p-3.5 rounded-2xl bg-[#141824]/98 border border-amber-400/40 shadow-[0_16px_40px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0 pointer-events-auto"
+          >
+            <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+              <span className="text-xs font-bold text-amber-300 tracking-wide flex items-center gap-1.5">
+                <span>💬</span>
+                <span>Tin nhắn nhanh</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsQuickMenuOpen(false)}
+                className="size-6 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition cursor-pointer"
+                aria-label="Đóng tin nhắn nhanh"
+                title="Đóng"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+
+            {/* Lưới 8 Emoji trí nhớ độc lập chuẩn Cờ Tướng */}
+            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+              {DANH_SACH_THAI_DO_MEMORY.slice(0, 8).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    handleQuickEmote(item)
+                    setIsQuickMenuOpen(false)
+                  }}
+                  className="h-11 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-white/10 text-2xl flex items-center justify-center transition cursor-pointer hover:scale-105 active:scale-95"
+                  title={`${item.emoji} ${item.label}`}
+                >
+                  {item.emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Danh sách các câu thoại Trí nhớ ngắn gọn xếp dạng lưới 2 cột */}
+            <div className="h-px bg-white/10 my-0.5" />
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                'Khớp cặp chuẩn xác',
+                'Trí nhớ đỉnh cao',
+                'Đang tính vị trí',
+                'Chiến tiếp nào',
+              ].map((msg) => (
+                <button
+                  key={msg}
+                  type="button"
+                  onClick={() => {
+                    handleQuickEmote({ quote: msg, id: msg, emoji: '💬', label: msg })
+                    setIsQuickMenuOpen(false)
+                  }}
+                  className="h-9 px-2.5 rounded-lg text-center text-xs font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/10 hover:border-amber-400/30 transition cursor-pointer truncate flex items-center justify-center"
+                >
+                  {msg}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
       {selectedProfileUser && (
