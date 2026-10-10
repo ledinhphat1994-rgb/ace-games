@@ -18,7 +18,7 @@ const TEST_ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
 const TEST_VIDEO_ID = 'jNQXAC9IVRw'
 
 if (!HOST_USER.password || !MEMBER_USER.password) {
-  throw new Error('Missing E2E credentials in environment or .env.e2e. Please check .env.e2e.example.')
+  throw new Error('Missing E2E credentials in environment or .env.e2e. Please check e2e/.env.e2e.example.')
 }
 
 async function loginUser(page: Page, user: { username: string; password: string }) {

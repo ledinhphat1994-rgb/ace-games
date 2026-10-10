@@ -14,11 +14,13 @@ const config: CapacitorConfig = {
     backgroundColor: '#020c24',
     captureInput: true,
     webContentsDebuggingEnabled: false,
+    hideLogs: true,
   },
   plugins: {
     StatusBar: {
+      overlaysWebView: true,
       style: 'DARK',
-      backgroundColor: '#0a0d14',
+      backgroundColor: '#00000000',
     },
   },
 }

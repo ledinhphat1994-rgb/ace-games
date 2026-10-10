@@ -34,11 +34,17 @@ set APP_HOME=%DIRNAME%
 
 @rem Resolve any "." and ".." in APP_HOME to make it shorter.
 for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
+if exist "gradle\wrapper\gradle-wrapper.jar" set APP_HOME=.
 
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 
+@rem Configure Gradle User Home on D: drive to save C: space
+if not defined GRADLE_USER_HOME if exist "D:\downloads\Android\.gradle" set "GRADLE_USER_HOME=D:\downloads\Android\.gradle"
+
 @rem Find java.exe
+if not defined JAVA_HOME if exist "D:\downloads\Android\jdk-21\jdk-21.0.12.1+1" set "JAVA_HOME=D:\downloads\Android\jdk-21\jdk-21.0.12.1+1"
+if not defined JAVA_HOME if exist "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot" set "JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"
 if defined JAVA_HOME goto findJavaFromJavaHome
 
 set JAVA_EXE=java.exe

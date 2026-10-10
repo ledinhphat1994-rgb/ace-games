@@ -25,7 +25,7 @@ const PASSWORD_ROOM_PASSWORD = process.env.E2E_PASSWORD_ROOM_PASSWORD || ''
 
 // Fail-fast on missing credentials
 if (!HOST_USER.password || !MEMBER_USER.password || !MEMBER_C_USER.password) {
-  throw new Error('Missing E2E credentials in environment or .env.e2e. Please check .env.e2e.example.')
+  throw new Error('Missing E2E credentials in environment or .env.e2e. Please check e2e/.env.e2e.example.')
 }
 
 // "Me at the zoo" - First YouTube video, universally embeddable without region/copyright blocks (19s)

@@ -11,7 +11,7 @@ _worker.bundle
 .dev.vars*
 !.dev.vars.example
 .env.e2e
-!.env.e2e.example
+!e2e/.env.e2e.example
 worker-configuration.d.ts
 
 # Kết quả chạy thử trình duyệt (Playwright).
@@ -40,3 +40,6 @@ unrealworld/
 game-rpg/
 mobile-apk/
 *.apk
+repomix-codebase.txt
+game-project.zip
+benchmark.json
