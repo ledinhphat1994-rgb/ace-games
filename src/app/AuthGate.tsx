@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useSearchParams } from 'react-router'
 import { KhungChoTrang } from '@/components/layout/KhungChoTrang'
-import { Loader2, WifiOff } from 'lucide-react'
+import { WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
@@ -130,9 +130,8 @@ export function AuthGate() {
   if (phien.isPending) {
     return (
       <KhungNen>
-        <div role="status" className="flex flex-1 flex-col items-center justify-center gap-4">
-          <LogoCampus />
-          <Loader2 className="size-5 animate-spin text-text-tertiary" aria-label="Đang tải" />
+        <div role="status" className="flex flex-1 items-center justify-center select-none" aria-label="Đang tải">
+          <DigitalCampusLogo size="2xl" loading showGlow />
         </div>
       </KhungNen>
     )
@@ -191,14 +190,5 @@ function KhungNen({ children }: { children: ReactNode }) {
       />
       {children}
     </div>
-  )
-}
-
-function LogoCampus() {
-  return (
-    <span className="inline-flex items-center gap-2.5 select-none">
-      <DigitalCampusLogo size="sm" />
-      <span className="text-[0.9375rem] font-bold tracking-tight text-text-primary">Ace Games</span>
-    </span>
   )
 }

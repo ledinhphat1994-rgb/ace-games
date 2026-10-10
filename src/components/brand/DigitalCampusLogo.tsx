@@ -3,20 +3,24 @@ import { cn } from '@/lib/utils'
 
 interface DigitalCampusLogoProps {
   className?: string
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   animated?: boolean
   showGlow?: boolean
+  loading?: boolean
 }
 
 /**
- * Biểu tượng thương hiệu Digital Campus chuẩn (chữ A / vòm cánh chim tương lai)
- * Thiết kế chuẩn icon ứng dụng điện thoại squircle với hiệu ứng animated phát sáng rực rỡ
+ * Biểu tượng thương hiệu Ace Games / Digital Campus chuẩn (chữ A cách điệu)
+ * Thiết kế chuẩn icon ứng dụng Mobile squircle với hiệu ứng animated phát sáng rực rỡ
+ * - Đã loại bỏ hoàn toàn dấu chấm tròn theo yêu cầu
+ * - Hỗ trợ chế độ loading với tia sáng animated chạy dọc thân chữ A
  */
 export const DigitalCampusLogo = memo(function DigitalCampusLogo({
   className,
   size = 'md',
   animated = true,
   showGlow = true,
+  loading = false,
 }: DigitalCampusLogoProps) {
   const sizeMap = {
     xs: 'size-6',
@@ -24,6 +28,7 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
     md: 'size-9 sm:size-10',
     lg: 'size-11 sm:size-12',
     xl: 'size-14 sm:size-16',
+    '2xl': 'size-20 sm:size-24',
   }
 
   const iconSizeMap = {
@@ -32,6 +37,7 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
     md: 'w-6 h-6',
     lg: 'w-7.5 h-7.5',
     xl: 'w-10 h-10',
+    '2xl': 'w-14 h-14 sm:w-16 sm:h-16',
   }
 
   return (
@@ -46,8 +52,8 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
       {showGlow && (
         <span
           className={cn(
-            'absolute -inset-1 rounded-[28%] bg-gradient-to-tr from-sky-400/40 via-indigo-500/30 to-cyan-400/40 blur-[7px] pointer-events-none transition-opacity duration-500',
-            animated && 'animate-pulse'
+            'absolute -inset-1.5 rounded-[30%] bg-gradient-to-tr from-sky-400/40 via-indigo-500/30 to-cyan-400/40 blur-[9px] pointer-events-none transition-opacity duration-500',
+            (animated || loading) && 'animate-pulse'
           )}
         />
       )}
@@ -63,7 +69,7 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
         {/* Lớp viền phản quang trên (Top Bevel Highlight) */}
         <div className="absolute inset-x-0 top-0 h-[38%] bg-gradient-to-b from-white/50 dark:from-sky-300/25 to-transparent pointer-events-none" />
 
-        {/* Biểu tượng vector chữ A / Vòm cất cánh đặc trưng của Digital Campus */}
+        {/* Biểu tượng vector chữ A cách điệu */}
         <svg
           viewBox="0 0 100 100"
           fill="none"
@@ -81,16 +87,26 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
               <stop offset="100%" stopColor="#4f46e5" />
             </linearGradient>
 
-            {/* Gradient ánh sáng lướt nhẹ */}
+            {/* Gradient ánh sáng lướt nhẹ phản quang */}
             <linearGradient id="dc-logo-shine" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
             </linearGradient>
 
-            <filter id="dc-glow-filter" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
+            {/* Gradient tia sáng chạy dọc thân chữ A */}
+            <linearGradient id="dc-trace-glow" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0" />
+              <stop offset="50%" stopColor="#38bdf8" stopOpacity="1" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
+            </linearGradient>
+
+            {/* Mask cắt hình dáng chữ A cho hiệu ứng quét ánh sáng */}
+            <mask id="dc-a-mask">
+              <path
+                d="M50 16C43.5 16 35.8 28.5 28.5 44.5C21.8 59.2 17.5 73.2 18.2 78.4C18.8 82.5 22.8 84.5 26.8 82.8C32.5 80.4 39.5 70.8 44.2 60.5C46.8 54.8 48.8 49.8 50 49.8C51.2 49.8 53.2 54.8 55.8 60.5C60.5 70.8 67.5 80.4 73.2 82.8C77.2 84.5 81.2 82.5 81.8 78.4C82.5 73.2 78.2 59.2 71.5 44.5C64.2 28.5 56.5 16 50 16Z"
+                fill="#ffffff"
+              />
+            </mask>
           </defs>
 
           {/* Biểu tượng chữ A cách điệu: Vòm cong uyển chuyển vững chãi với đỉnh nhọn bo tròn */}
@@ -106,17 +122,95 @@ export const DigitalCampusLogo = memo(function DigitalCampusLogo({
             opacity="0.65"
           />
 
-          {/* Viên ngọc năng lượng lõi phát sáng ở tâm vòm */}
-          <circle cx="50" cy="38" r="4.5" fill="#e0f2fe" filter="url(#dc-glow-filter)" />
+          {/* Hiệu ứng animated chạy dọc chữ A khi chờ (loading) */}
+          {loading && (
+            <>
+              {/* Lớp quét ánh sáng dọc thân chữ A */}
+              <g mask="url(#dc-a-mask)">
+                <rect
+                  x="10"
+                  y="10"
+                  width="80"
+                  height="26"
+                  fill="url(#dc-logo-shine)"
+                  opacity="0.75"
+                  className="dc-a-scan-bar"
+                />
+              </g>
+
+              {/* Tia sáng năng lượng neon chạy uốn lượn dọc sống lưng chữ A (từ chân trái lên đỉnh qua chân phải) */}
+              <path
+                d="M 23 81 C 31 67, 43 28, 50 17 C 57 28, 69 67, 77 81"
+                fill="none"
+                stroke="#38bdf8"
+                strokeWidth="4"
+                strokeLinecap="round"
+                className="dc-a-pulse-outer"
+              />
+              <path
+                d="M 23 81 C 31 67, 43 28, 50 17 C 57 28, 69 67, 77 81"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                className="dc-a-pulse-inner"
+              />
+            </>
+          )}
         </svg>
 
-        {/* Chấm tròn live signal ở góc trên bên phải */}
-        <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 flex size-2">
-          {animated && (
-            <span className="animate-ping absolute inline-flex size-full rounded-full bg-sky-400 opacity-75" />
-          )}
-          <span className="relative inline-flex size-2 rounded-full bg-sky-400 shadow-[0_0_6px_#38bdf8]" />
-        </span>
+        {/* CSS Keyframes cho hiệu ứng animated chạy dọc chữ A */}
+        {loading && (
+          <style>
+            {`
+              @keyframes dcPulseTrace {
+                0% {
+                  stroke-dasharray: 40 160;
+                  stroke-dashoffset: 160;
+                  opacity: 0;
+                }
+                15% {
+                  opacity: 1;
+                }
+                85% {
+                  opacity: 1;
+                }
+                100% {
+                  stroke-dasharray: 40 160;
+                  stroke-dashoffset: -160;
+                  opacity: 0;
+                }
+              }
+              @keyframes dcScanFlow {
+                0% {
+                  transform: translateY(70px);
+                  opacity: 0;
+                }
+                25% {
+                  opacity: 0.85;
+                }
+                75% {
+                  opacity: 0.85;
+                }
+                100% {
+                  transform: translateY(-25px);
+                  opacity: 0;
+                }
+              }
+              .dc-a-pulse-outer {
+                animation: dcPulseTrace 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                filter: drop-shadow(0 0 5px #38bdf8);
+              }
+              .dc-a-pulse-inner {
+                animation: dcPulseTrace 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                filter: drop-shadow(0 0 2px #ffffff);
+              }
+              .dc-a-scan-bar {
+                animation: dcScanFlow 1.6s ease-in-out infinite;
+              }
+            `}
+          </style>
+        )}
       </div>
     </div>
   )
