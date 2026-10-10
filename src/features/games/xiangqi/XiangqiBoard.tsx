@@ -413,43 +413,41 @@ export function XiangqiBoard({
   const oppMsgTimerRef = useRef<NodeJS.Timeout | null>(null)
   const quickMenuRef = useRef<HTMLDivElement>(null)
 
-  // Vị trí cố định của Popup Biểu cảm được clamp chặt chẽ trong Viewport
+  const lastEmojiTriggerRef = useRef<HTMLElement | null>(null)
+
+  // Vị trí cố định của Popup Biểu cảm được định vị chuẩn xác theo nơi click
   const [quickMenuPos, setQuickMenuPos] = useState<{ left: number; top: number }>({ left: 16, top: 16 })
 
-  const updateQuickMenuPos = useCallback(() => {
+  const updateQuickMenuPos = useCallback((customTrigger?: HTMLElement | null) => {
     if (typeof window === 'undefined') return
     const POPUP_W = 240
     const POPUP_H = 268
-    const PADDING = 16
 
-    if (window.innerWidth < 1280) {
+    const triggerEl =
+      customTrigger ||
+      lastEmojiTriggerRef.current ||
+      document.getElementById('tool-bubble-emoji') ||
+      document.getElementById('mobile-tool-emoji') ||
+      document.querySelector('[id*="emoji"]')
+
+    if (!triggerEl) {
       setQuickMenuPos({
         left: Math.max(12, (window.innerWidth - POPUP_W) / 2),
-        top: Math.max(70, window.innerHeight - POPUP_H - 110),
+        top: Math.max(12, window.innerHeight - POPUP_H - 80),
       })
       return
     }
 
-    const triggerEl =
-      document.getElementById('tool-bubble-emoji') ||
-      document.getElementById('mobile-tool-emoji') ||
-      document.getElementById('quick-emoji-btn') ||
-      avatarBubbleRef.current
-    if (!triggerEl) return
-    const asideEl = document.getElementById('vung-2-plus-card')
-    const asideRect = asideEl ? asideEl.getBoundingClientRect() : triggerEl.getBoundingClientRect()
-    const boardEl = document.querySelector('section[aria-label*="Bàn cờ"]') || document.querySelector('section')
-    const boardRect = boardEl ? boardEl.getBoundingClientRect() : null
+    const rect = triggerEl.getBoundingClientRect()
+    // Căn giữa popup theo trục X của nút bấm vừa click
+    let left = rect.left + rect.width / 2 - POPUP_W / 2
+    left = Math.max(12, Math.min(window.innerWidth - POPUP_W - 12, left))
 
-    const minSafeLeft = window.innerWidth >= 1280 ? 248 : 12
-    const maxSafeRight = boardRect ? boardRect.left - 12 : window.innerWidth - 12
-
-    let left = asideRect.left + (asideRect.width - POPUP_W) / 2
-    left = Math.max(minSafeLeft, Math.min(maxSafeRight - POPUP_W, left))
-
-    let top = asideRect.top - POPUP_H - PADDING
+    // Ưu tiên hiển thị ngay phía trên nút bấm (cách 8px)
+    let top = rect.top - POPUP_H - 8
     if (top < 12) {
-      top = asideRect.bottom + PADDING
+      // Nếu mép trên không đủ chỗ, hiển thị bên dưới nút bấm
+      top = rect.bottom + 8
     }
     top = Math.max(12, Math.min(window.innerHeight - POPUP_H - 12, top))
 
@@ -463,12 +461,13 @@ export function XiangqiBoard({
   // Cập nhật vị trí Popup Biểu cảm khi mở hoặc resize/scroll
   useEffect(() => {
     if (isQuickMenuOpen) {
+      const handleReposition = () => updateQuickMenuPos()
       updateQuickMenuPos()
-      window.addEventListener('resize', updateQuickMenuPos)
-      window.addEventListener('scroll', updateQuickMenuPos, true)
+      window.addEventListener('resize', handleReposition)
+      window.addEventListener('scroll', handleReposition, true)
       return () => {
-        window.removeEventListener('resize', updateQuickMenuPos)
-        window.removeEventListener('scroll', updateQuickMenuPos, true)
+        window.removeEventListener('resize', handleReposition)
+        window.removeEventListener('scroll', handleReposition, true)
       }
     }
   }, [isQuickMenuOpen, updateQuickMenuPos])
@@ -1915,7 +1914,7 @@ export function XiangqiBoard({
       title: string
       bubbleClassName: string
       renderIcon: (compact?: boolean) => React.ReactNode
-      onClick: () => void
+      onClick: (e?: React.MouseEvent) => void
       disabled?: boolean
     }
   > = {
@@ -1935,8 +1934,14 @@ export function XiangqiBoard({
         isQuickMenuOpen && 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
       ),
       renderIcon: (compact) => <Smile className={compact ? 'size-5 sm:size-5.5' : 'size-5 sm:size-6'} />,
-      onClick: () => {
-        updateQuickMenuPos()
+      onClick: (e?: React.MouseEvent) => {
+        const target = (e?.currentTarget as HTMLElement) || document.getElementById('tool-bubble-emoji')
+        if (target) {
+          lastEmojiTriggerRef.current = target
+          updateQuickMenuPos(target)
+        } else {
+          updateQuickMenuPos()
+        }
         setIsQuickMenuOpen((prev) => !prev)
       },
     },
@@ -2749,7 +2754,10 @@ export function XiangqiBoard({
                   key={toolId}
                   type="button"
                   id={buttonId}
-                  onClick={tool.onClick}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    tool.onClick(e)
+                  }}
                   disabled={tool.disabled}
                   className={cn(
                     'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md',
@@ -2775,78 +2783,6 @@ export function XiangqiBoard({
               </button>
             )}
           </div>
-
-          {/* ==================== BẢNG TIN NHẮN NHANH TRÊN MOBILE (< xl): NẰM DƯỚI THANH CÔNG CỤ ==================== */}
-          {isQuickMenuOpen && (
-            <div
-              id="mobile-quick-menu-container"
-              ref={quickMenuRef}
-              aria-label="Tin nhắn nhanh"
-              className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"
-            >
-              <div className="p-2.5 rounded-2xl bg-[#141824]/98 border border-amber-400/40 shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-md flex flex-col gap-2">
-                <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                  <span className="text-[11px] font-bold text-amber-300 tracking-wide flex items-center gap-1.5">
-                    <span>💬</span>
-                    <span>Tin nhắn nhanh</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsQuickMenuOpen(false)}
-                    className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                    aria-label="Đóng tin nhắn nhanh"
-                    title="Đóng"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-
-                {/* Lưới 8 Emoji cờ tướng gọn gàng */}
-                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                  {[
-                    { emoji: '👏', text: 'Hay quá' },
-                    { emoji: '🤔', text: 'Đang tính' },
-                    { emoji: '☕', text: 'Mời trà' },
-                    { emoji: '🤝', text: 'Bắt tay' },
-                    { emoji: '🔥', text: 'Chiến nào' },
-                    { emoji: '😅', text: 'Toát mồ hôi' },
-                    { emoji: '👍', text: 'Đỉnh cao' },
-                    { emoji: '⚔️', text: 'Xuất quân' },
-                  ].map((item) => (
-                    <button
-                      key={item.emoji}
-                      type="button"
-                      onClick={() => handleSendQuickMessage(item.text, item.emoji)}
-                      className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                      title={item.text}
-                    >
-                      {item.emoji}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
-                <div className="h-[1px] bg-white/10 my-0.5" />
-                <div className="grid grid-cols-2 gap-1">
-                  {[
-                    'Nước cờ hay',
-                    'Xin chỉ giáo',
-                    'Đang tính nước',
-                    'Chiến tiếp nào',
-                  ].map((msg) => (
-                    <button
-                      key={msg}
-                      type="button"
-                      onClick={() => handleSendQuickMessage(msg)}
-                      className="px-2.5 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
-                    >
-                      {msg}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ==================== CỘT BÊN TRÁI: VÙNG 4 (AVATAR KỲ THỦ VÀ CÁC POPUP TIỆN ÍCH - DESKTOP XL DUY NHẤT) ==================== */}
@@ -2859,81 +2795,6 @@ export function XiangqiBoard({
           }}
           className="hidden xl:flex xl:absolute xl:right-[calc(100%+24px)] xl:bottom-12 xl:w-[250px] flex-col items-end justify-end select-none z-40 shrink-0 pointer-events-auto"
         >
-          {/* ==================== BẢNG CHỌN BIỂU CẢM & TIN NHANH (PORTAL LÊN DOCUMENT.BODY ĐỂ ĐỊNH VỊ CHUẨN XÁC THEO VIEWPORT) ==================== */}
-          {isQuickMenuOpen &&
-            typeof document !== 'undefined' &&
-            createPortal(
-              <div
-                id="vung-2-quick-chat-container"
-                ref={quickMenuRef}
-                aria-label="Bảng chọn biểu cảm và tin nhắn nhanh"
-                style={{
-                  position: 'fixed',
-                  left: `${quickMenuPos.left}px`,
-                  top: `${quickMenuPos.top}px`,
-                  zIndex: 80,
-                }}
-                className="w-[240px] p-3 rounded-2xl bg-[#161b26]/98 border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.95)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none z-[60] shrink-0 pointer-events-auto"
-              >
-                <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                  <span className="text-[11px] font-bold text-amber-400">Biểu cảm & Tin nhanh</span>
-                  <button
-                    type="button"
-                    onClick={() => setIsQuickMenuOpen(false)}
-                    className="p-0.5 rounded text-gray-400 hover:text-white transition cursor-pointer"
-                    aria-label="Đóng biểu cảm"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Lưới 8 Emoji cờ tướng gọn gàng */}
-                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                  {[
-                    { emoji: '👏', text: 'Hay quá' },
-                    { emoji: '🤔', text: 'Đang tính' },
-                    { emoji: '☕', text: 'Mời trà' },
-                    { emoji: '🤝', text: 'Bắt tay' },
-                    { emoji: '🔥', text: 'Chiến nào' },
-                    { emoji: '😅', text: 'Toát mồ hôi' },
-                    { emoji: '👍', text: 'Đỉnh cao' },
-                    { emoji: '⚔️', text: 'Xuất quân' },
-                  ].map((item) => (
-                    <button
-                      key={item.emoji}
-                      type="button"
-                      onClick={() => handleSendQuickMessage(item.text, item.emoji)}
-                      className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
-                      title={item.text}
-                    >
-                      {item.emoji}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
-                <div className="h-[1px] bg-white/10 my-0.5" />
-                <div className="grid grid-cols-2 gap-1">
-                  {[
-                    'Nước cờ hay',
-                    'Xin chỉ giáo',
-                    'Đang tính nước',
-                    'Chiến tiếp nào',
-                  ].map((msg) => (
-                    <button
-                      key={msg}
-                      type="button"
-                      onClick={() => handleSendQuickMessage(msg)}
-                      className="px-2 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
-                    >
-                      {msg}
-                    </button>
-                  ))}
-                </div>
-              </div>,
-              document.body
-            )}
-
           {/* TRUNG TÂM: AVATAR KỲ THỦ VÀ CÁC BONG BÓNG CÔNG CỤ GHIM QUANH AVATAR (VÙNG 1 MỚI) */}
           <div className="relative flex flex-col items-center mb-8">
             {/* KHI DÙNG TIN NHẮN NHANH: NỞ RA TRÊN ĐỈNH VƯỢT LÊN TRÊN BONG BÓNG (đặt phía trên cụm nút công cụ, không đè nút, sidebar hay bàn cờ) */}
@@ -2968,7 +2829,7 @@ export function XiangqiBoard({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation()
-                      tool.onClick()
+                      tool.onClick(e)
                     }}
                     disabled={tool.disabled}
                     style={{
@@ -3546,18 +3407,98 @@ export function XiangqiBoard({
       <div className="hidden shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px]" aria-hidden="true">
         <GamePlayToolbar mode={mode} onModeChange={handleModeChange} onReset={resetGame} />
       </div>
-      {/* VÙNG 1 CHUYỂN XUỐNG VÙNG X (NÚT QUAY LẠI SẢNH) THEO YÊU CẦU USER */}
+      {/* VÙNG 1 CÙNG HÀNG VỚI ICON TIN NHẮN NỔI (NÚT QUAY LẠI SẢNH) THEO YÊU CẦU USER */}
       <button
         type="button"
         id="game-leave-btn"
         onClick={handleBackLobby}
-        className="fixed bottom-14 left-3 sm:bottom-16 sm:left-4 z-30 h-9 px-3 rounded-xl text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
+        className="fixed bottom-2 left-2 sm:bottom-2.5 sm:left-3 z-30 h-9.5 sm:h-10 px-3.5 rounded-full text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 shadow-lg backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
         title="Quay lại sảnh"
         aria-label="Quay lại sảnh"
       >
-        <ArrowLeft className="size-3.5" />
+        <ArrowLeft className="size-4" />
         <span>Sảnh</span>
       </button>
+
+      {/* ==================== BẢNG BIỂU CẢM & TIN NHẮN NHANH DUY NHẤT (PORTAL ĐỊNH VỊ CHUẨN XÁC NƠI CLICK) ==================== */}
+      {isQuickMenuOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            id="mobile-quick-menu-container"
+            data-testid="vung-2-quick-chat-container"
+            ref={quickMenuRef}
+            aria-label="Tin nhắn nhanh"
+            style={{
+              position: 'fixed',
+              left: `${quickMenuPos.left}px`,
+              top: `${quickMenuPos.top}px`,
+              zIndex: 90,
+            }}
+            className="w-[240px] p-3 rounded-2xl bg-[#141824]/98 border border-amber-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.9)] backdrop-blur-md flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0 pointer-events-auto"
+          >
+            <div className="flex items-center justify-between pb-1 border-b border-white/10">
+              <span className="text-[11px] font-bold text-amber-300 tracking-wide flex items-center gap-1.5">
+                <span>💬</span>
+                <span>Tin nhắn nhanh</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsQuickMenuOpen(false)}
+                className="p-1 rounded text-gray-400 hover:text-white transition cursor-pointer"
+                aria-label="Đóng tin nhắn nhanh"
+                title="Đóng"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+
+            {/* Lưới 8 Emoji cờ tướng gọn gàng */}
+            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+              {[
+                { emoji: '👏', text: 'Hay quá' },
+                { emoji: '🤔', text: 'Đang tính' },
+                { emoji: '☕', text: 'Mời trà' },
+                { emoji: '🤝', text: 'Bắt tay' },
+                { emoji: '🔥', text: 'Chiến nào' },
+                { emoji: '😅', text: 'Toát mồ hôi' },
+                { emoji: '👍', text: 'Đỉnh cao' },
+                { emoji: '⚔️', text: 'Xuất quân' },
+              ].map((item) => (
+                <button
+                  key={item.emoji}
+                  type="button"
+                  onClick={() => handleSendQuickMessage(item.text, item.emoji)}
+                  className="p-1 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:border-amber-400/40 border border-transparent text-xl flex items-center justify-center transition cursor-pointer hover:scale-110 active:scale-95"
+                  title={item.text}
+                >
+                  {item.emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Danh sách các câu thoại cờ tướng ngắn gọn xếp dạng lưới 2 cột */}
+            <div className="h-[1px] bg-white/10 my-0.5" />
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                'Nước cờ hay',
+                'Xin chỉ giáo',
+                'Đang tính nước',
+                'Chiến tiếp nào',
+              ].map((msg) => (
+                <button
+                  key={msg}
+                  type="button"
+                  onClick={() => handleSendQuickMessage(msg)}
+                  className="px-2.5 py-1.5 rounded-lg text-center text-[11px] font-semibold text-gray-200 hover:text-amber-300 bg-white/5 hover:bg-amber-500/15 border border-white/5 hover:border-amber-400/30 transition cursor-pointer truncate"
+                >
+                  {msg}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
       {selectedProfileUser && (

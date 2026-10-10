@@ -43,9 +43,9 @@ describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)'
       expect(headerArea).not.toContain('id="game-leave-btn"')
     })
 
-    it('Vùng 1 (nút Sảnh) được chuyển xuống Vùng X (bottom-14 left-3) và xóa badge ở bottom-left', () => {
+    it('Vùng 1 (nút Sảnh) được chuyển xuống cùng hàng với icon tin nhắn nổi (bottom-2 left-2 sm:bottom-2.5 sm:left-3)', () => {
       expect(xiangqiBoardRaw).toContain('id="game-leave-btn"')
-      expect(xiangqiBoardRaw).toContain('fixed bottom-14 left-3')
+      expect(xiangqiBoardRaw).toContain('fixed bottom-2 left-2 sm:bottom-2.5 sm:left-3')
       expect(xiangqiBoardRaw).not.toContain('id="room-number-badge-bottom-left"')
     })
   })
