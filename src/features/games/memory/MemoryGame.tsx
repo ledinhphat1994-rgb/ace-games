@@ -33,6 +33,8 @@ import { useGameClock } from '../use-game-clock'
 import { TIME_PRESETS } from '../GameClockWidget'
 import { toast } from 'sonner'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
+import { AiDifficultyHoldMenu } from '../AiDifficultyHoldMenu'
+import { useHoldBotDifficulty } from '../useHoldBotDifficulty'
 import {
   GameQuickEmote,
   GameOpponentBubble,
@@ -175,7 +177,15 @@ interface MemoryGameProps {
 
 export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }: MemoryGameProps) {
   const [mode, setMode] = useState<MemoryMode>('pve')
-  const [difficulty, setDifficulty] = useState<MemoryDifficulty>('medium')
+  const {
+    aiLevel: difficulty,
+    setAiLevel: setDifficulty,
+    isDifficultyMenuOpen,
+    closeDifficultyMenu,
+    anchorRect: aiDifficultyAnchor,
+    botHoldHandlers,
+    wrapClickHandler,
+  } = useHoldBotDifficulty('medium')
   const [cards, setCards] = useState<CardItem[]>(() => xaoBai())
   const [flipped, setFlipped] = useState<number[]>([])
   const [matched, setMatched] = useState<number[]>([])
@@ -1920,26 +1930,37 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           </button>
 
           {/* Các nút công cụ Vùng 1 được đưa xuống Vùng 2, icon không chữ cách đều */}
-          {memoryTools.map((tool) => (
-            <button
-              key={tool.id}
-              type="button"
-              id={`mobile-tool-${tool.id}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                tool.onClick(e)
-              }}
-              disabled={tool.disabled}
-              className={cn(
-                'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
-                tool.className
-              )}
-              title={tool.title}
-              aria-label={tool.title}
-            >
-              {tool.icon}
-            </button>
-          ))}
+          {memoryTools.map((tool) => {
+            const isModeTool = tool.id === 'mode'
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                id={`mobile-tool-${tool.id}`}
+                {...(isModeTool ? botHoldHandlers : {})}
+                onClick={
+                  isModeTool
+                    ? wrapClickHandler((e) => {
+                        e.stopPropagation()
+                        tool.onClick(e)
+                      })
+                    : (e) => {
+                        e.stopPropagation()
+                        tool.onClick(e)
+                      }
+                }
+                disabled={tool.disabled}
+                className={cn(
+                  'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
+                  tool.className
+                )}
+                title={tool.title}
+                aria-label={tool.title}
+              >
+                {tool.icon}
+              </button>
+            )
+          })}
 
           {/* Slot dành cho nút Chat nổi của AppShell tại góc phải để các nút cách đều nhau 100% */}
           <div className="size-11 sm:size-12 shrink-0 pointer-events-none" aria-hidden="true" />
@@ -2035,6 +2056,16 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
           onDong={() => setSelectedProfileUser(null)}
         />
       )}
+
+      {/* POPUP CHỌN MỨC ĐỘ AI BOT KHI HOLD ICON BOT */}
+      <AiDifficultyHoldMenu
+        isOpen={isDifficultyMenuOpen}
+        onClose={closeDifficultyMenu}
+        anchorRect={aiDifficultyAnchor}
+        currentLevel={difficulty}
+        onSelectLevel={setDifficulty}
+        gameTitle="Trí Nhớ"
+      />
     </div>
   )
 }

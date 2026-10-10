@@ -6,6 +6,8 @@ import { playGameOverSound } from '../game-audio'
 import { docThietLap, ghiThietLap, type ThietLapRan } from './thiet-lap'
 import { useGame } from '@/hooks/use-game'
 import type { PlayMode } from '../GamePlayToolbar'
+import { AiDifficultyHoldMenu } from '../AiDifficultyHoldMenu'
+import { useHoldBotDifficulty } from '../useHoldBotDifficulty'
 
 export type SnakeDifficulty = 'easy' | 'medium' | 'hard'
 
@@ -60,6 +62,14 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
   const [roomPassword, setRoomPassword] = useState<string>('')
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [hasConfirmedPlay, setHasConfirmedPlay] = useState(false)
+
+  const {
+    isDifficultyMenuOpen,
+    closeDifficultyMenu,
+    anchorRect: aiDifficultyAnchor,
+    botHoldHandlers,
+    wrapClickHandler,
+  } = useHoldBotDifficulty(thietLap.capDo)
 
   // Host là người đầu tiên
   const isHost = realMembers.length > 0 ? realMembers[0].id === myKey : true
@@ -305,7 +315,10 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           }}
           pveCapacity={pveCapacity}
           onPveCapacityChange={(count) => {
-            if (!isSessionLocked) setPveCapacity(count)
+            if (!isSessionLocked) {
+              setPveCapacity(count)
+              doiThietLap({ ...thietLap, soMay: count })
+            }
           }}
           isSessionLocked={isSessionLocked}
           onHuyPhong={handleHuyPhong}
@@ -367,10 +380,12 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
 
           <button
             type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onClick={() => setIsConfigOpen((prev: boolean) => !prev)}
-            title="Cài đặt (O)"
+            {...botHoldHandlers}
+            onClick={wrapClickHandler((e) => {
+              e.stopPropagation()
+              setIsConfigOpen((prev: boolean) => !prev)
+            })}
+            title="Cài đặt (O) · Giữ để chọn độ khó AI"
             aria-label="Cài đặt"
             data-testid="nut-che-do-choi"
             className={cn(
@@ -408,6 +423,16 @@ export function SnakeDuel({ roomId, myActorKey, myActorName, onSaveScore, onBack
           </button>
         </div>
       )}
+
+      {/* POPUP CHỌN MỨC ĐỘ AI BOT KHI HOLD NÚT BOT / CÀI ĐẶT */}
+      <AiDifficultyHoldMenu
+        isOpen={isDifficultyMenuOpen}
+        onClose={closeDifficultyMenu}
+        anchorRect={aiDifficultyAnchor}
+        currentLevel={thietLap.capDo}
+        onSelectLevel={(lvl) => doiThietLap({ ...thietLap, capDo: lvl })}
+        gameTitle="Rắn Săn Mồi"
+      />
     </div>
   )
 }

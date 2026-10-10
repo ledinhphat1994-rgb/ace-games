@@ -61,6 +61,8 @@ import {
   playCheckAlertSound,
 } from '../game-audio'
 import { useScreenWakeLock, triggerHaptic } from '@/lib/web-experience'
+import { AiDifficultyHoldMenu } from '../AiDifficultyHoldMenu'
+import { useHoldBotDifficulty } from '../useHoldBotDifficulty'
 
 // --- 1. HỆ THỐNG ÂM THANH CỜ TƯỚNG CHUẨN CC0 INTERNET + WEB AUDIO FALLBACK ---
 class WebAudioSoundEngine {
@@ -310,7 +312,15 @@ export function XiangqiBoard({
   const showGameNotice = useCallback((title: string, subtitle?: string) => {
     setHeroicBanner({ type: 'notice', title, subtitle })
   }, [])
-  const [aiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
+  const {
+    aiLevel,
+    setAiLevel,
+    isDifficultyMenuOpen,
+    closeDifficultyMenu,
+    anchorRect: aiDifficultyAnchor,
+    botHoldHandlers,
+    wrapClickHandler,
+  } = useHoldBotDifficulty('medium')
   const [playerSide] = useState<Side>(RED)
 
   // Bàn cờ chữ Hán thư pháp truyền thống chuẩn mực
@@ -3350,15 +3360,24 @@ export function XiangqiBoard({
                 : toolId === 'draw'
                   ? 'mobile-xin-xo-btn'
                   : `mobile-tool-${toolId}`
+            const isModeTool = toolId === 'mode'
             return (
               <button
                 key={toolId}
                 type="button"
                 id={buttonId}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  tool.onClick(e)
-                }}
+                {...(isModeTool ? botHoldHandlers : {})}
+                onClick={
+                  isModeTool
+                    ? wrapClickHandler((e) => {
+                        e.stopPropagation()
+                        tool.onClick(e)
+                      })
+                    : (e) => {
+                        e.stopPropagation()
+                        tool.onClick(e)
+                      }
+                }
                 disabled={tool.disabled}
                 className={cn(
                   'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
@@ -3469,6 +3488,16 @@ export function XiangqiBoard({
           onDong={() => setSelectedProfileUser(null)}
         />
       )}
+
+      {/* POPUP CHỌN MỨC ĐỘ AI BOT KHI HOLD ICON BOT */}
+      <AiDifficultyHoldMenu
+        isOpen={isDifficultyMenuOpen}
+        onClose={closeDifficultyMenu}
+        anchorRect={aiDifficultyAnchor}
+        currentLevel={aiLevel}
+        onSelectLevel={setAiLevel}
+        gameTitle="Cờ Tướng"
+      />
     </div>
   )
 }

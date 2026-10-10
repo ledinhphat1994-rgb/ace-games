@@ -19,9 +19,13 @@ const laCapDo = (v: unknown): v is CapDoMay => v === 'easy' || v === 'medium' ||
 /** Chuẩn hoá một giá trị bất kỳ về thiết lập hợp lệ. */
 export function chuanHoaThietLap(gia: unknown): ThietLapRan {
   const o = (gia && typeof gia === 'object' ? gia : {}) as Partial<Record<keyof ThietLapRan, unknown>>
+  const soMayHopLe =
+    typeof o.soMay === 'number' && Number.isFinite(o.soMay) && o.soMay >= 0 && o.soMay <= 50
+      ? Math.round(o.soMay)
+      : THIET_LAP_MAC_DINH.soMay
   return {
     capDo: laCapDo(o.capDo) ? o.capDo : THIET_LAP_MAC_DINH.capDo,
-    soMay: (SO_MAY_CHON as readonly unknown[]).includes(o.soMay) ? (o.soMay as number) : THIET_LAP_MAC_DINH.soMay,
+    soMay: soMayHopLe,
   }
 }
 

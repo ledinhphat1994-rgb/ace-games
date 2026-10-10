@@ -7,6 +7,8 @@ import { Bot, ChevronDown, Swords } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { CAC_CAP_DO_MAY, CAP_DO_MAY, type CapDoMay, type CheDoChoi } from './cap-do-may'
+import { AiDifficultyHoldMenu } from './AiDifficultyHoldMenu'
+import { useHoldBotDifficulty } from './useHoldBotDifficulty'
 
 interface CumPvePvpProps {
   mode: CheDoChoi
@@ -42,6 +44,14 @@ export function CumPvePvp({
   className,
 }: CumPvePvpProps) {
   const laPvp = mode === 'online' || mode === 'pass_and_play'
+  const {
+    isDifficultyMenuOpen,
+    closeDifficultyMenu,
+    anchorRect: aiDifficultyAnchor,
+    botHoldHandlers,
+    wrapClickHandler,
+  } = useHoldBotDifficulty(aiLevel)
+
   return (
     <div
       data-testid="cum-pve-pvp"
@@ -56,7 +66,8 @@ export function CumPvePvp({
           render={
             <button
               type="button"
-              onClick={() => onModeChange('ai')}
+              {...botHoldHandlers}
+              onClick={wrapClickHandler(() => onModeChange('ai'))}
               aria-label={mode === 'ai' ? 'Chế độ PvE (Đấu máy), chọn độ khó' : 'Chế độ PvE (Đấu máy)'}
               data-testid="che-do-pve"
               className={cn(
@@ -154,6 +165,19 @@ export function CumPvePvp({
           </button>
         )
       )}
+
+      {/* Popup chọn mức độ AI khi hold icon bot */}
+      <AiDifficultyHoldMenu
+        isOpen={isDifficultyMenuOpen}
+        onClose={closeDifficultyMenu}
+        anchorRect={aiDifficultyAnchor}
+        currentLevel={aiLevel}
+        onSelectLevel={(lvl) => {
+          onModeChange('ai')
+          onAiLevelChange(lvl)
+        }}
+        gameTitle="Đấu Máy"
+      />
     </div>
   )
 }

@@ -42,6 +42,8 @@ import { GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveE
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound, playPieceMoveSound } from '../game-audio'
 import { useScreenWakeLock } from '@/lib/web-experience'
+import { AiDifficultyHoldMenu } from '../AiDifficultyHoldMenu'
+import { useHoldBotDifficulty } from '../useHoldBotDifficulty'
 
 function formatClockTime(sec: number): string {
   const safe = Math.max(0, Math.floor(sec))
@@ -143,7 +145,15 @@ export function CaroBoard({
     setHeroicBanner({ type: 'notice', title, subtitle })
   }, [])
   const [isLocalStarted, setIsLocalStarted] = useState(false)
-  const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
+  const {
+    aiLevel,
+    setAiLevel,
+    isDifficultyMenuOpen,
+    closeDifficultyMenu,
+    anchorRect: aiDifficultyAnchor,
+    botHoldHandlers,
+    wrapClickHandler,
+  } = useHoldBotDifficulty('medium')
   // Ván đơn: người chơi luôn cầm quân X và đi trước, máy cầm quân O
   const playerSide: 'X' | 'O' = 'X'
   const [winnerTaiCho, setWinner] = useState<'X' | 'O' | 'draw' | null>(null)
@@ -2191,15 +2201,24 @@ export function CaroBoard({
                 : tool.id === 'draw'
                   ? 'mobile-xin-xo-btn'
                   : `mobile-tool-${tool.id}`
+            const isModeTool = tool.id === 'mode'
             return (
               <button
                 key={tool.id}
                 type="button"
                 id={buttonId}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  tool.onClick(e)
-                }}
+                {...(isModeTool ? botHoldHandlers : {})}
+                onClick={
+                  isModeTool
+                    ? wrapClickHandler((e) => {
+                        e.stopPropagation()
+                        tool.onClick(e)
+                      })
+                    : (e) => {
+                        e.stopPropagation()
+                        tool.onClick(e)
+                      }
+                }
                 disabled={tool.disabled}
                 className={cn(
                   'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
@@ -2307,6 +2326,16 @@ export function CaroBoard({
           onDong={() => setSelectedProfileUser(null)}
         />
       )}
+
+      {/* POPUP CHỌN MỨC ĐỘ AI BOT KHI HOLD ICON BOT */}
+      <AiDifficultyHoldMenu
+        isOpen={isDifficultyMenuOpen}
+        onClose={closeDifficultyMenu}
+        anchorRect={aiDifficultyAnchor}
+        currentLevel={aiLevel}
+        onSelectLevel={setAiLevel}
+        gameTitle="Cờ Caro"
+      />
     </div>
   )
 }

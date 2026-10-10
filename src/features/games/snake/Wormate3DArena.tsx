@@ -1,6 +1,6 @@
 import { snakeKeyAngle } from './keyboard-steering'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles, Pause } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Flame, Play, RotateCcw, Trophy, X, Music, Volume2, Sparkles, Pause, Bot, Swords, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SnakeTouchControls, SnakeJoystick, SnakeBoostButton } from './SnakeTouchControls'
 import { snakeAudio, loadAudioSettings, type SnakeAudioSettings } from './SnakeAudioEngine'
@@ -479,7 +479,7 @@ export interface Wormate3DArenaProps {
 
 export function Wormate3DArena({
   difficulty = 'medium',
-  onDifficultyChange: _onDifficultyChange,
+  onDifficultyChange,
   aiCount = 6,
   isRunning,
   isGameOver,
@@ -552,6 +552,31 @@ export function Wormate3DArena({
   const [localConfigOpen, setLocalConfigOpen] = useState(false)
   const isPauseOrConfigOpen = isConfigOpen || localConfigOpen
 
+  // Trạng thái cấu hình AI & số lượng rắn
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>(() => difficulty || 'medium')
+  const [selectedAiCount, setSelectedAiCount] = useState<number>(() => (aiCount !== undefined ? aiCount : 6))
+
+  useEffect(() => {
+    if (difficulty) setSelectedDifficulty(difficulty)
+  }, [difficulty])
+
+  useEffect(() => {
+    if (aiCount !== undefined) setSelectedAiCount(aiCount)
+  }, [aiCount])
+
+  const handleSelectDifficulty = useCallback((diff: 'easy' | 'medium' | 'hard') => {
+    triggerHaptic('selection')
+    setSelectedDifficulty(diff)
+    onDifficultyChange?.(diff)
+  }, [onDifficultyChange])
+
+  const handleSelectAiCount = useCallback((count: number) => {
+    triggerHaptic('selection')
+    const clamped = Math.max(0, Math.min(30, count))
+    setSelectedAiCount(clamped)
+    onPveCapacityChange?.(clamped + (mode === 'ai' ? 1 : 0))
+  }, [onPveCapacityChange, mode])
+
   // Trạng thái Vòng bo đếm ngược (Battle Royale Safe Zone)
   const [safeZoneHud, setSafeZoneHud] = useState<{ phase: number; countdown: number; isShrinking: boolean }>({
     phase: 1,
@@ -561,7 +586,7 @@ export function Wormate3DArena({
 
   // Cài đặt âm thanh & Nhạc nền BGM
   const [audioSettings, setAudioSettings] = useState<SnakeAudioSettings>(loadAudioSettings)
-  const [configTab, setConfigTab] = useState<'skin' | 'audio'>('skin')
+  const [configTab, setConfigTab] = useState<'settings' | 'skin' | 'audio'>('settings')
   const [selectedSkinId, setSelectedSkinId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('dc_snake_skin') || 'rainbow'
@@ -905,8 +930,8 @@ export function Wormate3DArena({
       }
     }
 
-    // Tạo các AI Worms theo aiCount (nếu aiCount === 0 thì không spawn bot)
-    const countToSpawn = aiCount !== undefined ? aiCount : (difficulty === 'hard' ? 7 : difficulty === 'medium' ? 5 : 4)
+    // Tạo các AI Worms theo selectedAiCount (nếu selectedAiCount === 0 thì không spawn bot)
+    const countToSpawn = selectedAiCount !== undefined ? selectedAiCount : (selectedDifficulty === 'hard' ? 7 : selectedDifficulty === 'medium' ? 5 : 4)
     const aiWorms: Worm[] = []
 
     for (let idx = 0; idx < countToSpawn; idx++) {
@@ -932,7 +957,7 @@ export function Wormate3DArena({
         y: ay,
         angle: botInitialAngle,
         targetAngle: botInitialAngle,
-        speed: BASE_SPEED * (0.92 + (difficulty === 'hard' ? 0.08 : 0)),
+        speed: BASE_SPEED * (0.85 + (selectedDifficulty === 'hard' ? 0.22 : selectedDifficulty === 'medium' ? 0.10 : 0)),
         radius: MIN_RADIUS,
         length: segCount,
         score: segCount * 12,
@@ -1026,7 +1051,7 @@ export function Wormate3DArena({
       countdown: 25,
       isShrinking: false,
     })
-  }, [createFood, difficulty, aiCount, mode, selectedSkinId])
+  }, [createFood, selectedDifficulty, selectedAiCount, mode, selectedSkinId])
 
   // Lắng nghe restartKey để reset ngay lập tức khi bấm "Chơi lại"
   useEffect(() => {
@@ -2308,35 +2333,52 @@ export function Wormate3DArena({
           className="absolute inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs select-none"
         >
           <div className="w-[min(540px,calc(100vw-1.5rem))] h-[500px] min-h-[500px] max-h-[500px] rounded-2xl border border-border-default/80 bg-slate-900 shadow-2xl p-4 sm:p-5 flex flex-col justify-between overflow-hidden">
-            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab Skin Rắn, Cấu hình phòng & Âm Thanh */}
+            {/* Header: Cố định h-10 - Chỉ tiêu đề và bộ chuyển tab Cài Đặt, Skin Rắn, Âm Thanh */}
             <div className="flex items-center justify-between pb-2 sm:pb-3 border-b border-slate-800 h-9 sm:h-10 shrink-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <button
                   type="button"
-                  onClick={() => setConfigTab('skin')}
+                  data-testid="tab-snake-settings"
+                  onClick={() => setConfigTab('settings')}
                   className={cn(
                     'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
-                    configTab === 'skin'
+                    configTab === 'settings'
                       ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
                       : 'border-transparent text-slate-400 hover:text-white',
                   )}
                 >
-                  <Sparkles className="size-4 text-emerald-400 shrink-0" />
+                  <Settings className="size-4 text-emerald-400 shrink-0" />
+                  <span>Cài Đặt</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="tab-snake-skin"
+                  onClick={() => setConfigTab('skin')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
+                    configTab === 'skin'
+                      ? 'border-sky-500 bg-sky-500/20 text-sky-300'
+                      : 'border-transparent text-slate-400 hover:text-white',
+                  )}
+                >
+                  <Sparkles className="size-4 text-sky-400 shrink-0" />
                   <span>Skin Rắn</span>
                 </button>
 
                 <button
                   type="button"
+                  data-testid="tab-snake-audio"
                   onClick={() => setConfigTab('audio')}
                   className={cn(
                     'px-2.5 py-1 rounded-lg border-2 text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5',
                     configTab === 'audio'
-                      ? 'border-sky-500 bg-sky-500/20 text-sky-300'
+                      ? 'border-amber-500 bg-amber-500/20 text-amber-300'
                       : 'border-transparent text-slate-400 hover:text-white',
                   )}
                 >
-                  <Music className="size-4 text-sky-400 shrink-0" />
-                  <span>Âm Thanh & Phím</span>
+                  <Music className="size-4 text-amber-400 shrink-0" />
+                  <span>Âm Thanh</span>
                 </button>
               </div>
 
@@ -2354,9 +2396,126 @@ export function Wormate3DArena({
               </div>
             </div>
 
-            {/* Nội dung trung tâm: Cố định h-[360px] cho cả 2 tab để triệt tiêu mọi layout shift */}
+            {/* Nội dung trung tâm: Cố định h-[360px] cho cả 3 tab để triệt tiêu mọi layout shift */}
             <div className="h-[360px] min-h-[360px] max-h-[360px] flex flex-col justify-start py-1.5 overflow-hidden">
-              {configTab === 'audio' ? (
+              {configTab === 'settings' ? (
+                /* TAB CÀI ĐẶT: MỨC ĐỘ AI BOT & SỐ LƯỢNG RẮN MẶC ĐỊNH + TÙY CHỈNH */
+                <div
+                  data-testid="snake-settings-panel"
+                  className="flex flex-col gap-3.5 h-[360px] max-h-[360px] overflow-y-auto pr-0.5 justify-center scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {/* Mục 1: Mức độ AI bot */}
+                  <div className="p-3.5 rounded-xl border-2 border-slate-800 bg-slate-800/40 flex flex-col gap-2.5 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Bot className="size-4 text-emerald-400 shrink-0" />
+                      <span className="font-bold text-xs text-white">Mức Độ Rắn AI</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {(
+                        [
+                          { id: 'easy', label: 'Dễ', dotColor: 'bg-emerald-400', activeClass: 'border-emerald-500 bg-emerald-500/20 text-emerald-300' },
+                          { id: 'medium', label: 'Vừa', dotColor: 'bg-sky-400', activeClass: 'border-sky-500 bg-sky-500/20 text-sky-300' },
+                          { id: 'hard', label: 'Khó', dotColor: 'bg-rose-400', activeClass: 'border-rose-500 bg-rose-500/20 text-rose-300' },
+                        ] as const
+                      ).map((lvl) => {
+                        const isSelected = selectedDifficulty === lvl.id
+                        return (
+                          <button
+                            key={lvl.id}
+                            type="button"
+                            data-testid={`snake-diff-${lvl.id}`}
+                            onClick={() => handleSelectDifficulty(lvl.id)}
+                            className={cn(
+                              'h-10 rounded-lg border-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-150 cursor-pointer select-none',
+                              isSelected
+                                ? lvl.activeClass
+                                : 'border-slate-800 bg-slate-800/70 text-slate-400 hover:text-white hover:border-slate-700',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'size-2 rounded-full shrink-0 transition-opacity duration-150',
+                                lvl.dotColor,
+                                isSelected ? 'opacity-100' : 'opacity-40',
+                              )}
+                            />
+                            <span>{lvl.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Mục 2: Số lượng rắn AI */}
+                  <div className="p-3.5 rounded-xl border-2 border-slate-800 bg-slate-800/40 flex flex-col gap-2.5 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Swords className="size-4 text-amber-400 shrink-0" />
+                        <span className="font-bold text-xs text-white">Số Lượng Rắn AI</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-amber-300 tabular-nums">
+                        {selectedAiCount} con
+                      </span>
+                    </div>
+
+                    {/* Dãy mốc số lượng mặc định cân đối (Peer card uniformity) */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[3, 5, 8, 12].map((cnt) => {
+                        const isSelected = selectedAiCount === cnt
+                        return (
+                          <button
+                            key={cnt}
+                            type="button"
+                            data-testid={`snake-count-preset-${cnt}`}
+                            onClick={() => handleSelectAiCount(cnt)}
+                            className={cn(
+                              'h-9 rounded-lg border-2 text-xs font-bold flex items-center justify-center transition-colors duration-150 cursor-pointer select-none',
+                              isSelected
+                                ? 'border-amber-500 bg-amber-500/20 text-amber-300 shadow-sm'
+                                : 'border-slate-800 bg-slate-800/70 text-slate-400 hover:text-white hover:border-slate-700',
+                            )}
+                          >
+                            {cnt} Rắn
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Tùy chỉnh: 1 hàng duy nhất tinh gọn chuẩn Rule 9 (Single-Row Inline Control Invariant) */}
+                    <div className="h-10 rounded-lg border-2 border-slate-800/80 bg-slate-900/60 px-3 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-300">Tùy chỉnh</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          data-testid="snake-count-decrement"
+                          onClick={() => handleSelectAiCount(selectedAiCount - 1)}
+                          disabled={selectedAiCount <= 0}
+                          className="size-8 rounded-lg border-2 border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm cursor-pointer select-none active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          title="Giảm 1 rắn"
+                          aria-label="Giảm 1 rắn"
+                        >
+                          -
+                        </button>
+                        <span className="w-16 text-center font-mono font-bold text-xs text-amber-300 tabular-nums">
+                          {selectedAiCount} con
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="snake-count-increment"
+                          onClick={() => handleSelectAiCount(selectedAiCount + 1)}
+                          disabled={selectedAiCount >= 30}
+                          className="size-8 rounded-lg border-2 border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm cursor-pointer select-none active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          title="Tăng 1 rắn"
+                          aria-label="Tăng 1 rắn"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : configTab === 'audio' ? (
                 /* TAB ÂM THANH & PHÍM TẮT: Bật/tắt BGM 132BPM, SFX, và danh sách Hotkey PC */
                 <div className="flex flex-col gap-2.5 h-[360px] max-h-[360px] overflow-y-auto pr-0.5 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   {/* Mục 1: Nhạc nền Arcade BGM */}
