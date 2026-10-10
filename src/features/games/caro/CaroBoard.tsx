@@ -961,6 +961,19 @@ export function CaroBoard({
       <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative py-0.5 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
+          {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}
+          <div className="w-full h-7 flex items-center justify-center pointer-events-none select-none">
+            {bongDoiThu && (
+              <div
+                data-testid="opponent-quick-message-bubble"
+                className="px-3 py-1 rounded-full bg-[#161a22]/95 border-2 border-amber-400 text-xs font-bold text-amber-300 shadow-[0_4px_16px_rgba(245,158,11,0.3)] backdrop-blur-md flex items-center gap-1.5 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150"
+              >
+                {bongDoiThu.emoji && <span className="text-sm shrink-0">{bongDoiThu.emoji}</span>}
+                <span className="font-semibold">{bongDoiThu.quote}</span>
+              </div>
+            )}
+          </div>
+
           <div className="flex w-full h-12 px-2 items-center justify-between select-none shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <EloRankAvatarFrame
@@ -1034,12 +1047,6 @@ export function CaroBoard({
                 {mode === 'ai' ? `AI Cấp ${opponentLevel}` : `Lv.${opponentLevel} · Elo ${opponentElo}`}
               </span>
             </div>
-            {bongDoiThu && (
-              <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-sky-400 text-[11px] sm:text-xs font-bold text-sky-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
-                {bongDoiThu.emoji && <span className="text-sm shrink-0">{bongDoiThu.emoji}</span>}
-                <span>{bongDoiThu.quote}</span>
-              </div>
-            )}
           </div>
 
           {/* Đồng hồ đối thủ trên mobile */}
@@ -1297,7 +1304,8 @@ export function CaroBoard({
         </section>
 
         {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & THANH CÔNG CỤ CÔNG THÁI HỌC (THUMB-ZONE) ==================== */}
-        <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1.5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] select-none z-20">
+      {/* ==================== KHỐI CHÂN ĐÁY MOBILE (< xl): NGƯỜI CHƠI & TIN NHẮN ĐỐI XỨNG ==================== */}
+      <div className="flex xl:hidden flex-col items-center justify-start w-full max-w-[480px] flex-1 min-h-0 gap-1 pt-1 pb-1 select-none z-20">
           {/* ==================== VÙNG NGƯỜI CHƠI TRÊN MOBILE ==================== */}
           <div className="flex w-full h-12 px-2 items-center justify-between select-none">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -1329,12 +1337,6 @@ export function CaroBoard({
                   Lv.{myLevel} · Elo {myElo}
                 </span>
               </div>
-              {playerBubble && (
-                <div className="px-2.5 py-0.5 rounded-full bg-[#161a22]/95 border border-amber-400 text-[11px] sm:text-xs font-bold text-amber-300 shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
-                  {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
-                  <span>{playerBubble.quote}</span>
-                </div>
-              )}
             </div>
 
             {/* Đồng hồ người chơi trên mobile */}
@@ -1354,25 +1356,17 @@ export function CaroBoard({
             </div>
           </div>
 
-          {/* ==================== CỤM CÔNG CỤ HÀNH ĐỘNG TRÊN MOBILE (< xl): 1 HÀNG DUY NHẤT, GỌN GÀNG, ICON TO RÕ THEO CHUẨN CỜ TƯỚNG ==================== */}
-          <div id="mobile-tools-bar" className="flex w-full h-12 px-2 items-center justify-center gap-2.5 sm:gap-3 select-none">
-            {caroTools.map((tool) => (
-              <button
-                key={tool.id}
-                type="button"
-                id={`mobile-tool-${tool.id}`}
-                onClick={tool.onClick}
-                disabled={tool.disabled}
-                className={cn(
-                  'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5',
-                  tool.className
-                )}
-                title={tool.title}
-                aria-label={tool.title}
+          {/* VỊ TRÍ ĐỐI XỨNG: TIN NHẮN NHANH CỦA TA (DƯỚI THANH NGƯỜI CHƠI) */}
+          <div className="w-full h-7 flex items-center justify-center pointer-events-none select-none">
+            {playerBubble && (
+              <div
+                data-testid="player-quick-message-bubble"
+                className="px-3 py-1 rounded-full bg-[#161a22]/95 border-2 border-cyan-400 text-xs font-bold text-cyan-300 shadow-[0_4px_16px_rgba(6,182,212,0.3)] backdrop-blur-md flex items-center gap-1.5 shrink-0 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150"
               >
-                {tool.icon}
-              </button>
-            ))}
+                {playerBubble.emoji && <span className="text-sm shrink-0">{playerBubble.emoji}</span>}
+                <span className="font-semibold">{playerBubble.quote}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1387,10 +1381,11 @@ export function CaroBoard({
               onPointerDown={(e) => e.stopPropagation()}
               style={{
                 position: 'fixed',
-                left: `${quickMenuPos.left}px`,
-                top: `${quickMenuPos.top}px`,
+                left: '50%',
+                bottom: 'calc(max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem)) + 3.75rem)',
+                transform: 'translateX(-50%)',
                 zIndex: 90,
-                width: '240px',
+                width: 'min(300px,calc(100vw-2rem))',
               }}
               className="flex xl:hidden w-full max-w-[480px] p-3 rounded-2xl bg-[#141824]/98 border border-cyan-400/40 shadow-[0_12px_40px_rgba(0,0,0,0.9)] backdrop-blur-md flex-col gap-2 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0 pointer-events-auto"
             >
@@ -1972,18 +1967,47 @@ export function CaroBoard({
         </div>
       )}
 
-      {/* VÙNG 1 CÙNG HÀNG VỚI ICON TIN NHẮN NỔI (NÚT QUAY LẠI SẢNH) THEO CHUẨN CỜ TƯỚNG — CHỐNG BỊ CHE / CLIP BỞI SAFE AREA */}
-      <button
-        type="button"
-        id="game-leave-btn"
-        onClick={onBack}
-        className="fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5 z-40 h-9.5 sm:h-10 px-3.5 rounded-full text-xs gap-1.5 inline-flex items-center font-bold text-gray-200 hover:text-white bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 shadow-lg backdrop-blur-md cursor-pointer transition-colors duration-150 shrink-0 select-none active:scale-95"
-        title="Quay lại sảnh"
-        aria-label="Quay lại sảnh"
-      >
-        <ArrowLeft className="size-4" />
-        <span>Sảnh</span>
-      </button>
+      {/* ==================== VÙNG 2: THANH CÔNG CỤ ĐÁY CÁCH ĐỀU DÀNH CHO MOBILE (< xl) ==================== */}
+      <div className="fixed bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 z-40 flex items-center justify-center pointer-events-none select-none">
+        <div
+          id="mobile-tools-bar"
+          className="flex xl:hidden w-full max-w-[480px] items-center justify-between pointer-events-auto select-none"
+        >
+          {/* Nút 1: Quay lại sảnh - icon mũi tên, xóa chữ Sảnh */}
+          <button
+            type="button"
+            id="game-leave-btn"
+            onClick={onBack}
+            className="size-11 sm:size-12 rounded-2xl border-2 border-white/20 bg-slate-900/90 hover:bg-slate-800/95 text-gray-200 hover:text-white shadow-md flex items-center justify-center transition-colors duration-150 active:scale-95 cursor-pointer shrink-0 [&_svg]:size-5 [&_svg]:sm:size-5.5"
+            title="Quay lại sảnh"
+            aria-label="Quay lại sảnh"
+          >
+            <ArrowLeft className="size-5 sm:size-5.5" />
+          </button>
+
+          {/* Các nút công cụ Vùng 1 được đưa xuống Vùng 2, icon không chữ cách đều */}
+          {caroTools.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              id={`mobile-tool-${tool.id}`}
+              onClick={tool.onClick}
+              disabled={tool.disabled}
+              className={cn(
+                'size-11 sm:size-12 rounded-2xl border-2 flex items-center justify-center transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md [&_svg]:size-5 [&_svg]:sm:size-5.5 shrink-0',
+                tool.className
+              )}
+              title={tool.title}
+              aria-label={tool.title}
+            >
+              {tool.icon}
+            </button>
+          ))}
+
+          {/* Slot dành cho nút Chat nổi của AppShell tại góc phải để các nút cách đều nhau 100% */}
+          <div className="size-11 sm:size-12 shrink-0 pointer-events-none" aria-hidden="true" />
+        </div>
+      </div>
 
       {/* MODAL HỒ SƠ NGƯỜI DÙNG KÈM ELO TRÒ CHƠI KHI BẤM VÀO AVATAR */}
       {selectedProfileUser && (

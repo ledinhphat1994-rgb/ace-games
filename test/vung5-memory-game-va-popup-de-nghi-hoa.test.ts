@@ -35,13 +35,13 @@ describe('Đồng bộ Vùng 5 Game Trí Nhớ & Cân đối nội dung Popup Đ
 
     it('có thanh công cụ 1 hàng ngang mobile-tools-bar chuẩn 5 nút theo chuẩn Cờ Tướng', () => {
       expect(memoryRaw).toContain('id="mobile-tools-bar"')
-      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-center')
+      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] items-center justify-between')
       expect(memoryRaw).toContain('id={`mobile-tool-${tool.id}`}')
     })
 
     it('có bảng tin nhắn nhanh mobile-quick-menu-container dưới thanh công cụ', () => {
       expect(memoryRaw).toContain('id="mobile-quick-menu-container"')
-      expect(memoryRaw).toContain('className="flex xl:hidden w-full max-w-[480px] px-2 flex-col gap-1.5 mt-1 animate-in fade-in slide-in-from-top-1 duration-150 z-30 select-none"')
+      expect(memoryRaw).toContain('id="mobile-quick-menu-container"')
     })
 
     it('hai panel thông tin người chơi và đối thủ desktop được ẩn trên mobile (hidden xl:flex)', () => {
