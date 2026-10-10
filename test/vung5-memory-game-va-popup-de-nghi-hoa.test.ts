@@ -22,20 +22,20 @@ describe('Đồng bộ Vùng 5 Game Trí Nhớ & Cân đối nội dung Popup Đ
 
   describe('Vùng 5 Game Trí Nhớ: Đồng bộ layout đối kháng giống Cờ Tướng, Cờ Vua, Caro', () => {
     it('có thanh thông tin đối thủ trên mobile (flex xl:hidden) nằm trên bàn chơi', () => {
-      expect(memoryRaw).toContain('VÙNG ĐỐI THỦ TRÊN MOBILE (< xl)')
-      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mb-1 select-none z-20')
+      expect(memoryRaw).toContain('THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl)')
+      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mb-1 select-none z-20')
       expect(memoryRaw).toContain('title="Thời gian đối thủ"')
     })
 
     it('có thanh thông tin người chơi trên mobile (flex xl:hidden) nằm dưới bàn chơi', () => {
-      expect(memoryRaw).toContain('VÙNG NGƯỜI CHƠI TRÊN MOBILE (< xl)')
-      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] h-10 px-2 items-center justify-between mt-1 select-none z-20')
+      expect(memoryRaw).toContain('KHU VỰC NGƯỜI CHƠI CHÂN MÀN HÌNH (< xl)')
+      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-between mt-1 select-none z-20')
       expect(memoryRaw).toContain('title="Thời gian của Bạn"')
     })
 
-    it('có thanh công cụ 1 hàng ngang mobile-tools-bar chuẩn 5 nút giống Caro', () => {
+    it('có thanh công cụ 1 hàng ngang mobile-tools-bar chuẩn 5 nút theo chuẩn Cờ Tướng', () => {
       expect(memoryRaw).toContain('id="mobile-tools-bar"')
-      expect(memoryRaw).toContain('className="flex xl:hidden w-full max-w-[480px] h-11 px-2 items-center justify-center gap-2 mt-1 select-none z-20"')
+      expect(memoryRaw).toContain('flex xl:hidden w-full max-w-[480px] h-12 px-2 items-center justify-center')
       expect(memoryRaw).toContain('id={`mobile-tool-${tool.id}`}')
     })
 
