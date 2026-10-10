@@ -476,7 +476,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         id: t.id,
         gameType: t.gameType,
         tieuDe: localMeta?.tieuDe,
-        tenChu: localMeta?.tenChu || t.tenChu,
+        tenChu: t.tenChu,
         tenKhach: t.tenKhach,
         trangThai: t.trangThai,
         soNguoiXem: t.soNguoiXem,
@@ -696,7 +696,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     const banMoiItem: PhongGameItem = {
       id: maBan,
       gameType: gameChon,
-      tenChu: nguoiDung ? (nguoiDung.ten || nguoiDung.username) : 'Tôi',
+      tenChu: null,
       tenKhach: null,
       trangThai: 'waiting',
       soNguoiXem: 0,
@@ -921,7 +921,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         id: maBanThucTe,
         gameType: gameTypeThucTe,
         tieuDe: tieuDeBan,
-        tenChu: nguoiDung ? (nguoiDung.ten || nguoiDung.username) : 'Tôi',
+        tenChu: null,
         tenKhach: null,
         trangThai: 'waiting',
         soNguoiXem: 0,
@@ -1058,36 +1058,12 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
         <section aria-label="Khu vực game trực tuyến" className="space-y-4">
           {/* Header & Thanh công cụ: Tiêu đề "Game" và Thanh Search nằm cùng hàng */}
           <div className="space-y-3">
-            {/* Hàng 1: Dòng tiêu đề "Game" và Thanh Search tìm phòng nằm cùng hàng */}
-            <div className="flex items-center justify-between gap-3 w-full">
-              <div className="flex items-center gap-2.5 shrink-0">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
-                <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                  Game
-                </h2>
-              </div>
-
-              {/* Thanh search tìm phòng nằm cùng hàng với Game */}
-              <div className="relative flex-1 max-w-[240px] sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary pointer-events-none" />
-                <input
-                  data-testid="game-search-input"
-                  type="text"
-                  value={tuKhoa}
-                  onChange={(e) => setTuKhoa(e.target.value)}
-                  placeholder="Tìm số phòng, tên game..."
-                  className="w-full h-9 pl-8.5 pr-7 rounded-xl border border-slate-800 bg-[#0c1527] text-xs text-text-primary placeholder:text-text-tertiary focus:border-amber-400 focus:outline-hidden"
-                />
-                {tuKhoa && (
-                  <button
-                    type="button"
-                    onClick={() => setTuKhoa('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary cursor-pointer"
-                  >
-                    <X className="size-3" />
-                  </button>
-                )}
-              </div>
+            {/* Hàng 1: Dòng tiêu đề "Game" */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
+              <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
+                Game
+              </h2>
             </div>
 
             {/* Hàng 2: Hai nút Chơi nhanh và Tạo bàn đấu thiết kế giống nhau về kích thước */}
@@ -1210,8 +1186,40 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
             </div>
           </div>
 
-            {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi, content-start chống giãn dòng card, min-h-[380px] chống sụt lún CLS) */}
-            <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 content-start min-h-[380px]">
+          {/* KHU VỰC BÀN ĐẤU: Tiêu đề Bàn đấu và Thanh tìm kiếm phòng (Vùng 2 chuyển xuống đây để tiện search phòng) */}
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="size-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+              <h3 className="text-base sm:text-lg font-black text-text-primary tracking-tight">
+                Bàn đấu
+              </h3>
+            </div>
+
+            {/* Thanh search tìm phòng được đưa xuống khu vực bàn đấu để tiện search */}
+            <div className="relative flex-1 max-w-[240px] sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-text-tertiary pointer-events-none" />
+              <input
+                data-testid="game-search-input"
+                type="text"
+                value={tuKhoa}
+                onChange={(e) => setTuKhoa(e.target.value)}
+                placeholder="Tìm số phòng, tên game..."
+                className="w-full h-9 pl-8.5 pr-7 rounded-xl border border-slate-800 bg-[#0c1527] text-xs text-text-primary placeholder:text-text-tertiary focus:border-amber-400 focus:outline-hidden"
+              />
+              {tuKhoa && (
+                <button
+                  type="button"
+                  onClick={() => setTuKhoa('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary cursor-pointer"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* VÙNG 2: LƯỚI PHÒNG GAME CHUNG (Chia 3 hoặc 4 cột trên PC cho không gian rộng rãi, content-start chống giãn dòng card, min-h-[380px] chống sụt lún CLS) */}
+          <div data-testid="game-rooms-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 content-start min-h-[380px]">
               {displayedRooms.length > 0 ? (
                 displayedRooms.map((room) => {
                   const laChuPhong = Boolean(

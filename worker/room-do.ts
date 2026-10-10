@@ -4780,7 +4780,7 @@ export class RoomDO extends DurableObject<Env> {
     const ban: BanSanh = {
       id: this.gameRoomId,
       gameType: this.gameMeta.gameType,
-      tenChu: this.gameMeta.playerXName || (this.hostKey ? 'Chủ phòng' : null),
+      tenChu: this.gameMeta.playerXName || null,
       tenKhach: this.gameMeta.playerOName,
       trangThai: this.gameMeta.status,
       soNguoiXem: this.demNguoiXemGame(boQua),
@@ -4819,6 +4819,15 @@ export class RoomDO extends DurableObject<Env> {
           this.gameEmptySince = Date.now()
           this.luuMeta('game_empty_since', String(this.gameEmptySince))
         }
+        // Khi phòng trống không còn ai kết nối, vị trí người chơi được để trống chứ không tự gán
+        this.gameMeta = {
+          ...this.gameMeta,
+          playerX: null,
+          playerXName: null,
+          playerO: null,
+          playerOName: null,
+        }
+        this.luuGameState()
         this.ctx.waitUntil(this.reconcileRoomAlarm().catch(() => {}))
         this.baoLobby(vuaRoi)
         return
@@ -6332,8 +6341,8 @@ export class RoomDO extends DurableObject<Env> {
         this.gameMeta = {
           ...DEFAULT_GAME_META,
           gameType: body.gameType,
-          playerX: body.hostKey,
-          playerXName: body.hostName,
+          playerX: null,
+          playerXName: null,
           turnTimerSeconds: body.turnSeconds,
           status: 'waiting',
         }

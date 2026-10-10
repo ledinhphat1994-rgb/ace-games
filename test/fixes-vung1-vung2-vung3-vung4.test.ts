@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import gameLobbyRaw from '../src/features/games/GameLobbyView.tsx?raw'
 import xiangqiBoardRaw from '../src/features/games/xiangqi/XiangqiBoard.tsx?raw'
+import thePhongGameRaw from '../src/features/games/ThePhongGame.tsx?raw'
 
 describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)', () => {
   describe('Yêu cầu 1 (Ảnh 1): Vùng 1 tiêu đề là "Bàn đấu", các nội dung trong vùng để trống', () => {
@@ -69,6 +70,30 @@ describe('Kiểm tra 4 vùng fix theo yêu cầu người dùng (Ảnh 1, 2, 3)'
 
     it('sửa lỗi handleClickOutside không tự ý đóng khi bấm vào nút biểu cảm trên mobile', () => {
       expect(xiangqiBoardRaw).toContain('#tool-bubble-emoji, #mobile-tool-emoji')
+    })
+  })
+
+  describe('Yêu cầu mới: Xóa vùng X (thùng rác), Fix vùng 1 để trống nếu phòng không có ai, Fix vùng 2 đưa search xuống bàn đấu', () => {
+    it('Xóa vùng X: nút thùng rác Trash2 đã bị xóa hoàn toàn khỏi ThePhongGame', () => {
+      expect(thePhongGameRaw).not.toContain('<Trash2')
+      expect(thePhongGameRaw).not.toContain('Hủy bàn đấu')
+    })
+
+    it('Fix vùng 1: Nếu phòng không có ai thì để trống vị trí chứ không tự thêm vào', () => {
+      expect(thePhongGameRaw).toContain('hasPlayer={Boolean(room.tenChu)}')
+      expect(thePhongGameRaw).toContain("ten={room.tenChu || 'Chờ đối thủ'}")
+      expect(gameLobbyRaw).toContain('tenChu: t.tenChu')
+      expect(gameLobbyRaw).not.toContain('tenChu: localMeta?.tenChu || t.tenChu')
+    })
+
+    it('Fix vùng 2: Đưa thanh search xuống khu vực bàn đấu để tiện tìm phòng', () => {
+      expect(gameLobbyRaw).toContain('KHU VỰC BÀN ĐẤU')
+      expect(gameLobbyRaw).toContain('data-testid="game-search-input"')
+      // Kiểm tra vị trí thanh search nằm ngay trước game-rooms-list
+      const searchIdx = gameLobbyRaw.indexOf('data-testid="game-search-input"')
+      const roomsListIdx = gameLobbyRaw.indexOf('data-testid="game-rooms-list"')
+      expect(searchIdx).toBeGreaterThan(0)
+      expect(roomsListIdx).toBeGreaterThan(searchIdx)
     })
   })
 })

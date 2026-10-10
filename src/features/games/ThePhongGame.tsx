@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, Eye, Lock, Sparkles, Swords, Trophy, Users, Trash2, Gamepad2 } from 'lucide-react'
+import { ArrowRight, Clock, Eye, Lock, Sparkles, Swords, Trophy, Users, Gamepad2 } from 'lucide-react'
 import type { GameType } from '@shared/protocol/game'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -81,6 +81,8 @@ function GameIcon3D({ gameType, size = 32 }: { gameType: GameType; size?: number
 }
 
 export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGameProps) {
+  void onHuy
+  void laChuPhong
   const gameDef = GAME_CATALOG_BY_ID[room.gameType]
   const gameName = gameDef?.shortTitle || room.gameType
   const dangCho = room.trangThai === 'waiting'
@@ -157,15 +159,18 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
       {is1v1 ? (
         /* PixelUX Principle 1 — Visual Hierarchy: VS Đối kháng rõ ràng */
         <div className="flex items-center justify-center gap-2 sm:gap-3 py-1">
-          {/* Cột trái: Chủ bàn */}
+          {/* Cột trái: Chủ bàn (để trống nếu phòng chưa có người vào ngồi) */}
           <div className="flex flex-col items-center gap-1.5 min-w-0 flex-1">
             <EloRankAvatarFrame
-              ten={room.tenChu || 'Ẩn danh'}
-              hasPlayer={true}
+              ten={room.tenChu || 'Chờ đối thủ'}
+              hasPlayer={Boolean(room.tenChu)}
               sizeClassName="size-11 sm:size-12"
             />
-            <span className="text-[11px] font-semibold text-text-secondary truncate max-w-full text-center leading-tight">
-              {room.tenChu || 'Ẩn danh'}
+            <span className={cn(
+              'text-[11px] truncate max-w-full text-center leading-tight',
+              room.tenChu ? 'font-semibold text-text-secondary' : 'font-medium text-amber-400/60'
+            )}>
+              {room.tenChu || 'Chờ đối thủ'}
             </span>
           </div>
 
@@ -258,20 +263,6 @@ export function ThePhongGame({ room, onVao, onHuy, laChuPhong }: ThePhongGamePro
 
         {/* Nút hành động */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {laChuPhong && dangCho && onHuy && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation()
-                onHuy()
-              }}
-              className="h-8 px-2 rounded-xl text-xs font-semibold border-red-500/30 text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors duration-150"
-              title="Hủy bàn đấu"
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          )}
 
           <Button
             size="sm"
