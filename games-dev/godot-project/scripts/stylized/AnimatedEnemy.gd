@@ -282,6 +282,13 @@ var _debris_particles: Array[Dictionary] = []
 
 signal enemy_died(enemy: Node2D, reward: int)
 signal enemy_escaped(enemy: Node2D)
+signal enemy_hit_castle(enemy: Node2D, damage: int)
+
+# Trạng thái Công Thành Lâu Đài (Castle Siege & Attack State)
+var is_attacking_castle: bool = false
+var castle_attack_timer: float = 0.0
+var _castle_attack_hit_done: bool = false
+var _attack_swing_offset: Vector2 = Vector2.ZERO
 
 func get_path_progress() -> float:
 	var progress = float(_current_wp_idx) * 1000.0
@@ -406,7 +413,7 @@ func setup(type: EnemyType, path_points: Array[Vector2], wave_multiplier: float 
 				sprite.offset = Vector2(0.0, -195.0)
 			EnemyType.STEAM_TRAIN:
 				sprite.texture = STEAM_TRAIN_FRAMES[0]
-				sprite.offset = Vector2(0.0, -206.0)
+				sprite.offset = Vector2(0.0, -220.0)
 			EnemyType.WINGED_BOT:
 				sprite.texture = WINGED_BOT_FRAMES[0]
 				sprite.offset = Vector2(0.0, -175.0)
@@ -443,8 +450,8 @@ func _ready() -> void:
 		EnemyType.STEAM_TRAIN:
 			sprite.texture = STEAM_TRAIN_FRAMES[0]
 			sprite.centered = true
-			sprite.offset = Vector2(0.0, -206.0)
-			sprite.position = Vector2(0.0, -20.0)
+			sprite.offset = Vector2(0.0, -220.0)
+			sprite.position = Vector2(0.0, -6.0) # Nâng khung gầm và bánh xe lăn chuẩn trên mặt đường đá cuội
 			visual_root.add_child(sprite)
 
 		EnemyType.WINGED_BOT:
@@ -534,6 +541,94 @@ func _process(delta: float) -> void:
 			if jamming_cooldown <= 0.0:
 				start_jamming_channel()
 
+	# 0. NẾU ĐANG Ở TRẠNG THÁI CÔNG THÀNH LÂU ĐÀI (Castle Attack State)
+	if is_attacking_castle and not _is_dead:
+		castle_attack_timer += delta
+		var finish_time = 1.25
+		var hit_time = 0.35
+		var dmg = 1
+
+		match enemy_type:
+			EnemyType.MECH_WALKER:
+				dmg = 3 if is_boss else 1
+				finish_time = 1.50 if is_boss else 1.25
+				hit_time = 0.38
+				# Lùi lấy đà rồi vung tay đấm sầm vào cổng lâu đài
+				if castle_attack_timer < 0.25:
+					_attack_swing_offset = Vector2(-10.0, -2.0) * (castle_attack_timer / 0.25)
+				elif castle_attack_timer < 0.50:
+					_attack_swing_offset = Vector2(18.0, 2.0)
+				else:
+					_attack_swing_offset = lerp(_attack_swing_offset, Vector2.ZERO, delta * 6.0)
+			EnemyType.STEAM_TRAIN:
+				dmg = 2
+				finish_time = 1.40
+				hit_time = 0.42
+				# Lùi xe lấy đà rồi tông sầm đầu tàu vào cổng gỗ
+				if castle_attack_timer < 0.28:
+					_attack_swing_offset = Vector2(-15.0, 0.0) * (castle_attack_timer / 0.28)
+				elif castle_attack_timer < 0.55:
+					_attack_swing_offset = Vector2(25.0, 0.0)
+				else:
+					_attack_swing_offset = lerp(_attack_swing_offset, Vector2.ZERO, delta * 6.0)
+			EnemyType.WINGED_BOT:
+				dmg = 1
+				finish_time = 1.10
+				hit_time = 0.32
+				# Bay giật lùi rồi chao cánh bắn năng lượng vào tường thành
+				if castle_attack_timer < 0.20:
+					_attack_swing_offset = Vector2(-8.0, -6.0)
+				elif castle_attack_timer < 0.45:
+					_attack_swing_offset = Vector2(16.0, 4.0)
+				else:
+					_attack_swing_offset = lerp(_attack_swing_offset, Vector2.ZERO, delta * 6.0)
+			EnemyType.SWARM_CRAWLER:
+				dmg = 1
+				finish_time = 0.45
+				hit_time = 0.20
+				# Nhảy chồm lên cắn và phát nổ tự sát
+				if castle_attack_timer < 0.20:
+					_attack_swing_offset = Vector2(14.0, -8.0)
+				else:
+					_attack_swing_offset = Vector2.ZERO
+			_:
+				dmg = 1
+				finish_time = 1.20
+				hit_time = 0.35
+				_attack_swing_offset = Vector2(sin(castle_attack_timer * 15.0) * 5.0, 0)
+
+		# Thời điểm đòn đánh chạm đích (Impact)
+		if castle_attack_timer >= hit_time and not _castle_attack_hit_done:
+			_castle_attack_hit_done = true
+			_spawn_castle_attack_fx()
+			emit_signal("enemy_hit_castle", self, dmg)
+			if sound_synth:
+				if enemy_type == EnemyType.STEAM_TRAIN:
+					sound_synth.play_plasma_blast()
+				elif enemy_type == EnemyType.WINGED_BOT:
+					sound_synth.play_gatling_shot()
+				else:
+					sound_synth.play_hit()
+
+		if sprite:
+			sprite.position = _attack_swing_offset
+
+		_update_particles(delta)
+		queue_redraw()
+
+		# Kết thúc chu kỳ đòn đánh:
+		if enemy_type == EnemyType.SWARM_CRAWLER:
+			if castle_attack_timer >= finish_time:
+				emit_signal("enemy_escaped", self)
+				queue_free()
+			return
+		else:
+			# Các loại quái khác đập liên tục vào cổng thành cho đến khi bị tiêu diệt hoặc lâu đài sụp đổ
+			if castle_attack_timer >= finish_time:
+				castle_attack_timer = 0.0
+				_castle_attack_hit_done = false
+		return
+
 	var effective_speed = get_effective_speed()
 
 	# Chống đè quái (Anti-Overlap Congestion Control): Quái đi sau giảm tốc nhẹ khi tiếp cận quái đi trước
@@ -559,8 +654,8 @@ func _process(delta: float) -> void:
 			seg_dir = Vector2.RIGHT
 		var seg_normal = Vector2(-seg_dir.y, seg_dir.x)
 
-		# Ép độ lệch làn về 0.0px khi đi qua Cầu Đá (x ~ 430..545 hoặc waypoint 5..9)
-		var is_on_bridge = (global_position.x >= 430.0 and global_position.x <= 545.0) or (_current_wp_idx >= 5 and _current_wp_idx <= 9)
+		# Ép độ lệch làn về 0.0px khi đi qua Cầu Đá và đường dẫn mố cầu (x ~ 395..555 hoặc waypoint 4..9)
+		var is_on_bridge = (global_position.x >= 395.0 and global_position.x <= 555.0) or (_current_wp_idx >= 4 and _current_wp_idx <= 9)
 		var cur_lane = 0.0 if (is_on_bridge and not is_flying) else lane_offset
 
 		# Tọa độ đích cố định cho chặng đường này
@@ -579,8 +674,15 @@ func _process(delta: float) -> void:
 			global_position += dir * move_dist
 			_update_facing_direction(dir)
 	else:
-		emit_signal("enemy_escaped", self)
-		queue_free()
+		if not is_attacking_castle and not _is_dead:
+			is_attacking_castle = true
+			castle_attack_timer = 0.0
+			_castle_attack_hit_done = false
+			effective_speed = 0.0
+			_is_facing_left = false
+			if visual_root:
+				visual_root.scale.x = -1.0 # Hướng về phía cổng thành bên phải
+			return
 		return
 
 	# 2. Hoạt ảnh BƯỚC ĐI TIẾP ĐẤT VỮNG CHÃI & CỬ ĐỘNG CHÂN TAY (Grounded Walk Cycle)
@@ -750,14 +852,14 @@ func _update_limb_animation(delta: float, current_speed: float = -1.0) -> void:
 			# Luôn dùng bộ hoạt ảnh xe lửa hơi nước hoạt hình chuẩn xác 100%
 			sprite.texture = STEAM_TRAIN_SE_FRAMES[frame_idx]
 
-			# Độ nghiêng xe lửa mượt mà theo độ dốc con đường (Smooth Pitch LERP)
-			var target_tilt: float = clampf(current_move_dir.y * 0.35, -0.22, 0.22)
+			# Độ nghiêng xe lửa mượt mà theo độ dốc con đường (Giới hạn góc nghiêng nhẹ nhàng để bánh xe không bị cắm xuống đất)
+			var target_tilt: float = clampf(current_move_dir.y * 0.10, -0.05, 0.05)
 			if _is_facing_left:
 				target_tilt = -target_tilt
-			sprite.rotation = lerpf(sprite.rotation, target_tilt, delta * 10.0)
+			sprite.rotation = lerpf(sprite.rotation, target_tilt, delta * 8.0)
 
-			# Bánh xe dính chặt mặt đất tại Y = 0 (Zero Air Gap), buồng lái vững vàng
-			sprite.position = Vector2.ZERO
+			# Bánh xe dính chặt mặt đường đá cuội, nâng -6px để không bao giờ bị lún qua mặt đất
+			sprite.position = Vector2(0.0, -6.0)
 
 			# Khói hơi nước xả thêm từ ống khói tạo chiều sâu hạt 3D
 			_smoke_timer -= delta
@@ -789,11 +891,8 @@ func _update_limb_animation(delta: float, current_speed: float = -1.0) -> void:
 			var hover_y = sin(_time_alive * 9.0) * 4.0
 			sprite.position = Vector2(0.0, -14.0 + hover_y)
 
-			# 3 Động cơ phản lực dưới cánh & đuôi phụt lửa & tia lửa cam
-			_jet_timer -= delta
-			if _jet_timer <= 0.0:
-				_jet_timer = 0.07
-				_spawn_bird_jet_particles()
+			# Đã loại bỏ hoàn toàn hiệu ứng tia lửa / phun lửa từ chim theo yêu cầu người dùng
+			pass
 
 		EnemyType.SWARM_CRAWLER:
 			# Bọ máy bò nhanh, lắc lư chân và nhấp nhô
@@ -915,6 +1014,33 @@ func _update_death_animation(delta: float) -> void:
 			if _death_timer >= 0.85:
 				queue_free()
 
+func _spawn_castle_attack_fx() -> void:
+	var impact_pt = Vector2(22.0, -18.0)
+	for p in range(12):
+		var ang = randf_range(-PI * 0.85, PI * 0.85)
+		var spd = randf_range(45.0, 120.0)
+		_dust_particles.append({
+			"pos": impact_pt + Vector2(randf_range(-5, 5), randf_range(-5, 5)),
+			"vel": Vector2(cos(ang) * spd, sin(ang) * spd - randf_range(15, 35)),
+			"life": 0.40,
+			"max_life": 0.40,
+			"radius": randf_range(2.0, 4.5),
+			"is_spark": true,
+			"spark_color": Color(1.0, randf_range(0.4, 0.95), 0.1, 1.0)
+		})
+	for d in range(6):
+		var ang = randf_range(-PI * 0.9, -PI * 0.1)
+		var spd = randf_range(35.0, 80.0)
+		_debris_particles.append({
+			"pos": impact_pt,
+			"vel": Vector2(cos(ang) * spd, sin(ang) * spd),
+			"life": 0.50,
+			"max_life": 0.50,
+			"size": randf_range(3.0, 6.0),
+			"rot": randf() * TAU,
+			"rot_speed": randf_range(-8.0, 8.0)
+		})
+
 func _spawn_footstep_dust() -> void:
 	var side = -1.0 if _is_facing_left else 1.0
 	# Đợt bụi tung ra từ cú dậm gót đất uy lực của robot to
@@ -952,24 +1078,7 @@ func _spawn_train_dust() -> void:
 		})
 
 func _spawn_bird_jet_particles() -> void:
-	var side = -1.0 if _is_facing_left else 1.0
-	# 3 điểm xả luồng lửa phản lực: đuôi giữa và 2 cánh/thân
-	var nozzles = [
-		Vector2(-6.0 * side, -22.0),
-		Vector2(-14.0 * side, -25.0),
-		Vector2(4.0 * side, -20.0)
-	]
-	for nozzle in nozzles:
-		var vel_x = -randf_range(15.0, 35.0) * side
-		var vel_y = randf_range(18.0, 42.0)
-		_dust_particles.append({
-			"pos": nozzle + Vector2(randf_range(-2, 2), randf_range(-1, 2)),
-			"vel": Vector2(vel_x, vel_y),
-			"life": 0.22,
-			"max_life": 0.22,
-			"radius": randf_range(2.4, 4.2),
-			"is_spark": true
-		})
+	pass
 
 func _spawn_mech_steam() -> void:
 	var side = -1.0 if _is_facing_left else 1.0
@@ -1072,13 +1181,19 @@ func draw_isometric_ring(center: Vector2, radius_x: float, color: Color, width: 
 	draw_polyline(pts, color, width)
 
 func _draw() -> void:
-	# 0. BÓNG TIẾP ĐẤT DƯỚI BÀN CHÂN (Contact Shadow Ellipse rx = 16, ry = 8)
+	# 0. BÓNG TIẾP ĐẤT DƯỚI BÀN CHÂN (Contact Shadow Ellipse)
 	if not is_flying and enemy_type != EnemyType.WINGED_BOT and variant != EnemyVariant.AIR_DRONE:
 		var sc_shadow = 1.35 if is_boss else 1.0
-		var sh_rx = 16.0 * sc_shadow
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
-		draw_circle(Vector2.ZERO, sh_rx, Color(0.0, 0.0, 0.0, 0.48))
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		if enemy_type == EnemyType.STEAM_TRAIN:
+			# Bóng đổ dẹt dài theo khung gầm xe lửa hơi nước bám sát đáy bánh xe
+			draw_set_transform(Vector2(0.0, -4.0), 0.0, Vector2(1.0, 0.42))
+			draw_circle(Vector2.ZERO, 26.0 * sc_shadow, Color(0.0, 0.0, 0.0, 0.45))
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			var sh_rx = 16.0 * sc_shadow
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
+			draw_circle(Vector2.ZERO, sh_rx, Color(0.0, 0.0, 0.0, 0.48))
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# 1. VẼ HẠT BỤI ĐẤT BƯỚC CHÂN & TIA LỬA ĐỘNG CƠ CHIM
 	for p in _dust_particles:

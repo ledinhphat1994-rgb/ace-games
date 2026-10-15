@@ -264,12 +264,12 @@ class MapAnimatedFXLayer extends Node2D:
 # Tọa độ tim đường mòn uốn lượn chính xác 100% theo nét vẽ tay trên bản đồ (Chiến trường Đại Lục 1376x768)
 const PATH_WAYPOINTS: Array[Vector2] = [
 	Vector2(145.0, 400.0), # W0: Thềm đá trước Cổng Portal huyền bí phía Tây
-	Vector2(195.0, 428.0), # W1: Tim đường đất ngay trước thềm portal
-	Vector2(250.0, 465.0), # W2: Tim đường đất bắt đầu lượn vòng cung
-	Vector2(305.0, 495.0), # W3: Giữa lòng đường đất ven rặng thông trên
-	Vector2(360.0, 498.0), # W4: Giữa lòng đường đất khúc trũng trước bờ suối
-	Vector2(415.0, 465.0), # W5: Tim đường dẫn hướng thẳng vào mố cầu phía Tây
-	Vector2(445.0, 442.0), # W6: Lên sàn Cầu Đá vượt thác (chính giữa lối vào cầu)
+	Vector2(195.0, 424.0), # W1: Tim đường đất ngay trước thềm portal
+	Vector2(250.0, 452.0), # W2: Tim đường đất bắt đầu lượn vòng cung
+	Vector2(305.0, 482.0), # W3: Giữa lòng đường đất ven rặng thông trên
+	Vector2(360.0, 488.0), # W4: Giữa lòng đường đất khúc trũng trước bờ suối (nâng lên khỏi mỏm cỏ/vách đá)
+	Vector2(415.0, 458.0), # W5: Tim đường dẫn hướng thẳng vào mố cầu phía Tây
+	Vector2(448.0, 436.0), # W6: Lên sàn Cầu Đá vượt thác (chính giữa lối vào cầu)
 	Vector2(480.0, 425.0), # W7: Đỉnh vòm sàn Cầu Đá cổ kính (chính giữa 2 lan can)
 	Vector2(520.0, 412.0), # W8: Xuống dốc sàn Cầu Đá phía Đông
 	Vector2(570.0, 395.0), # W9: Tim đường đất nối từ đầu cầu ra bình nguyên
@@ -506,6 +506,7 @@ const BRIDGE_EMP_RADIUS: float = 145.0
 var bridge_emp_timer: float = 0.0
 var _bridge_emp_shockwave_radius: float = 0.0
 var _bridge_emp_shockwave_alpha: float = 0.0
+var _castle_hit_shake: float = 0.0
 
 # Dữ liệu Cây Kỹ Năng / Vi Mạch Hoạt Tính (Kingdom Rush Skill Tree)
 var skill_tier_range: int = 0
@@ -763,6 +764,21 @@ func _ready() -> void:
 			_js_callbacks.append(cb_boss)
 			win.spawnBoss = cb_boss
 
+			var cb_custom_enemy = JavaScriptBridge.create_callback(func(args):
+				var e_type: int = int(str(args[0])) if args.size() > 0 else 1
+				var e_variant: int = int(str(args[1])) if args.size() > 1 else 0
+				var enemy = EnemyClass.new()
+				enemy.add_to_group("animated_enemies")
+				enemy.setup(e_type, PATH_WAYPOINTS, 1.0, e_variant)
+				enemy.enemy_died.connect(_on_enemy_killed)
+				enemy.enemy_escaped.connect(_on_enemy_escaped)
+				if enemy.has_signal("enemy_hit_castle"):
+					enemy.enemy_hit_castle.connect(_on_enemy_hit_castle)
+				enemies_container.add_child(enemy)
+			)
+			_js_callbacks.append(cb_custom_enemy)
+			win.spawnCustomEnemy = cb_custom_enemy
+
 			var cb_skill = JavaScriptBridge.create_callback(func(args):
 				print("[Godot] openSkillTree called! modal: ", skill_tree_modal)
 				_on_btn_skill_tree_pressed()
@@ -819,6 +835,9 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_idle_time += delta
+	if _castle_hit_shake > 0.0:
+		_castle_hit_shake = maxf(0.0, _castle_hit_shake - delta * 2.8)
+		queue_redraw()
 	if map_animated_fx_layer:
 		map_animated_fx_layer.queue_redraw()
 	if bridge_emp_timer > 0.0:
@@ -1830,6 +1849,8 @@ func _spawn_enemy_for_wave() -> void:
 
 	enemy.enemy_died.connect(_on_enemy_killed)
 	enemy.enemy_escaped.connect(_on_enemy_escaped)
+	if enemy.has_signal("enemy_hit_castle"):
+		enemy.enemy_hit_castle.connect(_on_enemy_hit_castle)
 	enemies_container.add_child(enemy)
 
 func _on_enemy_killed(_enemy: Node2D, reward: int) -> void:
@@ -1844,11 +1865,48 @@ func _on_enemy_killed(_enemy: Node2D, reward: int) -> void:
 		if is_b or (is_armored and randf() < 0.65):
 			spawn_supply_pod(_enemy.global_position)
 
+func _on_enemy_hit_castle(_enemy: Node2D, damage: int) -> void:
+	if is_game_over:
+		return
+	if is_instance_valid(_enemy):
+		_enemy.set_meta("hit_castle_counted", true)
+	base_health = maxi(0, base_health - damage)
+	_castle_hit_shake = 0.45
+	var castle_pos = PATH_WAYPOINTS[PATH_WAYPOINTS.size() - 1]
+	_spawn_floating_map_text("-%d MÁU!" % damage, castle_pos + Vector2(randf_range(-20.0, 20.0), -45.0), Color(1.0, 0.22, 0.18))
+	if sound_synth:
+		sound_synth.play_hit()
+	if web_bridge:
+		web_bridge.trigger_haptic("heavy")
+	_update_hud()
+	queue_redraw()
+
+	if base_health <= 0:
+		is_game_over = true
+		is_wave_active = false
+		_enemies_remaining = 0
+		var summary = get_battle_summary()
+		_show_victory_defeat_modal(false, summary)
+		btn_next_wave.disabled = false
+		_set_button_dock_label(btn_next_wave, "CHƠI LẠI", "[SPACE]")
+		if web_bridge:
+			web_bridge.submit_score(score, get_web_battle_payload(summary))
+			web_bridge.show_toast("LÂU ĐÀI ĐÃ BỊ PHÁ HỦY HOÀN TOÀN! THẤT BẠI!", "error")
+			web_bridge.trigger_haptic("heavy")
+	else:
+		if web_bridge:
+			web_bridge.show_toast("QUÁI CÔNG PHÁ LÂU ĐÀI! -%d MÁU (CÒN %d/%d)" % [damage, base_health, max_health], "warning")
+
 func _on_enemy_escaped(_enemy: Node2D) -> void:
 	if is_game_over:
 		return
+	# Nếu quái đã tính đòn đánh vào lâu đài rồi thì không trừ lặp lại
+	if is_instance_valid(_enemy) and _enemy.has_meta("hit_castle_counted"):
+		return
 	base_health = maxi(0, base_health - 1)
+	_castle_hit_shake = 0.30
 	_update_hud()
+	queue_redraw()
 	if base_health <= 0:
 		is_game_over = true
 		is_wave_active = false
@@ -3652,65 +3710,6 @@ func _update_hud() -> void:
 			web_bridge.submit_score(score, get_web_battle_payload(summary))
 
 func _draw() -> void:
-	# 0. Vẽ ký hiệu phát sáng tinh tế cho 2 Ô Địa hình Chiến thuật Đặc biệt
-	var p_overwatch = BUILD_PADS[OVERWATCH_PAD_IDX]
-	var p_conduit = BUILD_PADS[POWER_CONDUIT_PAD_IDX]
-	var pulse = 0.5 + 0.5 * sin(_idle_time * 3.0)
-
-	# Ô Cao Điểm (Overwatch Pad - Cyan: +15% Tầm bắn)
-	var ow_occupied = false
-	for t in towers_container.get_children():
-		if is_instance_valid(t) and t.global_position.distance_to(p_overwatch) < 25.0:
-			ow_occupied = true
-			break
-	if not ow_occupied:
-		var col_ow_fill = Color(0.1, 0.8, 1.0, 0.12 + 0.05 * pulse)
-		var col_ow_stroke = Color(0.1, 0.9, 1.0, 0.65 + 0.30 * pulse)
-		_draw_isometric_ellipse(p_overwatch, 28.0, 28.0 * 0.48, col_ow_fill)
-		_draw_isometric_ellipse_outline(p_overwatch, 28.0, 28.0 * 0.48, col_ow_stroke, 1.8)
-		_draw_isometric_ellipse_outline(p_overwatch, 34.0, 34.0 * 0.48, Color(0.1, 0.9, 1.0, 0.25 * pulse), 1.0)
-		# Tâm hình học: Dấu + thanh mảnh thay vì vòng tròn số 0
-		draw_line(p_overwatch + Vector2(-5.0, 0.0), p_overwatch + Vector2(5.0, 0.0), col_ow_stroke, 1.5)
-		draw_line(p_overwatch + Vector2(0.0, -3.0), p_overwatch + Vector2(0.0, 3.0), col_ow_stroke, 1.5)
-
-	# Ô Mạch Năng Lượng (Power Conduit Pad - Vàng Hổ Phách: +15% Tốc độ bắn)
-	var cd_occupied = false
-	for t in towers_container.get_children():
-		if is_instance_valid(t) and t.global_position.distance_to(p_conduit) < 25.0:
-			cd_occupied = true
-			break
-	if not cd_occupied:
-		var col_cd_fill = Color(1.0, 0.75, 0.1, 0.12 + 0.05 * pulse)
-		var col_cd_stroke = Color(1.0, 0.82, 0.15, 0.65 + 0.30 * pulse)
-		_draw_isometric_ellipse(p_conduit, 28.0, 28.0 * 0.48, col_cd_fill)
-		_draw_isometric_ellipse_outline(p_conduit, 28.0, 28.0 * 0.48, col_cd_stroke, 1.8)
-		_draw_isometric_ellipse_outline(p_conduit, 34.0, 34.0 * 0.48, Color(1.0, 0.82, 0.15, 0.25 * pulse), 1.0)
-		# Tâm hình học: Dấu + thanh mảnh thay vì vòng tròn số 0
-		draw_line(p_conduit + Vector2(-5.0, 0.0), p_conduit + Vector2(5.0, 0.0), col_cd_stroke, 1.5)
-		draw_line(p_conduit + Vector2(0.0, -3.0), p_conduit + Vector2(0.0, 3.0), col_cd_stroke, 1.5)
-
-	# Vẽ Đế Cổ Ngữ Isometric (Tactical Pad Rune) cho tất cả ô đặt trụ trống khi mở khay mua tháp
-	var show_build_runes = is_placing_tower or (quick_tower_tray and quick_tower_tray.visible) or (build_popup and build_popup.visible)
-	if show_build_runes:
-		var rune_pulse = 0.5 + 0.5 * sin(_idle_time * 4.0)
-		for i in range(BUILD_PADS.size()):
-			if i == OVERWATCH_PAD_IDX or i == POWER_CONDUIT_PAD_IDX:
-				continue
-			var p = BUILD_PADS[i]
-			var occupied = false
-			for t in towers_container.get_children():
-				if is_instance_valid(t) and t.global_position.distance_to(p) < 25.0:
-					occupied = true
-					break
-			if not occupied:
-				var col_rune_fill = Color(0.15, 0.65, 0.95, 0.18 + 0.08 * rune_pulse)
-				var col_rune_stroke = Color(0.3, 0.85, 1.0, 0.60 + 0.30 * rune_pulse)
-				_draw_isometric_ellipse(p, 26.0, 26.0 * 0.48, col_rune_fill)
-				_draw_isometric_ellipse_outline(p, 26.0, 26.0 * 0.48, col_rune_stroke, 1.6)
-				_draw_isometric_ellipse_outline(p, 31.0, 31.0 * 0.48, Color(0.3, 0.85, 1.0, 0.20 * rune_pulse), 1.0)
-				draw_line(p + Vector2(-4.0, 0.0), p + Vector2(4.0, 0.0), Color(0.4, 0.9, 1.0, 0.85), 1.4)
-				draw_line(p + Vector2(0.0, -2.5), p + Vector2(0.0, 2.5), Color(0.4, 0.9, 1.0, 0.85), 1.4)
-
 	# 0b. Vẽ Hòm Tiếp Tế Năng Lượng (Tactical Supply Drop)
 	for pod in supply_pods:
 		var p_pos = pod["pos"]
@@ -3731,77 +3730,47 @@ func _draw() -> void:
 		draw_rect(Rect2(p_pos.x - bar_w * 0.5 - 1.0, bar_y - 1.0, bar_w + 2.0, 5.0), Color(0.08, 0.10, 0.14, 0.85))
 		draw_rect(Rect2(p_pos.x - bar_w * 0.5, bar_y, bar_w * t_ratio, 3.0), Color(0.2, 0.95, 0.45, 0.95))
 
-	# 0c. Vẽ Nút Bẫy Xung Điện Trên Cầu (Bridge EMP Generator - Arcane Steampunk Tesla Dynamo)
-	var emp_pulse = 0.5 + 0.5 * sin(_idle_time * 4.0)
-	var emp_ready = (bridge_emp_timer <= 0.0)
-
-	# 1. Bệ máy phát đồng thau chìm khảm đá cầu
-	var col_brass_rim = Color(0.88, 0.74, 0.38, 0.85 if emp_ready else 0.40)
-	var col_dynamo_core = Color(0.10, 0.08, 0.12, 0.85)
-	_draw_hexagon(BRIDGE_EMP_POS, 32.0, col_brass_rim, col_dynamo_core, 2.2)
-	# Vành đồng thứ cấp & 6 chốt đinh tán đồng tại 6 góc
-	for i in range(6):
-		var angle_rad = i * (TAU / 6.0) + PI / 6.0
-		var r_pt = BRIDGE_EMP_POS + Vector2(cos(angle_rad), sin(angle_rad) * 0.58) * 32.0
-		draw_circle(r_pt, 2.2, Color(0.95, 0.85, 0.45, 0.90 if emp_ready else 0.45))
-		draw_circle(r_pt, 1.0, Color(0.20, 0.15, 0.10, 0.90))
-
-	# Lõi cuộn cảm Tesla & Tinh thể Năng lượng Arcane
-	var core_rad = 18.0
-	var col_core_glow = Color(0.25, 0.85, 1.0, 0.25 + 0.18 * emp_pulse) if emp_ready else Color(0.40, 0.35, 0.30, 0.15)
-	var col_core_stroke = Color(0.35, 0.90, 1.0, 0.75 + 0.25 * emp_pulse) if emp_ready else Color(0.55, 0.50, 0.45, 0.40)
-	_draw_isometric_ellipse(BRIDGE_EMP_POS, core_rad, core_rad * 0.58, col_core_glow)
-	_draw_isometric_ellipse_outline(BRIDGE_EMP_POS, core_rad, core_rad * 0.58, col_core_stroke, 1.8)
-
-	if emp_ready:
-		# Hiệu ứng tia sét vi mô bò dọc cuộn dây
-		var spark_phase = int(_idle_time * 12.0) % 4
-		for s in range(3):
-			var a1 = (spark_phase + s * 2) * (TAU / 6.0)
-			var a2 = a1 + 0.5
-			var p1 = BRIDGE_EMP_POS + Vector2(cos(a1) * 8.0, sin(a1) * 4.6)
-			var p_mid = BRIDGE_EMP_POS + Vector2(cos(a1 + 0.25) * 16.0, sin(a1 + 0.25) * 9.2) + Vector2(sin(_idle_time * 15.0 + s) * 3.0, 0)
-			var p2 = BRIDGE_EMP_POS + Vector2(cos(a2) * 28.0, sin(a2) * 16.2)
-			var spark_pts = PackedVector2Array([p1, p_mid, p2])
-			draw_polyline(spark_pts, Color(0.70, 0.95, 1.0, 0.80), 1.4)
-
-		# Vòng hào quang xung kích nhẹ
-		_draw_isometric_ellipse_outline(BRIDGE_EMP_POS, 38.0 + 4.0 * emp_pulse, (38.0 + 4.0 * emp_pulse) * 0.58, Color(0.35, 0.90, 1.0, 0.30 * emp_pulse), 1.2)
-
-	# Nhãn Capsule Đồng Thau Thanh Mảnh (Steampunk Floating Capsule Plaque)
-	# Thu gọn chiều rộng, đặt ở độ cao tao nhã y - 34, không che mặt cầu đá
-	var badge_w = 120.0
-	var badge_h = 18.0
-	var badge_x = BRIDGE_EMP_POS.x - badge_w * 0.5
-	var badge_y = BRIDGE_EMP_POS.y - 34.0
-	var badge_box = Rect2(badge_x, badge_y, badge_w, badge_h)
-	draw_rect(badge_box, Color(0.06, 0.05, 0.08, 0.85))
-	draw_rect(badge_box, Color(0.85, 0.72, 0.38, 0.75 if emp_ready else 0.35), false, 1.2)
-	# 2 đinh tán nhỏ ở 2 mép capsule
-	draw_circle(Vector2(badge_x + 5.0, badge_y + 9.0), 1.5, Color(0.88, 0.74, 0.38, 0.85))
-	draw_circle(Vector2(badge_x + badge_w - 5.0, badge_y + 9.0), 1.5, Color(0.88, 0.74, 0.38, 0.85))
-
-	if emp_ready:
-		draw_string(ThemeDB.fallback_font, Vector2(badge_x, badge_y + 13.0), "BẪY CẦU [E]: 35G", HORIZONTAL_ALIGNMENT_CENTER, badge_w, 11, Color(0.95, 0.88, 0.45))
-	else:
-		draw_string(ThemeDB.fallback_font, Vector2(badge_x, badge_y + 13.0), "HỒI CHIÊU: %ds" % int(ceilf(bridge_emp_timer)), HORIZONTAL_ALIGNMENT_CENTER, badge_w, 10, Color(0.72, 0.75, 0.80))
-
-	# Sóng xung kích phát nổ trên cầu khi kích hoạt EMP
+	# Sóng xung kích phát nổ trên cầu khi người chơi tự mua và kích hoạt EMP
 	if _bridge_emp_shockwave_alpha > 0.01:
 		draw_arc(BRIDGE_EMP_POS, _bridge_emp_shockwave_radius, 0, TAU, 36, Color(0.2, 0.95, 1.0, _bridge_emp_shockwave_alpha), 3.0)
 		_draw_isometric_ellipse(BRIDGE_EMP_POS, _bridge_emp_shockwave_radius, _bridge_emp_shockwave_radius * 0.5, Color(0.2, 0.9, 1.0, _bridge_emp_shockwave_alpha * 0.25))
 
-	# 0d. Hiệu ứng Lò phản ứng / Căn cứ Hỏa Lực cuối đường (Base Core / Reactor Visuals)
-	var base_core_pos = PATH_WAYPOINTS[PATH_WAYPOINTS.size() - 1]
-	var core_pulse = 0.5 + 0.5 * sin(_idle_time * 5.0)
-	var is_critical = (base_health < 10)
-	var core_stroke = Color(1.0, 0.20, 0.15, 0.70 + 0.30 * core_pulse) if is_critical else Color(0.2, 0.75, 1.0, 0.50 + 0.30 * core_pulse)
-	var core_fill = Color(0.8, 0.1, 0.1, 0.12 + 0.10 * core_pulse) if is_critical else Color(0.1, 0.5, 0.9, 0.10 + 0.08 * core_pulse)
-	_draw_isometric_ellipse(base_core_pos, 36.0, 18.0, core_fill)
-	_draw_isometric_ellipse_outline(base_core_pos, 36.0, 18.0, core_stroke, 2.2)
-	_draw_isometric_ellipse_outline(base_core_pos, 44.0 + 4.0 * core_pulse, 22.0 + 2.0 * core_pulse, Color(core_stroke.r, core_stroke.g, core_stroke.b, 0.35 * core_pulse), 1.2)
-	if is_critical:
-		draw_string(ThemeDB.fallback_font, base_core_pos + Vector2(-54.0, -28.0), "QUÁ NHIỆT CĂN CỨ!", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(1.0, 0.3, 0.25))
+	# 0d. THANH MÁU LÂU ĐÀI NHÀ CHÍNH (CASTLE CORE HEALTH BAR)
+	# Đặt trang trọng ngay trên vòm cổng pháo đài hoàng gia W20
+	var bar_pos = Vector2(1125.0, 260.0)
+	if _castle_hit_shake > 0.0:
+		bar_pos += Vector2(randf_range(-4.0, 4.0), randf_range(-2.5, 2.5))
+
+	var box_w = 156.0
+	var box_h = 24.0
+	var box_rect = Rect2(bar_pos.x - box_w * 0.5, bar_pos.y - box_h * 0.5, box_w, box_h)
+
+	# Khung viền mạ đồng hoàng gia & Nền tối
+	draw_rect(box_rect, Color(0.08, 0.07, 0.10, 0.92))
+	var border_col = Color(1.0, 0.25, 0.20, 0.95) if _castle_hit_shake > 0.0 else Color(0.88, 0.74, 0.38, 0.95)
+	draw_rect(box_rect, border_col, false, 2.0)
+
+	# 4 đinh tán đồng ở 4 góc pháo đài
+	draw_circle(Vector2(box_rect.position.x + 4.0, box_rect.position.y + 4.0), 1.8, Color(0.95, 0.85, 0.45))
+	draw_circle(Vector2(box_rect.position.x + box_w - 4.0, box_rect.position.y + 4.0), 1.8, Color(0.95, 0.85, 0.45))
+	draw_circle(Vector2(box_rect.position.x + 4.0, box_rect.position.y + box_h - 4.0), 1.8, Color(0.95, 0.85, 0.45))
+	draw_circle(Vector2(box_rect.position.x + box_w - 4.0, box_rect.position.y + box_h - 4.0), 1.8, Color(0.95, 0.85, 0.45))
+
+	# Thanh máu ruột gradient
+	var pad_m = 3.5
+	var hp_ratio = clampf(float(base_health) / float(maxi(1, max_health)), 0.0, 1.0)
+	var inner_w = (box_w - pad_m * 2.0) * hp_ratio
+	if inner_w > 0.0:
+		var hp_col = Color(0.20, 0.92, 0.45, 0.95) if base_health >= 12 else (Color(1.0, 0.65, 0.15, 0.95) if base_health >= 6 else Color(1.0, 0.20, 0.20, 0.95))
+		if _castle_hit_shake > 0.0:
+			hp_col = Color(1.0, 0.35, 0.30, 1.0)
+		draw_rect(Rect2(box_rect.position.x + pad_m, box_rect.position.y + pad_m, inner_w, box_h - pad_m * 2.0), hp_col)
+
+	# Chữ hiển thị máu lâu đài
+	var hp_text = "🏰 LÂU ĐÀI: %d/%d HP" % [base_health, max_health]
+	if base_health <= 0:
+		hp_text = "🏰 CĂN CỨ SỤP ĐỔ!"
+	draw_string(ThemeDB.fallback_font, Vector2(box_rect.position.x, bar_pos.y + 5.0), hp_text, HORIZONTAL_ALIGNMENT_CENTER, box_w, 11, Color(1.0, 1.0, 1.0, 0.95))
 
 	# 0e. Hiệu ứng Bão Từ Trường Ion ở Wave 7 & 9
 	if is_ion_storm_active:

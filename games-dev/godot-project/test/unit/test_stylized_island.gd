@@ -59,6 +59,41 @@ func test_tower_360_circular_aim_and_stability() -> void:
 		if child != tower.sprite_base and child != tower.sprite_head:
 			child.free()
 
+func test_gatling_spinning_barrels_animation() -> void:
+	var tower = TowerScript.new()
+	add_child_autofree(tower)
+	tower.setup(TowerScript.TowerType.GATLING_GUN)
+	tower.global_position = Vector2(300, 300)
+
+	# Kiểm tra hàm map texture nòng xoay 7 hướng
+	assert_eq(TowerScript.get_gatling_spin_texture(0, 0), TowerScript.TEX_GATLING_SPIN_EAST[0], "Dir 0 trả về texture nòng xoay Hướng Đông")
+	assert_eq(TowerScript.get_gatling_spin_texture(4, 2), TowerScript.TEX_GATLING_SPIN_SOUTHEAST[2], "Dir 4 trả về texture nòng xoay Đông Nam")
+	assert_eq(TowerScript.get_gatling_spin_texture(8, 3), TowerScript.TEX_GATLING_SPIN_SOUTH[3], "Dir 8 trả về texture nòng xoay Chính Diện Nam")
+	assert_eq(TowerScript.get_gatling_spin_texture(12, 1), TowerScript.TEX_GATLING_SPIN_SOUTHWEST[1], "Dir 12 trả về texture nòng xoay Tây Nam")
+	assert_eq(TowerScript.get_gatling_spin_texture(16, 4), TowerScript.TEX_GATLING_SPIN_WEST[4], "Dir 16 trả về texture nòng xoay Tây")
+	assert_eq(TowerScript.get_gatling_spin_texture(20, 5), TowerScript.TEX_GATLING_SPIN_NORTHWEST[5], "Dir 20 trả về texture nòng xoay Tây Bắc")
+	assert_eq(TowerScript.get_gatling_spin_texture(24, 0), TowerScript.TEX_GATLING_32DIR[24], "Dir 24 quay lưng buồng máy che nòng")
+	assert_eq(TowerScript.get_gatling_spin_texture(28, 2), TowerScript.TEX_GATLING_SPIN_NORTHEAST[2], "Dir 28 trả về texture nòng xoay Đông Bắc")
+
+	# Mô phỏng khóa mục tiêu và bắn:
+	var dummy = Node2D.new()
+	add_child_autofree(dummy)
+	dummy.global_position = Vector2(400, 300) # Hướng Đông
+	tower.current_target = dummy
+
+	for _i in range(15):
+		tower._process(0.05)
+
+	assert_gt(tower._gatling_spin_speed, 5.0, "Tốc độ xoay nòng Gatling tăng tốc mạnh khi khóa mục tiêu")
+	assert_true(tower.sprite_head.texture != null, "Sprite đầu tháp hiển thị texture nòng xoay hợp lệ")
+
+	# Khi không còn địch:
+	tower.current_target = null
+	for _i in range(30):
+		tower._process(0.05)
+
+	assert_lt(tower._gatling_spin_speed, 1.0, "Nòng súng hãm đà dừng quay khi không còn địch")
+
 func test_tower_upgrade_and_sell() -> void:
 	var tower = TowerScript.new()
 	add_child_autofree(tower)
@@ -143,17 +178,20 @@ func test_winged_bot_20frame_flight_cycle_and_jet_particles() -> void:
 	assert_eq(enemy.WINGED_BOT_FRAMES.size(), 20, "20 khung hình đập cánh trích xuất từ Video 3D chuẩn xác")
 	assert_eq(enemy.sprite.texture, enemy.WINGED_BOT_FRAMES[0], "Khung hình khởi đầu là fly_00")
 
-	# Cho chim bay 1 giây để kiểm tra chu kỳ đập cánh và sinh hạt tia lửa phản lực
+	# 1. Cho chim bay chậm / bình thường (speed 110) 1 giây: KHÔNG phụt lửa
 	for _i in range(60):
 		enemy._process(0.016)
 
-	assert_gt(enemy._dust_particles.size(), 0, "Tia lửa phản lực phụt ra từ 3 động cơ dưới cánh và đuôi chim")
-	var has_spark = false
-	for p in enemy._dust_particles:
-		if p.get("is_spark", false):
-			has_spark = true
-			break
-	assert_true(has_spark, "Hạt phản lực có cờ is_spark để vẽ tia lửa cam rực rỡ")
+	assert_eq(enemy._dust_particles.size(), 0, "Khi bay chậm/bình thường: không phun lửa và không có hiệu ứng dưới bụng")
+
+	# 2. Đã bỏ hoàn toàn hiệu ứng tia lửa / phun lửa từ chim theo yêu cầu người dùng
+	var fast_enemy = EnemyScript.new()
+	add_child_autofree(fast_enemy)
+	fast_enemy.setup(EnemyScript.EnemyType.WINGED_BOT, path, 1.0, EnemyScript.EnemyVariant.SCOUT)
+	for _i in range(60):
+		fast_enemy._process(0.016)
+
+	assert_eq(fast_enemy._dust_particles.size(), 0, "Đã loại bỏ hoàn toàn tia lửa / phun lửa từ chim")
 	assert_eq(enemy.get_chest_world_pos().y, enemy.global_position.y - 22.0, "Tọa độ thân chim chuẩn xác để tháp nhắm bắn")
 
 func test_animated_projectile_tracking() -> void:

@@ -79,6 +79,91 @@ const TEX_GATLING_32DIR = [
 	preload("res://assets/sprites/towers/gatling/gatling_dir_31.png"),
 ]
 
+# BỘ SPRITE HOẠT HỌA XOAY NÒNG SÚNG GATLING (SPINNING BARRELS ANIMATION)
+# Trích xuất chuẩn xác từ video AI theo các góc phối cảnh 2.5D Isometric
+const TEX_GATLING_SPIN_EAST: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/east_0_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/east_0_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/east_0_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/east_0_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/east_0_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/east_0_spin_5.png"),
+]
+
+const TEX_GATLING_SPIN_SOUTHEAST: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/southeast_45_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southeast_45_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southeast_45_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southeast_45_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southeast_45_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southeast_45_spin_5.png"),
+]
+
+const TEX_GATLING_SPIN_SOUTH: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/south_90_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/south_90_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/south_90_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/south_90_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/south_90_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/south_90_spin_5.png"),
+]
+
+const TEX_GATLING_SPIN_SOUTHWEST: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/southwest_135_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southwest_135_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southwest_135_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southwest_135_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southwest_135_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/southwest_135_spin_5.png"),
+]
+
+const TEX_GATLING_SPIN_WEST: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/west_180_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/west_180_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/west_180_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/west_180_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/west_180_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/west_180_spin_5.png"),
+]
+
+const TEX_GATLING_SPIN_NORTHWEST: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/northwest_225_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northwest_225_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northwest_225_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northwest_225_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northwest_225_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northwest_225_spin_5.png"),
+]
+
+const TEX_GATLING_SPIN_NORTHEAST: Array[Texture2D] = [
+	preload("res://assets/sprites/towers/gatling_spin/northeast_315_spin_0.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northeast_315_spin_1.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northeast_315_spin_2.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northeast_315_spin_3.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northeast_315_spin_4.png"),
+	preload("res://assets/sprites/towers/gatling_spin/northeast_315_spin_5.png"),
+]
+
+## Trả về texture nòng xoay tương ứng với hướng ngắm và frame hoạt họa
+static func get_gatling_spin_texture(dir_idx: int, frame_idx: int) -> Texture2D:
+	frame_idx = clampi(frame_idx, 0, 5)
+	if dir_idx == 31 or dir_idx == 0 or dir_idx == 1:
+		return TEX_GATLING_SPIN_EAST[frame_idx]
+	elif dir_idx >= 2 and dir_idx <= 6:
+		return TEX_GATLING_SPIN_SOUTHEAST[frame_idx]
+	elif dir_idx >= 7 and dir_idx <= 9:
+		return TEX_GATLING_SPIN_SOUTH[frame_idx]
+	elif dir_idx >= 10 and dir_idx <= 14:
+		return TEX_GATLING_SPIN_SOUTHWEST[frame_idx]
+	elif dir_idx >= 15 and dir_idx <= 17:
+		return TEX_GATLING_SPIN_WEST[frame_idx]
+	elif dir_idx >= 18 and dir_idx <= 21:
+		return TEX_GATLING_SPIN_NORTHWEST[frame_idx]
+	elif dir_idx >= 22 and dir_idx <= 26:
+		return TEX_GATLING_32DIR[dir_idx]
+	else:
+		return TEX_GATLING_SPIN_NORTHEAST[frame_idx]
+
 const TEX_PLASMA_32DIR = [
 	preload("res://assets/sprites/towers/plasma/plasma_dir_0.png"),
 	preload("res://assets/sprites/towers/plasma/plasma_dir_1.png"),
@@ -720,11 +805,13 @@ func _update_tower_specific_effects(delta: float) -> void:
 		_muzzle_flash_timer -= delta
 
 	if tower_type == TowerType.GATLING_GUN:
-		var is_gatling_firing = is_instance_valid(current_target) and not current_target.is_queued_for_deletion() and (_muzzle_flash_timer > 0.0 or _recoil_time > 0.0 or _cooldown_timer <= 0.06)
-		if is_gatling_firing:
-			_gatling_spin_speed = lerpf(_gatling_spin_speed, 32.0, delta * 8.0)
+		var has_target = is_instance_valid(current_target) and not current_target.is_queued_for_deletion() and not current_target.get("_is_dead")
+		if has_target:
+			# Nòng quay dồn dập tăng tốc khi khóa mục tiêu & quay tít mù khi bắn
+			var target_spin = 36.0 if (_muzzle_flash_timer > 0.0 or _recoil_time > 0.0 or _cooldown_timer <= 0.08) else 14.0
+			_gatling_spin_speed = lerpf(_gatling_spin_speed, target_spin, delta * 10.0)
 		else:
-			_gatling_spin_speed = lerpf(_gatling_spin_speed, 0.0, delta * 4.0)
+			_gatling_spin_speed = lerpf(_gatling_spin_speed, 0.0, delta * 3.5)
 		_gatling_barrel_spin_angle += _gatling_spin_speed * delta
 
 	if tower_type == TowerType.TESLA_COIL:
@@ -740,8 +827,9 @@ func _update_tower_specific_effects(delta: float) -> void:
 
 	if tower_type == TowerType.PLASMA_CANNON and _is_charging:
 		_charge_timer -= delta
+		# TRỤ SÚNG PLASMA CỐ ĐỊNH 100%, KHÔNG RUNG GIẬT
 		if sprite_head:
-			sprite_head.position = _turret_mount_pos + Vector2(randf_range(-1.2, 1.2), randf_range(-1.2, 1.2))
+			sprite_head.position = _turret_mount_pos
 		if _charge_timer <= 0.0:
 			_is_charging = false
 			if is_instance_valid(current_target):
@@ -797,14 +885,12 @@ func _update_aim_and_fire(delta: float) -> void:
 		if tower_type == TowerType.GATLING_GUN:
 			_barrel_spin_time += delta * 18.0
 
-		# 1. CẬP NHẬT SPRITE FRAME THEO HƯỚNG NÒNG SÚNG GẦN MỤC TIÊU NHẤT TRONG KHÔNG GIAN 2D
+		# 1. CẬP NHẬT HƯỚNG NÒNG SÚNG GẦN MỤC TIÊU NHẤT TRONG KHÔNG GIAN 2D
 		var best_dir = get_closest_barrel_dir_idx(tower_type, _aim_angle)
 		if best_dir != _current_dir_idx:
 			_current_dir_idx = best_dir
 			_is_barrel_rotating = true
-			if tower_type == TowerType.GATLING_GUN:
-				sprite_head.texture = TEX_GATLING_32DIR[_current_dir_idx]
-			else:
+			if tower_type == TowerType.PLASMA_CANNON and sprite_head:
 				sprite_head.texture = TEX_PLASMA_32DIR[_current_dir_idx]
 
 			if sound_synth and _swivel_cooldown <= 0.0:
@@ -835,9 +921,7 @@ func _update_aim_and_fire(delta: float) -> void:
 			var best_dir = get_closest_barrel_dir_idx(tower_type, _aim_angle)
 			if best_dir != _current_dir_idx:
 				_current_dir_idx = best_dir
-				if tower_type == TowerType.GATLING_GUN:
-					sprite_head.texture = TEX_GATLING_32DIR[_current_dir_idx]
-				else:
+				if tower_type == TowerType.PLASMA_CANNON:
 					sprite_head.texture = TEX_PLASMA_32DIR[_current_dir_idx]
 
 			var barrel_table: Array[float] = GATLING_BARREL_ANGLES if tower_type == TowerType.GATLING_GUN else PLASMA_BARREL_ANGLES
@@ -860,6 +944,15 @@ func _update_aim_and_fire(delta: float) -> void:
 
 		sprite_head.rotation = 0.0
 		sprite_head.scale = Vector2(_base_scale, _base_scale)
+
+	# CẬP NHẬT HOẠT HỌA XOAY NÒNG SÚNG GATLING (SPINNING BARRELS ANIMATION):
+	if tower_type == TowerType.GATLING_GUN and sprite_head:
+		if _gatling_spin_speed > 1.2:
+			_barrel_spin_time += delta * _gatling_spin_speed * 1.5
+			var spin_frame: int = int(_barrel_spin_time) % 6
+			sprite_head.texture = get_gatling_spin_texture(_current_dir_idx, spin_frame)
+		else:
+			sprite_head.texture = TEX_GATLING_32DIR[_current_dir_idx]
 
 	# Với Tesla: Tự phóng điện râm ran
 	if tower_type == TowerType.TESLA_COIL and is_instance_valid(current_target):
@@ -1059,14 +1152,10 @@ func _fire_plasma_start(_target: Node2D) -> void:
 func _execute_plasma_blast(target: Node2D) -> void:
 	emit_signal("tower_fired", self, target)
 
-	# Độ giật lùi nòng súng & Hoạt họa Nhún
-	play_recoil_squash(_aim_dir)
-
+	# TRỤ PLASMA CỐ ĐỊNH 100%, KHÔNG RUNG GIẬT, KHÔNG RECOIL NHÚN, CỐ ĐỊNH VỮNG CHÃI
 	if sprite_head:
-		var base_sc = Vector2(_base_scale, _base_scale)
-		sprite_head.scale = Vector2(_base_scale * 1.08, _base_scale * 0.94)
-		var tween = sprite_head.create_tween()
-		tween.tween_property(sprite_head, "scale", base_sc, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		sprite_head.position = _turret_mount_pos
+		sprite_head.scale = Vector2(_base_scale, _base_scale)
 
 	var muzzle_pos = global_position + get_muzzle_local_pos()
 
@@ -1325,6 +1414,11 @@ func draw_isometric_ring(center: Vector2, radius_x: float, color: Color, width: 
 
 ## Hoạt họa Nhún & Giật Nòng (Squash & Stretch Recoil trong 0.12s)
 func play_recoil_squash(shoot_dir: Vector2) -> void:
+	if tower_type == TowerType.PLASMA_CANNON:
+		_recoil_offset = Vector2.ZERO
+		_recoil_time = 0.0
+		scale = Vector2.ONE
+		return
 	_recoil_offset = -shoot_dir.normalized() * 3.5
 	_recoil_time = 0.12
 	# CỐ ĐỊNH 100% TOÀN THÂN TRỤ TRÊN MẶT ĐẤT - CẤM TWEEN SCALE/POSITION CỦA SELF
@@ -1438,25 +1532,17 @@ func _draw() -> void:
 		draw_circle(p1, 3.5, Color(1.0, 0.85, 0.2, 0.95))
 		draw_circle(p2, 3.5, Color(0.2, 0.95, 1.0, 0.95))
 
-	# 6.1. HIỆU ỨNG CỤM 6 NÒNG SÚNG THÉP XOAY TRÒN (Spinning 6-Barrel Gatling Rotor) CHO GATLING GUN
-	if tower_type == TowerType.GATLING_GUN and (_gatling_spin_speed > 0.5 or _muzzle_flash_timer > 0.0):
-		var m_pos = get_muzzle_local_pos()
-		var r_rotor = 4.8
-		# Trục mâm rotor
-		draw_circle(m_pos, 2.0, Color(0.20, 0.22, 0.26, 0.95))
-		# 6 nòng súng thép xoay tít quanh tâm theo góc _gatling_barrel_spin_angle
-		for k in range(6):
-			var b_ang = _gatling_barrel_spin_angle + float(k) * TAU / 6.0
-			var b_offset = Vector2(cos(b_ang) * r_rotor, sin(b_ang) * r_rotor * 0.48)
-			draw_circle(m_pos + b_offset, 1.4, Color(0.38, 0.42, 0.48, 0.95))
-			draw_circle(m_pos + b_offset, 0.7, Color(0.14, 0.16, 0.18, 0.95))
-		# Vòng gió xoáy cơ khí khi xả đạn
-		if _gatling_spin_speed > 8.0:
-			draw_arc(m_pos, 5.8, _gatling_barrel_spin_angle, _gatling_barrel_spin_angle + PI * 1.2, 16, Color(0.85, 0.92, 1.0, 0.45), 1.2)
+	# 6.1. HIỆU ỨNG VÒNG GIÓ LỐC CƠ KHÍ XOÁY NÒNG (ROTARY WIND VORTEX)
+	if tower_type == TowerType.GATLING_GUN and _gatling_spin_speed > 8.0:
+		var tip_pos = get_muzzle_local_pos()
+		var r_cluster = 6.0
+		var ring2_pos = tip_pos - _aim_dir * 10.0
+		draw_arc(tip_pos, r_cluster + 2.4, _gatling_barrel_spin_angle, _gatling_barrel_spin_angle + PI * 1.3, 16, Color(0.88, 0.94, 1.0, 0.45), 1.2)
+		draw_arc(ring2_pos, r_cluster + 1.6, _gatling_barrel_spin_angle + PI, _gatling_barrel_spin_angle + TAU, 16, Color(0.95, 0.88, 0.45, 0.35), 1.0)
 
 	# 7. CHỚP LỬA ĐẦU NÒNG HÌNH SAO ĐA GIÁC (Star Muzzle Flash) TẠI ĐẦU NÒNG
 	if tower_type == TowerType.GATLING_GUN and _muzzle_flash_timer > 0.0:
-		var m_pos = get_muzzle_local_pos()
+		var m_pos = get_muzzle_local_pos() + _aim_dir * 4.0
 		var alpha = clampf(_muzzle_flash_timer / 0.06, 0.0, 1.0)
 		var sc = _muzzle_flash_scale
 
