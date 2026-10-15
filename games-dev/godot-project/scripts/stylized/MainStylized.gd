@@ -1803,6 +1803,16 @@ func _spawn_enemy_for_wave() -> void:
 			3: variant = EnemyClass.EnemyVariant.SUPPORT
 			_: variant = EnemyClass.EnemyVariant.AIR_DRONE
 
+	# Đảm bảo phân loại chuẩn 100%:
+	# 1. Quái bay (AIR_DRONE) luôn luôn là Chim Máy / Drone (WINGED_BOT), không bao giờ gán cho Robot đi bộ hoặc Xe lửa
+	# 2. Robot (MECH_WALKER) là lính đi bộ bám đất 100%, không bao giờ bay
+	# 3. Xe lửa (STEAM_TRAIN) là cỗ máy bám đất, không bao giờ bay
+	if variant == EnemyClass.EnemyVariant.AIR_DRONE:
+		e_type = EnemyClass.EnemyType.WINGED_BOT
+	elif e_type == EnemyClass.EnemyType.MECH_WALKER or e_type == EnemyClass.EnemyType.STEAM_TRAIN:
+		if variant == EnemyClass.EnemyVariant.AIR_DRONE:
+			variant = EnemyClass.EnemyVariant.SCOUT
+
 	var wave_mult = 1.0 + float(current_wave) * 0.25
 	if is_endless_mode and current_wave > 10:
 		wave_mult *= pow(1.16, float(current_wave - 10))
@@ -2414,19 +2424,36 @@ func _setup_hud_ui() -> void:
 		sb.content_margin_bottom = 6
 		return sb
 
-	# 1. SCORE BOX (Thu gọn 160x46px)
+	# 1 & 2. TOP-LEFT UNIFIED STATUS BAR (SCORE & HEALTH KHÔNG BAO GIỜ CHỒNG CHÉO)
+	var top_status_hbox = hud.get_node_or_null("TopLeftStatusHBox") as HBoxContainer
+	if not top_status_hbox:
+		top_status_hbox = HBoxContainer.new()
+		top_status_hbox.name = "TopLeftStatusHBox"
+		hud.add_child(top_status_hbox)
+		hud.move_child(top_status_hbox, 0)
+
+	top_status_hbox.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	top_status_hbox.position = Vector2(24.0, 14.0)
+	top_status_hbox.add_theme_constant_override("separation", 10)
+
+	# 1. SCORE BOX (Thẻ Điểm Đồng Thau Cao Cấp)
 	var score_box = hud.get_node_or_null("ScoreBox") as PanelContainer
 	if score_box:
-		score_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.36, 0.90)))
-		score_box.position = Vector2(24.0, 14.0)
-		score_box.size = Vector2(160.0, 46.0)
-		_attach_corner_brackets(score_box, Color(0.88, 0.74, 0.36, 0.85))
+		if score_box.get_parent() != top_status_hbox:
+			score_box.reparent(top_status_hbox)
+		score_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.38, 0.90)))
+		score_box.custom_minimum_size = Vector2(175.0, 46.0)
+		_attach_corner_brackets(score_box, Color(0.88, 0.74, 0.38, 0.85))
 		var s_hbox = score_box.get_node_or_null("Margin/HBox") as HBoxContainer
 		if s_hbox:
+			s_hbox.add_theme_constant_override("separation", 8)
 			var title_lbl = s_hbox.get_node_or_null("LabelScoreTitle") as Label
 			if title_lbl:
 				title_lbl.text = "ĐIỂM:"
 				title_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+				title_lbl.add_theme_font_size_override("font_size", 18)
+			if label_score:
+				label_score.add_theme_font_size_override("font_size", 22)
 			if not s_hbox.has_node("IconScore"):
 				var icon = HudVectorIcon.new()
 				icon.name = "IconScore"
@@ -2436,46 +2463,63 @@ func _setup_hud_ui() -> void:
 				s_hbox.add_child(icon)
 				s_hbox.move_child(icon, 0)
 
-	# 2. HEALTH BOX VỚI THANH MÁU TRỰC QUAN (Thu gọn 185x46px)
+	# 2. HEALTH BOX (Thẻ Máu Đồng Thau Đồng Bộ Với Trái Tim Ruby)
 	var health_box = hud.get_node_or_null("HealthBox") as PanelContainer
 	if health_box:
-		health_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.42, 0.42, 0.90)))
-		health_box.position = Vector2(192.0, 14.0)
-		health_box.size = Vector2(185.0, 46.0)
-		_attach_corner_brackets(health_box, Color(0.90, 0.45, 0.45, 0.85))
+		if health_box.get_parent() != top_status_hbox:
+			health_box.reparent(top_status_hbox)
+		health_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.38, 0.90)))
+		health_box.custom_minimum_size = Vector2(175.0, 46.0)
+		_attach_corner_brackets(health_box, Color(0.88, 0.74, 0.38, 0.85))
+
 		var h_margin = health_box.get_node_or_null("Margin") as MarginContainer
 		if h_margin:
-			var old_hbox = h_margin.get_node_or_null("HBox")
-			if old_hbox and not h_margin.has_node("HealthVBox"):
+			var old_vbox = h_margin.get_node_or_null("HealthVBox")
+			var h_hbox: HBoxContainer = null
+			if old_vbox:
+				h_hbox = old_vbox.get_node_or_null("HBox") as HBoxContainer
+			else:
+				h_hbox = h_margin.get_node_or_null("HBox") as HBoxContainer
+
+			if not h_margin.has_node("HealthVBoxUnified"):
 				var vbox = VBoxContainer.new()
-				vbox.name = "HealthVBox"
-				vbox.add_theme_constant_override("separation", 3)
-				h_margin.remove_child(old_hbox)
-				vbox.add_child(old_hbox)
+				vbox.name = "HealthVBoxUnified"
+				vbox.add_theme_constant_override("separation", 2)
+				if h_hbox:
+					if h_hbox.get_parent():
+						h_hbox.get_parent().remove_child(h_hbox)
+					vbox.add_child(h_hbox)
+				if old_vbox and old_vbox.get_parent():
+					h_margin.remove_child(old_vbox)
 				h_margin.add_child(vbox)
 
-				var h_title = old_hbox.get_node_or_null("LabelHealthTitle") as Label
-				if h_title:
-					h_title.text = "MÁU:"
-					h_title.add_theme_color_override("font_color", Color(1.0, 0.48, 0.48))
-				if not old_hbox.has_node("IconHealth"):
-					var icon = HudVectorIcon.new()
-					icon.name = "IconHealth"
-					icon.custom_minimum_size = Vector2(18, 18)
-					icon.icon_type = HudVectorIcon.Type.HEALTH_HEART
-					icon.icon_color = Color(1.0, 0.35, 0.40)
-					old_hbox.add_child(icon)
-					old_hbox.move_child(icon, 0)
+				if h_hbox:
+					h_hbox.add_theme_constant_override("separation", 8)
+					var h_title = h_hbox.get_node_or_null("LabelHealthTitle") as Label
+					if h_title:
+						h_title.text = "MÁU:"
+						h_title.add_theme_color_override("font_color", Color(1.0, 0.40, 0.45))
+						h_title.add_theme_font_size_override("font_size", 18)
+					if label_health:
+						label_health.add_theme_font_size_override("font_size", 22)
+					if not h_hbox.has_node("IconHealth"):
+						var icon = HudVectorIcon.new()
+						icon.name = "IconHealth"
+						icon.custom_minimum_size = Vector2(18, 18)
+						icon.icon_type = HudVectorIcon.Type.HEALTH_HEART
+						icon.icon_color = Color(1.0, 0.35, 0.40)
+						h_hbox.add_child(icon)
+						h_hbox.move_child(icon, 0)
 
 				health_progress_bar = ProgressBar.new()
 				health_progress_bar.name = "HealthProgressBar"
-				health_progress_bar.custom_minimum_size = Vector2(155, 4)
+				health_progress_bar.custom_minimum_size = Vector2(145, 4)
 				health_progress_bar.max_value = max_health
 				health_progress_bar.value = base_health
 				health_progress_bar.show_percentage = false
 
 				var pb_bg = StyleBoxFlat.new()
-				pb_bg.bg_color = Color(0.04, 0.03, 0.06, 0.90)
+				pb_bg.bg_color = Color(0.12, 0.04, 0.06, 0.90)
 				pb_bg.set_corner_radius_all(2)
 				health_progress_bar.add_theme_stylebox_override("background", pb_bg)
 
@@ -2551,69 +2595,79 @@ func _setup_hud_ui() -> void:
 		intel_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.82, 0.68, 0.32, 0.75), 6))
 		intel_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 		intel_box.offset_left = -365.0
-		intel_box.offset_top = 66.0
+		intel_box.offset_top = 68.0
 		intel_box.offset_right = -24.0
-		intel_box.offset_bottom = 100.0
+		intel_box.offset_bottom = 98.0
 
-	# 5. NÚT PILL CAMERA, TỐC ĐỘ, THỬ THÁCH, ÂM THANH (Đưa lên y=66px, cao 30px)
+	# 5. NÚT PILL CAMERA, TỐC ĐỘ, THỬ THÁCH, ÂM THANH (Xếp thẳng hàng HBox tại y=68px, cao 28px)
+	var quick_btn_hbox = hud.get_node_or_null("QuickBtnHBox") as HBoxContainer
+	if not quick_btn_hbox:
+		quick_btn_hbox = HBoxContainer.new()
+		quick_btn_hbox.name = "QuickBtnHBox"
+		hud.add_child(quick_btn_hbox)
+		hud.move_child(quick_btn_hbox, 1)
+
+	quick_btn_hbox.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	quick_btn_hbox.position = Vector2(24.0, 80.0)
+	quick_btn_hbox.add_theme_constant_override("separation", 6)
+
 	var make_pill_style = func(border_col: Color, bg_col: Color = Color(0.06, 0.05, 0.08, 0.92)) -> StyleBoxFlat:
 		var sb = StyleBoxFlat.new()
 		sb.bg_color = bg_col
 		sb.set_border_width_all(1.5)
 		sb.border_color = border_col
-		sb.set_corner_radius_all(10)
+		sb.set_corner_radius_all(8)
 		sb.shadow_size = 4
 		sb.shadow_color = Color(0, 0, 0, 0.40)
 		sb.shadow_offset = Vector2(0, 2)
 		return sb
 
 	if btn_camera_mode:
-		btn_camera_mode.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_camera_mode.position = Vector2(24.0, 66.0)
-		btn_camera_mode.size = Vector2(160.0, 30.0)
-		btn_camera_mode.custom_minimum_size = Vector2(160.0, 30.0)
+		if btn_camera_mode.get_parent() != quick_btn_hbox:
+			btn_camera_mode.reparent(quick_btn_hbox)
+		btn_camera_mode.custom_minimum_size = Vector2(165.0, 28.0)
 		btn_camera_mode.add_theme_font_size_override("font_size", 11)
+		btn_camera_mode.add_theme_color_override("font_color", Color(0.92, 0.88, 0.80))
+		btn_camera_mode.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.70))
+		btn_camera_mode.add_theme_color_override("font_pressed_color", Color(0.80, 0.75, 0.60))
 		btn_camera_mode.add_theme_stylebox_override("normal", make_pill_style.call(Color(0.85, 0.70, 0.35, 0.65)))
 		btn_camera_mode.add_theme_stylebox_override("hover", make_pill_style.call(Color(1.0, 0.88, 0.45, 0.95), Color(0.12, 0.10, 0.15, 0.96)))
 		btn_camera_mode.add_theme_stylebox_override("pressed", make_pill_style.call(Color(0.75, 0.60, 0.28, 1.0), Color(0.04, 0.03, 0.05, 0.98)))
 
 	if btn_speed:
-		btn_speed.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_speed.position = Vector2(190.0, 66.0)
-		btn_speed.size = Vector2(62.0, 30.0)
-		btn_speed.custom_minimum_size = Vector2(62.0, 30.0)
-		btn_speed.add_theme_font_size_override("font_size", 13)
+		if btn_speed.get_parent() != quick_btn_hbox:
+			btn_speed.reparent(quick_btn_hbox)
+		btn_speed.custom_minimum_size = Vector2(52.0, 28.0)
+		btn_speed.add_theme_font_size_override("font_size", 12)
 		_update_speed_button_style()
 
 	if btn_hardcore:
-		btn_hardcore.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_hardcore.position = Vector2(258.0, 66.0)
-		btn_hardcore.size = Vector2(110.0, 30.0)
-		btn_hardcore.custom_minimum_size = Vector2(110.0, 30.0)
+		if btn_hardcore.get_parent() != quick_btn_hbox:
+			btn_hardcore.reparent(quick_btn_hbox)
+		btn_hardcore.custom_minimum_size = Vector2(96.0, 28.0)
 		btn_hardcore.add_theme_font_size_override("font_size", 11)
 		_update_hardcore_button_style()
 
 	if not btn_sound_toggle and hud:
 		btn_sound_toggle = Button.new()
 		btn_sound_toggle.name = "BtnSoundToggle"
-		hud.add_child(btn_sound_toggle)
+		quick_btn_hbox.add_child(btn_sound_toggle)
 
 	if btn_sound_toggle:
-		btn_sound_toggle.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_sound_toggle.position = Vector2(374.0, 66.0)
-		btn_sound_toggle.size = Vector2(98.0, 30.0)
-		btn_sound_toggle.custom_minimum_size = Vector2(98.0, 30.0)
+		if btn_sound_toggle.get_parent() != quick_btn_hbox:
+			btn_sound_toggle.reparent(quick_btn_hbox)
+		btn_sound_toggle.custom_minimum_size = Vector2(100.0, 28.0)
 		btn_sound_toggle.add_theme_font_size_override("font_size", 11)
 		_update_sound_button_style()
 		if not btn_sound_toggle.pressed.is_connected(toggle_sound):
 			btn_sound_toggle.pressed.connect(toggle_sound)
 
-	# 6. RECORD BOX (Đưa lên y=102px, cao 24px)
+	# 6. RECORD BOX (Đưa xuống y=115px, cao 24px)
 	var rec_box = hud.get_node_or_null("RecordBox") as PanelContainer
 	if rec_box:
 		rec_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		rec_box.position = Vector2(24.0, 102.0)
-		rec_box.size = Vector2(350.0, 24.0)
+		rec_box.position = Vector2(24.0, 115.0)
+		rec_box.size = Vector2(390.0, 24.0)
 		var sb_rec = StyleBoxFlat.new()
 		sb_rec.bg_color = Color(0.05, 0.04, 0.07, 0.88)
 		sb_rec.set_border_width_all(1.5)
@@ -2621,8 +2675,8 @@ func _setup_hud_ui() -> void:
 		sb_rec.set_corner_radius_all(6)
 		sb_rec.shadow_size = 3
 		sb_rec.shadow_color = Color(0, 0, 0, 0.30)
-		sb_rec.content_margin_left = 8
-		sb_rec.content_margin_right = 8
+		sb_rec.content_margin_left = 10
+		sb_rec.content_margin_right = 10
 		sb_rec.content_margin_top = 2
 		sb_rec.content_margin_bottom = 2
 		rec_box.add_theme_stylebox_override("panel", sb_rec)

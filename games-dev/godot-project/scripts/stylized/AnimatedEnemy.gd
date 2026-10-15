@@ -294,6 +294,13 @@ func setup(type: EnemyType, path_points: Array[Vector2], wave_multiplier: float 
 	enemy_type = type
 	variant = v
 	is_boss = (v == EnemyVariant.BOSS)
+
+	# Đảm bảo tuyệt đối: Robot đi bộ (MECH_WALKER) và Xe lửa (STEAM_TRAIN) luôn là lính bám đất, không bao giờ bay
+	if enemy_type == EnemyType.MECH_WALKER or enemy_type == EnemyType.STEAM_TRAIN:
+		is_flying = false
+		if variant == EnemyVariant.AIR_DRONE:
+			variant = EnemyVariant.SCOUT
+
 	waypoints = path_points
 	if waypoints.size() > 0:
 		global_position = waypoints[0]
@@ -430,7 +437,7 @@ func _ready() -> void:
 			sprite.texture = MECH_WALK_FRAMES[0]
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -195.0)
-			sprite.position = Vector2(0.0, -20.0)
+			sprite.position = Vector2.ZERO # Bàn chân tiếp xúc chuẩn mặt đất Y = 0 (Zero Air Gap, không bay lơ lửng)
 			visual_root.add_child(sprite)
 
 		EnemyType.STEAM_TRAIN:
@@ -727,6 +734,9 @@ func _update_limb_animation(delta: float, current_speed: float = -1.0) -> void:
 			if _mech_steam_timer <= 0.0:
 				_mech_steam_timer = 0.18
 				_spawn_mech_steam()
+
+			# Bàn chân robot luôn dính chặt mặt đất tại Y = 0 (Zero Air Gap)
+			sprite.position = Vector2.ZERO
 
 		EnemyType.STEAM_TRAIN:
 			# XE LỬA CƠ KHÍ: 24 Khung hình trích xuất từ Video 3D (Bánh xoay, piston chuyển động, khói bốc)
