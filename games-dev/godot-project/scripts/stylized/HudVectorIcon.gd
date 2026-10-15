@@ -16,7 +16,8 @@ enum Type {
 	TOWER_CANNON,    # Tháp pháo phòng thủ (Bottom Dock)
 	SKILL_CHIP,      # Vi mạch công nghệ (Bottom Dock)
 	SPELL_BURST,     # Tinh thể ma thuật (Bottom Dock)
-	DEFEND_SHIELD    # Khiên phòng thủ chiến dịch (Bottom Dock)
+	DEFEND_SHIELD,   # Khiên phòng thủ chiến dịch (Bottom Dock)
+	LIGHTNING_EMP    # Tia sét bẫy xung điện cầu (Bottom Dock)
 }
 
 @export var icon_type: Type = Type.SCORE_STAR:
@@ -66,6 +67,8 @@ func _draw() -> void:
 			_draw_spell_icon(center, radius, icon_color if icon_color != Color.WHITE else Color(1.0, 0.85, 0.25))
 		Type.DEFEND_SHIELD:
 			_draw_shield_icon(center, radius, icon_color if icon_color != Color.WHITE else Color(1.0, 0.45, 0.35))
+		Type.LIGHTNING_EMP:
+			_draw_lightning(center, radius, icon_color if icon_color != Color.WHITE else Color(0.25, 0.90, 1.0))
 
 func _draw_star(c: Vector2, r: float, col: Color) -> void:
 	var pts = PackedVector2Array()
@@ -224,3 +227,17 @@ func _draw_shield_icon(c: Vector2, r: float, col: Color) -> void:
 	s_closed.append(s_pts[0])
 	draw_polyline(s_closed, Color(1.0, 0.9, 0.8, 0.9), 1.6)
 	draw_line(c + Vector2(0.0, -r * 0.6), c + Vector2(0.0, r * 0.6), Color(1.0, 1.0, 1.0, 0.85), 2.0)
+
+func _draw_lightning(c: Vector2, r: float, col: Color) -> void:
+	var pts = PackedVector2Array([
+		c + Vector2(r * 0.15, -r * 0.90),
+		c + Vector2(-r * 0.55, -r * 0.05),
+		c + Vector2(-r * 0.05, -r * 0.05),
+		c + Vector2(-r * 0.25, r * 0.90),
+		c + Vector2(r * 0.55, 0.05),
+		c + Vector2(r * 0.05, 0.05)
+	])
+	draw_colored_polygon(pts, col)
+	var pts_closed = PackedVector2Array(pts)
+	pts_closed.append(pts[0])
+	draw_polyline(pts_closed, Color(1.0, 1.0, 1.0, 0.9), 1.5)

@@ -267,6 +267,9 @@ var btn_endless_modal: Button = null
 var btn_sound_toggle: Button = null
 var is_sound_muted: bool = false
 
+# Mobile Touch UX: Nút Bẫy Cầu Trực Quan Trên Màn Hình Cảm Ứng [E]
+var btn_bridge_emp: Button = null
+
 # Sprint 9: Chế Độ Vô Tận (Endless Survival Wave 11+)
 var is_endless_mode: bool = false
 var highest_endless_wave: int = 0
@@ -607,6 +610,7 @@ func _process(delta: float) -> void:
 	_idle_time += delta
 	if bridge_emp_timer > 0.0:
 		bridge_emp_timer = maxf(0.0, bridge_emp_timer - delta)
+		_update_bridge_emp_button_style()
 
 	# Khóa cố định đại lục chiến trường 1376x768 vững chãi tại tâm và phóng nhẹ để xóa mép cắt dọc
 	if island_sprite:
@@ -1064,7 +1068,20 @@ func _unhandled_input(event: InputEvent) -> void:
 					queue_redraw()
 					if web_bridge: web_bridge.show_toast("Đã hủy đặt tháp.", "info")
 					return
-				placement_preview_pos = get_global_mouse_position()
+				var click_pos = get_global_mouse_position()
+				# Tối ưu Cảm ứng: Snap vào tâm BUILD_PADS gần nhất nếu trong bán kính 48px
+				var target_pos = click_pos
+				for p in BUILD_PADS:
+					if click_pos.distance_to(p) <= 48.0:
+						var occupied = false
+						for t in towers_container.get_children():
+							if is_instance_valid(t) and t is AnimatedTower and t.global_position.distance_to(p) < 32.0:
+								occupied = true
+								break
+						if not occupied:
+							target_pos = p
+							break
+				placement_preview_pos = target_pos
 				is_placement_valid = _is_valid_build_position(placement_preview_pos)
 				if is_placement_valid:
 					if gold >= placing_cost:
@@ -1090,24 +1107,46 @@ func _unhandled_input(event: InputEvent) -> void:
 			_check_touch_interaction(touch_pos)
 
 func _check_touch_interaction(pos: Vector2) -> void:
-	# 0a. Kiểm tra chạm vào Bẫy Xung Điện Trên Cầu (Bridge EMP Node)
-	if pos.distance_to(BRIDGE_EMP_POS) <= 42.0:
+	# 0a. Kiểm tra chạm vào Bẫy Xung Điện Trên Cầu (Bridge EMP Node) - Touch Hitbox >= 48px (52px)
+	const BRIDGE_EMP_TOUCH_RADIUS: float = 52.0
+	if pos.distance_to(BRIDGE_EMP_POS) <= BRIDGE_EMP_TOUCH_RADIUS:
 		activate_bridge_emp()
 		return
 
-	# 0b. Kiểm tra chạm vào Hòm Tiếp Tế Năng Lượng (Supply Pod)
+	# 0b. Kiểm tra chạm vào Hòm Tiếp Tế Năng Lượng (Supply Pod) - Touch Hitbox >= 48px
 	for i in range(supply_pods.size()):
-		if pos.distance_to(supply_pods[i]["pos"]) <= supply_pods[i]["radius"] + 14.0:
+		var hit_r = maxf(48.0, supply_pods[i].get("radius", 22.0) + 26.0)
+		if pos.distance_to(supply_pods[i]["pos"]) <= hit_r:
 			collect_supply_pod(i, false)
 			return
 
-	# 1. Kiểm tra có chạm vào Tháp đã dựng không -> Mở menu nâng cấp / bán
+	# 1. Kiểm tra có chạm vào Tháp đã dựng không -> Mở menu nâng cấp / bán - Touch Hitbox >= 48px
 	for t in towers_container.get_children():
 		if is_instance_valid(t) and t is AnimatedTower:
-			if pos.distance_to(t.global_position) <= 38.0:
+			if pos.distance_to(t.global_position) <= 48.0:
 				_open_upgrade_popup(t)
 				if web_bridge:
 					web_bridge.trigger_haptic("selection")
+				return
+
+	# 2. Kiểm tra chạm vào Ô Đặt Trụ (BUILD_PADS) trống trên màn hình cảm ứng - Touch Hitbox >= 48px
+	const PAD_TOUCH_RADIUS: float = 48.0
+	for i in range(BUILD_PADS.size()):
+		var pad = BUILD_PADS[i]
+		if pos.distance_to(pad) <= PAD_TOUCH_RADIUS:
+			var occupied = false
+			for t in towers_container.get_children():
+				if is_instance_valid(t) and t is AnimatedTower and t.global_position.distance_to(pad) < 32.0:
+					occupied = true
+					break
+			if not occupied:
+				targeted_build_pos = pad
+				if quick_tower_tray:
+					quick_tower_tray.visible = true
+					if web_bridge:
+						web_bridge.trigger_haptic("selection")
+						var pad_desc = "Ô Cao Điểm (+15% Tầm)" if i == OVERWATCH_PAD_IDX else ("Ô Xung Lực (+15% Tốc)" if i == POWER_CONDUIT_PAD_IDX else "Ô Chiến Thuật")
+						web_bridge.show_toast("Đã chọn %s! Chọn loại tháp ở khay bên dưới để dựng." % pad_desc, "info")
 				return
 
 	# Bấm chuột trái/chạm ra ngoài bản đồ -> Đóng các menu/khay đang mở (TUYỆT ĐỐI KHÔNG tự động hiện bảng mua trụ)
@@ -2048,6 +2087,14 @@ func _update_sound_button_style() -> void:
 	btn_sound_toggle.add_theme_color_override("font_color", Color(1.0, 0.55, 0.55) if is_sound_muted else Color(0.40, 0.90, 1.0))
 	btn_sound_toggle.text = "TẮT ÂM [M]" if is_sound_muted else "ÂM THANH [M]"
 
+func _update_bridge_emp_button_style() -> void:
+	if not btn_bridge_emp:
+		return
+	if bridge_emp_timer > 0.0:
+		_set_button_dock_label(btn_bridge_emp, "HỒI CHIÊU: %ds" % int(ceilf(bridge_emp_timer)), "[E]")
+	else:
+		_set_button_dock_label(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]")
+
 func toggle_sound() -> void:
 	if sound_synth:
 		is_sound_muted = sound_synth.toggle_mute()
@@ -2451,8 +2498,22 @@ func _setup_hud_ui() -> void:
 
 		_style_dock_button(btn_build, "MUA TRỤ", "[SPACE]", Color(0.30, 0.95, 1.0), HudVectorIcon.Type.TOWER_CANNON)
 		_style_dock_button(btn_skill_tree, "KỸ NĂNG", "[W]", Color(0.35, 1.0, 0.65), HudVectorIcon.Type.SKILL_CHIP)
-		_style_dock_button(btn_spell, "PHÉP THUẬT", "[E]", Color(1.0, 0.85, 0.25), HudVectorIcon.Type.SPELL_BURST)
+		_style_dock_button(btn_spell, "PHÉP THUẬT", "[F]", Color(1.0, 0.85, 0.25), HudVectorIcon.Type.SPELL_BURST)
 		_style_dock_button(btn_next_wave, "GỌI ĐỢT", "[N]", Color(1.0, 0.42, 0.35), HudVectorIcon.Type.DEFEND_SHIELD)
+
+	# 8. NÚT BẪY CẦU TRÊN MÀN HÌNH (Touch Action Button [E] >= 48px)
+	if not btn_bridge_emp and hud:
+		btn_bridge_emp = Button.new()
+		btn_bridge_emp.name = "BtnBridgeEmp"
+		btn_bridge_emp.custom_minimum_size = Vector2(175.0, 56.0)
+		btn_bridge_emp.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		btn_bridge_emp.offset_left = -260.0
+		btn_bridge_emp.offset_right = -80.0
+		btn_bridge_emp.offset_top = -80.0
+		btn_bridge_emp.offset_bottom = -24.0
+		hud.add_child(btn_bridge_emp)
+		_style_dock_button(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]", Color(0.20, 0.90, 1.0), HudVectorIcon.Type.LIGHTNING_EMP)
+		btn_bridge_emp.pressed.connect(activate_bridge_emp)
 
 	# 8. THIẾT LẬP QUICK TRAYS & CARDS
 	_setup_tray_icons()
@@ -3274,6 +3335,7 @@ func _update_hud() -> void:
 		label_wave_intel.text = get_wave_intel(target_wave)
 	_update_record_label()
 	_update_sound_button_style()
+	_update_bridge_emp_button_style()
 	if skill_tree_modal and skill_tree_modal.visible:
 		_refresh_skill_tree_ui()
 

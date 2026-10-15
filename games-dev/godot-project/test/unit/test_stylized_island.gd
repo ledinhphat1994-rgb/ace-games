@@ -1653,5 +1653,47 @@ func test_tactical_achievements_and_medals() -> void:
 	assert_true(cfg.get_value("medals", "combo_master", false), "Lưu huy hiệu combo_master")
 	assert_true(cfg.get_value("medals", "flawless_fortress", false), "Lưu huy hiệu flawless_fortress")
 
+func test_mobile_touch_hitboxes_and_bridge_emp_button() -> void:
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	# 1. Kiểm tra nút Bẫy Cầu trực quan trên màn hình cảm ứng
+	assert_not_null(scene.btn_bridge_emp, "Nút Bẫy Cầu trực quan trên màn hình (BtnBridgeEmp) tồn tại trên HUD")
+	assert_gte(scene.btn_bridge_emp.custom_minimum_size.x, 48.0, "Kích thước chiều ngang đạt chuẩn cảm ứng >= 48px")
+	assert_gte(scene.btn_bridge_emp.custom_minimum_size.y, 48.0, "Kích thước chiều dọc đạt chuẩn cảm ứng >= 48px")
+	assert_true(scene.btn_bridge_emp.text.contains("BẪY CẦU"), "Nhãn nút hiển thị BẪY CẦU")
+
+	# 2. Bấm nút Bẫy Cầu trên màn hình cảm ứng -> Kích hoạt bẫy cầu và cập nhật nhãn hồi chiêu
+	scene.gold = 100
+	scene.bridge_emp_timer = 0.0
+	scene.btn_bridge_emp.emit_signal("pressed")
+	assert_eq(scene.gold, 65, "Khấu trừ 35G khi bấm nút Bẫy Cầu")
+	assert_gt(scene.bridge_emp_timer, 0.0, "Bẫy chuyển sang trạng thái hồi chiêu")
+	scene._process(0.1)
+	assert_true(scene.btn_bridge_emp.text.contains("HỒI CHIÊU"), "Nhãn nút hiển thị đếm ngược HỒI CHIÊU")
+
+	# 3. Kiểm tra Hitbox Bẫy Cầu trên bản đồ đạt chuẩn >= 48px (52px)
+	scene.bridge_emp_timer = 0.0
+	scene.gold = 100
+	scene._check_touch_interaction(scene.BRIDGE_EMP_POS + Vector2(49.0, 0.0))
+	assert_eq(scene.gold, 65, "Chạm ở khoảng cách 49px vẫn kích hoạt thành công bẫy cầu (Hitbox >= 48px)")
+
+	# 4. Kiểm tra Hitbox Hòm Tiếp Tế đạt chuẩn >= 48px
+	var pod = scene.spawn_supply_pod(Vector2(600, 400))
+	assert_not_null(pod, "Sinh hòm tiếp tế thành công")
+	var gold_before_pod = scene.gold
+	# Chạm ở khoảng cách 47px (trong vùng bán kính 48px)
+	scene._check_touch_interaction(Vector2(600 + 47.0, 400))
+	assert_gt(scene.gold, gold_before_pod, "Hòm tiếp tế được thu thập khi chạm ở khoảng cách 47px (Hitbox >= 48px)")
+
+	# 5. Kiểm tra Hitbox Ô Đặt Trụ (BUILD_PADS) đạt chuẩn >= 48px và mở khay mua tháp
+	var pad_pos = scene.BUILD_PADS[2] # Ô Pad 2 trung tâm Bắc
+	scene._check_touch_interaction(pad_pos + Vector2(46.0, 0.0))
+	assert_eq(scene.targeted_build_pos, pad_pos, "Chạm ở cự ly 46px nhận diện đúng Ô Đặt Trụ")
+	assert_true(scene.quick_tower_tray.visible, "Chạm vào Ô Đặt Trụ tự động mở khay mua tháp nhanh")
+
+	for e in scene.enemies_container.get_children():
+		e.free()
+
 func after_each() -> void:
 	Engine.time_scale = 1.0
