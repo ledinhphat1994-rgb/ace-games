@@ -1093,7 +1093,12 @@ func _draw_tactical_range_ring(tower: AnimatedTower) -> void:
 	var eff_range = tower.get_effective_range()
 	var rx = eff_range
 	var ry = eff_range * 0.48 # Tỷ lệ Isometric 2.5D
-	var rot_offset = _idle_time * 0.4
+	var rot_offset = _idle_time * 0.35
+
+	# 1. Hào quang mờ ảo tràn ngập mặt đất (Arcane Ambient Wash)
+	_draw_isometric_ellipse(t_pos, rx, ry, Color(0.12, 0.55, 0.85, 0.05))
+
+	# 2. Vành đai Cổ Ngữ Vàng Ánh Kim & Thiên Thanh (Golden Brass & Cyan Runic Perimeter)
 	var total_segments = 48
 	for s in range(total_segments):
 		if s % 2 == 0:
@@ -1104,14 +1109,31 @@ func _draw_tactical_range_ring(tower: AnimatedTower) -> void:
 			for k in range(sub_divs + 1):
 				var a = lerpf(a1, a2, float(k) / float(sub_divs))
 				pts.append(t_pos + Vector2(cos(a) * rx, sin(a) * ry))
-			draw_polyline(pts, Color(0.2, 0.95, 1.0, 0.30), 4.0)
-			draw_polyline(pts, Color(0.2, 0.95, 1.0, 0.85), 1.8)
+			draw_polyline(pts, Color(0.85, 0.72, 0.35, 0.35), 3.5)
+			draw_polyline(pts, Color(0.35, 0.92, 1.0, 0.85), 1.6)
+
+	# 3. Vòng Cổ Ngữ Bán Nguyệt Bên Trong (Inner Runic Tick Glyphs)
+	for g in range(16):
+		var ga = rot_offset * -0.65 + float(g) * TAU / 16.0
+		var p_in = t_pos + Vector2(cos(ga) * (rx * 0.91), sin(ga) * (ry * 0.91))
+		var p_out = t_pos + Vector2(cos(ga) * (rx * 0.96), sin(ga) * (ry * 0.96))
+		draw_line(p_in, p_out, Color(0.88, 0.75, 0.40, 0.65), 1.5)
+
+	# 4. Bệ La Bàn Cổ Ngữ 4 Hướng Dưới Chân Trụ (Compass Plinth with Cardinal Glyphs)
 	var pad_poly = PackedVector2Array()
 	for p in range(24):
 		var pa = float(p) * TAU / 24.0
-		pad_poly.append(t_pos + Vector2(cos(pa) * 32.0, sin(pa) * 32.0 * 0.48))
-	draw_colored_polygon(pad_poly, Color(0.2, 0.9, 1.0, 0.12))
-	draw_polyline(pad_poly, Color(0.2, 0.9, 1.0, 0.45), 1.5)
+		pad_poly.append(t_pos + Vector2(cos(pa) * 34.0, sin(pa) * 34.0 * 0.48))
+	draw_colored_polygon(pad_poly, Color(0.08, 0.12, 0.18, 0.35))
+	draw_polyline(pad_poly, Color(0.88, 0.75, 0.38, 0.65), 1.8)
+
+	# 4 Vạch La Bàn Chỉ Hướng (North, South, East, West)
+	var cardinal_dirs = [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]
+	for c_dir in cardinal_dirs:
+		var p_base = t_pos + Vector2(c_dir.x * 22.0, c_dir.y * 22.0 * 0.48)
+		var p_tip = t_pos + Vector2(c_dir.x * 38.0, c_dir.y * 38.0 * 0.48)
+		draw_line(p_base, p_tip, Color(0.95, 0.82, 0.45, 0.85), 1.5)
+		draw_circle(p_tip, 2.0, Color(0.35, 0.95, 1.0, 0.95))
 
 func _draw_placement_preview() -> void:
 	var pos = placement_preview_pos
@@ -1489,13 +1511,13 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 
 	var t_name = AnimatedTower.get_tower_name(tower.tower_type)
 
-	# Thay (LV.1), (LV.2) bằng hàng ngôi sao vàng rực rỡ ★ ★ ☆
-	var star_str = ""
+	# Hiển thị cấp độ tháp chuẩn Steampunk Hoàng gia: [CẤP I], [CẤP II], [CẤP III]
+	var level_str = ""
 	match tower.level:
-		1: star_str = "★ ☆ ☆"
-		2: star_str = "★ ★ ☆"
-		3: star_str = "★ ★ ★"
-		_: star_str = "★ ★ ★"
+		1: level_str = "[CẤP I]"
+		2: level_str = "[CẤP II]"
+		3: level_str = "[CẤP III]"
+		_: level_str = "[CẤP III]"
 
 	var buff_desc = ""
 	if tower.pad_range_mult > 1.0:
@@ -1505,11 +1527,23 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 	if tower._buff_decay_timer > 0.0:
 		buff_desc += " [PYLON +15% DMG]"
 
-	lbl_tower_name.text = "%s  %s%s" % [t_name, star_str, buff_desc]
+	lbl_tower_name.text = "%s  %s%s" % [t_name, level_str, buff_desc]
 
 	var panel = upgrade_popup.get_node_or_null("Panel") as Control
 	if panel:
-		_attach_corner_brackets(panel, Color(0.25, 0.90, 1.0, 0.90))
+		var sb_panel = StyleBoxFlat.new()
+		sb_panel.bg_color = Color(0.08, 0.10, 0.15, 0.96)
+		sb_panel.border_width_top = 2
+		sb_panel.border_width_left = 2
+		sb_panel.border_width_right = 2
+		sb_panel.border_width_bottom = 2
+		sb_panel.border_color = Color(0.88, 0.75, 0.38, 0.95) # Antique Gold Brass
+		sb_panel.set_corner_radius_all(10)
+		sb_panel.shadow_size = 12
+		sb_panel.shadow_color = Color(0, 0, 0, 0.60)
+		sb_panel.shadow_offset = Vector2(0, 4)
+		panel.add_theme_stylebox_override("panel", sb_panel)
+		_attach_corner_brackets(panel, Color(0.92, 0.78, 0.40, 1.0))
 		var vbox = panel.get_node_or_null("VBox") as VBoxContainer
 		if vbox:
 			_update_upgrade_pill_badges(vbox, tower.tower_type)
@@ -1547,8 +1581,22 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 	btn_sell_tower.add_theme_font_size_override("font_size", 11)
 	btn_upgrade_tower.add_theme_font_size_override("font_size", 11)
 
+	var make_action_btn_style = func(bg_c: Color, border_c: Color) -> StyleBoxFlat:
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = bg_c
+		sb.set_border_width_all(1.5)
+		sb.border_color = border_c
+		sb.set_corner_radius_all(6)
+		sb.shadow_size = 3
+		sb.shadow_color = Color(0, 0, 0, 0.35)
+		return sb
+
+	btn_upgrade_tower.add_theme_stylebox_override("normal", make_action_btn_style.call(Color(0.10, 0.28, 0.18, 0.95), Color(0.35, 0.90, 0.50, 0.85)))
+	btn_sell_tower.add_theme_stylebox_override("normal", make_action_btn_style.call(Color(0.28, 0.10, 0.10, 0.95), Color(0.90, 0.40, 0.35, 0.85)))
+
 	if btn_overclock_tower:
 		btn_overclock_tower.add_theme_font_size_override("font_size", 11)
+		btn_overclock_tower.add_theme_stylebox_override("normal", make_action_btn_style.call(Color(0.32, 0.18, 0.08, 0.95), Color(0.95, 0.65, 0.20, 0.85)))
 		if tower.can_overclock():
 			btn_overclock_tower.text = "QUÁ TẢI (25G)"
 			btn_overclock_tower.disabled = (gold < 25)
@@ -1556,10 +1604,23 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 			btn_overclock_tower.text = "HỒI: %ds" % int(ceilf(tower.overclock_cooldown))
 			btn_overclock_tower.disabled = true
 
-	# Đặt UpgradePopup ở Góc Dưới Bên Phải (phía trên thanh Bottom Dock, vùng bãi cỏ yên tĩnh bên phải x=990, y=370)
-	# Thu gọn chiều rộng popup xuống 330px, hoàn toàn không che đường đi của quái vật hay cổng portal
-	upgrade_popup.size = Vector2(330.0, 260.0)
-	upgrade_popup.position = Vector2(990.0, 370.0)
+	if btn_target_priority:
+		btn_target_priority.add_theme_stylebox_override("normal", make_action_btn_style.call(Color(0.08, 0.16, 0.26, 0.95), Color(0.35, 0.75, 0.95, 0.80)))
+
+	# Định vị UpgradePopup cạnh trụ (Arcane Steampunk Plaque) linh hoạt theo vị trí trụ trên màn hình
+	var screen_pos = tower.get_global_transform_with_canvas().origin
+	var pop_w = 280.0
+	var pop_h = 220.0
+	var target_x = 0.0
+	if screen_pos.x > 688.0:
+		target_x = screen_pos.x - pop_w - 35.0
+	else:
+		target_x = screen_pos.x + 35.0
+	target_x = clampf(target_x, 24.0, 1376.0 - pop_w - 24.0)
+	var target_y = clampf(screen_pos.y - pop_h * 0.5, 75.0, 768.0 - pop_h - 95.0)
+
+	upgrade_popup.size = Vector2(pop_w, pop_h)
+	upgrade_popup.position = Vector2(target_x, target_y)
 	upgrade_popup.visible = true
 	queue_redraw()
 
@@ -2279,47 +2340,47 @@ func _set_button_dock_label(btn: Button, title_text: String, hotkey_text: String
 func _update_speed_button_style() -> void:
 	if not btn_speed: return
 	var is_2x = (Engine.time_scale > 1.0)
-	var col_border = Color(1.0, 0.78, 0.18, 0.95) if is_2x else Color(0.35, 0.85, 1.0, 0.65)
-	var col_bg = Color(0.18, 0.12, 0.05, 0.95) if is_2x else Color(0.06, 0.09, 0.16, 0.92)
+	var col_border = Color(1.0, 0.85, 0.35, 0.95) if is_2x else Color(0.85, 0.72, 0.38, 0.65)
+	var col_bg = Color(0.20, 0.14, 0.06, 0.95) if is_2x else Color(0.06, 0.05, 0.08, 0.92)
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = col_bg
-	sb.set_border_width_all(2)
+	sb.set_border_width_all(1.5)
 	sb.border_color = col_border
-	sb.set_corner_radius_all(16)
+	sb.set_corner_radius_all(10)
 	sb.shadow_size = 4
 	sb.shadow_color = Color(0, 0, 0, 0.40)
 	btn_speed.add_theme_stylebox_override("normal", sb)
-	btn_speed.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25) if is_2x else Color(0.35, 0.88, 1.0))
+	btn_speed.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35) if is_2x else Color(0.88, 0.78, 0.55))
 	btn_speed.text = "2X" if is_2x else "1X"
 
 func _update_hardcore_button_style() -> void:
 	if not btn_hardcore: return
-	var col_border = Color(1.0, 0.35, 0.20, 0.95) if is_hardcore_mode else Color(0.85, 0.30, 0.20, 0.60)
-	var col_bg = Color(0.22, 0.06, 0.05, 0.95) if is_hardcore_mode else Color(0.06, 0.09, 0.16, 0.92)
+	var col_border = Color(1.0, 0.38, 0.22, 0.95) if is_hardcore_mode else Color(0.85, 0.72, 0.38, 0.60)
+	var col_bg = Color(0.22, 0.06, 0.05, 0.95) if is_hardcore_mode else Color(0.06, 0.05, 0.08, 0.92)
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = col_bg
-	sb.set_border_width_all(2)
+	sb.set_border_width_all(1.5)
 	sb.border_color = col_border
-	sb.set_corner_radius_all(16)
+	sb.set_corner_radius_all(10)
 	sb.shadow_size = 4
 	sb.shadow_color = Color(0, 0, 0, 0.40)
 	btn_hardcore.add_theme_stylebox_override("normal", sb)
-	btn_hardcore.add_theme_color_override("font_color", Color(1.0, 0.45, 0.30) if is_hardcore_mode else Color(0.85, 0.60, 0.55))
+	btn_hardcore.add_theme_color_override("font_color", Color(1.0, 0.45, 0.30) if is_hardcore_mode else Color(0.85, 0.75, 0.55))
 	btn_hardcore.text = "THỬ THÁCH: BẬT" if is_hardcore_mode else "THỬ THÁCH"
 
 func _update_sound_button_style() -> void:
 	if not btn_sound_toggle: return
-	var col_border = Color(0.85, 0.35, 0.35, 0.90) if is_sound_muted else Color(0.35, 0.85, 1.0, 0.70)
-	var col_bg = Color(0.18, 0.06, 0.08, 0.95) if is_sound_muted else Color(0.06, 0.09, 0.16, 0.92)
+	var col_border = Color(0.85, 0.35, 0.35, 0.90) if is_sound_muted else Color(0.85, 0.72, 0.38, 0.65)
+	var col_bg = Color(0.18, 0.06, 0.08, 0.95) if is_sound_muted else Color(0.06, 0.05, 0.08, 0.92)
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = col_bg
-	sb.set_border_width_all(2)
+	sb.set_border_width_all(1.5)
 	sb.border_color = col_border
-	sb.set_corner_radius_all(16)
+	sb.set_corner_radius_all(10)
 	sb.shadow_size = 4
 	sb.shadow_color = Color(0, 0, 0, 0.40)
 	btn_sound_toggle.add_theme_stylebox_override("normal", sb)
-	btn_sound_toggle.add_theme_color_override("font_color", Color(1.0, 0.55, 0.55) if is_sound_muted else Color(0.40, 0.90, 1.0))
+	btn_sound_toggle.add_theme_color_override("font_color", Color(1.0, 0.55, 0.55) if is_sound_muted else Color(0.88, 0.78, 0.55))
 	btn_sound_toggle.text = "TẮT ÂM [M]" if is_sound_muted else "ÂM THANH [M]"
 
 func _update_bridge_emp_button_style() -> void:
@@ -2388,18 +2449,18 @@ func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color
 	var make_btn_sb = func(bg_c: Color, border_c: Color, shadow_s: int = 4) -> StyleBoxFlat:
 		var sb = StyleBoxFlat.new()
 		sb.bg_color = bg_c
-		sb.set_border_width_all(1.5)
+		sb.set_border_width_all(2)
 		sb.border_color = border_c
-		sb.set_corner_radius_all(10)
+		sb.set_corner_radius_all(8)
 		sb.shadow_size = shadow_s
-		sb.shadow_color = Color(0, 0, 0, 0.40)
+		sb.shadow_color = Color(0, 0, 0, 0.45)
 		sb.shadow_offset = Vector2(0, 2)
 		return sb
 
-	btn.add_theme_stylebox_override("normal", make_btn_sb.call(Color(0.07, 0.10, 0.16, 0.92), accent_color * Color(1, 1, 1, 0.45)))
-	btn.add_theme_stylebox_override("hover", make_btn_sb.call(Color(0.11, 0.16, 0.25, 0.96), accent_color * Color(1, 1, 1, 0.95), 8))
-	btn.add_theme_stylebox_override("pressed", make_btn_sb.call(Color(0.05, 0.08, 0.12, 0.98), accent_color))
-	btn.add_theme_stylebox_override("disabled", make_btn_sb.call(Color(0.04, 0.06, 0.09, 0.80), Color(0.25, 0.30, 0.38, 0.35), 0))
+	btn.add_theme_stylebox_override("normal", make_btn_sb.call(Color(0.06, 0.05, 0.08, 0.94), Color(0.82, 0.68, 0.35, 0.65)))
+	btn.add_theme_stylebox_override("hover", make_btn_sb.call(Color(0.12, 0.10, 0.15, 0.96), Color(0.98, 0.85, 0.45, 0.95), 8))
+	btn.add_theme_stylebox_override("pressed", make_btn_sb.call(Color(0.04, 0.03, 0.05, 0.98), Color(1.0, 0.92, 0.55, 1.0)))
+	btn.add_theme_stylebox_override("disabled", make_btn_sb.call(Color(0.04, 0.04, 0.06, 0.80), Color(0.35, 0.32, 0.28, 0.35), 0))
 
 	# Ẩn hoàn toàn chữ mặc định của Button gốc để không bị đè lên nhãn tùy biến DockContent
 	btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.0))
@@ -2419,16 +2480,16 @@ func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color
 		content.add_theme_constant_override("separation", 10)
 		btn.add_child(content)
 
-		# Khung Icon 38x38px bo góc 8px
+		# Khung Icon 38x38px bo góc 6px phong cách cơ khí
 		var icon_box = PanelContainer.new()
 		icon_box.name = "IconFrame"
 		icon_box.custom_minimum_size = Vector2(38, 38)
 		icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var sb_ib = StyleBoxFlat.new()
-		sb_ib.bg_color = Color(0.04, 0.06, 0.10, 0.85)
-		sb_ib.set_corner_radius_all(8)
-		sb_ib.set_border_width_all(1)
-		sb_ib.border_color = accent_color * Color(1, 1, 1, 0.50)
+		sb_ib.bg_color = Color(0.04, 0.03, 0.06, 0.90)
+		sb_ib.set_corner_radius_all(6)
+		sb_ib.set_border_width_all(1.5)
+		sb_ib.border_color = Color(0.85, 0.72, 0.38, 0.55)
 		icon_box.add_theme_stylebox_override("panel", sb_ib)
 
 		var icon = HudVectorIcon.new()
@@ -2452,7 +2513,7 @@ func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color
 		lbl_t.text = title
 		lbl_t.add_theme_font_size_override("font_size", 14)
 		lbl_t.add_theme_color_override("font_color", accent_color)
-		lbl_t.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.08, 0.95))
+		lbl_t.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.04, 0.95))
 		lbl_t.add_theme_constant_override("outline_size", 3)
 		vbox.add_child(lbl_t)
 
@@ -2460,7 +2521,7 @@ func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color
 		lbl_h.name = "Hotkey"
 		lbl_h.text = hotkey
 		lbl_h.add_theme_font_size_override("font_size", 10)
-		lbl_h.add_theme_color_override("font_color", Color(0.60, 0.70, 0.82, 0.90))
+		lbl_h.add_theme_color_override("font_color", Color(0.90, 0.80, 0.55, 0.95))
 		vbox.add_child(lbl_h)
 
 		content.add_child(vbox)
@@ -2470,47 +2531,50 @@ func _setup_hud_ui() -> void:
 	if not hud:
 		return
 
-	var make_glass_box = func(border_col: Color, corner_rad: int = 10) -> StyleBoxFlat:
+	var make_steampunk_brass_box = func(accent_border: Color = Color(0.88, 0.74, 0.38, 0.90), corner_rad: int = 8) -> StyleBoxFlat:
 		var sb = StyleBoxFlat.new()
-		sb.bg_color = Color(0.06, 0.09, 0.15, 0.94)
+		sb.bg_color = Color(0.06, 0.05, 0.08, 0.94)
 		sb.set_border_width_all(2)
-		sb.border_color = border_col
+		sb.border_color = accent_border
 		sb.set_corner_radius_all(corner_rad)
-		sb.shadow_size = 8
-		sb.shadow_color = Color(0, 0, 0, 0.50)
-		sb.shadow_offset = Vector2(0, 4)
-		sb.content_margin_left = 14
-		sb.content_margin_right = 14
-		sb.content_margin_top = 8
-		sb.content_margin_bottom = 8
+		sb.shadow_size = 6
+		sb.shadow_color = Color(0, 0, 0, 0.55)
+		sb.shadow_offset = Vector2(0, 3)
+		sb.content_margin_left = 12
+		sb.content_margin_right = 12
+		sb.content_margin_top = 6
+		sb.content_margin_bottom = 6
 		return sb
 
-	# 1. SCORE BOX
+	# 1. SCORE BOX (Thu gọn 160x46px)
 	var score_box = hud.get_node_or_null("ScoreBox") as PanelContainer
 	if score_box:
-		score_box.add_theme_stylebox_override("panel", make_glass_box.call(Color(1.0, 0.82, 0.25, 0.70)))
-		score_box.position = Vector2(30.0, 18.0)
-		score_box.size = Vector2(175.0, 52.0)
+		score_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.36, 0.90)))
+		score_box.position = Vector2(24.0, 14.0)
+		score_box.size = Vector2(160.0, 46.0)
+		_attach_corner_brackets(score_box, Color(0.88, 0.74, 0.36, 0.85))
 		var s_hbox = score_box.get_node_or_null("Margin/HBox") as HBoxContainer
 		if s_hbox:
 			var title_lbl = s_hbox.get_node_or_null("LabelScoreTitle") as Label
 			if title_lbl:
 				title_lbl.text = "ĐIỂM:"
+				title_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
 			if not s_hbox.has_node("IconScore"):
 				var icon = HudVectorIcon.new()
 				icon.name = "IconScore"
-				icon.custom_minimum_size = Vector2(22, 22)
+				icon.custom_minimum_size = Vector2(20, 20)
 				icon.icon_type = HudVectorIcon.Type.SCORE_STAR
-				icon.icon_color = Color(1.0, 0.85, 0.2)
+				icon.icon_color = Color(1.0, 0.85, 0.25)
 				s_hbox.add_child(icon)
 				s_hbox.move_child(icon, 0)
 
-	# 2. HEALTH BOX VỚI THANH MÁU TRỰC QUAN
+	# 2. HEALTH BOX VỚI THANH MÁU TRỰC QUAN (Thu gọn 185x46px)
 	var health_box = hud.get_node_or_null("HealthBox") as PanelContainer
 	if health_box:
-		health_box.add_theme_stylebox_override("panel", make_glass_box.call(Color(1.0, 0.28, 0.36, 0.70)))
-		health_box.position = Vector2(215.0, 18.0)
-		health_box.size = Vector2(195.0, 52.0)
+		health_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.42, 0.42, 0.90)))
+		health_box.position = Vector2(192.0, 14.0)
+		health_box.size = Vector2(185.0, 46.0)
+		_attach_corner_brackets(health_box, Color(0.90, 0.45, 0.45, 0.85))
 		var h_margin = health_box.get_node_or_null("Margin") as MarginContainer
 		if h_margin:
 			var old_hbox = h_margin.get_node_or_null("HBox")
@@ -2525,43 +2589,45 @@ func _setup_hud_ui() -> void:
 				var h_title = old_hbox.get_node_or_null("LabelHealthTitle") as Label
 				if h_title:
 					h_title.text = "MÁU:"
+					h_title.add_theme_color_override("font_color", Color(1.0, 0.48, 0.48))
 				if not old_hbox.has_node("IconHealth"):
 					var icon = HudVectorIcon.new()
 					icon.name = "IconHealth"
-					icon.custom_minimum_size = Vector2(20, 20)
+					icon.custom_minimum_size = Vector2(18, 18)
 					icon.icon_type = HudVectorIcon.Type.HEALTH_HEART
-					icon.icon_color = Color(1.0, 0.28, 0.36)
+					icon.icon_color = Color(1.0, 0.35, 0.40)
 					old_hbox.add_child(icon)
 					old_hbox.move_child(icon, 0)
 
 				health_progress_bar = ProgressBar.new()
 				health_progress_bar.name = "HealthProgressBar"
-				health_progress_bar.custom_minimum_size = Vector2(165, 5)
+				health_progress_bar.custom_minimum_size = Vector2(155, 4)
 				health_progress_bar.max_value = max_health
 				health_progress_bar.value = base_health
 				health_progress_bar.show_percentage = false
 
 				var pb_bg = StyleBoxFlat.new()
-				pb_bg.bg_color = Color(0.04, 0.06, 0.10, 0.90)
-				pb_bg.set_corner_radius_all(3)
+				pb_bg.bg_color = Color(0.04, 0.03, 0.06, 0.90)
+				pb_bg.set_corner_radius_all(2)
 				health_progress_bar.add_theme_stylebox_override("background", pb_bg)
 
 				var pb_fill = StyleBoxFlat.new()
-				pb_fill.bg_color = Color(0.2, 0.95, 0.40, 0.95)
-				pb_fill.set_corner_radius_all(3)
+				pb_fill.bg_color = Color(0.22, 0.92, 0.45, 0.95)
+				pb_fill.set_corner_radius_all(2)
 				health_progress_bar.add_theme_stylebox_override("fill", pb_fill)
 
 				vbox.add_child(health_progress_bar)
 
-	# 3. WAVE & GOLD BOX (Cụm trên phải tách 2 ngăn rõ rệt)
+	# 3. WAVE & GOLD BOX (Khung đồng thau vương giả tách 2 ngăn)
 	var wave_box = hud.get_node_or_null("WaveBox") as PanelContainer
 	if wave_box:
-		wave_box.add_theme_stylebox_override("panel", make_glass_box.call(Color(0.35, 0.75, 0.95, 0.70)))
+		wave_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.38, 0.90)))
 		wave_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-		wave_box.offset_left = -380.0
-		wave_box.offset_top = 18.0
-		wave_box.offset_right = -30.0
-		wave_box.offset_bottom = 68.0
+		wave_box.offset_left = -365.0
+		wave_box.offset_top = 14.0
+		wave_box.offset_right = -24.0
+		wave_box.offset_bottom = 60.0
+		_attach_corner_brackets(wave_box, Color(0.88, 0.74, 0.38, 0.85))
 
 		var w_hbox = wave_box.get_node_or_null("Margin/HBox") as HBoxContainer
 		if w_hbox:
@@ -2569,23 +2635,23 @@ func _setup_hud_ui() -> void:
 			var w_title = w_hbox.get_node_or_null("LabelWaveTitle") as Label
 			if w_title:
 				w_title.text = "ĐỢT:"
-				w_title.add_theme_color_override("font_color", Color(0.35, 0.88, 1.0))
+				w_title.add_theme_color_override("font_color", Color(0.40, 0.85, 1.0))
 
 			if not w_hbox.has_node("IconWave"):
 				var icon_w = HudVectorIcon.new()
 				icon_w.name = "IconWave"
-				icon_w.custom_minimum_size = Vector2(22, 22)
+				icon_w.custom_minimum_size = Vector2(20, 20)
 				icon_w.icon_type = HudVectorIcon.Type.WAVE_SWORDS
-				icon_w.icon_color = Color(0.35, 0.88, 1.0)
+				icon_w.icon_color = Color(0.40, 0.85, 1.0)
 				w_hbox.add_child(icon_w)
 				w_hbox.move_child(icon_w, 0)
 
-			# Vạch phân cách giữa Đợt và Vàng
+			# Vạch phân cách đồng thau giữa Đợt và Vàng
 			if not w_hbox.has_node("WaveGoldDivider"):
 				var div = ColorRect.new()
 				div.name = "WaveGoldDivider"
-				div.custom_minimum_size = Vector2(2, 26)
-				div.color = Color(0.25, 0.45, 0.65, 0.60)
+				div.custom_minimum_size = Vector2(2, 22)
+				div.color = Color(0.85, 0.70, 0.35, 0.50)
 				w_hbox.add_child(div)
 				var g_title = w_hbox.get_node_or_null("LabelGoldTitle")
 				if g_title:
@@ -2594,52 +2660,40 @@ func _setup_hud_ui() -> void:
 			var g_title_lbl = w_hbox.get_node_or_null("LabelGoldTitle") as Label
 			if g_title_lbl:
 				g_title_lbl.text = "VÀNG:"
-				g_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.82, 0.15))
+				g_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
 
 			if not w_hbox.has_node("IconGold"):
 				var icon_g = HudVectorIcon.new()
 				icon_g.name = "IconGold"
-				icon_g.custom_minimum_size = Vector2(22, 22)
+				icon_g.custom_minimum_size = Vector2(20, 20)
 				icon_g.icon_type = HudVectorIcon.Type.GOLD_COIN
-				icon_g.icon_color = Color(1.0, 0.82, 0.15)
+				icon_g.icon_color = Color(1.0, 0.85, 0.25)
 				w_hbox.add_child(icon_g)
 				var g_lbl = w_hbox.get_node_or_null("LabelGoldTitle")
 				if g_lbl:
 					w_hbox.move_child(icon_g, g_lbl.get_index())
 
 			if label_gold:
-				label_gold.add_theme_color_override("font_color", Color(1.0, 0.90, 0.35))
-				label_gold.add_theme_font_size_override("font_size", 22)
+				label_gold.add_theme_color_override("font_color", Color(1.0, 0.92, 0.40))
+				label_gold.add_theme_font_size_override("font_size", 20)
 
-	# 4. WAVE INTEL BOX (Dải băng tình báo chiến thuật)
+	# 4. WAVE INTEL BOX (Dải băng tình báo chiến thuật đồng thau)
 	var intel_box = hud.get_node_or_null("WaveIntelBox") as PanelContainer
 	if intel_box:
-		var sb_intel = StyleBoxFlat.new()
-		sb_intel.bg_color = Color(0.06, 0.09, 0.15, 0.92)
-		sb_intel.set_border_width_all(1.5)
-		sb_intel.border_color = Color(0.25, 0.65, 0.90, 0.55)
-		sb_intel.set_corner_radius_all(8)
-		sb_intel.shadow_size = 6
-		sb_intel.shadow_color = Color(0, 0, 0, 0.35)
-		sb_intel.shadow_offset = Vector2(0, 2)
-		sb_intel.content_margin_left = 12
-		sb_intel.content_margin_right = 12
-		sb_intel.content_margin_top = 4
-		sb_intel.content_margin_bottom = 4
-		intel_box.add_theme_stylebox_override("panel", sb_intel)
+		intel_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.82, 0.68, 0.32, 0.75), 6))
 		intel_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-		intel_box.offset_left = -400.0
-		intel_box.offset_top = 74.0
-		intel_box.offset_right = -30.0
-		intel_box.offset_bottom = 112.0
+		intel_box.offset_left = -365.0
+		intel_box.offset_top = 66.0
+		intel_box.offset_right = -24.0
+		intel_box.offset_bottom = 100.0
 
-	# 5. NÚT PILL CAMERA, TỐC ĐỘ, THỬ THÁCH
-	var make_pill_style = func(border_col: Color, bg_col: Color = Color(0.06, 0.09, 0.16, 0.92)) -> StyleBoxFlat:
+	# 5. NÚT PILL CAMERA, TỐC ĐỘ, THỬ THÁCH, ÂM THANH (Đưa lên y=66px, cao 30px)
+	var make_pill_style = func(border_col: Color, bg_col: Color = Color(0.06, 0.05, 0.08, 0.92)) -> StyleBoxFlat:
 		var sb = StyleBoxFlat.new()
 		sb.bg_color = bg_col
-		sb.set_border_width_all(2)
+		sb.set_border_width_all(1.5)
 		sb.border_color = border_col
-		sb.set_corner_radius_all(16)
+		sb.set_corner_radius_all(10)
 		sb.shadow_size = 4
 		sb.shadow_color = Color(0, 0, 0, 0.40)
 		sb.shadow_offset = Vector2(0, 2)
@@ -2647,28 +2701,28 @@ func _setup_hud_ui() -> void:
 
 	if btn_camera_mode:
 		btn_camera_mode.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_camera_mode.position = Vector2(24.0, 74.0)
-		btn_camera_mode.size = Vector2(178.0, 36.0)
-		btn_camera_mode.custom_minimum_size = Vector2(178.0, 36.0)
-		btn_camera_mode.add_theme_font_size_override("font_size", 12)
-		btn_camera_mode.add_theme_stylebox_override("normal", make_pill_style.call(Color(0.3, 0.85, 1.0, 0.65)))
-		btn_camera_mode.add_theme_stylebox_override("hover", make_pill_style.call(Color(0.3, 0.95, 1.0, 0.95), Color(0.10, 0.15, 0.24, 0.96)))
-		btn_camera_mode.add_theme_stylebox_override("pressed", make_pill_style.call(Color(0.2, 0.75, 0.90, 1.0), Color(0.04, 0.07, 0.12, 0.98)))
+		btn_camera_mode.position = Vector2(24.0, 66.0)
+		btn_camera_mode.size = Vector2(160.0, 30.0)
+		btn_camera_mode.custom_minimum_size = Vector2(160.0, 30.0)
+		btn_camera_mode.add_theme_font_size_override("font_size", 11)
+		btn_camera_mode.add_theme_stylebox_override("normal", make_pill_style.call(Color(0.85, 0.70, 0.35, 0.65)))
+		btn_camera_mode.add_theme_stylebox_override("hover", make_pill_style.call(Color(1.0, 0.88, 0.45, 0.95), Color(0.12, 0.10, 0.15, 0.96)))
+		btn_camera_mode.add_theme_stylebox_override("pressed", make_pill_style.call(Color(0.75, 0.60, 0.28, 1.0), Color(0.04, 0.03, 0.05, 0.98)))
 
 	if btn_speed:
 		btn_speed.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_speed.position = Vector2(208.0, 74.0)
-		btn_speed.size = Vector2(68.0, 36.0)
-		btn_speed.custom_minimum_size = Vector2(68.0, 36.0)
-		btn_speed.add_theme_font_size_override("font_size", 14)
+		btn_speed.position = Vector2(190.0, 66.0)
+		btn_speed.size = Vector2(62.0, 30.0)
+		btn_speed.custom_minimum_size = Vector2(62.0, 30.0)
+		btn_speed.add_theme_font_size_override("font_size", 13)
 		_update_speed_button_style()
 
 	if btn_hardcore:
 		btn_hardcore.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_hardcore.position = Vector2(282.0, 74.0)
-		btn_hardcore.size = Vector2(120.0, 36.0)
-		btn_hardcore.custom_minimum_size = Vector2(120.0, 36.0)
-		btn_hardcore.add_theme_font_size_override("font_size", 12)
+		btn_hardcore.position = Vector2(258.0, 66.0)
+		btn_hardcore.size = Vector2(110.0, 30.0)
+		btn_hardcore.custom_minimum_size = Vector2(110.0, 30.0)
+		btn_hardcore.add_theme_font_size_override("font_size", 11)
 		_update_hardcore_button_style()
 
 	if not btn_sound_toggle and hud:
@@ -2678,46 +2732,44 @@ func _setup_hud_ui() -> void:
 
 	if btn_sound_toggle:
 		btn_sound_toggle.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		btn_sound_toggle.position = Vector2(408.0, 74.0)
-		btn_sound_toggle.size = Vector2(104.0, 36.0)
-		btn_sound_toggle.custom_minimum_size = Vector2(104.0, 36.0)
-		btn_sound_toggle.add_theme_font_size_override("font_size", 12)
+		btn_sound_toggle.position = Vector2(374.0, 66.0)
+		btn_sound_toggle.size = Vector2(98.0, 30.0)
+		btn_sound_toggle.custom_minimum_size = Vector2(98.0, 30.0)
+		btn_sound_toggle.add_theme_font_size_override("font_size", 11)
 		_update_sound_button_style()
 		if not btn_sound_toggle.pressed.is_connected(toggle_sound):
 			btn_sound_toggle.pressed.connect(toggle_sound)
 
-	# 6. RECORD BOX
+	# 6. RECORD BOX (Đưa lên y=102px, cao 24px)
 	var rec_box = hud.get_node_or_null("RecordBox") as PanelContainer
 	if rec_box:
 		rec_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		rec_box.position = Vector2(24.0, 118.0)
-		rec_box.size = Vector2(240.0, 32.0)
+		rec_box.position = Vector2(24.0, 102.0)
+		rec_box.size = Vector2(350.0, 24.0)
 		var sb_rec = StyleBoxFlat.new()
-		sb_rec.bg_color = Color(0.05, 0.08, 0.14, 0.88)
+		sb_rec.bg_color = Color(0.05, 0.04, 0.07, 0.88)
 		sb_rec.set_border_width_all(1.5)
-		sb_rec.border_color = Color(1.0, 0.80, 0.25, 0.45)
-		sb_rec.set_corner_radius_all(8)
-		sb_rec.shadow_size = 4
+		sb_rec.border_color = Color(0.85, 0.70, 0.32, 0.55)
+		sb_rec.set_corner_radius_all(6)
+		sb_rec.shadow_size = 3
 		sb_rec.shadow_color = Color(0, 0, 0, 0.30)
-		sb_rec.content_margin_left = 10
-		sb_rec.content_margin_right = 10
-		sb_rec.content_margin_top = 4
-		sb_rec.content_margin_bottom = 4
+		sb_rec.content_margin_left = 8
+		sb_rec.content_margin_right = 8
+		sb_rec.content_margin_top = 2
+		sb_rec.content_margin_bottom = 2
 		rec_box.add_theme_stylebox_override("panel", sb_rec)
-		rec_box.position = Vector2(30.0, 118.0)
-		rec_box.size = Vector2(388.0, 32.0)
 
-	# 7. BOTTOM COMMAND DOCK
+	# 7. BOTTOM COMMAND DOCK (Bệ chỉ huy vương giả đồng thau & đinh tán)
 	if bottom_bar:
 		var sb_bar = StyleBoxFlat.new()
-		sb_bar.bg_color = Color(0.05, 0.08, 0.13, 0.95)
-		sb_bar.border_width_top = 2
-		sb_bar.border_color = Color(0.35, 0.75, 0.95, 0.70)
-		sb_bar.border_width_left = 1
-		sb_bar.border_width_right = 1
+		sb_bar.bg_color = Color(0.06, 0.05, 0.08, 0.96)
+		sb_bar.border_width_top = 3
+		sb_bar.border_color = Color(0.88, 0.74, 0.38, 0.90)
+		sb_bar.border_width_left = 2
+		sb_bar.border_width_right = 2
 		sb_bar.border_width_bottom = 0
-		sb_bar.corner_radius_top_left = 18
-		sb_bar.corner_radius_top_right = 18
+		sb_bar.corner_radius_top_left = 16
+		sb_bar.corner_radius_top_right = 16
 		sb_bar.shadow_size = 12
 		sb_bar.shadow_color = Color(0, 0, 0, 0.55)
 		sb_bar.shadow_offset = Vector2(0, -4)
@@ -2738,16 +2790,16 @@ func _setup_hud_ui() -> void:
 			if b_hbox:
 				b_hbox.add_theme_constant_override("separation", 12)
 
-		_style_dock_button(btn_build, "MUA TRỤ", "[SPACE]", Color(0.30, 0.95, 1.0), HudVectorIcon.Type.TOWER_CANNON)
+		_style_dock_button(btn_build, "MUA TRỤ", "[SPACE]", Color(0.35, 0.85, 1.0), HudVectorIcon.Type.TOWER_CANNON)
 		_style_dock_button(btn_skill_tree, "KỸ NĂNG", "[W]", Color(0.35, 1.0, 0.65), HudVectorIcon.Type.SKILL_CHIP)
 		_style_dock_button(btn_spell, "PHÉP THUẬT", "[F]", Color(1.0, 0.85, 0.25), HudVectorIcon.Type.SPELL_BURST)
 		_style_dock_button(btn_next_wave, "GỌI ĐỢT", "[N]", Color(1.0, 0.42, 0.35), HudVectorIcon.Type.DEFEND_SHIELD)
 
 		# 4 Dấu ngoặc kim loại chữ L ở 4 góc của các nút trên Bottom Command Dock
-		_attach_corner_brackets(btn_build, Color(0.30, 0.95, 1.0, 0.85))
-		_attach_corner_brackets(btn_skill_tree, Color(0.35, 1.0, 0.65, 0.85))
-		_attach_corner_brackets(btn_spell, Color(1.0, 0.85, 0.25, 0.85))
-		_attach_corner_brackets(btn_next_wave, Color(1.0, 0.42, 0.35, 0.85))
+		_attach_corner_brackets(btn_build, Color(0.88, 0.74, 0.38, 0.85))
+		_attach_corner_brackets(btn_skill_tree, Color(0.88, 0.74, 0.38, 0.85))
+		_attach_corner_brackets(btn_spell, Color(0.88, 0.74, 0.38, 0.85))
+		_attach_corner_brackets(btn_next_wave, Color(0.88, 0.74, 0.38, 0.85))
 
 	# 8. NÚT BẪY CẦU TRÊN MÀN HÌNH (Touch Action Button [E] >= 48px)
 	if not btn_bridge_emp and hud:
@@ -2760,8 +2812,8 @@ func _setup_hud_ui() -> void:
 		btn_bridge_emp.offset_top = -80.0
 		btn_bridge_emp.offset_bottom = -24.0
 		hud.add_child(btn_bridge_emp)
-		_style_dock_button(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]", Color(0.20, 0.90, 1.0), HudVectorIcon.Type.LIGHTNING_EMP)
-		_attach_corner_brackets(btn_bridge_emp, Color(0.20, 0.90, 1.0, 0.85))
+		_style_dock_button(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]", Color(0.25, 0.90, 1.0), HudVectorIcon.Type.LIGHTNING_EMP)
+		_attach_corner_brackets(btn_bridge_emp, Color(0.88, 0.74, 0.38, 0.85))
 		btn_bridge_emp.pressed.connect(activate_bridge_emp)
 
 	# 8. THIẾT LẬP QUICK TRAYS & CARDS
@@ -3043,7 +3095,7 @@ func _setup_victory_defeat_modal() -> void:
 		lbl_records_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl_records_stats.add_theme_font_size_override("font_size", 11)
 		lbl_records_stats.add_theme_color_override("font_color", Color(0.75, 0.82, 0.92))
-		lbl_records_stats.text = "Điểm số: 0  |  Kỷ lục Sao: 0★  |  MVP Kỷ lục: 0"
+		lbl_records_stats.text = "Điểm số: 0  |  Kỷ lục: 0 Sao  |  MVP Kỷ lục: 0"
 		vbox.add_child(lbl_records_stats)
 
 		# 5. Nút bấm Chơi Lại [R], Tiếp Tục Vô Tận [C], & Thử Thách [H]
@@ -3178,7 +3230,7 @@ func _show_victory_defeat_modal(is_win: bool, summary: Dictionary) -> void:
 		var medals_count = (1 if medal_boss_hunter else 0) + (1 if medal_combo_master else 0) + (1 if medal_flawless_fortress else 0)
 		var endless_str = "  |  Vô Tận: W%d" % highest_endless_wave if highest_endless_wave > 0 else ""
 		var medal_str = "  |  Huy Hiệu: %d/3" % medals_count
-		lbl_records_stats.text = "Điểm trận này: %s  |  Kỷ lục: %d★  |  MVP Kỷ lục: %s%s%s" % [
+		lbl_records_stats.text = "Điểm trận này: %s  |  Kỷ lục: %d Sao  |  MVP Kỷ lục: %s%s%s" % [
 			format_number(summary.get("final_score", score)),
 			summary.get("best_stars", best_stars),
 			format_number(summary.get("best_mvp_damage", best_mvp_damage)),
@@ -3757,22 +3809,60 @@ func _draw() -> void:
 		draw_rect(Rect2(p_pos.x - bar_w * 0.5 - 1.0, bar_y - 1.0, bar_w + 2.0, 5.0), Color(0.08, 0.10, 0.14, 0.85))
 		draw_rect(Rect2(p_pos.x - bar_w * 0.5, bar_y, bar_w * t_ratio, 3.0), Color(0.2, 0.95, 0.45, 0.95))
 
-	# 0c. Vẽ Nút Bẫy Xung Điện Trên Cầu (Bridge EMP Generator)
+	# 0c. Vẽ Nút Bẫy Xung Điện Trên Cầu (Bridge EMP Generator - Arcane Steampunk Tesla Dynamo)
 	var emp_pulse = 0.5 + 0.5 * sin(_idle_time * 4.0)
 	var emp_ready = (bridge_emp_timer <= 0.0)
-	var col_emp_stroke = Color(0.1, 0.9, 1.0, 0.70 + 0.30 * emp_pulse) if emp_ready else Color(0.6, 0.6, 0.65, 0.45)
-	var col_emp_fill = Color(0.05, 0.4, 0.8, 0.15 + 0.10 * emp_pulse) if emp_ready else Color(0.1, 0.1, 0.15, 0.15)
 
-	_draw_hexagon(BRIDGE_EMP_POS, 32.0, col_emp_stroke, col_emp_fill, 2.2)
-	# Khung nền kính đen mờ dưới nhãn Bẫy Cầu
-	var emp_label_box = Rect2(BRIDGE_EMP_POS.x - 70.0, BRIDGE_EMP_POS.y - 36.0, 140.0, 20.0)
-	draw_rect(emp_label_box, Color(0.04, 0.07, 0.12, 0.85))
-	draw_rect(emp_label_box, Color(0.2, 0.85, 1.0, 0.50 if emp_ready else 0.25), false, 1.0)
+	# 1. Bệ máy phát đồng thau chìm khảm đá cầu
+	var col_brass_rim = Color(0.88, 0.74, 0.38, 0.85 if emp_ready else 0.40)
+	var col_dynamo_core = Color(0.10, 0.08, 0.12, 0.85)
+	_draw_hexagon(BRIDGE_EMP_POS, 32.0, col_brass_rim, col_dynamo_core, 2.2)
+	# Vành đồng thứ cấp & 6 chốt đinh tán đồng tại 6 góc
+	for i in range(6):
+		var angle_rad = i * (TAU / 6.0) + PI / 6.0
+		var r_pt = BRIDGE_EMP_POS + Vector2(cos(angle_rad), sin(angle_rad) * 0.58) * 32.0
+		draw_circle(r_pt, 2.2, Color(0.95, 0.85, 0.45, 0.90 if emp_ready else 0.45))
+		draw_circle(r_pt, 1.0, Color(0.20, 0.15, 0.10, 0.90))
+
+	# Lõi cuộn cảm Tesla & Tinh thể Năng lượng Arcane
+	var core_rad = 18.0
+	var col_core_glow = Color(0.25, 0.85, 1.0, 0.25 + 0.18 * emp_pulse) if emp_ready else Color(0.40, 0.35, 0.30, 0.15)
+	var col_core_stroke = Color(0.35, 0.90, 1.0, 0.75 + 0.25 * emp_pulse) if emp_ready else Color(0.55, 0.50, 0.45, 0.40)
+	_draw_isometric_ellipse(BRIDGE_EMP_POS, core_rad, core_rad * 0.58, col_core_glow)
+	_draw_isometric_ellipse_outline(BRIDGE_EMP_POS, core_rad, core_rad * 0.58, col_core_stroke, 1.8)
+
 	if emp_ready:
-		_draw_hexagon(BRIDGE_EMP_POS, 38.0 + 4.0 * emp_pulse, Color(0.2, 0.95, 1.0, 0.35 * emp_pulse), Color.TRANSPARENT, 1.5)
-		draw_string(ThemeDB.fallback_font, BRIDGE_EMP_POS + Vector2(-54.0, -22.0), "BẪY CẦU [E]: 35G", HORIZONTAL_ALIGNMENT_CENTER, -1, 12, Color(0.2, 0.95, 1.0))
+		# Hiệu ứng tia sét vi mô bò dọc cuộn dây
+		var spark_phase = int(_idle_time * 12.0) % 4
+		for s in range(3):
+			var a1 = (spark_phase + s * 2) * (TAU / 6.0)
+			var a2 = a1 + 0.5
+			var p1 = BRIDGE_EMP_POS + Vector2(cos(a1) * 8.0, sin(a1) * 4.6)
+			var p_mid = BRIDGE_EMP_POS + Vector2(cos(a1 + 0.25) * 16.0, sin(a1 + 0.25) * 9.2) + Vector2(sin(_idle_time * 15.0 + s) * 3.0, 0)
+			var p2 = BRIDGE_EMP_POS + Vector2(cos(a2) * 28.0, sin(a2) * 16.2)
+			var spark_pts = PackedVector2Array([p1, p_mid, p2])
+			draw_polyline(spark_pts, Color(0.70, 0.95, 1.0, 0.80), 1.4)
+
+		# Vòng hào quang xung kích nhẹ
+		_draw_isometric_ellipse_outline(BRIDGE_EMP_POS, 38.0 + 4.0 * emp_pulse, (38.0 + 4.0 * emp_pulse) * 0.58, Color(0.35, 0.90, 1.0, 0.30 * emp_pulse), 1.2)
+
+	# Nhãn Capsule Đồng Thau Thanh Mảnh (Steampunk Floating Capsule Plaque)
+	# Thu gọn chiều rộng, đặt ở độ cao tao nhã y - 34, không che mặt cầu đá
+	var badge_w = 120.0
+	var badge_h = 18.0
+	var badge_x = BRIDGE_EMP_POS.x - badge_w * 0.5
+	var badge_y = BRIDGE_EMP_POS.y - 34.0
+	var badge_box = Rect2(badge_x, badge_y, badge_w, badge_h)
+	draw_rect(badge_box, Color(0.06, 0.05, 0.08, 0.85))
+	draw_rect(badge_box, Color(0.85, 0.72, 0.38, 0.75 if emp_ready else 0.35), false, 1.2)
+	# 2 đinh tán nhỏ ở 2 mép capsule
+	draw_circle(Vector2(badge_x + 5.0, badge_y + 9.0), 1.5, Color(0.88, 0.74, 0.38, 0.85))
+	draw_circle(Vector2(badge_x + badge_w - 5.0, badge_y + 9.0), 1.5, Color(0.88, 0.74, 0.38, 0.85))
+
+	if emp_ready:
+		draw_string(ThemeDB.fallback_font, Vector2(badge_x, badge_y + 13.0), "BẪY CẦU [E]: 35G", HORIZONTAL_ALIGNMENT_CENTER, badge_w, 11, Color(0.95, 0.88, 0.45))
 	else:
-		draw_string(ThemeDB.fallback_font, BRIDGE_EMP_POS + Vector2(-50.0, -22.0), "HỒI CHIÊU: %ds" % int(ceilf(bridge_emp_timer)), HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.7, 0.75, 0.8))
+		draw_string(ThemeDB.fallback_font, Vector2(badge_x, badge_y + 13.0), "HỒI CHIÊU: %ds" % int(ceilf(bridge_emp_timer)), HORIZONTAL_ALIGNMENT_CENTER, badge_w, 10, Color(0.72, 0.75, 0.80))
 
 	# Sóng xung kích phát nổ trên cầu khi kích hoạt EMP
 	if _bridge_emp_shockwave_alpha > 0.01:
