@@ -2,10 +2,10 @@
 trigger: always_on
 ---
 
-# Digital Campus v2 — Root Governance Constitution
+# Ace Games — Root Governance Constitution
 
 > **Authoritative Baseline & North Star Governance**
-> Digital Campus is a realtime social, learning, and multiplayer platform for teens and schools. Every contributor, AI agent, and automation tool must strictly adhere to these fundamental principles.
+> Ace Games is a realtime social and multiplayer gaming platform. Every contributor, AI agent, and automation tool must strictly adhere to these fundamental principles.
 >
 > **MANDATORY DESIGN GATE:** BẮT BUỘC ĐỌC VÀ TUÂN THỦ TOÀN BỘ QUY TẮC THIẾT KẾ GIAO DIỆN WEB (Mục 8, 12, 17, 18 và 10-ui-ux-layout-constitution.md) TRƯỚC KHI THỰC THI CHỈNH SỬA BẤT KỲ GIAO DIỆN NÀO.
 

@@ -97,6 +97,13 @@ const router = createBrowserRouter([
           { path: 'profile', element: <Navigate to="/me" replace /> },
           { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
           { path: 'admin', element: <AdminControlPlanePage /> },
+          {
+            path: 'game/godot',
+            lazy: () =>
+              import('@/features/games/godot').then((m) => ({
+                Component: () => <m.GodotGameView onClose={() => window.history.back()} />,
+              })),
+          },
           { path: 'game/:gameId', element: <GameRoomPage /> },
         ],
       },

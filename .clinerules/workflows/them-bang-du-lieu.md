@@ -1,38 +1,30 @@
-# Đổi cấu trúc cơ sở dữ liệu
+# Đổi cấu trúc cơ sở dữ liệu D1 (v2)
 
-Không bao giờ sửa lại các tệp SQL đã chạy trên máy chủ thật. Luôn thêm tệp mới.
+Không bao giờ sửa lại các tệp SQL migration đã chạy trên máy chủ thật. Mọi migration là bất biến.
 
-1. Tạo tệp `co-so-du-lieu/NN-viec-can-lam.sql` với `NN` là số tiếp theo (xem tệp cuối cùng đang có).
+1. Tạo tệp `migrations/00xx_ten_migration.sql` với `00xx` là số tiếp theo theo thứ tự tăng dần.
 
-2. Viết sao cho chạy lại nhiều lần vẫn không lỗi:
+2. Viết sao cho an toàn và lặp lại nhiều lần không lỗi:
 
    ```sql
    CREATE TABLE IF NOT EXISTS ten_bang (
-     id     INTEGER PRIMARY KEY AUTOINCREMENT,
-     ngay   TEXT NOT NULL,              -- NĂM-THÁNG-NGÀY
-     ghi_chu TEXT
+     id         TEXT PRIMARY KEY,
+     lop_id     TEXT NOT NULL,
+     ngay_tao   INTEGER NOT NULL DEFAULT (unixepoch()),
+     ghi_chu    TEXT
    );
-   CREATE INDEX IF NOT EXISTS idx_ten_bang_ngay ON ten_bang(ngay);
+   CREATE INDEX IF NOT EXISTS idx_ten_bang_lop ON ten_bang(lop_id);
    ```
 
-   SQLite không có `ADD COLUMN IF NOT EXISTS`. Thêm cột thì ghi rõ trong bình luận
-   rằng tệp này chỉ chạy một lần, và kiểm tra trước bằng `PRAGMA table_info(ten_bang);`.
-
-3. Áp dụng **trên máy trước**:
+3. Áp dụng thử nghiệm **trên máy cục bộ trước**:
 
    ```powershell
-   npx wrangler d1 execute lop-10a7-db --local --file "co-so-du-lieu/NN-viec-can-lam.sql"
+   npm run d1:migrate:local
+   # hoặc:
+   npx wrangler d1 execute DB --local --file="migrations/00xx_ten_migration.sql"
    ```
 
-4. Chạy `npm run dev`, thử luồng dùng bảng mới cho tới khi chắc chắn đúng.
+4. Chạy kiểm tra local gate (`npm run typecheck`, targeted tests) đảm bảo code ứng dụng tương thích hoàn toàn với schema mới.
 
-5. Xin phép giáo viên, rồi mới áp dụng lên cơ sở dữ liệu thật:
-
-   ```powershell
-   npx wrangler d1 execute lop-10a7-db --remote --file "co-so-du-lieu/NN-viec-can-lam.sql"
-   ```
-
-6. Ghi thêm bảng mới vào mục "Cấu trúc cơ sở dữ liệu" trong `HUONG-DAN.md`.
-
-Nhắc lại: `DROP`, `DELETE` không `WHERE`, `UPDATE` không `WHERE` → **hỏi trước khi chạy**.
-D1 có Time Travel 30 ngày, nhưng khôi phục là quyết định của giáo viên, không phải của Cline.
+5. Triển khai lên Staging/Production theo quy trình release guard an toàn.
+   Nhắc lại: Tuyệt đối không xóa/sửa migration đã được đẩy lên production.

@@ -7,6 +7,7 @@
     "redhat.vscode-yaml",
     "qwtel.sqlite-viewer",
     "ms-playwright.playwright",
-    "usernamehw.errorlens"
+    "usernamehw.errorlens",
+    "geequlim.godot-tools"
   ]
 }

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Flaming Meteor Fireball -->
+  <path d="M12 12 Q32 20 44 44 Q28 48 12 12 Z" fill="#ef4444" opacity="0.6"/>
+  <path d="M18 18 Q34 26 42 42 Q28 44 18 18 Z" fill="#f97316" opacity="0.8"/>
+  <circle cx="42" cy="42" r="14" fill="#b91c1c" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="42" cy="42" r="8" fill="#facc15"/>
+  <circle cx="38" cy="38" r="3" fill="#ffffff"/>
+</svg>

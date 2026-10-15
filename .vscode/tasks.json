@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🎮 1-Click: Chạy toàn bộ môi trường Game (Godot + Auto-Sync)",
+      "type": "shell",
+      "command": ".\\START-GAME.bat",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "⚡ Bật tự động đồng bộ vào App",
+      "type": "shell",
+      "command": "node games-dev/dev.mjs",
+      "problemMatcher": []
+    },
+    {
+      "label": "📦 Xuất bản thủ công vào App",
+      "type": "shell",
+      "command": "node games-dev/export-to-app.mjs",
+      "problemMatcher": []
+    }
+  ]
+}

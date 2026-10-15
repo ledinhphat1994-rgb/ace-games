@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Ice Crystal Freeze Prison -->
+  <polygon points="32,6 48,22 48,46 32,58 16,46 16,22" fill="#0284c7" stroke="#bae6fd" stroke-width="2.5"/>
+  <polygon points="32,14 42,24 42,42 32,50 22,42 22,24" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5"/>
+  <circle cx="32" cy="32" r="5" fill="#ffffff"/>
+</svg>

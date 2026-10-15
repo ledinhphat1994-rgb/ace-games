@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="6" fill="#ffffff" filter="url(#glow-purple)"/>
+  <circle cx="32" cy="32" r="16" fill="none" stroke="#d946ef" stroke-width="2.5" stroke-dasharray="8,5" filter="url(#glow-purple)"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#a855f7" stroke-width="2" stroke-dasharray="14,8" opacity="0.8"/>
+  <polygon points="32,8 35,16 32,14 29,16" fill="#d946ef"/>
+  <polygon points="56,32 48,35 50,32 48,29" fill="#d946ef"/>
+  <polygon points="32,56 29,48 32,50 35,48" fill="#d946ef"/>
+  <polygon points="8,32 16,29 14,32 16,35" fill="#d946ef"/>
+</svg>

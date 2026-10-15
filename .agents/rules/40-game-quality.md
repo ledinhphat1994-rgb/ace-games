@@ -2,10 +2,10 @@
 trigger: always_on
 ---
 
-# Digital Campus v2 — Game Quality & Verification Standards
+# Ace Games — Game Quality & Verification Standards
 
 > **Gaming Arena Quality & Architecture Constitution**
-> The Digital Campus Game Arena provides engaging, modern, high-performance web games for students. Games represent a core social and recreational pillar of the platform.
+> The Ace Games Arena provides engaging, modern, high-performance web games. Games represent a core social and recreational pillar of the platform.
 
 ---
 
@@ -72,3 +72,14 @@ trigger: always_on
 - **Tương phản chuẩn 4.5:1:** Mọi văn bản điểm số, tên người chơi và cấp bậc phải đạt tỷ lệ tương phản tối thiểu 4.5:1 so với nền game để dễ đọc ngay cả khi chơi dưới trời nắng.
 - **Kích thước chữ:** Cỡ chữ tối thiểu cho nội dung phụ là 14sp/pt, chữ nội dung chính từ 16sp/pt trở lên, các con số điểm/cấp bậc quan trọng phải dùng kích thước lớn 24 – 32sp/pt và in đậm.
 - **Chế độ nền tối (Dark Mode):** Thiết kế bảng màu mặc định có tông tối hoặc hỗ trợ Dark Mode đầy đủ để giảm mỏi mắt cho người học và tiết kiệm pin OLED khi chơi lâu.
+
+## 12. Quy Tắc Tiếp Đất Vật Thể Trên Bộ (Ground Entity Grounding & Anti-Floating Standard)
+- **Sát mặt đất 100% (Zero Ground Gap / Grounded Flush Invariant):**
+  - Mọi thực thể hoạt động trên mặt đất (tháp pháo/trụ phòng thủ như Gatling Gun, Plasma Cannon, SAM Battery; lính trên bộ như Robot Mech Walker, Xe lửa hơi nước Steam Train, Swarm Crawler, v.v.) BẮT BUỘC phải tiếp xúc sát và phẳng phiu với mặt đất/đường đi ($Y_{\text{contact}} = 0$ hoặc hơi lún nhẹ vào mặt cỏ/mặt đường từ 1–2px để tạo độ đầm và trọng lượng cơ giới chân thật).
+  - Tuyệt đối **CẤM** để vật thể trên bộ bị treo lơ lửng trên không (air gap) hay hở gầm nhìn xuyên qua nền đất.
+- **Loại bỏ bóng giả nhân tạo bằng code trên thảm cỏ (Zero Procedural Circle Shadows on Terrain):**
+  - Tuyệt đối **CẤM** dùng các lệnh vẽ hình tròn (`draw_circle`) tạo các đốm đen/vệt bóng tròn giả lập trình dưới đáy trụ trên nền bản đồ 2.5D. Bản đồ vẽ tay đã có độ tương phản tự nhiên, trụ và công trình cố định phải bám đất liền mạch với chân đế hoàn chỉnh.
+- **Chân trụ & đế móng cơ giới hoàn chỉnh (Solid Mechanical Base & Footing):**
+  - Chân đế của các trụ phòng thủ phải sử dụng artwork nguyên vẹn với đầy đủ các chân càng chịu lực (outriggers), móng kim loại (foot pads) và mâm xoay cơ khí, tuyệt đối không dùng sprite bị cắt ngang, cụt móng hay lem viền.
+- **Ngoại lệ duy nhất cho đơn vị bay (Aerial Units Exception):**
+  - Chỉ các đơn vị trên không (như Chim máy Winged Bot, drone trinh sát bay) mới được thiết lập cao độ lơ lửng phía trên mặt đất (`position.y < 0`).

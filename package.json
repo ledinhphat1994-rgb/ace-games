@@ -1,5 +1,5 @@
 {
-  "name": "digital-campus-v2",
+  "name": "ace-games",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -29,7 +29,14 @@
     "cap:copy": "cap copy android",
     "cap:open": "cap open android",
     "mobile:start": "npm --prefix mobile start",
-    "mobile:typecheck": "npm --prefix mobile run typecheck"
+    "mobile:typecheck": "npm --prefix mobile run typecheck",
+    "game:godot": "godot -e --path games-dev/godot-project",
+    "game:dev": "node games-dev/dev.mjs",
+    "game:watch": "node games-dev/watch-and-sync.mjs",
+    "game:export": "node games-dev/export-to-app.mjs",
+    "game:preview": "node games-dev/web-preview/serve.mjs",
+    "game:test": "godot --headless --path games-dev/godot-project -s addons/gut/gut_cmdln.gd -gdir=res://test/unit -gexit",
+    "sync:gemini": "repomix"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "1.3.0",
@@ -73,6 +80,8 @@
     "@vitest/snapshot": "4.1.11",
     "node": "24.21.0",
     "oxlint": "^1.81.0",
+    "qrcode": "^1.5.4",
+    "repomix": "^1.18.1",
     "tailwindcss": "4.3.3",
     "tsx": "^4.23.15",
     "typescript": "~6.0.2",

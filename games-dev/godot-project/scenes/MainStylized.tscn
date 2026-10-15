@@ -1,0 +1,918 @@
+[gd_scene format=3 uid="uid://d3m7wax2k1q4s"]
+
+[ext_resource type="Script" path="res://scripts/stylized/MainStylized.gd" id="1_main_script"]
+[ext_resource type="Texture2D" path="res://assets/textures/clear_sky_bg.jpg" id="2_sky_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/tactical_battlefield.png" id="3_island_tex"]
+[ext_resource type="Script" path="res://scripts/stylized/StylizedCameraController.gd" id="4_cam_script"]
+
+[node name="MainStylized" type="Node2D"]
+script = ExtResource("1_main_script")
+
+[node name="StylizedCamera" type="Camera2D" parent="."]
+position = Vector2(688, 384)
+zoom = Vector2(1.0, 1.0)
+script = ExtResource("4_cam_script")
+
+[node name="SkyBackground" type="Sprite2D" parent="."]
+z_index = -10
+texture_filter = 2
+position = Vector2(688, 384)
+scale = Vector2(1.6, 1.6)
+texture = ExtResource("2_sky_tex")
+
+[node name="IslandContainer" type="Node2D" parent="."]
+z_index = -5
+
+[node name="IslandSprite" type="Sprite2D" parent="IslandContainer"]
+texture_filter = 2
+position = Vector2(688, 384)
+scale = Vector2(1.0, 1.0)
+texture = ExtResource("3_island_tex")
+
+[node name="TowersContainer" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="EnemiesContainer" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ScoreBox" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 20.0
+offset_right = 230.0
+offset_bottom = 70.0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/ScoreBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/ScoreBox/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LabelScoreTitle" type="Label" parent="UI/HUD/ScoreBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 20
+text = "ĐIỂM:"
+
+[node name="LabelScoreVal" type="Label" parent="UI/HUD/ScoreBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "335"
+
+[node name="HealthBox" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 0
+offset_left = 244.0
+offset_top = 20.0
+offset_right = 414.0
+offset_bottom = 70.0
+
+[node name="RecordBox" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 78.0
+offset_right = 320.0
+offset_bottom = 114.0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/RecordBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 4
+
+[node name="LabelRecord" type="Label" parent="UI/HUD/RecordBox/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "KỶ LỤC: 0 SAO | MVP: 0 DMG"
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/HealthBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/HealthBox/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LabelHealthTitle" type="Label" parent="UI/HUD/HealthBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.35, 0.35, 1)
+theme_override_font_sizes/font_size = 20
+text = "MÁU:"
+
+[node name="LabelHealthVal" type="Label" parent="UI/HUD/HealthBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "20/20"
+
+[node name="WaveBox" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 20.0
+offset_right = -36.0
+offset_bottom = 70.0
+grow_horizontal = 0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/WaveBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/WaveBox/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LabelWaveTitle" type="Label" parent="UI/HUD/WaveBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "ĐỢT:"
+
+[node name="LabelWaveVal" type="Label" parent="UI/HUD/WaveBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "1"
+
+[node name="LabelGoldTitle" type="Label" parent="UI/HUD/WaveBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "VÀNG:"
+
+[node name="LabelGoldVal" type="Label" parent="UI/HUD/WaveBox/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.5, 1)
+theme_override_font_sizes/font_size = 22
+text = "350"
+
+[node name="WaveIntelBox" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -380.0
+offset_top = 78.0
+offset_right = -36.0
+offset_bottom = 114.0
+grow_horizontal = 0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/WaveIntelBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 4
+
+[node name="LabelWaveIntel" type="Label" parent="UI/HUD/WaveIntelBox/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "ĐỢT 1: [Cơ Bản]"
+
+[node name="BtnCameraMode" type="Button" parent="UI/HUD"]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 78.0
+offset_right = 230.0
+offset_bottom = 118.0
+theme_override_colors/font_color = Color(0.3, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "CẬN CẢNH"
+
+[node name="BtnSpeed" type="Button" parent="UI/HUD"]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 126.0
+offset_right = 130.0
+offset_bottom = 166.0
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 16
+text = "1X"
+
+[node name="BottomBar" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -440.0
+offset_top = -106.0
+offset_right = 440.0
+offset_bottom = -26.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/BottomBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/BottomBar/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BtnBuild" type="Button" parent="UI/HUD/BottomBar/Margin/HBox"]
+custom_minimum_size = Vector2(205, 66)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "MUA TRỤ"
+
+[node name="BtnSkillTree" type="Button" parent="UI/HUD/BottomBar/Margin/HBox"]
+custom_minimum_size = Vector2(205, 66)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.5, 1)
+theme_override_font_sizes/font_size = 16
+text = "KỸ NĂNG"
+
+[node name="BtnSpell" type="Button" parent="UI/HUD/BottomBar/Margin/HBox"]
+custom_minimum_size = Vector2(205, 66)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 16
+text = "PHÉP THUẬT"
+
+[node name="BtnNextWave" type="Button" parent="UI/HUD/BottomBar/Margin/HBox"]
+custom_minimum_size = Vector2(205, 66)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+text = "NEXT WAVE"
+
+[node name="QuickTowerTray" type="PanelContainer" parent="UI/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -365.0
+offset_top = -285.0
+offset_right = 365.0
+offset_bottom = -116.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/QuickTowerTray"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/QuickTowerTray/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="BtnQuickGatling" type="Button" parent="UI/HUD/QuickTowerTray/Margin/HBox"]
+custom_minimum_size = Vector2(210, 150)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="BtnQuickPlasma" type="Button" parent="UI/HUD/QuickTowerTray/Margin/HBox"]
+custom_minimum_size = Vector2(210, 150)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="BtnQuickTesla" type="Button" parent="UI/HUD/QuickTowerTray/Margin/HBox"]
+custom_minimum_size = Vector2(210, 150)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="BtnCloseTowerTray" type="Button" parent="UI/HUD/QuickTowerTray/Margin/HBox"]
+custom_minimum_size = Vector2(44, 150)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "X"
+
+
+
+[node name="QuickSpellTray" type="PanelContainer" parent="UI/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -440.0
+offset_top = -250.0
+offset_right = 440.0
+offset_bottom = -116.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="UI/HUD/QuickSpellTray"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="HBox" type="HBoxContainer" parent="UI/HUD/QuickSpellTray/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BtnSpellLightning" type="Button" parent="UI/HUD/QuickSpellTray/Margin/HBox"]
+custom_minimum_size = Vector2(250, 114)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+text = "SẤM SÉT (80G)
+Sốc Điện Toàn Bộ Quái
+65 Sát Thương EMP"
+
+[node name="BtnSpellFreeze" type="Button" parent="UI/HUD/QuickSpellTray/Margin/HBox"]
+custom_minimum_size = Vector2(250, 114)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "ĐÓNG BĂNG (100G)
+Đóng Băng Toàn Map
+Tê Liệt 3.0 Giây"
+
+[node name="BtnSpellMeteor" type="Button" parent="UI/HUD/QuickSpellTray/Margin/HBox"]
+custom_minimum_size = Vector2(250, 114)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.25, 1)
+theme_override_font_sizes/font_size = 14
+text = "THIÊN THẠCH (120G)
+Mưa Lửa Bùng Nổ
+120 Sát Thương AoE"
+
+[node name="BtnCloseSpellTray" type="Button" parent="UI/HUD/QuickSpellTray/Margin/HBox"]
+custom_minimum_size = Vector2(40, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "X"
+
+[node name="BuildPopup" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+offset_left = 60.0
+offset_top = 370.0
+offset_right = 660.0
+offset_bottom = 590.0
+
+[node name="Panel" type="Panel" parent="UI/BuildPopup"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BtnClosePopup" type="Button" parent="UI/BuildPopup/Panel"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -38.0
+offset_top = 6.0
+offset_right = -8.0
+offset_bottom = 36.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 16
+text = "X"
+
+[node name="Title" type="Label" parent="UI/BuildPopup/Panel"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 8.0
+offset_right = 400.0
+offset_bottom = 32.0
+theme_override_colors/font_color = Color(0.3, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "PHÂN HỆ & THÁP PHÒNG THỦ:"
+
+[node name="HBoxTabs" type="HBoxContainer" parent="UI/BuildPopup/Panel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 36.0
+offset_right = 588.0
+offset_bottom = 72.0
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="BtnTabSciFi" type="Button" parent="UI/BuildPopup/Panel/HBoxTabs"]
+custom_minimum_size = Vector2(136, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "CƠ KHÍ"
+
+[node name="BtnTabArcane" type="Button" parent="UI/BuildPopup/Panel/HBoxTabs"]
+custom_minimum_size = Vector2(136, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "PHÉP THUẬT"
+
+[node name="BtnTabBio" type="Button" parent="UI/BuildPopup/Panel/HBoxTabs"]
+custom_minimum_size = Vector2(136, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "SINH HỌC"
+
+[node name="BtnTabDivine" type="Button" parent="UI/BuildPopup/Panel/HBoxTabs"]
+custom_minimum_size = Vector2(136, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "TÂM LINH"
+
+[node name="HBoxSciFi" type="HBoxContainer" parent="UI/BuildPopup/Panel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 80.0
+offset_right = 590.0
+offset_bottom = 206.0
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="BtnGatling" type="Button" parent="UI/BuildPopup/Panel/HBoxSciFi"]
+custom_minimum_size = Vector2(138, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "GATLING (100G)
+Động Năng | Swarm
+Ramping Sát Thương"
+
+[node name="BtnPlasma" type="Button" parent="UI/BuildPopup/Panel/HBoxSciFi"]
+custom_minimum_size = Vector2(138, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "PLASMA (60G)
+Nhiệt Hạch | Phá Giáp
+Nổ AoE Diện Rộng"
+
+[node name="BtnTesla" type="Button" parent="UI/BuildPopup/Panel/HBoxSciFi"]
+custom_minimum_size = Vector2(138, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "EMP COIL (150G)
+Sét Điện Từ | Phá Khiên
+Tê Liệt Cơ Khí x2.2"
+
+[node name="BtnSam" type="Button" parent="UI/BuildPopup/Panel/HBoxSciFi"]
+custom_minimum_size = Vector2(138, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "SAM (120G)
+Tên Lửa Tầm Xa
+Ưu Tiên Quái Bay"
+
+[node name="HBoxArcane" type="HBoxContainer" parent="UI/BuildPopup/Panel"]
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 80.0
+offset_right = 590.0
+offset_bottom = 206.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BtnFrost" type="Button" parent="UI/BuildPopup/Panel/HBoxArcane"]
+custom_minimum_size = Vector2(186, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "THÁP BĂNG (90G)
+Làm Chậm Băng Giá AoE
+5 Tầng = Đóng Băng 2s"
+
+[node name="BtnMagma" type="Button" parent="UI/BuildPopup/Panel/HBoxArcane"]
+custom_minimum_size = Vector2(186, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "DUNG NHAM (110G)
+Đất Cháy Dung Nham
+Thiêu Đốt DoT Liên Tục"
+
+[node name="BtnVoid" type="Button" parent="UI/BuildPopup/Panel/HBoxArcane"]
+custom_minimum_size = Vector2(186, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "HƯ KHÔNG (140G)
+Tia Phân Rã Bỏ Qua Giáp
++15% Máu Max Quái"
+
+[node name="HBoxBio" type="HBoxContainer" parent="UI/BuildPopup/Panel"]
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 80.0
+offset_right = 590.0
+offset_bottom = 206.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BtnSpore" type="Button" parent="UI/BuildPopup/Panel/HBoxBio"]
+custom_minimum_size = Vector2(260, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "BÀO TỬ ĂN MÒN (80G)
+Bào Mòn Vĩnh Viễn 30% Giáp
+Lây Lan Khi Mục Tiêu Chết"
+
+[node name="HBoxDivine" type="HBoxContainer" parent="UI/BuildPopup/Panel"]
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 80.0
+offset_right = 590.0
+offset_bottom = 206.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BtnPylon" type="Button" parent="UI/BuildPopup/Panel/HBoxDivine"]
+custom_minimum_size = Vector2(260, 114)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "ĐỀN THẦN HÀO QUANG (130G)
++25% Tốc Đánh & +15% Tầm Bắn
+Thánh Quang Trừ Tà 25 True Dmg"
+
+[node name="UpgradePopup" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+offset_left = 1010.0
+offset_top = 370.0
+offset_right = 1330.0
+offset_bottom = 635.0
+
+[node name="Panel" type="Panel" parent="UI/UpgradePopup"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BtnCloseUpgrade" type="Button" parent="UI/UpgradePopup/Panel"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -34.0
+offset_top = 6.0
+offset_right = -8.0
+offset_bottom = 32.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 14
+text = "X"
+
+[node name="VBox" type="VBoxContainer" parent="UI/UpgradePopup/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="TowerName" type="Label" parent="UI/UpgradePopup/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 14
+text = "PLASMA CANNON (LV 1)"
+
+[node name="DamageStats" type="Label" parent="UI/UpgradePopup/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+text = "Sát thương: 0 | Hạ: 0"
+
+[node name="PerkBadge" type="Label" parent="UI/UpgradePopup/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.6, 1)
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="BtnTargetPriority" type="Button" parent="UI/UpgradePopup/Panel/VBox"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "MỤC TIÊU: TIẾN XA NHẤT"
+
+[node name="HBoxActions" type="HBoxContainer" parent="UI/UpgradePopup/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnUpgrade" type="Button" parent="UI/UpgradePopup/Panel/VBox/HBoxActions"]
+custom_minimum_size = Vector2(88, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "NÂNG CẤP"
+
+[node name="BtnSell" type="Button" parent="UI/UpgradePopup/Panel/VBox/HBoxActions"]
+custom_minimum_size = Vector2(88, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.5, 0.3, 1)
+theme_override_font_sizes/font_size = 11
+text = "BÁN (42G)"
+
+[node name="SkillTreeModal" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="UI/SkillTreeModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.05, 0.1, 0.2)
+
+[node name="Card" type="PanelContainer" parent="UI/SkillTreeModal"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -540.0
+offset_top = -290.0
+offset_right = 540.0
+offset_bottom = 290.0
+grow_horizontal = 2
+grow_vertical = 2
+
+
+[node name="Margin" type="MarginContainer" parent="UI/SkillTreeModal/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="UI/SkillTreeModal/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderHBox" type="HBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.3, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "CÂY KỸ NĂNG & VI MẠCH HOẠT TÍNH"
+
+[node name="BtnCloseSkillTree" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/HeaderHBox"]
+custom_minimum_size = Vector2(38, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "X"
+
+[node name="GoldBanner" type="PanelContainer" parent="UI/SkillTreeModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/GoldBanner"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="HBox" type="HBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/GoldBanner/Margin"]
+layout_mode = 2
+
+[node name="LabelGoldSkill" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/GoldBanner/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 15
+text = "NGÂN SÁCH HIỆN CÓ: 350 VÀNG"
+
+[node name="LabelCurrentBonuses" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/GoldBanner/Margin/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 1, 0.6, 1)
+theme_override_font_sizes/font_size = 13
+text = "HIỆU ỨNG TỔNG QUAN"
+
+[node name="ColumnsHBox" type="HBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ColRange" type="VBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TitleRange" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColRange"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "TẦM BẮN & CHÍNH XÁC"
+horizontal_alignment = 1
+
+[node name="BtnSkillR1" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColRange"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T1: RADAR SƠ CẤP"
+
+[node name="ArrowR1" type="TextureRect" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColRange"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BtnSkillR2" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColRange"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T2: QUANG HỌC AI"
+
+[node name="ArrowR2" type="TextureRect" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColRange"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BtnSkillR3" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColRange"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T3: VI TỬ VỆ TINH"
+
+[node name="ColDamage" type="VBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TitleDamage" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColDamage"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+text = "SÁT THƯƠNG & XUYÊN GIÁP"
+horizontal_alignment = 1
+
+[node name="BtnSkillD1" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColDamage"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T1: THUỐC SÚNG ĐẬM"
+
+[node name="ArrowD1" type="TextureRect" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColDamage"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BtnSkillD2" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColDamage"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T2: ĐẠN VONFRAM"
+
+[node name="ArrowD2" type="TextureRect" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColDamage"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BtnSkillD3" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColDamage"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T3: HẠT PHẢN VẬT"
+
+[node name="ColSpeed" type="VBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TitleSpeed" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColSpeed"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.25, 1)
+theme_override_font_sizes/font_size = 14
+text = "TỐC ĐỘ BẮN & HỒI CHIÊU"
+horizontal_alignment = 1
+
+[node name="BtnSkillS1" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColSpeed"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T1: BĂNG NẠP NHANH"
+
+[node name="ArrowS1" type="TextureRect" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColSpeed"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BtnSkillS2" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColSpeed"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T2: NỒNG TẢN NHIỆT"
+
+[node name="ArrowS2" type="TextureRect" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColSpeed"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BtnSkillS3" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/ColumnsHBox/ColSpeed"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "T3: QUÁ TẢI HYPER"
+
+[node name="InspectorPanel" type="PanelContainer" parent="UI/SkillTreeModal/Card/Margin/VBox"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InspectorTitle" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "CHI TIẾT KỸ NĂNG"
+
+[node name="InspectorDesc" type="Label" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.95, 1)
+theme_override_font_sizes/font_size = 13
+text = "Nhấp vào bất kỳ nhánh kỹ năng nào phía trên để xem hiệu ứng và mở khóa nâng cấp vĩnh viễn cho tất cả các tháp trên đảo."
+autowrap_mode = 2
+
+[node name="InspectorHBox" type="HBoxContainer" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnUpgradeSkill" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel/Margin/VBox/InspectorHBox"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.3, 1, 0.5, 1)
+theme_override_font_sizes/font_size = 15
+text = "NÂNG CẤP KỸ NĂNG"
+
+[node name="BtnResetSkillBranch" type="Button" parent="UI/SkillTreeModal/Card/Margin/VBox/InspectorPanel/Margin/VBox/InspectorHBox"]
+custom_minimum_size = Vector2(160, 46)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "TẨY ĐIỂM (100%)"

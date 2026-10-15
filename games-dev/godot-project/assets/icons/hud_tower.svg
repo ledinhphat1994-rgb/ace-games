@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="grad-tower" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="grad-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Base Armored Pedestal -->
+  <polygon points="12,56 52,56 46,42 18,42" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+  <rect x="20" y="28" width="24" height="16" rx="2" fill="url(#grad-tower)" stroke="#7dd3fc" stroke-width="1.5"/>
+  <!-- Cannon Turret -->
+  <circle cx="32" cy="24" r="10" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+  <rect x="29" y="8" width="6" height="16" rx="2" fill="url(#grad-gold)" stroke="#fef08a" stroke-width="1"/>
+  <!-- Muzzle Energy Arc -->
+  <line x1="26" y1="8" x2="38" y2="8" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" filter="url(#glow-cyan)"/>
+  <!-- Rivets & Details -->
+  <circle cx="24" cy="36" r="1.5" fill="#f8fafc"/>
+  <circle cx="40" cy="36" r="1.5" fill="#f8fafc"/>
+  <polygon points="32,18 35,24 29,24" fill="#38bdf8"/>
+</svg>

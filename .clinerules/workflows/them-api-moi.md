@@ -1,35 +1,38 @@
-# Thêm một API mới
+# Thêm một API mới — Worker Hono (v2)
 
-1. Xác định ai được dùng:
-   - Học sinh xem được → đặt trong `functions/api/`, chỉ trả dữ liệu của chính em đó.
-   - Giáo viên → đặt trong `functions/api/gv/`, bắt buộc `{ canGiaoVien: true }`.
-   - Cho phép tài khoản phụ (thủ quỹ, lớp trưởng) → thêm `quyenCan: 'ten-quyen'`,
-     **chỉ khi giáo viên nói rõ**.
+1. **Xác định phân quyền và vị trí route:**
+   - Đặt trong `worker/routes/` hoặc tích hợp vào Hono sub-router trong `worker/index.ts`.
+   - Ràng buộc quyền truy cập theo `vai_tro` ('student', 'teacher', 'admin') và `lop_id` từ session token.
 
-2. Viết tệp theo mẫu, tên tệp tiếng Việt không dấu:
+2. **Viết route handler an toàn:**
 
-   ```js
-   import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
+   ```ts
+   import { Hono } from 'hono';
 
-   export const onRequestGet = bocXuLy(async ({ env }) => {
-     const { results } = await env.DB.prepare('SELECT ... WHERE ... = ?').bind(x).all();
-     return json({ ok: true, danhSach: results });
-   }, { canGiaoVien: true });
+   export const apiRouter = new Hono<{ Bindings: Env }>();
+
+   apiRouter.post('/my-endpoint', async (c) => {
+     const body = await c.req.json();
+     const lopId = c.get('lopId');
+
+     const { results } = await c.env.DB.prepare(
+       'SELECT * FROM bang_du_lieu WHERE id = ? AND lop_id = ?'
+     ).bind(body.id, lopId).all();
+
+     return c.json({ ok: true, data: results });
+   });
    ```
 
-3. Kiểm tra dữ liệu người dùng gửi lên: `chuoi(...)` giới hạn độ dài, `ngayHopLe(...)` cho ngày,
-   số thì `Number.isFinite`. Luôn `.bind()`, không nối chuỗi SQL.
+3. **Kiểm tra dữ liệu đầu vào:**
+   - Xác thực schema kiểu dữ liệu (TypeScript / Zod).
+   - Truy vấn D1 **luôn luôn dùng `.bind(...)`**, tuyệt đối không nối chuỗi SQL.
 
-4. Gọi thử cả ba trường hợp:
-   - chưa đăng nhập → 401
-   - đăng nhập bằng mã học sinh nhưng gọi API giáo viên → 403
-   - đăng nhập đúng quyền → 200 và dữ liệu đúng
+4. **Kiểm tra quyền truy cập:**
+   - Chưa đăng nhập → HTTP 401
+   - Sai vai trò / quyền hạn → HTTP 403
+   - Đăng nhập đúng quyền → HTTP 200
 
-   ```powershell
-   curl -i http://localhost:8788/api/gv/ten-api
-   ```
-
-5. Nối vào giao diện trong `giao-vien/trang-*.js` hoặc `assets/js/*.js`,
-   hiển thị bằng `textContent` (không `innerHTML`).
-
-6. Chạy `npm run kiem-tra-du-lieu` và `npm run lint` trước khi báo xong.
+5. **Kiểm tra mã nguồn:**
+   - `npm run typecheck`
+   - `npm run lint`
+   - Chạy targeted unit test liên quan.

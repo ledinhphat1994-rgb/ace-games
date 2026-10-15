@@ -1,4 +1,4 @@
-# Digital Campus v2 — Hướng Dẫn & Quy Tắc Kỹ Thuật (AGENTS.md)
+# Ace Games — Hướng Dẫn & Quy Tắc Kỹ Thuật (AGENTS.md)
 
 > **MỤC TIÊU & HIẾN PHÁP DỰ ÁN:**
 > Tài liệu này là kim chỉ nam tối cao định hướng cho toàn bộ quá trình phát triển mã nguồn trong dự án. Mọi AI Agent và lập trình viên bắt buộc phải tuân thủ nghiêm ngặt 100%, không có ngoại lệ.
@@ -38,17 +38,28 @@
   - Kiểm tra va chạm bắt buộc sử dụng **Spatial Hash Grid** với độ phức tạp $O(1)$ hoặc $O(k)$ (chỉ truy vấn các entity trong cùng ô lưới hoặc các ô lân cận kề nhau).
   - Tuyệt đối **CẤM vòng lặp lồng nhau $O(n^2)$** (kiểm tra mọi entity với nhau) gây sụt giảm FPS và nghẽn CPU khi số lượng đốt rắn và thức ăn trên bản đồ tăng cao.
 
+## 4. GROUND CONTACT & ANTI-FLOATING (Quy tắc Tiếp Đất Chuẩn Xác cho Vật Thể Trên Bộ)
+- **Sát mặt đất 100% (Zero Ground Clearance / Grounded Flush Invariant):**
+  - Mọi vật thể, công trình và đơn vị hoạt động trên mặt đất (tháp pháo/trụ phòng thủ như Gatling Gun, Plasma Cannon, SAM Battery; lính cơ giới trên bộ như Robot Mech Walker, Xe lửa hơi nước Steam Train, v.v.) BẮT BUỘC phải tiếp xúc sát và phẳng phiu với mặt đất/đường đi ($Y_{\text{contact}} = 0$ hoặc hơi lún nhẹ vào mặt cỏ/mặt đường từ 1–2px để tạo độ đầm và trọng lượng cơ giới chân thật).
+  - Tuyệt đối **CẤM** để vật thể trên bộ bị treo lơ lửng trên không (air gap) hay hở gầm nhìn xuyên qua nền đất.
+- **Loại bỏ bóng giả nhân tạo bằng code trên thảm cỏ (Zero Procedural Circle Shadows on Terrain):**
+  - Tuyệt đối **CẤM** dùng các lệnh vẽ hình tròn (`draw_circle`) tạo các đốm đen/vệt bóng tròn giả lập trình dưới đáy trụ trên nền bản đồ 2.5D. Bản đồ vẽ tay đã có độ tương phản tự nhiên, trụ và công trình cố định phải bám đất liền mạch với chân đế hoàn chỉnh.
+- **Chân trụ & đế móng cơ giới hoàn chỉnh (Solid Mechanical Base & Footing):**
+  - Chân đế của các trụ phòng thủ phải sử dụng artwork nguyên vẹn với đầy đủ các chân càng chịu lực (outriggers), móng kim loại (foot pads) và mâm xoay, tuyệt đối không dùng sprite bị cắt ngang, cụt móng hay lem viền.
+- **Ngoại lệ duy nhất cho đơn vị bay (Aerial Units Exception):**
+  - Chỉ các đơn vị trên không (như Chim máy Winged Bot, drone bay) mới được thiết lập cao độ lơ lửng phía trên mặt đất (`position.y < 0`).
+
 ---
 
-# PHẦN II: KIẾN TRÚC NỀN TẢNG & VẬN HÀNH DIGITAL CAMPUS
+# PHẦN II: KIẾN TRÚC NỀN TẢNG & VẬN HÀNH ACE GAMES
 
-## 4. Kiến trúc hệ thống chính thức
+## 5. Kiến trúc hệ thống chính thức
 - **Runtime & Deployment:** Cloudflare Workers + Static Assets + Durable Objects (SQLite, WebSocket Hibernation API) + D1 Database + KV (Rate Limit) + R2 (Lưu trữ ảnh & media).
 - **Frontend:** Vite 8 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI) + Lucide Icons + TanStack Query.
 - **Backend / Workers:** Hono API Router (`worker/index.ts`), Durable Objects (`CampusDO` cho sảnh toàn trường & chat trực tiếp, `RoomDO` cho phòng học nhóm / YouTube sync / Game Arena).
 - **Shared Contracts:** Giao thức WebSocket & Type dùng chung tại `shared/protocol/` (`campus.ts`, `room.ts`, `game.ts`, `common.ts`).
 
-## 5. Quy trình phát triển tối ưu tốc độ (4 bước mặc định)
+## 6. Quy trình phát triển tối ưu tốc độ (4 bước mặc định)
 Tóm gọn: **Sửa local → test đúng lỗi → final local check 1 lần → push → (staging nếu cần) → deploy → smoke.**
 
 1. **CODE → TEST ĐÚNG PHẦN ĐANG SỬA:**
@@ -71,14 +82,14 @@ Tóm gọn: **Sửa local → test đúng lỗi → final local check 1 lần �
    Khi được duyệt: `main sạch + HEAD == origin/main + config production đúng → deploy → smoke`.
    - **Agent Deploy Permission — TOÀN QUYỀN KHI USER NÓI "DEPLOY":** User nói "deploy" là uỷ quyền đầy đủ để agent tự làm trọn chuỗi, không hỏi lại: Local Final Gate PASS → merge PR vào `main` (nếu có) → `git checkout main && git pull --ff-only` → (có migration mới thì apply remote trước) → `npm run deploy:production` (local) → smoke → báo Version ID + SHA. KHÔNG chạy workflow GitHub Actions "Triển khai production".
 
-## 6. Quy tắc bảo toàn dữ liệu & Tương thích hệ thống (Data Invariants)
+## 7. Quy tắc bảo toàn dữ liệu & Tương thích hệ thống (Data Invariants)
 - **Mật khẩu:** Thuật toán PBKDF2-SHA256 với salt/hash hex, số vòng lấy theo từng dòng `tai_khoan_campus.iterations` của CSDL.
 - **Token phiên:** Định dạng `<payload-base64url>.<HMAC-SHA256>`, cookie `c10a7_session` (HttpOnly, SameSite=Lax).
 - **Phiên đăng nhập duy nhất:** Cơ chế 1 tài khoản 1 thiết bị qua cột `thiet_bi`. Thiết bị mới đá thiết bị cũ với mã WebSocket `4001` (Strict Single-device).
 - **An toàn truy vấn D1:** Mọi truy vấn đọc/ghi dữ liệu lớp/học sinh phải kèm điều kiện phân quyền và phạm vi dữ liệu (`lop_id`, `vai_tro`).
 - **Dữ liệu thật:** Không dùng mock data hoặc placeholder arrays trong UI. Ô trống hiển thị empty-state.
 
-## 7. Quy tắc thiết kế giao diện UI/UX & Bố cục ổn định
+## 8. Quy tắc thiết kế giao diện UI/UX & Bố cục ổn định
 - **Chỉ ghi tiêu đề, tuyệt đối cấm chú thích:** Giữ giao diện sạch sẽ, trực quan, tinh gọn theo nguyên tắc "Obvious UI Does Not Explain Itself". Không tự ý chèn văn bản bổ sung, mô tả phụ hay nhãn giải nghĩa.
 - **Zero Overlap & Spacing Rhythm:** Giữa các card cố định tuyệt đối không được đè lên nhau. Duy trì khoảng cách thông thoáng (margin, padding, gap), tạo không gian đệm "thoáng con mắt".
 - **Non-Obscuring Popup & Transparent Backdrop:** Khi mở bất kỳ popup/dialog nào, tuyệt đối không làm đen kịt (`bg-black/60`) hay làm mờ nhòe (heavy blur) khu vực xung quanh. Backdrop giữ độ trong suốt cao (tối đa `bg-black/10` hoặc `bg-transparent`) để giao diện phía sau hiển thị sắc nét 100%. Popup luôn căn giữa chuẩn viewport (`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`).

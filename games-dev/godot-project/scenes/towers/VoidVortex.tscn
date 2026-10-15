@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://d3wan1q8m5p2k"]
+
+[ext_resource type="Script" path="res://scripts/towers/VoidVortex.gd" id="1_vortex"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vortex"]
+radius = 80.0
+
+[node name="VoidVortex" type="Node2D"]
+script = ExtResource("1_vortex")
+
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_vortex")

@@ -35,6 +35,7 @@ artifacts/
 
 # Godot engine cache & test workspace
 .godot/
+.tmp.driveupload/
 *.tmp
 unrealworld/
 game-rpg/
@@ -43,3 +44,16 @@ mobile-apk/
 repomix-codebase.txt
 game-project.zip
 benchmark.json
+
+# Temporary inspection and analysis assets
+/*.gif
+/*.jpg
+/check_*.png
+/crop_*.png
+/exact_bridge_strip.png
+/compare_*.png
+/bridge_sim_strip.png
+/live_bridge_*.png
+/walk_ne_flipped_grid.png
+/video_inspections/
+/game mobile libraries/

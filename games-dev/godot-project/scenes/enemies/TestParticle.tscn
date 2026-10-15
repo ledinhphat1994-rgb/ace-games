@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://d2k7m4p9q1b5v"]
+
+[ext_resource type="Script" path="res://scripts/enemies/TestParticle.gd" id="1_test_particle"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_particle"]
+radius = 10.0
+
+[node name="TestParticle" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("1_test_particle")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_particle")

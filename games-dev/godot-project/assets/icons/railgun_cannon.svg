@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-gold" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="24" width="16" height="16" rx="3" fill="#1e2230" stroke="#ffb703" stroke-width="2"/>
+  <line x1="24" y1="28" x2="52" y2="28" stroke="#ffb703" stroke-width="3" stroke-linecap="round" filter="url(#glow-gold)"/>
+  <line x1="24" y1="36" x2="52" y2="36" stroke="#ffb703" stroke-width="3" stroke-linecap="round" filter="url(#glow-gold)"/>
+  <line x1="30" y1="28" x2="30" y2="36" stroke="#ffffff" stroke-width="1.5"/>
+  <line x1="42" y1="28" x2="42" y2="36" stroke="#ffffff" stroke-width="1.5"/>
+  <polygon points="54,32 60,30 60,34" fill="#ffffff" filter="url(#glow-gold)"/>
+</svg>

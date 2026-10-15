@@ -17,7 +17,11 @@
     "**/.system_generated": true,
     "**/.tempmediaStorage": true,
     "**/.vite": true,
-    "**/coverage": true
+    "**/coverage": true,
+    "unrealworld/**": true
+  },
+  "files.exclude": {
+    "unrealworld/**": true
   },
   "files.watcherExclude": {
     "**/node_modules/**": true,
@@ -38,5 +42,10 @@
   },
   "godotTools.editorPath.godot4": "D:\\Godot_v4.7.2-stable_win64.exe\\Godot_v4.7.2-stable_win64.exe",
   "godot_tools.editor_path": "D:\\Godot_v4.7.2-stable_win64.exe\\Godot_v4.7.2-stable_win64.exe",
+  "godotTools.lsp.serverHost": "127.0.0.1",
+  "godotTools.lsp.serverPort": 6005,
+  "godot_tools.lsp.server_port": 6005,
+  "godotTools.lsp.headless": false,
+  "godotTools.lsp.autoReconnect.enabled": true,
   "css.lint.unknownAtRules": "ignore"
 }

@@ -1,0 +1,5 @@
+wrangler.json
+.dev.vars
+games/godot/**
+**/*.pck
+**/*.wasm
