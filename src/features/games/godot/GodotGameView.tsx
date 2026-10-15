@@ -25,8 +25,21 @@ export const GodotGameView: React.FC<GodotGameViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const handleScore = useCallback((score: number, meta: Record<string, any>) => {
-    toast.success(`Đạt ${score} điểm kỷ lục!`, {
-      description: meta.game ? `Trò chơi: ${meta.game}` : undefined,
+    const starStr = meta.stars !== undefined && meta.stars > 0 ? `${'⭐'.repeat(meta.stars)} ` : ''
+    const waveNum = meta.current_wave ?? meta.wave
+    const waveStr = waveNum ? `Wave ${waveNum}` : ''
+    const modeStr = meta.is_hardcore ? ' [THỬ THÁCH]' : (meta.is_endless_mode ? ' [VÔ TẬN]' : '')
+    const mvpStr = meta.mvp_tower?.name && meta.mvp_tower.name !== 'Chưa có'
+      ? ` | MVP: ${meta.mvp_tower.name} (Lv.${meta.mvp_tower.tier ?? meta.mvp_tower.level ?? 1})`
+      : (meta.mvp ? ` | MVP: ${meta.mvp}` : '')
+    const medalsCount = meta.medals?.unlocked_medals_count !== undefined
+      ? ` | ${meta.medals.unlocked_medals_count}/3 Huy hiệu`
+      : ''
+
+    const desc = `${starStr}${waveStr}${modeStr}${mvpStr}${medalsCount}`.trim() || (meta.game ? `Trò chơi: ${meta.game}` : undefined)
+
+    toast.success(`Đạt ${score.toLocaleString()} điểm kỷ lục!`, {
+      description: desc,
     })
     if (onScoreSubmit) {
       onScoreSubmit(score, meta)

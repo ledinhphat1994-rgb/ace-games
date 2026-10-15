@@ -662,13 +662,7 @@ func _process(delta: float) -> void:
 				if sound_synth:
 					sound_synth.play_victory_fanfare()
 				if web_bridge:
-					web_bridge.submit_score(score, {
-						"wave": current_wave,
-						"mode": "stylized_25d",
-						"victory": true,
-						"stars": summary["stars"],
-						"mvp": summary["mvp_info"]
-					})
+					web_bridge.submit_score(score, get_web_battle_payload(summary))
 					web_bridge.show_toast("CHIẾN DỊCH HOÀN THÀNH: %s! MVP: %s" % [summary["rating_title"], summary["mvp_info"]], "success")
 					web_bridge.trigger_haptic("success")
 			else:
@@ -679,6 +673,7 @@ func _process(delta: float) -> void:
 				var next_lbl = ("WAVE %d VÔ TẬN" % (current_wave + 1)) if is_endless_mode else "GỌI ĐỢT"
 				_set_button_dock_label(btn_next_wave, next_lbl, "[N]")
 				if web_bridge:
+					web_bridge.submit_score(score, get_web_battle_payload())
 					web_bridge.show_toast("Chiến thắng Wave %d! Thưởng +%d Vàng & +150 Điểm." % [current_wave, wave_gold], "success")
 					web_bridge.trigger_haptic("success")
 
@@ -1678,13 +1673,7 @@ func _on_enemy_escaped(_enemy: Node2D) -> void:
 		btn_next_wave.disabled = false
 		_set_button_dock_label(btn_next_wave, "CHƠI LẠI", "[SPACE]")
 		if web_bridge:
-			web_bridge.submit_score(score, {
-				"wave": current_wave,
-				"mode": "stylized_25d",
-				"victory": false,
-				"stars": summary["stars"],
-				"mvp": summary["mvp_info"]
-			})
+			web_bridge.submit_score(score, get_web_battle_payload(summary))
 			web_bridge.show_toast("CĂN CỨ THẤT THỦ! ĐÁNH GIÁ: %s | MVP: %s" % [summary["rating_title"], summary["mvp_info"]], "error")
 			web_bridge.trigger_haptic("heavy")
 	else:
@@ -2128,6 +2117,13 @@ func unlock_medal(key: String, title: String, description: String) -> void:
 			web_bridge.show_toast("[HUY HIỆU] [%s] — %s" % [title, description], "success")
 			web_bridge.trigger_haptic("heavy")
 		_update_hud()
+
+func get_unlocked_medals_count() -> int:
+	var count: int = 0
+	if medal_boss_hunter: count += 1
+	if medal_combo_master: count += 1
+	if medal_flawless_fortress: count += 1
+	return count
 
 func notify_boss_interrupted() -> void:
 	unlock_medal("boss_hunter", "THỢ SĂN BOSS", "Ngắt chiêu Boss thành công bằng EMP/Tesla!")
@@ -3080,6 +3076,13 @@ func get_battle_summary() -> Dictionary:
 	var mvp = get_mvp_tower()
 	var mvp_info = ""
 	var mvp_dmg = 0
+	var mvp_data: Dictionary = {
+		"name": "Chưa có",
+		"tier": 0,
+		"level": 0,
+		"damage": 0,
+		"kills": 0
+	}
 	if mvp:
 		var t_name = AnimatedTower.get_tower_name(mvp.tower_type)
 		mvp_dmg = mvp.total_damage_dealt
@@ -3087,6 +3090,13 @@ func get_battle_summary() -> Dictionary:
 			t_name, mvp.global_position.x, mvp.global_position.y,
 			format_number(mvp.total_damage_dealt), mvp.kill_count
 		]
+		mvp_data = {
+			"name": t_name,
+			"tier": mvp.level,
+			"level": mvp.level,
+			"damage": mvp.total_damage_dealt,
+			"kills": mvp.kill_count
+		}
 	else:
 		mvp_info = "Chưa có tháp nào tham chiến"
 
@@ -3096,18 +3106,80 @@ func get_battle_summary() -> Dictionary:
 
 	save_records(rating["stars"], current_wave, mvp_dmg, is_hardcore_mode)
 
+	var medals_dict: Dictionary = {
+		"boss_hunter": medal_boss_hunter,
+		"combo_master": medal_combo_master,
+		"flawless_fortress": medal_flawless_fortress,
+		"unlocked_medals_count": get_unlocked_medals_count()
+	}
+
 	return {
 		"stars": rating["stars"],
 		"rating_title": rating["title"],
 		"mvp_tower": mvp,
+		"mvp_tower_data": mvp_data,
 		"mvp_info": mvp_info,
+		"score": score,
 		"final_score": score,
 		"health": base_health,
 		"wave": current_wave,
-		"best_stars": best_stars,
+		"current_wave": current_wave,
 		"highest_wave": highest_wave,
+		"highest_endless_wave": highest_endless_wave,
+		"is_hardcore": is_hardcore_mode,
+		"hardcore_cleared": hardcore_cleared,
+		"is_endless_mode": is_endless_mode,
+		"best_stars": best_stars,
 		"best_mvp_damage": best_mvp_damage,
-		"hardcore_cleared": hardcore_cleared
+		"medals": medals_dict
+	}
+
+func get_web_battle_payload(summary: Dictionary = {}) -> Dictionary:
+	if summary.is_empty():
+		summary = get_battle_summary()
+
+	var mvp_dict: Dictionary = summary.get("mvp_tower_data", {})
+	if mvp_dict.is_empty():
+		var mvp = summary.get("mvp_tower", null)
+		if mvp and is_instance_valid(mvp) and mvp is AnimatedTower:
+			mvp_dict = {
+				"name": AnimatedTower.get_tower_name(mvp.tower_type),
+				"tier": mvp.level,
+				"level": mvp.level,
+				"damage": mvp.total_damage_dealt,
+				"kills": mvp.kill_count
+			}
+		else:
+			mvp_dict = {
+				"name": "Chưa có",
+				"tier": 0,
+				"level": 0,
+				"damage": 0,
+				"kills": 0
+			}
+
+	var medals_data: Dictionary = summary.get("medals", {})
+	if medals_data.is_empty():
+		medals_data = {
+			"boss_hunter": medal_boss_hunter,
+			"combo_master": medal_combo_master,
+			"flawless_fortress": medal_flawless_fortress,
+			"unlocked_medals_count": get_unlocked_medals_count()
+		}
+
+	return {
+		"score": summary.get("score", score),
+		"stars": summary.get("stars", calculate_star_rating()["stars"]),
+		"current_wave": summary.get("current_wave", current_wave),
+		"highest_wave": summary.get("highest_wave", highest_wave),
+		"highest_endless_wave": summary.get("highest_endless_wave", highest_endless_wave),
+		"is_hardcore": summary.get("is_hardcore", is_hardcore_mode),
+		"is_endless_mode": summary.get("is_endless_mode", is_endless_mode),
+		"mvp_tower": mvp_dict,
+		"mvp_info": summary.get("mvp_info", ""),
+		"medals": medals_data,
+		"victory": is_victory,
+		"mode": "stylized_25d"
 	}
 
 func load_records() -> void:
@@ -3148,7 +3220,7 @@ func _update_record_label() -> void:
 	if label_record:
 		var hc_badge = " | THỬ THÁCH" if hardcore_cleared else ""
 		var endless_badge = " | VÔ TẬN: W%d" % highest_endless_wave if highest_endless_wave > 0 else ""
-		var m_cnt = (1 if medal_boss_hunter else 0) + (1 if medal_combo_master else 0) + (1 if medal_flawless_fortress else 0)
+		var m_cnt = get_unlocked_medals_count()
 		var m_badge = " | HUY HIỆU: %d/3" % m_cnt if m_cnt > 0 else ""
 		label_record.text = "KỶ LỤC: %d SAO | MVP: %s DMG%s%s%s" % [best_stars, format_number(best_mvp_damage), hc_badge, endless_badge, m_badge]
 
@@ -3348,6 +3420,8 @@ func _update_hud() -> void:
 		if btn_next_wave:
 			btn_next_wave.disabled = false
 			_set_button_dock_label(btn_next_wave, "CHƠI LẠI", "[SPACE]")
+		if web_bridge:
+			web_bridge.submit_score(score, get_web_battle_payload(summary))
 
 func _draw() -> void:
 	# 0. Vẽ ký hiệu phát sáng tinh tế cho 2 Ô Địa hình Chiến thuật Đặc biệt

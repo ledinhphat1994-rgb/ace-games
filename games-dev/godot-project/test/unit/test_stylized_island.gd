@@ -1695,5 +1695,114 @@ func test_mobile_touch_hitboxes_and_bridge_emp_button() -> void:
 	for e in scene.enemies_container.get_children():
 		e.free()
 
+func test_web_bridge_battle_summary_payload() -> void:
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	# 1. Thiết lập trạng thái chiến trận để sinh dữ liệu tổng kết
+	scene.score = 8500
+	scene.current_wave = 10
+	scene.highest_wave = 10
+	scene.highest_endless_wave = 15
+	scene.is_hardcore_mode = true
+	scene.is_endless_mode = false
+	scene.base_health = 20
+
+	# Đặt lại cờ huy hiệu độc lập cho test case này
+	scene.medal_boss_hunter = false
+	scene.medal_combo_master = false
+	scene.medal_flawless_fortress = false
+
+	# Mở khóa 2 huy hiệu để kiểm chứng cấu trúc medals
+	scene.unlock_medal("boss_hunter", "SÁT THỦ HUYỀN THOẠI", "Hạ gục Boss!")
+	scene.unlock_medal("flawless_fortress", "PHÁO ĐÀI BẤT DIỆT", "20/20 Máu căn cứ!")
+
+	# Dựng tháp và ghi nhận sát thương để tạo MVP Tower
+	var t1 = scene._build_tower_at_position(Vector2(200, 300), TowerScript.TowerType.GATLING_GUN, true)
+	var t2 = scene._build_tower_at_position(Vector2(300, 300), TowerScript.TowerType.PLASMA_CANNON, true)
+	t1.record_damage_dealt(1200, true)
+	t2.record_damage_dealt(3600, true)
+	t2.level = 2
+
+	# 2. Kiểm thử get_battle_summary() trả về đầy đủ 100% các khóa và kiểu dữ liệu chuẩn
+	var summary = scene.get_battle_summary()
+	assert_eq(typeof(summary), TYPE_DICTIONARY, "get_battle_summary() trả về Dictionary")
+
+	# Xác thực 5 khóa cốt lõi theo chỉ thị
+	assert_true(summary.has("stars"), "summary có khóa stars")
+	assert_eq(typeof(summary["stars"]), TYPE_INT, "stars kiểu số nguyên (int)")
+	assert_eq(summary["stars"], 3, "20/20 máu đạt 3 sao")
+
+	assert_true(summary.has("mvp_tower"), "summary có khóa mvp_tower")
+	assert_eq(summary["mvp_tower"], t2, "mvp_tower tham chiếu đúng thực thể tháp xuất sắc nhất")
+
+	assert_true(summary.has("highest_endless_wave"), "summary có khóa highest_endless_wave")
+	assert_eq(typeof(summary["highest_endless_wave"]), TYPE_INT, "highest_endless_wave kiểu int")
+	assert_eq(summary["highest_endless_wave"], 15, "Giá trị highest_endless_wave khớp với cấu hình")
+
+	assert_true(summary.has("is_hardcore"), "summary có khóa is_hardcore")
+	assert_eq(typeof(summary["is_hardcore"]), TYPE_BOOL, "is_hardcore kiểu boolean")
+	assert_true(summary["is_hardcore"], "is_hardcore là true khi ở chế độ thử thách")
+
+	assert_true(summary.has("medals"), "summary có khóa medals")
+	assert_eq(typeof(summary["medals"]), TYPE_DICTIONARY, "medals kiểu Dictionary")
+	assert_true(summary["medals"].has("boss_hunter"), "medals chứa boss_hunter")
+	assert_true(summary["medals"]["boss_hunter"], "boss_hunter đã được mở khóa")
+	assert_true(summary["medals"].has("combo_master"), "medals chứa combo_master")
+	assert_false(summary["medals"]["combo_master"], "combo_master chưa mở khóa")
+	assert_true(summary["medals"].has("flawless_fortress"), "medals chứa flawless_fortress")
+	assert_true(summary["medals"]["flawless_fortress"], "flawless_fortress đã được mở khóa")
+	assert_true(summary["medals"].has("unlocked_medals_count"), "medals chứa unlocked_medals_count")
+	assert_eq(summary["medals"]["unlocked_medals_count"], 2, "Tổng số huy hiệu mở khóa là 2/3")
+
+	# 3. Kiểm thử payload JSON gửi ra JavaScriptBridge / Web Host qua get_web_battle_payload()
+	var payload = scene.get_web_battle_payload(summary)
+	assert_eq(typeof(payload), TYPE_DICTIONARY, "get_web_battle_payload trả về Dictionary")
+
+	assert_true(payload.has("score"), "payload có khóa score")
+	assert_eq(payload["score"], 8500, "Điểm số khớp dữ liệu trận đấu")
+
+	assert_true(payload.has("stars"), "payload có khóa stars")
+	assert_eq(payload["stars"], 3, "Số sao đạt 3")
+
+	assert_true(payload.has("current_wave"), "payload có khóa current_wave")
+	assert_eq(payload["current_wave"], 10, "current_wave là 10")
+
+	assert_true(payload.has("highest_wave"), "payload có khóa highest_wave")
+	assert_eq(payload["highest_wave"], 10, "highest_wave là 10")
+
+	assert_true(payload.has("highest_endless_wave"), "payload có khóa highest_endless_wave")
+	assert_eq(payload["highest_endless_wave"], 15, "highest_endless_wave là 15")
+
+	assert_true(payload.has("is_hardcore"), "payload có khóa is_hardcore")
+	assert_true(payload["is_hardcore"], "is_hardcore là true")
+
+	assert_true(payload.has("is_endless_mode"), "payload có khóa is_endless_mode")
+	assert_false(payload["is_endless_mode"], "is_endless_mode là false")
+
+	assert_true(payload.has("mvp_tower"), "payload có khóa mvp_tower")
+	assert_eq(typeof(payload["mvp_tower"]), TYPE_DICTIONARY, "mvp_tower trong payload là Dictionary để serialize JSON chuẩn xác")
+	assert_true(payload["mvp_tower"].has("name"), "mvp_tower có tên tháp")
+	assert_true(payload["mvp_tower"].has("tier"), "mvp_tower có cấp độ (tier)")
+	assert_eq(payload["mvp_tower"]["tier"], 2, "Cấp độ tháp MVP là 2")
+	assert_true(payload["mvp_tower"].has("damage"), "mvp_tower có tổng sát thương")
+	assert_eq(payload["mvp_tower"]["damage"], 3600, "Tổng sát thương tháp MVP là 3600")
+	assert_true(payload["mvp_tower"].has("kills"), "mvp_tower có số mạng hạ gục")
+	assert_eq(payload["mvp_tower"]["kills"], 1, "Số mạng hạ gục của tháp MVP là 1")
+
+	assert_true(payload.has("medals"), "payload có khóa medals")
+	assert_eq(typeof(payload["medals"]), TYPE_DICTIONARY, "medals trong payload là Dictionary")
+	assert_eq(payload["medals"]["unlocked_medals_count"], 2, "unlocked_medals_count trong payload là 2")
+
+	# 4. Kiểm tra JSON Stringify an toàn tuyệt đối ra window/browser
+	var json_str = JSON.stringify(payload)
+	assert_true(json_str.length() > 0, "Serialize payload JSON ra Web thành công")
+	var parsed = JSON.parse_string(json_str)
+	assert_eq(typeof(parsed), TYPE_DICTIONARY, "Web Host parse JSON hoàn hảo không lỗi cú pháp")
+	assert_eq(int(parsed["score"]), 8500, "Dữ liệu JSON bảo toàn trọn vẹn điểm số")
+
+	for t in scene.towers_container.get_children():
+		t.free()
+
 func after_each() -> void:
 	Engine.time_scale = 1.0
