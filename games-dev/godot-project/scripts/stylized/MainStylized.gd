@@ -2078,7 +2078,7 @@ func unlock_medal(key: String, title: String, description: String) -> void:
 		if sound_synth:
 			sound_synth.play_upgrade()
 		if web_bridge:
-			web_bridge.show_toast("🏆 HUY HIỆU: [%s] — %s" % [title, description], "success")
+			web_bridge.show_toast("[HUY HIỆU] [%s] — %s" % [title, description], "success")
 			web_bridge.trigger_haptic("heavy")
 		_update_hud()
 
@@ -2866,7 +2866,7 @@ func _show_victory_defeat_modal(is_win: bool, summary: Dictionary) -> void:
 	if lbl_records_stats:
 		var medals_count = (1 if medal_boss_hunter else 0) + (1 if medal_combo_master else 0) + (1 if medal_flawless_fortress else 0)
 		var endless_str = "  |  Vô Tận: W%d" % highest_endless_wave if highest_endless_wave > 0 else ""
-		var medal_str = "  |  Huy Hiệu: 🏅%d/3" % medals_count
+		var medal_str = "  |  Huy Hiệu: %d/3" % medals_count
 		lbl_records_stats.text = "Điểm trận này: %s  |  Kỷ lục: %d★  |  MVP Kỷ lục: %s%s%s" % [
 			format_number(summary.get("final_score", score)),
 			summary.get("best_stars", best_stars),
@@ -3088,7 +3088,7 @@ func _update_record_label() -> void:
 		var hc_badge = " | THỬ THÁCH" if hardcore_cleared else ""
 		var endless_badge = " | VÔ TẬN: W%d" % highest_endless_wave if highest_endless_wave > 0 else ""
 		var m_cnt = (1 if medal_boss_hunter else 0) + (1 if medal_combo_master else 0) + (1 if medal_flawless_fortress else 0)
-		var m_badge = " | 🏅%d/3" % m_cnt if m_cnt > 0 else ""
+		var m_badge = " | HUY HIỆU: %d/3" % m_cnt if m_cnt > 0 else ""
 		label_record.text = "KỶ LỤC: %d SAO | MVP: %s DMG%s%s%s" % [best_stars, format_number(best_mvp_damage), hc_badge, endless_badge, m_badge]
 
 func activate_bridge_emp() -> bool:
@@ -3198,7 +3198,7 @@ func spawn_supply_pod(pos: Vector2 = Vector2.ZERO) -> Dictionary:
 	if sound_synth:
 		sound_synth.play_ui_tap()
 	if web_bridge:
-		web_bridge.show_toast("📦 HÒM TIẾP TẾ NĂNG LƯỢNG (+45G) ĐÃ XUẤT HIỆN!", "info")
+		web_bridge.show_toast("[TIẾP TẾ] HÒM NĂNG LƯỢNG (+45G) ĐÃ XUẤT HIỆN!", "info")
 	queue_redraw()
 	return pod
 
