@@ -154,6 +154,69 @@ func _attach_corner_brackets(parent_ctrl: Control, col: Color = Color(0.25, 0.90
 		brackets.name = "CornerBrackets"
 		parent_ctrl.add_child(brackets)
 
+## Lớp khí quyển tĩnh vẽ một lần duy nhất lúc khởi tạo, không gọi queue_redraw() mỗi frame để giải phóng GPU Overdraw
+class StaticAtmosphereLayer extends Node2D:
+	func _ready() -> void:
+		z_index = 25
+		# Không gọi queue_redraw() trong process loop để duy trì 60.0 FPS ổn định
+
+	func _draw() -> void:
+		# 1. Soft Cloud Vignette: 3 dải đa giác gradient nhẹ ôm sát 2 viền và đáy đảo
+		var pts_left = PackedVector2Array([
+			Vector2(-10.0, 360.0), Vector2(105.0, 360.0),
+			Vector2(105.0, 780.0), Vector2(-10.0, 780.0)
+		])
+		var col_left = PackedColorArray([
+			Color(0.92, 0.96, 1.0, 0.40), Color(0.92, 0.96, 1.0, 0.0),
+			Color(0.92, 0.96, 1.0, 0.0), Color(0.92, 0.96, 1.0, 0.40)
+		])
+		draw_polygon(pts_left, col_left)
+
+		var pts_right = PackedVector2Array([
+			Vector2(1270.0, 340.0), Vector2(1386.0, 340.0),
+			Vector2(1386.0, 780.0), Vector2(1270.0, 780.0)
+		])
+		var col_right = PackedColorArray([
+			Color(0.92, 0.96, 1.0, 0.0), Color(0.92, 0.96, 1.0, 0.40),
+			Color(0.92, 0.96, 1.0, 0.40), Color(0.92, 0.96, 1.0, 0.0)
+		])
+		draw_polygon(pts_right, col_right)
+
+		var pts_bottom = PackedVector2Array([
+			Vector2(0.0, 720.0), Vector2(1376.0, 720.0),
+			Vector2(1376.0, 780.0), Vector2(0.0, 780.0)
+		])
+		var col_bottom = PackedColorArray([
+			Color(0.90, 0.95, 1.0, 0.0), Color(0.90, 0.95, 1.0, 0.0),
+			Color(0.90, 0.95, 1.0, 0.45), Color(0.90, 0.95, 1.0, 0.45)
+		])
+		draw_polygon(pts_bottom, col_bottom)
+
+		# 2 cụm mây nhẹ bồng bềnh 2 bên rìa tạo chiều sâu không gian tĩnh
+		draw_circle(Vector2(40.0, 580.0), 55.0, Color(0.94, 0.97, 1.0, 0.20))
+		draw_circle(Vector2(1335.0, 560.0), 55.0, Color(0.94, 0.97, 1.0, 0.20))
+
+		# 2. 3 Luồng Nắng Vàng Ấm Chiếu Xiên Góc 35° (Tĩnh)
+		var beam_col = Color(1.0, 0.95, 0.78, 0.055)
+		var s1 = PackedVector2Array([Vector2(-80.0, -10.0), Vector2(60.0, -10.0), Vector2(1220.0, 780.0), Vector2(1048.0, 780.0)])
+		var s2 = PackedVector2Array([Vector2(140.0, -10.0), Vector2(290.0, -10.0), Vector2(1450.0, 780.0), Vector2(1268.0, 780.0)])
+		var s3 = PackedVector2Array([Vector2(530.0, -10.0), Vector2(680.0, -10.0), Vector2(1840.0, 780.0), Vector2(1658.0, 780.0)])
+		draw_colored_polygon(s1, beam_col)
+		draw_colored_polygon(s2, beam_col)
+		draw_colored_polygon(s3, beam_col)
+
+		# 3. Cinematic Corner Vignette: Viền tối khí quyển 4 góc màn hình 1376x768 (alpha = 0.25)
+		var vig_col = Color(0.01, 0.02, 0.04, 0.25)
+		var vig_tl = PackedVector2Array([Vector2(0, 0), Vector2(280, 0), Vector2(0, 240)])
+		var vig_tr = PackedVector2Array([Vector2(1376, 0), Vector2(1096, 0), Vector2(1376, 240)])
+		var vig_bl = PackedVector2Array([Vector2(0, 768), Vector2(280, 768), Vector2(0, 528)])
+		var vig_br = PackedVector2Array([Vector2(1376, 768), Vector2(1096, 768), Vector2(1376, 528)])
+		draw_colored_polygon(vig_tl, vig_col)
+		draw_colored_polygon(vig_tr, vig_col)
+		draw_colored_polygon(vig_bl, vig_col)
+		draw_colored_polygon(vig_br, vig_col)
+
+
 
 # Tọa độ tim đường mòn uốn lượn chính xác 100% theo nét vẽ tay trên bản đồ (Chiến trường Đại Lục 1376x768)
 const PATH_WAYPOINTS: Array[Vector2] = [
@@ -379,6 +442,8 @@ var hardcore_cleared: bool = false
 
 @onready var web_bridge: Node = get_node_or_null("/root/WebBridge")
 var sound_synth: SoundSynthesizer = null
+var static_atmosphere_layer: StaticAtmosphereLayer = null
+
 
 var _idle_time: float = 0.0
 var supply_pods: Array[Dictionary] = []
@@ -430,6 +495,10 @@ const SKILL_DATA: Dictionary = {
 }
 
 func _ready() -> void:
+	static_atmosphere_layer = StaticAtmosphereLayer.new()
+	static_atmosphere_layer.name = "StaticAtmosphereLayer"
+	add_child(static_atmosphere_layer)
+
 	if TexPlacementMask:
 		placement_mask_image = TexPlacementMask.get_image()
 
@@ -828,47 +897,8 @@ func _is_valid_build_position(pos: Vector2) -> bool:
 	return true
 
 func _draw_soft_cloud_vignette() -> void:
-	# Tối ưu 60 FPS: Thay vì vẽ 42 vòng tròn bán trong suốt đè nhau mỗi frame gây GPU overdraw,
-	# sử dụng 3 dải đa giác gradient nhẹ ôm sát 2 viền và đáy đảo + 2 cụm mây nhẹ bồng bềnh.
-
-	# 1. Dải mây viền trái (x: -10..105, y: 360..780)
-	var pts_left = PackedVector2Array([
-		Vector2(-10.0, 360.0), Vector2(105.0, 360.0),
-		Vector2(105.0, 780.0), Vector2(-10.0, 780.0)
-	])
-	var col_left = PackedColorArray([
-		Color(0.92, 0.96, 1.0, 0.40), Color(0.92, 0.96, 1.0, 0.0),
-		Color(0.92, 0.96, 1.0, 0.0), Color(0.92, 0.96, 1.0, 0.40)
-	])
-	draw_polygon(pts_left, col_left)
-
-	# 2. Dải mây viền phải (x: 1270..1386, y: 340..780)
-	var pts_right = PackedVector2Array([
-		Vector2(1270.0, 340.0), Vector2(1386.0, 340.0),
-		Vector2(1386.0, 780.0), Vector2(1270.0, 780.0)
-	])
-	var col_right = PackedColorArray([
-		Color(0.92, 0.96, 1.0, 0.0), Color(0.92, 0.96, 1.0, 0.40),
-		Color(0.92, 0.96, 1.0, 0.40), Color(0.92, 0.96, 1.0, 0.0)
-	])
-	draw_polygon(pts_right, col_right)
-
-	# 3. Dải mây viền đáy đại lục (y: 720..780)
-	var pts_bottom = PackedVector2Array([
-		Vector2(0.0, 720.0), Vector2(1376.0, 720.0),
-		Vector2(1376.0, 780.0), Vector2(0.0, 780.0)
-	])
-	var col_bottom = PackedColorArray([
-		Color(0.90, 0.95, 1.0, 0.0), Color(0.90, 0.95, 1.0, 0.0),
-		Color(0.90, 0.95, 1.0, 0.45), Color(0.90, 0.95, 1.0, 0.45)
-	])
-	draw_polygon(pts_bottom, col_bottom)
-
-	# 4. Hai cụm mây nhẹ bồng bềnh 2 bên rìa tạo chiều sâu không gian
-	var puff_left = Vector2(40.0, 580.0 + sin(_idle_time * 0.5) * 6.0)
-	draw_circle(puff_left, 55.0, Color(0.94, 0.97, 1.0, 0.20))
-	var puff_right = Vector2(1335.0, 560.0 + cos(_idle_time * 0.4) * 6.0)
-	draw_circle(puff_right, 55.0, Color(0.94, 0.97, 1.0, 0.20))
+	# Đã tách sang StaticAtmosphereLayer để không tốn GPU overdraw mỗi frame
+	pass
 
 func _draw_environmental_fx() -> void:
 	# 1. THÁC NƯỚC & DÒNG SUỐI XANH ĐỔ XUỐNG VỰC (x ~ 335..365, y ~ 560..665)
@@ -3644,8 +3674,8 @@ func _draw() -> void:
 		draw_rect(Rect2(6, 6, 1364, 756), Color(0.2, 0.85, 1.0, 0.12 * storm_pulse), false, 2.0)
 		draw_string(ThemeDB.fallback_font, Vector2(540.0, 52.0), "BÃO TỪ TRƯỜNG ION ĐANG HOẠT ĐỘNG", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color(0.4, 0.9, 1.0, 0.85 + 0.15 * storm_pulse))
 
-	# 0f. Lớp phủ mây mờ che mép cắt ảnh đảo 2 bên rìa và đáy đại lục (Procedural Soft Cloud Vignette)
-	_draw_soft_cloud_vignette()
+	# 0f. Lớp phủ mây mờ đã được tách sang StaticAtmosphereLayer tĩnh
+	# _draw_soft_cloud_vignette()
 
 	# 0g. Hiệu ứng Môi trường Sống động (Thác nước, Gợn sóng hồ bến cảng, 3 Cối xay gió, Vòng xoáy portal)
 	_draw_environmental_fx()
@@ -3759,14 +3789,8 @@ func _style_single_pill_badge(parent: HBoxContainer, node_name: String, text_val
 
 ## Vẽ Ánh Sáng Sân Khấu & Khí Quyển Đảo Bay (Sunbeams 35°, Floating Motes, Corner Vignette)
 func _draw_stage_lighting_and_atmosphere() -> void:
-	# 1. 3 Luồng Nắng Vàng Ấm Chiếu Xiên Góc 35° (Color(1.0, 0.95, 0.78, 0.055))
-	var beam_alpha = 0.055 * (0.88 + 0.12 * sin(_idle_time * 1.8))
-	var beam_col = Color(1.0, 0.95, 0.78, beam_alpha)
+	# 1. 3 Luồng Nắng Vàng Ấm: Đã tách sang StaticAtmosphereLayer tĩnh (z_index = 25)
 
-	# Luồng 1, 2, 3: Đã được cache sẵn trong SUNBEAM_*_POLY
-	draw_colored_polygon(SUNBEAM_1_POLY, beam_col)
-	draw_colored_polygon(SUNBEAM_2_POLY, beam_col)
-	draw_colored_polygon(SUNBEAM_3_POLY, beam_col)
 
 	# 2. 20 Hạt Bụi Phép Thuật Phát Sáng (Floating Golden/Cyan Motes, bán kính 1.5 - 2.5px)
 	for m in FLOATING_MOTES_DATA:
@@ -3778,9 +3802,4 @@ func _draw_stage_lighting_and_atmosphere() -> void:
 		draw_circle(Vector2(px, py), m["r"], Color(base_col.r, base_col.g, base_col.b, 0.55 + 0.35 * pulse_m))
 		draw_circle(Vector2(px, py), m["r"] * 2.2, Color(base_col.r, base_col.g, base_col.b, 0.16 * pulse_m))
 
-	# 3. Viền Tối Khí Quyển Bốn Góc (Cinematic Corner Vignette, alpha = 0.25)
-	var vig_col = Color(0.01, 0.02, 0.04, 0.25)
-	draw_colored_polygon(VIGNETTE_TL_POLY, vig_col)
-	draw_colored_polygon(VIGNETTE_TR_POLY, vig_col)
-	draw_colored_polygon(VIGNETTE_BL_POLY, vig_col)
-	draw_colored_polygon(VIGNETTE_BR_POLY, vig_col)
+	# 3. Viền Tối Khí Quyển Bốn Góc: Đã tách sang StaticAtmosphereLayer tĩnh (z_index = 25)

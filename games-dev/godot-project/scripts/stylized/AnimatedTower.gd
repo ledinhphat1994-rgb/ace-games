@@ -427,6 +427,8 @@ var _aim_dir: Vector2 = Vector2.RIGHT
 var _turret_mount_pos: Vector2 = Vector2.ZERO
 var _is_facing_left: bool = false
 var _current_dir_idx: int = 0
+var _is_barrel_rotating: bool = false
+
 
 # Góc xoay mâm súng ngắm mục tiêu mượt mà 360 độ (Smooth Circular Aiming)
 var _aim_angle: float = 0.0
@@ -457,6 +459,7 @@ var _spark_points: Array[Vector2] = []
 var _halo_radius: float = 0.0
 var _halo_alpha: float = 0.0
 var _aura_rot: float = 0.0
+var _was_needing_redraw: bool = true
 
 # Sprite nodes
 var sprite_base: Sprite2D = null
@@ -673,7 +676,25 @@ func _process(delta: float) -> void:
 	# 4. Quét mục tiêu & Hướng nòng súng chuẩn xác theo video
 	_update_aim_and_fire(delta)
 
-	queue_redraw()
+	# Tối ưu hóa 60 FPS: Chỉ redraw khi tháp đang bắn/recoil/flash, xoay nòng, có hiệu ứng hoặc được chọn
+	var needs_redraw: bool = (
+		is_selected
+		or _recoil_time > 0.0
+		or _muzzle_flash_timer > 0.0
+		or _is_barrel_rotating
+		or _ground_dust_alpha > 0.01
+		or not _smoke_puffs.is_empty()
+		or is_overclocked
+		or jammed_timer > 0.0
+		or _buff_decay_timer > 0.0
+		or _halo_alpha > 0.01
+		or (tower_type == TowerType.PYLON_BUFFER)
+		or (tower_type == TowerType.TESLA_COIL and not _spark_points.is_empty())
+	)
+	if needs_redraw or _was_needing_redraw:
+		queue_redraw()
+	_was_needing_redraw = needs_redraw
+	_is_barrel_rotating = false
 
 func _update_smoke_puffs(delta: float) -> void:
 	var i = _smoke_puffs.size() - 1
@@ -769,6 +790,7 @@ func _update_aim_and_fire(delta: float) -> void:
 		var best_dir = get_closest_barrel_dir_idx(tower_type, _aim_angle)
 		if best_dir != _current_dir_idx:
 			_current_dir_idx = best_dir
+			_is_barrel_rotating = true
 			if tower_type == TowerType.GATLING_GUN:
 				sprite_head.texture = TEX_GATLING_32DIR[_current_dir_idx]
 			else:
@@ -1333,7 +1355,7 @@ func _draw() -> void:
 		draw_circle(p.pos + Vector2(0, -p.radius * 0.25), p.radius * 0.6, smk_core)
 
 	# 3. VÒNG TỰA KHÓA MỤC TIÊU & TIA LASER NGẮM (Laser Sight dọc theo trục nòng súng)
-	if is_instance_valid(current_target) and not current_target.is_queued_for_deletion():
+	if (is_selected or _muzzle_flash_timer > 0.0 or _recoil_time > 0.0) and is_instance_valid(current_target) and not current_target.is_queued_for_deletion():
 		var target_local = to_local(current_target.global_position + Vector2(0, -22.0))
 		var muzzle_local = get_muzzle_local_pos()
 		var laser_dist = muzzle_local.distance_to(target_local)

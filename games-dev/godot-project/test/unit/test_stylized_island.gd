@@ -1804,5 +1804,85 @@ func test_web_bridge_battle_summary_payload() -> void:
 	for t in scene.towers_container.get_children():
 		t.free()
 
+func test_static_atmosphere_layer_and_webbridge_summary() -> void:
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	# 1. Xác thực Node khí quyển tĩnh (StaticAtmosphereLayer) hoạt động độc lập
+	assert_not_null(scene.static_atmosphere_layer, "static_atmosphere_layer được khởi tạo trong _ready")
+	assert_true(scene.static_atmosphere_layer is Node2D, "static_atmosphere_layer là Node2D")
+	assert_eq(scene.static_atmosphere_layer.name, "StaticAtmosphereLayer", "Tên node là StaticAtmosphereLayer")
+	assert_eq(scene.static_atmosphere_layer.z_index, 25, "Lớp khí quyển tĩnh có z_index = 25 trên đại lục")
+	assert_true(scene.static_atmosphere_layer.is_inside_tree(), "Lớp khí quyển tĩnh nằm trong cây SceneTree")
+
+	# 2. Thiết lập dữ liệu chiến trận giả lập để kiểm thử WebBridge
+	scene.score = 12500
+	scene.current_wave = 12
+	scene.highest_wave = 12
+	scene.highest_endless_wave = 18
+	scene.is_hardcore_mode = true
+	scene.is_endless_mode = true
+	scene.base_health = 18
+
+	# Reset & mở khóa toàn bộ 3 huy hiệu
+	scene.medal_boss_hunter = false
+	scene.medal_combo_master = false
+	scene.medal_flawless_fortress = false
+	scene.unlock_medal("boss_hunter", "SÁT THỦ HUYỀN THOẠI", "Hạ gục Boss!")
+	scene.unlock_medal("combo_master", "ĐẠI SƯ PHỐI HỢP", "Kích hoạt 10 combo!")
+	scene.unlock_medal("flawless_fortress", "PHÁO ĐÀI BẤT DIỆT", "Hoàn thành không mất máu!")
+
+	# Dựng tháp MVP và ghi nhận sát thương
+	var tesla = scene._build_tower_at_position(Vector2(250, 260), TowerScript.TowerType.TESLA_COIL, true)
+	tesla.record_damage_dealt(5400, true)
+	tesla.level = 3
+
+	# 3. Kiểm thử get_battle_summary()
+	var summary = scene.get_battle_summary()
+	assert_eq(typeof(summary), TYPE_DICTIONARY, "get_battle_summary() trả về Dictionary")
+	assert_eq(summary["score"], 12500, "Điểm số khớp dữ liệu trận đấu")
+	assert_true(summary.has("stars"), "summary có khóa stars")
+	assert_eq(summary["current_wave"], 12, "current_wave là 12")
+	assert_eq(summary["highest_endless_wave"], 18, "highest_endless_wave là 18")
+	assert_true(summary["is_hardcore"], "is_hardcore là true")
+	assert_true(summary["is_endless_mode"], "is_endless_mode là true")
+	assert_eq(summary["mvp_tower"], tesla, "mvp_tower là tháp tesla")
+	assert_true(summary.has("mvp_tower_data"), "summary có mvp_tower_data")
+	assert_eq(summary["mvp_tower_data"]["name"], AnimatedTower.get_tower_name(TowerScript.TowerType.TESLA_COIL), "Tên MVP là Tháp Sấm Sét Tesla")
+	assert_eq(summary["mvp_tower_data"]["tier"], 3, "Cấp độ MVP là 3")
+	assert_eq(summary["mvp_tower_data"]["damage"], 5400, "Sát thương MVP là 5400")
+	assert_true(summary.has("medals"), "summary có khóa medals")
+	assert_true(summary["medals"]["boss_hunter"], "boss_hunter mở khóa")
+	assert_true(summary["medals"]["combo_master"], "combo_master mở khóa")
+	assert_true(summary["medals"]["flawless_fortress"], "flawless_fortress mở khóa")
+	assert_eq(summary["medals"]["unlocked_medals_count"], 3, "Đủ 3/3 huy hiệu")
+
+	# 4. Kiểm thử get_web_battle_payload() gửi qua WebBridge
+	var payload = scene.get_web_battle_payload(summary)
+	assert_eq(typeof(payload), TYPE_DICTIONARY, "Payload gửi web là Dictionary")
+	assert_eq(payload["score"], 12500, "WebBridge nhận đúng điểm số 12500")
+	assert_eq(payload["current_wave"], 12, "WebBridge nhận đúng wave 12")
+	assert_eq(payload["highest_endless_wave"], 18, "WebBridge nhận đúng wave vô tận 18")
+	assert_true(payload["is_hardcore"], "WebBridge nhận đúng cờ hardcore")
+	assert_true(payload["is_endless_mode"], "WebBridge nhận đúng cờ endless")
+	assert_eq(typeof(payload["mvp_tower"]), TYPE_DICTIONARY, "mvp_tower gửi web là Dictionary chuẩn JSON")
+	assert_eq(payload["mvp_tower"]["name"], AnimatedTower.get_tower_name(TowerScript.TowerType.TESLA_COIL), "mvp_tower name đúng")
+	assert_eq(payload["mvp_tower"]["tier"], 3, "mvp_tower tier đúng")
+	assert_eq(payload["mvp_tower"]["damage"], 5400, "mvp_tower damage đúng")
+	assert_true(payload["mvp_tower"].has("kills"), "mvp_tower có trường kills")
+	assert_true(payload["medals"]["boss_hunter"], "WebBridge medals boss_hunter true")
+	assert_true(payload["medals"]["combo_master"], "WebBridge medals combo_master true")
+	assert_true(payload["medals"]["flawless_fortress"], "WebBridge medals flawless_fortress true")
+	assert_eq(payload["medals"]["unlocked_medals_count"], 3, "WebBridge 3 medals count")
+
+	# 5. Kiểm thử serialize JSON an toàn
+	var json_str = JSON.stringify(payload)
+	var parsed = JSON.parse_string(json_str)
+	assert_eq(typeof(parsed), TYPE_DICTIONARY, "JSON parse lại thành Dictionary")
+	assert_eq(int(parsed["score"]), 12500, "JSON bảo toàn điểm số")
+
+	for t in scene.towers_container.get_children():
+		t.free()
+
 func after_each() -> void:
 	Engine.time_scale = 1.0

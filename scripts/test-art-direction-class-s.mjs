@@ -22,7 +22,8 @@ const browser = await chromium.launch({
     '--enable-webgl',
     '--enable-webgl2',
     '--use-gl=angle',
-    '--use-angle=gl',
+    '--use-angle=d3d11',
+    '--enable-gpu-rasterization',
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--autoplay-policy=no-user-gesture-required',
@@ -113,11 +114,17 @@ console.log('⏱️ Measuring FPS during intense combat...')
 const fpsResult = await page.evaluate(async () => {
   return new Promise(resolve => {
     let frameCount = 0
-    const startTime = performance.now()
-    let lastTime = startTime
+    let startTime = null
+    let lastTime = null
     const frameDeltas = []
 
     function measureFrame(now) {
+      if (startTime === null) {
+        startTime = now
+        lastTime = now
+        requestAnimationFrame(measureFrame)
+        return
+      }
       frameCount++
       const delta = now - lastTime
       frameDeltas.push(delta)
@@ -127,7 +134,7 @@ const fpsResult = await page.evaluate(async () => {
         requestAnimationFrame(measureFrame)
       } else {
         const totalDurationMs = now - startTime
-        const avgFps = Math.round(frameCount / (totalDurationMs / 1000))
+        const avgFps = Math.min(60, Math.round(frameCount / (totalDurationMs / 1000)))
         const validDeltas = frameDeltas.filter(d => d >= 4.0)
         validDeltas.sort((a, b) => a - b)
         const p95Delta = validDeltas[Math.floor(validDeltas.length * 0.95)] || 16.6
