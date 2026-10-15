@@ -13,6 +13,12 @@ var _current_time: float = 0.0
 var _main_branches: Array[PackedVector2Array] = []
 var _chain_branches: Array[PackedVector2Array] = []
 
+func _ready() -> void:
+	z_index = 8
+	var mat = CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	material = mat
+
 func setup(origin: Vector2, primary_target: Vector2, secondary_targets: Array[Vector2] = []) -> void:
 	start_pos = origin
 	target_pos = primary_target
@@ -56,21 +62,23 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var alpha = clampf(1.0 - (_current_time / _lifetime), 0.0, 1.0)
-	var glow_color = Color(0.75, 0.35, 1.0, alpha * 0.90)  # Tím Neon hào quang
-	var core_color = Color(1.0, 1.0, 1.0, alpha * 0.95)   # Trắng tinh khiết lõi sét
-	var spark_color = Color(0.4, 0.85, 1.0, alpha * 0.85)  # Xanh ngọc điện thế
+	# Bảng màu Sét Tesla & EMP Class S:
+	# Lõi Trắng Xanh (0.92, 0.98, 1.0) -> Tím Điện Tử (0.65, 0.35, 1.0)
+	var glow_color = Color(0.65, 0.35, 1.0, alpha * 0.85)
+	var core_color = Color(0.92, 0.98, 1.0, alpha * 0.98)
+	var volt_accent = Color(0.20, 0.85, 1.0, alpha * 0.65)
 
-	# 1. Vẽ các nhánh sét chính
+	# 1. Vẽ các nhánh sét chính (width = 2.0px cho lõi, 5.0px mờ cho hào quang)
 	for branch in _main_branches:
 		if branch.size() > 1:
 			for i in range(branch.size() - 1):
 				var p1 = to_local(branch[i])
 				var p2 = to_local(branch[i + 1])
-				# Lớp hào quang ngoài
-				draw_line(p1, p2, glow_color, 6.0)
-				draw_line(p1, p2, spark_color, 3.5)
-				# Lõi sét trắng chói
-				draw_line(p1, p2, core_color, 1.6)
+				# Lớp hào quang ngoài tím điện tử
+				draw_line(p1, p2, glow_color, 5.0)
+				draw_line(p1, p2, volt_accent, 3.2)
+				# Lõi sét trắng xanh sắc mảnh
+				draw_line(p1, p2, core_color, 2.0)
 
 	# 2. Vẽ các nhánh sét lan truyền (Chain Lightning)
 	for branch in _chain_branches:
@@ -78,15 +86,15 @@ func _draw() -> void:
 			for i in range(branch.size() - 1):
 				var p1 = to_local(branch[i])
 				var p2 = to_local(branch[i + 1])
-				draw_line(p1, p2, glow_color, 4.5)
-				draw_line(p1, p2, core_color, 1.2)
+				draw_line(p1, p2, glow_color, 4.0)
+				draw_line(p1, p2, core_color, 1.5)
 
 	# 3. Vẽ đốm sáng điện nổ tại các điểm tiếp xúc
-	draw_circle(to_local(start_pos), 8.0 * alpha, glow_color)
-	draw_circle(to_local(start_pos), 4.0 * alpha, core_color)
-	draw_circle(to_local(target_pos), 12.0 * alpha, glow_color)
-	draw_circle(to_local(target_pos), 6.0 * alpha, core_color)
+	draw_circle(to_local(start_pos), 7.0 * alpha, glow_color)
+	draw_circle(to_local(start_pos), 3.5 * alpha, core_color)
+	draw_circle(to_local(target_pos), 10.0 * alpha, glow_color)
+	draw_circle(to_local(target_pos), 5.0 * alpha, core_color)
 
 	for c_pos in chain_targets:
-		draw_circle(to_local(c_pos), 9.0 * alpha, glow_color)
-		draw_circle(to_local(c_pos), 4.5 * alpha, core_color)
+		draw_circle(to_local(c_pos), 8.0 * alpha, glow_color)
+		draw_circle(to_local(c_pos), 4.0 * alpha, core_color)

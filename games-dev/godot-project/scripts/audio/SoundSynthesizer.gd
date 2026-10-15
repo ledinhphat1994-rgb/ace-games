@@ -39,8 +39,9 @@ static func get_shared(caller: Node = null) -> SoundSynthesizer:
 		if not is_instance_valid(_shared_instance):
 			_shared_instance = SoundSynthesizer.new()
 			_shared_instance.name = "SharedSoundSynth"
-		if not _shared_instance.is_inside_tree() and _shared_instance.get_parent() == null:
-			root.add_child(_shared_instance)
+		if not _is_adding_to_root and not _shared_instance.is_inside_tree() and _shared_instance.get_parent() == null:
+			_is_adding_to_root = true
+			root.add_child.call_deferred(_shared_instance)
 		return _shared_instance
 
 	if not is_instance_valid(_shared_instance):
@@ -54,8 +55,9 @@ func _attach_to_tree_if_needed() -> void:
 	var loop = Engine.get_main_loop()
 	if loop is SceneTree:
 		var root = (loop as SceneTree).root
-		if root and not is_inside_tree() and get_parent() == null:
-			root.add_child(self)
+		if not _is_adding_to_root and root and not is_inside_tree() and get_parent() == null:
+			_is_adding_to_root = true
+			root.add_child.call_deferred(self)
 
 
 var _shot_players: Array[AudioStreamPlayer] = []

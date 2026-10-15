@@ -401,43 +401,74 @@ func _get_spawn_parent() -> Node:
 	return null
 
 func _spawn_gatling_sparks(pos: Vector2) -> void:
+	var spawn_parent = _get_spawn_parent()
+	if not spawn_parent:
+		return
+
+	# Lõi nổ Động Năng Additive (Thermal & Kinetic Palette: Trắng Vàng -> Cam Lửa)
+	var add_mat = CanvasItemMaterial.new()
+	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+
 	var burst = Sprite2D.new()
 	burst.texture = TexExplosion
 	burst.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	burst.material = add_mat
 	burst.global_position = pos
 	burst.scale = Vector2(0.18, 0.18)
-	burst.modulate = Color(1.3, 0.9, 0.2, 1.0)
-	var spawn_parent = _get_spawn_parent()
-	if spawn_parent:
-		spawn_parent.add_child(burst)
+	burst.modulate = Color(1.0, 0.98, 0.85, 1.0) # Lõi Trắng Vàng
+	burst.z_index = 8
+	spawn_parent.add_child(burst)
 
 	var tween = burst.create_tween()
 	tween.tween_property(burst, "scale", Vector2(0.42, 0.42), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(burst, "modulate:a", 0.0, 0.14)
+	tween.parallel().tween_property(burst, "modulate", Color(1.0, 0.55, 0.15, 0.0), 0.14) # Chuyển Cam Lửa
 	tween.tween_callback(burst.queue_free)
 
+	# Viền khói đen mờ (0.12, 0.10, 0.08, 0.35)
+	var smoke_rim = Sprite2D.new()
+	smoke_rim.texture = TexExplosion
+	smoke_rim.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	smoke_rim.global_position = pos
+	smoke_rim.scale = Vector2(0.20, 0.20)
+	smoke_rim.modulate = Color(0.12, 0.10, 0.08, 0.35)
+	smoke_rim.z_index = 7
+	spawn_parent.add_child(smoke_rim)
+
+	var tween_s = smoke_rim.create_tween()
+	tween_s.tween_property(smoke_rim, "scale", Vector2(0.48, 0.48), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween_s.parallel().tween_property(smoke_rim, "modulate:a", 0.0, 0.18)
+	tween_s.tween_callback(smoke_rim.queue_free)
+
 func _spawn_plasma_shockwave(pos: Vector2, radius: float) -> void:
+	var spawn_parent = _get_spawn_parent()
+	if not spawn_parent:
+		return
+
+	# Lõi nổ Plasma Additive (Arcane Palette: Trắng Tinh Khiết -> Xanh Thiên Thanh -> Tàn Xanh Dương)
+	var add_mat = CanvasItemMaterial.new()
+	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+
 	var burst = Sprite2D.new()
 	burst.texture = TexExplosion
 	burst.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	burst.material = add_mat
 	burst.global_position = pos
 	burst.scale = Vector2(0.35, 0.35)
-	burst.modulate = Color(0.3, 1.1, 1.2, 1.0)
-	var spawn_parent = _get_spawn_parent()
-	if spawn_parent:
-		spawn_parent.add_child(burst)
+	burst.modulate = Color(1.0, 1.0, 1.0, 1.0) # Lõi Trắng Tinh Khiết
+	burst.z_index = 8
+	spawn_parent.add_child(burst)
 
 	var tween = burst.create_tween()
 	tween.tween_property(burst, "scale", Vector2(0.85, 0.85), 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(burst, "modulate:a", 0.0, 0.26)
+	tween.parallel().tween_property(burst, "modulate", Color(0.20, 0.85, 1.0, 0.25), 0.16) # Xanh Thiên Thanh
+	tween.parallel().tween_property(burst, "modulate", Color(0.10, 0.45, 0.95, 0.0), 0.26) # Tàn Xanh Dương
 	tween.tween_callback(burst.queue_free)
 
 	var shockwave = Node2D.new()
 	shockwave.global_position = pos
 	shockwave.set_script(load("res://scripts/stylized/ShockwaveRing.gd"))
-	if spawn_parent:
-		spawn_parent.add_child(shockwave)
-	shockwave.call("trigger", radius, Color(0.2, 0.95, 1.0, 0.85))
+	spawn_parent.add_child(shockwave)
+	shockwave.call("trigger", radius, Color(0.20, 0.85, 1.0, 0.90))
 
 func _spawn_damage_number(pos: Vector2, dmg_val: int, col: Color) -> void:
 	var label = Label.new()

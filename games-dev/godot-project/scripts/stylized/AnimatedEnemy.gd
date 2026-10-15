@@ -407,6 +407,7 @@ func _ready() -> void:
 	sound_synth = SoundSynthesizer.get_shared(self)
 
 	visual_root = Node2D.new()
+	visual_root.z_index = 1 # Bảo vệ Hình bóng Nhân vật (Silhouette): Thân luôn hiển thị trên hào quang chân
 	add_child(visual_root)
 
 	sprite = Sprite2D.new()
@@ -775,9 +776,9 @@ func _update_limb_animation(delta: float, current_speed: float = -1.0) -> void:
 			var ghost_x = cos(_time_alive * 3.0) * 3.5
 			sprite.position = Vector2(ghost_x, -14.0 + ghost_y)
 
-	# Chớp trắng khi dính đạn
+	# Chớp trắng khi dính đòn nặng / chí mạng (Nháy sáng trắng mượt trong 0.06s)
 	if _hit_flash > 0.0:
-		_hit_flash = maxf(0.0, _hit_flash - delta * 6.5)
+		_hit_flash = maxf(0.0, _hit_flash - delta * 16.67)
 		sprite.modulate = Color.WHITE.lerp(Color(2.5, 2.5, 2.5), _hit_flash)
 		if mech_leg_left:
 			mech_leg_left.modulate = sprite.modulate
@@ -1063,32 +1064,41 @@ func _draw() -> void:
 	if _is_dead:
 		return
 
-	# Hào quang năng lượng dưới chân Boss
+	# Hào quang năng lượng dưới chân Boss (Chuẩn dẹt Isometric ry = rx * 0.52 bám sát đất, bảo vệ Silhouette)
 	if is_boss:
 		var halo_pulse = sin(_time_alive * (10.0 if _overdrive_triggered else 6.0)) * 4.0
-		var halo_color = Color(1.0, 0.20, 0.05, 0.95) if _overdrive_triggered else Color(1.0, 0.3, 0.15, 0.80)
-		var halo_fill = Color(1.0, 0.15, 0.05, 0.25) if _overdrive_triggered else Color(1.0, 0.2, 0.1, 0.15)
-		draw_arc(Vector2(0.0, -2.0), 38.0 + halo_pulse, 0, TAU, 32, halo_color, 3.5 if _overdrive_triggered else 3.0)
-		draw_circle(Vector2(0.0, -2.0), 38.0 + halo_pulse, halo_fill)
+		var halo_color = Color(1.0, 0.20, 0.05, 0.95) if _overdrive_triggered else Color(1.0, 0.35, 0.15, 0.80)
+		var halo_fill = Color(1.0, 0.15, 0.05, 0.20) if _overdrive_triggered else Color(1.0, 0.22, 0.10, 0.12)
 
-		# SPRINT 6: Vòng cảnh báo tích xung nhiễu & Trạng thái Lộ Điểm Yếu
+		draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.52))
+		draw_arc(Vector2.ZERO, 38.0 + halo_pulse, 0, TAU, 36, halo_color, 3.5 if _overdrive_triggered else 2.6)
+		draw_circle(Vector2.ZERO, 38.0 + halo_pulse, halo_fill)
+
+		# SPRINT 6: Vòng cảnh báo tích xung nhiễu (Bảng màu Năng Lượng & Sét EMP: Tím Điện Tử 0.65, 0.35, 1.0 & Xanh Thiên Thanh 0.20, 0.85, 1.0)
 		if is_jamming:
 			var warn_rad = 25.0 + 45.0 * clampf(jamming_timer / 2.0, 0.0, 1.0)
-			draw_arc(Vector2(0.0, -2.0), warn_rad, 0, TAU, 32, Color(0.9, 0.15, 0.8, 0.95), 2.8)
-			draw_circle(Vector2(0.0, -2.0), warn_rad, Color(0.9, 0.1, 0.7, 0.15))
-			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -118.0), "TÍCH XUNG NHIỄU!", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(1.0, 0.3, 0.85))
+			draw_arc(Vector2.ZERO, warn_rad, 0, TAU, 36, Color(0.65, 0.35, 1.0, 0.95), 2.8)
+			draw_circle(Vector2.ZERO, warn_rad, Color(0.65, 0.35, 1.0, 0.12))
+			draw_arc(Vector2.ZERO, warn_rad * 0.94, 0, TAU, 36, Color(0.20, 0.85, 1.0, 0.60), 1.2)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -118.0), "TÍCH XUNG NHIỄU!", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.75, 0.50, 1.0))
 		elif is_vulnerable:
 			var vuln_pulse = 0.5 + 0.5 * sin(_time_alive * 12.0)
-			draw_arc(Vector2(0.0, -2.0), 42.0, 0, TAU, 32, Color(0.2, 0.95, 1.0, 0.85 + 0.15 * vuln_pulse), 3.0)
+			draw_arc(Vector2.ZERO, 42.0, 0, TAU, 36, Color(0.2, 0.95, 1.0, 0.85 + 0.15 * vuln_pulse), 3.0)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -118.0), "LỘ ĐIỂM YẾU (+25%)", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.2, 0.95, 1.0))
+		else:
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-	# Hào quang năng lượng hỗ trợ dưới chân Quái Hộ Vệ (Support Mech)
+	# Hào quang năng lượng hỗ trợ dưới chân Quái Hộ Vệ (Support Mech) chuẩn Isometric
 	if variant == EnemyVariant.SUPPORT:
 		var sup_pulse = sin(_time_alive * 4.0) * 3.5
 		var sup_col = Color(0.2, 1.0, 0.65, 0.85)
-		var sup_fill = Color(0.2, 1.0, 0.65, 0.12)
-		draw_arc(Vector2(0.0, -2.0), 32.0 + sup_pulse, 0, TAU, 32, sup_col, 2.2)
-		draw_circle(Vector2(0.0, -2.0), 32.0 + sup_pulse, sup_fill)
+		var sup_fill = Color(0.2, 1.0, 0.65, 0.10)
+		draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.52))
+		draw_arc(Vector2.ZERO, 32.0 + sup_pulse, 0, TAU, 36, sup_col, 2.2)
+		draw_circle(Vector2.ZERO, 32.0 + sup_pulse, sup_fill)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# Bóng đổ bám đất cho đơn vị bay lơ lửng (Aerial Drone & Winged Bot)
 	if is_flying or variant == EnemyVariant.AIR_DRONE or enemy_type == EnemyType.WINGED_BOT:
@@ -1602,7 +1612,9 @@ func _spawn_combat_text(txt: String, col: Color, font_sz: int = 14) -> void:
 	_last_combat_text_time = cur_time
 
 	var spawn_y = (-90.0 if is_boss else -60.0) - _combat_text_stack_offset
-	label.global_position = global_position + Vector2(randf_range(-16.0, 16.0), spawn_y)
+	# Chữ sát thương văng lệch sang hai bên vai (-26..-12 hoặc +12..+26) để phần thân giữa của Boss luôn nhìn rõ 100%
+	var shoulder_x = randf_range(-26.0, -12.0) if randf() < 0.5 else randf_range(12.0, 26.0)
+	label.global_position = global_position + Vector2(shoulder_x, spawn_y)
 	label.z_index = 30
 	get_tree().current_scene.add_child(label)
 	_recent_combat_labels.append(label)

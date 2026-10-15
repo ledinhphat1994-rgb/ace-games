@@ -263,6 +263,27 @@ static var tech_damage_mult: float = 1.0
 static var tech_range_mult: float = 1.0
 static var tech_speed_mult: float = 1.0
 
+static var _static_ao_shadow_poly: PackedVector2Array = PackedVector2Array()
+static var _static_plinth_poly: PackedVector2Array = PackedVector2Array()
+static var _static_plinth_pins: Array[Vector2] = []
+
+static func _ensure_static_plinth() -> void:
+	if _static_ao_shadow_poly.size() > 0:
+		return
+	var center_ground = Vector2(0.0, 4.0)
+	var ao_rx = 34.0
+	var ao_ry = 18.0
+	for i in range(24):
+		var ang = float(i) * TAU / 24.0
+		_static_ao_shadow_poly.append(center_ground + Vector2(cos(ang) * ao_rx, sin(ang) * ao_ry))
+	var plinth_rx = 28.0
+	var plinth_ry = 14.0
+	for i in range(24):
+		var ang = float(i) * TAU / 24.0
+		_static_plinth_poly.append(center_ground + Vector2(cos(ang) * plinth_rx, sin(ang) * plinth_ry))
+	for pin_ang in [PI * 0.25, PI * 0.75, PI * 1.25, PI * 1.75]:
+		_static_plinth_pins.append(center_ground + Vector2(cos(pin_ang) * plinth_rx * 0.88, sin(pin_ang) * plinth_ry * 0.88))
+
 enum TargetPriority {
 	FIRST = 0,     # Ưu tiên quái tiến xa nhất trên đường đi (gần căn cứ nhất)
 	STRONGEST = 1, # Ưu tiên quái có nhiều máu + khiên nhất (Diệt Boss / Mech bọc thép)
@@ -443,6 +464,10 @@ var sprite_head: Sprite2D = null
 var _base_scale: float = 0.18
 var sound_synth: SoundSynthesizer = null
 
+# Vòng bụi trắng tiếp đất (Ground Dust Ring)
+var _ground_dust_radius: float = 0.0
+var _ground_dust_alpha: float = 0.0
+
 signal tower_fired(tower: Node2D, target: Node2D)
 signal tower_upgraded(tower: Node2D, new_level: int)
 
@@ -509,6 +534,9 @@ func setup(type: TowerType) -> void:
 func _ready() -> void:
 	add_to_group("animated_towers")
 	sound_synth = SoundSynthesizer.get_shared(self)
+
+	# Hiệu ứng "Dậm xuống đất" (Drop-in bounce) khi xây tháp mới
+	play_drop_in_bounce()
 
 	# 1. LAYER 1: ĐẾ THÁP (BASE) CỐ ĐỊNH 100% TRÊN BỆ ĐÁ TRÒN (KHÔNG BAO GIỜ NHẬN LỆNH ROTATE)
 	sprite_base = Sprite2D.new()
@@ -931,9 +959,8 @@ func _fire_gatling(target: Node2D) -> void:
 
 	var eff_dmg = get_effective_damage() * _ramp_multiplier
 
-	# Độ giật lùi nòng súng trượt dọc theo trục nòng (Recoil)
-	_recoil_offset = -_aim_dir * 4.5
-	_recoil_time = 0.06
+	# Độ giật lùi nòng súng & Hoạt họa Nhún (Squash & Stretch Recoil trong 0.12s)
+	play_recoil_squash(_aim_dir)
 
 	# Chớp lửa đầu nòng dạng sao (Star Muzzle Flash) từ video
 	_muzzle_flash_timer = 0.06
@@ -999,9 +1026,8 @@ func _fire_plasma_start(_target: Node2D) -> void:
 func _execute_plasma_blast(target: Node2D) -> void:
 	emit_signal("tower_fired", self, target)
 
-	# Độ giật lùi nòng súng trượt dọc theo trục nòng (Recoil)
-	_recoil_offset = -_aim_dir * 8.5
-	_recoil_time = 0.20
+	# Độ giật lùi nòng súng & Hoạt họa Nhún
+	play_recoil_squash(_aim_dir)
 
 	if sprite_head:
 		var base_sc = Vector2(_base_scale, _base_scale)
@@ -1031,8 +1057,7 @@ func _execute_plasma_blast(target: Node2D) -> void:
 func _fire_tesla(target: Node2D) -> void:
 	emit_signal("tower_fired", self, target)
 
-	_recoil_offset = Vector2(randf_range(-2.0, 2.0), -3.0)
-	_recoil_time = 0.16
+	play_recoil_squash(Vector2(0, 1.0))
 
 	var origin_pos = global_position + Vector2(0, -88.0)
 	var primary_hit_pos = target.global_position + Vector2(0, -22.0)
@@ -1076,8 +1101,7 @@ func _fire_tesla(target: Node2D) -> void:
 ## 4. SAM BATTERY: Bắn tên lửa tầm xa ưu tiên quái bay
 func _fire_sam(target: Node2D) -> void:
 	emit_signal("tower_fired", self, target)
-	_recoil_offset = -_aim_dir * 5.0
-	_recoil_time = 0.14
+	play_recoil_squash(_aim_dir)
 	var muzzle_pos = global_position + get_muzzle_local_pos()
 	_spawn_muzzle_smoke(muzzle_pos, _aim_dir)
 	var proj = ProjectileClass.new()
@@ -1234,6 +1258,7 @@ func upgrade() -> bool:
 	attack_cooldown = maxf(0.08, attack_cooldown * 0.88)
 
 	_trigger_upgrade_halo()
+	play_drop_in_bounce()
 
 	if sound_synth:
 		sound_synth.play_upgrade()
@@ -1255,16 +1280,50 @@ func _trigger_upgrade_halo() -> void:
 		var tween_s = sprite_head.create_tween()
 		tween_s.tween_property(sprite_head, "scale", base_sc, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+## Hoạt họa Nhún & Giật Nòng (Squash & Stretch Recoil trong 0.12s)
+func play_recoil_squash(shoot_dir: Vector2) -> void:
+	_recoil_offset = -shoot_dir.normalized() * 3.5
+	_recoil_time = 0.12
+	var tw = create_tween()
+	tw.tween_property(self, "scale", Vector2(1.08, 0.93), 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector2(1.0, 1.0), 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+## Hoạt ảnh "Dậm xuống đất" (Drop-in bounce) khi xây hoặc nâng cấp tháp
+func play_drop_in_bounce() -> void:
+	scale = Vector2(0.6, 1.35)
+	_ground_dust_radius = 8.0
+	_ground_dust_alpha = 0.95
+	var tw = create_tween()
+	tw.tween_property(self, "scale", Vector2(1.12, 0.88), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(self, "scale", Vector2(1.0, 1.0), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	var tw_dust = create_tween()
+	tw_dust.tween_property(self, "_ground_dust_radius", 38.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw_dust.parallel().tween_property(self, "_ground_dust_alpha", 0.0, 0.35)
+
 func _draw() -> void:
-	# 0. BÓNG ĐỔ TIẾP ĐẤT CHO TRỤ 2.5D (Isometric Base Shadow)
-	var shadow_poly = PackedVector2Array()
-	var shadow_rx = 30.0
-	var shadow_ry = 15.0
-	var shadow_center = Vector2(0.0, 4.0)
-	for i in range(24):
-		var ang = float(i) * TAU / 24.0
-		shadow_poly.append(shadow_center + Vector2(cos(ang) * shadow_rx, sin(ang) * shadow_ry))
-	draw_colored_polygon(shadow_poly, Color(0.0, 0.0, 0.0, 0.38))
+	# 0. BỆ ĐÁ CỔ NGỮ ISOMETRIC 2 LỚP & BÓNG TIẾP ĐẤT DƯỚI CHÂN TRỤ (GROUNDING & TACTICAL STONE PLINTH)
+	_ensure_static_plinth()
+	var center_ground = Vector2(0.0, 4.0)
+
+	# Lớp 1 (Ambient Occlusion Shadow): Elip đen mềm rx = 34, ry = 18, Color(0.02, 0.04, 0.06, 0.45)
+	draw_colored_polygon(_static_ao_shadow_poly, Color(0.02, 0.04, 0.06, 0.45))
+
+	# Lớp 2 (Tactical Stone Plinth): Vòng elip viền đá/kim loại mỏng rx = 28, ry = 14, Color(0.22, 0.28, 0.35, 0.65)
+	draw_colored_polygon(_static_plinth_poly, Color(0.12, 0.16, 0.22, 0.60))
+	draw_polyline(_static_plinth_poly, Color(0.22, 0.28, 0.35, 0.65), 1.6)
+
+	# 4 chốt góc kim loại nhỏ (Metal Corner Pins) tại 45°, 135°, 225°, 315°
+	for pin_pos in _static_plinth_pins:
+		draw_circle(pin_pos, 2.2, Color(0.35, 0.42, 0.52, 0.85))
+		draw_circle(pin_pos, 1.2, Color(0.70, 0.80, 0.90, 0.95))
+
+	# Vòng bụi trắng tỏa ra quanh chân đế khi xây / nâng cấp
+	if _ground_dust_alpha > 0.01:
+		draw_set_transform(center_ground, 0.0, Vector2(1.0, 0.52))
+		draw_arc(Vector2.ZERO, _ground_dust_radius, 0, TAU, 36, Color(0.92, 0.95, 1.0, _ground_dust_alpha * 0.70), 2.5)
+		draw_arc(Vector2.ZERO, _ground_dust_radius * 0.75, 0, TAU, 36, Color(1.0, 1.0, 1.0, _ground_dust_alpha * 0.40), 1.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# 1. KHÓI SÚNG (Gun Smoke Puffs)
 	for p in _smoke_puffs:

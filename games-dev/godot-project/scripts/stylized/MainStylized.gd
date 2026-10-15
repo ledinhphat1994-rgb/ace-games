@@ -62,6 +62,98 @@ const TexPlacementMask = preload("res://assets/textures/placement_mask.png")
 
 var placement_mask_image: Image = null
 
+# Khởi tạo 20 hạt bụi phép thuật phát sáng (Floating Golden/Cyan Motes, bán kính 1.5 - 2.5px)
+const FLOATING_MOTES_DATA: Array[Dictionary] = [
+	{"x": 310.0, "y": 290.0, "r": 2.1, "speed": 18.0, "is_cyan": false, "phase": 0.3},
+	{"x": 420.0, "y": 340.0, "r": 1.7, "speed": 14.0, "is_cyan": true,  "phase": 1.1},
+	{"x": 490.0, "y": 270.0, "r": 2.4, "speed": 16.0, "is_cyan": false, "phase": 2.4},
+	{"x": 560.0, "y": 390.0, "r": 1.9, "speed": 20.0, "is_cyan": true,  "phase": 0.8},
+	{"x": 620.0, "y": 310.0, "r": 2.3, "speed": 15.0, "is_cyan": false, "phase": 3.2},
+	{"x": 680.0, "y": 440.0, "r": 1.6, "speed": 19.0, "is_cyan": true,  "phase": 1.7},
+	{"x": 740.0, "y": 350.0, "r": 2.5, "speed": 17.0, "is_cyan": false, "phase": 4.1},
+	{"x": 810.0, "y": 420.0, "r": 1.8, "speed": 22.0, "is_cyan": true,  "phase": 2.9},
+	{"x": 860.0, "y": 300.0, "r": 2.2, "speed": 13.0, "is_cyan": false, "phase": 5.0},
+	{"x": 920.0, "y": 460.0, "r": 1.5, "speed": 18.0, "is_cyan": true,  "phase": 0.5},
+	{"x": 970.0, "y": 330.0, "r": 2.0, "speed": 16.0, "is_cyan": false, "phase": 3.7},
+	{"x": 1030.0, "y": 410.0, "r": 2.4, "speed": 21.0, "is_cyan": true,  "phase": 1.4},
+	{"x": 1090.0, "y": 360.0, "r": 1.7, "speed": 15.0, "is_cyan": false, "phase": 4.6},
+	{"x": 1140.0, "y": 450.0, "r": 2.2, "speed": 19.0, "is_cyan": true,  "phase": 2.2},
+	{"x": 510.0, "y": 510.0, "r": 1.8, "speed": 17.0, "is_cyan": false, "phase": 5.8},
+	{"x": 640.0, "y": 540.0, "r": 2.3, "speed": 14.0, "is_cyan": true,  "phase": 0.9},
+	{"x": 780.0, "y": 490.0, "r": 1.6, "speed": 23.0, "is_cyan": false, "phase": 3.5},
+	{"x": 890.0, "y": 530.0, "r": 2.0, "speed": 16.0, "is_cyan": true,  "phase": 1.9},
+	{"x": 1020.0, "y": 520.0, "r": 2.5, "speed": 18.0, "is_cyan": false, "phase": 4.3},
+	{"x": 1120.0, "y": 500.0, "r": 1.9, "speed": 20.0, "is_cyan": true,  "phase": 2.7}
+]
+
+# Tọa độ 3 luồng nắng xiên 35° tĩnh (Static Sunbeams Polygons)
+var SUNBEAM_1_POLY: PackedVector2Array = PackedVector2Array([
+	Vector2(-80.0, -10.0),
+	Vector2(60.0, -10.0),
+	Vector2(1220.0, 780.0),
+	Vector2(1048.0, 780.0)
+])
+var SUNBEAM_2_POLY: PackedVector2Array = PackedVector2Array([
+	Vector2(140.0, -10.0),
+	Vector2(290.0, -10.0),
+	Vector2(1450.0, 780.0),
+	Vector2(1268.0, 780.0)
+])
+var SUNBEAM_3_POLY: PackedVector2Array = PackedVector2Array([
+	Vector2(530.0, -10.0),
+	Vector2(680.0, -10.0),
+	Vector2(1840.0, 780.0),
+	Vector2(1658.0, 780.0)
+])
+
+# Tọa độ viền tối 4 góc màn hình 1376x768 (Static Vignette Polygons)
+var VIGNETTE_TL_POLY: PackedVector2Array = PackedVector2Array([Vector2(0, 0), Vector2(280, 0), Vector2(0, 240)])
+var VIGNETTE_TR_POLY: PackedVector2Array = PackedVector2Array([Vector2(1376, 0), Vector2(1096, 0), Vector2(1376, 240)])
+var VIGNETTE_BL_POLY: PackedVector2Array = PackedVector2Array([Vector2(0, 768), Vector2(280, 768), Vector2(0, 528)])
+var VIGNETTE_BR_POLY: PackedVector2Array = PackedVector2Array([Vector2(1376, 768), Vector2(1096, 768), Vector2(1376, 528)])
+
+## Lớp vẽ 4 dấu ngoặc kim loại chữ L (Corner Brackets 8x8px) ở 4 góc của thẻ UI Class S
+class CornerBrackets extends Control:
+	var bracket_color: Color = Color(0.25, 0.90, 1.0, 0.85)
+	var bracket_size: float = 8.0
+	var bracket_width: float = 1.5
+
+	func _init(col: Color = Color(0.25, 0.90, 1.0, 0.85)) -> void:
+		bracket_color = col
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _ready() -> void:
+		set_anchors_preset(Control.PRESET_FULL_RECT)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var w = size.x
+		var h = size.y
+		var s = bracket_size
+		var col = bracket_color
+		var bw = bracket_width
+		# Top-Left L
+		draw_line(Vector2(0, s), Vector2(0, 0), col, bw)
+		draw_line(Vector2(0, 0), Vector2(s, 0), col, bw)
+		# Top-Right L
+		draw_line(Vector2(w - s, 0), Vector2(w, 0), col, bw)
+		draw_line(Vector2(w, 0), Vector2(w, s), col, bw)
+		# Bottom-Left L
+		draw_line(Vector2(0, h - s), Vector2(0, h), col, bw)
+		draw_line(Vector2(0, h), Vector2(s, h), col, bw)
+		# Bottom-Right L
+		draw_line(Vector2(w - s, h), Vector2(w, h), col, bw)
+		draw_line(Vector2(w, h), Vector2(w, h - s), col, bw)
+
+func _attach_corner_brackets(parent_ctrl: Control, col: Color = Color(0.25, 0.90, 1.0, 0.85)) -> void:
+	if not parent_ctrl:
+		return
+	var existing = parent_ctrl.get_node_or_null("CornerBrackets")
+	if not existing:
+		var brackets = CornerBrackets.new(col)
+		brackets.name = "CornerBrackets"
+		parent_ctrl.add_child(brackets)
+
 
 # Tọa độ tim đường mòn uốn lượn chính xác 100% theo nét vẽ tay trên bản đồ (Chiến trường Đại Lục 1376x768)
 const PATH_WAYPOINTS: Array[Vector2] = [
@@ -1254,7 +1346,14 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 	tower.is_selected = true
 
 	var t_name = AnimatedTower.get_tower_name(tower.tower_type)
-	var t_attr = AnimatedTower.get_tower_tactics(tower.tower_type)
+
+	# Thay (LV.1), (LV.2) bằng hàng ngôi sao vàng rực rỡ ★ ★ ☆
+	var star_str = ""
+	match tower.level:
+		1: star_str = "★ ☆ ☆"
+		2: star_str = "★ ★ ☆"
+		3: star_str = "★ ★ ★"
+		_: star_str = "★ ★ ★"
 
 	var buff_desc = ""
 	if tower.pad_range_mult > 1.0:
@@ -1263,10 +1362,15 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 		buff_desc += " [NĂNG LƯỢNG +15% TỐC]"
 	if tower._buff_decay_timer > 0.0:
 		buff_desc += " [PYLON +15% DMG]"
-	if buff_desc != "":
-		lbl_tower_name.text = "%s (LV %d)%s\n%s" % [t_name, tower.level, buff_desc, t_attr]
-	else:
-		lbl_tower_name.text = "%s (LV %d)\n%s" % [t_name, tower.level, t_attr]
+
+	lbl_tower_name.text = "%s  %s%s" % [t_name, star_str, buff_desc]
+
+	var panel = upgrade_popup.get_node_or_null("Panel") as Control
+	if panel:
+		_attach_corner_brackets(panel, Color(0.25, 0.90, 1.0, 0.90))
+		var vbox = panel.get_node_or_null("VBox") as VBoxContainer
+		if vbox:
+			_update_upgrade_pill_badges(vbox, tower.tower_type)
 
 	var dmg_str = format_number(tower.total_damage_dealt)
 	var stats_str = "Sát thương: %s | Tiêu diệt: %d" % [dmg_str, tower.kill_count]
@@ -2497,6 +2601,12 @@ func _setup_hud_ui() -> void:
 		_style_dock_button(btn_spell, "PHÉP THUẬT", "[F]", Color(1.0, 0.85, 0.25), HudVectorIcon.Type.SPELL_BURST)
 		_style_dock_button(btn_next_wave, "GỌI ĐỢT", "[N]", Color(1.0, 0.42, 0.35), HudVectorIcon.Type.DEFEND_SHIELD)
 
+		# 4 Dấu ngoặc kim loại chữ L ở 4 góc của các nút trên Bottom Command Dock
+		_attach_corner_brackets(btn_build, Color(0.30, 0.95, 1.0, 0.85))
+		_attach_corner_brackets(btn_skill_tree, Color(0.35, 1.0, 0.65, 0.85))
+		_attach_corner_brackets(btn_spell, Color(1.0, 0.85, 0.25, 0.85))
+		_attach_corner_brackets(btn_next_wave, Color(1.0, 0.42, 0.35, 0.85))
+
 	# 8. NÚT BẪY CẦU TRÊN MÀN HÌNH (Touch Action Button [E] >= 48px)
 	if not btn_bridge_emp and hud:
 		btn_bridge_emp = Button.new()
@@ -2509,6 +2619,7 @@ func _setup_hud_ui() -> void:
 		btn_bridge_emp.offset_bottom = -24.0
 		hud.add_child(btn_bridge_emp)
 		_style_dock_button(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]", Color(0.20, 0.90, 1.0), HudVectorIcon.Type.LIGHTNING_EMP)
+		_attach_corner_brackets(btn_bridge_emp, Color(0.20, 0.90, 1.0, 0.85))
 		btn_bridge_emp.pressed.connect(activate_bridge_emp)
 
 	# 8. THIẾT LẬP QUICK TRAYS & CARDS
@@ -2542,6 +2653,7 @@ func _setup_boss_raid_banner() -> void:
 	sb.shadow_color = Color(1.0, 0.25, 0.05, 0.35)
 	sb.shadow_size = 4
 	boss_raid_banner.add_theme_stylebox_override("panel", sb)
+	_attach_corner_brackets(boss_raid_banner, Color(1.0, 0.40, 0.20, 0.90))
 
 	var margin = boss_raid_banner.get_node_or_null("Margin")
 	if not margin:
@@ -3538,6 +3650,9 @@ func _draw() -> void:
 	# 0g. Hiệu ứng Môi trường Sống động (Thác nước, Gợn sóng hồ bến cảng, 3 Cối xay gió, Vòng xoáy portal)
 	_draw_environmental_fx()
 
+	# 0h. ÁNH SÁNG SÂN KHẤU & KHÍ QUYỂN ĐẢO BAY CLASS S (Sunbeams 35°, 20 Floating Motes, Corner Vignette)
+	_draw_stage_lighting_and_atmosphere()
+
 	# 1. Vẽ Vòng Tầm Bắn Chiến Thuật Isometric nét đứt phát sáng màu Xanh Cyan khi chọn trụ
 	if is_instance_valid(selected_tower):
 		_draw_tactical_range_ring(selected_tower)
@@ -3545,3 +3660,127 @@ func _draw() -> void:
 	# 2. Hiển thị chế độ đặt trụ tự do (Placement Mode Preview 2.5D)
 	if is_placing_tower:
 		_draw_placement_preview()
+
+## 2 Huy hiệu Tag nhỏ gọn (Pill Badges) trên UpgradePopup thay cho dòng chữ dài trong ngoặc đơn
+func _update_upgrade_pill_badges(vbox: VBoxContainer, type: int) -> void:
+	var badge_box = vbox.get_node_or_null("PillBadgesHBox") as HBoxContainer
+	if not badge_box:
+		badge_box = HBoxContainer.new()
+		badge_box.name = "PillBadgesHBox"
+		badge_box.add_theme_constant_override("separation", 6)
+		vbox.add_child(badge_box)
+		vbox.move_child(badge_box, 1)
+
+	var tag1_text = ""
+	var tag1_bg = Color(0.85, 0.35, 0.08, 0.95)
+	var tag2_text = ""
+	var tag2_bg = Color(0.12, 0.45, 0.85, 0.95)
+
+	match type:
+		TowerClass.TowerType.PLASMA_CANNON:
+			tag1_text = "+50% PHÁ GIÁP"
+			tag1_bg = Color(0.85, 0.35, 0.08, 0.95) # Nền Cam Đậm
+			tag2_text = "+100% PHÁ KHIÊN"
+			tag2_bg = Color(0.12, 0.45, 0.85, 0.95) # Nền Xanh Lam
+		TowerClass.TowerType.GATLING_GUN:
+			tag1_text = "+50% SÁT THƯƠNG MÁU"
+			tag1_bg = Color(0.85, 0.28, 0.12, 0.95)
+			tag2_text = "GIA TỐC LIÊN THANH"
+			tag2_bg = Color(0.75, 0.55, 0.08, 0.95)
+		TowerClass.TowerType.TESLA_COIL:
+			tag1_text = "TÊ LIỆT CƠ KHÍ"
+			tag1_bg = Color(0.55, 0.22, 0.85, 0.95)
+			tag2_text = "PHÁ KHIÊN EMP"
+			tag2_bg = Color(0.12, 0.50, 0.85, 0.95)
+		TowerClass.TowerType.SAM_BATTERY:
+			tag1_text = "PHÒNG KHÔNG X2.2"
+			tag1_bg = Color(0.85, 0.35, 0.08, 0.95)
+			tag2_text = "TÊN LỬA TẦM XA"
+			tag2_bg = Color(0.12, 0.45, 0.85, 0.95)
+		TowerClass.TowerType.FROST_SPIRE:
+			tag1_text = "LÀM CHẬM AOE"
+			tag1_bg = Color(0.10, 0.55, 0.85, 0.95)
+			tag2_text = "ĐÓNG BĂNG 2S"
+			tag2_bg = Color(0.15, 0.65, 0.85, 0.95)
+		TowerClass.TowerType.MAGMA_MONOLITH:
+			tag1_text = "ĐẤT CHÁY AOE"
+			tag1_bg = Color(0.85, 0.20, 0.10, 0.95)
+			tag2_text = "THIÊU ĐỐT DOT"
+			tag2_bg = Color(0.85, 0.38, 0.08, 0.95)
+		TowerClass.TowerType.VOID_OBELISK:
+			tag1_text = "BỎ QUA GIÁP"
+			tag1_bg = Color(0.50, 0.18, 0.80, 0.95)
+			tag2_text = "% MÁU TỐI ĐA"
+			tag2_bg = Color(0.12, 0.45, 0.85, 0.95)
+		TowerClass.TowerType.SPORE_SPITTER:
+			tag1_text = "BÀO MÒN GIÁP 30%"
+			tag1_bg = Color(0.25, 0.60, 0.15, 0.95)
+			tag2_text = "LÂY LAN BÀO TỬ"
+			tag2_bg = Color(0.75, 0.45, 0.10, 0.95)
+		TowerClass.TowerType.PYLON_BUFFER:
+			tag1_text = "+25% TỐC ĐÁNH"
+			tag1_bg = Color(0.75, 0.55, 0.08, 0.95)
+			tag2_text = "+15% TẦM BẮN"
+			tag2_bg = Color(0.12, 0.45, 0.85, 0.95)
+		_:
+			tag1_text = "CHIẾN THUẬT"
+			tag1_bg = Color(0.35, 0.40, 0.50, 0.95)
+			tag2_text = "PHÒNG THỦ"
+			tag2_bg = Color(0.25, 0.30, 0.40, 0.95)
+
+	_style_single_pill_badge(badge_box, "Badge1", tag1_text, tag1_bg)
+	_style_single_pill_badge(badge_box, "Badge2", tag2_text, tag2_bg)
+
+func _style_single_pill_badge(parent: HBoxContainer, node_name: String, text_val: String, bg_col: Color) -> void:
+	var pill = parent.get_node_or_null(node_name) as PanelContainer
+	if not pill:
+		pill = PanelContainer.new()
+		pill.name = node_name
+		parent.add_child(pill)
+		var lbl = Label.new()
+		lbl.name = "Label"
+		lbl.add_theme_font_size_override("font_size", 10)
+		lbl.add_theme_color_override("font_color", Color.WHITE)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pill.add_child(lbl)
+
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = bg_col
+	sb.set_corner_radius_all(4)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	pill.add_theme_stylebox_override("panel", sb)
+
+	var lbl_node = pill.get_node_or_null("Label") as Label
+	if lbl_node:
+		lbl_node.text = text_val
+
+## Vẽ Ánh Sáng Sân Khấu & Khí Quyển Đảo Bay (Sunbeams 35°, Floating Motes, Corner Vignette)
+func _draw_stage_lighting_and_atmosphere() -> void:
+	# 1. 3 Luồng Nắng Vàng Ấm Chiếu Xiên Góc 35° (Color(1.0, 0.95, 0.78, 0.055))
+	var beam_alpha = 0.055 * (0.88 + 0.12 * sin(_idle_time * 1.8))
+	var beam_col = Color(1.0, 0.95, 0.78, beam_alpha)
+
+	# Luồng 1, 2, 3: Đã được cache sẵn trong SUNBEAM_*_POLY
+	draw_colored_polygon(SUNBEAM_1_POLY, beam_col)
+	draw_colored_polygon(SUNBEAM_2_POLY, beam_col)
+	draw_colored_polygon(SUNBEAM_3_POLY, beam_col)
+
+	# 2. 20 Hạt Bụi Phép Thuật Phát Sáng (Floating Golden/Cyan Motes, bán kính 1.5 - 2.5px)
+	for m in FLOATING_MOTES_DATA:
+		var float_y = fmod(_idle_time * m["speed"], 55.0)
+		var px = m["x"] + sin(_idle_time * 0.9 + m["phase"]) * 16.0
+		var py = m["y"] + cos(_idle_time * 0.7 + m["phase"]) * 10.0 - float_y
+		var pulse_m = 0.5 + 0.5 * sin(_idle_time * 2.5 + m["phase"])
+		var base_col = Color(0.20, 0.88, 1.0) if m["is_cyan"] else Color(1.0, 0.86, 0.32)
+		draw_circle(Vector2(px, py), m["r"], Color(base_col.r, base_col.g, base_col.b, 0.55 + 0.35 * pulse_m))
+		draw_circle(Vector2(px, py), m["r"] * 2.2, Color(base_col.r, base_col.g, base_col.b, 0.16 * pulse_m))
+
+	# 3. Viền Tối Khí Quyển Bốn Góc (Cinematic Corner Vignette, alpha = 0.25)
+	var vig_col = Color(0.01, 0.02, 0.04, 0.25)
+	draw_colored_polygon(VIGNETTE_TL_POLY, vig_col)
+	draw_colored_polygon(VIGNETTE_TR_POLY, vig_col)
+	draw_colored_polygon(VIGNETTE_BL_POLY, vig_col)
+	draw_colored_polygon(VIGNETTE_BR_POLY, vig_col)
