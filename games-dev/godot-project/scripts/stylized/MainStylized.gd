@@ -216,105 +216,20 @@ class StaticAtmosphereLayer extends Node2D:
 		draw_colored_polygon(vig_bl, vig_col)
 		draw_colored_polygon(vig_br, vig_col)
 
-## Lớp hiệu ứng môi trường hoạt họa động (3 cối xay gió quay nan gỗ, suối & thác nước chảy dọc lòng sông, gợn hồ, cổng portal)
+## Lớp hiệu ứng môi trường hoạt họa động (gợn sóng hồ, vòng xoáy cổ ngữ cổng portal)
 ## Đặt trực tiếp TRÊN IslandSprite (z_index = -2) nhưng DƯỚI TowersContainer và EnemiesContainer (z_index = 0)
 class MapAnimatedFXLayer extends Node2D:
 	var main_ref: Node2D = null
 
-	const RIVER_WAYPOINTS: Array[Vector2] = [
-		Vector2(465.0, 260.0), # 0 Thượng nguồn khe núi phía Bắc
-		Vector2(470.0, 310.0), # 1 Đoạn sông uốn lượn sau tháp canh
-		Vector2(475.0, 360.0), # 2 Tiến sát phía trên cầu đá
-		Vector2(480.0, 425.0), # 3 Dưới gầm vòm cầu đá
-		Vector2(460.0, 475.0), # 4 Lối ra phía nam gầm cầu đá
-		Vector2(420.0, 505.0), # 5 Khúc ngoặt xuôi dòng về Tây Nam
-		Vector2(375.0, 535.0), # 6 Đoạn suối chảy xiết ven bờ dốc
-		Vector2(352.0, 565.0), # 7 Mép ghềnh đá trước thác nước
-		Vector2(346.0, 605.0), # 8 Miệng vực thác nước
-		Vector2(338.0, 665.0)  # 9 Đáy chân thác đổ vào không gian
-	]
-
-	var _river_lengths: Array[float] = []
-	var _total_river_len: float = 0.0
-
 	func _ready() -> void:
 		z_index = -2
-		_init_river_lengths()
-
-	func _init_river_lengths() -> void:
-		_river_lengths.clear()
-		_total_river_len = 0.0
-		for i in range(RIVER_WAYPOINTS.size() - 1):
-			var seg_len = RIVER_WAYPOINTS[i].distance_to(RIVER_WAYPOINTS[i + 1])
-			_river_lengths.append(seg_len)
-			_total_river_len += seg_len
-
-	func get_river_pos_and_dir(progress: float) -> Dictionary:
-		if _total_river_len <= 0.0:
-			return {"pos": RIVER_WAYPOINTS[0], "dir": Vector2.DOWN}
-		var target_dist = clampf(progress, 0.0, 1.0) * _total_river_len
-		var accum = 0.0
-		for i in range(_river_lengths.size()):
-			var seg_len = _river_lengths[i]
-			if accum + seg_len >= target_dist or i == _river_lengths.size() - 1:
-				var t = (target_dist - accum) / maxf(0.001, seg_len)
-				var pos = RIVER_WAYPOINTS[i].lerp(RIVER_WAYPOINTS[i + 1], t)
-				var dir = (RIVER_WAYPOINTS[i + 1] - RIVER_WAYPOINTS[i]).normalized()
-				return {"pos": pos, "dir": dir}
-			accum += seg_len
-		return {"pos": RIVER_WAYPOINTS[RIVER_WAYPOINTS.size() - 1], "dir": Vector2.DOWN}
 
 	func _draw() -> void:
 		var t: float = 0.0
 		if is_instance_valid(main_ref):
 			t = main_ref.get("_idle_time") if "_idle_time" in main_ref else 0.0
 
-		# 1. DÒNG SUỐI CHẢY THẬT DỌC THEO TOÀN BỘ LÒNG SÔNG (28 Dải Sóng Nước & Bọt Trắng)
-		for k in range(28):
-			var u = fmod(t * 0.18 + float(k) / 28.0, 1.0)
-			var data = get_river_pos_and_dir(u)
-			var pt = data["pos"]
-			var r_dir = data["dir"]
-			var normal = Vector2(-r_dir.y, r_dir.x)
-			var lateral_spread = sin(float(k) * 2.3) * 5.0
-			var center_streak = pt + normal * lateral_spread
-			var streak_len = 14.0 + sin(float(k) * 1.7) * 4.0
-			var is_foam = (k % 3 == 0)
-			var col = Color(1.0, 1.0, 1.0, 0.75) if is_foam else Color(0.70, 0.92, 1.0, 0.60)
-			var w = 1.8 if is_foam else 2.4
-			draw_line(center_streak - r_dir * (streak_len * 0.5), center_streak + r_dir * (streak_len * 0.5), col, w)
-
-		# 2. THÁC NƯỚC ĐỔ XUỐNG VỰC (x ~ 335..355, y ~ 605..665)
-		var stream_crest = Vector2(346.0, 605.0)
-		var stream_plunge = Vector2(338.0, 665.0)
-		var foam_pulse = sin(t * 8.0) * 2.2
-
-		# Bọt nước và tia nước đổ dốc từ mép đá xuống vực thẳm
-		draw_circle(stream_crest, 6.5 + foam_pulse * 0.4, Color(1.0, 1.0, 1.0, 0.85))
-		draw_circle(stream_crest + Vector2(-6.0, 2.0), 5.5, Color(0.80, 0.95, 1.0, 0.70))
-		draw_circle(stream_crest + Vector2(6.0, 2.0), 5.5, Color(0.80, 0.95, 1.0, 0.70))
-
-		# 7 dải nước trắng/xanh lơ tuôn thẳng đứng xuống vực thẳm
-		for i in range(7):
-			var phase = fmod(t * 2.6 + float(i) * 0.15, 1.0)
-			var drop_y = lerpf(0.0, 60.0, phase)
-			var drop_x = lerpf(4.0, -8.0, phase) + sin(phase * 4.0 + float(i)) * 2.0 + float(i - 3) * 2.5
-			var drop_alpha = (1.0 - phase) * 0.88
-			var p = stream_crest + Vector2(drop_x, drop_y)
-			draw_line(p - Vector2(0.0, 8.0), p, Color(0.92, 0.98, 1.0, drop_alpha), 2.4)
-			draw_circle(p, lerpf(3.8, 1.8, phase), Color(1.0, 1.0, 1.0, drop_alpha))
-
-		# Cuộn mây bọt nước (Waterfall Mist Particles) trào liên tục ở chân thác
-		draw_circle(stream_plunge, 9.5 + foam_pulse, Color(1.0, 1.0, 1.0, 0.85))
-		for m in range(8):
-			var m_phase = fmod(t * 1.5 + float(m) * 0.125, 1.0)
-			var m_ang = float(m) * (PI * 0.25)
-			var m_rad = lerpf(4.0, 16.0, m_phase)
-			var m_pos = stream_plunge + Vector2(cos(m_ang) * 14.0 * m_phase, -sin(m_phase * PI) * 12.0)
-			var m_alpha = sin(m_phase * PI) * 0.38
-			draw_circle(m_pos, m_rad, Color(0.92, 0.96, 1.0, m_alpha))
-
-		# 3. GỢN SÓNG LẤP LÁNH TRÊN MẶT HỒ GẦN BẾN CẢNG (Lake Ripples & Sparkles)
+		# 1. GỢN SÓNG LẤP LÁNH TRÊN MẶT HỒ GẦN BẾN CẢNG (Lake Ripples & Sparkles)
 		var lake_center = Vector2(730.0, 180.0)
 		for i in range(3):
 			var wave_phase = fmod(t * 0.45 + float(i) * 0.33, 1.0)
@@ -332,54 +247,7 @@ class MapAnimatedFXLayer extends Node2D:
 			var sp_alpha = maxf(0.0, sin(t * 3.0 + float(j) * 1.7)) * 0.75
 			draw_circle(Vector2(sp_x, sp_y), 2.2, Color(1.0, 1.0, 1.0, sp_alpha))
 
-		# 4. 3 CỐI XAY GIÓ QUAY THẬT 100% (Khung Gỗ Nan Lưới & Vải Buồm Trắng Ngà)
-		var windmills = [
-			{"pos": Vector2(835.0, 108.0), "spd": 1.1,  "len": 28.0, "patch_col": Color(0.41, 0.42, 0.29, 0.88)},
-			{"pos": Vector2(928.0, 90.0),  "spd": 0.95, "len": 28.0, "patch_col": Color(0.58, 0.61, 0.59, 0.88)},
-			{"pos": Vector2(1005.0, 101.0),"spd": 1.25, "len": 24.0, "patch_col": Color(0.51, 0.59, 0.61, 0.88)}
-		]
-		for wm in windmills:
-			var w_pos = wm["pos"]
-			var w_len = wm["len"]
-			var base_rot = t * wm["spd"]
-
-			# Lớp che (Mask/Patch) tiệp màu bầu trời/tháp xóa cánh quạt tĩnh cũ
-			draw_circle(w_pos, w_len * 0.92, wm["patch_col"])
-
-			# 4 Cánh Quạt Gỗ Khung Lưới (Wooden Lattice Windmill Blades)
-			for b in range(4):
-				var a = base_rot + float(b) * (PI * 0.5)
-				var tip = w_pos + Vector2(cos(a), sin(a)) * w_len
-				var side_dir = Vector2(-sin(a), cos(a))
-
-				# Vải buồm trắng ngà hình thang
-				var p_in = w_pos + Vector2(cos(a), sin(a)) * 6.0
-				var p_out = tip - Vector2(cos(a), sin(a)) * 1.5
-				var w_sail = 4.8
-				var sail_pts = PackedVector2Array([
-					p_in,
-					p_in + side_dir * (w_sail * 0.7),
-					p_out + side_dir * w_sail,
-					p_out
-				])
-				draw_colored_polygon(sail_pts, Color(0.94, 0.92, 0.86, 0.92))
-				draw_polyline(sail_pts, Color(0.22, 0.14, 0.08, 0.90), 1.0)
-
-				# Nan gỗ vàng ấm bắc ngang
-				for slat in range(1, 4):
-					var s_ratio = float(slat) / 4.0
-					var sp_on_bar = p_in.lerp(p_out, s_ratio)
-					var sp_on_sail = (p_in + side_dir * (w_sail * 0.7)).lerp(p_out + side_dir * w_sail, s_ratio)
-					draw_line(sp_on_bar, sp_on_sail, Color(0.82, 0.68, 0.45, 0.95), 1.2)
-
-				# Nan gỗ chính viền nâu đậm
-				draw_line(w_pos, tip, Color(0.22, 0.14, 0.08), 2.4)
-
-			# Trục gỗ trung tâm
-			draw_circle(w_pos, 4.0, Color(0.22, 0.14, 0.08))
-			draw_circle(w_pos, 2.0, Color(0.85, 0.72, 0.42))
-
-		# 5. VÒNG XOÁY CỔ NGỮ TÍM QUAY TRÒN TRONG CỔNG DỊCH CHUYỂN (Portal Vortex)
+		# 2. VÒNG XOÁY CỔ NGỮ TÍM QUAY TRÒN TRONG CỔNG DỊCH CHUYỂN (Portal Vortex)
 		var portal_pos = Vector2(115.0, 395.0)
 		var portal_rot = t * 2.2
 		var p_glow = 0.5 + 0.5 * sin(t * 4.0)

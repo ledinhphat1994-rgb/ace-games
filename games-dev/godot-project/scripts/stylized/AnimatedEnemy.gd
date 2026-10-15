@@ -297,6 +297,7 @@ func setup(type: EnemyType, path_points: Array[Vector2], wave_multiplier: float 
 	waypoints = path_points
 	if waypoints.size() > 0:
 		global_position = waypoints[0]
+		_current_wp_idx = 1 if waypoints.size() > 1 else 0
 
 	# Độ lệch làn: giới hạn quái bộ tối đa ±3.0px (0.0px khi qua cầu đá), quái bay ±8.0px
 	if path_points.size() > 2:
@@ -528,39 +529,46 @@ func _process(delta: float) -> void:
 
 	var effective_speed = get_effective_speed()
 
-	# Chống đè quái (Anti-Overlap Congestion Control): Quái đi sau giảm tốc khi tiếp cận quái đi trước
+	# Chống đè quái (Anti-Overlap Congestion Control): Quái đi sau giảm tốc nhẹ khi tiếp cận quái đi trước
 	if is_inside_tree() and _current_wp_idx < waypoints.size():
 		var all_enemies = get_tree().get_nodes_in_group("animated_enemies")
 		var my_dist_to_wp = global_position.distance_to(waypoints[_current_wp_idx])
 		for other in all_enemies:
 			if other != self and is_instance_valid(other) and not other._is_dead:
 				var d = global_position.distance_to(other.global_position)
-				if d < 52.0 and other._current_wp_idx < other.waypoints.size():
+				if d < 36.0 and other._current_wp_idx < other.waypoints.size():
 					var is_other_ahead = (other._current_wp_idx > _current_wp_idx) or \
 						(other._current_wp_idx == _current_wp_idx and my_dist_to_wp > other.global_position.distance_to(other.waypoints[other._current_wp_idx]))
 					if is_other_ahead:
-						effective_speed = minf(effective_speed, other.speed * 0.70)
+						effective_speed = minf(effective_speed, other.speed * 0.85)
 
 	# 1. Di chuyển bám chính xác theo tim đường mòn Waypoints
 	if _current_wp_idx < waypoints.size():
 		var target_pt = waypoints[_current_wp_idx]
+		var prev_pt = waypoints[_current_wp_idx - 1] if _current_wp_idx > 0 else (waypoints[0] - Vector2(1.0, 0.0))
+		var seg_vec = target_pt - prev_pt
+		var seg_dir = seg_vec.normalized()
+		if seg_dir.length_squared() < 0.001:
+			seg_dir = Vector2.RIGHT
+		var seg_normal = Vector2(-seg_dir.y, seg_dir.x)
+
 		# Ép độ lệch làn về 0.0px khi đi qua Cầu Đá (x ~ 430..545 hoặc waypoint 5..9)
 		var is_on_bridge = (global_position.x >= 430.0 and global_position.x <= 545.0) or (_current_wp_idx >= 5 and _current_wp_idx <= 9)
 		var cur_lane = 0.0 if (is_on_bridge and not is_flying) else lane_offset
-		var actual_target = target_pt
-		if absf(cur_lane) > 0.01:
-			var wp_dir = (target_pt - global_position).normalized()
-			var normal = Vector2(-wp_dir.y, wp_dir.x)
-			actual_target += normal * cur_lane
 
-		var dist = global_position.distance_to(actual_target)
+		# Tọa độ đích cố định cho chặng đường này
+		var actual_target = target_pt + seg_normal * cur_lane
+		var to_target = actual_target - global_position
+		var dist = to_target.length()
 		var move_dist = effective_speed * delta
 
-		if dist <= move_dist:
+		# Nếu đã đến đích của chặng đường (hoặc đi ngang qua mặt phẳng đích)
+		var passed_plane = (global_position - actual_target).dot(seg_dir) >= 0.0 and _current_wp_idx > 0
+		if dist <= move_dist or dist < 4.0 or passed_plane:
 			global_position = actual_target
 			_current_wp_idx += 1
 		else:
-			var dir = (actual_target - global_position).normalized()
+			var dir = to_target / maxf(dist, 0.001)
 			global_position += dir * move_dist
 			_update_facing_direction(dir)
 	else:
