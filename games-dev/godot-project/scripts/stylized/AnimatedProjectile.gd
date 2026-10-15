@@ -199,6 +199,7 @@ func _on_hit_target() -> void:
 						recorded_dmg += shock_dmg
 						if target.has_method("_spawn_combat_text"):
 							target._spawn_combat_text("SỐC NHIỆT!", Color(1.0, 0.35, 0.15))
+						_notify_combo_reaction()
 
 				var overload_dmg = _apply_tesla_overload_bonus(target, damage)
 				recorded_dmg += overload_dmg
@@ -293,8 +294,14 @@ func _apply_tesla_overload_bonus(enemy: Node2D, base_dmg: float) -> float:
 		enemy.take_damage(bonus_dmg, AnimatedEnemy.DamageType.ELECTRO_EMP, source_tower)
 		if enemy.has_method("_spawn_combat_text"):
 			enemy._spawn_combat_text("QUÁ TẢI!", Color(0.3, 0.9, 1.0))
+		_notify_combo_reaction()
 		return bonus_dmg
 	return 0.0
+
+func _notify_combo_reaction() -> void:
+	if is_inside_tree() and get_tree() and get_tree().current_scene:
+		if get_tree().current_scene.has_method("notify_combo_reaction"):
+			get_tree().current_scene.notify_combo_reaction()
 
 func _trigger_plasma_aoe_splash(center_pos: Vector2) -> void:
 	var splash_radius = 80.0 * (1.20 if is_thermal_overload else 1.0)

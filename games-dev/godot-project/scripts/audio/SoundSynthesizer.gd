@@ -132,8 +132,22 @@ func _ensure_setup() -> void:
 		_synth_player.play()
 		_playback = _synth_player.get_stream_playback() as AudioStreamGeneratorPlayback
 
+var is_muted: bool = false
+
+func set_muted(val: bool) -> void:
+	is_muted = val
+	var master_bus = AudioServer.get_bus_index(&"Master")
+	if master_bus >= 0:
+		AudioServer.set_bus_mute(master_bus, is_muted)
+
+func toggle_mute() -> bool:
+	set_muted(not is_muted)
+	return is_muted
+
 ## 1. Súng máy Gatling: Tiếng súng thực tế trích xuất trực tiếp từ video
 func play_gatling_shot() -> void:
+	if is_muted:
+		return
 	_attach_to_tree_if_needed()
 	if not is_inside_tree():
 		return
@@ -150,6 +164,8 @@ func play_gatling_shot() -> void:
 
 ## 2. Mâm xoay cơ khí Turret Swivel từ video
 func play_turret_swivel() -> void:
+	if is_muted:
+		return
 	_attach_to_tree_if_needed()
 	if not is_inside_tree():
 		return
@@ -162,6 +178,8 @@ func play_turret_swivel() -> void:
 
 ## 3. Vỏ đạn kim loại va chạm từ video
 func play_casing_drop() -> void:
+	if is_muted:
+		return
 	_attach_to_tree_if_needed()
 	if not is_inside_tree():
 		return
@@ -172,48 +190,76 @@ func play_casing_drop() -> void:
 
 ## 4. Pháo Plasma: Nạp năng lượng & Bắn cầu ion
 func play_plasma_charge() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(180.0, 720.0, 0.24, 0.35)
 
 func play_plasma_shot() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(850.0, 95.0, 0.26, 0.55)
 
 func play_plasma_blast() -> void:
-	_synthesize_sweep(760.0, 65.0, 0.32, 0.65)
+	if is_muted:
+		return
+	_synthesize_sweep(760.0, 45.0, 0.36, 0.70)
 
 ## 5. Tháp Tesla: Phóng điện sét
 func play_tesla_zap() -> void:
-	_synthesize_sweep(1900.0, 110.0, 0.16, 0.48)
+	if is_muted:
+		return
+	_synthesize_sweep(2400.0, 850.0, 0.16, 0.55)
 
 func play_tesla_lightning() -> void:
-	_synthesize_sweep(2200.0, 85.0, 0.20, 0.55)
+	if is_muted:
+		return
+	_synthesize_sweep(2600.0, 720.0, 0.22, 0.60)
 
 ## 6. Hiệu ứng va chạm & Quái chết
 func play_hit() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(340.0, 95.0, 0.06, 0.28)
 
 func play_enemy_death() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(260.0, 42.0, 0.28, 0.55)
 
 ## 7. Kỹ năng & Thăng cấp
 func play_emp_shockwave() -> void:
-	_synthesize_sweep(1500.0, 450.0, 0.35, 0.55)
+	if is_muted:
+		return
+	_synthesize_sweep(1800.0, 380.0, 0.38, 0.65)
 
 func play_blackhole_overload() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(65.0, 30.0, 0.65, 0.70)
 
 func play_upgrade() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(440.0, 880.0, 0.25, 0.45)
 
 func play_sell() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(350.0, 700.0, 0.15, 0.35)
 
 func play_ui_tap() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(520.0, 680.0, 0.04, 0.22)
 
 func play_frost_zap() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(1200.0, 1800.0, 0.22, 0.38)
 
 func play_emp_shock() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(240.0, 80.0, 0.35, 0.55)
 
 func play_plasma_cannon() -> void:
@@ -221,9 +267,66 @@ func play_plasma_cannon() -> void:
 
 ## 8. Tiếng bước chân cơ khí Mech Walker dậm đất
 func play_mech_step() -> void:
+	if is_muted:
+		return
 	_synthesize_sweep(130.0, 48.0, 0.07, 0.18)
 
+## 9. Cảnh báo Boss Mech xuất hiện: Hợp âm báo động trầm hùng
+func play_boss_warning() -> void:
+	if is_muted:
+		return
+	var notes: Array[float] = [110.0, 155.56, 220.0]
+	_synthesize_chord(notes, 0.42, 0.85)
+
+## 10. Hợp âm Khải hoàn Chiến thắng: Chuỗi Arpeggio vút cao C-E-G-C
+func play_victory_fanfare() -> void:
+	if is_muted:
+		return
+	var notes: Array[float] = [523.25, 659.25, 783.99, 1046.50]
+	_synthesize_chord(notes, 0.55, 0.85)
+
+func _synthesize_chord(frequencies: Array[float], duration: float, volume: float) -> void:
+	if is_muted:
+		return
+	_attach_to_tree_if_needed()
+	if not is_inside_tree():
+		return
+	if not _is_setup:
+		_ensure_setup()
+	if not _playback:
+		if _synth_player and not _synth_player.playing and is_inside_tree():
+			_synth_player.play()
+		if _synth_player:
+			_playback = _synth_player.get_stream_playback() as AudioStreamGeneratorPlayback
+		if not _playback:
+			return
+
+	var frames_to_push = int(_mix_rate * duration)
+	var available = _playback.get_frames_available()
+	frames_to_push = mini(frames_to_push, available)
+	if frames_to_push <= 0:
+		return
+
+	var phases: Array[float] = []
+	phases.resize(frequencies.size())
+	phases.fill(0.0)
+
+	for i in range(frames_to_push):
+		var t = float(i) / float(frames_to_push)
+		var env = (1.0 - t) * volume
+		var sample: float = 0.0
+		for f_idx in range(frequencies.size()):
+			var freq = frequencies[f_idx]
+			phases[f_idx] += (freq / _mix_rate) * TAU
+			if phases[f_idx] > TAU:
+				phases[f_idx] -= TAU
+			sample += sin(phases[f_idx])
+		sample = (sample / float(frequencies.size())) * env
+		_playback.push_frame(Vector2(sample, sample))
+
 func _synthesize_sweep(start_freq: float, end_freq: float, duration: float, volume: float) -> void:
+	if is_muted:
+		return
 	_attach_to_tree_if_needed()
 	if not is_inside_tree():
 		return

@@ -1237,6 +1237,9 @@ func interrupt_jamming() -> void:
 	vulnerable_timer = 2.0
 	status_frozen_timer = maxf(status_frozen_timer, 2.0)
 	_spawn_combat_text("NGẮT CHIÊU!", Color(0.2, 0.95, 1.0), 14)
+	if is_inside_tree() and get_tree() and get_tree().current_scene:
+		if get_tree().current_scene.has_method("notify_boss_interrupted"):
+			get_tree().current_scene.notify_boss_interrupted()
 
 func _discharge_jamming_pulse() -> void:
 	is_jamming = false

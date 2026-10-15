@@ -43,9 +43,10 @@ if (fs.existsSync(bridgeSrc)) {
     if (!html.includes('campus-game-bridge.js')) {
       const scriptTag = '  <script src="campus-game-bridge.js"></script>\n</head>'
       html = html.replace('</head>', scriptTag)
-      fs.writeFileSync(exportHtml, html, 'utf-8')
-      console.log('\x1b[32m✅ Đã nhúng Bridge tự động vào index.html!\x1b[0m')
     }
+    html = html.trimEnd() + '\n'
+    fs.writeFileSync(exportHtml, html, 'utf-8')
+    console.log('\x1b[32m✅ Đã nhúng Bridge tự động vào index.html!\x1b[0m')
   }
 }
 

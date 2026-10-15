@@ -1525,5 +1525,133 @@ func test_victory_defeat_modal_and_restart() -> void:
 	assert_true(scene.is_hardcore_mode, "Chế độ Thử Thách được bật từ Modal")
 	assert_false(scene.victory_defeat_modal.visible, "Modal tự đóng sau khi chọn Thử Thách")
 
+func test_endless_mode_activation_and_twin_bosses() -> void:
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	# 1. Thắng Wave 10 -> Modal chiến thắng có nút Tiếp Tục Vô Tận [C]
+	scene.current_wave = 10
+	var summary = scene.get_battle_summary()
+	scene._show_victory_defeat_modal(true, summary)
+	assert_true(scene.victory_defeat_modal.visible, "Modal hiển thị khi thắng wave 10")
+	assert_not_null(scene.btn_endless_modal, "Nút Tiếp Tục Vô Tận [C] tồn tại")
+	assert_true(scene.btn_endless_modal.visible, "Nút Vô Tận hiển thị khi chiến thắng")
+
+	# 2. Bấm Tiếp Tục Vô Tận -> Kích hoạt is_endless_mode, đóng modal, sẵn sàng gọi Wave 11
+	scene.btn_endless_modal.emit_signal("pressed")
+	assert_true(scene.is_endless_mode, "Chế độ Vô Tận đã được kích hoạt")
+	assert_false(scene.is_victory, "is_victory chuyển về false để chơi tiếp")
+	assert_false(scene.victory_defeat_modal.visible, "Modal đóng lại khi tiếp tục vô tận")
+
+	# 3. Kích hoạt Wave 11 và kiểm tra hàm mũ tăng trưởng máu/giáp
+	scene.is_wave_active = false
+	scene._on_btn_next_wave_pressed()
+	assert_eq(scene.current_wave, 11, "Đã lên Wave 11")
+	assert_true(scene.is_wave_active, "Wave 11 đang diễn ra")
+	assert_true(scene.label_wave.text.contains("W11") or scene.label_wave.text.contains("11"), "HUD hiển thị Wave 11")
+
+	# Sinh thử 1 quái ở Wave 11 -> kiểm tra máu cao hơn quái thường nhờ pow(1.16, 1)
+	scene._enemies_remaining = 1
+	scene._spawn_enemy_for_wave()
+	var enemies = scene.enemies_container.get_children()
+	assert_gt(enemies.size(), 0, "Quái Wave 11 được sinh thành công")
+	var enemy_w11 = enemies[enemies.size() - 1]
+	assert_gt(enemy_w11.max_hp, 35.0 * 4.0, "Máu quái Wave 11 tăng trưởng hàm mũ nhẹ")
+
+	# 4. Kiểm tra Đội Hình Boss Kép (Twin Boss Mechs) ở Wave 15
+	scene.current_wave = 15
+	scene._enemies_remaining = 1
+	scene._spawn_enemy_for_wave()
+	var boss1 = scene.enemies_container.get_children()[scene.enemies_container.get_child_count() - 1]
+	assert_true(boss1.is_boss, "Boss thứ nhất của Đội hình Boss Kép xuất hiện")
+
+	scene._enemies_remaining = 0
+	scene._spawn_enemy_for_wave()
+	var boss2 = scene.enemies_container.get_children()[scene.enemies_container.get_child_count() - 1]
+	assert_true(boss2.is_boss, "Boss thứ hai của Đội hình Boss Kép xuất hiện")
+
+	# 5. Lưu kỷ lục highest_endless_wave
+	assert_gte(scene.highest_endless_wave, 0, "Kỷ lục Vô Tận được khởi tạo")
+	scene.highest_endless_wave = 15
+	scene.save_records(scene.best_stars, scene.highest_wave, scene.best_mvp_damage)
+	var cfg = ConfigFile.new()
+	var err = cfg.load(scene.RECORDS_CFG_PATH)
+	assert_eq(err, OK, "File kỷ lục tải thành công")
+	assert_eq(cfg.get_value("records", "highest_endless_wave", 0), 15, "Kỷ lục Wave 15 Vô Tận được lưu chuẩn xác")
+
+	for e in scene.enemies_container.get_children():
+		e.free()
+
+func test_sound_toggle_and_synthesizer_mute() -> void:
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	assert_not_null(scene.btn_sound_toggle, "Nút Bật/Tắt Âm Thanh [M] tồn tại trên Top HUD")
+	assert_false(scene.is_sound_muted, "Mặc định âm thanh được BẬT")
+	assert_true(scene.btn_sound_toggle.text.contains("ÂM THANH"), "Nhãn nút hiển thị ÂM THANH [M]")
+
+	# 1. Bấm nút toggle hoặc gọi toggle_sound() -> TẮT ÂM
+	scene.toggle_sound()
+	assert_true(scene.is_sound_muted, "Âm thanh đã được TẮT")
+	assert_true(scene.btn_sound_toggle.text.contains("TẮT ÂM"), "Nhãn nút đổi thành TẮT ÂM [M]")
+	if scene.sound_synth:
+		assert_true(scene.sound_synth.is_muted, "SoundSynthesizer nhận cờ is_muted = true")
+
+	# 2. Bấm toggle lần nữa -> BẬT LẠI ÂM THANH
+	scene.toggle_sound()
+	assert_false(scene.is_sound_muted, "Âm thanh đã được BẬT lại")
+	assert_true(scene.btn_sound_toggle.text.contains("ÂM THANH"), "Nhãn nút khôi phục ÂM THANH [M]")
+	if scene.sound_synth:
+		assert_false(scene.sound_synth.is_muted, "SoundSynthesizer nhận cờ is_muted = false")
+
+	# 3. Thử nghiệm phát âm thanh Procedural mới không bị lỗi
+	if scene.sound_synth:
+		scene.sound_synth.play_boss_warning()
+		scene.sound_synth.play_victory_fanfare()
+
+func test_tactical_achievements_and_medals() -> void:
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	# 1. Huy hiệu [THỢ SĂN BOSS]: Ngắt chiêu Boss thành công bằng EMP/Tesla
+	var boss = EnemyScript.new()
+	boss.setup(EnemyScript.EnemyType.MECH_WALKER, scene.PATH_WAYPOINTS, 1.0, EnemyScript.EnemyVariant.BOSS)
+	scene.enemies_container.add_child(boss)
+	boss.start_jamming_channel()
+	assert_true(boss.is_jamming, "Boss đang tích tụ xung nhiễu")
+
+	# Ngắt chiêu
+	boss.interrupt_jamming()
+	assert_false(boss.is_jamming, "Boss đã bị ngắt chiêu")
+	scene.notify_boss_interrupted()
+	assert_true(scene.medal_boss_hunter, "Huy hiệu [THỢ SĂN BOSS] đã được mở khóa")
+
+	# 2. Huy hiệu [ĐẠI SƯ PHỐI HỢP]: Kích hoạt >= 10 lần combo Sốc Nhiệt / Quá Tải
+	for i in range(10):
+		scene.notify_combo_reaction()
+	assert_gte(scene.combo_reaction_count, 10, "Đã kích hoạt đủ 10 lần combo")
+	assert_true(scene.medal_combo_master, "Huy hiệu [ĐẠI SƯ PHỐI HỢP] đã được mở khóa")
+
+	# 3. Huy hiệu [PHÁO ĐÀI BẤT DIỆT]: Hoàn thành Wave 10 với trọn vẹn 20/20 máu căn cứ
+	scene.base_health = 20
+	scene.max_health = 20
+	scene.current_wave = 10
+	scene.is_wave_active = true
+	scene._enemies_remaining = 0
+	# Dọn dẹp quái trong container để kích hoạt hoàn thành Wave 10
+	for e in scene.enemies_container.get_children():
+		e.free()
+	scene._process(0.1)
+
+	assert_true(scene.medal_flawless_fortress, "Huy hiệu [PHÁO ĐÀI BẤT DIỆT] đã được mở khóa")
+
+	# 4. Kiểm tra lưu trữ toàn bộ 3 huy hiệu vào ConfigFile
+	var cfg = ConfigFile.new()
+	var err = cfg.load(scene.RECORDS_CFG_PATH)
+	assert_eq(err, OK, "Tải file kỷ lục thành công")
+	assert_true(cfg.get_value("medals", "boss_hunter", false), "Lưu huy hiệu boss_hunter")
+	assert_true(cfg.get_value("medals", "combo_master", false), "Lưu huy hiệu combo_master")
+	assert_true(cfg.get_value("medals", "flawless_fortress", false), "Lưu huy hiệu flawless_fortress")
+
 func after_each() -> void:
 	Engine.time_scale = 1.0

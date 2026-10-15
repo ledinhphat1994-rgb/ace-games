@@ -261,6 +261,21 @@ var lbl_mvp_details: Label = null
 var lbl_records_stats: Label = null
 var btn_restart_modal: Button = null
 var btn_hardcore_modal: Button = null
+var btn_endless_modal: Button = null
+
+# Sprint 9: Nút Bật/Tắt Âm Thanh [M] & Trạng Thái Mute
+var btn_sound_toggle: Button = null
+var is_sound_muted: bool = false
+
+# Sprint 9: Chế Độ Vô Tận (Endless Survival Wave 11+)
+var is_endless_mode: bool = false
+var highest_endless_wave: int = 0
+
+# Sprint 9: 3 Huy Hiệu Chiến Công (Tactical Medals)
+var medal_boss_hunter: bool = false       # [THỢ SĂN BOSS]: Ngắt chiêu Boss thành công bằng EMP/Tesla
+var medal_combo_master: bool = false      # [ĐẠI SƯ PHỐI HỢP]: Kích hoạt >= 10 lần phản ứng Combo trong 1 trận
+var medal_flawless_fortress: bool = false # [PHÁO ĐÀI BẤT DIỆT]: Hoàn thành Wave 10 với 20/20 máu căn cứ
+var combo_reaction_count: int = 0         # Đếm số lần phản ứng combo (Sốc Nhiệt/Quá Tải)
 
 # Sprint 6: Bão Từ Trường Ion & Chế Độ Thử Thách
 var is_ion_storm_active: bool = false
@@ -629,8 +644,10 @@ func _process(delta: float) -> void:
 			_process_pylon_tier3_wave_rewards()
 			_update_hud()
 
-			if current_wave >= MAX_WAVES:
+			if current_wave >= MAX_WAVES and not is_endless_mode:
 				is_victory = true
+				if base_health >= max_health:
+					unlock_medal("flawless_fortress", "PHÁO ĐÀI BẤT DIỆT", "Hoàn thành Wave 10 với trọn vẹn 20/20 máu căn cứ!")
 				var summary = get_battle_summary()
 				_show_victory_defeat_modal(true, summary)
 				btn_next_wave.disabled = false
@@ -638,6 +655,8 @@ func _process(delta: float) -> void:
 					_set_button_dock_label(btn_next_wave, "KỶ LỤC THỬ THÁCH", "[N]")
 				else:
 					_set_button_dock_label(btn_next_wave, "CHIẾN THẮNG %s" % summary["rating_title"], "[N]")
+				if sound_synth:
+					sound_synth.play_victory_fanfare()
 				if web_bridge:
 					web_bridge.submit_score(score, {
 						"wave": current_wave,
@@ -649,8 +668,12 @@ func _process(delta: float) -> void:
 					web_bridge.show_toast("CHIẾN DỊCH HOÀN THÀNH: %s! MVP: %s" % [summary["rating_title"], summary["mvp_info"]], "success")
 					web_bridge.trigger_haptic("success")
 			else:
+				if is_endless_mode:
+					highest_endless_wave = maxi(highest_endless_wave, current_wave)
+					save_records(best_stars, highest_wave, best_mvp_damage, is_hardcore_mode)
 				btn_next_wave.disabled = false
-				_set_button_dock_label(btn_next_wave, "GỌI ĐỢT", "[N]")
+				var next_lbl = ("WAVE %d VÔ TẬN" % (current_wave + 1)) if is_endless_mode else "GỌI ĐỢT"
+				_set_button_dock_label(btn_next_wave, next_lbl, "[N]")
 				if web_bridge:
 					web_bridge.show_toast("Chiến thắng Wave %d! Thưởng +%d Vàng & +150 Điểm." % [current_wave, wave_gold], "success")
 					web_bridge.trigger_haptic("success")
@@ -961,9 +984,18 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_btn_hardcore_modal_pressed()
 				get_viewport().set_input_as_handled()
 				return
+			elif event.keycode == KEY_C:
+				if btn_endless_modal and btn_endless_modal.visible:
+					_on_btn_endless_modal_pressed()
+					get_viewport().set_input_as_handled()
+					return
 
 		if event.keycode == KEY_SPACE:
 			_on_btn_speed_pressed()
+			get_viewport().set_input_as_handled()
+			return
+		elif event.keycode == KEY_M:
+			toggle_sound()
 			get_viewport().set_input_as_handled()
 			return
 		elif event.keycode == KEY_R and (is_game_over or is_victory):
@@ -1395,7 +1427,7 @@ func toggle_hardcore_mode() -> bool:
 	return is_hardcore_mode
 
 func _on_btn_next_wave_pressed() -> void:
-	if is_game_over or is_victory:
+	if is_game_over or (is_victory and not is_endless_mode):
 		_restart_game()
 		return
 	if is_wave_active:
@@ -1416,8 +1448,8 @@ func _on_btn_next_wave_pressed() -> void:
 	btn_next_wave.disabled = true
 	_set_button_dock_label(btn_next_wave, "DEFENDING...", "[PHÒNG THỦ]")
 
-	# Thả Hòm Tiếp Tế ở các Wave chẵn (Wave 2, 4, 6, 8)
-	if current_wave in [2, 4, 6, 8]:
+	# Thả Hòm Tiếp Tế ở các Wave chẵn (Wave 2, 4, 6, 8 và Endless Wave chẵn)
+	if current_wave in [2, 4, 6, 8] or (is_endless_mode and current_wave % 2 == 0):
 		spawn_supply_pod()
 
 	_update_hud()
@@ -1432,6 +1464,8 @@ func _restart_game(keep_hardcore: bool = false) -> void:
 	current_wave = 0
 	is_game_over = false
 	is_victory = false
+	is_endless_mode = false
+	combo_reaction_count = 0
 	is_wave_active = false
 	is_ion_storm_active = false
 	EnemyClass.is_ion_storm_active = false
@@ -1507,15 +1541,22 @@ func _spawn_enemy_for_wave() -> void:
 	enemy.add_to_group("animated_enemies")
 
 	var is_boss_spawn = (current_wave in [5, 10] and _enemies_remaining == 0)
+	var is_endless_twin_boss = (is_endless_mode and current_wave > 10 and current_wave % 5 == 0 and _enemies_remaining in [0, 1])
 	var variant = EnemyClass.EnemyVariant.NORMAL
 	var e_type = _get_enemy_type_for_seed(_enemies_remaining + current_wave)
 
-	if is_boss_spawn:
+	if is_boss_spawn or is_endless_twin_boss:
 		variant = EnemyClass.EnemyVariant.BOSS
 		e_type = EnemyClass.EnemyType.MECH_WALKER # Boss luôn là Mech Walker khổng lồ
-		if web_bridge:
-			web_bridge.show_toast("CẢNH BÁO: BOSS MECH XUẤT HIỆN!", "error")
+		if sound_synth and (is_boss_spawn or _enemies_remaining == 1):
+			sound_synth.play_boss_warning()
+		if web_bridge and (is_boss_spawn or _enemies_remaining == 1):
+			var toast_msg = "CẢNH BÁO: ĐỘI HÌNH BOSS KÉP (TWIN BOSS MECHS) XUẤT HIỆN!" if is_endless_twin_boss else "CẢNH BÁO: BOSS MECH XUẤT HIỆN!"
+			web_bridge.show_toast(toast_msg, "error")
 			web_bridge.trigger_haptic("heavy")
+	elif is_endless_mode and current_wave > 10 and current_wave % 5 == 0:
+		# Đội hình hộ tống Boss Kép: AIR_DRONE và SUPPORT
+		variant = EnemyClass.EnemyVariant.AIR_DRONE if (_enemies_remaining % 2 == 0) else EnemyClass.EnemyVariant.SUPPORT
 	elif current_wave == 1:
 		variant = EnemyClass.EnemyVariant.NORMAL
 	elif current_wave == 2:
@@ -1554,6 +1595,8 @@ func _spawn_enemy_for_wave() -> void:
 			_: variant = EnemyClass.EnemyVariant.AIR_DRONE
 
 	var wave_mult = 1.0 + float(current_wave) * 0.25
+	if is_endless_mode and current_wave > 10:
+		wave_mult *= pow(1.16, float(current_wave - 10))
 	if is_hardcore_mode:
 		wave_mult *= 1.25 # Hardcore Mode: Máu quái tăng +25%
 
@@ -1990,6 +2033,63 @@ func _update_hardcore_button_style() -> void:
 	btn_hardcore.add_theme_color_override("font_color", Color(1.0, 0.45, 0.30) if is_hardcore_mode else Color(0.85, 0.60, 0.55))
 	btn_hardcore.text = "THỬ THÁCH: BẬT" if is_hardcore_mode else "THỬ THÁCH"
 
+func _update_sound_button_style() -> void:
+	if not btn_sound_toggle: return
+	var col_border = Color(0.85, 0.35, 0.35, 0.90) if is_sound_muted else Color(0.35, 0.85, 1.0, 0.70)
+	var col_bg = Color(0.18, 0.06, 0.08, 0.95) if is_sound_muted else Color(0.06, 0.09, 0.16, 0.92)
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = col_bg
+	sb.set_border_width_all(2)
+	sb.border_color = col_border
+	sb.set_corner_radius_all(16)
+	sb.shadow_size = 4
+	sb.shadow_color = Color(0, 0, 0, 0.40)
+	btn_sound_toggle.add_theme_stylebox_override("normal", sb)
+	btn_sound_toggle.add_theme_color_override("font_color", Color(1.0, 0.55, 0.55) if is_sound_muted else Color(0.40, 0.90, 1.0))
+	btn_sound_toggle.text = "TẮT ÂM [M]" if is_sound_muted else "ÂM THANH [M]"
+
+func toggle_sound() -> void:
+	if sound_synth:
+		is_sound_muted = sound_synth.toggle_mute()
+	else:
+		is_sound_muted = not is_sound_muted
+		var master_bus = AudioServer.get_bus_index(&"Master")
+		if master_bus >= 0:
+			AudioServer.set_bus_mute(master_bus, is_sound_muted)
+	_update_sound_button_style()
+	if web_bridge:
+		web_bridge.show_toast("Âm thanh: %s [M]" % ("TẮT" if is_sound_muted else "BẬT"), "info")
+		web_bridge.trigger_haptic("selection")
+
+func unlock_medal(key: String, title: String, description: String) -> void:
+	var newly_unlocked = false
+	if key == "boss_hunter" and not medal_boss_hunter:
+		medal_boss_hunter = true
+		newly_unlocked = true
+	elif key == "combo_master" and not medal_combo_master:
+		medal_combo_master = true
+		newly_unlocked = true
+	elif key == "flawless_fortress" and not medal_flawless_fortress:
+		medal_flawless_fortress = true
+		newly_unlocked = true
+
+	if newly_unlocked:
+		save_records(best_stars, highest_wave, best_mvp_damage, is_hardcore_mode)
+		if sound_synth:
+			sound_synth.play_upgrade()
+		if web_bridge:
+			web_bridge.show_toast("🏆 HUY HIỆU: [%s] — %s" % [title, description], "success")
+			web_bridge.trigger_haptic("heavy")
+		_update_hud()
+
+func notify_boss_interrupted() -> void:
+	unlock_medal("boss_hunter", "THỢ SĂN BOSS", "Ngắt chiêu Boss thành công bằng EMP/Tesla!")
+
+func notify_combo_reaction() -> void:
+	combo_reaction_count += 1
+	if combo_reaction_count >= 10:
+		unlock_medal("combo_master", "ĐẠI SƯ PHỐI HỢP", "Kích hoạt >= 10 lần phản ứng Combo trong 1 trận!")
+
 func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color: Color, icon_type: int) -> void:
 	if not btn: return
 	btn.custom_minimum_size = Vector2(175.0, 56.0)
@@ -2281,6 +2381,21 @@ func _setup_hud_ui() -> void:
 		btn_hardcore.custom_minimum_size = Vector2(120.0, 36.0)
 		btn_hardcore.add_theme_font_size_override("font_size", 12)
 		_update_hardcore_button_style()
+
+	if not btn_sound_toggle and hud:
+		btn_sound_toggle = Button.new()
+		btn_sound_toggle.name = "BtnSoundToggle"
+		hud.add_child(btn_sound_toggle)
+
+	if btn_sound_toggle:
+		btn_sound_toggle.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		btn_sound_toggle.position = Vector2(408.0, 74.0)
+		btn_sound_toggle.size = Vector2(104.0, 36.0)
+		btn_sound_toggle.custom_minimum_size = Vector2(104.0, 36.0)
+		btn_sound_toggle.add_theme_font_size_override("font_size", 12)
+		_update_sound_button_style()
+		if not btn_sound_toggle.pressed.is_connected(toggle_sound):
+			btn_sound_toggle.pressed.connect(toggle_sound)
 
 	# 6. RECORD BOX
 	var rec_box = hud.get_node_or_null("RecordBox") as PanelContainer
@@ -2620,17 +2735,17 @@ func _setup_victory_defeat_modal() -> void:
 		lbl_records_stats.text = "Điểm số: 0  |  Kỷ lục Sao: 0★  |  MVP Kỷ lục: 0"
 		vbox.add_child(lbl_records_stats)
 
-		# 5. Nút bấm Chơi Lại [R] & Thử Thách [H]
+		# 5. Nút bấm Chơi Lại [R], Tiếp Tục Vô Tận [C], & Thử Thách [H]
 		var btns_hbox = HBoxContainer.new()
 		btns_hbox.name = "ButtonsHBox"
-		btns_hbox.add_theme_constant_override("separation", 12)
+		btns_hbox.add_theme_constant_override("separation", 10)
 		vbox.add_child(btns_hbox)
 
 		btn_restart_modal = Button.new()
 		btn_restart_modal.name = "BtnRestartModal"
 		btn_restart_modal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn_restart_modal.custom_minimum_size = Vector2(0, 42)
-		btn_restart_modal.add_theme_font_size_override("font_size", 13)
+		btn_restart_modal.add_theme_font_size_override("font_size", 12)
 		btn_restart_modal.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 		btn_restart_modal.text = "CHƠI LẠI [R]"
 		var sb_btn_rst = StyleBoxFlat.new()
@@ -2641,13 +2756,28 @@ func _setup_victory_defeat_modal() -> void:
 		btn_restart_modal.add_theme_stylebox_override("normal", sb_btn_rst)
 		btns_hbox.add_child(btn_restart_modal)
 
+		btn_endless_modal = Button.new()
+		btn_endless_modal.name = "BtnEndlessModal"
+		btn_endless_modal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn_endless_modal.custom_minimum_size = Vector2(0, 42)
+		btn_endless_modal.add_theme_font_size_override("font_size", 12)
+		btn_endless_modal.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
+		btn_endless_modal.text = "TIẾP TỤC VÔ TẬN [C]"
+		var sb_btn_end = StyleBoxFlat.new()
+		sb_btn_end.bg_color = Color(0.18, 0.10, 0.24, 0.95)
+		sb_btn_end.set_border_width_all(1)
+		sb_btn_end.border_color = Color(0.9, 0.65, 1.0, 0.85)
+		sb_btn_end.set_corner_radius_all(6)
+		btn_endless_modal.add_theme_stylebox_override("normal", sb_btn_end)
+		btns_hbox.add_child(btn_endless_modal)
+
 		btn_hardcore_modal = Button.new()
 		btn_hardcore_modal.name = "BtnHardcoreModal"
 		btn_hardcore_modal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn_hardcore_modal.custom_minimum_size = Vector2(0, 42)
-		btn_hardcore_modal.add_theme_font_size_override("font_size", 13)
+		btn_hardcore_modal.add_theme_font_size_override("font_size", 12)
 		btn_hardcore_modal.add_theme_color_override("font_color", Color(1.0, 0.55, 0.3))
-		btn_hardcore_modal.text = "CHẾ ĐỘ THỬ THÁCH [H]"
+		btn_hardcore_modal.text = "THỬ THÁCH [H]"
 		var sb_btn_hc = StyleBoxFlat.new()
 		sb_btn_hc.bg_color = Color(0.18, 0.10, 0.08, 0.95)
 		sb_btn_hc.set_border_width_all(1)
@@ -2671,10 +2801,13 @@ func _setup_victory_defeat_modal() -> void:
 		var b_box = vbox.get_node_or_null("ButtonsHBox")
 		if b_box:
 			btn_restart_modal = b_box.get_node_or_null("BtnRestartModal")
+			btn_endless_modal = b_box.get_node_or_null("BtnEndlessModal")
 			btn_hardcore_modal = b_box.get_node_or_null("BtnHardcoreModal")
 
 	if btn_restart_modal and not btn_restart_modal.pressed.is_connected(_restart_game):
 		btn_restart_modal.pressed.connect(_restart_game)
+	if btn_endless_modal and not btn_endless_modal.pressed.is_connected(_on_btn_endless_modal_pressed):
+		btn_endless_modal.pressed.connect(_on_btn_endless_modal_pressed)
 	if btn_hardcore_modal and not btn_hardcore_modal.pressed.is_connected(_on_btn_hardcore_modal_pressed):
 		btn_hardcore_modal.pressed.connect(_on_btn_hardcore_modal_pressed)
 
@@ -2727,12 +2860,32 @@ func _show_victory_defeat_modal(is_win: bool, summary: Dictionary) -> void:
 		else:
 			lbl_mvp_details.text = summary.get("mvp_info", "Chưa có tháp nào tham chiến")
 
+	if btn_endless_modal:
+		btn_endless_modal.visible = is_win
+
 	if lbl_records_stats:
-		lbl_records_stats.text = "Điểm trận này: %s  |  Kỷ lục: %d★  |  MVP Kỷ lục: %s" % [
+		var medals_count = (1 if medal_boss_hunter else 0) + (1 if medal_combo_master else 0) + (1 if medal_flawless_fortress else 0)
+		var endless_str = "  |  Vô Tận: W%d" % highest_endless_wave if highest_endless_wave > 0 else ""
+		var medal_str = "  |  Huy Hiệu: 🏅%d/3" % medals_count
+		lbl_records_stats.text = "Điểm trận này: %s  |  Kỷ lục: %d★  |  MVP Kỷ lục: %s%s%s" % [
 			format_number(summary.get("final_score", score)),
 			summary.get("best_stars", best_stars),
-			format_number(summary.get("best_mvp_damage", best_mvp_damage))
+			format_number(summary.get("best_mvp_damage", best_mvp_damage)),
+			endless_str,
+			medal_str
 		]
+
+func _on_btn_endless_modal_pressed() -> void:
+	is_endless_mode = true
+	is_victory = false
+	if victory_defeat_modal:
+		victory_defeat_modal.visible = false
+	btn_next_wave.disabled = false
+	_set_button_dock_label(btn_next_wave, "WAVE %d VÔ TẬN" % (current_wave + 1), "[N]")
+	if web_bridge:
+		web_bridge.show_toast("ĐÃ KÍCH HOẠT CHẾ ĐỘ VÔ TẬN (ENDLESS SURVIVAL WAVE 11+)!", "warning")
+		web_bridge.trigger_haptic("heavy")
+	_update_hud()
 
 func _on_btn_hardcore_modal_pressed() -> void:
 	is_wave_active = false
@@ -2791,7 +2944,11 @@ func _setup_tray_icons() -> void:
 
 
 func get_wave_intel(wave_idx: int) -> String:
-	var prefix = "[THỬ THÁCH] | " if is_hardcore_mode else ""
+	var prefix = ""
+	if is_endless_mode or wave_idx > 10:
+		prefix = "[VÔ TẬN] | "
+	elif is_hardcore_mode:
+		prefix = "[THỬ THÁCH] | "
 	var base_intel = ""
 	match wave_idx:
 		1:
@@ -2816,9 +2973,10 @@ func get_wave_intel(wave_idx: int) -> String:
 			base_intel = "ĐỢT 10: [BOSS CUỐI MECH OVERDRIVE] + [Không Kích]"
 		_:
 			if wave_idx % 5 == 0:
-				base_intel = "ĐỢT %d: [BOSS MECH] + [Hộ Vệ]" % wave_idx
+				base_intel = "ĐỢT %d [VÔ TẬN]: [BOSS KÉP TWIN MECHS] + [Không Kích] + [Hộ Vệ]" % wave_idx
 			else:
-				base_intel = "ĐỢT %d: [Không Kích] + [Hộ Vệ]" % wave_idx
+				var scale_pct = int((pow(1.16, float(wave_idx - 10)) - 1.0) * 100.0)
+				base_intel = "ĐỢT %d [VÔ TẬN]: [Quân Đoàn Cực Hạn (+%d%% Máu/Giáp)]" % [wave_idx, scale_pct]
 	return prefix + base_intel
 
 func format_number(n: int) -> String:
@@ -2897,27 +3055,41 @@ func load_records() -> void:
 	if err == OK:
 		best_stars = cfg.get_value("records", "best_stars", 0)
 		highest_wave = cfg.get_value("records", "highest_wave", 0)
+		highest_endless_wave = cfg.get_value("records", "highest_endless_wave", 0)
 		best_mvp_damage = cfg.get_value("records", "best_mvp_damage", 0)
 		hardcore_cleared = cfg.get_value("records", "hardcore_cleared", false)
-	if label_record:
-		var hc_badge = " | THỬ THÁCH" if hardcore_cleared else ""
-		label_record.text = "KỶ LỤC: %d SAO | MVP: %s DMG%s" % [best_stars, format_number(best_mvp_damage), hc_badge]
+		medal_boss_hunter = cfg.get_value("medals", "boss_hunter", false)
+		medal_combo_master = cfg.get_value("medals", "combo_master", false)
+		medal_flawless_fortress = cfg.get_value("medals", "flawless_fortress", false)
+	_update_record_label()
 
 func save_records(stars: int, wave_num: int, mvp_dmg: int, is_hardcore: bool = false) -> void:
 	best_stars = maxi(best_stars, stars)
 	highest_wave = maxi(highest_wave, wave_num)
+	if is_endless_mode and wave_num > 10:
+		highest_endless_wave = maxi(highest_endless_wave, wave_num)
 	best_mvp_damage = maxi(best_mvp_damage, mvp_dmg)
 	if is_hardcore:
 		hardcore_cleared = true
 	var cfg = ConfigFile.new()
 	cfg.set_value("records", "best_stars", best_stars)
 	cfg.set_value("records", "highest_wave", highest_wave)
+	cfg.set_value("records", "highest_endless_wave", highest_endless_wave)
 	cfg.set_value("records", "best_mvp_damage", best_mvp_damage)
 	cfg.set_value("records", "hardcore_cleared", hardcore_cleared)
+	cfg.set_value("medals", "boss_hunter", medal_boss_hunter)
+	cfg.set_value("medals", "combo_master", medal_combo_master)
+	cfg.set_value("medals", "flawless_fortress", medal_flawless_fortress)
 	cfg.save(RECORDS_CFG_PATH)
+	_update_record_label()
+
+func _update_record_label() -> void:
 	if label_record:
 		var hc_badge = " | THỬ THÁCH" if hardcore_cleared else ""
-		label_record.text = "KỶ LỤC: %d SAO | MVP: %s DMG%s" % [best_stars, format_number(best_mvp_damage), hc_badge]
+		var endless_badge = " | VÔ TẬN: W%d" % highest_endless_wave if highest_endless_wave > 0 else ""
+		var m_cnt = (1 if medal_boss_hunter else 0) + (1 if medal_combo_master else 0) + (1 if medal_flawless_fortress else 0)
+		var m_badge = " | 🏅%d/3" % m_cnt if m_cnt > 0 else ""
+		label_record.text = "KỶ LỤC: %d SAO | MVP: %s DMG%s%s%s" % [best_stars, format_number(best_mvp_damage), hc_badge, endless_badge, m_badge]
 
 func activate_bridge_emp() -> bool:
 	if bridge_emp_timer > 0.0:
@@ -3073,7 +3245,11 @@ func _spawn_floating_map_text(txt: String, pos: Vector2, col: Color) -> void:
 
 func _update_hud() -> void:
 	if label_score: label_score.text = "%d" % score
-	if label_wave: label_wave.text = "%d" % maxi(1, current_wave)
+	if label_wave:
+		if is_endless_mode:
+			label_wave.text = "∞ W%d" % maxi(1, current_wave)
+		else:
+			label_wave.text = "%d" % maxi(1, current_wave)
 	if label_gold: label_gold.text = format_number(gold)
 	if label_health:
 		label_health.text = "%d/%d" % [base_health, max_health]
@@ -3096,6 +3272,8 @@ func _update_hud() -> void:
 	if label_wave_intel:
 		var target_wave = current_wave if is_wave_active else maxi(1, current_wave + 1)
 		label_wave_intel.text = get_wave_intel(target_wave)
+	_update_record_label()
+	_update_sound_button_style()
 	if skill_tree_modal and skill_tree_modal.visible:
 		_refresh_skill_tree_ui()
 
