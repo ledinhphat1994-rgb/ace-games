@@ -253,6 +253,7 @@ var _arm_left_angle: float = 0.0
 var _arm_right_angle: float = 0.0
 var _torso_bob: float = 0.0
 var _wheel_angle: float = 0.0
+var lane_offset: float = 0.0
 
 # Nodes
 var visual_root: Node2D = null
@@ -296,6 +297,15 @@ func setup(type: EnemyType, path_points: Array[Vector2], wave_multiplier: float 
 	waypoints = path_points
 	if waypoints.size() > 0:
 		global_position = waypoints[0]
+
+	# Độ lệch làn: giới hạn quái bộ tối đa ±3.0px (0.0px khi qua cầu đá), quái bay ±8.0px
+	if path_points.size() > 2:
+		if is_flying or enemy_type == EnemyType.WINGED_BOT or variant == EnemyVariant.AIR_DRONE:
+			lane_offset = randf_range(-8.0, 8.0)
+		else:
+			lane_offset = randf_range(-3.0, 3.0)
+	else:
+		lane_offset = 0.0
 
 	match enemy_type:
 		EnemyType.MECH_WALKER:
@@ -419,42 +429,42 @@ func _ready() -> void:
 			sprite.texture = MECH_WALK_FRAMES[0]
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -195.0)
-			sprite.position = Vector2.ZERO
+			sprite.position = Vector2(0.0, -20.0)
 			visual_root.add_child(sprite)
 
 		EnemyType.STEAM_TRAIN:
 			sprite.texture = STEAM_TRAIN_FRAMES[0]
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -206.0)
-			sprite.position = Vector2.ZERO
+			sprite.position = Vector2(0.0, -20.0)
 			visual_root.add_child(sprite)
 
 		EnemyType.WINGED_BOT:
 			sprite.texture = WINGED_BOT_FRAMES[0]
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -175.0)
-			sprite.position = Vector2(0.0, -14.0)
+			sprite.position = Vector2(0.0, -32.0)
 			visual_root.add_child(sprite)
 
 		EnemyType.SWARM_CRAWLER:
 			sprite.texture = TexSwarmCrawler
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -180.0)
-			sprite.position = Vector2(0.0, -8.0)
+			sprite.position = Vector2(0.0, -24.0)
 			visual_root.add_child(sprite)
 
 		EnemyType.SHIELD_DROID:
 			sprite.texture = TexShieldDroid
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -210.0)
-			sprite.position = Vector2(0.0, -16.0)
+			sprite.position = Vector2(0.0, -32.0)
 			visual_root.add_child(sprite)
 
 		EnemyType.ETHEREAL_WRAITH:
 			sprite.texture = TexEtherealWraith
 			sprite.centered = true
 			sprite.offset = Vector2(0.0, -210.0)
-			sprite.position = Vector2(0.0, -14.0)
+			sprite.position = Vector2(0.0, -30.0)
 			sprite.modulate = Color(1.0, 1.0, 1.0, 0.75)
 			visual_root.add_child(sprite)
 
@@ -534,14 +544,23 @@ func _process(delta: float) -> void:
 	# 1. Di chuyển bám chính xác theo tim đường mòn Waypoints
 	if _current_wp_idx < waypoints.size():
 		var target_pt = waypoints[_current_wp_idx]
-		var dist = global_position.distance_to(target_pt)
+		# Ép độ lệch làn về 0.0px khi đi qua Cầu Đá (x ~ 430..545 hoặc waypoint 5..9)
+		var is_on_bridge = (global_position.x >= 430.0 and global_position.x <= 545.0) or (_current_wp_idx >= 5 and _current_wp_idx <= 9)
+		var cur_lane = 0.0 if (is_on_bridge and not is_flying) else lane_offset
+		var actual_target = target_pt
+		if absf(cur_lane) > 0.01:
+			var wp_dir = (target_pt - global_position).normalized()
+			var normal = Vector2(-wp_dir.y, wp_dir.x)
+			actual_target += normal * cur_lane
+
+		var dist = global_position.distance_to(actual_target)
 		var move_dist = effective_speed * delta
 
 		if dist <= move_dist:
-			global_position = target_pt
+			global_position = actual_target
 			_current_wp_idx += 1
 		else:
-			var dir = (target_pt - global_position).normalized()
+			var dir = (actual_target - global_position).normalized()
 			global_position += dir * move_dist
 			_update_facing_direction(dir)
 	else:
@@ -1024,9 +1043,24 @@ func _update_particles(delta: float) -> void:
 				dp["rot_speed"] = 0.0
 		k -= 1
 
+## Hàm vẽ vòng elip chuẩn Isometric dẹt 2.5D dùng chung (ry = rx * 0.48)
+func draw_isometric_ring(center: Vector2, radius_x: float, color: Color, width: float = 1.2, start_angle: float = 0.0, end_angle: float = TAU, segments: int = 32) -> void:
+	var pts = PackedVector2Array()
+	var ry = radius_x * 0.48
+	var angle_span = end_angle - start_angle
+	for i in range(segments + 1):
+		var a = start_angle + float(i) * angle_span / float(segments)
+		pts.append(center + Vector2(cos(a) * radius_x, sin(a) * ry))
+	draw_polyline(pts, color, width)
+
 func _draw() -> void:
-	# TUÂN THỦ QUY TẮC TIẾP ĐẤT & LOẠI BỎ 100% BÓNG GIẢ LẬP TRÌNH BẰNG CODE (ZERO PROCEDURAL CIRCLE SHADOWS)
-	# Không dùng draw_circle tạo đốm tròn giả trên thảm cỏ và đường mòn hand-drawn 2.5D.
+	# 0. BÓNG TIẾP ĐẤT DƯỚI BÀN CHÂN (Contact Shadow Ellipse rx = 16, ry = 8)
+	if not is_flying and enemy_type != EnemyType.WINGED_BOT and variant != EnemyVariant.AIR_DRONE:
+		var sc_shadow = 1.35 if is_boss else 1.0
+		var sh_rx = 16.0 * sc_shadow
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
+		draw_circle(Vector2.ZERO, sh_rx, Color(0.0, 0.0, 0.0, 0.48))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# 1. VẼ HẠT BỤI ĐẤT BƯỚC CHÂN & TIA LỬA ĐỘNG CƠ CHIM
 	for p in _dust_particles:
@@ -1064,53 +1098,51 @@ func _draw() -> void:
 	if _is_dead:
 		return
 
-	# Hào quang năng lượng dưới chân Boss (Chuẩn dẹt Isometric ry = rx * 0.52 bám sát đất, bảo vệ Silhouette)
+	# Đĩa sáng mờ Isometric (Soft Gradient Disc) dưới chân Boss (alpha = 0.16, viền mảnh 1.2px xoay nhẹ)
 	if is_boss:
-		var halo_pulse = sin(_time_alive * (10.0 if _overdrive_triggered else 6.0)) * 4.0
-		var halo_color = Color(1.0, 0.20, 0.05, 0.95) if _overdrive_triggered else Color(1.0, 0.35, 0.15, 0.80)
-		var halo_fill = Color(1.0, 0.15, 0.05, 0.20) if _overdrive_triggered else Color(1.0, 0.22, 0.10, 0.12)
+		var halo_pulse = sin(_time_alive * (10.0 if _overdrive_triggered else 6.0)) * 3.0
+		var halo_rad = 38.0 + halo_pulse
+		var halo_color = Color(1.0, 0.20, 0.05, 0.45) if _overdrive_triggered else Color(1.0, 0.35, 0.15, 0.45)
+		var halo_fill = Color(1.0, 0.15, 0.05, 0.16) if _overdrive_triggered else Color(1.0, 0.22, 0.10, 0.16)
 
-		draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.52))
-		draw_arc(Vector2.ZERO, 38.0 + halo_pulse, 0, TAU, 36, halo_color, 3.5 if _overdrive_triggered else 2.6)
-		draw_circle(Vector2.ZERO, 38.0 + halo_pulse, halo_fill)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
+		draw_circle(Vector2.ZERO, halo_rad, halo_fill)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		draw_isometric_ring(Vector2.ZERO, halo_rad, halo_color, 1.2, _time_alive * 2.0, _time_alive * 2.0 + TAU, 36)
 
-		# SPRINT 6: Vòng cảnh báo tích xung nhiễu (Bảng màu Năng Lượng & Sét EMP: Tím Điện Tử 0.65, 0.35, 1.0 & Xanh Thiên Thanh 0.20, 0.85, 1.0)
+		# Vòng cảnh báo tích xung nhiễu / lộ điểm yếu
 		if is_jamming:
-			var warn_rad = 25.0 + 45.0 * clampf(jamming_timer / 2.0, 0.0, 1.0)
-			draw_arc(Vector2.ZERO, warn_rad, 0, TAU, 36, Color(0.65, 0.35, 1.0, 0.95), 2.8)
+			var warn_rad = 25.0 + 35.0 * clampf(jamming_timer / 2.0, 0.0, 1.0)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
 			draw_circle(Vector2.ZERO, warn_rad, Color(0.65, 0.35, 1.0, 0.12))
-			draw_arc(Vector2.ZERO, warn_rad * 0.94, 0, TAU, 36, Color(0.20, 0.85, 1.0, 0.60), 1.2)
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -118.0), "TÍCH XUNG NHIỄU!", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.75, 0.50, 1.0))
+			draw_isometric_ring(Vector2.ZERO, warn_rad, Color(0.65, 0.35, 1.0, 0.65), 1.2)
+			draw_isometric_ring(Vector2.ZERO, warn_rad * 0.94, Color(0.20, 0.85, 1.0, 0.45), 1.0)
+			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -125.0), "TÍCH XUNG NHIỄU!", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.75, 0.50, 1.0))
 		elif is_vulnerable:
 			var vuln_pulse = 0.5 + 0.5 * sin(_time_alive * 12.0)
-			draw_arc(Vector2.ZERO, 42.0, 0, TAU, 36, Color(0.2, 0.95, 1.0, 0.85 + 0.15 * vuln_pulse), 3.0)
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -118.0), "LỘ ĐIỂM YẾU (+25%)", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.2, 0.95, 1.0))
-		else:
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			draw_isometric_ring(Vector2.ZERO, 42.0, Color(0.2, 0.95, 1.0, 0.45 + 0.25 * vuln_pulse), 1.2)
+			draw_string(ThemeDB.fallback_font, Vector2(-60.0, -125.0), "LỘ ĐIỂM YẾU (+25%)", HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.2, 0.95, 1.0))
 
-	# Hào quang năng lượng hỗ trợ dưới chân Quái Hộ Vệ (Support Mech) chuẩn Isometric
+	# Đĩa sáng mờ Isometric dưới chân Quái Hộ Vệ (Support Mech)
 	if variant == EnemyVariant.SUPPORT:
-		var sup_pulse = sin(_time_alive * 4.0) * 3.5
-		var sup_col = Color(0.2, 1.0, 0.65, 0.85)
-		var sup_fill = Color(0.2, 1.0, 0.65, 0.10)
-		draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.52))
-		draw_arc(Vector2.ZERO, 32.0 + sup_pulse, 0, TAU, 36, sup_col, 2.2)
-		draw_circle(Vector2.ZERO, 32.0 + sup_pulse, sup_fill)
+		var sup_pulse = sin(_time_alive * 4.0) * 2.5
+		var sup_rad = 32.0 + sup_pulse
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
+		draw_circle(Vector2.ZERO, sup_rad, Color(0.2, 1.0, 0.65, 0.14))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		draw_isometric_ring(Vector2.ZERO, sup_rad, Color(0.2, 1.0, 0.65, 0.45), 1.2, -_time_alive * 2.0, -_time_alive * 2.0 + TAU, 32)
 
 	# Bóng đổ bám đất cho đơn vị bay lơ lửng (Aerial Drone & Winged Bot)
 	if is_flying or variant == EnemyVariant.AIR_DRONE or enemy_type == EnemyType.WINGED_BOT:
 		var shadow_w = 26.0
-		var shadow_h = 10.0
-		draw_set_transform(Vector2(6.0, 22.0), 0.0, Vector2(1.0, shadow_h / shadow_w))
-		draw_circle(Vector2.ZERO, shadow_w * 0.5, Color(0.05, 0.08, 0.12, 0.32))
+		draw_set_transform(Vector2(6.0, 24.0), 0.0, Vector2(1.0, 0.48))
+		draw_circle(Vector2.ZERO, shadow_w * 0.5, Color(0.05, 0.08, 0.12, 0.35))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	var bar_w = 76.0 if is_boss else 46.0
 	var bar_h = 8.0 if is_boss else 6.0
-	var bar_y = -105.0 if is_boss else (-76.0 if enemy_type == EnemyType.MECH_WALKER else (-64.0 if enemy_type == EnemyType.WINGED_BOT else -56.0))
+	var bar_y = -118.0 if is_boss else (-92.0 if enemy_type == EnemyType.MECH_WALKER else (-78.0 if enemy_type == EnemyType.WINGED_BOT else -70.0))
 
 	# Viền đen 1.5px bao ngoài nền thanh máu
 	draw_rect(Rect2(-bar_w * 0.5 - 1.5, bar_y - 1.5, bar_w + 3.0, bar_h + 3.0), Color(0.04, 0.06, 0.09, 0.95))

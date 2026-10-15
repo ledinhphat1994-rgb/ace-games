@@ -216,30 +216,205 @@ class StaticAtmosphereLayer extends Node2D:
 		draw_colored_polygon(vig_bl, vig_col)
 		draw_colored_polygon(vig_br, vig_col)
 
+## Lớp hiệu ứng môi trường hoạt họa động (3 cối xay gió quay nan gỗ, suối & thác nước chảy dọc lòng sông, gợn hồ, cổng portal)
+## Đặt trực tiếp TRÊN IslandSprite (z_index = -2) nhưng DƯỚI TowersContainer và EnemiesContainer (z_index = 0)
+class MapAnimatedFXLayer extends Node2D:
+	var main_ref: Node2D = null
+
+	const RIVER_WAYPOINTS: Array[Vector2] = [
+		Vector2(465.0, 260.0), # 0 Thượng nguồn khe núi phía Bắc
+		Vector2(470.0, 310.0), # 1 Đoạn sông uốn lượn sau tháp canh
+		Vector2(475.0, 360.0), # 2 Tiến sát phía trên cầu đá
+		Vector2(480.0, 425.0), # 3 Dưới gầm vòm cầu đá
+		Vector2(460.0, 475.0), # 4 Lối ra phía nam gầm cầu đá
+		Vector2(420.0, 505.0), # 5 Khúc ngoặt xuôi dòng về Tây Nam
+		Vector2(375.0, 535.0), # 6 Đoạn suối chảy xiết ven bờ dốc
+		Vector2(352.0, 565.0), # 7 Mép ghềnh đá trước thác nước
+		Vector2(346.0, 605.0), # 8 Miệng vực thác nước
+		Vector2(338.0, 665.0)  # 9 Đáy chân thác đổ vào không gian
+	]
+
+	var _river_lengths: Array[float] = []
+	var _total_river_len: float = 0.0
+
+	func _ready() -> void:
+		z_index = -2
+		_init_river_lengths()
+
+	func _init_river_lengths() -> void:
+		_river_lengths.clear()
+		_total_river_len = 0.0
+		for i in range(RIVER_WAYPOINTS.size() - 1):
+			var seg_len = RIVER_WAYPOINTS[i].distance_to(RIVER_WAYPOINTS[i + 1])
+			_river_lengths.append(seg_len)
+			_total_river_len += seg_len
+
+	func get_river_pos_and_dir(progress: float) -> Dictionary:
+		if _total_river_len <= 0.0:
+			return {"pos": RIVER_WAYPOINTS[0], "dir": Vector2.DOWN}
+		var target_dist = clampf(progress, 0.0, 1.0) * _total_river_len
+		var accum = 0.0
+		for i in range(_river_lengths.size()):
+			var seg_len = _river_lengths[i]
+			if accum + seg_len >= target_dist or i == _river_lengths.size() - 1:
+				var t = (target_dist - accum) / maxf(0.001, seg_len)
+				var pos = RIVER_WAYPOINTS[i].lerp(RIVER_WAYPOINTS[i + 1], t)
+				var dir = (RIVER_WAYPOINTS[i + 1] - RIVER_WAYPOINTS[i]).normalized()
+				return {"pos": pos, "dir": dir}
+			accum += seg_len
+		return {"pos": RIVER_WAYPOINTS[RIVER_WAYPOINTS.size() - 1], "dir": Vector2.DOWN}
+
+	func _draw() -> void:
+		var t: float = 0.0
+		if is_instance_valid(main_ref):
+			t = main_ref.get("_idle_time") if "_idle_time" in main_ref else 0.0
+
+		# 1. DÒNG SUỐI CHẢY THẬT DỌC THEO TOÀN BỘ LÒNG SÔNG (28 Dải Sóng Nước & Bọt Trắng)
+		for k in range(28):
+			var u = fmod(t * 0.18 + float(k) / 28.0, 1.0)
+			var data = get_river_pos_and_dir(u)
+			var pt = data["pos"]
+			var r_dir = data["dir"]
+			var normal = Vector2(-r_dir.y, r_dir.x)
+			var lateral_spread = sin(float(k) * 2.3) * 5.0
+			var center_streak = pt + normal * lateral_spread
+			var streak_len = 14.0 + sin(float(k) * 1.7) * 4.0
+			var is_foam = (k % 3 == 0)
+			var col = Color(1.0, 1.0, 1.0, 0.75) if is_foam else Color(0.70, 0.92, 1.0, 0.60)
+			var w = 1.8 if is_foam else 2.4
+			draw_line(center_streak - r_dir * (streak_len * 0.5), center_streak + r_dir * (streak_len * 0.5), col, w)
+
+		# 2. THÁC NƯỚC ĐỔ XUỐNG VỰC (x ~ 335..355, y ~ 605..665)
+		var stream_crest = Vector2(346.0, 605.0)
+		var stream_plunge = Vector2(338.0, 665.0)
+		var foam_pulse = sin(t * 8.0) * 2.2
+
+		# Bọt nước và tia nước đổ dốc từ mép đá xuống vực thẳm
+		draw_circle(stream_crest, 6.5 + foam_pulse * 0.4, Color(1.0, 1.0, 1.0, 0.85))
+		draw_circle(stream_crest + Vector2(-6.0, 2.0), 5.5, Color(0.80, 0.95, 1.0, 0.70))
+		draw_circle(stream_crest + Vector2(6.0, 2.0), 5.5, Color(0.80, 0.95, 1.0, 0.70))
+
+		# 7 dải nước trắng/xanh lơ tuôn thẳng đứng xuống vực thẳm
+		for i in range(7):
+			var phase = fmod(t * 2.6 + float(i) * 0.15, 1.0)
+			var drop_y = lerpf(0.0, 60.0, phase)
+			var drop_x = lerpf(4.0, -8.0, phase) + sin(phase * 4.0 + float(i)) * 2.0 + float(i - 3) * 2.5
+			var drop_alpha = (1.0 - phase) * 0.88
+			var p = stream_crest + Vector2(drop_x, drop_y)
+			draw_line(p - Vector2(0.0, 8.0), p, Color(0.92, 0.98, 1.0, drop_alpha), 2.4)
+			draw_circle(p, lerpf(3.8, 1.8, phase), Color(1.0, 1.0, 1.0, drop_alpha))
+
+		# Cuộn mây bọt nước (Waterfall Mist Particles) trào liên tục ở chân thác
+		draw_circle(stream_plunge, 9.5 + foam_pulse, Color(1.0, 1.0, 1.0, 0.85))
+		for m in range(8):
+			var m_phase = fmod(t * 1.5 + float(m) * 0.125, 1.0)
+			var m_ang = float(m) * (PI * 0.25)
+			var m_rad = lerpf(4.0, 16.0, m_phase)
+			var m_pos = stream_plunge + Vector2(cos(m_ang) * 14.0 * m_phase, -sin(m_phase * PI) * 12.0)
+			var m_alpha = sin(m_phase * PI) * 0.38
+			draw_circle(m_pos, m_rad, Color(0.92, 0.96, 1.0, m_alpha))
+
+		# 3. GỢN SÓNG LẤP LÁNH TRÊN MẶT HỒ GẦN BẾN CẢNG (Lake Ripples & Sparkles)
+		var lake_center = Vector2(730.0, 180.0)
+		for i in range(3):
+			var wave_phase = fmod(t * 0.45 + float(i) * 0.33, 1.0)
+			var rx = lerpf(8.0, 42.0, wave_phase)
+			var ry = rx * 0.42
+			var w_alpha = sin(wave_phase * PI) * 0.40
+			var pts = PackedVector2Array()
+			for seg in range(25):
+				var a = float(seg) * TAU / 24.0
+				pts.append(lake_center + Vector2(cos(a) * rx, sin(a) * ry))
+			draw_polyline(pts, Color(0.65, 0.92, 1.0, w_alpha), 1.5)
+		for j in range(3):
+			var sp_x = lake_center.x + cos(t * 1.5 + float(j) * 2.1) * 22.0
+			var sp_y = lake_center.y + sin(t * 1.5 + float(j) * 2.1) * 8.0
+			var sp_alpha = maxf(0.0, sin(t * 3.0 + float(j) * 1.7)) * 0.75
+			draw_circle(Vector2(sp_x, sp_y), 2.2, Color(1.0, 1.0, 1.0, sp_alpha))
+
+		# 4. 3 CỐI XAY GIÓ QUAY THẬT 100% (Khung Gỗ Nan Lưới & Vải Buồm Trắng Ngà)
+		var windmills = [
+			{"pos": Vector2(835.0, 108.0), "spd": 1.1,  "len": 28.0, "patch_col": Color(0.41, 0.42, 0.29, 0.88)},
+			{"pos": Vector2(928.0, 90.0),  "spd": 0.95, "len": 28.0, "patch_col": Color(0.58, 0.61, 0.59, 0.88)},
+			{"pos": Vector2(1005.0, 101.0),"spd": 1.25, "len": 24.0, "patch_col": Color(0.51, 0.59, 0.61, 0.88)}
+		]
+		for wm in windmills:
+			var w_pos = wm["pos"]
+			var w_len = wm["len"]
+			var base_rot = t * wm["spd"]
+
+			# Lớp che (Mask/Patch) tiệp màu bầu trời/tháp xóa cánh quạt tĩnh cũ
+			draw_circle(w_pos, w_len * 0.92, wm["patch_col"])
+
+			# 4 Cánh Quạt Gỗ Khung Lưới (Wooden Lattice Windmill Blades)
+			for b in range(4):
+				var a = base_rot + float(b) * (PI * 0.5)
+				var tip = w_pos + Vector2(cos(a), sin(a)) * w_len
+				var side_dir = Vector2(-sin(a), cos(a))
+
+				# Vải buồm trắng ngà hình thang
+				var p_in = w_pos + Vector2(cos(a), sin(a)) * 6.0
+				var p_out = tip - Vector2(cos(a), sin(a)) * 1.5
+				var w_sail = 4.8
+				var sail_pts = PackedVector2Array([
+					p_in,
+					p_in + side_dir * (w_sail * 0.7),
+					p_out + side_dir * w_sail,
+					p_out
+				])
+				draw_colored_polygon(sail_pts, Color(0.94, 0.92, 0.86, 0.92))
+				draw_polyline(sail_pts, Color(0.22, 0.14, 0.08, 0.90), 1.0)
+
+				# Nan gỗ vàng ấm bắc ngang
+				for slat in range(1, 4):
+					var s_ratio = float(slat) / 4.0
+					var sp_on_bar = p_in.lerp(p_out, s_ratio)
+					var sp_on_sail = (p_in + side_dir * (w_sail * 0.7)).lerp(p_out + side_dir * w_sail, s_ratio)
+					draw_line(sp_on_bar, sp_on_sail, Color(0.82, 0.68, 0.45, 0.95), 1.2)
+
+				# Nan gỗ chính viền nâu đậm
+				draw_line(w_pos, tip, Color(0.22, 0.14, 0.08), 2.4)
+
+			# Trục gỗ trung tâm
+			draw_circle(w_pos, 4.0, Color(0.22, 0.14, 0.08))
+			draw_circle(w_pos, 2.0, Color(0.85, 0.72, 0.42))
+
+		# 5. VÒNG XOÁY CỔ NGỮ TÍM QUAY TRÒN TRONG CỔNG DỊCH CHUYỂN (Portal Vortex)
+		var portal_pos = Vector2(115.0, 395.0)
+		var portal_rot = t * 2.2
+		var p_glow = 0.5 + 0.5 * sin(t * 4.0)
+		draw_circle(portal_pos, 24.0, Color(0.55, 0.15, 0.85, 0.20 + 0.10 * p_glow))
+		for ring in range(3):
+			var r_rad = 10.0 + float(ring) * 6.5
+			var r_dir = 1.0 if ring % 2 == 0 else -1.0
+			var r_rot = portal_rot * r_dir + float(ring) * 0.8
+			draw_arc(portal_pos, r_rad, r_rot, r_rot + PI * 1.35, 20, Color(0.75, 0.35, 1.0, 0.65), 1.8)
+		draw_circle(portal_pos, 5.0, Color(0.95, 0.85, 1.0, 0.85))
+
 
 
 # Tọa độ tim đường mòn uốn lượn chính xác 100% theo nét vẽ tay trên bản đồ (Chiến trường Đại Lục 1376x768)
 const PATH_WAYPOINTS: Array[Vector2] = [
 	Vector2(145.0, 400.0), # W0: Thềm đá trước Cổng Portal huyền bí phía Tây
-	Vector2(190.0, 415.0), # W1: Tim đường đất ngay trước thềm portal
-	Vector2(245.0, 440.0), # W2: Tim đường đất bắt đầu lượn vòng cung
-	Vector2(295.0, 470.0), # W3: Giữa lòng đường đất ven rặng thông trên
-	Vector2(350.0, 495.0), # W4: Giữa lòng đường đất khúc trũng trước bờ suối
-	Vector2(400.0, 485.0), # W5: Tim đường dẫn hướng thẳng vào mố cầu phía Tây (tránh ngọn cây)
-	Vector2(440.0, 460.0), # W6: Lên sàn Cầu Đá vượt thác (qua trụ cờ đỏ Tây)
+	Vector2(195.0, 428.0), # W1: Tim đường đất ngay trước thềm portal
+	Vector2(250.0, 465.0), # W2: Tim đường đất bắt đầu lượn vòng cung
+	Vector2(305.0, 495.0), # W3: Giữa lòng đường đất ven rặng thông trên
+	Vector2(360.0, 498.0), # W4: Giữa lòng đường đất khúc trũng trước bờ suối
+	Vector2(415.0, 465.0), # W5: Tim đường dẫn hướng thẳng vào mố cầu phía Tây
+	Vector2(445.0, 442.0), # W6: Lên sàn Cầu Đá vượt thác (chính giữa lối vào cầu)
 	Vector2(480.0, 425.0), # W7: Đỉnh vòm sàn Cầu Đá cổ kính (chính giữa 2 lan can)
-	Vector2(525.0, 400.0), # W8: Xuống dốc sàn Cầu Đá phía Đông (chính giữa 2 trụ cờ)
-	Vector2(575.0, 385.0), # W9: Tim đường đất nối từ đầu cầu ra bình nguyên
-	Vector2(635.0, 388.0), # W10: Giữa khe hàng rào cọc gỗ tiền đồn
-	Vector2(695.0, 395.0), # W11: Tim đường bằng trước tháp canh đá
-	Vector2(755.0, 395.0), # W12: Qua khe mở giữa 2 hàng cọc gỗ phòng thủ thứ hai
+	Vector2(520.0, 412.0), # W8: Xuống dốc sàn Cầu Đá phía Đông
+	Vector2(570.0, 395.0), # W9: Tim đường đất nối từ đầu cầu ra bình nguyên
+	Vector2(635.0, 380.0), # W10: Giữa khe hàng rào cọc gỗ tiền đồn
+	Vector2(695.0, 380.0), # W11: Tim đường bằng trước tháp canh đá
+	Vector2(755.0, 385.0), # W12: Qua khe mở giữa 2 hàng cọc gỗ phòng thủ thứ hai
 	Vector2(815.0, 398.0), # W13: Giữa hai tháp thành kiểm soát
-	Vector2(880.0, 415.0), # W14: Bắt đầu vào đại lộ lát đá cuội ven bờ hồ
-	Vector2(950.0, 424.0), # W15: Tim đường đá cuội uốn lượn ven mặt nước
-	Vector2(1015.0, 418.0), # W16: Đáy khúc cua đại lộ đá cuội
-	Vector2(1060.0, 392.0), # W17: Khúc cua dốc đá cuội hướng lên lối vào pháo đài
-	Vector2(1095.0, 365.0), # W18: Giữa hai cột cờ hiệu dẫn vào cầu dốc đá
-	Vector2(1140.0, 338.0), # W19: Chính giữa tim sàn dốc đá dẫn vào cửa thành
+	Vector2(880.0, 414.0), # W14: Bắt đầu vào đại lộ lát đá cuội ven bờ hồ
+	Vector2(950.0, 426.0), # W15: Tim đường đá cuội uốn lượn ven mặt nước
+	Vector2(1015.0, 420.0), # W16: Đáy khúc cua đại lộ đá cuội
+	Vector2(1060.0, 402.0), # W17: Khúc cua dốc đá cuội hướng lên lối vào pháo đài
+	Vector2(1095.0, 372.0), # W18: Giữa hai cột cờ hiệu dẫn vào cầu dốc đá
+	Vector2(1140.0, 335.0), # W19: Chính giữa tim sàn dốc đá dẫn vào cửa thành
 	Vector2(1178.0, 312.0)  # W20: Cửa Vòm Gỗ Pháo Đài Hoàng Gia
 ]
 
@@ -443,6 +618,7 @@ var hardcore_cleared: bool = false
 @onready var web_bridge: Node = get_node_or_null("/root/WebBridge")
 var sound_synth: SoundSynthesizer = null
 var static_atmosphere_layer: StaticAtmosphereLayer = null
+var map_animated_fx_layer: MapAnimatedFXLayer = null
 
 
 var _idle_time: float = 0.0
@@ -498,6 +674,12 @@ func _ready() -> void:
 	static_atmosphere_layer = StaticAtmosphereLayer.new()
 	static_atmosphere_layer.name = "StaticAtmosphereLayer"
 	add_child(static_atmosphere_layer)
+
+	map_animated_fx_layer = MapAnimatedFXLayer.new()
+	map_animated_fx_layer.name = "MapAnimatedFXLayer"
+	map_animated_fx_layer.main_ref = self
+	map_animated_fx_layer.z_index = -2 # Trên IslandSprite (z = -5), dưới TowersContainer/EnemiesContainer (z = 0)
+	add_child(map_animated_fx_layer)
 
 	if TexPlacementMask:
 		placement_mask_image = TexPlacementMask.get_image()
@@ -769,6 +951,8 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_idle_time += delta
+	if map_animated_fx_layer:
+		map_animated_fx_layer.queue_redraw()
 	if bridge_emp_timer > 0.0:
 		bridge_emp_timer = maxf(0.0, bridge_emp_timer - delta)
 		_update_bridge_emp_button_style()
@@ -901,86 +1085,14 @@ func _draw_soft_cloud_vignette() -> void:
 	pass
 
 func _draw_environmental_fx() -> void:
-	# 1. THÁC NƯỚC & DÒNG SUỐI XANH ĐỔ XUỐNG VỰC (x ~ 335..365, y ~ 560..665)
-	# Khớp 100% với lòng khe suối của IslandSprite sau khi scale 1.075
-	var stream_start = Vector2(352.0, 560.0)
-	var stream_crest = Vector2(346.0, 605.0)
-	var stream_plunge = Vector2(338.0, 662.0)
-	var foam_pulse = sin(_idle_time * 8.0) * 2.2
-
-	# Vệt dòng nước chảy lấp lánh trong lòng suối đá
-	draw_line(stream_start, stream_crest, Color(0.70, 0.92, 1.0, 0.45), 3.5)
-	draw_circle(stream_crest, 6.0 + foam_pulse * 0.4, Color(1.0, 1.0, 1.0, 0.80))
-
-	# Bọt nước và tia nước đổ dốc từ mép đá xuống vực thẳm
-	draw_circle(stream_plunge, 8.5 + foam_pulse, Color(1.0, 1.0, 1.0, 0.78))
-	draw_circle(stream_plunge + Vector2(-5.0, -3.0), 6.5 - foam_pulse * 0.4, Color(0.85, 0.95, 1.0, 0.65))
-	draw_circle(stream_plunge + Vector2(5.0, -3.0), 6.5 + foam_pulse * 0.4, Color(0.85, 0.95, 1.0, 0.65))
-	for i in range(5):
-		var phase = fmod(_idle_time * 3.4 + float(i) * 0.22, 1.0)
-		var drop_y = lerpf(0.0, 57.0, phase)
-		var drop_x = lerpf(4.0, -4.0, phase) + sin(phase * 4.0 + float(i)) * 2.5
-		var drop_alpha = (1.0 - phase) * 0.85
-		var p = stream_crest + Vector2(drop_x, drop_y)
-		draw_circle(p, lerpf(4.0, 2.0, phase), Color(0.92, 0.98, 1.0, drop_alpha))
-		draw_line(p - Vector2(0.0, 6.0), p, Color(1.0, 1.0, 1.0, drop_alpha * 0.8), 2.2)
-
-	# 2. GỢN SÓNG LẤP LÁNH TRÊN MẶT HỒ GẦN BẾN CẢNG (Lake Ripples & Sparkles)
-	var lake_center = Vector2(730.0, 180.0)
-	for i in range(3):
-		var wave_phase = fmod(_idle_time * 0.45 + float(i) * 0.33, 1.0)
-		var rx = lerpf(8.0, 42.0, wave_phase)
-		var ry = rx * 0.42
-		var w_alpha = sin(wave_phase * PI) * 0.40
-		var pts = PackedVector2Array()
-		for seg in range(25):
-			var a = float(seg) * TAU / 24.0
-			pts.append(lake_center + Vector2(cos(a) * rx, sin(a) * ry))
-		draw_polyline(pts, Color(0.65, 0.92, 1.0, w_alpha), 1.5)
-	for j in range(3):
-		var sp_x = lake_center.x + cos(_idle_time * 1.5 + float(j) * 2.1) * 22.0
-		var sp_y = lake_center.y + sin(_idle_time * 1.5 + float(j) * 2.1) * 8.0
-		var sp_alpha = maxf(0.0, sin(_idle_time * 3.0 + float(j) * 1.7)) * 0.75
-		draw_circle(Vector2(sp_x, sp_y), 2.2, Color(1.0, 1.0, 1.0, sp_alpha))
-
-	# 3. CÁNH QUẠT ÁNH SÁNG XOAY NHẸ TẠI TÂM 3 CỐI XAY GIÓ (Windmills - Đồi Đông Bắc)
-	# Tọa độ pixel chính xác trên IslandSprite (scale 1.075):
-	# - Cối xay 1 (Mái Cam, Trái): Vector2(835.0, 108.0), cánh quạt 28px
-	# - Cối xay 2 (Mái Lam, Giữa): Vector2(928.0, 90.0), cánh quạt 28px
-	# - Cối xay 3 (Mái Tím, Phải): Vector2(1005.0, 101.0), cánh quạt 24px
-	var windmills = [
-		{"pos": Vector2(835.0, 108.0), "spd": 1.1, "len": 28.0},
-		{"pos": Vector2(928.0, 90.0), "spd": 0.95, "len": 28.0},
-		{"pos": Vector2(1005.0, 101.0), "spd": 1.25, "len": 24.0}
-	]
-	for wm in windmills:
-		var base_rot = _idle_time * wm.spd
-		var w_pos = wm.pos
-		var w_len = wm.len
-		for b in range(4):
-			var a = base_rot + float(b) * (PI * 0.5)
-			var tip = w_pos + Vector2(cos(a), sin(a)) * w_len
-			draw_line(w_pos, tip, Color(0.95, 0.92, 0.85, 0.85), 2.2)
-		draw_circle(w_pos, 3.2, Color(0.35, 0.20, 0.12, 0.95))
-		draw_circle(w_pos, 1.6, Color(0.95, 0.85, 0.65, 0.95))
-
-	# 4. VÒNG XOÁY CỔ NGỮ TÍM QUAY TRÒN TRONG CỔNG DỊCH CHUYỂN (Portal Vortex)
-	var portal_pos = Vector2(115.0, 395.0)
-	var portal_rot = _idle_time * 2.2
-	var p_glow = 0.5 + 0.5 * sin(_idle_time * 4.0)
-	draw_circle(portal_pos, 24.0, Color(0.55, 0.15, 0.85, 0.20 + 0.10 * p_glow))
-	for ring in range(3):
-		var r_rad = 10.0 + float(ring) * 6.5
-		var r_dir = 1.0 if ring % 2 == 0 else -1.0
-		var r_rot = portal_rot * r_dir + float(ring) * 0.8
-		draw_arc(portal_pos, r_rad, r_rot, r_rot + PI * 1.35, 20, Color(0.75, 0.35, 1.0, 0.65), 1.8)
-	draw_circle(portal_pos, 5.0, Color(0.95, 0.85, 1.0, 0.85))
+	# Đã tách sang MapAnimatedFXLayer (z_index = -2) hiển thị trực tiếp trên IslandSprite
+	pass
 
 func _draw_tactical_range_ring(tower: AnimatedTower) -> void:
 	var t_pos = tower.global_position
 	var eff_range = tower.get_effective_range()
 	var rx = eff_range
-	var ry = eff_range * 0.55 # Tỷ lệ Isometric 2.5D
+	var ry = eff_range * 0.48 # Tỷ lệ Isometric 2.5D
 	var rot_offset = _idle_time * 0.4
 	var total_segments = 48
 	for s in range(total_segments):
@@ -997,28 +1109,28 @@ func _draw_tactical_range_ring(tower: AnimatedTower) -> void:
 	var pad_poly = PackedVector2Array()
 	for p in range(24):
 		var pa = float(p) * TAU / 24.0
-		pad_poly.append(t_pos + Vector2(cos(pa) * 32.0, sin(pa) * 16.0))
+		pad_poly.append(t_pos + Vector2(cos(pa) * 32.0, sin(pa) * 32.0 * 0.48))
 	draw_colored_polygon(pad_poly, Color(0.2, 0.9, 1.0, 0.12))
 	draw_polyline(pad_poly, Color(0.2, 0.9, 1.0, 0.45), 1.5)
 
 func _draw_placement_preview() -> void:
 	var pos = placement_preview_pos
 
-	# 1. VÒNG BÁN KÍNH TẦM BẮN (RANGE CIRCLE)
+	# 1. VÒNG BÁN KÍNH TẦM BẮN (RANGE CIRCLE) -> ISOMETRIC ELLIPSE
 	var stroke_color = Color(0.2, 0.95, 0.45, 0.70) if is_placement_valid else Color(1.0, 0.25, 0.25, 0.75)
 	var fill_color = Color(0.15, 0.85, 0.4, 0.08) if is_placement_valid else Color(0.9, 0.15, 0.15, 0.08)
-	draw_circle(pos, placing_range, fill_color)
-	draw_arc(pos, placing_range, 0.0, TAU, 64, stroke_color, 2.0, true)
+	_draw_isometric_ellipse(pos, placing_range, placing_range * 0.48, fill_color)
+	_draw_isometric_ellipse_outline(pos, placing_range, placing_range * 0.48, stroke_color, 2.0)
 
 	# 2. CHÂN TRỤ TIẾP XÚC ĐẤT 2.5D (ISOMETRIC BASE FOOTPRINT RING)
 	var foot_rx = 26.0
-	var foot_ry = 14.0
+	var foot_ry = 26.0 * 0.48
 
 	if is_placement_valid:
 		# VỊ TRÍ HỢP LỆ (XANH LÁ)
 		_draw_isometric_ellipse(pos, foot_rx, foot_ry, Color(0.1, 0.85, 0.35, 0.32))
 		_draw_isometric_ellipse_outline(pos, foot_rx, foot_ry, Color(0.2, 1.0, 0.45, 0.95), 2.5)
-		_draw_isometric_ellipse_outline(pos, foot_rx + 6.0, foot_ry + 3.0, Color(0.15, 0.9, 0.4, 0.45), 1.5)
+		_draw_isometric_ellipse_outline(pos, foot_rx + 6.0, (foot_rx + 6.0) * 0.48, Color(0.15, 0.9, 0.4, 0.45), 1.5)
 		draw_line(pos + Vector2(-foot_rx - 8.0, 0.0), pos + Vector2(-foot_rx, 0.0), Color(0.2, 1.0, 0.45, 0.9), 2.0)
 		draw_line(pos + Vector2(foot_rx, 0.0), pos + Vector2(foot_rx + 8.0, 0.0), Color(0.2, 1.0, 0.45, 0.9), 2.0)
 		draw_line(pos + Vector2(0.0, -foot_ry - 6.0), pos + Vector2(0.0, -foot_ry), Color(0.2, 1.0, 0.45, 0.9), 2.0)
@@ -1035,21 +1147,21 @@ func _draw_placement_preview() -> void:
 	match placing_tower_type:
 		TowerClass.TowerType.GATLING_GUN:
 			var scale_g = 0.200
-			var mount_offset = Vector2(0.0, -28.0)
+			var mount_offset = Vector2(0.0, -11.0)
 			var base_dest = Rect2(pos + mount_offset - Vector2(320.0, 320.0) * scale_g, Vector2(640.0, 640.0) * scale_g)
 			draw_texture_rect(TexGatlingBase, base_dest, false, ghost_modulate)
 			draw_texture_rect(TexGatlingTurretDir0, base_dest, false, ghost_modulate)
 
 		TowerClass.TowerType.PLASMA_CANNON:
 			var scale_p = 0.185
-			var mount_offset = Vector2(-9.3, -27.6)
+			var mount_offset = Vector2(-9.3, -18.8)
 			var base_dest = Rect2(pos + mount_offset - Vector2(320.0, 320.0) * scale_p, Vector2(640.0, 640.0) * scale_p)
 			draw_texture_rect(TexPlasmaBase, base_dest, false, ghost_modulate)
 			draw_texture_rect(TexPlasmaTurretDir0, base_dest, false, ghost_modulate)
 
 		TowerClass.TowerType.TESLA_COIL:
 			var scale_t = 0.150
-			var base_dest = Rect2(pos + Vector2(-2.4, -43.65) - Vector2(180.0, 335.0) * scale_t, Vector2(360.0, 670.0) * scale_t)
+			var base_dest = Rect2(pos + Vector2(-2.4, -31.65) - Vector2(180.0, 335.0) * scale_t, Vector2(360.0, 670.0) * scale_t)
 			draw_texture_rect(TexTesla, base_dest, false, ghost_modulate)
 
 	# 4. NHÃN TRẠNG THÁI NỔI (STATUS BADGE)
@@ -3572,24 +3684,36 @@ func _draw() -> void:
 	var pulse = 0.5 + 0.5 * sin(_idle_time * 3.0)
 
 	# Ô Cao Điểm (Overwatch Pad - Cyan: +15% Tầm bắn)
-	var col_ow_fill = Color(0.1, 0.8, 1.0, 0.12 + 0.05 * pulse)
-	var col_ow_stroke = Color(0.1, 0.9, 1.0, 0.65 + 0.30 * pulse)
-	_draw_isometric_ellipse(p_overwatch, 28.0, 15.0, col_ow_fill)
-	_draw_isometric_ellipse_outline(p_overwatch, 28.0, 15.0, col_ow_stroke, 1.8)
-	_draw_isometric_ellipse_outline(p_overwatch, 34.0, 18.0, Color(0.1, 0.9, 1.0, 0.25 * pulse), 1.0)
-	# Tâm hình học: Dấu + thanh mảnh thay vì vòng tròn số 0
-	draw_line(p_overwatch + Vector2(-5.0, 0.0), p_overwatch + Vector2(5.0, 0.0), col_ow_stroke, 1.5)
-	draw_line(p_overwatch + Vector2(0.0, -3.0), p_overwatch + Vector2(0.0, 3.0), col_ow_stroke, 1.5)
+	var ow_occupied = false
+	for t in towers_container.get_children():
+		if is_instance_valid(t) and t.global_position.distance_to(p_overwatch) < 25.0:
+			ow_occupied = true
+			break
+	if not ow_occupied:
+		var col_ow_fill = Color(0.1, 0.8, 1.0, 0.12 + 0.05 * pulse)
+		var col_ow_stroke = Color(0.1, 0.9, 1.0, 0.65 + 0.30 * pulse)
+		_draw_isometric_ellipse(p_overwatch, 28.0, 28.0 * 0.48, col_ow_fill)
+		_draw_isometric_ellipse_outline(p_overwatch, 28.0, 28.0 * 0.48, col_ow_stroke, 1.8)
+		_draw_isometric_ellipse_outline(p_overwatch, 34.0, 34.0 * 0.48, Color(0.1, 0.9, 1.0, 0.25 * pulse), 1.0)
+		# Tâm hình học: Dấu + thanh mảnh thay vì vòng tròn số 0
+		draw_line(p_overwatch + Vector2(-5.0, 0.0), p_overwatch + Vector2(5.0, 0.0), col_ow_stroke, 1.5)
+		draw_line(p_overwatch + Vector2(0.0, -3.0), p_overwatch + Vector2(0.0, 3.0), col_ow_stroke, 1.5)
 
 	# Ô Mạch Năng Lượng (Power Conduit Pad - Vàng Hổ Phách: +15% Tốc độ bắn)
-	var col_cd_fill = Color(1.0, 0.75, 0.1, 0.12 + 0.05 * pulse)
-	var col_cd_stroke = Color(1.0, 0.82, 0.15, 0.65 + 0.30 * pulse)
-	_draw_isometric_ellipse(p_conduit, 28.0, 15.0, col_cd_fill)
-	_draw_isometric_ellipse_outline(p_conduit, 28.0, 15.0, col_cd_stroke, 1.8)
-	_draw_isometric_ellipse_outline(p_conduit, 34.0, 18.0, Color(1.0, 0.82, 0.15, 0.25 * pulse), 1.0)
-	# Tâm hình học: Dấu + thanh mảnh thay vì vòng tròn số 0
-	draw_line(p_conduit + Vector2(-5.0, 0.0), p_conduit + Vector2(5.0, 0.0), col_cd_stroke, 1.5)
-	draw_line(p_conduit + Vector2(0.0, -3.0), p_conduit + Vector2(0.0, 3.0), col_cd_stroke, 1.5)
+	var cd_occupied = false
+	for t in towers_container.get_children():
+		if is_instance_valid(t) and t.global_position.distance_to(p_conduit) < 25.0:
+			cd_occupied = true
+			break
+	if not cd_occupied:
+		var col_cd_fill = Color(1.0, 0.75, 0.1, 0.12 + 0.05 * pulse)
+		var col_cd_stroke = Color(1.0, 0.82, 0.15, 0.65 + 0.30 * pulse)
+		_draw_isometric_ellipse(p_conduit, 28.0, 28.0 * 0.48, col_cd_fill)
+		_draw_isometric_ellipse_outline(p_conduit, 28.0, 28.0 * 0.48, col_cd_stroke, 1.8)
+		_draw_isometric_ellipse_outline(p_conduit, 34.0, 34.0 * 0.48, Color(1.0, 0.82, 0.15, 0.25 * pulse), 1.0)
+		# Tâm hình học: Dấu + thanh mảnh thay vì vòng tròn số 0
+		draw_line(p_conduit + Vector2(-5.0, 0.0), p_conduit + Vector2(5.0, 0.0), col_cd_stroke, 1.5)
+		draw_line(p_conduit + Vector2(0.0, -3.0), p_conduit + Vector2(0.0, 3.0), col_cd_stroke, 1.5)
 
 	# Vẽ Đế Cổ Ngữ Isometric (Tactical Pad Rune) cho tất cả ô đặt trụ trống khi mở khay mua tháp
 	var show_build_runes = is_placing_tower or (quick_tower_tray and quick_tower_tray.visible) or (build_popup and build_popup.visible)
@@ -3607,9 +3731,9 @@ func _draw() -> void:
 			if not occupied:
 				var col_rune_fill = Color(0.15, 0.65, 0.95, 0.18 + 0.08 * rune_pulse)
 				var col_rune_stroke = Color(0.3, 0.85, 1.0, 0.60 + 0.30 * rune_pulse)
-				_draw_isometric_ellipse(p, 26.0, 14.0, col_rune_fill)
-				_draw_isometric_ellipse_outline(p, 26.0, 14.0, col_rune_stroke, 1.6)
-				_draw_isometric_ellipse_outline(p, 31.0, 16.5, Color(0.3, 0.85, 1.0, 0.20 * rune_pulse), 1.0)
+				_draw_isometric_ellipse(p, 26.0, 26.0 * 0.48, col_rune_fill)
+				_draw_isometric_ellipse_outline(p, 26.0, 26.0 * 0.48, col_rune_stroke, 1.6)
+				_draw_isometric_ellipse_outline(p, 31.0, 31.0 * 0.48, Color(0.3, 0.85, 1.0, 0.20 * rune_pulse), 1.0)
 				draw_line(p + Vector2(-4.0, 0.0), p + Vector2(4.0, 0.0), Color(0.4, 0.9, 1.0, 0.85), 1.4)
 				draw_line(p + Vector2(0.0, -2.5), p + Vector2(0.0, 2.5), Color(0.4, 0.9, 1.0, 0.85), 1.4)
 
@@ -3677,8 +3801,7 @@ func _draw() -> void:
 	# 0f. Lớp phủ mây mờ đã được tách sang StaticAtmosphereLayer tĩnh
 	# _draw_soft_cloud_vignette()
 
-	# 0g. Hiệu ứng Môi trường Sống động (Thác nước, Gợn sóng hồ bến cảng, 3 Cối xay gió, Vòng xoáy portal)
-	_draw_environmental_fx()
+	# 0g. Hiệu ứng Môi trường Sống động: Đã chuyển sang MapAnimatedFXLayer (z_index = -2) hiển thị trên IslandSprite và dưới tháp/quái
 
 	# 0h. ÁNH SÁNG SÂN KHẤU & KHÍ QUYỂN ĐẢO BAY CLASS S (Sunbeams 35°, 20 Floating Motes, Corner Vignette)
 	_draw_stage_lighting_and_atmosphere()

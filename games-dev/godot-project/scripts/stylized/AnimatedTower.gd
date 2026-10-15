@@ -270,14 +270,14 @@ static var _static_plinth_pins: Array[Vector2] = []
 static func _ensure_static_plinth() -> void:
 	if _static_ao_shadow_poly.size() > 0:
 		return
-	var center_ground = Vector2(0.0, 4.0)
-	var ao_rx = 34.0
-	var ao_ry = 18.0
+	var center_ground = Vector2(0.0, 0.0)
+	var ao_rx = 26.0
+	var ao_ry = 13.0
 	for i in range(24):
 		var ang = float(i) * TAU / 24.0
 		_static_ao_shadow_poly.append(center_ground + Vector2(cos(ang) * ao_rx, sin(ang) * ao_ry))
-	var plinth_rx = 28.0
-	var plinth_ry = 14.0
+	var plinth_rx = 26.0
+	var plinth_ry = 13.0
 	for i in range(24):
 		var ang = float(i) * TAU / 24.0
 		_static_plinth_poly.append(center_ground + Vector2(cos(ang) * plinth_rx, sin(ang) * plinth_ry))
@@ -443,6 +443,8 @@ const PLASMA_CHARGE_TIME: float = 0.25
 
 # Gatling Visual Effects (theo Video)
 var _barrel_spin_time: float = 0.0
+var _gatling_barrel_spin_angle: float = 0.0
+var _gatling_spin_speed: float = 0.0
 var _muzzle_flash_timer: float = 0.0
 var _muzzle_flash_rot: float = 0.0
 var _muzzle_flash_scale: float = 1.0
@@ -552,26 +554,26 @@ func _ready() -> void:
 			sprite_base.texture = TexPlasmaBase
 			sprite_base.centered = false
 			sprite_base.offset = Vector2(-320.0, -320.0)
-			_turret_mount_pos = Vector2(-9.3, -30.8)
+			_turret_mount_pos = Vector2(-9.3, -18.8)
 			sprite_base.position = _turret_mount_pos
 
 		TowerType.GATLING_GUN:
 			sprite_base.texture = TexGatlingBase
 			sprite_base.centered = false
 			sprite_base.offset = Vector2(-320.0, -320.0)
-			_turret_mount_pos = Vector2(0.0, -23.0)
+			_turret_mount_pos = Vector2(0.0, -11.0)
 			sprite_base.position = _turret_mount_pos
 
 		TowerType.TESLA_COIL:
 			sprite_base.texture = TexTesla
-			sprite_base.position = Vector2(-2.4, -43.65)
-			_turret_mount_pos = Vector2(-2.4, -88.0)
+			sprite_base.position = Vector2(-2.4, -31.65)
+			_turret_mount_pos = Vector2(-2.4, -76.0)
 
 		TowerType.SAM_BATTERY:
 			sprite_base.texture = TexGatlingBase
 			sprite_base.centered = false
 			sprite_base.offset = Vector2(-320.0, -320.0)
-			_turret_mount_pos = Vector2(0.0, -23.0)
+			_turret_mount_pos = Vector2(0.0, -11.0)
 			sprite_base.position = _turret_mount_pos
 
 		_:
@@ -579,7 +581,7 @@ func _ready() -> void:
 			sprite_base.texture = TexPlasmaBase
 			sprite_base.centered = false
 			sprite_base.offset = Vector2(-320.0, -320.0)
-			_turret_mount_pos = Vector2(-9.3, -30.8)
+			_turret_mount_pos = Vector2(-9.3, -18.8)
 			sprite_base.position = _turret_mount_pos
 
 	add_child(sprite_base)
@@ -682,6 +684,7 @@ func _process(delta: float) -> void:
 		or _recoil_time > 0.0
 		or _muzzle_flash_timer > 0.0
 		or _is_barrel_rotating
+		or (tower_type == TowerType.GATLING_GUN and _gatling_spin_speed > 0.1)
 		or _ground_dust_alpha > 0.01
 		or not _smoke_puffs.is_empty()
 		or is_overclocked
@@ -716,12 +719,20 @@ func _update_tower_specific_effects(delta: float) -> void:
 	if _muzzle_flash_timer > 0.0:
 		_muzzle_flash_timer -= delta
 
+	if tower_type == TowerType.GATLING_GUN:
+		var is_gatling_firing = is_instance_valid(current_target) and not current_target.is_queued_for_deletion() and (_muzzle_flash_timer > 0.0 or _recoil_time > 0.0 or _cooldown_timer <= 0.06)
+		if is_gatling_firing:
+			_gatling_spin_speed = lerpf(_gatling_spin_speed, 32.0, delta * 8.0)
+		else:
+			_gatling_spin_speed = lerpf(_gatling_spin_speed, 0.0, delta * 4.0)
+		_gatling_barrel_spin_angle += _gatling_spin_speed * delta
+
 	if tower_type == TowerType.TESLA_COIL:
 		_idle_spark_timer -= delta
 		if _idle_spark_timer <= 0.0:
 			_idle_spark_timer = randf_range(0.08, 0.16)
 			_spark_points.clear()
-			var sphere_center = Vector2(-2.1, -88.0)
+			var sphere_center = Vector2(-2.1, -76.0)
 			for s in range(3):
 				var ang = randf() * TAU
 				var rad = randf_range(6.0, 16.0)
@@ -1302,13 +1313,22 @@ func _trigger_upgrade_halo() -> void:
 		var tween_s = sprite_head.create_tween()
 		tween_s.tween_property(sprite_head, "scale", base_sc, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+## Hàm vẽ vòng elip chuẩn Isometric dẹt 2.5D dùng chung (ry = rx * 0.48)
+func draw_isometric_ring(center: Vector2, radius_x: float, color: Color, width: float = 1.5, start_angle: float = 0.0, end_angle: float = TAU, segments: int = 32) -> void:
+	var pts = PackedVector2Array()
+	var ry = radius_x * 0.48
+	var angle_span = end_angle - start_angle
+	for i in range(segments + 1):
+		var a = start_angle + float(i) * angle_span / float(segments)
+		pts.append(center + Vector2(cos(a) * radius_x, sin(a) * ry))
+	draw_polyline(pts, color, width)
+
 ## Hoạt họa Nhún & Giật Nòng (Squash & Stretch Recoil trong 0.12s)
 func play_recoil_squash(shoot_dir: Vector2) -> void:
 	_recoil_offset = -shoot_dir.normalized() * 3.5
 	_recoil_time = 0.12
-	var tw = create_tween()
-	tw.tween_property(self, "scale", Vector2(1.08, 0.93), 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(self, "scale", Vector2(1.0, 1.0), 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	# CỐ ĐỊNH 100% TOÀN THÂN TRỤ TRÊN MẶT ĐẤT - CẤM TWEEN SCALE/POSITION CỦA SELF
+	scale = Vector2.ONE
 
 ## Hoạt ảnh "Dậm xuống đất" (Drop-in bounce) khi xây hoặc nâng cấp tháp
 func play_drop_in_bounce() -> void:
@@ -1326,12 +1346,22 @@ func play_drop_in_bounce() -> void:
 func _draw() -> void:
 	# 0. BỆ ĐÁ CỔ NGỮ ISOMETRIC 2 LỚP & BÓNG TIẾP ĐẤT DƯỚI CHÂN TRỤ (GROUNDING & TACTICAL STONE PLINTH)
 	_ensure_static_plinth()
-	var center_ground = Vector2(0.0, 4.0)
+	var center_ground = Vector2(0.0, 0.0)
 
-	# Lớp 1 (Ambient Occlusion Shadow): Elip đen mềm rx = 34, ry = 18, Color(0.02, 0.04, 0.06, 0.45)
-	draw_colored_polygon(_static_ao_shadow_poly, Color(0.02, 0.04, 0.06, 0.45))
+	# Lớp 1 (Ambient Occlusion Shadow): Elip đen mềm rx = 26, ry = 13, Color(0.02, 0.05, 0.02, 0.55)
+	draw_colored_polygon(_static_ao_shadow_poly, Color(0.02, 0.05, 0.02, 0.55))
 
-	# Lớp 2 (Tactical Stone Plinth): Vòng elip viền đá/kim loại mỏng rx = 28, ry = 14, Color(0.22, 0.28, 0.35, 0.65)
+	# 4-6 cụm cỏ/đá nhỏ tiệp màu với mặt cỏ đảo (Color(0.32, 0.48, 0.22, 0.85)) ôm nhẹ quanh mép dưới đế trụ để chân trụ cắm sâu vào mặt đất:
+	var grass_tufts = [
+		Vector2(-24.0, 3.0), Vector2(-15.0, 9.0), Vector2(-3.0, 11.5),
+		Vector2(12.0, 10.5), Vector2(22.0, 4.0), Vector2(1.0, 8.0)
+	]
+	for g_pos in grass_tufts:
+		draw_circle(g_pos, 1.8, Color(0.32, 0.48, 0.22, 0.85))
+		draw_line(g_pos, g_pos + Vector2(-1.0, -3.5), Color(0.42, 0.60, 0.28, 0.90), 1.2)
+		draw_line(g_pos, g_pos + Vector2(1.2, -3.0), Color(0.38, 0.55, 0.25, 0.90), 1.2)
+
+	# Lớp 2 (Tactical Stone Plinth): Vòng elip viền đá/kim loại mỏng rx = 26, ry = 13, Color(0.22, 0.28, 0.35, 0.65)
 	draw_colored_polygon(_static_plinth_poly, Color(0.12, 0.16, 0.22, 0.60))
 	draw_polyline(_static_plinth_poly, Color(0.22, 0.28, 0.35, 0.65), 1.6)
 
@@ -1342,7 +1372,7 @@ func _draw() -> void:
 
 	# Vòng bụi trắng tỏa ra quanh chân đế khi xây / nâng cấp
 	if _ground_dust_alpha > 0.01:
-		draw_set_transform(center_ground, 0.0, Vector2(1.0, 0.52))
+		draw_set_transform(center_ground, 0.0, Vector2(1.0, 0.48))
 		draw_arc(Vector2.ZERO, _ground_dust_radius, 0, TAU, 36, Color(0.92, 0.95, 1.0, _ground_dust_alpha * 0.70), 2.5)
 		draw_arc(Vector2.ZERO, _ground_dust_radius * 0.75, 0, TAU, 36, Color(1.0, 1.0, 1.0, _ground_dust_alpha * 0.40), 1.5)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -1365,41 +1395,39 @@ func _draw() -> void:
 		draw_line(muzzle_local, laser_end, laser_col, 1.5)
 		draw_circle(target_local, 3.5, laser_col)
 
-	# 4. Vòng tròn hiển thị tầm bắn khi được chọn (Isometric 2.5D)
+	# 4. Vòng tròn hiển thị tầm bắn khi được chọn (Isometric 2.5D dẹt ry = rx * 0.48)
 	if is_selected:
 		var eff_range = get_effective_range()
-		var pts = PackedVector2Array()
-		var rx = eff_range
-		var ry = eff_range * 0.55
-		for i in range(49):
-			var a = float(i) * TAU / 48.0
-			pts.append(Vector2(cos(a) * rx, sin(a) * ry))
-		draw_polyline(pts, Color(0.2, 0.95, 1.0, 0.45), 1.8)
+		draw_isometric_ring(Vector2.ZERO, eff_range, Color(0.2, 0.95, 1.0, 0.45), 1.8, 0, TAU, 48)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
 		draw_circle(Vector2.ZERO, 28.0, Color(0.2, 0.9, 1.0, 0.15))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-	# 4.1. Vòng hào quang Pylon Buff nếu tháp đang được hưởng lợi
+	# 4.1. Vòng hào quang Pylon Buff nếu tháp đang được hưởng lợi (Isometric 2.5D)
 	if atk_speed_buff > 1.0 or range_buff > 1.0:
-		draw_arc(Vector2.ZERO, 34.0, 0, TAU, 32, Color(1.0, 0.85, 0.25, 0.65), 2.0)
+		draw_isometric_ring(Vector2.ZERO, 34.0, Color(1.0, 0.85, 0.25, 0.65), 2.0)
 
 	# 4.2. Hiệu ứng Quá Tải Xung Nhịp (Overclock Arc Rings & Rotating Gears)
 	if is_overclocked:
 		var oc_rot = _idle_patrol_timer * 10.0
 		var oc_rad = 36.0
-		draw_arc(Vector2.ZERO, oc_rad, oc_rot, oc_rot + PI * 0.8, 24, Color(0.2, 0.95, 1.0, 0.90), 2.5)
-		draw_arc(Vector2.ZERO, oc_rad, oc_rot + PI, oc_rot + PI * 1.8, 24, Color(1.0, 0.85, 0.25, 0.90), 2.5)
-		draw_arc(Vector2.ZERO, oc_rad + 6.0, -oc_rot, -oc_rot + PI, 24, Color(0.25, 1.0, 0.7, 0.55), 1.8)
+		draw_isometric_ring(Vector2.ZERO, oc_rad, Color(0.2, 0.95, 1.0, 0.90), 2.5, oc_rot, oc_rot + PI * 0.8)
+		draw_isometric_ring(Vector2.ZERO, oc_rad, Color(1.0, 0.85, 0.25, 0.90), 2.5, oc_rot + PI, oc_rot + PI * 1.8)
+		draw_isometric_ring(Vector2.ZERO, oc_rad + 6.0, Color(0.25, 1.0, 0.7, 0.55), 1.8, -oc_rot, -oc_rot + PI)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.48))
 		draw_circle(Vector2.ZERO, 10.0, Color(0.2, 0.95, 1.0, 0.15))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# 4.3. Hiệu ứng Nhiễu Sóng Từ Boss (Jammed Pulsing Aura)
 	if jammed_timer > 0.0:
 		var j_pulse = 0.5 + 0.5 * sin(_idle_patrol_timer * 12.0)
-		draw_arc(Vector2.ZERO, 30.0, 0, TAU, 24, Color(0.85, 0.25, 0.95, 0.65 + 0.35 * j_pulse), 2.0)
+		draw_isometric_ring(Vector2.ZERO, 30.0, Color(0.85, 0.25, 0.95, 0.65 + 0.35 * j_pulse), 2.0)
 		draw_string(ThemeDB.fallback_font, Vector2(-36.0, -55.0), "NHIỄU (-35%)", HORIZONTAL_ALIGNMENT_CENTER, -1, 10, Color(0.9, 0.4, 1.0))
 
 	# 5. Hiệu ứng thăng cấp Halo
 	if _halo_alpha > 0.01:
 		var halo_col = Color(1.0, 0.85, 0.2, _halo_alpha)
-		draw_arc(Vector2.ZERO, _halo_radius, 0, TAU, 40, halo_col, 3.5)
+		draw_isometric_ring(Vector2.ZERO, _halo_radius, halo_col, 3.5)
 
 	# 6. Tháp Cấp 3: 2 ngọc hào quang xoay quanh đỉnh tháp
 	if level >= 3:
@@ -1409,6 +1437,22 @@ func _draw() -> void:
 		var p2 = Vector2(cos(_aura_rot + PI), sin(_aura_rot + PI) * 0.4) * orb_dist + Vector2(0, top_y)
 		draw_circle(p1, 3.5, Color(1.0, 0.85, 0.2, 0.95))
 		draw_circle(p2, 3.5, Color(0.2, 0.95, 1.0, 0.95))
+
+	# 6.1. HIỆU ỨNG CỤM 6 NÒNG SÚNG THÉP XOAY TRÒN (Spinning 6-Barrel Gatling Rotor) CHO GATLING GUN
+	if tower_type == TowerType.GATLING_GUN and (_gatling_spin_speed > 0.5 or _muzzle_flash_timer > 0.0):
+		var m_pos = get_muzzle_local_pos()
+		var r_rotor = 4.8
+		# Trục mâm rotor
+		draw_circle(m_pos, 2.0, Color(0.20, 0.22, 0.26, 0.95))
+		# 6 nòng súng thép xoay tít quanh tâm theo góc _gatling_barrel_spin_angle
+		for k in range(6):
+			var b_ang = _gatling_barrel_spin_angle + float(k) * TAU / 6.0
+			var b_offset = Vector2(cos(b_ang) * r_rotor, sin(b_ang) * r_rotor * 0.48)
+			draw_circle(m_pos + b_offset, 1.4, Color(0.38, 0.42, 0.48, 0.95))
+			draw_circle(m_pos + b_offset, 0.7, Color(0.14, 0.16, 0.18, 0.95))
+		# Vòng gió xoáy cơ khí khi xả đạn
+		if _gatling_spin_speed > 8.0:
+			draw_arc(m_pos, 5.8, _gatling_barrel_spin_angle, _gatling_barrel_spin_angle + PI * 1.2, 16, Color(0.85, 0.92, 1.0, 0.45), 1.2)
 
 	# 7. CHỚP LỬA ĐẦU NÒNG HÌNH SAO ĐA GIÁC (Star Muzzle Flash) TẠI ĐẦU NÒNG
 	if tower_type == TowerType.GATLING_GUN and _muzzle_flash_timer > 0.0:
