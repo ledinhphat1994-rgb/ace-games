@@ -13,6 +13,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { LearningPage } from '@/features/hub/LearningPage'
 import './index.css'
 import { ThemeProvider } from '@/app/theme'
+import '@/lib/firebase'
 
 import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'

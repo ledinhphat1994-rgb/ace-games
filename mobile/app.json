@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Digital Campus",
-    "slug": "digital-campus",
+    "name": "Ace Games",
+    "slug": "ace-games",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
@@ -10,10 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gdtxdinhquan.campus"
+      "bundleIdentifier": "com.acegames.app"
     },
     "android": {
-      "package": "com.gdtxdinhquan.campus",
+      "package": "com.acegames.app",
       "adaptiveIcon": {
         "backgroundColor": "#020c24",
         "foregroundImage": "./assets/android-icon-foreground.png",

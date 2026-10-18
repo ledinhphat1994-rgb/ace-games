@@ -144,7 +144,7 @@ export default function App() {
           cacheEnabled={true}
           cacheMode="LOAD_DEFAULT"
           thirdPartyCookiesEnabled={true}
-          applicationNameForUserAgent="DigitalCampusApp/1.0.0"
+          applicationNameForUserAgent="AceGamesApp/1.0.0"
         />
 
         {/* Màn hình Splash Loading sang trọng mang Logo App đồng bộ to rõ */}
@@ -155,8 +155,8 @@ export default function App() {
               style={styles.logoImage}
               resizeMode="contain"
             />
-            <Text style={styles.loadingTitle}>DIGITAL CAMPUS</Text>
-            <Text style={styles.loadingSubtitle}>GDTX Định Quán · Lớp 10A7</Text>
+            <Text style={styles.loadingTitle}>ACE GAMES</Text>
+            <Text style={styles.loadingSubtitle}>Đấu Trường Game Mobile</Text>
             <ActivityIndicator size="small" color="#38bdf8" style={styles.spinner} />
           </View>
         )}

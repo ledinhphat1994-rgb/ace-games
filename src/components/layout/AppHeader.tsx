@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { NavLink } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { NotificationCenter } from '@/components/NotificationCenter'
+import { DailyCheckInButton } from '@/features/engagement'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ConnectionIndicator } from './ConnectionIndicator'
 import type { NguoiDung } from '@/lib/api'
@@ -73,8 +74,13 @@ export const AppHeader = memo(function AppHeader({
           {/* Theme switch */}
           <ThemeSwitch />
 
-          {/* Notifications (only when logged in) */}
-          {nguoiDung && <NotificationCenter />}
+          {/* Daily Check-in & Notifications (only when logged in) */}
+          {nguoiDung && (
+            <>
+              <DailyCheckInButton />
+              <NotificationCenter />
+            </>
+          )}
 
           {/* Messages / Campus Chat trigger button (Chuyển xuống Vùng 5 góc phải dưới cùng) */}
           <Button

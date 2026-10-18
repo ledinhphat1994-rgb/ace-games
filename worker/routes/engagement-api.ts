@@ -3,11 +3,14 @@ import { kiemTraPhien, layPhien } from '../lib/session'
 import { laQuanTriTruong, laGiaoVienDaDuyet } from '../lib/scope'
 import {
   ACHIEVEMENT_CATALOG,
+  awardXp,
   ensureActiveWeeklyChallenge,
+  evaluateAchievements,
   getOrCreateEngagementProfile,
   INVITE_COOLDOWN_MS,
   INVITE_EXPIRY_MS,
   MAX_INVITES_PER_HOUR,
+  updateStudyStreak,
 } from '../lib/engagement'
 import { getStudyWeekDateRange, SCHOOL_TIMEZONE, studyDate, studyWeek } from '../../shared/study-date'
 import type {
@@ -489,4 +492,139 @@ engagementApp.post('/invites/:id/dismiss', async (c) => {
   await c.env.DB.prepare("UPDATE study_invitations SET status = 'dismissed' WHERE id = ?1").bind(inviteId).run()
 
   return c.json({ ok: true })
+})
+
+// ─── 9. Get Daily Check-in Status ─────────────────────────────────────────────
+engagementApp.get('/checkin', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const accountId = kq.taiKhoan.id
+  const now = Date.now()
+  const todayStr = studyDate(now, SCHOOL_TIMEZONE)
+  const checkinKey = `daily_checkin:${todayStr}:acc:${accountId}`
+
+  const existingCheckIn = await c.env.DB
+    .prepare('SELECT amount, created_at FROM xp_ledger WHERE source_key = ?1')
+    .bind(checkinKey)
+    .first<{ amount: number; created_at: number }>()
+
+  const profile = await getOrCreateEngagementProfile(c.env.DB, accountId, now)
+  const canCheckIn = !existingCheckIn
+
+  const cycleDay = canCheckIn
+    ? ((profile.currentStreak % 7) + 1)
+    : (profile.currentStreak > 0 ? (((profile.currentStreak - 1) % 7) + 1) : 1)
+
+  const rewardTable = [15, 20, 25, 30, 35, 40, 50]
+  const todayRewardXp = rewardTable[(cycleDay - 1) % 7]
+
+  return c.json({
+    ok: true,
+    canCheckIn,
+    todayDate: todayStr,
+    currentStreak: profile.currentStreak,
+    longestStreak: profile.longestStreak,
+    totalXp: profile.totalXp,
+    cycleDay,
+    rewardXp: todayRewardXp,
+    claimedAt: existingCheckIn?.created_at || null,
+    rewards: rewardTable,
+  })
+})
+
+// ─── 10. Claim Daily Check-in Reward ──────────────────────────────────────────
+engagementApp.post('/checkin', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const accountId = kq.taiKhoan.id
+  const now = Date.now()
+  const todayStr = studyDate(now, SCHOOL_TIMEZONE)
+  const checkinKey = `daily_checkin:${todayStr}:acc:${accountId}`
+
+  const existingCheckIn = await c.env.DB
+    .prepare('SELECT amount FROM xp_ledger WHERE source_key = ?1')
+    .bind(checkinKey)
+    .first<{ amount: number }>()
+
+  if (existingCheckIn) {
+    return c.json(
+      {
+        ok: false,
+        loi: 'Hôm nay bạn đã điểm danh rồi.',
+        alreadyClaimed: true,
+      },
+      400,
+    )
+  }
+
+  const initialProfile = await getOrCreateEngagementProfile(c.env.DB, accountId, now)
+  const cycleDay = (initialProfile.currentStreak % 7) + 1
+  const rewardTable = [15, 20, 25, 30, 35, 40, 50]
+  const rewardXp = rewardTable[(cycleDay - 1) % 7]
+
+  // 1. Award XP with idempotent sourceKey
+  await awardXp(c.env.DB, {
+    accountId,
+    amount: rewardXp,
+    reason: 'Điểm danh hằng ngày',
+    sourceKey: checkinKey,
+    studyDateStr: todayStr,
+    timestamp: now,
+  })
+
+  // 2. Update streak
+  const streakResult = await updateStudyStreak(c.env.DB, accountId, now, checkinKey, todayStr)
+
+  // 3. Evaluate achievements
+  await evaluateAchievements(c.env.DB, accountId, now)
+
+  // 4. Record analytics event
+  if (c.env.ANALYTICS_DB) {
+    recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
+      event: 'engagement.xp_awarded',
+      actorId: accountId,
+      properties: {
+        type: 'daily_checkin',
+        amount: rewardXp,
+        streak: streakResult.currentStreak,
+      },
+    })
+    if (streakResult.extended) {
+      recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
+        event: 'engagement.streak_extended',
+        actorId: accountId,
+        properties: {
+          streak: streakResult.currentStreak,
+        },
+      })
+    }
+  }
+
+  // 5. Create in-app notification
+  try {
+    await createNotification(c.env.DB, {
+      recipientId: accountId,
+      type: 'system_announcement',
+      title: 'Điểm danh hằng ngày',
+      body: `+${rewardXp} XP. Chuỗi ${streakResult.currentStreak} ngày.`,
+      data: {
+        xp: rewardXp,
+        streak: streakResult.currentStreak,
+      },
+    })
+  } catch {}
+
+  const finalProfile = await getOrCreateEngagementProfile(c.env.DB, accountId, now)
+
+  return c.json({
+    ok: true,
+    rewardXp,
+    currentStreak: streakResult.currentStreak,
+    totalXp: finalProfile.totalXp,
+    todayXp: finalProfile.todayXp,
+    cycleDay,
+    alreadyClaimed: false,
+  })
 })
