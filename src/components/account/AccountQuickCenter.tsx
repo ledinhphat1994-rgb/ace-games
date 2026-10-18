@@ -13,7 +13,6 @@ import {
   LogOut,
   Pencil,
   ShieldCheck,
-  User,
 } from 'lucide-react'
 
 export interface AccountQuickCenterProps {
@@ -41,9 +40,6 @@ export function AccountQuickCenter({
   const [moDoiTen, setMoDoiTen] = useState(false)
 
   const tenHienThi = nguoiDung.ten || nguoiDung.username
-  const roleLabel = nguoiDung.isSchoolAdmin
-    ? 'Quản trị viên'
-    : 'Thành viên'
 
   const diToi = (duongDan: string) => {
     handleOpenChange(false)
@@ -60,31 +56,42 @@ export function AccountQuickCenter({
   const noiDung = (
     <div>
       <div className="flex items-center gap-3 px-1 pb-3">
-        <div
-          className="group/avatar relative cursor-pointer"
+        <button
+          type="button"
+          className="group/avatar relative cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0"
           onClick={() => {
             handleOpenChange(false)
             setMoDoiAvatar(true)
           }}
-          title="Đổi ảnh đại diện"
+          title="Bấm để đổi ảnh đại diện"
+          aria-label="Đổi ảnh đại diện"
         >
           <AnhDaiDien nguoiDung={nguoiDung} className="size-11 text-sm ring-1 ring-border-default transition-all group-hover/avatar:ring-brand" />
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 opacity-0 backdrop-blur-[1px] transition-opacity group-hover/avatar:opacity-100">
             <Camera className="size-4 text-white" />
           </div>
-        </div>
+          <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-brand text-slate-950 shadow-sm ring-2 ring-slate-950">
+            <Camera className="size-2.5" />
+          </span>
+        </button>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold break-words text-text-primary">{tenHienThi}</p>
-          <p className="text-xs break-words text-text-tertiary">
-            @{nguoiDung.username} · {roleLabel}
-          </p>
+          <button
+            type="button"
+            onClick={() => {
+              handleOpenChange(false)
+              setMoDoiTen(true)
+            }}
+            className="group/name flex items-center gap-1.5 text-left text-sm font-semibold text-text-primary hover:text-brand transition-colors cursor-pointer w-full py-0.5"
+            title="Bấm để đổi tên"
+            aria-label="Đổi tên người chơi"
+          >
+            <span className="truncate">{tenHienThi}</span>
+            <Pencil className="size-3.5 text-text-tertiary group-hover/name:text-brand transition-colors shrink-0" />
+          </button>
         </div>
       </div>
 
       <nav aria-label="Tài khoản" className="space-y-0.5 border-t border-border-subtle pt-1.5">
-        <MucMenu icon={User} onClick={() => diToi('/me')}>
-          Hồ sơ của tôi
-        </MucMenu>
         <MucMenu
           icon={Pencil}
           onClick={() => {
