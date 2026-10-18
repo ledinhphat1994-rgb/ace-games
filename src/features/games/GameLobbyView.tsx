@@ -25,7 +25,6 @@ import { useGameRooms } from '../../hooks/use-game-rooms'
 import { ThongKeGame } from './ThongKeGame'
 import { GameArt } from './GameArt'
 import {
-  IconAllGames3D,
   IconCrown3D,
   IconXiangqiPiece3D,
   IconCaroCubes3D,
@@ -989,15 +988,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     return counts
   }, [allRooms])
 
-  // Danh sách card lọc từng game to rõ, có icon 3D/Squircle nổi bật đồng bộ 100% chuẩn ảnh mẫu
+  // Danh sách card lọc 5 trò chơi chính to rõ, có icon 3D/Squircle nổi bật
   const gameFilterCards = useMemo(
     () => [
-      {
-        id: 'all',
-        label: 'Tất cả',
-        count: roomCounts.all,
-        icon: <IconAllGames3D className="w-full h-full drop-shadow-md" />,
-      },
       {
         id: 'chess',
         label: 'Cờ Vua',
@@ -1033,11 +1026,13 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     [roomCounts],
   )
 
-  // Chọn game: lọc sảnh và đồng thời tự động chuẩn bị tạo phòng đúng trò chơi đó
+  // Chọn game: bấm vào biểu tượng game để lọc; bấm lại chính game đó sẽ bỏ chọn và hiển thị lại toàn bộ danh sách bàn
   const handleCardSelect = (id: string) => {
     playUiTapSound()
-    setSelectedFilter(id)
-    if (id !== 'all') {
+    if (selectedFilter === id) {
+      setSelectedFilter('all')
+    } else {
+      setSelectedFilter(id)
       const gType = id as GameType
       setGameMoiChon(gType)
       const gameDef = GAME_CATALOG_BY_ID[gType]
@@ -1133,14 +1128,18 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           {/* LƯỚI APP ICON CÁC GAME XẾP THÀNH 2 CỘT CỐ ĐỊNH, LOGO TO RÕ THEO YÊU CẦU */}
           <div className="select-none py-3 px-1">
             <div className="grid grid-cols-2 gap-y-5 gap-x-6 sm:gap-x-12 sm:gap-y-6 max-w-xs sm:max-w-sm mx-auto justify-items-center">
-              {gameFilterCards.map((card) => {
+              {gameFilterCards.map((card, idx) => {
                 const isActive = selectedFilter === card.id
+                const isLastOdd = idx === 4 && gameFilterCards.length === 5
                 return (
                   <button
                     key={card.id}
                     type="button"
                     onClick={() => handleCardSelect(card.id)}
-                    className="flex flex-col items-center group cursor-pointer select-none focus:outline-hidden"
+                    className={cn(
+                      'flex flex-col items-center group cursor-pointer select-none focus:outline-hidden',
+                      isLastOdd && 'col-span-2 justify-self-center',
+                    )}
                   >
                     {/* Khung Icon Squircle to rõ chuẩn 2 cột */}
                     <div

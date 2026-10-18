@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLocation } from 'react-router'
 import {
   Gamepad2,
-  GraduationCap,
   School,
   Search,
   Users,
@@ -225,24 +224,15 @@ export function CampusChatSheet({
     return null
   }, [gameRoomId, studyRoomId, roomTitle])
 
-  // VÙNG X: TABS (Bạn bè | Toàn trường | Phòng)
-  const [activeTab, setActiveTab] = useState<ChatTab>(() => {
-    if (activeDmTarget) return 'ban_be'
-    if (gameRoomId || studyRoomId) return 'phong'
-    return 'toan_truong'
-  })
+  // VÙNG X: TABS (Mặc định và luôn vào thẳng Toàn trường / Chat chung khi mở chat nổi)
+  const [activeTab, setActiveTab] = useState<ChatTab>('toan_truong')
 
-  // Tự động chuyển tab Phòng duy nhất 1 lần khi bước vào phòng (không ép người dùng khi họ đổi tab khác)
-  const lastAutoSwitchedRoomIdRef = useRef<string | null>(null)
+  // Khi bấm mở chat nổi, người dùng luôn vào thẳng nội dung trò chuyện chung của toàn trường mà không bị nhảy sang danh sách bạn bè hay phòng học
   useEffect(() => {
-    const currentRoomId = inRoomInfo?.id ?? null
-    if (currentRoomId && lastAutoSwitchedRoomIdRef.current !== currentRoomId && !activeDmTarget) {
-      lastAutoSwitchedRoomIdRef.current = currentRoomId
-      setActiveTab('phong')
-    } else if (!currentRoomId) {
-      lastAutoSwitchedRoomIdRef.current = null
+    if (open && !activeDmTarget) {
+      setActiveTab('toan_truong')
     }
-  }, [inRoomInfo?.id, activeDmTarget])
+  }, [open, activeDmTarget])
 
   // Quản lý người bạn đang nhắn tin riêng (null = xem danh sách bạn bè)
   const [internalDmTarget, setInternalDmTarget] = useState<DmTargetUser | null>(null)
@@ -404,6 +394,7 @@ export function CampusChatSheet({
   const hasUnreadFriends = useMemo(() => {
     return Object.values(unreadCounts).some((count) => count > 0)
   }, [unreadCounts])
+  void hasUnreadFriends
 
   // Lọc danh sách bạn bè theo từ khóa tìm kiếm
   const friendsFiltered = useMemo(() => {
@@ -596,90 +587,27 @@ export function CampusChatSheet({
 
         <div className="flex flex-col h-full w-full min-h-0 bg-surface">
           {/* ════════════════════════════════════════════════════════════════════════════════
-              VÙNG X: CÁC TAB (Bạn bè, Toàn trường, Phòng) & NÚT TÌM KIẾM + NÚT ĐÓNG
+              VÙNG X: CỤM TIÊU ĐỀ DÀNH RIÊNG CHO CHAT CHUNG (Toàn trường)
               ════════════════════════════════════════════════════════════════════════════════ */}
-          <div className="shrink-0 px-2.5 py-1.5 sm:p-2 border-b border-border-subtle bg-surface flex items-center gap-1.5 sm:gap-2">
-            <div className="flex-1 grid grid-cols-3 gap-1 p-0.5 sm:p-1 rounded-xl bg-surface-raised border border-border-subtle/60">
-              {/* Tab 1: Bạn bè */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('ban_be')
-                  setSearchQuery('')
-                }}
-                className={cn(
-                  'h-7.5 sm:h-8.5 rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
-                  activeTab === 'ban_be'
-                    ? 'border-brand/40 bg-brand/12 text-brand'
-                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
-                )}
-                title="Bạn bè"
-                aria-label="Tab Bạn bè"
-              >
-                <Users className="size-3.5 shrink-0" />
-                <span>Bạn bè</span>
-                {onlineFriendsCount > 0 && (
-                  <span
-                    data-testid="friends-count-badge"
-                    className="px-1 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 tabular-nums"
-                  >
-                    {onlineFriendsCount}{friends.length > 0 ? `/${friends.length}` : ''}
-                  </span>
-                )}
-                {hasUnreadFriends && (
-                  <span className="size-2 rounded-full bg-destructive animate-pulse" />
-                )}
-              </button>
-
-              {/* Tab 2: Toàn trường -> Chung */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('toan_truong')
-                  setSearchQuery('')
-                }}
-                className={cn(
-                  'h-7.5 sm:h-8.5 rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
-                  activeTab === 'toan_truong'
-                    ? 'border-brand/40 bg-brand/12 text-brand'
-                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
-                )}
-                title="Chung"
-                aria-label="Tab Chung"
-              >
-                <School className="size-3.5 shrink-0" />
-                <span>Chung</span>
-                {coTinNhanMoiCampus && (
-                  <span className="size-2 rounded-full bg-destructive animate-pulse" />
-                )}
-              </button>
-
-              {/* Tab 3: Phòng */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('phong')
-                  setSearchQuery('')
-                }}
-                className={cn(
-                  'h-7.5 sm:h-8.5 rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold border-2 transition-colors duration-150 cursor-pointer select-none',
-                  activeTab === 'phong'
-                    ? 'border-brand/40 bg-brand/12 text-brand'
-                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
-                )}
-                title={inRoomInfo ? inRoomInfo.title : 'Phòng'}
-                aria-label="Tab Phòng"
-              >
-                {inRoomInfo?.type === 'game' ? (
-                  <Gamepad2 className="size-3.5 shrink-0" />
-                ) : (
-                  <GraduationCap className="size-3.5 shrink-0" />
-                )}
-                <span>Phòng</span>
-                {inRoomInfo && (
-                  <span className="size-2 rounded-full bg-emerald-400" />
-                )}
-              </button>
+          <div className="shrink-0 px-3 py-2 sm:px-4 sm:py-2.5 border-b border-border-subtle bg-surface flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="size-8 sm:size-9 rounded-xl bg-brand/12 border border-brand/30 flex items-center justify-center text-brand shrink-0">
+                <School className="size-4 sm:size-4.5" />
+              </div>
+              <div className="min-w-0 flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-text-primary truncate">
+                    Chat chung
+                  </h3>
+                  {coTinNhanMoiCampus && (
+                    <span className="size-2 rounded-full bg-destructive animate-pulse" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-text-tertiary">
+                  <span className="size-1.5 rounded-full bg-emerald-400" />
+                  <span>Toàn trường</span>
+                </div>
+              </div>
             </div>
 
             {/* Cụm công cụ bên phải: Nút bật tìm kiếm & Nút đóng */}
@@ -733,14 +661,14 @@ export function CampusChatSheet({
                     activeTab === 'ban_be'
                       ? 'Tìm bạn bè…'
                       : activeTab === 'toan_truong'
-                        ? 'Tìm tin nhắn toàn trường…'
+                        ? 'Tìm tin nhắn chung…'
                         : 'Tìm tin nhắn trong phòng…'
                   }
                   aria-label={
                     activeTab === 'ban_be'
                       ? 'Tìm bạn bè'
                       : activeTab === 'toan_truong'
-                        ? 'Tìm tin nhắn toàn trường'
+                        ? 'Tìm tin nhắn chung'
                         : 'Tìm tin nhắn trong phòng'
                   }
                   className="h-8 pl-9 pr-8 text-xs bg-surface-raised border-border-subtle rounded-xl"
