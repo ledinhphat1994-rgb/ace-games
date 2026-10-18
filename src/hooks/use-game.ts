@@ -157,8 +157,17 @@ export function useGame(
           ''
         : ''
     )
-    const passQuery = passParam ? `?pass=${encodeURIComponent(passParam)}` : ''
-    const ws = new WebSocket(`${giaoThuc}//${host}/ws/game/${encodeURIComponent(gameId)}${passQuery}`)
+    const guestName = typeof window !== 'undefined' ? localStorage.getItem('dc_guest_name') || 'Kỳ Thủ' : 'Kỳ Thủ'
+    const guestAvatar = typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') || '' : ''
+    const guestKey = myActorKey || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_key') || '' : '')
+
+    const wsUrl = new URL(`${giaoThuc}//${host}/ws/game/${encodeURIComponent(gameId)}`)
+    if (passParam) wsUrl.searchParams.set('pass', passParam)
+    if (guestKey) wsUrl.searchParams.set('guestKey', guestKey)
+    if (guestName) wsUrl.searchParams.set('guestName', guestName)
+    if (guestAvatar) wsUrl.searchParams.set('guestAvatar', guestAvatar)
+
+    const ws = new WebSocket(wsUrl.toString())
     wsRef.current = ws
 
     ws.onopen = () => {

@@ -49,11 +49,16 @@ describe('Game Engine Unit Tests (Lõi logic bàn cờ)', () => {
 })
 
 describe('Game Room Real-time WebSocket Flow', () => {
-  it('chặn kết nối không có phiên đăng nhập (401)', async () => {
-    const res = await exports.default.fetch(`${GOC}/ws/game/phong-test-1`, {
+  it('cho phép khách kết nối chơi tự do không cần đăng nhập', async () => {
+    const res = await exports.default.fetch(`${GOC}/ws/game/phong-test-1?guestName=KhachThu&guestKey=guest_123`, {
       headers: { Upgrade: 'websocket', Origin: GOC },
     })
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(101)
+    const ws = res.webSocket
+    if (ws) {
+      ws.accept()
+      ws.close()
+    }
   })
 
   it('hai người chơi vào bàn, ghép cặp, đánh cờ và phân định thắng bại', async () => {

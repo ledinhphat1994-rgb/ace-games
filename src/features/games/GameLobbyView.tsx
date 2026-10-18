@@ -12,6 +12,7 @@ import {
   Globe,
   Lock,
   PenLine,
+  Pencil,
   Plus,
   Search,
   Shield,
@@ -36,6 +37,7 @@ import { laTroChoiDon, taoMaBan } from './game-ids'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
+import { DoiTenDialog } from '@/features/profile/DoiTenDialog'
 import {
   Dialog,
   DialogContent,
@@ -285,6 +287,7 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
   const [tuKhoa, setTuKhoa] = useState('')
   // State cho Modal tạo bàn đấu
   const [moTaoBanModal, setMoTaoBanModal] = useState(false)
+  const [moDoiTenModal, setMoDoiTenModal] = useState(false)
   const [tenPhongMoi, setTenPhongMoi] = useState('')
   const [gameMoiChon, setGameMoiChon] = useState<GameType | 'random'>('chess')
   const [cheDoTurn, setCheDoTurn] = useState<number | 'custom'>(30)
@@ -309,12 +312,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
   })
 
-  // Kiểm tra đăng nhập trước khi thực hiện các hành động tương tác trong sảnh
+  // Cho phép tương tác tự do không bị chặn đăng nhập
   const canDangNhap = (viec: () => void) => () => {
-    if (!nguoiDung) {
-      moAuthModal('dang_nhap')
-      return
-    }
     viec()
   }
 
@@ -625,10 +624,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Hành động vào bàn trực tiếp không qua sảnh phụ
   const vaoBanTrucTiep = (room: PhongGameItem) => {
-    if (!nguoiDung) {
-      moAuthModal('dang_nhap')
-      return
-    }
     // Nếu phòng có mật khẩu và người dùng không phải chủ phòng
     const laChuPhong = Boolean(nguoiDung && (room.tenChu === nguoiDung.ten || room.tenChu === nguoiDung.username))
     const savedPw = room.matKhau || sessionStorage.getItem(`dc_game_pw_${room.id}`) || localStorage.getItem(`dc_game_pw_${room.id}`) || ''
@@ -680,10 +675,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Thực hiện vào bàn nhanh theo loại game đã chọn (link 100% tiếng Việt)
   const thucHienVaoGameNhanh = (gameChon: GameType) => {
-    if (!nguoiDung) {
-      moAuthModal('dang_nhap')
-      return
-    }
     const banCho = sortedRooms.find((r) => r.gameType === gameChon && r.trangThai === 'waiting' && !r.coMatKhau && !r.isPrivate)
     if (banCho) {
       vaoBanTrucTiep(banCho)
@@ -818,10 +809,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Lưu và chơi ngay từ popup
   const luuVaChoiNgay = () => {
-    if (!nguoiDung) {
-      moAuthModal('dang_nhap')
-      return
-    }
     if (cacGameDangChon.length === 0) {
       toast.error('Vui lòng chọn ít nhất 1 trò chơi để chơi ngay.')
       return
@@ -863,10 +850,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
 
   // Tạo bàn đấu mới (Công khai hoặc Riêng tư có mật khẩu, đăng ký ngay lên máy chủ để toàn trường thấy)
   const xacNhanTaoBan = async () => {
-    if (!nguoiDung) {
-      moAuthModal('dang_nhap')
-      return
-    }
     const cleanTen = tenPhongMoi.trim()
     if (!cleanTen) {
       setLoiTaoBan('Vui lòng nhập tên phòng đấu.')
@@ -892,6 +875,10 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     setLoiTaoBan(null)
 
     try {
+      const guestName = nguoiDung?.ten || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_name') : null) || 'Kỳ Thủ'
+      const guestAvatar = nguoiDung?.avatar || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') : null) || undefined
+      const guestKey = nguoiDung?.actorKey || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_key') : null) || undefined
+
       const res = await fetch('/api/game/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -903,6 +890,9 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           password: cleanPw || undefined,
           soPhong: soPhongMoi,
           isTournament: laAdmin && laPhongGiaiDau,
+          guestName,
+          guestAvatar,
+          guestKey,
         }),
       })
 
@@ -1075,10 +1065,6 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
                 onPointerCancel={onQuickPlayPointerUp}
                 onContextMenu={(e) => {
                   e.preventDefault()
-                  if (!nguoiDung) {
-                    moAuthModal('dang_nhap')
-                    return
-                  }
                   setMoPopupChoiNgay(true)
                 }}
                 className="h-10 sm:h-11 w-full rounded-xl border-amber-400/40 bg-amber-500/10 text-xs sm:text-sm font-bold text-amber-300 cursor-pointer hover:bg-amber-500/20 gap-2 select-none active:scale-95 transition-all shadow-xs"
@@ -1284,13 +1270,25 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           <div className="flex-1 flex flex-col justify-between py-1.5 min-h-0 space-y-2.5 sm:space-y-3 overflow-y-auto pr-0.5">
             {/* 1. Tên phòng */}
             <div className="space-y-1.5 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
-                  <PenLine className="size-3" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="size-5 rounded-md bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sky-400 shrink-0">
+                    <PenLine className="size-3" />
+                  </div>
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    Tên phòng
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-white tracking-wide">
-                  Tên phòng
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setMoDoiTenModal(true)}
+                  className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors cursor-pointer px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-400/20"
+                  title="Bấm để đổi tên người chơi"
+                >
+                  <span className="text-slate-400">Người chơi:</span>
+                  <span className="text-sky-300 font-bold">{nguoiDung?.ten || 'Kỳ Thủ'}</span>
+                  <Pencil className="size-3 text-sky-400" />
+                </button>
               </div>
               <div className="relative rounded-xl border-2 border-slate-800/90 bg-slate-900/90 hover:border-slate-700 focus-within:border-sky-400 h-10 px-3.5 flex items-center transition-colors">
                 <input
@@ -1695,6 +1693,8 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DoiTenDialog open={moDoiTenModal} onOpenChange={setMoDoiTenModal} />
 
       {/* ── Dialog Chọn game Chơi Ngay (Nhỏ gọn, vừa vặn nội dung, chỉ ghi Chơi ngay, xóa vùng 4) ── */}
       <Dialog open={moPopupChoiNgay} onOpenChange={setMoPopupChoiNgay}>

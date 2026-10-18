@@ -4,12 +4,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { NguoiDung } from '@/lib/api'
 import { cn, getInitials } from '@/lib/utils'
 import { DoiMatKhauDialog } from '@/features/profile/DoiMatKhauDialog'
+import { DoiTenDialog } from '@/features/profile/DoiTenDialog'
 import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
 import { doiAvatar } from '@/lib/api'
 import {
   Camera,
   KeyRound,
   LogOut,
+  Pencil,
   ShieldCheck,
   User,
 } from 'lucide-react'
@@ -36,6 +38,7 @@ export function AccountQuickCenter({
 
   const [moDoiMatKhau, setMoDoiMatKhau] = useState(false)
   const [moDoiAvatar, setMoDoiAvatar] = useState(false)
+  const [moDoiTen, setMoDoiTen] = useState(false)
 
   const tenHienThi = nguoiDung.ten || nguoiDung.username
   const roleLabel = nguoiDung.isSchoolAdmin
@@ -81,6 +84,15 @@ export function AccountQuickCenter({
       <nav aria-label="Tài khoản" className="space-y-0.5 border-t border-border-subtle pt-1.5">
         <MucMenu icon={User} onClick={() => diToi('/me')}>
           Hồ sơ của tôi
+        </MucMenu>
+        <MucMenu
+          icon={Pencil}
+          onClick={() => {
+            handleOpenChange(false)
+            setMoDoiTen(true)
+          }}
+        >
+          Đổi tên người chơi
         </MucMenu>
         <MucMenu
           icon={Camera}
@@ -148,6 +160,7 @@ export function AccountQuickCenter({
   return (
     <>
       {menuKichHoat}
+      <DoiTenDialog open={moDoiTen} onOpenChange={setMoDoiTen} onSuccess={onLamMoiPhien} />
       <DoiMatKhauDialog open={moDoiMatKhau} onOpenChange={setMoDoiMatKhau} />
       <AvatarPickerDialog
         open={moDoiAvatar}

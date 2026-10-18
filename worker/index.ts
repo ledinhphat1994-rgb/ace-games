@@ -587,22 +587,48 @@ async function vaoPhongGame(request: Request, env: Env, maPhong: string): Promis
   if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
   if (!/^[a-z0-9-]{1,64}$/.test(maPhong)) return loi('Mã phòng không hợp lệ.', 400)
 
-  const kq = await kiemTraPhien(await layPhien(request, env), env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const phien = await layPhien(request, env)
+  const kq = await kiemTraPhien(phien, env)
 
   const headers = new Headers(request.headers)
-  headers.set('X-Actor-Key', actorKey(kq.phien))
-  headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
-  headers.set('X-Actor-Role', kq.taiKhoan.role || 'student')
-  headers.set('X-Actor-Is-Admin', kq.taiKhoan.laAdminTruong ? '1' : '0')
-  headers.set('X-Actor-Is-Teacher', laGiaoVienDaDuyet(kq.taiKhoan) ? '1' : '0')
+  let key: string
+  let ten: string
+  let avatar: string | null = null
+  let role = 'student'
+  let isAdmin = false
+  let isTeacher = false
+  let lopId: number | null = null
+  let phienId = ''
+
+  if (kq.hopLe) {
+    key = actorKey(kq.phien)
+    ten = kq.taiKhoan.ten || kq.taiKhoan.username
+    role = kq.taiKhoan.role || 'student'
+    isAdmin = Boolean(kq.taiKhoan.laAdminTruong)
+    isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
+    lopId = kq.taiKhoan.lopId || null
+    phienId = kq.phien.phienId || ''
+    avatar = avatarThanhVien(kq.taiKhoan.avatar)
+  } else {
+    // Khách chơi tự do
+    const url = new URL(request.url)
+    key = url.searchParams.get('guestKey') || request.headers.get('X-Actor-Key') || ('guest_' + crypto.randomUUID().slice(0, 8))
+    ten = url.searchParams.get('guestName') || 'Kỳ Thủ'
+    avatar = avatarThanhVien(url.searchParams.get('guestAvatar') || '')
+    role = 'khach'
+  }
+
+  headers.set('X-Actor-Key', key)
+  headers.set('X-Actor-Ten', encodeURIComponent(ten))
+  headers.set('X-Actor-Role', role)
+  headers.set('X-Actor-Is-Admin', isAdmin ? '1' : '0')
+  headers.set('X-Actor-Is-Teacher', isTeacher ? '1' : '0')
   headers.set('X-Actor-Can-Moderate', '0')
-  if (kq.taiKhoan.lopId) headers.set('X-Actor-Lop-Id', String(kq.taiKhoan.lopId))
-  headers.set('X-Actor-Phien-Id', kq.phien.phienId || '')
+  if (lopId) headers.set('X-Actor-Lop-Id', String(lopId))
+  headers.set('X-Actor-Phien-Id', phienId)
   headers.set('X-Room-Id', 'game_' + maPhong)
   headers.delete('X-Actor-Avatar')
-  const avatarPhong = avatarThanhVien(kq.taiKhoan.avatar)
-  if (avatarPhong) headers.set('X-Actor-Avatar', encodeURIComponent(avatarPhong))
+  if (avatar) headers.set('X-Actor-Avatar', encodeURIComponent(avatar))
   headers.set('X-Room-Mode', 'game')
 
   // Trích xuất mật khẩu bàn nếu có từ query param (?pass=...)
@@ -613,11 +639,11 @@ async function vaoPhongGame(request: Request, env: Env, maPhong: string): Promis
     }
   } catch {}
 
-  // Đăng ký phòng game với CampusDO để hỗ trợ thu hồi phiên tập trung
-  if (kq.phien.phienId) {
+  // Đăng ký phòng game với CampusDO để hỗ trợ thu hồi phiên tập trung (nếu có tài khoản)
+  if (phienId && kq.hopLe) {
     try {
       await env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
-        .dangKyPhong(kq.taiKhoan.id, 'game_' + maPhong, kq.phien.phienId)
+        .dangKyPhong(kq.taiKhoan.id, 'game_' + maPhong, phienId)
     } catch {}
   }
 
@@ -633,13 +659,22 @@ async function vaoGameSession(request: Request, env: Env, matchId: string): Prom
   if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(matchId)) return loi('Mã trận đấu không hợp lệ.', 400)
 
-  const kq = await kiemTraPhien(await layPhien(request, env), env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const phien = await layPhien(request, env)
+  const kq = await kiemTraPhien(phien, env)
 
   const headers = new Headers(request.headers)
-  headers.set('X-Actor-Key', actorKey(kq.phien))
-  headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
-  headers.set('X-Actor-Account-Id', String(kq.taiKhoan.id))
+  if (kq.hopLe) {
+    headers.set('X-Actor-Key', actorKey(kq.phien))
+    headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
+    headers.set('X-Actor-Account-Id', String(kq.taiKhoan.id))
+  } else {
+    const url = new URL(request.url)
+    const key = url.searchParams.get('guestKey') || 'guest_' + crypto.randomUUID().slice(0, 8)
+    const ten = url.searchParams.get('guestName') || 'Kỳ Thủ'
+    headers.set('X-Actor-Key', key)
+    headers.set('X-Actor-Ten', encodeURIComponent(ten))
+    headers.set('X-Actor-Account-Id', '0')
+  }
   headers.set('X-Match-Id', matchId)
 
   const doId = env.GAME_SESSIONS.idFromName('match:' + matchId)
@@ -1478,9 +1513,10 @@ app.all('/api/game/highscore', saiPhuongThuc)
 // Game Platform Foundation: Solo Game Sessions (Anti-Cheat & Verification)
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/game/session/start', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
-  if (await vuotGioiHanGame(c.env, 'start', kq.taiKhoan.id)) {
+  const phien = await layPhien(c.req.raw, c.env)
+  const kq = await kiemTraPhien(phien, c.env)
+  const accountId = kq.hopLe ? kq.taiKhoan.id : 0
+  if (accountId > 0 && (await vuotGioiHanGame(c.env, 'start', accountId))) {
     return loi('Bạn mở ván mới quá nhanh. Vui lòng thử lại sau giây lát.', 429)
   }
 
@@ -1503,7 +1539,7 @@ app.post('/api/game/session/start', async (c) => {
   `).bind(
     sessionId,
     gameType,
-    kq.taiKhoan.id,
+    accountId,
     seed,
     now,
     clientMetadata ? JSON.stringify(clientMetadata) : null,
@@ -1528,34 +1564,10 @@ app.post('/api/game/session/finish', async (c) => {
     return loi('Dữ liệu kết thúc phiên chơi không đúng chuẩn.', 400)
   }
 
-  const phien = await layPhien(c.req.raw, c.env)
-  if (!phien || !phien.accountId) {
-    const kq = await kiemTraPhien(phien, c.env)
-    return loi(!kq.hopLe ? kq.thongBao : 'Chưa đăng nhập.', 401)
-  }
-
   const { sessionId, inputTrace } = parsed.data
 
-  // 1. Unified Single-Query Auth verification & Session lookup in D1 (cuts D1 read load in half under burst)
-  const tAuthStart = Date.now()
-  const lookupRow = await c.env.DB.prepare(`
-    SELECT
-      u.id AS userId,
-      u.ten_dang_nhap AS tenDangNhap,
-      u.ten_hien_thi AS ten,
-      u.vai_tro AS vaiTro,
-      u.teacher_pending AS teacherPending,
-      u.dang_hoat_dong AS dangHoatDong,
-      u.thiet_bi AS thietBi,
-      s.id AS sessionId,
-      s.game_type AS gameType,
-      s.seed AS seed,
-      s.started_at AS startedAt,
-      s.status AS sessionStatus
-    FROM tai_khoan_campus u
-    LEFT JOIN game_sessions s ON s.id = ?1 AND s.account_id = u.id
-    WHERE u.id = ?2
-  `).bind(sessionId, phien.accountId).first<{
+  const phien = await layPhien(c.req.raw, c.env)
+  let lookupRow: {
     userId: number
     tenDangNhap: string
     ten: string | null
@@ -1568,12 +1580,63 @@ app.post('/api/game/session/finish', async (c) => {
     seed: number | null
     startedAt: number | null
     sessionStatus: string | null
-  }>()
+  } | null = null
+
+  const tAuthStart = Date.now()
+  if (phien && phien.accountId) {
+    lookupRow = await c.env.DB.prepare(`
+      SELECT
+        u.id AS userId,
+        u.ten_dang_nhap AS tenDangNhap,
+        u.ten_hien_thi AS ten,
+        u.vai_tro AS vaiTro,
+        u.teacher_pending AS teacherPending,
+        u.dang_hoat_dong AS dangHoatDong,
+        u.thiet_bi AS thietBi,
+        s.id AS sessionId,
+        s.game_type AS gameType,
+        s.seed AS seed,
+        s.started_at AS startedAt,
+        s.status AS sessionStatus
+      FROM tai_khoan_campus u
+      LEFT JOIN game_sessions s ON s.id = ?1 AND s.account_id = u.id
+      WHERE u.id = ?2
+    `).bind(sessionId, phien.accountId).first()
+
+    if (!lookupRow) return loi('Tài khoản không còn tồn tại.', 401)
+    if (!lookupRow.dangHoatDong) return loi('Tài khoản này đã bị khoá.', 401)
+    if (lookupRow.thietBi && (!phien.phienId || lookupRow.thietBi !== phien.phienId)) {
+      return loi('Tài khoản của bạn đã được đăng nhập trên một thiết bị khác hoặc phiên đã bị hủy. Bạn đã bị đăng xuất.', 401)
+    }
+  } else {
+    // Khách chơi tự do
+    const sRow = await c.env.DB.prepare(`
+      SELECT id, game_type, seed, started_at, status
+      FROM game_sessions
+      WHERE id = ?1 AND account_id = 0
+    `).bind(sessionId).first<{ id: string; game_type: string; seed: number; started_at: number; status: string }>()
+
+    if (!sRow) return loi('Không tìm thấy phiên chơi tương ứng.', 404)
+    lookupRow = {
+      userId: 0,
+      tenDangNhap: 'kythu',
+      ten: 'Kỳ Thủ',
+      vaiTro: 'khach',
+      teacherPending: 0,
+      dangHoatDong: 1,
+      thietBi: null,
+      sessionId: sRow.id,
+      gameType: sRow.game_type,
+      seed: sRow.seed,
+      startedAt: sRow.started_at,
+      sessionStatus: sRow.status,
+    }
+  }
   const tAuthLookup = Date.now() - tAuthStart
 
   if (!lookupRow) return loi('Tài khoản không còn tồn tại.', 401)
   if (!lookupRow.dangHoatDong) return loi('Tài khoản này đã bị khoá.', 401)
-  if (lookupRow.thietBi && (!phien.phienId || lookupRow.thietBi !== phien.phienId)) {
+  if (lookupRow.thietBi && (!phien?.phienId || lookupRow.thietBi !== phien?.phienId)) {
     return loi('Tài khoản của bạn đã được đăng nhập trên một thiết bị khác hoặc phiên đã bị hủy. Bạn đã bị đăng xuất.', 401)
   }
 
@@ -1729,7 +1792,7 @@ app.post('/api/game/session/finish', async (c) => {
     `).bind(finalScore, now, sessionStatus, verificationHash, sessionId),
   ]
 
-  if (insertHighScore) {
+  if (insertHighScore && sessionRow.account_id > 0) {
     batchStatements.push(
       c.env.DB.prepare(`
         INSERT OR IGNORE INTO game_high_scores (game_type, account_id, player_name, score, created_at, verified, session_id)
@@ -1766,8 +1829,6 @@ app.all('/api/game/session/start', saiPhuongThuc)
 app.all('/api/game/session/finish', saiPhuongThuc)
 
 app.get('/api/game/rooms', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
   const gameType = c.req.query('gameType')
   const shardName = tenLobbyTheoLoai(gameType)
   try {
@@ -1805,8 +1866,8 @@ app.post('/api/game/:maPhong/verify-password', async (c) => {
 })
 
 app.post('/api/game/create', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const phien = await layPhien(c.req.raw, c.env)
+  const kq = await kiemTraPhien(phien, c.env)
 
   const body = (await c.req.json().catch(() => ({}))) as {
     gameType?: GameType
@@ -1816,11 +1877,14 @@ app.post('/api/game/create', async (c) => {
     password?: string
     soPhong?: number
     isTournament?: boolean
+    guestName?: string
+    guestAvatar?: string
+    guestKey?: string
   }
 
   const isTournament = Boolean(body.isTournament)
   if (isTournament) {
-    const laAdmin = Boolean(kq.taiKhoan.laAdminTruong || kq.taiKhoan.role === 'admin')
+    const laAdmin = kq.hopLe && Boolean(kq.taiKhoan.laAdminTruong || kq.taiKhoan.role === 'admin')
     if (!laAdmin) {
       return loi('Chỉ tài khoản admin quản trị viên mới có quyền tạo phòng giải đấu.', 403)
     }
@@ -1839,8 +1903,16 @@ app.post('/api/game/create', async (c) => {
 
   const slug = SLUG_TIENG_VIET_GAME[gameType] || gameType.replace(/_/g, '-')
   const maBan = isPrivate ? `${slug}-rieng-tu-phong-${soPhong}` : `${slug}-phong-${soPhong}`
-  const hostKey = actorKey(kq.phien)
-  const hostName = kq.taiKhoan.ten || kq.taiKhoan.username
+
+  let hostKey: string
+  let hostName: string
+  if (kq.hopLe) {
+    hostKey = actorKey(kq.phien)
+    hostName = kq.taiKhoan.ten || kq.taiKhoan.username
+  } else {
+    hostKey = (body.guestKey && typeof body.guestKey === 'string' && body.guestKey.trim()) || ('guest_' + crypto.randomUUID().slice(0, 8))
+    hostName = (body.guestName && typeof body.guestName === 'string' && body.guestName.trim()) || 'Kỳ Thủ'
+  }
 
   const doId = c.env.ROOMS.idFromName('game_' + maBan)
   const roomDO = c.env.ROOMS.get(doId)
@@ -1880,8 +1952,6 @@ app.post('/api/game/create', async (c) => {
 })
 
 app.post('/api/game/:maPhong/cancel', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
   const maPhong = c.req.param('maPhong')
   if (!/^[a-z0-9-]{1,64}$/.test(maPhong)) return loi('Mã phòng không hợp lệ.', 400)
 
@@ -1941,9 +2011,6 @@ app.all('/api/game/rooms/reset', saiPhuongThuc)
 async function vaoGameLobby(request: Request, env: Env, gameType?: string): Promise<Response> {
   if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)
   if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
-
-  const kq = await kiemTraPhien(await layPhien(request, env), env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
 
   const shardName = tenLobbyTheoLoai(gameType)
   const doId = env.GAME_LOBBY.idFromName(shardName)

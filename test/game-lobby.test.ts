@@ -63,11 +63,12 @@ describe('GameLobbyDO (danh bạ bàn đấu)', () => {
 })
 
 describe('GET /api/game/rooms', () => {
-  it('khách chưa đăng nhập -> 401; sai phương thức -> 405', async () => {
+  it('khách chưa đăng nhập xem phòng tự do -> 200; sai phương thức -> 405', async () => {
     const { exports } = await import('cloudflare:workers')
     const r1 = await exports.default.fetch('https://campus.test/api/game/rooms')
-    expect(r1.status).toBe(401)
-    await r1.body?.cancel()
+    expect(r1.status).toBe(200)
+    const json1 = (await r1.json()) as { ok: boolean; rooms: unknown[] }
+    expect(json1.ok).toBe(true)
     const r2 = await exports.default.fetch('https://campus.test/api/game/rooms', { method: 'POST' })
     expect(r2.status).toBe(405)
     await r2.body?.cancel()

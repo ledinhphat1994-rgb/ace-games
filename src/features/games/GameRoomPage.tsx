@@ -8,7 +8,6 @@ import { useState } from 'react'
 import { Lock, KeyRound, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { doanGameTypeTuMaBan, laTroChoiDon } from './game-ids'
-import { CongLinkPhong } from '@/components/lobby/CongLinkPhong'
 import { BlueprintArcadePattern } from '@/components/ui/blueprint-patterns'
 
 const CAC_GAME_TYPE: readonly GameType[] = [
@@ -51,15 +50,10 @@ export function GameRoomPage() {
     return null
   }
 
-  // Khách chưa đăng nhập không được vào bàn chơi: hiển thị Cổng đăng nhập vào bàn
-  if (!nguoiDung) {
-    return <CongLinkPhong loai="ban" />
-  }
-
   // Rời bàn / trò chơi: quay về sảnh của đúng trò đó (vào từ sảnh có ?sanh=, bàn vừa tạo có ?gameType=).
   const sanhParam = searchParams.get('sanh')
-  const actorKey = nguoiDung?.actorKey
-  const actorName = nguoiDung ? (nguoiDung.ten || nguoiDung.username) : undefined
+  const actorKey = nguoiDung?.actorKey || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_key') || undefined : undefined)
+  const actorName = nguoiDung ? (nguoiDung.ten || nguoiDung.username) : (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_name') || 'Kỳ Thủ' : 'Kỳ Thủ')
 
   // Chỉ có ở link vừa tạo bàn từ sảnh (?gameType=...&turn=...) — vào bàn có sẵn từ danh sách bàn đang mở
   // thì không kèm tham số này, để không vô tình khởi tạo lại ván đang chơi của người khác.
@@ -174,10 +168,6 @@ export function GameRoomPage() {
       </div>
     )
   }
-
-  // Link bàn bạn bè chia sẻ (không phải bàn vừa tạo từ sảnh): khách phải đăng nhập mới vào được bàn online,
-  // nếu không sẽ chỉ thấy bàn chơi với máy thay vì bàn của bạn.
-  if (!nguoiDung && !intendedGameType) return <CongLinkPhong loai="ban" />
 
   const turnParam = Number(searchParams.get('turn'))
   const intendedTurnSeconds = intendedGameType && Number.isInteger(turnParam) && turnParam >= 10 && turnParam <= 120

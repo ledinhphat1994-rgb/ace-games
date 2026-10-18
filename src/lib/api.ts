@@ -27,6 +27,7 @@ export function layNguoiDungMacDinh(): NguoiDung {
   let avatar: string | null = null
   let ten = 'Kỳ Thủ'
   let tieuDeHoSo = 'Kỳ thủ Ace Games'
+  let actorKey = 'guest_kythu'
 
   if (typeof window !== 'undefined') {
     try {
@@ -36,6 +37,12 @@ export function layNguoiDungMacDinh(): NguoiDung {
       if (savedTen) ten = savedTen
       const savedTieuDe = localStorage.getItem('dc_guest_status')
       if (savedTieuDe) tieuDeHoSo = savedTieuDe
+      let savedKey = localStorage.getItem('dc_guest_key')
+      if (!savedKey) {
+        savedKey = 'guest_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+        localStorage.setItem('dc_guest_key', savedKey)
+      }
+      actorKey = savedKey
     } catch {}
   }
 
@@ -53,7 +60,15 @@ export function layNguoiDungMacDinh(): NguoiDung {
     hocSinhId: null,
     lopId: null,
     lop: null,
-    actorKey: 'guest_kythu',
+    actorKey,
+  }
+}
+
+export function doiTenKhach(tenMoi: string): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('dc_guest_name', tenMoi.trim())
+    } catch {}
   }
 }
 

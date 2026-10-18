@@ -217,6 +217,7 @@ export class RoomDO extends DurableObject<Env> {
   /** Cờ vua / cờ tướng: mọi nước đã đi của ván hiện tại (thế cờ được dựng lại từ đây). */
   private gameMoves: NuocCo[] = []
   private hostKey: string | null = null
+  private hostName: string | null = null
   private isGameRoom = false
   private gameEmptySince: number | null = null
   private khoiTaoXong = false
@@ -613,6 +614,8 @@ export class RoomDO extends DurableObject<Env> {
           try { this.stageLayout = JSON.parse(r.value) as BoCucSanKhau } catch {}
         } else if (r.key === 'host_key') {
           this.hostKey = r.value
+        } else if (r.key === 'host_name') {
+          this.hostName = r.value
         } else if (r.key === 'room_name') {
           this.roomName = r.value
         } else if (r.key === 'game_room_id') {
@@ -4780,7 +4783,7 @@ export class RoomDO extends DurableObject<Env> {
     const ban: BanSanh = {
       id: this.gameRoomId,
       gameType: this.gameMeta.gameType,
-      tenChu: this.gameMeta.playerXName || null,
+      tenChu: this.gameMeta.playerXName || this.hostName || null,
       tenKhach: this.gameMeta.playerOName,
       trangThai: this.gameMeta.status,
       soNguoiXem: this.demNguoiXemGame(boQua),
@@ -6326,6 +6329,10 @@ export class RoomDO extends DurableObject<Env> {
         }
         this.hostKey = body.hostKey
         this.luuMeta('host_key', body.hostKey)
+        if (body.hostName) {
+          this.hostName = body.hostName
+          this.luuMeta('host_name', body.hostName)
+        }
         if (body.roomName) {
           this.roomName = body.roomName
           this.luuMeta('room_name', body.roomName)
@@ -6341,8 +6348,8 @@ export class RoomDO extends DurableObject<Env> {
         this.gameMeta = {
           ...DEFAULT_GAME_META,
           gameType: body.gameType,
-          playerX: null,
-          playerXName: null,
+          playerX: body.hostKey || null,
+          playerXName: body.hostName || null,
           turnTimerSeconds: body.turnSeconds,
           status: 'waiting',
         }

@@ -47,8 +47,7 @@ export function GameBoardView({
   const { meta, mySide } = ban
 
   const userRole = mySide ? 'player' : 'spectator'
-  // Khách chưa đăng nhập không vào được bàn online: bàn cờ chỉ có chế độ chơi với máy / hai người một máy.
-  const online = myActorKey ? ban : undefined
+  const online = ban
   const chatBan: ChatBan | undefined = online && {
     tinNhan: online.chat,
     gui: online.guiChat,
