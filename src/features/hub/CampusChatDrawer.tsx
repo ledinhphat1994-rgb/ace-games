@@ -30,6 +30,9 @@ import {
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 import { usePhien } from '@/app/phien'
+import { DoiTenDialog } from '@/features/profile/DoiTenDialog'
+import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
+import { doiAvatar } from '@/lib/api'
 
 const QUICK_EMOJIS = ['❤️', '👍', '😂', '🔥', '🎉', '👏', '😮', '😢', '💯', '✨', '🙏', '😍']
 const EXTRA_EMOJIS = [
@@ -316,7 +319,9 @@ export function CampusChatDrawer({
   scope = 'campus',
   roomId,
 }: CampusChatDrawerProps) {
-  const { nguoiDung } = usePhien()
+  const { nguoiDung, lamMoiPhien } = usePhien()
+  const [moDoiTen, setMoDoiTen] = useState(false)
+  const [moDoiAvatar, setMoDoiAvatar] = useState(false)
   const [idDangXoa, setIdDangXoa] = useState<number | null>(null)
   const [tinCanXoa, setTinCanXoa] = useState<TinCampus | null>(null)
   const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
@@ -1088,6 +1093,10 @@ export function CampusChatDrawer({
                           <button
                             type="button"
                             onClick={(e) => {
+                              if (laCuaMinh) {
+                                setMoDoiAvatar(true)
+                                return
+                              }
                               const rect = e.currentTarget.getBoundingClientRect()
                               setNguoiXem({
                                 id: msg.accountId,
@@ -1097,8 +1106,8 @@ export function CampusChatDrawer({
                                 anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
                               })
                             }}
-                            aria-label={`Xem thông tin ${msg.ten}`}
-                            title={msg.tieuDeHoSo ? `${msg.ten}: “${msg.tieuDeHoSo}”` : msg.ten}
+                            aria-label={laCuaMinh ? 'Đổi ảnh đại diện' : `Xem thông tin ${msg.ten}`}
+                            title={laCuaMinh ? 'Bấm để đổi ảnh đại diện' : (msg.tieuDeHoSo ? `${msg.ten}: “${msg.tieuDeHoSo}”` : msg.ten)}
                             data-testid={`chat-anh-${msg.accountId}`}
                             className="block cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
                           >
@@ -1129,6 +1138,10 @@ export function CampusChatDrawer({
                             <button
                               type="button"
                               onClick={(e) => {
+                                if (laCuaMinh) {
+                                  setMoDoiTen(true)
+                                  return
+                                }
                                 const rect = e.currentTarget.getBoundingClientRect()
                                 setNguoiXem({
                                   id: msg.accountId,
@@ -1138,6 +1151,8 @@ export function CampusChatDrawer({
                                   anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
                                 })
                               }}
+                              aria-label={laCuaMinh ? 'Đổi tên người chơi' : undefined}
+                              title={laCuaMinh ? 'Bấm để đổi tên' : undefined}
                               className="min-w-0 cursor-pointer text-left font-medium break-words text-text-primary hover:text-brand hover:underline focus-visible:underline focus-visible:outline-none"
                             >
                               {msg.ten}
@@ -1377,6 +1392,22 @@ export function CampusChatDrawer({
       />
 
       <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
+      <DoiTenDialog open={moDoiTen} onOpenChange={setMoDoiTen} onSuccess={lamMoiPhien} />
+      <AvatarPickerDialog
+        open={moDoiAvatar}
+        onOpenChange={setMoDoiAvatar}
+        currentAvatarUrl={nguoiDung?.avatar || undefined}
+        onSaveAvatar={async (url) => {
+          if (!nguoiDung || nguoiDung.accountId === 0) {
+            try {
+              localStorage.setItem('dc_guest_avatar', url)
+            } catch {}
+          } else {
+            await doiAvatar(url)
+          }
+          if (lamMoiPhien) await lamMoiPhien()
+        }}
+      />
 
       <AlertDialog
         open={tinCanXoa !== null}

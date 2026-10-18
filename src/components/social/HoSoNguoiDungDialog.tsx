@@ -104,7 +104,12 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const vaiTro = nhanVaiTro(hoSo?.role ?? nguoi.vaiTro)
   const lopTen = hoSo ? hoSo.lopTen : (nguoi.lopTen ?? null)
   const capDo = hoSo ? tinhLevel(hoSo.totalXp) : null
-  const tagDinhDanh = (isMe && nguoiDung?.username) ? `@${nguoiDung.username}` : (hoSo?.tag || `@campus_${nguoi.id}`)
+  const isGuest = (isMe && (!nguoiDung || nguoiDung.accountId === 0)) || nguoi.id <= 0
+  const tagDinhDanh = isGuest
+    ? null
+    : (isMe && nguoiDung?.username)
+      ? `@${nguoiDung.username}`
+      : (hoSo?.tag || `@campus_${nguoi.id}`)
 
   const danhSachThanhTuu = achievementsData?.achievements ?? []
   const unlockedCount =
@@ -202,14 +207,16 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
 
                       {/* Tag người dùng: mỗi tài khoản có 1 tag riêng để xác thực */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span
-                          data-testid="tag-xac-thuc"
-                          title="Tag định danh xác thực tài khoản"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-mono font-semibold"
-                        >
-                          <BadgeCheck className="size-3 shrink-0" />
-                          <span>{tagDinhDanh}</span>
-                        </span>
+                        {tagDinhDanh && (
+                          <span
+                            data-testid="tag-xac-thuc"
+                            title="Tag định danh xác thực tài khoản"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-mono font-semibold"
+                          >
+                            <BadgeCheck className="size-3 shrink-0" />
+                            <span>{tagDinhDanh}</span>
+                          </span>
+                        )}
                         {vaiTro && <span className="text-xs text-text-tertiary">· {vaiTro}</span>}
                       </div>
                     </div>
@@ -267,9 +274,9 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
             ) : (
               <>
                 <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
-                  {isError ? (
+                  {isError && !isGuest ? (
                     <p data-testid="ho-so-loi" role="status" className="mt-4 text-sm text-text-secondary">Không tải được thông tin.</p>
-                  ) : (
+                  ) : isGuest ? null : (
                     <div className="flex min-w-0 items-center justify-between gap-3">
                       <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums text-text-secondary" aria-busy={isPending}>
                         <div className="flex items-baseline gap-2"><dt>Cấp</dt><dd data-testid="ho-so-cap" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : capDo}</dd></div>
@@ -299,26 +306,28 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                   )}
                 </div>
                 {/* Vùng 4 và Vùng 5 cùng 1 hàng chia đôi card ra (grid-cols-2) */}
-                <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 border-t border-border-subtle p-3.5">
-                  <div className={cn("grid gap-2 w-full", isMe ? "grid-cols-1" : "grid-cols-2")}>
-                    {!isMe && <NutQuanHe id={nguoi.id} day />}
-                    <Button
-                      variant="default"
-                      onClick={() => {
-                        if (isMe) window.location.href = '/me'
-                        else window.dispatchEvent(new CustomEvent('campus:open-dm', { detail: { id: nguoi.id, displayName: ten, avatar, lopTen } }))
-                        onDong()
-                      }}
-                      className="w-full min-h-11 min-w-0 whitespace-normal px-2.5 text-sm font-semibold rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 transition-colors duration-150 shadow-sm cursor-pointer"
-                      title={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
-                      aria-label={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
-                      data-testid="ho-so-btn-nhan-tin"
-                    >
-                      {isMe ? <User className="size-4 shrink-0" /> : <MessageSquare className="size-4 shrink-0" />}
-                      <span className="truncate">{isMe ? 'Hồ sơ' : 'Nhắn tin'}</span>
-                    </Button>
-                  </div>
-                </footer>
+                {!isGuest && (
+                  <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 border-t border-border-subtle p-3.5">
+                    <div className={cn("grid gap-2 w-full", isMe ? "grid-cols-1" : "grid-cols-2")}>
+                      {!isMe && <NutQuanHe id={nguoi.id} day />}
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          if (isMe) window.location.href = '/me'
+                          else window.dispatchEvent(new CustomEvent('campus:open-dm', { detail: { id: nguoi.id, displayName: ten, avatar, lopTen } }))
+                          onDong()
+                        }}
+                        className="w-full min-h-11 min-w-0 whitespace-normal px-2.5 text-sm font-semibold rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 transition-colors duration-150 shadow-sm cursor-pointer"
+                        title={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
+                        aria-label={isMe ? 'Xem hồ sơ của tôi' : 'Nhắn tin với ' + ten}
+                        data-testid="ho-so-btn-nhan-tin"
+                      >
+                        {isMe ? <User className="size-4 shrink-0" /> : <MessageSquare className="size-4 shrink-0" />}
+                        <span className="truncate">{isMe ? 'Hồ sơ' : 'Nhắn tin'}</span>
+                      </Button>
+                    </div>
+                  </footer>
+                )}
               </>
             )}
               </>
