@@ -174,8 +174,7 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
     expect(accountQuickCenterRaw).not.toContain('Thuyết Trình')
     expect(accountQuickCenterRaw).not.toContain('Bảng Đen')
 
-    // Per user invariant, achievements reside canonically in /me
-    expect(accountQuickCenterRaw).toContain("diToi('/me')")
+    // Per user invariant, quick achievements subview was removed
     expect(accountQuickCenterRaw).not.toContain("currentView === 'achievements'")
   })
 

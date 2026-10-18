@@ -3,13 +3,17 @@ import { describe, expect, it } from 'vitest'
 import type { GoiCampus } from '../shared/protocol/campus'
 import { dangNhapLayCookie, moKetNoi } from './ws'
 
-const moCampus = (cookie: string, origin?: string) => moKetNoi<GoiCampus>('/ws/campus', cookie, origin)
+const moCampus = (cookie: string, origin?: string, duongDan = '/ws/campus') => moKetNoi<GoiCampus>(duongDan, cookie, origin)
 
 describe('Campus real-time (CampusDO)', () => {
-  it('trang web lạ mở kết nối -> 403, chưa đăng nhập -> 401', async () => {
+  it('trang web lạ mở kết nối -> 403, chưa đăng nhập vẫn kết nối được với tư cách khách', async () => {
     const cookie = await dangNhapLayCookie('qa.v2.thu1')
     expect((await moCampus(cookie, 'https://trang-la.example')).status).toBe(403)
-    expect((await moCampus('')).status).toBe(401)
+    const khach = await moCampus('')
+    expect(khach.status).toBe(101)
+    const snap = await khach.cho('snapshot')
+    expect(snap.me.accountId).toBe(0)
+    await khach.dong()
   })
 
   it('snapshot có số người online; người khác vào hoặc ra thì số online cập nhật cho mọi người', async () => {
@@ -107,5 +111,18 @@ describe('Campus real-time (CampusDO)', () => {
     await dangNhapLayCookie('qa.v2.thu3')
     await cu.cho('session.replaced')
     expect((await cu.choDong()).code).toBe(4001)
+  })
+
+  it('khách tự do có thể gửi tin nhắn chat và nhận tin nhắn trong chat chung', async () => {
+    const khach = await moCampus('', undefined, '/ws/campus?guestName=K%E1%BB%B3%20Th%E1%BB%A7%20M%E1%BB%9Bi')
+    expect(khach.status).toBe(101)
+    await khach.cho('snapshot')
+
+    khach.gui({ type: 'chat.send', reqId: 'k1', text: 'Xin chào từ khách tự do' })
+    await khach.cho('ack', (g) => g.reqId === 'k1')
+    const msg = (await khach.cho('chat.msg', (g) => g.message.noiDung === 'Xin chào từ khách tự do')).message
+    expect(msg.ten).toBe('Kỳ Thủ Mới')
+    expect(msg.accountId).toBe(0)
+    await khach.dong()
   })
 })

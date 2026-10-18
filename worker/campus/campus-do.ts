@@ -125,7 +125,7 @@ function phongSanhTuD1(r: DongPhongD1): PhongSanh {
 // phòng học cho sảnh. Dùng WebSocket Hibernation API nên lúc không ai nhắn tin thì object được ngủ.
 export class CampusDO extends DurableObject<Env> {
   private tinGanDay: TinCampus[] | null = null
-  private guiChatGanNhat = new Map<number, { luc: number; batDauPhut: number; demPhut: number }>()
+  private guiChatGanNhat = new Map<string | number, { luc: number; batDauPhut: number; demPhut: number }>()
   private demLenh = new WeakMap<WebSocket, { batDau: number; dem: number }>()
   /** Hẹn giờ báo offline sau grace period; mất khi ngủ đông cũng không sao vì hẹn giờ đang chờ giữ instance thức. */
   private henGioOffline = new Map<number, ReturnType<typeof setTimeout>>()
@@ -213,7 +213,8 @@ export class CampusDO extends DurableObject<Env> {
     const chat = await this.layTinGanDay()
 
     const { 0: client, 1: server } = new WebSocketPair()
-    this.ctx.acceptWebSocket(server, [theTaiKhoan(dt.accountId)])
+    const tags = dt.accountId > 0 ? [theTaiKhoan(dt.accountId)] : ['guest:' + dt.key]
+    this.ctx.acceptWebSocket(server, tags)
     const bayGio = Date.now()
     server.serializeAttachment({ ...dt, _joinedAt: bayGio, capNhatLuc: bayGio } satisfies KetNoiCampus)
     await this.dangKyKetNoi(server, dt)
@@ -663,7 +664,8 @@ export class CampusDO extends DurableObject<Env> {
     }
 
     const bayGio = Date.now()
-    const truoc = this.guiChatGanNhat.get(dt.accountId)
+    const rateLimitKey = dt.accountId > 0 ? dt.accountId : dt.key
+    const truoc = this.guiChatGanNhat.get(rateLimitKey)
     if (truoc && bayGio - truoc.luc < CHAT_CAMPUS.GIAN_CACH_MS) {
       return this.loi(ws, reqId, 'rate_limited', 'Gửi chậm lại một chút nhé!')
     }
@@ -672,7 +674,7 @@ export class CampusDO extends DurableObject<Env> {
     if (demPhut > CHAT_CAMPUS.TOI_DA_MOI_PHUT) {
       return this.loi(ws, reqId, 'rate_limited', 'Bạn đã gửi quá nhiều tin trong một phút, nghỉ tay chút nhé!')
     }
-    this.guiChatGanNhat.set(dt.accountId, { luc: bayGio, batDauPhut: cungPhut ? truoc.batDauPhut : bayGio, demPhut })
+    this.guiChatGanNhat.set(rateLimitKey, { luc: bayGio, batDauPhut: cungPhut ? truoc.batDauPhut : bayGio, demPhut })
 
     let dong: { id: number; taoLuc: string } | null
     try {
@@ -867,11 +869,11 @@ export class CampusDO extends DurableObject<Env> {
   }
 
   private demOnline(...boQua: WebSocket[]): number {
-    const taiKhoan = new Set<number>()
+    const taiKhoan = new Set<string | number>()
     for (const ws of this.ctx.getWebSockets()) {
       if (boQua.includes(ws)) continue
       const dt = ws.deserializeAttachment() as DanhTinhCampus | null
-      if (dt) taiKhoan.add(dt.accountId)
+      if (dt) taiKhoan.add(dt.accountId > 0 ? dt.accountId : dt.key)
     }
     return taiKhoan.size
   }
@@ -968,27 +970,31 @@ export class CampusDO extends DurableObject<Env> {
   }
 
   private async dangKyKetNoi(ws: WebSocket, dt: DanhTinhCampus): Promise<void> {
-    await this.napSocialGraph(dt.accountId)
+    if (dt.accountId > 0) {
+      await this.napSocialGraph(dt.accountId)
 
-    const henGio = this.henGioOffline.get(dt.accountId)
-    if (henGio) {
-      clearTimeout(henGio)
-      this.henGioOffline.delete(dt.accountId)
+      const henGio = this.henGioOffline.get(dt.accountId)
+      if (henGio) {
+        clearTimeout(henGio)
+        this.henGioOffline.delete(dt.accountId)
+      }
     }
 
     // Gửi snapshot presence bạn bè cho WebSocket mới
     this.gui(ws, { type: 'social.presence_snapshot', friends: this.laySnapshotBanBe(dt) })
 
     // Vừa online (hoặc tab mới đang mở làm tài khoản hết "away"): báo bạn bè.
-    const truoc = this.trangThaiTaiKhoan(dt.accountId, ws)
-    if (truoc.state !== this.trangThaiTaiKhoan(dt.accountId).state) {
-      await this.phatPresenceBanBe(dt.accountId)
+    if (dt.accountId > 0) {
+      const truoc = this.trangThaiTaiKhoan(dt.accountId, ws)
+      if (truoc.state !== this.trangThaiTaiKhoan(dt.accountId).state) {
+        await this.phatPresenceBanBe(dt.accountId)
+      }
     }
   }
 
   private async huyKetNoi(ws: WebSocket): Promise<void> {
     const dt = ws.deserializeAttachment() as DanhTinhCampus | null
-    if (!dt) return
+    if (!dt || dt.accountId <= 0) return
 
     const truoc = this.trangThaiTaiKhoan(dt.accountId)
     const sau = this.trangThaiTaiKhoan(dt.accountId, ws)
@@ -1022,13 +1028,13 @@ export class CampusDO extends DurableObject<Env> {
   private async capNhatAway(ws: WebSocket, away: boolean): Promise<void> {
     this.capNhatKetNoi(ws, { away })
     const dt = ws.deserializeAttachment() as DanhTinhCampus | null
-    if (dt) await this.phatPresenceBanBe(dt.accountId)
+    if (dt && dt.accountId > 0) await this.phatPresenceBanBe(dt.accountId)
   }
 
   private async capNhatHoatDong(ws: WebSocket, activity: UserActivity | null): Promise<void> {
     this.capNhatKetNoi(ws, { activity, activityAt: Date.now() })
     const dt = ws.deserializeAttachment() as DanhTinhCampus | null
-    if (dt) await this.phatPresenceBanBe(dt.accountId)
+    if (dt && dt.accountId > 0) await this.phatPresenceBanBe(dt.accountId)
   }
 
   private async phatPresenceBanBe(accountId: number, ...boQua: WebSocket[]): Promise<void> {

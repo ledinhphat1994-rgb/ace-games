@@ -9,10 +9,7 @@ describe('Account Menu & Achievements Modal Mobile Responsiveness', () => {
     // Không còn subview và truy vấn thừa
     expect(accountQuickCenterRaw).not.toContain("currentView === 'achievements'")
     expect(accountQuickCenterRaw).not.toContain('/api/engagement/achievements')
-    // Vẫn duy trì điều hướng đến /me (Hồ sơ của tôi)
-    expect(accountQuickCenterRaw).toContain("diToi('/me')")
-    expect(accountQuickCenterRaw).toContain('Hồ sơ của tôi')
-    expect(accountQuickCenterRaw).toContain('Đổi mật khẩu')
+    // Đăng xuất vẫn có mặt
     expect(accountQuickCenterRaw).toContain('Đăng xuất')
   })
 

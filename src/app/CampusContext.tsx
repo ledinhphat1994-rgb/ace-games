@@ -264,12 +264,6 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   const ketNoi = useCallback(() => {
     if (daHuyRef.current) return
-    if (!nguoiDung || nguoiDung.accountId === 0) {
-      setTrangThai('da_ket_noi')
-      setPresenceReady(false)
-      setCampusSnapshotReady(true)
-      return
-    }
     if (henGioKetNoiLaiRef.current) {
       clearTimeout(henGioKetNoiLaiRef.current)
       henGioKetNoiLaiRef.current = null
@@ -281,7 +275,23 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     setCampusSnapshotReady(false)
     const giaoThuc = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
-    const ws = new WebSocket(`${giaoThuc}//${host}/ws/campus`)
+
+    let wsUrl = `${giaoThuc}//${host}/ws/campus`
+    if (!nguoiDung || nguoiDung.accountId === 0) {
+      const gKey = (typeof localStorage !== 'undefined' && localStorage.getItem('dc_guest_key')) || (nguoiDung?.actorKey ?? '') || ('guest_' + Math.random().toString(36).slice(2, 9))
+      const gName = (typeof localStorage !== 'undefined' && localStorage.getItem('dc_guest_name')) || (nguoiDung ? (nguoiDung.ten || nguoiDung.username) : 'Kỳ Thủ')
+      const gAvatar = (typeof localStorage !== 'undefined' && localStorage.getItem('dc_guest_avatar')) || (nguoiDung?.avatar ?? '')
+      wsUrl += `?guestKey=${encodeURIComponent(gKey)}&guestName=${encodeURIComponent(gName)}&guestAvatar=${encodeURIComponent(gAvatar)}`
+    }
+
+    if (wsRef.current) {
+      try {
+        wsRef.current.close()
+      } catch {}
+      wsRef.current = null
+    }
+
+    const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -591,7 +601,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       setPresenceReady(false)
       setCampusSnapshotReady(false)
     }
-  }, [donDepChoPhanHoi, lamMoiNotifications])
+  }, [donDepChoPhanHoi, lamMoiNotifications, nguoiDung?.accountId, nguoiDung?.ten, nguoiDung?.avatar, nguoiDung?.actorKey, nguoiDung?.username])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi
@@ -665,10 +675,6 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const guiChat = useCallback(async (text: string): Promise<KetQuaThaoTac> => {
-    if (!nguoiDung) {
-      phien?.moAuthModal('dang_nhap')
-      return { ok: false, loi: 'Vui lòng đăng nhập để gửi tin nhắn.' }
-    }
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return { ok: false, loi: 'Chưa kết nối tới máy chủ.' }
     const noiDung = lamSachVanBan(text)

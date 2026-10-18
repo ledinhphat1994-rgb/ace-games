@@ -91,42 +91,26 @@ export function AccountQuickCenter({
         </div>
       </div>
 
-      <nav aria-label="Tài khoản" className="space-y-0.5 border-t border-border-subtle pt-1.5">
-        <MucMenu
-          icon={Pencil}
-          onClick={() => {
-            handleOpenChange(false)
-            setMoDoiTen(true)
-          }}
-        >
-          Đổi tên người chơi
-        </MucMenu>
-        <MucMenu
-          icon={Camera}
-          onClick={() => {
-            handleOpenChange(false)
-            setMoDoiAvatar(true)
-          }}
-        >
-          Đổi ảnh đại diện
-        </MucMenu>
-        {nguoiDung.accountId > 0 && (
-          <MucMenu
-            icon={KeyRound}
-            onClick={() => {
-              handleOpenChange(false)
-              setMoDoiMatKhau(true)
-            }}
-          >
-            Đổi mật khẩu
-          </MucMenu>
-        )}
-        {nguoiDung.isSchoolAdmin && (
-          <MucMenu icon={ShieldCheck} onClick={() => diToi('/admin')}>
-            Trang quản trị trường
-          </MucMenu>
-        )}
-      </nav>
+      {(nguoiDung.accountId > 0 || nguoiDung.isSchoolAdmin) && (
+        <nav aria-label="Tài khoản" className="space-y-0.5 border-t border-border-subtle pt-1.5">
+          {nguoiDung.accountId > 0 && (
+            <MucMenu
+              icon={KeyRound}
+              onClick={() => {
+                handleOpenChange(false)
+                setMoDoiMatKhau(true)
+              }}
+            >
+              Đổi mật khẩu
+            </MucMenu>
+          )}
+          {nguoiDung.isSchoolAdmin && (
+            <MucMenu icon={ShieldCheck} onClick={() => diToi('/admin')}>
+              Trang quản trị trường
+            </MucMenu>
+          )}
+        </nav>
+      )}
 
       <div className="mt-1.5 border-t border-border-subtle pt-1.5">
         <MucMenu

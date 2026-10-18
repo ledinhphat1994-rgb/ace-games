@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { taoDanhTinhCampus, TEN_CAMPUS } from './campus/danh-tinh'
+import { taoDanhTinhCampus, TEN_CAMPUS, type DanhTinhCampus } from './campus/danh-tinh'
 import { TEN_GAME_LOBBY, tenLobbyTheoLoai } from './games/game-lobby-do'
 import { xuLyCapNhatReactions, type ActionReactionInput } from './campus/campus-reactions'
 import { SLUG_TIENG_VIET_GAME, type GameType } from '../shared/protocol/game'
@@ -457,11 +457,37 @@ async function vaoCampus(request: Request, env: Env): Promise<Response> {
   if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)
   if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
 
-  const kq = await kiemTraPhien(await layPhien(request, env), env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const phien = await layPhien(request, env)
+  const kq = await kiemTraPhien(phien, env)
+
+  let dt: DanhTinhCampus
+  if (kq.hopLe) {
+    dt = await taoDanhTinhCampus(env, kq.phien, kq.taiKhoan)
+  } else {
+    // Khách chơi tự do
+    const url = new URL(request.url)
+    const guestKey = (url.searchParams.get('guestKey') || request.headers.get('X-Actor-Key') || '').trim() || ('guest_' + crypto.randomUUID().slice(0, 8))
+    const guestName = (url.searchParams.get('guestName') || request.headers.get('X-Actor-Ten') || '').trim() || 'Kỳ Thủ'
+    const guestAvatar = (url.searchParams.get('guestAvatar') || request.headers.get('X-Actor-Avatar') || '').trim() || null
+
+    dt = {
+      accountId: 0,
+      key: guestKey,
+      ten: guestName,
+      vaiTro: 'hoc_sinh',
+      lopId: null,
+      lopTen: null,
+      phienId: null,
+      xoaMoiTin: false,
+      xemTatCaLop: true,
+      lopXem: [],
+      avatar: guestAvatar,
+      tieuDeHoSo: null,
+    }
+  }
 
   const headers = new Headers(request.headers)
-  headers.set(HEADER_DANH_TINH, maHoaDanhTinh(await taoDanhTinhCampus(env, kq.phien, kq.taiKhoan)))
+  headers.set(HEADER_DANH_TINH, maHoaDanhTinh(dt))
   return env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS)).fetch(new Request(request, { headers }))
 }
 
