@@ -83,14 +83,25 @@ export function AccountQuickCenter({
           Hồ sơ của tôi
         </MucMenu>
         <MucMenu
-          icon={KeyRound}
+          icon={Camera}
           onClick={() => {
             handleOpenChange(false)
-            setMoDoiMatKhau(true)
+            setMoDoiAvatar(true)
           }}
         >
-          Đổi mật khẩu
+          Đổi ảnh đại diện
         </MucMenu>
+        {nguoiDung.accountId > 0 && (
+          <MucMenu
+            icon={KeyRound}
+            onClick={() => {
+              handleOpenChange(false)
+              setMoDoiMatKhau(true)
+            }}
+          >
+            Đổi mật khẩu
+          </MucMenu>
+        )}
         {nguoiDung.isSchoolAdmin && (
           <MucMenu icon={ShieldCheck} onClick={() => diToi('/admin')}>
             Trang quản trị trường
@@ -143,7 +154,13 @@ export function AccountQuickCenter({
         onOpenChange={setMoDoiAvatar}
         currentAvatarUrl={nguoiDung.avatar || undefined}
         onSaveAvatar={async (url) => {
-          await doiAvatar(url)
+          if (!nguoiDung || nguoiDung.accountId === 0) {
+            try {
+              localStorage.setItem('dc_guest_avatar', url)
+            } catch {}
+          } else {
+            await doiAvatar(url)
+          }
           if (onLamMoiPhien) await onLamMoiPhien()
         }}
       />

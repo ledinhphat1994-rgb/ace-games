@@ -23,22 +23,41 @@ export interface NguoiDung {
   datMatKhauKhongCanCu?: boolean
 }
 
-export const NGUOI_DUNG_MAC_DINH: NguoiDung = {
-  accountId: 0,
-  username: 'kythu',
-  ten: 'Kỳ Thủ',
-  role: 'khach',
-  avatar: null,
-  tieuDeHoSo: 'Kỳ thủ Ace Games',
-  teacherPending: false,
-  isSchoolAdmin: false,
-  isVerifiedTeacher: false,
-  isLinkedStudent: false,
-  hocSinhId: null,
-  lopId: null,
-  lop: null,
-  actorKey: 'guest_kythu',
+export function layNguoiDungMacDinh(): NguoiDung {
+  let avatar: string | null = null
+  let ten = 'Kỳ Thủ'
+  let tieuDeHoSo = 'Kỳ thủ Ace Games'
+
+  if (typeof window !== 'undefined') {
+    try {
+      const savedAvatar = localStorage.getItem('dc_guest_avatar')
+      if (savedAvatar) avatar = savedAvatar
+      const savedTen = localStorage.getItem('dc_guest_name')
+      if (savedTen) ten = savedTen
+      const savedTieuDe = localStorage.getItem('dc_guest_status')
+      if (savedTieuDe) tieuDeHoSo = savedTieuDe
+    } catch {}
+  }
+
+  return {
+    accountId: 0,
+    username: 'kythu',
+    ten,
+    role: 'khach',
+    avatar,
+    tieuDeHoSo,
+    teacherPending: false,
+    isSchoolAdmin: false,
+    isVerifiedTeacher: false,
+    isLinkedStudent: false,
+    hocSinhId: null,
+    lopId: null,
+    lop: null,
+    actorKey: 'guest_kythu',
+  }
 }
+
+export const NGUOI_DUNG_MAC_DINH: NguoiDung = layNguoiDungMacDinh()
 
 
 export class LoiApi extends Error {
@@ -132,15 +151,29 @@ export function quenMatKhau(duLieu: {
   })
 }
 
-export function doiAvatar(avatarUrl: string): Promise<{ ok: boolean; avatar: string }> {
-  return goiApi('/api/profile/avatar', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ avatarUrl }),
-  })
+export async function doiAvatar(avatarUrl: string): Promise<{ ok: boolean; avatar: string }> {
+  try {
+    const res = await goiApi<{ ok: boolean; avatar: string }>('/api/profile/avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatarUrl }),
+    })
+    try {
+      localStorage.setItem('dc_guest_avatar', avatarUrl)
+    } catch {}
+    return res
+  } catch (err) {
+    if (err instanceof LoiApi && (err.status === 401 || err.status === 403)) {
+      try {
+        localStorage.setItem('dc_guest_avatar', avatarUrl)
+      } catch {}
+      return { ok: true, avatar: avatarUrl }
+    }
+    throw err
+  }
 }
 
-export function capNhatHoSo(duLieu: {
+export async function capNhatHoSo(duLieu: {
   tenHienThi?: string
   tieuDeHoSo?: string
   ngaySinh?: string | null
@@ -148,11 +181,39 @@ export function capNhatHoSo(duLieu: {
   sdtLienHe?: string | null
   soThich?: string | null
 }): Promise<{ ok: boolean }> {
-  return goiApi('/api/profile/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(duLieu),
-  })
+  try {
+    const res = await goiApi<{ ok: boolean }>('/api/profile/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(duLieu),
+    })
+    if (duLieu.tenHienThi) {
+      try {
+        localStorage.setItem('dc_guest_name', duLieu.tenHienThi)
+      } catch {}
+    }
+    if (duLieu.tieuDeHoSo !== undefined && duLieu.tieuDeHoSo !== null) {
+      try {
+        localStorage.setItem('dc_guest_status', duLieu.tieuDeHoSo)
+      } catch {}
+    }
+    return res
+  } catch (err) {
+    if (err instanceof LoiApi && (err.status === 401 || err.status === 403)) {
+      if (duLieu.tenHienThi) {
+        try {
+          localStorage.setItem('dc_guest_name', duLieu.tenHienThi)
+        } catch {}
+      }
+      if (duLieu.tieuDeHoSo !== undefined && duLieu.tieuDeHoSo !== null) {
+        try {
+          localStorage.setItem('dc_guest_status', duLieu.tieuDeHoSo)
+        } catch {}
+      }
+      return { ok: true }
+    }
+    throw err
+  }
 }
 
 export function layTrangThaiGoogle(): Promise<TrangThaiGoogle> {

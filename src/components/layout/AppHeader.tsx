@@ -1,13 +1,11 @@
 import { memo } from 'react'
 import { NavLink } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { NotificationCenter } from '@/components/NotificationCenter'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ConnectionIndicator } from './ConnectionIndicator'
-import { NGUOI_DUNG_MAC_DINH, type NguoiDung } from '@/lib/api'
+import { layNguoiDungMacDinh, type NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
 import { MessageSquare } from 'lucide-react'
-import { ThemeSwitch } from './ThemeSwitch'
 import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
 
 
@@ -55,7 +53,7 @@ export const AppHeader = memo(function AppHeader({
           {/* Vùng 1: Đã xóa thanh tìm kiếm theo yêu cầu (CampusSearch) */}
         </div>
 
-        {/* ── Right Area: Status + Theme + Notifications + Messages + Avatar ── */}
+        {/* ── Right Area: Status + Messages + Avatar (đã bỏ theme switch và chuông thông báo) ── */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Connection status (chỉ hiện khi có tài khoản thật đăng nhập) */}
           {nguoiDung && nguoiDung.accountId > 0 && (
@@ -67,12 +65,6 @@ export const AppHeader = memo(function AppHeader({
               onKetNoiLai={onKetNoiLai}
             />
           )}
-
-          {/* Theme switch */}
-          <ThemeSwitch />
-
-          {/* Notifications */}
-          <NotificationCenter />
 
           {/* Messages / Campus Chat trigger button (Chuyển xuống Vùng 5 góc phải dưới cùng) */}
           <Button
@@ -94,9 +86,9 @@ export const AppHeader = memo(function AppHeader({
           </Button>
 
           {/* Account / User Menu — Luôn hiển thị Avatar User, ẩn hoàn toàn chức năng đăng nhập / đăng ký */}
-          <div className="ml-1 sm:ml-2 flex items-center border-l border-border-subtle pl-2 sm:pl-3">
+          <div className="flex items-center">
             <UserAvatarMenu
-              nguoiDung={nguoiDung || NGUOI_DUNG_MAC_DINH}
+              nguoiDung={nguoiDung || layNguoiDungMacDinh()}
               onDangXuat={onDangXuat}
               onLamMoiPhien={onLamMoiPhien}
             />

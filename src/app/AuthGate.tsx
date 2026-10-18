@@ -7,7 +7,7 @@ import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { AuthModal, type AuthMode } from '@/features/auth/AuthModal'
-import { dangXuat, layPhienHienTai, layTrangThaiGoogle, LoiApi, NGUOI_DUNG_MAC_DINH } from '@/lib/api'
+import { dangXuat, layNguoiDungMacDinh, layPhienHienTai, layTrangThaiGoogle, LoiApi } from '@/lib/api'
 import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { toast } from 'sonner'
 import type { KetQuaGoogle } from '@shared/protocol/google'
@@ -54,11 +54,17 @@ export function AuthGate() {
     queryClient.setQueryData(KHOA_PHIEN, { nguoiDung: null })
   }, [queryClient])
 
+  const [guestRevision, setGuestRevision] = useState(0)
+
   const lamMoiPhien = useCallback(async () => {
+    setGuestRevision((v) => v + 1)
     await queryClient.invalidateQueries({ queryKey: KHOA_PHIEN })
   }, [queryClient])
 
-  const nguoiDung = phien.data?.nguoiDung ?? NGUOI_DUNG_MAC_DINH
+  const nguoiDung = useMemo(() => {
+    if (phien.data?.nguoiDung) return phien.data.nguoiDung
+    return layNguoiDungMacDinh()
+  }, [phien.data?.nguoiDung, guestRevision])
 
 
   const [searchParams, setSearchParams] = useSearchParams()

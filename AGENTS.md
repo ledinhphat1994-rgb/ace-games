@@ -119,7 +119,7 @@ Tóm gọn: **Sửa local → test đúng lỗi → final local check 1 lần �
 
 ## 8. Quy tắc thiết kế giao diện UI/UX & Bố cục ổn định
 - **Chỉ ghi tiêu đề, tuyệt đối cấm chú thích:** Giữ giao diện sạch sẽ, trực quan, tinh gọn theo nguyên tắc "Obvious UI Does Not Explain Itself". Không tự ý chèn văn bản bổ sung, mô tả phụ hay nhãn giải nghĩa.
-- **Zero Overlap & Spacing Rhythm:** Giữa các card cố định tuyệt đối không được đè lên nhau. Duy trì khoảng cách thông thoáng (margin, padding, gap), tạo không gian đệm "thoáng con mắt".
+- **Zero Overlap & Spacing Rhythm (Zero Overlap Invariant):** Giữa các card cố định tuyệt đối không được đè lên nhau. Duy trì khoảng cách thông thoáng (margin, padding, gap), tạo không gian đệm "thoáng con mắt". Nút thành tựu và tối ưu Icon-Only Compact Mode khi không gian hẹp.
 - **Non-Obscuring Popup & Transparent Backdrop:** Khi mở bất kỳ popup/dialog nào, tuyệt đối không làm đen kịt (`bg-black/60`) hay làm mờ nhòe (heavy blur) khu vực xung quanh. Backdrop giữ độ trong suốt cao (tối đa `bg-black/10` hoặc `bg-transparent`) để giao diện phía sau hiển thị sắc nét 100%. Popup luôn căn giữa chuẩn viewport (`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`).
 - **Card Stability & Coordinate Locking:** Mọi card, dialog khi chuyển tab/chế độ BẮT BUỘC giữ nguyên tọa độ (x, y) và chiều cao cố định. Cấm co giật, sụt lún (Zero CLS). Bộ điều khiển tùy chỉnh chỉ nằm trên duy nhất 1 hàng cố định.
 - **Zero-Stutter Motion & Uniform Border:** Dùng `transition-colors duration-150`, không dùng `transition-all`. Dùng cùng độ dày viền (`border-2`) cho cả active và inactive để chống rung giật pixel.

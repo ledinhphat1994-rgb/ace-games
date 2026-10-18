@@ -85,7 +85,13 @@ export function ProfilePage() {
     if (dangLuuProfile) return
     setDangLuuProfile(true)
     try {
-      await capNhatHoSo({ tieuDeHoSo: suyNghiTam })
+      if (!nguoiDung || nguoiDung.accountId === 0) {
+        try {
+          localStorage.setItem('dc_guest_status', suyNghiTam)
+        } catch {}
+      } else {
+        await capNhatHoSo({ tieuDeHoSo: suyNghiTam })
+      }
       setTieuDeHoSo(suyNghiTam)
       setDangSuaSuyNghi(false)
       toast.success('Đã cập nhật suy nghĩ của bạn!')
@@ -163,7 +169,13 @@ export function ProfilePage() {
                     if (!tenTam.trim()) return
                     setDangLuuProfile(true)
                     try {
-                      await capNhatHoSo({ tenHienThi: tenTam.trim() })
+                      if (!nguoiDung || nguoiDung.accountId === 0) {
+                        try {
+                          localStorage.setItem('dc_guest_name', tenTam.trim())
+                        } catch {}
+                      } else {
+                        await capNhatHoSo({ tenHienThi: tenTam.trim() })
+                      }
                       setDangSuaTen(false)
                       toast.success('Đã cập nhật tên!')
                       if (lamMoiPhien) await lamMoiPhien()
@@ -317,7 +329,13 @@ export function ProfilePage() {
         onOpenChange={dongAvatarModal}
         currentAvatarUrl={nguoiDung.avatar || undefined}
         onSaveAvatar={async (newUrl) => {
-          await doiAvatar(newUrl)
+          if (!nguoiDung || nguoiDung.accountId === 0) {
+            try {
+              localStorage.setItem('dc_guest_avatar', newUrl)
+            } catch {}
+          } else {
+            await doiAvatar(newUrl)
+          }
           if (lamMoiPhien) await lamMoiPhien()
         }}
       />
