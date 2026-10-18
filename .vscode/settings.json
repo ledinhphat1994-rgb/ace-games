@@ -47,5 +47,9 @@
   "godot_tools.lsp.server_port": 6005,
   "godotTools.lsp.headless": false,
   "godotTools.lsp.autoReconnect.enabled": true,
-  "css.lint.unknownAtRules": "ignore"
+  "css.lint.unknownAtRules": "ignore",
+  "geminicodeassist.enable": true,
+  "geminicodeassist.inlineSuggestions.enableAuto": true,
+  "geminicodeassist.localCodebaseAwareness": true,
+  "geminicodeassist.languages": ["*"]
 }

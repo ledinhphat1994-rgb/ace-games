@@ -83,3 +83,30 @@ trigger: always_on
   - Chân đế của các trụ phòng thủ phải sử dụng artwork nguyên vẹn với đầy đủ các chân càng chịu lực (outriggers), móng kim loại (foot pads) và mâm xoay cơ khí, tuyệt đối không dùng sprite bị cắt ngang, cụt móng hay lem viền.
 - **Ngoại lệ duy nhất cho đơn vị bay (Aerial Units Exception):**
   - Chỉ các đơn vị trên không (như Chim máy Winged Bot, drone trinh sát bay) mới được thiết lập cao độ lơ lửng phía trên mặt đất (`position.y < 0`).
+
+## 13. Quy Tắc Chuyển Động Nhân Vật & Vật Thể 2.5D Isometric (8-Directional Sprite Movement Standard)
+- **Quy chuẩn Sprite Bát Hướng (8-Directional Isometric Traversal):**
+  - Mọi nhân vật, quái vật, đơn vị cơ giới di chuyển trên bản đồ 2.5D BẮT BUỘC phải có hoạt ảnh chuyển động đồng bộ chính xác theo 8 hướng thực tế dựa trên vector vận tốc $\vec{v}$:
+    * **Bắc (North / Đi lên):** Nhìn thấy trọn vẹn lưng, gáy, mặt sau mũ áo và gót chân bước lên. Tuyệt đối **CẤM** lật gương mặt trước để dùng cho hướng đi lên.
+    * **Nam (South / Đi xuống):** Nhìn thấy khuôn mặt chính diện, ngực, mắt và mặt trước thân thể bước về phía camera.
+    * **Đông & Tây (East / West / Đi ngang):** Nhìn nghiêng góc cạnh (Profile view) sắc nét.
+    * **4 Hướng Chéo (NE, SE, SW, NW):** Góc nhìn ba phần tư ($3/4$ perspective) thể hiện rõ khối tích không gian 2.5D.
+- **Thứ tự lớp vẽ & Vật dụng cầm theo (Handheld Items & Z-Sorting Invariant):**
+  - Khi nhân vật mang theo đồ vật (vali, vũ khí, khiên, hành lý), thứ tự vẽ (Z-index / Layering) BẮT BUỘC phải chuyển đổi logic theo góc quay: khi quay lưng thì đồ vật khuất sau thân hoặc che một phần hông tự nhiên; khi quay mặt thì đồ vật hiển thị rõ phía trước/bên hông.
+- **Nhịp bước đồng bộ vận tốc & Chống trượt chân (Zero Foot-Sliding Invariant):**
+  - Tần số chu kỳ bước chân (Walk Cycle Animation Speed) BẮT BUỘC phải ăn khớp tuyệt đối với tốc độ di chuyển thực tế trên tọa độ màn hình pixel/giây. Tuyệt đối **CẤM** hiện tượng trượt chân trên mặt cỏ/mặt sàn (moonwalking / foot sliding).
+- **Tiếp đất chuẩn xác từng bước chân (Flush Footfall Contact):**
+  - Bàn chân trụ trong mỗi khung hình bước đi phải tiếp xúc sát sàn ($Y_{\text{contact}} = 0$), giữ trọng tâm và độ đầm chân thực cho nhân vật.
+## 14. Quy Chuẩn 2 Cấp Độ Kiểm Thử Godot (Two-Tier Godot Verification Standard)
+- **Cấp độ 1: Fast Dev Loop (Vòng lặp nhanh 2–3s — Mặc định khi dev GDScript, Scene, UI Godot, Cân bằng chỉ số):**
+  - Khi chỉnh sửa logic, toán học, di chuyển, chỉ số sát thương/máu, âm thanh hay scene Godot thuần túy:
+    * Chạy kiểm thử tự động tức thì bằng GUT: `npm run game:test` (hoặc targeted test `godot -d -s --path games-dev/godot-project addons/gut/gut_cmdln.gd -gtest=res://test/unit/<file>.gd`).
+    * Nếu cần kiểm tra hiển thị/runtime: Sử dụng công cụ `godot-mcp` (`game_start`, `runtime_screenshot`) để chụp ảnh màn hình và bắt log trực tiếp trên native runtime.
+    * Tuyệt đối **KHÔNG lãng phí thời gian** chạy `npm run game:export` và mở Chrome sau mỗi dòng GDScript nhỏ.
+- **Cấp độ 2: Full Web Integration Loop (Vòng lặp tích hợp Web — Chỉ chạy khi có thay đổi liên tầng hoặc chốt milestone):**
+  - Chỉ kích hoạt khi:
+    * Thay đổi tầng giao tiếp React - Godot (`GodotGameView.tsx`, `WebBridge.gd`).
+    * Thay đổi Shaders đồ họa WebGL (`gl_compatibility`).
+    * Khi hoàn tất một tính năng lớn hoặc chạy checklist trước khi push (`kiem-tra-truoc-khi-push`).
+  - Lúc này bắt buộc biên dịch WebAssembly bằng lệnh `npm run game:export` để cập nhật trực tiếp vào `public/games/godot/`.
+  - Tự chủ mở trình duyệt kiểm tra trực quan tại `http://localhost:3005/raw` với cơ chế vô hiệu hóa bộ nhớ đệm (Disable Cache / Bypass Cache), chụp ảnh màn hình và đọc console logs để nghiệm thu 100%.

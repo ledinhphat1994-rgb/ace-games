@@ -207,8 +207,11 @@ func _on_hit_target() -> void:
 				var now_dead = target.get("_is_dead") or target.is_queued_for_deletion() or target.get("current_hp") <= 0.0
 				if is_instance_valid(source_tower) and source_tower.has_method("record_damage_dealt"):
 					source_tower.record_damage_dealt(recorded_dmg, not was_dead and now_dead)
-			_spawn_damage_number(global_position, int(damage), Color(1.0, 0.85, 0.2))
-			_spawn_gatling_sparks(global_position)
+			var hit_pos = global_position
+			if is_instance_valid(target):
+				hit_pos = target.global_position + Vector2(0.0, -22.0)
+			_spawn_damage_number(hit_pos, int(damage), Color(1.0, 0.85, 0.2))
+			_spawn_gatling_sparks(hit_pos)
 			if sound_synth: sound_synth.play_hit()
 
 		ProjectileType.PLASMA_ORB:
@@ -405,7 +408,7 @@ func _spawn_gatling_sparks(pos: Vector2) -> void:
 	if not spawn_parent:
 		return
 
-	# Lõi nổ Động Năng Additive (Thermal & Kinetic Palette: Trắng Vàng -> Cam Lửa)
+	# Lõi va chạm Động Năng Additive sắc nét, gọn gàng (Thermal Kinetic Sparks)
 	var add_mat = CanvasItemMaterial.new()
 	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 
@@ -414,30 +417,15 @@ func _spawn_gatling_sparks(pos: Vector2) -> void:
 	burst.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	burst.material = add_mat
 	burst.global_position = pos
-	burst.scale = Vector2(0.18, 0.18)
-	burst.modulate = Color(1.0, 0.98, 0.85, 1.0) # Lõi Trắng Vàng
+	burst.scale = Vector2(0.08, 0.08)
+	burst.modulate = Color(1.4, 1.25, 0.85, 1.0) # Lõi Trắng Vàng Siêu Sáng
 	burst.z_index = 8
 	spawn_parent.add_child(burst)
 
 	var tween = burst.create_tween()
-	tween.tween_property(burst, "scale", Vector2(0.42, 0.42), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(burst, "modulate", Color(1.0, 0.55, 0.15, 0.0), 0.14) # Chuyển Cam Lửa
+	tween.tween_property(burst, "scale", Vector2(0.18, 0.18), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(burst, "modulate", Color(1.0, 0.45, 0.10, 0.0), 0.09) # Tàn Lửa Cam
 	tween.tween_callback(burst.queue_free)
-
-	# Viền khói đen mờ (0.12, 0.10, 0.08, 0.35)
-	var smoke_rim = Sprite2D.new()
-	smoke_rim.texture = TexExplosion
-	smoke_rim.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	smoke_rim.global_position = pos
-	smoke_rim.scale = Vector2(0.20, 0.20)
-	smoke_rim.modulate = Color(0.12, 0.10, 0.08, 0.35)
-	smoke_rim.z_index = 7
-	spawn_parent.add_child(smoke_rim)
-
-	var tween_s = smoke_rim.create_tween()
-	tween_s.tween_property(smoke_rim, "scale", Vector2(0.48, 0.48), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween_s.parallel().tween_property(smoke_rim, "modulate:a", 0.0, 0.18)
-	tween_s.tween_callback(smoke_rim.queue_free)
 
 func _spawn_plasma_shockwave(pos: Vector2, radius: float) -> void:
 	var spawn_parent = _get_spawn_parent()
@@ -525,7 +513,8 @@ func _draw() -> void:
 					draw_line(p1, p2, Color(1.3, 1.15, 0.4, t_ratio * 0.9), w)
 
 	if proj_type == ProjectileType.GATLING_BULLET:
-		draw_line(Vector2(-14.0, 0.0), Vector2(8.0, 0.0), Color(1.0, 0.60, 0.10, 0.95), 3.8)
-		draw_line(Vector2(-10.0, 0.0), Vector2(10.0, 0.0), Color(1.0, 0.95, 0.35, 1.0), 2.2)
-		draw_line(Vector2(-4.0, 0.0), Vector2(11.0, 0.0), Color.WHITE, 1.2)
-		draw_circle(Vector2(11.0, 0.0), 2.5, Color.WHITE)
+		# Tia sáng đạn bắt đầu từ đầu nòng súng (x=0) vút thẳng về phía trước (x > 0), tuyệt đối không vẽ lùi vào trong nòng súng
+		draw_line(Vector2(0.0, 0.0), Vector2(18.0, 0.0), Color(1.0, 0.60, 0.10, 0.95), 3.5)
+		draw_line(Vector2(2.0, 0.0), Vector2(19.0, 0.0), Color(1.0, 0.95, 0.35, 1.0), 2.2)
+		draw_line(Vector2(6.0, 0.0), Vector2(20.0, 0.0), Color.WHITE, 1.2)
+		draw_circle(Vector2(20.0, 0.0), 2.2, Color.WHITE)

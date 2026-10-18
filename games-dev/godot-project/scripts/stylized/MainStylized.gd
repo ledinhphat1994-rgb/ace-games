@@ -205,16 +205,7 @@ class StaticAtmosphereLayer extends Node2D:
 		draw_colored_polygon(s2, beam_col)
 		draw_colored_polygon(s3, beam_col)
 
-		# 3. Cinematic Corner Vignette: Viền tối khí quyển 4 góc màn hình 1376x768 (alpha = 0.25)
-		var vig_col = Color(0.01, 0.02, 0.04, 0.25)
-		var vig_tl = PackedVector2Array([Vector2(0, 0), Vector2(280, 0), Vector2(0, 240)])
-		var vig_tr = PackedVector2Array([Vector2(1376, 0), Vector2(1096, 0), Vector2(1376, 240)])
-		var vig_bl = PackedVector2Array([Vector2(0, 768), Vector2(280, 768), Vector2(0, 528)])
-		var vig_br = PackedVector2Array([Vector2(1376, 768), Vector2(1096, 768), Vector2(1376, 528)])
-		draw_colored_polygon(vig_tl, vig_col)
-		draw_colored_polygon(vig_tr, vig_col)
-		draw_colored_polygon(vig_bl, vig_col)
-		draw_colored_polygon(vig_br, vig_col)
+		# 3. Cinematic Corner Vignette: Đã loại bỏ các đa giác cứng góc màn hình để tránh cắt nham nhở bầu trời Vùng 1
 
 ## Lớp hiệu ứng môi trường hoạt họa động (gợn sóng hồ, vòng xoáy cổ ngữ cổng portal)
 ## Đặt trực tiếp TRÊN IslandSprite (z_index = -2) nhưng DƯỚI TowersContainer và EnemiesContainer (z_index = 0)
@@ -273,9 +264,9 @@ const PATH_WAYPOINTS: Array[Vector2] = [
 	Vector2(480.0, 425.0), # W7: Đỉnh vòm sàn Cầu Đá cổ kính (chính giữa 2 lan can)
 	Vector2(520.0, 412.0), # W8: Xuống dốc sàn Cầu Đá phía Đông
 	Vector2(570.0, 395.0), # W9: Tim đường đất nối từ đầu cầu ra bình nguyên
-	Vector2(635.0, 380.0), # W10: Giữa khe hàng rào cọc gỗ tiền đồn
-	Vector2(695.0, 380.0), # W11: Tim đường bằng trước tháp canh đá
-	Vector2(755.0, 385.0), # W12: Qua khe mở giữa 2 hàng cọc gỗ phòng thủ thứ hai
+	Vector2(635.0, 380.0), # W10: Đoạn đường đá thông thoáng sau khi dọn chướng ngại vật
+	Vector2(695.0, 380.0), # W11: Tim đường bằng phẳng trước tháp canh đá
+	Vector2(755.0, 385.0), # W12: Đoạn đường chiến thuật thông thoáng dẫn tới cổng thành
 	Vector2(815.0, 398.0), # W13: Giữa hai tháp thành kiểm soát
 	Vector2(880.0, 414.0), # W14: Bắt đầu vào đại lộ lát đá cuội ven bờ hồ
 	Vector2(950.0, 426.0), # W15: Tim đường đá cuội uốn lượn ven mặt nước
@@ -931,6 +922,14 @@ func _dist_point_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
 	return p.distance_to(proj)
 
 func _is_valid_build_position(pos: Vector2) -> bool:
+	# 0. Ô bệ đá chiến thuật BUILD_PADS được thiết kế sẵn luôn luôn hợp lệ nếu chưa có tháp chiếm chỗ
+	for pad in BUILD_PADS:
+		if pos.distance_to(pad) <= 22.0:
+			for t in towers_container.get_children():
+				if is_instance_valid(t) and t is AnimatedTower and t.global_position.distance_to(pad) < 32.0:
+					return false
+			return true
+
 	# 1. Nằm trong phạm vi bờ đất của đại lục chiến trường (1376x768)
 	if pos.x < 60.0 or pos.x > 1316.0 or pos.y < 120.0 or pos.y > 700.0:
 		return false
@@ -1055,22 +1054,21 @@ func _draw_placement_preview() -> void:
 
 	match placing_tower_type:
 		TowerClass.TowerType.GATLING_GUN:
-			var scale_g = 0.200
-			var mount_offset = Vector2(0.0, -11.0)
+			var scale_g = 0.155
+			var mount_offset = Vector2(0.0, -22.0)
 			var base_dest = Rect2(pos + mount_offset - Vector2(320.0, 320.0) * scale_g, Vector2(640.0, 640.0) * scale_g)
-			draw_texture_rect(TexGatlingBase, base_dest, false, ghost_modulate)
-			draw_texture_rect(TexGatlingTurretDir0, base_dest, false, ghost_modulate)
+			draw_texture_rect_region(TexGatlingTurretDir0, base_dest, Rect2(0, 0, 640, 640), ghost_modulate)
 
 		TowerClass.TowerType.PLASMA_CANNON:
-			var scale_p = 0.185
-			var mount_offset = Vector2(-9.3, -18.8)
+			var scale_p = 0.160
+			var mount_offset = Vector2(-8.0, -16.0)
 			var base_dest = Rect2(pos + mount_offset - Vector2(320.0, 320.0) * scale_p, Vector2(640.0, 640.0) * scale_p)
 			draw_texture_rect(TexPlasmaBase, base_dest, false, ghost_modulate)
 			draw_texture_rect(TexPlasmaTurretDir0, base_dest, false, ghost_modulate)
 
 		TowerClass.TowerType.TESLA_COIL:
-			var scale_t = 0.150
-			var base_dest = Rect2(pos + Vector2(-2.4, -31.65) - Vector2(180.0, 335.0) * scale_t, Vector2(360.0, 670.0) * scale_t)
+			var scale_t = 0.130
+			var base_dest = Rect2(pos + Vector2(-2.0, -27.0) - Vector2(180.0, 335.0) * scale_t, Vector2(360.0, 670.0) * scale_t)
 			draw_texture_rect(TexTesla, base_dest, false, ghost_modulate)
 
 	# 4. NHÃN TRẠNG THÁI NỔI (STATUS BADGE)
@@ -1113,7 +1111,68 @@ func _draw_hexagon(center: Vector2, radius: float, stroke_color: Color, fill_col
 	if fill_color.a > 0.0:
 		draw_colored_polygon(pts, fill_color)
 	pts.append(pts[0])
-	draw_polyline(pts, stroke_color, width, true)
+func _input(event: InputEvent) -> void:
+	# Click-to-dismiss invariant: Khi có bất kỳ popup/khay nào đang mở, click ra ngoài vùng popup sẽ lập tức đóng lại
+	var is_click: bool = false
+	var screen_pos: Vector2 = Vector2.ZERO
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		is_click = true
+		screen_pos = event.position
+	elif event is InputEventScreenTouch and event.pressed:
+		is_click = true
+		screen_pos = event.position
+
+	if is_click:
+		var popups_to_check: Array[Control] = []
+		if quick_tower_tray and quick_tower_tray.visible:
+			popups_to_check.append(quick_tower_tray)
+		if quick_spell_tray and quick_spell_tray.visible:
+			popups_to_check.append(quick_spell_tray)
+		if build_popup and build_popup.visible:
+			var build_panel = build_popup.get_node_or_null("Panel") as Control
+			popups_to_check.append(build_panel if build_panel else build_popup)
+		if upgrade_popup and upgrade_popup.visible:
+			var up_panel_ctrl = upgrade_popup.get_node_or_null("Panel") as Control
+			popups_to_check.append(up_panel_ctrl if up_panel_ctrl else upgrade_popup)
+		if skill_tree_modal and skill_tree_modal.visible:
+			var skill_card = skill_tree_modal.get_node_or_null("Card") as Control
+			popups_to_check.append(skill_card if skill_card else skill_tree_modal)
+
+		if not popups_to_check.is_empty():
+			var inside_any_popup: bool = false
+			for p in popups_to_check:
+				if p and is_instance_valid(p) and p.is_visible_in_tree():
+					if p.get_global_rect().has_point(screen_pos):
+						inside_any_popup = true
+						break
+
+			var inside_bottom_bar: bool = false
+			var bottom_bar = get_node_or_null("UI/HUD/BottomBar") as Control
+			if bottom_bar and is_instance_valid(bottom_bar):
+				if bottom_bar.get_global_rect().has_point(screen_pos):
+					inside_bottom_bar = true
+
+			if not inside_any_popup and not inside_bottom_bar:
+				var closed: bool = false
+				if quick_tower_tray and quick_tower_tray.visible:
+					quick_tower_tray.visible = false
+					closed = true
+				if quick_spell_tray and quick_spell_tray.visible:
+					quick_spell_tray.visible = false
+					closed = true
+				if build_popup and build_popup.visible:
+					build_popup.visible = false
+					closed = true
+				if upgrade_popup and upgrade_popup.visible:
+					_close_upgrade_popup()
+					closed = true
+				if skill_tree_modal and skill_tree_modal.visible:
+					skill_tree_modal.visible = false
+					closed = true
+
+				if closed:
+					get_viewport().set_input_as_handled()
+					return
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -1258,28 +1317,38 @@ func _check_touch_interaction(pos: Vector2) -> void:
 			collect_supply_pod(i, false)
 			return
 
-	# 1. Kiểm tra có chạm vào Tháp đã dựng không -> Mở menu nâng cấp / bán - Touch Hitbox >= 48px
+	# 1. Kiểm tra có chạm vào Tháp đã dựng không (Bao quát cả chân đế, thân tháp và đầu nòng súng) - Touch Hitbox >= 48px
 	for t in towers_container.get_children():
 		if is_instance_valid(t) and t is AnimatedTower:
-			if pos.distance_to(t.global_position) <= 48.0:
+			var tower_body_center = t.global_position + Vector2(0.0, -28.0)
+			if pos.distance_to(t.global_position) <= 56.0 or pos.distance_to(tower_body_center) <= 50.0:
 				_open_upgrade_popup(t)
 				if web_bridge:
 					web_bridge.trigger_haptic("selection")
 				return
 
-	# 2. Kiểm tra chạm vào Ô Đặt Trụ (BUILD_PADS) trống trên màn hình cảm ứng - Touch Hitbox >= 48px
-	const PAD_TOUCH_RADIUS: float = 48.0
+	# 2. Kiểm tra chạm vào Ô Đặt Trụ (BUILD_PADS) trên màn hình cảm ứng - Touch Hitbox >= 48px
+	const PAD_TOUCH_RADIUS: float = 52.0
 	for i in range(BUILD_PADS.size()):
 		var pad = BUILD_PADS[i]
 		if pos.distance_to(pad) <= PAD_TOUCH_RADIUS:
-			var occupied = false
+			var occupied_tower: AnimatedTower = null
 			for t in towers_container.get_children():
-				if is_instance_valid(t) and t is AnimatedTower and t.global_position.distance_to(pad) < 32.0:
-					occupied = true
+				if is_instance_valid(t) and t is AnimatedTower and t.global_position.distance_to(pad) < 42.0:
+					occupied_tower = t
 					break
-			if not occupied:
+			if occupied_tower:
+				# Chạm vào bệ đá của tháp đã dựng -> Mở menu nâng cấp tháp đó ngay lập tức!
+				_open_upgrade_popup(occupied_tower)
+				if web_bridge:
+					web_bridge.trigger_haptic("selection")
+				return
+			else:
 				targeted_build_pos = pad
 				if quick_tower_tray:
+					_close_upgrade_popup()
+					if quick_spell_tray: quick_spell_tray.visible = false
+					if build_popup: build_popup.visible = false
 					quick_tower_tray.visible = true
 					if web_bridge:
 						web_bridge.trigger_haptic("selection")
@@ -1393,26 +1462,30 @@ func _build_tower_at_pad(pad_idx: int, type: int, free_build: bool) -> void:
 ## Quản lý Nâng Cấp / Bán Tháp
 func _open_upgrade_popup(tower: AnimatedTower) -> void:
 	if build_popup: build_popup.visible = false
+	if quick_tower_tray: quick_tower_tray.visible = false
+	if quick_spell_tray: quick_spell_tray.visible = false
+	if skill_tree_modal: skill_tree_modal.visible = false
 	selected_tower = tower
 	tower.is_selected = true
 
 	var t_name = AnimatedTower.get_tower_name(tower.tower_type)
 
-	# Hiển thị cấp độ tháp chuẩn Steampunk Hoàng gia: [CẤP I], [CẤP II], [CẤP III]
+	# Hiển thị cấp độ tháp gọn gàng: [CẤP 1], [CẤP 2], [CẤP 3], [CẤP MAX]
 	var level_str = ""
 	match tower.level:
-		1: level_str = "[CẤP I]"
-		2: level_str = "[CẤP II]"
-		3: level_str = "[CẤP III]"
-		_: level_str = "[CẤP III]"
+		1: level_str = "[CẤP 1]"
+		2: level_str = "[CẤP 2]"
+		3: level_str = "[CẤP 3]"
+		4: level_str = "[CẤP MAX]"
+		_: level_str = "[CẤP MAX]"
 
 	var buff_desc = ""
 	if tower.pad_range_mult > 1.0:
-		buff_desc += " [CAO ĐIỂM +15% TẦM]"
+		buff_desc += " [+15% TẦM]"
 	if tower.pad_speed_mult > 1.0:
-		buff_desc += " [NĂNG LƯỢNG +15% TỐC]"
+		buff_desc += " [+15% TỐC]"
 	if tower._buff_decay_timer > 0.0:
-		buff_desc += " [PYLON +15% DMG]"
+		buff_desc += " [+15% DMG]"
 
 	lbl_tower_name.text = "%s  %s%s" % [t_name, level_str, buff_desc]
 
@@ -1444,7 +1517,10 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 		lbl_tower_name.text += "\n" + stats_str
 
 	if lbl_perk_badge:
-		if tower.level >= 3:
+		if tower.level >= 4:
+			lbl_perk_badge.text = tower.get_tier4_perk_name()
+			lbl_perk_badge.visible = true
+		elif tower.level == 3:
 			lbl_perk_badge.text = tower.get_tier3_perk_name()
 			lbl_perk_badge.visible = true
 		else:
@@ -1459,7 +1535,7 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 		btn_upgrade_tower.text = "NÂNG CẤP (%dG)" % up_cost
 		btn_upgrade_tower.disabled = (gold < up_cost)
 	else:
-		btn_upgrade_tower.text = "[MAX] CỰC PHẨM"
+		btn_upgrade_tower.text = "[MAX] TỐI THƯỢNG"
 		btn_upgrade_tower.disabled = true
 
 	var is_between_waves = not is_wave_active
@@ -1496,8 +1572,8 @@ func _open_upgrade_popup(tower: AnimatedTower) -> void:
 
 	# Định vị UpgradePopup cạnh trụ (Arcane Steampunk Plaque) linh hoạt theo vị trí trụ trên màn hình
 	var screen_pos = tower.get_global_transform_with_canvas().origin
-	var pop_w = 280.0
-	var pop_h = 220.0
+	var pop_w = 310.0
+	var pop_h = 225.0
 	var target_x = 0.0
 	if screen_pos.x > 688.0:
 		target_x = screen_pos.x - pop_w - 35.0
@@ -1940,7 +2016,7 @@ func _on_btn_build_pressed() -> void:
 func _on_quick_tower_selected(type: int, cost: int) -> void:
 	if quick_tower_tray:
 		quick_tower_tray.visible = false
-	targeted_build_pos = Vector2.ZERO
+	# Giữ lại targeted_build_pos để _on_select_tower_type dựng tháp ngay tại ô người chơi đã chọn!
 	_on_select_tower_type(type, cost)
 	if web_bridge and is_placing_tower:
 		var t_name = AnimatedTower.get_tower_name(type)
@@ -3236,6 +3312,30 @@ func _on_btn_hardcore_modal_pressed() -> void:
 	_restart_game(true)
 
 func _setup_tray_icons() -> void:
+	if quick_tower_tray:
+		var sb_tray = StyleBoxFlat.new()
+		sb_tray.bg_color = Color(0.06, 0.08, 0.12, 0.96)
+		sb_tray.set_border_width_all(2)
+		sb_tray.border_color = Color(0.88, 0.75, 0.40, 0.95)
+		sb_tray.set_corner_radius_all(12)
+		sb_tray.shadow_size = 16
+		sb_tray.shadow_color = Color(0, 0, 0, 0.70)
+		sb_tray.shadow_offset = Vector2(0, 6)
+		quick_tower_tray.add_theme_stylebox_override("panel", sb_tray)
+		_attach_corner_brackets(quick_tower_tray, Color(0.88, 0.75, 0.40, 0.90))
+
+	if btn_close_tower_tray:
+		btn_close_tower_tray.text = "✕"
+		btn_close_tower_tray.add_theme_font_size_override("font_size", 18)
+		btn_close_tower_tray.add_theme_color_override("font_color", Color(1.0, 0.45, 0.45))
+		btn_close_tower_tray.custom_minimum_size = Vector2(40, 150)
+		var sb_x = StyleBoxFlat.new()
+		sb_x.bg_color = Color(0.24, 0.08, 0.10, 0.92)
+		sb_x.set_border_width_all(1.5)
+		sb_x.border_color = Color(0.85, 0.35, 0.35, 0.85)
+		sb_x.set_corner_radius_all(8)
+		btn_close_tower_tray.add_theme_stylebox_override("normal", sb_x)
+
 	if btn_quick_gatling:
 		btn_quick_gatling.icon = CardGatling
 		btn_quick_gatling.expand_icon = true

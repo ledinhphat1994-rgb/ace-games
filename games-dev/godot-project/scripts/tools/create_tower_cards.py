@@ -52,27 +52,45 @@ def make_card(name, tower_img_path, base_img_path, faction_name, faction_color, 
     # 2. Chèn hình ảnh Trụ thật (Composite Base + Turret)
     turret_canvas = Image.new("RGBA", (180, 180), (0, 0, 0, 0))
 
-    # Đế tháp
     if base_img_path and os.path.exists(base_img_path):
+        # Đế tháp cho các tháp tách rời base (Plasma, SAM, Tesla)
         base_im = Image.open(base_img_path).convert("RGBA")
         base_im = base_im.resize((140, 80), Image.Resampling.LANCZOS)
         turret_canvas.paste(base_im, (20, 95), base_im)
 
-    # Thân/Nòng tháp
-    if tower_img_path and os.path.exists(tower_img_path):
-        tower_im = Image.open(tower_img_path).convert("RGBA")
-        w, h = tower_im.size
-        target_w = 150
-        scale = target_w / float(w)
-        target_h = int(h * scale)
-        if target_h > 150:
-            target_h = 150
-            scale = target_h / float(h)
-            target_w = int(w * scale)
-        tower_im = tower_im.resize((target_w, target_h), Image.Resampling.LANCZOS)
-        paste_x = (180 - target_w) // 2
-        paste_y = (150 - target_h) // 2 + 10
-        turret_canvas.paste(tower_im, (paste_x, paste_y), tower_im)
+        if tower_img_path and os.path.exists(tower_img_path):
+            tower_im = Image.open(tower_img_path).convert("RGBA")
+            w, h = tower_im.size
+            target_w = 150
+            scale = target_w / float(w)
+            target_h = int(h * scale)
+            if target_h > 150:
+                target_h = 150
+                scale = target_h / float(h)
+                target_w = int(w * scale)
+            tower_im = tower_im.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            paste_x = (180 - target_w) // 2
+            paste_y = (150 - target_h) // 2 + 10
+            turret_canvas.paste(tower_im, (paste_x, paste_y), tower_im)
+    else:
+        # Tháp đã tích hợp hoàn chỉnh thân và đế nguyên vẹn (Gatling Gun)
+        if tower_img_path and os.path.exists(tower_img_path):
+            tower_im = Image.open(tower_img_path).convert("RGBA")
+            if tower_im.width > 1000:
+                tower_im = tower_im.crop((0, 0, 640, 640))
+            bbox = tower_im.getbbox()
+            if bbox:
+                tower_crop = tower_im.crop(bbox)
+            else:
+                tower_crop = tower_im
+            cw, ch = tower_crop.size
+            target_h = 145
+            scale = target_h / float(ch)
+            target_w = int(cw * scale)
+            tower_resized = tower_crop.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            paste_x = (180 - target_w) // 2
+            paste_y = 175 - target_h
+            turret_canvas.paste(tower_resized, (paste_x, paste_y), tower_resized)
 
     im.paste(turret_canvas, ((card_w - 180) // 2, 24), turret_canvas)
 
@@ -102,11 +120,11 @@ base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 out_dir = os.path.join(base_dir, "assets", "textures", "cards")
 os.makedirs(out_dir, exist_ok=True)
 
-# 1. Gatling Gun (100G)
+# 1. Gatling Gun (100G) - Dùng sprite hướng 4 (SE 3/4 isometric perspective) hoàn chỉnh 100% thân đế
 make_card(
     "GATLING GUN",
-    os.path.join(base_dir, "assets/sprites/towers/gatling/gatling_dir_0.png"),
-    os.path.join(base_dir, "assets/sprites/tower_gatling_base.png"),
+    os.path.join(base_dir, "assets/sprites/towers/gatling/gatling_dir_4.png"),
+    None, # Không dùng base tách rời để loại bỏ hoàn toàn lỗi đầu bay lơ lửng
     "CƠ KHÍ",
     (16, 185, 129, 255), # Emerald
     "100 VÀNG",

@@ -15,6 +15,10 @@
     "git": {
       "command": "cmd.exe",
       "args": ["/c", "npx", "-y", "@infoinlet/mcp-git"]
+    },
+    "godot-mcp": {
+      "command": "cmd.exe",
+      "args": ["/c", "godot-mcp-server"]
     }
   }
 }

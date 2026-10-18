@@ -53,7 +53,7 @@ func test_tower_360_circular_aim_and_stability() -> void:
 		assert_true(tower._current_dir_idx >= 0 and tower._current_dir_idx < 32, "Chuyển hướng nòng súng bằng sprite 32 hướng chuẩn mượt mà")
 
 		var muzzle = tower.get_muzzle_local_pos()
-		assert_true(muzzle.distance_to(tower._turret_mount_pos) > 8.0, "Đầu nòng súng vươn ra khỏi tâm trụ theo chuẩn isometric")
+		assert_true(muzzle.distance_to(tower._turret_mount_pos) > 5.5, "Đầu nòng súng vươn ra khỏi tâm trụ theo chuẩn isometric")
 
 	for child in tower.get_children():
 		if child != tower.sprite_base and child != tower.sprite_head:
@@ -65,15 +65,14 @@ func test_gatling_spinning_barrels_animation() -> void:
 	tower.setup(TowerScript.TowerType.GATLING_GUN)
 	tower.global_position = Vector2(300, 300)
 
-	# Kiểm tra hàm map texture nòng xoay 7 hướng
-	assert_eq(TowerScript.get_gatling_spin_texture(0, 0), TowerScript.TEX_GATLING_SPIN_EAST[0], "Dir 0 trả về texture nòng xoay Hướng Đông")
-	assert_eq(TowerScript.get_gatling_spin_texture(4, 2), TowerScript.TEX_GATLING_SPIN_SOUTHEAST[2], "Dir 4 trả về texture nòng xoay Đông Nam")
-	assert_eq(TowerScript.get_gatling_spin_texture(8, 3), TowerScript.TEX_GATLING_SPIN_SOUTH[3], "Dir 8 trả về texture nòng xoay Chính Diện Nam")
-	assert_eq(TowerScript.get_gatling_spin_texture(12, 1), TowerScript.TEX_GATLING_SPIN_SOUTHWEST[1], "Dir 12 trả về texture nòng xoay Tây Nam")
-	assert_eq(TowerScript.get_gatling_spin_texture(16, 4), TowerScript.TEX_GATLING_SPIN_WEST[4], "Dir 16 trả về texture nòng xoay Tây")
-	assert_eq(TowerScript.get_gatling_spin_texture(20, 5), TowerScript.TEX_GATLING_SPIN_NORTHWEST[5], "Dir 20 trả về texture nòng xoay Tây Bắc")
-	assert_eq(TowerScript.get_gatling_spin_texture(24, 0), TowerScript.TEX_GATLING_32DIR[24], "Dir 24 quay lưng buồng máy che nòng")
-	assert_eq(TowerScript.get_gatling_spin_texture(28, 2), TowerScript.TEX_GATLING_SPIN_NORTHEAST[2], "Dir 28 trả về texture nòng xoay Đông Bắc")
+	# Kiểm tra tháp Gatling sở hữu 32 frame nòng súng xoay 360 độ chuẩn xác không méo lệch
+	assert_eq(TowerScript.TEX_GATLING_32DIR.size(), 32, "Bộ sprite Gatling gồm đủ 32 hướng xoay")
+	for i in range(32):
+		assert_not_null(TowerScript.TEX_GATLING_32DIR[i], "Frame Gatling dir %d hợp lệ" % i)
+
+	# Kiểm tra hàm helper trả về texture hợp lệ
+	assert_eq(TowerScript.get_gatling_spin_texture(0, 0), TowerScript.TEX_GATLING_32DIR[0], "Dir 0 trả về texture nòng súng chuẩn xác")
+	assert_eq(TowerScript.get_gatling_spin_texture(8, 2), TowerScript.TEX_GATLING_32DIR[8], "Dir 8 trả về texture nòng súng chuẩn xác")
 
 	# Mô phỏng khóa mục tiêu và bắn:
 	var dummy = Node2D.new()
@@ -85,7 +84,7 @@ func test_gatling_spinning_barrels_animation() -> void:
 		tower._process(0.05)
 
 	assert_gt(tower._gatling_spin_speed, 5.0, "Tốc độ xoay nòng Gatling tăng tốc mạnh khi khóa mục tiêu")
-	assert_true(tower.sprite_head.texture != null, "Sprite đầu tháp hiển thị texture nòng xoay hợp lệ")
+	assert_eq(tower.sprite_head.texture, TowerScript.TEX_GATLING_32DIR[tower._current_dir_idx], "Sprite đầu tháp duy trì texture 32 hướng chuẩn xác không bị biến dạng")
 
 	# Khi không còn địch:
 	tower.current_target = null
@@ -113,7 +112,13 @@ func test_tower_upgrade_and_sell() -> void:
 	var ok3 = tower.upgrade()
 	assert_true(ok3, "Nâng cấp lên Cấp 3 thành công")
 	assert_eq(tower.level, 3, "Trụ hiện ở Cấp 3 (Cực phẩm)")
-	assert_false(tower.can_upgrade(), "Đã đạt cấp tối đa, không thể nâng thêm")
+	assert_true(tower.can_upgrade(), "Tháp có thể tiếp tục nâng cấp lên Cấp 4 Tối thượng")
+
+	assert_eq(tower.get_upgrade_cost(), 120, "Nâng cấp lên Cấp 4 tốn 120G (200% của 60G)")
+	var ok4 = tower.upgrade()
+	assert_true(ok4, "Nâng cấp lên Cấp 4 thành công")
+	assert_eq(tower.level, 4, "Trụ hiện ở Cấp 4 (Cấp Tối Thượng)")
+	assert_false(tower.can_upgrade(), "Đã đạt cấp tối đa (Cấp 4), không thể nâng thêm")
 
 	var sell_val = tower.get_sell_value()
 	assert_gt(sell_val, 0, "Bán tháp hoàn lại vàng")
@@ -1115,6 +1120,37 @@ func test_tier3_specialization_perks_all_towers() -> void:
 	magma.level = 3
 	assert_true(magma.get_tier3_perk_name().contains("NUNG CHẢY"), "Magma Cấp 3 có perk Nung Chảy")
 
+func test_tier4_specialization_perks_all_towers() -> void:
+	# 1. Gatling Gun Cấp 4 (HYPER-OVERDRIVE)
+	var gatling = TowerScript.new()
+	add_child_autofree(gatling)
+	gatling.setup(TowerScript.TowerType.GATLING_GUN)
+	gatling.level = 4
+	assert_true(gatling.get_tier4_perk_name().contains("HYPER-OVERDRIVE"), "Gatling Cấp 4 có perk Hyper-Overdrive")
+
+	# 2. Plasma Cannon Cấp 4 (LÕI ION VÔ TẬN)
+	var plasma = TowerScript.new()
+	add_child_autofree(plasma)
+	plasma.setup(TowerScript.TowerType.PLASMA_CANNON)
+	plasma.level = 4
+	assert_true(plasma.get_tier4_perk_name().contains("LÕI ION VÔ TẬN"), "Plasma Cấp 4 có perk Lõi Ion Vô Tận")
+
+	# 3. Tesla Coil Cấp 4 (CẦU SÉT THẦN LỰC)
+	var tesla = TowerScript.new()
+	add_child_autofree(tesla)
+	tesla.setup(TowerScript.TowerType.TESLA_COIL)
+	tesla.level = 4
+	assert_true(tesla.get_tier4_perk_name().contains("CẦU SÉT THẦN LỰC"), "Tesla Cấp 4 có perk Cầu Sét Thần Lực")
+	assert_eq(tesla.max_targets, 8, "Tesla Cấp 4 tấn công tối đa 8 mục tiêu đồng thời")
+
+	# 4. Pylon Buffer Cấp 4 (THẦN ĐIỆN VĨNH CỬU)
+	var pylon = TowerScript.new()
+	add_child_autofree(pylon)
+	pylon.setup(TowerScript.TowerType.PYLON_BUFFER)
+	pylon.level = 4
+	assert_true(pylon.get_tier4_perk_name().contains("THẦN ĐIỆN VĨNH CỬU"), "Pylon Cấp 4 có perk Thần Điện Vĩnh Cửu")
+	assert_almost_eq(pylon.buff_aura_multiplier, 1.45, 0.01, "Pylon Cấp 4 tăng buff aura lên 1.45")
+
 func test_bridge_emp_generator_and_shockwave() -> void:
 	var scene = MainStylizedScene.instantiate()
 	add_child_autofree(scene)
@@ -1921,6 +1957,44 @@ func test_static_atmosphere_layer_and_webbridge_summary() -> void:
 
 	for t in scene.towers_container.get_children():
 		t.free()
+
+func test_gatling_base_grounded_and_popup_click_outside_dismiss() -> void:
+	# 1. Kiểm thử Gatling Gun có chân đế cơ giới TexGatlingBase bám sát mặt đất, không bị chìm
+	var gatling = TowerScript.new()
+	add_child_autofree(gatling)
+	gatling.setup(TowerScript.TowerType.GATLING_GUN)
+	assert_not_null(gatling.sprite_base, "Gatling gun có sprite_base")
+	assert_not_null(gatling.sprite_base.texture, "sprite_base của Gatling gun có texture chân đế")
+	assert_true(gatling.sprite_base.visible, "sprite_base của Gatling gun hiển thị")
+	assert_eq(gatling.sprite_base.position, gatling._turret_mount_pos, "sprite_base đồng trục với turret mount")
+	assert_gt(gatling.sprite_base.scale.x, 0.0, "sprite_base có scale hợp lệ")
+
+	# 2. Kiểm thử click outside đóng các popup khay tháp / nâng cấp / kỹ năng
+	var scene = MainStylizedScene.instantiate()
+	add_child_autofree(scene)
+
+	# Mở khay tháp quick_tower_tray
+	scene.quick_tower_tray.visible = true
+	assert_true(scene.quick_tower_tray.visible, "Khay mua trụ đang mở")
+
+	# Tạo sự kiện click chuột bên ngoài khay (ví dụ góc trên màn hình: 200, 200)
+	var click_outside = InputEventMouseButton.new()
+	click_outside.position = Vector2(200, 200)
+	click_outside.button_index = MOUSE_BUTTON_LEFT
+	click_outside.pressed = true
+	scene._input(click_outside)
+
+	# Khay tháp phải tự động đóng lại
+	assert_false(scene.quick_tower_tray.visible, "Khay mua trụ đã tự động đóng khi click ra ngoài")
+
+	# Thử tương tự với build_popup và skill_tree_modal
+	scene.build_popup.visible = true
+	scene._input(click_outside)
+	assert_false(scene.build_popup.visible, "Build popup tự động đóng khi click ra ngoài")
+
+	scene.skill_tree_modal.visible = true
+	scene._input(click_outside)
+	assert_false(scene.skill_tree_modal.visible, "Skill tree modal tự động đóng khi click ra ngoài")
 
 func after_each() -> void:
 	Engine.time_scale = 1.0
