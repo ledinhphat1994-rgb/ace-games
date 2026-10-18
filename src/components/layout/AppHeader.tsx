@@ -57,8 +57,8 @@ export const AppHeader = memo(function AppHeader({
 
         {/* ── Right Area: Status + Theme + Notifications + Messages + Avatar ── */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Connection status (only when logged in) */}
-          {nguoiDung && (
+          {/* Connection status (chỉ hiện khi có tài khoản thật đăng nhập) */}
+          {nguoiDung && nguoiDung.accountId > 0 && (
             <ConnectionIndicator
               trangThai={trangThai}
               onlineCount={onlineCount}

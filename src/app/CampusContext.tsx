@@ -162,7 +162,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   // Tải social state từ API — Authoritative Server State Only (Không merge ghost request)
   const lamMoiSocialState = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
-    if (!nguoiDung) {
+    if (!nguoiDung || nguoiDung.accountId === 0) {
       setSocialState(RONG_SOCIAL_STATE)
       setSocialStatus('ready')
       setSocialError(null)
@@ -189,7 +189,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       setSocialError(msg)
       return { ok: false, error: msg }
     }
-  }, [])
+  }, [nguoiDung])
 
   const retrySocialLoad = useCallback(async () => {
     setSocialStatus('loading')
@@ -203,7 +203,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   // Tải danh sách thông báo từ API D1
   const lamMoiNotifications = useCallback(async () => {
-    if (!nguoiDung) {
+    if (!nguoiDung || nguoiDung.accountId === 0) {
       setNotifications([])
       setUnreadCount(0)
       return
@@ -264,7 +264,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   const ketNoi = useCallback(() => {
     if (daHuyRef.current) return
-    if (!nguoiDung) {
+    if (!nguoiDung || nguoiDung.accountId === 0) {
       setTrangThai('da_ket_noi')
       setPresenceReady(false)
       setCampusSnapshotReady(true)

@@ -277,37 +277,39 @@ export function ProfilePage() {
         </div>
       </section>
 
-      {/* ── Tiến trình học tập (Chuẩn kích thước 4 cột đối xứng) ── */}
-      <ProgressPanel hideChallenge />
+      {/* ── Tiến trình học tập (Chỉ dành cho tài khoản học sinh đã đăng nhập) ── */}
+      {nguoiDung.accountId > 0 && <ProgressPanel hideChallenge />}
 
-      {/* ── Bảo mật & Liên kết Google / Đổi mật khẩu ── */}
-      <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs card-side-glow">
-        <h3 className="text-base font-bold text-text-primary flex items-center gap-2 mb-4">
-          <ShieldCheck className="size-5 text-success" />
-          <span>Bảo mật & Liên kết</span>
-        </h3>
+      {/* ── Bảo mật & Liên kết Google / Đổi mật khẩu (Chỉ dành cho tài khoản đã đăng nhập) ── */}
+      {nguoiDung.accountId > 0 && (
+        <section className="rounded-2xl border border-border-default/80 bg-surface/90 backdrop-blur-sm p-5 sm:p-6 relative shadow-xs card-side-glow">
+          <h3 className="text-base font-bold text-text-primary flex items-center gap-2 mb-4">
+            <ShieldCheck className="size-5 text-success" />
+            <span>Bảo mật & Liên kết</span>
+          </h3>
 
-        <div className="space-y-4">
-          {/* Liên kết Google */}
-          <LienKetGoogle />
+          <div className="space-y-4">
+            {/* Liên kết Google */}
+            <LienKetGoogle />
 
-          {/* Nút Đổi mật khẩu */}
-          <div className="pt-4 border-t border-border-subtle flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-text-primary">Mật khẩu tài khoản</p>
+            {/* Nút Đổi mật khẩu */}
+            <div className="pt-4 border-t border-border-subtle flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-text-primary">Mật khẩu tài khoản</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setMoDoiMatKhauModal(true)}
+                className="gap-1.5 border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold rounded-xl cursor-pointer"
+              >
+                <KeyRound className="size-3.5 text-text-tertiary" />
+                <span>Đổi mật khẩu</span>
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setMoDoiMatKhauModal(true)}
-              className="gap-1.5 border-border-default bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold rounded-xl cursor-pointer"
-            >
-              <KeyRound className="size-3.5 text-text-tertiary" />
-              <span>Đổi mật khẩu</span>
-            </Button>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Popup chọn ảnh đại diện nhanh */}
       <AvatarPickerDialog
