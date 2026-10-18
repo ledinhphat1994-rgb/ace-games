@@ -37,7 +37,7 @@ function ghiTinDaXem(accountId: number, id: number) {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { nguoiDung, dangXuat, lamMoiPhien, moAuthModal } = usePhien()
+  const { nguoiDung, dangXuat, lamMoiPhien } = usePhien()
   const {
     trangThai,
     taiKhoanBiKhoa,
@@ -97,20 +97,16 @@ export function AppShell({ children }: AppShellProps) {
   const [activeDmTarget, setActiveDmTarget] = useState<import('./CampusChatSheet').DmTargetUser | null>(null)
 
   const datMoChat = useCallback((mo: boolean) => {
-    if (!nguoiDung) {
-      moAuthModal('dang_nhap')
-      return
-    }
     setIsChatOpen(mo)
     try {
       localStorage.setItem('c10a7_chat_open', String(mo))
     } catch {}
     if (mo) setHasNewDm(false)
-    if (tinCuoi) {
+    if (tinCuoi && nguoiDung) {
       setIdTinDaXem(tinCuoi.id)
       ghiTinDaXem(nguoiDung.accountId, tinCuoi.id)
     }
-  }, [nguoiDung, moAuthModal, tinCuoi])
+  }, [nguoiDung, tinCuoi])
 
   const handleDangXuat = useCallback(() => {
     void dangXuat()
@@ -122,18 +118,10 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     const handleOpenChat = () => {
-      if (!nguoiDung) {
-        moAuthModal('dang_nhap')
-        return
-      }
       setActiveDmTarget(null)
       setIsChatOpen(true)
     }
     const handleToggleChat = () => {
-      if (!nguoiDung) {
-        moAuthModal('dang_nhap')
-        return
-      }
       setActiveDmTarget(null)
       datMoChat(!isChatOpen)
     }
@@ -143,15 +131,12 @@ export function AppShell({ children }: AppShellProps) {
       window.removeEventListener('campus:open-chat', handleOpenChat)
       window.removeEventListener('campus:toggle-chat', handleToggleChat)
     }
-  }, [nguoiDung, moAuthModal, isChatOpen])
+  }, [datMoChat, isChatOpen])
 
   useEffect(() => {
     const handleOpenDM = (e: Event) => {
-      if (!nguoiDung) {
-        moAuthModal('dang_nhap')
-        return
-      }
       const ce = e as CustomEvent<import('./CampusChatSheet').DmTargetUser>
+
       if (ce.detail) {
         setActiveDmTarget(ce.detail)
         setIsChatOpen(true)
@@ -159,7 +144,7 @@ export function AppShell({ children }: AppShellProps) {
     }
     window.addEventListener('campus:open-dm', handleOpenDM)
     return () => window.removeEventListener('campus:open-dm', handleOpenDM)
-  }, [nguoiDung, moAuthModal])
+  }, [])
 
   useEffect(() => {
     if (!nguoiDung) return
@@ -246,7 +231,6 @@ export function AppShell({ children }: AppShellProps) {
             onDangXuat={handleDangXuat}
             onToggleChat={handleToggleChatClick}
             onLamMoiPhien={lamMoiPhien}
-            onMoAuthModal={moAuthModal}
           />
         </div>
       )}

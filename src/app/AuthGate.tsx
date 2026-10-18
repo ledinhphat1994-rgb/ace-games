@@ -7,7 +7,7 @@ import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { AuthModal, type AuthMode } from '@/features/auth/AuthModal'
-import { dangXuat, layPhienHienTai, layTrangThaiGoogle, LoiApi } from '@/lib/api'
+import { dangXuat, layPhienHienTai, layTrangThaiGoogle, LoiApi, NGUOI_DUNG_MAC_DINH } from '@/lib/api'
 import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { toast } from 'sonner'
 import type { KetQuaGoogle } from '@shared/protocol/google'
@@ -34,11 +34,11 @@ export function AuthGate() {
   const phien = useQuery({ queryKey: KHOA_PHIEN, queryFn: layPhienHienTai, staleTime: Infinity })
 
   const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<AuthMode>('dang_nhap')
+  const [modalMode] = useState<AuthMode>('dang_nhap')
 
-  const moAuthModal = useCallback((mode: AuthMode = 'dang_nhap') => {
-    setModalMode(mode)
-    setModalOpen(true)
+  const moAuthModal = useCallback((_mode: AuthMode = 'dang_nhap') => {
+    // Ẩn hoàn toàn modal đăng nhập / đăng ký
+    setModalOpen(false)
   }, [])
 
   const xuLyDangXuat = useCallback(async () => {
@@ -58,7 +58,8 @@ export function AuthGate() {
     await queryClient.invalidateQueries({ queryKey: KHOA_PHIEN })
   }, [queryClient])
 
-  const nguoiDung = phien.data?.nguoiDung ?? null
+  const nguoiDung = phien.data?.nguoiDung ?? NGUOI_DUNG_MAC_DINH
+
 
   const [searchParams, setSearchParams] = useSearchParams()
   const ketQuaGoogle = searchParams.get('google')

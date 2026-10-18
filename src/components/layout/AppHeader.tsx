@@ -2,15 +2,14 @@ import { memo } from 'react'
 import { NavLink } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { NotificationCenter } from '@/components/NotificationCenter'
-import { DailyCheckInButton } from '@/features/engagement'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ConnectionIndicator } from './ConnectionIndicator'
-import type { NguoiDung } from '@/lib/api'
+import { NGUOI_DUNG_MAC_DINH, type NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
 import { MessageSquare } from 'lucide-react'
 import { ThemeSwitch } from './ThemeSwitch'
 import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
-// CampusSearch: Vùng 1 đã xóa theo yêu cầu
+
 
 interface AppHeaderProps {
   nguoiDung: NguoiDung | null
@@ -24,7 +23,6 @@ interface AppHeaderProps {
   onDangXuat: () => void
   onToggleChat: () => void
   onLamMoiPhien?: () => Promise<void>
-  onMoAuthModal?: (mode?: 'dang_nhap' | 'dang_ky' | 'quen_mat_khau') => void
 }
 
 export const AppHeader = memo(function AppHeader({
@@ -38,7 +36,6 @@ export const AppHeader = memo(function AppHeader({
   onDangXuat,
   onToggleChat,
   onLamMoiPhien,
-  onMoAuthModal,
 }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 w-full pt-[env(safe-area-inset-top)] border-b border-border-subtle bg-surface/95 backdrop-blur-md">
@@ -74,13 +71,8 @@ export const AppHeader = memo(function AppHeader({
           {/* Theme switch */}
           <ThemeSwitch />
 
-          {/* Daily Check-in & Notifications (only when logged in) */}
-          {nguoiDung && (
-            <>
-              <DailyCheckInButton />
-              <NotificationCenter />
-            </>
-          )}
+          {/* Notifications */}
+          <NotificationCenter />
 
           {/* Messages / Campus Chat trigger button (Chuyển xuống Vùng 5 góc phải dưới cùng) */}
           <Button
@@ -101,33 +93,13 @@ export const AppHeader = memo(function AppHeader({
             )}
           </Button>
 
-          {/* Account / User Menu */}
+          {/* Account / User Menu — Luôn hiển thị Avatar User, ẩn hoàn toàn chức năng đăng nhập / đăng ký */}
           <div className="ml-1 sm:ml-2 flex items-center border-l border-border-subtle pl-2 sm:pl-3">
-            {nguoiDung ? (
-              <UserAvatarMenu
-                nguoiDung={nguoiDung}
-                onDangXuat={onDangXuat}
-                onLamMoiPhien={onLamMoiPhien}
-              />
-            ) : (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onMoAuthModal?.('dang_nhap')}
-                  className="h-9 px-3 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary"
-                >
-                  Đăng nhập
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => onMoAuthModal?.('dang_ky')}
-                  className="h-9 px-3.5 text-xs sm:text-sm font-semibold bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm"
-                >
-                  Đăng ký
-                </Button>
-              </div>
-            )}
+            <UserAvatarMenu
+              nguoiDung={nguoiDung || NGUOI_DUNG_MAC_DINH}
+              onDangXuat={onDangXuat}
+              onLamMoiPhien={onLamMoiPhien}
+            />
           </div>
         </div>
       </div>

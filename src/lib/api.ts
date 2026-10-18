@@ -23,6 +23,24 @@ export interface NguoiDung {
   datMatKhauKhongCanCu?: boolean
 }
 
+export const NGUOI_DUNG_MAC_DINH: NguoiDung = {
+  accountId: 0,
+  username: 'kythu',
+  ten: 'Kỳ Thủ',
+  role: 'khach',
+  avatar: null,
+  tieuDeHoSo: 'Kỳ thủ Ace Games',
+  teacherPending: false,
+  isSchoolAdmin: false,
+  isVerifiedTeacher: false,
+  isLinkedStudent: false,
+  hocSinhId: null,
+  lopId: null,
+  lop: null,
+  actorKey: 'guest_kythu',
+}
+
+
 export class LoiApi extends Error {
   readonly status: number
   readonly lyDo?: string
