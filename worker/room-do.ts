@@ -1134,7 +1134,7 @@ export class RoomDO extends DurableObject<Env> {
       deadlines.push(hanLuotGame)
     }
 
-    // 4c. Hạn chót tự động xóa phòng game hoàn toàn sau 10 giây nếu không có người
+    // 4c. Hạn chót tự động xóa phòng game hoàn toàn sau 3 phút nếu không có người
     if (this.isGameRoom && this.gameRoomId && this.gameMeta.status !== 'ended') {
       const activeMembers = this.layDanhSachThanhVien()
       if (activeMembers.length === 0) {
@@ -1142,7 +1142,7 @@ export class RoomDO extends DurableObject<Env> {
           this.gameEmptySince = now
           this.luuMeta('game_empty_since', String(this.gameEmptySince))
         }
-        deadlines.push(this.gameEmptySince + 10_000)
+        deadlines.push(this.gameEmptySince + 180_000)
       } else if (this.gameEmptySince !== null) {
         this.gameEmptySince = null
         this.luuMeta('game_empty_since', '')
@@ -1533,7 +1533,7 @@ export class RoomDO extends DurableObject<Env> {
     await this.reconcileRoomAlarm()
   }
 
-  /** Tự động xóa phòng game hoàn toàn sau 10 giây nếu không có người tham gia hay theo dõi. */
+  /** Tự động xóa phòng game hoàn toàn sau 3 phút nếu không có người tham gia hay theo dõi. */
   private async xuLyGameRoomEmptyAlarm(now: number): Promise<boolean> {
     if (!this.isGameRoom || !this.gameRoomId || this.gameMeta.status === 'ended') return false
     const thanhVien = this.layDanhSachThanhVien()
@@ -1551,11 +1551,11 @@ export class RoomDO extends DurableObject<Env> {
       return false
     }
 
-    if (now < this.gameEmptySince + 10_000) {
+    if (now < this.gameEmptySince + 180_000) {
       return false
     }
 
-    console.log(`[RoomDO] Tự động xóa phòng game ${this.gameRoomId} hoàn toàn do không có người sau 10 giây.`)
+    console.log(`[RoomDO] Tự động xóa phòng game ${this.gameRoomId} hoàn toàn do không có người sau 3 phút.`)
     this.gameMeta = { ...this.gameMeta, status: 'ended' }
     this.isPersistentLobbyRoom = false
     this.luuMeta('persistent_lobby_room', '0')
@@ -4815,8 +4815,8 @@ export class RoomDO extends DurableObject<Env> {
     const thanhVienConLai = this.layDanhSachThanhVien(vuaRoi)
     if (thanhVienConLai.length === 0) {
       // Nếu bàn được tạo từ sảnh và đang chờ đối thủ (status === 'waiting'),
-      // giữ bàn trên sảnh tối đa 10 giây để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
-      // Sau 10 giây không có ai, RoomDO alarm (xuLyGameRoomEmptyAlarm) sẽ tự động xóa phòng hoàn toàn.
+      // giữ bàn trên sảnh tối đa 3 phút để chủ bàn quay lại hoặc người khác thấy và vào tham gia!
+      // Sau 3 phút không có ai, RoomDO alarm (xuLyGameRoomEmptyAlarm) sẽ tự động xóa phòng hoàn toàn.
       if (this.isPersistentLobbyRoom && this.gameMeta.status === 'waiting' && (this.gameMeta.playerX || this.hostKey)) {
         if (this.gameEmptySince === null) {
           this.gameEmptySince = Date.now()

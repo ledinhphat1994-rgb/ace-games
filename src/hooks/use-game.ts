@@ -97,12 +97,29 @@ export function useGame(
   const daHuyRef = useRef<boolean>(false)
   const ketNoiRef = useRef<() => void>(() => {})
 
+  const effectiveActorKey = useMemo(() => {
+    if (myActorKey) return myActorKey
+    if (typeof window !== 'undefined') {
+      try {
+        let saved = sessionStorage.getItem('dc_guest_key') || localStorage.getItem('dc_guest_key')
+        if (!saved) {
+          saved = 'guest_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+          try { sessionStorage.setItem('dc_guest_key', saved) } catch {}
+          try { localStorage.setItem('dc_guest_key', saved) } catch {}
+        }
+        return saved
+      } catch {}
+    }
+    return ''
+  }, [myActorKey])
+
   const mySide: PlayerSide | null = useMemo(() => {
-    if (!myActorKey) return null
-    if (meta.playerX === myActorKey) return 'X'
-    if (meta.playerO === myActorKey) return 'O'
+    const k = effectiveActorKey
+    if (!k) return null
+    if (meta.playerX === k) return 'X'
+    if (meta.playerO === k) return 'O'
     return null
-  }, [myActorKey, meta.playerX, meta.playerO])
+  }, [effectiveActorKey, meta.playerX, meta.playerO])
 
   const isMyTurn = useMemo(() => {
     return mySide !== null && meta.status === 'playing' && meta.currentTurn === mySide
@@ -139,8 +156,7 @@ export function useGame(
   }, [meta.status, meta.turnTimerEndsAt])
 
   const ketNoi = useCallback(() => {
-    // Chưa đăng nhập thì máy chủ từ chối kết nối bàn (401): không thử kết nối lại vô ích.
-    if (daHuyRef.current || !gameId || !myActorKey) return
+    if (daHuyRef.current || !gameId || !effectiveActorKey) return
     if (henGioKetNoiLaiRef.current) {
       clearTimeout(henGioKetNoiLaiRef.current)
       henGioKetNoiLaiRef.current = null
@@ -157,9 +173,9 @@ export function useGame(
           ''
         : ''
     )
-    const guestName = typeof window !== 'undefined' ? localStorage.getItem('dc_guest_name') || 'Kỳ Thủ' : 'Kỳ Thủ'
-    const guestAvatar = typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') || '' : ''
-    const guestKey = myActorKey || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_key') || '' : '')
+    const guestName = typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_name') || localStorage.getItem('dc_guest_name') || 'Kỳ Thủ') : 'Kỳ Thủ'
+    const guestAvatar = typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_avatar') || localStorage.getItem('dc_guest_avatar') || '') : ''
+    const guestKey = effectiveActorKey
 
     const wsUrl = new URL(`${giaoThuc}//${host}/ws/game/${encodeURIComponent(gameId)}`)
     if (passParam) wsUrl.searchParams.set('pass', passParam)
@@ -222,11 +238,12 @@ export function useGame(
                 turnSeconds: intendedTurnSeconds ?? 30,
                 isPrivate: isPrivateInit,
                 password: passwordInit,
+                isPersistent: true,
               }),
             )
-          } else if (nenTuVaoBan(goi.meta, myActorKey)) {
-            // Bàn đang chờ đối thủ mà mình chưa có ghế: tự động vào ghế nhưng chưa bắt đầu ván (chờ 2 bên sẵn sàng).
-            ws.send(JSON.stringify({ type: 'game.join', password: passParam || undefined, autoStart: false }))
+          } else if (nenTuVaoBan(goi.meta, effectiveActorKey)) {
+            // Bàn đang chờ đối thủ mà mình chưa có ghế: tự động vào ghế và bắt đầu ván đấu ngay khi đủ 2 người
+            ws.send(JSON.stringify({ type: 'game.join', password: passParam || undefined, autoStart: true }))
           }
           break
         }
@@ -302,7 +319,7 @@ export function useGame(
     ws.onerror = () => {
       // ws.onclose sẽ kích hoạt và xử lý backoff
     }
-  }, [gameId, myActorKey, intendedGameType, intendedTurnSeconds])
+  }, [gameId, effectiveActorKey, intendedGameType, intendedTurnSeconds])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi
@@ -354,7 +371,7 @@ export function useGame(
             localStorage.getItem(`dc_game_pw_${gameId}`) ||
             ''
           : '')
-      gui({ type: 'game.join', side, password: passParam || undefined, autoStart: false })
+      gui({ type: 'game.join', side, password: passParam || undefined, autoStart: true })
     },
     [gui, intendedPassword, gameId],
   )
@@ -437,7 +454,7 @@ export function useGame(
 
   return {
     gameId,
-    myActorKey,
+    myActorKey: effectiveActorKey,
     trangThai,
     daDongBo,
     meta,

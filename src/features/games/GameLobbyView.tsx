@@ -404,14 +404,14 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     }
   }, [nguoiDung?.accountId])
 
-  // Kết nối sảnh WebSocket toàn trường của Đấu trường Game
-  const { data: tablesData, isPending, isError } = useGameRooms(undefined, Boolean(nguoiDung))
+  // Kết nối sảnh WebSocket toàn trường của Đấu trường Game (hoạt động cho cả khách vãng lai và thành viên)
+  const { data: tablesData, isPending, isError } = useGameRooms(undefined, true)
   const tables = useMemo<BanSanh[]>(
     () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended'),
     [tablesData],
   )
 
-  const hasAuthoritativeData = Boolean(nguoiDung) && !isPending && !isError
+  const hasAuthoritativeData = !isPending && !isError
 
   // Tự động dọn dẹp các phòng trong bộ nhớ tạm local storage nếu phòng đó không còn tồn tại trên máy chủ
   useEffect(() => {
@@ -875,9 +875,16 @@ export function GameLobbyView({ onMoSanh }: GameLobbyViewProps) {
     setLoiTaoBan(null)
 
     try {
-      const guestName = nguoiDung?.ten || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_name') : null) || 'Kỳ Thủ'
-      const guestAvatar = nguoiDung?.avatar || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') : null) || undefined
-      const guestKey = nguoiDung?.actorKey || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_key') : null) || undefined
+      const guestName = nguoiDung?.ten || (typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_name') || localStorage.getItem('dc_guest_name')) : null) || 'Kỳ Thủ'
+      const guestAvatar = nguoiDung?.avatar || (typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_avatar') || localStorage.getItem('dc_guest_avatar')) : null) || undefined
+      let guestKey = nguoiDung?.actorKey || (typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_key') || localStorage.getItem('dc_guest_key')) : null) || undefined
+      if (!guestKey && typeof window !== 'undefined') {
+        guestKey = 'guest_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+        try {
+          sessionStorage.setItem('dc_guest_key', guestKey)
+          localStorage.setItem('dc_guest_key', guestKey)
+        } catch {}
+      }
 
       const res = await fetch('/api/game/create', {
         method: 'POST',

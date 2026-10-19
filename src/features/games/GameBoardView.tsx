@@ -145,7 +145,7 @@ export function GameBoardView({
     >
       <div className="game-stage relative flex min-w-0 w-full flex-1 flex-col items-center h-full overflow-hidden">
         <BlueprintArcadePattern className="opacity-20 pointer-events-none" />
-        {meta.gameType === 'chess' ? (
+        {loaiGame === 'chess' ? (
           <ChessBoard
             onBack={onLeave}
             online={online}
@@ -154,7 +154,7 @@ export function GameBoardView({
             soPhongHienThi={soPhongHienThi}
             onInvite={() => setMoModalMoi(true)}
           />
-        ) : meta.gameType === 'xiangqi' ? (
+        ) : loaiGame === 'xiangqi' ? (
           <XiangqiBoard
             onBack={onLeave}
             online={online}

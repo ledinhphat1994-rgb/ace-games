@@ -18,8 +18,8 @@ export function tenLobbyTheoLoai(gameType?: string): string {
 }
 
 const BAN_TOI_DA_GUI = 100
-// Bàn không có người hoặc không được cập nhật quá 10 giây coi như đã kết thúc/bỏ hoang — tự động xóa hoàn toàn
-const BAN_HET_HAN_MS = 10 * 1000
+// Bàn không có người hoặc không được cập nhật quá 20 phút coi như đã kết thúc/bỏ hoang — tự động dọn dẹp
+const BAN_HET_HAN_MS = 20 * 60 * 1000
 
 /**
  * GameLobbyDO — Phân vùng danh bạ bàn đấu theo gameType và hỗ trợ WebSocket Event Stream.

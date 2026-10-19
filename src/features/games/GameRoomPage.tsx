@@ -52,8 +52,8 @@ export function GameRoomPage() {
 
   // Rời bàn / trò chơi: quay về sảnh của đúng trò đó (vào từ sảnh có ?sanh=, bàn vừa tạo có ?gameType=).
   const sanhParam = searchParams.get('sanh')
-  const actorKey = nguoiDung?.actorKey || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_key') || undefined : undefined)
-  const actorName = nguoiDung ? (nguoiDung.ten || nguoiDung.username) : (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_name') || 'Kỳ Thủ' : 'Kỳ Thủ')
+  const actorKey = nguoiDung?.actorKey || (typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_key') || localStorage.getItem('dc_guest_key') || undefined) : undefined)
+  const actorName = nguoiDung ? (nguoiDung.ten || nguoiDung.username) : (typeof window !== 'undefined' ? (sessionStorage.getItem('dc_guest_name') || localStorage.getItem('dc_guest_name') || 'Kỳ Thủ') : 'Kỳ Thủ')
 
   // Chỉ có ở link vừa tạo bàn từ sảnh (?gameType=...&turn=...) — vào bàn có sẵn từ danh sách bàn đang mở
   // thì không kèm tham số này, để không vô tình khởi tạo lại ván đang chơi của người khác.

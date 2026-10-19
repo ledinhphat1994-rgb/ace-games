@@ -37,10 +37,16 @@ export function layNguoiDungMacDinh(): NguoiDung {
       if (savedTen) ten = savedTen
       const savedTieuDe = localStorage.getItem('dc_guest_status')
       if (savedTieuDe) tieuDeHoSo = savedTieuDe
-      let savedKey = localStorage.getItem('dc_guest_key')
+      let savedKey = sessionStorage.getItem('dc_guest_key')
+      if (!savedKey) {
+        savedKey = localStorage.getItem('dc_guest_key')
+      }
       if (!savedKey) {
         savedKey = 'guest_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
-        localStorage.setItem('dc_guest_key', savedKey)
+        try { sessionStorage.setItem('dc_guest_key', savedKey) } catch {}
+        try { localStorage.setItem('dc_guest_key', savedKey) } catch {}
+      } else {
+        try { sessionStorage.setItem('dc_guest_key', savedKey) } catch {}
       }
       actorKey = savedKey
     } catch {}
