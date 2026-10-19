@@ -54,6 +54,7 @@ const TexSwarmCrawler = preload("res://assets/sprites/enemy_swarm_crawler.png")
 const TexShieldDroid = preload("res://assets/sprites/enemy_shield_droid.png")
 const TexEtherealWraith = preload("res://assets/sprites/enemy_ethereal_wraith.png")
 const SoundSynthClass = preload("res://scripts/audio/SoundSynthesizer.gd")
+const CombatTextPoolClass = preload("res://scripts/stylized/CombatTextPool.gd")
 
 # BỘ KHUNG HÌNH XE LỬA ĐA HƯỚNG TRÍCH XUẤT TỪ VIDEO 3D CHUẨN XÁC 100%
 const STEAM_TRAIN_SE_FRAMES: Array[Texture2D] = [
@@ -428,6 +429,18 @@ func setup(type: EnemyType, path_points: Array[Vector2], wave_multiplier: float 
 				sprite.offset = Vector2(0.0, -210.0)
 				sprite.modulate = Color(1.0, 1.0, 1.0, 0.75)
 
+static var active_enemies: Array[AnimatedEnemy] = []
+
+static func get_active_enemies() -> Array[AnimatedEnemy]:
+	return active_enemies
+
+func _enter_tree() -> void:
+	if not active_enemies.has(self):
+		active_enemies.append(self)
+
+func _exit_tree() -> void:
+	active_enemies.erase(self)
+
 func _ready() -> void:
 	sound_synth = SoundSynthesizer.get_shared(self)
 
@@ -632,17 +645,18 @@ func _process(delta: float) -> void:
 	var effective_speed = get_effective_speed()
 
 	# Chống đè quái (Anti-Overlap Congestion Control): Quái đi sau giảm tốc nhẹ khi tiếp cận quái đi trước
-	if is_inside_tree() and _current_wp_idx < waypoints.size():
-		var all_enemies = get_tree().get_nodes_in_group("animated_enemies")
-		var my_dist_to_wp = global_position.distance_to(waypoints[_current_wp_idx])
-		for other in all_enemies:
+	if _current_wp_idx < waypoints.size():
+		var my_dist_to_wp_sq: float = global_position.distance_squared_to(waypoints[_current_wp_idx])
+		for other in active_enemies:
 			if other != self and is_instance_valid(other) and not other._is_dead:
-				var d = global_position.distance_to(other.global_position)
-				if d < 36.0 and other._current_wp_idx < other.waypoints.size():
-					var is_other_ahead = (other._current_wp_idx > _current_wp_idx) or \
-						(other._current_wp_idx == _current_wp_idx and my_dist_to_wp > other.global_position.distance_to(other.waypoints[other._current_wp_idx]))
-					if is_other_ahead:
-						effective_speed = minf(effective_speed, other.speed * 0.85)
+				var wp_diff: int = other._current_wp_idx - _current_wp_idx
+				if wp_diff >= 0 and wp_diff <= 1 and other._current_wp_idx < other.waypoints.size():
+					var d_sq: float = global_position.distance_squared_to(other.global_position)
+					if d_sq < 1296.0: # 36.0 * 36.0
+						var is_other_ahead: bool = (wp_diff > 0) or \
+							(my_dist_to_wp_sq > other.global_position.distance_squared_to(other.waypoints[other._current_wp_idx]))
+						if is_other_ahead:
+							effective_speed = minf(effective_speed, other.speed * 0.85)
 
 	# 1. Di chuyển bám chính xác theo tim đường mòn Waypoints
 	if _current_wp_idx < waypoints.size():
@@ -1474,7 +1488,7 @@ func trigger_support_pulse() -> void:
 	var affected: int = 0
 	for e in enemies:
 		if is_instance_valid(e) and e != self and not e.get("_is_dead") and not e.is_queued_for_deletion():
-			if global_position.distance_to(e.global_position) <= 120.0:
+			if global_position.distance_squared_to(e.global_position) <= 14400.0: # 120.0 * 120.0
 				var heal_amount = e.max_hp * 0.10
 				e.current_hp = minf(e.max_hp, e.current_hp + heal_amount)
 				var shield_grant = e.max_hp * 0.15
@@ -1491,7 +1505,7 @@ func _trigger_oil_fire_burst() -> void:
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and e != self and not e.is_queued_for_deletion():
-			if global_position.distance_to(e.global_position) <= 120.0 and e.has_method("take_damage"):
+			if global_position.distance_squared_to(e.global_position) <= 14400.0 and e.has_method("take_damage"):
 				e.take_damage(75.0, DamageType.THERMAL_PLASMA)
 
 func _trigger_superconductor_chain_stun() -> void:
@@ -1499,7 +1513,7 @@ func _trigger_superconductor_chain_stun() -> void:
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and not e.is_queued_for_deletion():
-			if global_position.distance_to(e.global_position) <= 140.0:
+			if global_position.distance_squared_to(e.global_position) <= 19600.0: # 140.0 * 140.0
 				if e.has_method("electrocute"):
 					e.electrocute(1.5)
 				if e.has_method("take_damage") and e != self:
@@ -1509,7 +1523,7 @@ func _spread_corrosive_spores() -> void:
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and e != self and not e.is_queued_for_deletion():
-			if global_position.distance_to(e.global_position) <= 90.0 and e.has_method("apply_acid"):
+			if global_position.distance_squared_to(e.global_position) <= 8100.0 and e.has_method("apply_acid"):
 				e.apply_acid(5.0)
 
 func take_damage(amount: float, dmg_type: int = -1, from_tower: Node2D = null) -> void:
@@ -1742,31 +1756,6 @@ func take_damage(amount: float, dmg_type: int = -1, from_tower: Node2D = null) -
 static var _recent_combat_labels: Array[Label] = []
 
 func _spawn_combat_text(txt: String, col: Color, font_sz: int = 14) -> void:
-	if not is_inside_tree() or not get_tree() or not get_tree().current_scene:
-		return
-
-	# Lọc và đếm số chữ bay lân cận trong bán kính 90px
-	var clean_labels: Array[Label] = []
-	var nearby_count: int = 0
-	var my_pos = global_position
-	for lbl in _recent_combat_labels:
-		if is_instance_valid(lbl) and lbl.is_inside_tree():
-			clean_labels.append(lbl)
-			if lbl.global_position.distance_to(my_pos) < 90.0:
-				nearby_count += 1
-	_recent_combat_labels = clean_labels
-
-	# Giới hạn tối đa 6 chữ bay hiển thị đồng thời trong bán kính 90px
-	if nearby_count >= 6 and font_sz <= 13:
-		return
-
-	var label = Label.new()
-	label.text = txt
-	label.add_theme_font_size_override("font_size", font_sz)
-	label.add_theme_color_override("font_color", col)
-	label.add_theme_color_override("font_outline_color", Color(0.06, 0.08, 0.12, 0.95))
-	label.add_theme_constant_override("outline_size", 3)
-
 	var cur_time = Time.get_ticks_msec() / 1000.0
 	if cur_time - _last_combat_text_time < 0.25:
 		_combat_text_stack_offset += 14.0
@@ -1777,9 +1766,38 @@ func _spawn_combat_text(txt: String, col: Color, font_sz: int = 14) -> void:
 	_last_combat_text_time = cur_time
 
 	var spawn_y = (-90.0 if is_boss else -60.0) - _combat_text_stack_offset
-	# Chữ sát thương văng lệch sang hai bên vai (-26..-12 hoặc +12..+26) để phần thân giữa của Boss luôn nhìn rõ 100%
 	var shoulder_x = randf_range(-26.0, -12.0) if randf() < 0.5 else randf_range(12.0, 26.0)
-	label.global_position = global_position + Vector2(shoulder_x, spawn_y)
+	var spawn_pos = global_position + Vector2(shoulder_x, spawn_y)
+
+	var pool = CombatTextPoolClass.get_instance()
+	if pool:
+		pool.spawn_text(spawn_pos, txt, col, font_sz, 35.0, 0.45)
+		return
+
+	if not is_inside_tree() or not get_tree() or not get_tree().current_scene:
+		return
+
+	# Lọc và đếm số chữ bay lân cận trong bán kính 90px
+	var clean_labels: Array[Label] = []
+	var nearby_count: int = 0
+	var my_pos = global_position
+	for lbl in _recent_combat_labels:
+		if is_instance_valid(lbl) and lbl.is_inside_tree():
+			clean_labels.append(lbl)
+			if lbl.global_position.distance_squared_to(my_pos) < 8100.0:
+				nearby_count += 1
+	_recent_combat_labels = clean_labels
+
+	if nearby_count >= 6 and font_sz <= 13:
+		return
+
+	var label = Label.new()
+	label.text = txt
+	label.add_theme_font_size_override("font_size", font_sz)
+	label.add_theme_color_override("font_color", col)
+	label.add_theme_color_override("font_outline_color", Color(0.06, 0.08, 0.12, 0.95))
+	label.add_theme_constant_override("outline_size", 3)
+	label.global_position = spawn_pos
 	label.z_index = 30
 	get_tree().current_scene.add_child(label)
 	_recent_combat_labels.append(label)

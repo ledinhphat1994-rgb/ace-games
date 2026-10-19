@@ -153,4 +153,15 @@ make_card(
     os.path.join(out_dir, "card_tesla.png")
 )
 
+# 4. Combat Turret (120G) - Render từ mô hình 3D combat_turret.glb
+make_card(
+    "COMBAT TURRET",
+    os.path.join(base_dir, "assets/textures/cards/turret_combat_icon.png"),
+    None,
+    "HẠNG NẶNG",
+    (245, 158, 11, 255), # Amber / Gold
+    "120 VÀNG",
+    os.path.join(out_dir, "card_combat_turret.png")
+)
+
 print("Card assets created successfully with pristine Vietnamese fonts!")

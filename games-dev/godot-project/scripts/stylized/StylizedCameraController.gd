@@ -35,13 +35,14 @@ var _drag_start_pos: Vector2 = Vector2.ZERO
 signal camera_mode_changed(mode_name: String)
 
 func _ready() -> void:
+	process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	enabled = true
 	make_current()
 	position = target_pos
 	zoom = target_zoom
 	_apply_mode(CameraMode.TACTICAL, true)
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	# Chế độ bám theo quái vật
 	if current_mode == CameraMode.ACTION_FOCUS:
 		if is_instance_valid(follow_target) and not follow_target.is_queued_for_deletion():

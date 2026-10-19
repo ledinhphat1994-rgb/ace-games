@@ -19,6 +19,7 @@ enum ProjectileType {
 const TexSpiral = preload("res://assets/sprites/projectile_energy_spiral.png")
 const TexExplosion = preload("res://assets/sprites/explosion_fire_burst.png")
 const SoundSynthClass = preload("res://scripts/audio/SoundSynthesizer.gd")
+const CombatTextPoolClass = preload("res://scripts/stylized/CombatTextPool.gd")
 
 var proj_type: ProjectileType = ProjectileType.PLASMA_ORB
 var target: Node2D = null
@@ -151,21 +152,21 @@ func _process(delta: float) -> void:
 	# 2. KIỂM TRA VA CHẠM VỚI MỤC TIÊU DỌC ĐƯỜNG ĐẠN
 	if is_instance_valid(target) and not target.is_queued_for_deletion() and not target.get("_is_dead"):
 		var aim_pos = target.global_position + Vector2(0.0, -22.0)
-		var dist = global_position.distance_to(aim_pos)
-		if dist <= 32.0:
+		var dist_sq = global_position.distance_squared_to(aim_pos)
+		if dist_sq <= 1024.0: # 32.0 * 32.0
 			_on_hit_target()
 		else:
 			# Đạn bay ngang qua hoặc cắt qua mục tiêu ở cự ly gần
 			var to_aim = aim_pos - global_position
-			if to_aim.dot(_last_dir) <= 0.0 and dist <= 48.0:
+			if to_aim.dot(_last_dir) <= 0.0 and dist_sq <= 2304.0: # 48.0 * 48.0
 				_on_hit_target()
 	elif get_tree():
 		var enemies = get_tree().get_nodes_in_group("animated_enemies")
 		for e in enemies:
 			if is_instance_valid(e) and not e.is_queued_for_deletion() and not e.get("_is_dead"):
 				var aim_pos = e.global_position + Vector2(0.0, -22.0)
-				var dist = global_position.distance_to(aim_pos)
-				if dist <= 32.0 or ((aim_pos - global_position).dot(_last_dir) <= 0.0 and dist <= 48.0):
+				var dist_sq = global_position.distance_squared_to(aim_pos)
+				if dist_sq <= 1024.0 or ((aim_pos - global_position).dot(_last_dir) <= 0.0 and dist_sq <= 2304.0):
 					target = e
 					_on_hit_target()
 					break
@@ -321,11 +322,13 @@ func _trigger_plasma_aoe_splash(center_pos: Vector2) -> void:
 			source_tower.record_damage_dealt(recorded_dmg, not was_dead and now_dead)
 		_spawn_damage_number(center_pos, int(damage), Color(0.2, 1.0, 0.9))
 
+	var splash_radius_sq = splash_radius * splash_radius
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and e != target and not e.is_queued_for_deletion():
-			var d = center_pos.distance_to(e.global_position)
-			if d <= splash_radius and e.has_method("take_damage"):
+			var d_sq = center_pos.distance_squared_to(e.global_position)
+			if d_sq <= splash_radius_sq and e.has_method("take_damage"):
+				var d = sqrt(d_sq)
 				var falloff_dmg = splash_damage * clampf(1.0 - (d / splash_radius) * 0.45, 0.5, 1.0)
 				var was_dead = e.get("_is_dead")
 				e.take_damage(falloff_dmg, AnimatedEnemy.DamageType.THERMAL_PLASMA, source_tower)
@@ -355,11 +358,13 @@ func _trigger_missile_aoe_splash(center_pos: Vector2) -> void:
 			source_tower.record_damage_dealt(recorded_dmg, not was_dead and now_dead)
 		_spawn_damage_number(center_pos, int(eff_dealt), Color(1.2, 0.7, 0.2))
 
+	var splash_radius_sq = splash_radius * splash_radius
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and e != target and not e.is_queued_for_deletion():
-			var d = center_pos.distance_to(e.global_position)
-			if d <= splash_radius and e.has_method("take_damage"):
+			var d_sq = center_pos.distance_squared_to(e.global_position)
+			if d_sq <= splash_radius_sq and e.has_method("take_damage"):
+				var d = sqrt(d_sq)
 				var falloff_dmg = splash_damage * clampf(1.0 - (d / splash_radius) * 0.5, 0.4, 1.0)
 				var was_dead = e.get("_is_dead")
 				e.take_damage(falloff_dmg, AnimatedEnemy.DamageType.KINETIC, source_tower)
@@ -376,6 +381,7 @@ func _trigger_missile_aoe_splash(center_pos: Vector2) -> void:
 
 func _trigger_magma_aoe_splash(center_pos: Vector2) -> void:
 	var splash_radius = 85.0
+	var splash_radius_sq = splash_radius * splash_radius
 	var splash_damage = damage
 
 	if is_instance_valid(target) and target.has_method("take_damage"):
@@ -387,8 +393,8 @@ func _trigger_magma_aoe_splash(center_pos: Vector2) -> void:
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and e != target and not e.is_queued_for_deletion():
-			var d = center_pos.distance_to(e.global_position)
-			if d <= splash_radius and e.has_method("take_damage"):
+			var d_sq = center_pos.distance_squared_to(e.global_position)
+			if d_sq <= splash_radius_sq and e.has_method("take_damage"):
 				e.take_damage(splash_damage * 0.7, AnimatedEnemy.DamageType.ARCANE)
 				if e.has_method("apply_burn"):
 					e.apply_burn(25.0, 3.5)
@@ -427,19 +433,23 @@ func _spawn_gatling_sparks(pos: Vector2) -> void:
 	tween.parallel().tween_property(burst, "modulate", Color(1.0, 0.45, 0.10, 0.0), 0.09) # Tàn Lửa Cam
 	tween.tween_callback(burst.queue_free)
 
+static var _cached_add_mat: CanvasItemMaterial = null
+static func _get_cached_add_mat() -> CanvasItemMaterial:
+	if not _cached_add_mat:
+		_cached_add_mat = CanvasItemMaterial.new()
+		_cached_add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return _cached_add_mat
+
 func _spawn_plasma_shockwave(pos: Vector2, radius: float) -> void:
 	var spawn_parent = _get_spawn_parent()
 	if not spawn_parent:
 		return
 
 	# Lõi nổ Plasma Additive (Arcane Palette: Trắng Tinh Khiết -> Xanh Thiên Thanh -> Tàn Xanh Dương)
-	var add_mat = CanvasItemMaterial.new()
-	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-
 	var burst = Sprite2D.new()
 	burst.texture = TexExplosion
 	burst.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	burst.material = add_mat
+	burst.material = _get_cached_add_mat()
 	burst.global_position = pos
 	burst.scale = Vector2(0.35, 0.35)
 	burst.modulate = Color(1.0, 1.0, 1.0, 1.0) # Lõi Trắng Tinh Khiết
@@ -459,6 +469,11 @@ func _spawn_plasma_shockwave(pos: Vector2, radius: float) -> void:
 	shockwave.call("trigger", radius, Color(0.20, 0.85, 1.0, 0.90))
 
 func _spawn_damage_number(pos: Vector2, dmg_val: int, col: Color) -> void:
+	var pool = CombatTextPoolClass.get_instance()
+	if pool:
+		pool.spawn_text(pos + Vector2(0.0, -10.0), "-%d" % dmg_val, col, 20, 38.0, 0.45)
+		return
+
 	var label = Label.new()
 	label.text = "-%d" % dmg_val
 	label.add_theme_font_size_override("font_size", 21)

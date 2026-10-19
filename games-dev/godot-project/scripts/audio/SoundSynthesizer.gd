@@ -14,6 +14,8 @@ const SndGatling3 = preload("res://assets/audio/gatling_shot_3.wav")
 const SndGatling4 = preload("res://assets/audio/gatling_shot_4.wav")
 const SndTurretSwivel = preload("res://assets/audio/turret_swivel.wav")
 const SndCasingDrop = preload("res://assets/audio/casing_drop.wav")
+const SndCombatLeft = preload("res://assets/audio/combat_shot_left.wav")
+const SndCombatRight = preload("res://assets/audio/combat_shot_right.wav")
 
 static var _shared_instance: SoundSynthesizer = null
 static var _is_adding_to_root: bool = false
@@ -162,6 +164,23 @@ func play_gatling_shot() -> void:
 	else:
 		_synthesize_sweep(1450.0, 260.0, 0.045, 0.26)
 
+## 1.1. Tháp Pháo Chiến Đấu Hạng Nặng 3D (Combat Turret): Tiếng pháo nòng đôi dội vang, đanh thép, đều đặn theo nhịp cơ khí
+func play_combat_cannon_shot(is_left: bool = true) -> void:
+	if is_muted:
+		return
+	_attach_to_tree_if_needed()
+	if not is_inside_tree():
+		return
+	if not _shot_players.is_empty():
+		var p = _shot_players[_shot_idx]
+		_shot_idx = (_shot_idx + 1) % _shot_players.size()
+		p.stream = SndCombatLeft if is_left else SndCombatRight
+		p.pitch_scale = randf_range(0.98, 1.02)
+		p.volume_db = 1.2
+		p.play()
+	else:
+		_synthesize_sweep(180.0, 42.0, 0.12, 0.55)
+
 ## 2. Mâm xoay cơ khí Turret Swivel từ video
 func play_turret_swivel() -> void:
 	if is_muted:
@@ -251,6 +270,14 @@ func play_ui_tap() -> void:
 	if is_muted:
 		return
 	_synthesize_sweep(520.0, 680.0, 0.04, 0.22)
+
+func play_select() -> void:
+	play_ui_tap()
+
+func play_credit_pickup() -> void:
+	if is_muted:
+		return
+	_synthesize_sweep(600.0, 1200.0, 0.08, 0.35)
 
 func play_frost_zap() -> void:
 	if is_muted:

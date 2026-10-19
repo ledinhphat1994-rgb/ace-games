@@ -104,6 +104,7 @@ theme_override_font_sizes/font_size = 13
 text = "KỶ LỤC: 0 SAO | MVP: 0 DMG"
 
 [node name="Margin" type="MarginContainer" parent="UI/HUD/HealthBox"]
+visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 6
@@ -115,12 +116,14 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="LabelHealthTitle" type="Label" parent="UI/HUD/HealthBox/Margin/HBox"]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.35, 0.35, 1)
 theme_override_font_sizes/font_size = 20
 text = "MÁU:"
 
 [node name="LabelHealthVal" type="Label" parent="UI/HUD/HealthBox/Margin/HBox"]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 22
@@ -278,9 +281,9 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -365.0
+offset_left = -485.0
 offset_top = -285.0
-offset_right = 365.0
+offset_right = 485.0
 offset_bottom = -116.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -310,6 +313,12 @@ theme_override_font_sizes/font_size = 14
 text = ""
 
 [node name="BtnQuickTesla" type="Button" parent="UI/HUD/QuickTowerTray/Margin/HBox"]
+custom_minimum_size = Vector2(210, 150)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="BtnQuickCombat" type="Button" parent="UI/HUD/QuickTowerTray/Margin/HBox"]
 custom_minimum_size = Vector2(210, 150)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
@@ -678,10 +687,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -540.0
-offset_top = -290.0
-offset_right = 540.0
-offset_bottom = 290.0
+offset_left = -460.0
+offset_top = -280.0
+offset_right = 460.0
+offset_bottom = 280.0
 grow_horizontal = 2
 grow_vertical = 2
 

@@ -33,7 +33,8 @@ enum TowerType {
 	MAGMA_MONOLITH = 5, # Đài Lửa Dung Nham (Arcane)
 	VOID_OBELISK = 6,   # Tháp Chuông Hư Không (Arcane)
 	SPORE_SPITTER = 7,  # Bào Tử Ăn Mòn (Bio)
-	PYLON_BUFFER = 8    # Đền Thần Tiếp Năng Lượng (Divine)
+	PYLON_BUFFER = 8,   # Đền Thần Tiếp Năng Lượng (Divine)
+	COMBAT_TURRET = 9   # Tháp Pháo Chiến Đấu Hạng Nặng 3D (combat_turret.glb)
 }
 
 const TexPlasmaBase = preload("res://assets/sprites/tower_plasma_base.png")
@@ -41,7 +42,6 @@ const TexPlasmaTurret = preload("res://assets/sprites/tower_plasma_turret.png")
 const TexGatlingBase = preload("res://assets/sprites/tower_gatling_base.png")
 const TexGatlingTurret = preload("res://assets/sprites/tower_gatling_turret.png")
 const TexTesla = preload("res://assets/sprites/tower_tesla_coil.png")
-const GatlingSpinShader = preload("res://shaders/gatling_barrel_spin.gdshader")
 
 # BỘ SPRITE 32 HƯỚNG CHUẨN CƠ KHÍ 2D ISOMETRIC (32-DIRECTIONAL SPRITES)
 # Xoay tròn mượt mà 360 độ (mỗi hướng 11.25°), ụ tháp cố định nằm ngang 100%, không ngửa/gật
@@ -119,6 +119,42 @@ const TEX_PLASMA_32DIR = [
 	preload("res://assets/sprites/towers/plasma/plasma_dir_29.png"),
 	preload("res://assets/sprites/towers/plasma/plasma_dir_30.png"),
 	preload("res://assets/sprites/towers/plasma/plasma_dir_31.png"),
+]
+
+const TexCombatBase = preload("res://assets/sprites/towers/combat/combat_base.png")
+const TEX_COMBAT_32DIR = [
+	preload("res://assets/sprites/towers/combat/combat_head_dir_0.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_1.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_2.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_3.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_4.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_5.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_6.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_7.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_8.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_9.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_10.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_11.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_12.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_13.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_14.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_15.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_16.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_17.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_18.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_19.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_20.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_21.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_22.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_23.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_24.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_25.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_26.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_27.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_28.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_29.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_30.png"),
+	preload("res://assets/sprites/towers/combat/combat_head_dir_31.png"),
 ]
 
 # TỌA ĐỘ ĐẦU NÒNG SÚNG (MUZZLE TIP) CHUẨN XÁC 100% THEO TỪNG HƯỚNG TRONG 32 HƯỚNG (Scale 1.0)
@@ -210,7 +246,7 @@ const PLASMA_BARREL_ANGLES: Array[float] = [
 
 ## Tìm frame sprite có góc nòng súng hướng chuẩn xác nhất vào góc mục tiêu 2D (So khớp góc thực tế của từng frame)
 static func get_closest_barrel_dir_idx(type: TowerType, target_angle: float) -> int:
-	var table: Array[float] = GATLING_BARREL_ANGLES if type == TowerType.GATLING_GUN else PLASMA_BARREL_ANGLES
+	var table: Array[float] = GATLING_BARREL_ANGLES if type == TowerType.GATLING_GUN or type == TowerType.COMBAT_TURRET else PLASMA_BARREL_ANGLES
 	var best_idx: int = 0
 	var min_diff: float = 999.0
 	for i in range(table.size()):
@@ -244,6 +280,7 @@ static func get_tower_name(type: TowerType) -> String:
 		TowerType.VOID_OBELISK: return "THÁP CHUÔNG HƯ KHÔNG"
 		TowerType.SPORE_SPITTER: return "BÀO TỬ ĂN MÒN"
 		TowerType.PYLON_BUFFER: return "ĐỀN THẦN TIẾP NĂNG LƯỢNG"
+		TowerType.COMBAT_TURRET: return "THÁP PHÁO CHIẾN ĐẤU (3D)"
 		_: return "THÁP PHÒNG THỦ"
 
 static func get_tower_tactics(type: TowerType) -> String:
@@ -257,12 +294,14 @@ static func get_tower_tactics(type: TowerType) -> String:
 		TowerType.VOID_OBELISK: return "HƯ KHÔNG (Bỏ Qua Giáp | % Máu Tối Đa)"
 		TowerType.SPORE_SPITTER: return "AXIT (Bào Mòn 30% Giáp | Lây Lan)"
 		TowerType.PYLON_BUFFER: return "HÀO QUANG (+25% Tốc | +15% Tầm Bắn)"
+		TowerType.COMBAT_TURRET: return "HẠNG NẶNG (Nòng Đôi Giật Lùi | Tia Photon)"
 		_: return ""
 
 const ProjectileClass = preload("res://scripts/stylized/AnimatedProjectile.gd")
 const LightningClass = preload("res://scripts/stylized/TeslaLightningEffect.gd")
 const CasingClass = preload("res://scripts/stylized/GatlingCasing.gd")
 const SoundSynthClass = preload("res://scripts/audio/SoundSynthesizer.gd")
+const CombatTextPoolClass = preload("res://scripts/stylized/CombatTextPool.gd")
 
 # ========================================================
 # TECH TREE MODIFIERS (Cộng hưởng từ Cây Kỹ Năng Công Nghệ)
@@ -424,6 +463,8 @@ func get_tier3_perk_name() -> String:
 			return "[CẤP 3: DỊCH BỆNH ĂN MÒN - BÀO MÒN GIÁP TOÀN BỘ QUÁI]"
 		TowerType.PYLON_BUFFER:
 			return "[CẤP 3: LÕI THỊNH VƯỢNG - BUFF +30% TỐC & +25G CUỐI WAVE]"
+		TowerType.COMBAT_TURRET:
+			return "[CẤP 3: NÒNG ĐÔI GIẬT NẢY KÉP - BẮN NHỊP SIÊU TỐC]"
 		_:
 			return "[CẤP 3: NỘI TẠI CHUYÊN HÓA]"
 
@@ -447,6 +488,8 @@ func get_tier4_perk_name() -> String:
 			return "[CẤP TỐI THƯỢNG: DỊCH BỆNH BĂNG HOẠI - BÀO MÒN 60% GIÁP & LÂY NHIỄM]"
 		TowerType.PYLON_BUFFER:
 			return "[CẤP TỐI THƯỢNG: THẦN ĐIỆN VĨNH CỬU - HÀO QUANG TOÀN ĐẢO & +50G CUỐI WAVE]"
+		TowerType.COMBAT_TURRET:
+			return "[CẤP TỐI THƯỢNG: PHÁO ĐÀI TITAN 3D - BÃO PHOTON LIÊN HOÀN]"
 		_:
 			return "[CẤP TỐI THƯỢNG: SỨC MẠNH VÔ SONG]"
 
@@ -507,6 +550,24 @@ var sprite_head: Sprite2D = null
 var _gatling_shader_mat: ShaderMaterial = null
 var _base_scale: float = 0.18
 var sound_synth: SoundSynthesizer = null
+
+# 3D SubViewport cho Tháp Pháo Chiến Đấu Hạng Nặng (COMBAT_TURRET 3D)
+var _vp_combat: SubViewport = null
+var _cam_combat: Camera3D = null
+var _model_combat: Node3D = null
+var _armature_combat: Node3D = null
+var _baserotate_combat: Node3D = null
+var _skel_combat: Skeleton3D = null
+var _bone_mane: int = -1
+var _bone_c1: int = -1
+var _bone_c2: int = -1
+var _bone_m1: int = -1
+var _bone_m2: int = -1
+var _rest_c1: Vector3 = Vector3.ZERO
+var _rest_c2: Vector3 = Vector3.ZERO
+var _cur_yaw_3d: float = 0.0
+var _recoil_slide: float = 0.0
+var _barrel_fire_left: bool = false
 
 # Vòng bụi trắng tiếp đất (Ground Dust Ring)
 var _ground_dust_radius: float = 0.0
@@ -573,6 +634,12 @@ func setup(type: TowerType) -> void:
 			damage = 0.0
 			base_cost = 130
 			_base_scale = 0.136
+		TowerType.COMBAT_TURRET:
+			attack_range = 280.0
+			attack_cooldown = 0.22
+			damage = 36.0
+			base_cost = 120
+			_base_scale = 0.245
 	total_invested = base_cost
 
 	if sprite_head:
@@ -588,6 +655,15 @@ func setup(type: TowerType) -> void:
 			sprite_head.frame = 0
 			sprite_head.material = null
 			sprite_head.texture = TEX_PLASMA_32DIR[_current_dir_idx]
+		elif tower_type == TowerType.COMBAT_TURRET:
+			sprite_head.hframes = 1
+			sprite_head.vframes = 1
+			sprite_head.frame = 0
+			sprite_head.material = null
+			if _vp_combat:
+				sprite_head.texture = _vp_combat.get_texture()
+			else:
+				sprite_head.texture = TEX_COMBAT_32DIR[_current_dir_idx]
 
 func _ready() -> void:
 	add_to_group("animated_towers")
@@ -615,7 +691,7 @@ func _ready() -> void:
 			sprite_base.texture = TexGatlingBase
 			sprite_base.centered = false
 			sprite_base.offset = Vector2(-320.0, -320.0)
-			_turret_mount_pos = Vector2(0.0, -20.0)
+			_turret_mount_pos = Vector2(0.0, -8.0)
 			sprite_base.position = _turret_mount_pos
 			sprite_base.visible = false
 
@@ -631,6 +707,15 @@ func _ready() -> void:
 			_turret_mount_pos = Vector2(0.0, -9.5)
 			sprite_base.position = _turret_mount_pos
 
+		TowerType.COMBAT_TURRET:
+			sprite_base.texture = TexCombatBase
+			sprite_base.centered = false
+			sprite_base.offset = Vector2(-320.0, -320.0)
+			_turret_mount_pos = Vector2(0.0, 10.3)
+			sprite_base.position = _turret_mount_pos
+			sprite_base.visible = false
+			_setup_combat_3d_viewport()
+
 		_:
 			# FROST_SPIRE, MAGMA_MONOLITH, VOID_OBELISK, SPORE_SPITTER, PYLON_BUFFER
 			sprite_base.texture = TexPlasmaBase
@@ -642,7 +727,7 @@ func _ready() -> void:
 	add_child(sprite_base)
 
 	# 2. LAYER 2: NÒNG/ĐẦU SÚNG (BARREL/HEAD) - Cho các tháp cơ khí xoay nòng 32 hướng
-	if tower_type == TowerType.GATLING_GUN or tower_type == TowerType.PLASMA_CANNON or tower_type == TowerType.SAM_BATTERY:
+	if tower_type == TowerType.GATLING_GUN or tower_type == TowerType.PLASMA_CANNON or tower_type == TowerType.SAM_BATTERY or tower_type == TowerType.COMBAT_TURRET:
 		sprite_head = Sprite2D.new()
 		sprite_head.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		sprite_head.scale = Vector2(_base_scale, _base_scale)
@@ -658,6 +743,19 @@ func _ready() -> void:
 			sprite_head.frame = 0
 			sprite_head.material = null
 			sprite_head.texture = TEX_GATLING_32DIR[_current_dir_idx]
+		elif tower_type == TowerType.COMBAT_TURRET:
+			sprite_head.hframes = 1
+			sprite_head.vframes = 1
+			sprite_head.frame = 0
+			sprite_head.material = null
+			if _vp_combat:
+				sprite_head.texture = _vp_combat.get_texture()
+				sprite_head.centered = true
+				sprite_head.offset = Vector2.ZERO
+				sprite_head.scale = Vector2(_base_scale, _base_scale)
+				sprite_head.position = _turret_mount_pos
+			else:
+				sprite_head.texture = TEX_COMBAT_32DIR[_current_dir_idx]
 		else:
 			sprite_head.hframes = 1
 			sprite_head.vframes = 1
@@ -666,6 +764,71 @@ func _ready() -> void:
 			sprite_head.texture = TEX_PLASMA_32DIR[_current_dir_idx]
 
 		add_child(sprite_head)
+
+## Khởi tạo 3D SubViewport cho Tháp Pháo Chiến Đấu Combat Turret (combat_turret.glb)
+func _setup_combat_3d_viewport() -> void:
+	if _vp_combat:
+		return
+	_vp_combat = SubViewport.new()
+	_vp_combat.size = Vector2i(512, 512)
+	_vp_combat.own_world_3d = true
+	_vp_combat.transparent_bg = true
+	_vp_combat.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_vp_combat)
+
+	var packed = load("res://assets/models/towers/combat_turret.glb") as PackedScene
+	if not packed:
+		push_error("[AnimatedTower] Không thể tải combat_turret.glb!")
+		return
+	_model_combat = packed.instantiate() as Node3D
+	_model_combat.position = Vector3(0.0, -0.65, 0.0)
+	_vp_combat.add_child(_model_combat)
+
+	# Môi trường ánh sáng tương thích 2.5D
+	var env = Environment.new()
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.72, 0.78, 0.88)
+	env.ambient_light_energy = 0.85
+	var we = WorldEnvironment.new()
+	we.environment = env
+	_vp_combat.add_child(we)
+
+	# Ánh sáng mặt trời chiếu nghiêng theo hướng đảo
+	var sun = DirectionalLight3D.new()
+	sun.light_color = Color(1.0, 0.96, 0.90)
+	sun.light_energy = 1.35
+	sun.rotation_degrees = Vector3(-45.0, 45.0, 0.0)
+	_vp_combat.add_child(sun)
+
+	# Ánh sáng tán xạ phụ
+	var fill_light = DirectionalLight3D.new()
+	fill_light.light_color = Color(0.25, 0.55, 0.90)
+	fill_light.light_energy = 0.45
+	fill_light.rotation_degrees = Vector3(25.0, -135.0, 0.0)
+	_vp_combat.add_child(fill_light)
+
+	# Camera trực giao isometric 28 độ chuẩn xác, bao quát toàn diện 360 độ không bị cắt hình
+	_cam_combat = Camera3D.new()
+	_cam_combat.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_cam_combat.size = 5.2
+	_cam_combat.position = Vector3(0.0, 1.45, 3.8)
+	_cam_combat.rotation_degrees = Vector3(-28.0, 0.0, 0.0)
+	_cam_combat.current = true
+	_vp_combat.add_child(_cam_combat)
+
+	_armature_combat = _model_combat.find_child("Armature", true, false) as Node3D
+	_baserotate_combat = _model_combat.find_child("baserotate_low_UV_2_0", true, false) as Node3D
+	_skel_combat = _model_combat.find_child("Skeleton3D", true, false) as Skeleton3D
+	if _skel_combat:
+		_bone_mane = _skel_combat.find_bone("ManeRotate_00")
+		_bone_c1 = _skel_combat.find_bone("CannonMane1_05")
+		_bone_c2 = _skel_combat.find_bone("CannonMane2_04")
+		_bone_m1 = _skel_combat.find_bone("CannonMane1_end_07")
+		_bone_m2 = _skel_combat.find_bone("CannonMane2_end_06")
+		if _bone_c1 >= 0:
+			_rest_c1 = _skel_combat.get_bone_rest(_bone_c1).origin
+		if _bone_c2 >= 0:
+			_rest_c2 = _skel_combat.get_bone_rest(_bone_c2).origin
 
 ## Cập nhật nòng súng Gatling Gun
 func _update_gatling_shader_dir() -> void:
@@ -688,11 +851,25 @@ func get_muzzle_local_pos() -> Vector2:
 				local_offset = PLASMA_MUZZLE_OFFSETS[_current_dir_idx]
 			else:
 				local_offset = Vector2(164.0, -129.0)
+		TowerType.COMBAT_TURRET:
+			return get_combat_muzzle_pos(_barrel_fire_left)
 		_:
 			return _turret_mount_pos + Vector2(0.0, -42.0)
 
 	# Đầu nòng súng vươn từ vị trí mount của ụ súng:
 	return sprite_head.position + local_offset * _base_scale
+
+## Tọa độ đầu nòng súng 3D thực tế theo thời gian thực (unproject từ xương nòng súng trái/phải)
+func get_combat_muzzle_pos(is_left: bool) -> Vector2:
+	if not sprite_head:
+		return _turret_mount_pos + Vector2(0.0, -30.0)
+	if _skel_combat and _cam_combat and _bone_m1 >= 0 and _bone_m2 >= 0:
+		var bone = _bone_m1 if is_left else _bone_m2
+		var m_3d = _skel_combat.to_global(_skel_combat.get_bone_global_pose(bone).origin)
+		var m_2d_vp = _cam_combat.unproject_position(m_3d)
+		var vp_offset = (m_2d_vp - Vector2(256.0, 256.0)) * sprite_head.scale
+		return sprite_head.position + vp_offset
+	return sprite_head.position + _aim_dir * (38.0 * _base_scale / 0.245)
 
 ## Vị trí tâm trục xoay của nòng súng trên bệ tháp trong tọa độ thế giới
 func get_gun_pivot_world_pos() -> Vector2:
@@ -726,10 +903,11 @@ func _process(delta: float) -> void:
 	if _swivel_cooldown > 0.0:
 		_swivel_cooldown -= delta
 
-	if _recoil_time > 0.0 and tower_type != TowerType.GATLING_GUN and tower_type != TowerType.PLASMA_CANNON:
-		_recoil_time -= delta
-		_recoil_offset = _recoil_offset.move_toward(Vector2.ZERO, delta * 36.0)
+	if _recoil_time > 0.0 and tower_type != TowerType.GATLING_GUN and tower_type != TowerType.PLASMA_CANNON and tower_type != TowerType.COMBAT_TURRET:
+		_recoil_time = maxf(0.0, _recoil_time - delta)
+		_recoil_offset = _recoil_offset.move_toward(Vector2.ZERO, delta * 120.0)
 		if _recoil_time <= 0.0:
+			_recoil_time = 0.0
 			_recoil_offset = Vector2.ZERO
 		if sprite_head:
 			sprite_head.position = _turret_mount_pos + _recoil_offset
@@ -856,18 +1034,86 @@ func _update_tower_specific_effects(delta: float) -> void:
 	if tower_type == TowerType.SPORE_SPITTER:
 		_spore_pulse_timer += delta * 2.2
 
+	if tower_type == TowerType.COMBAT_TURRET:
+		if absf(_recoil_slide) > 0.001:
+			_recoil_slide = move_toward(_recoil_slide, 0.0, delta * 2.8)
+			if _skel_combat:
+				var active_b = _bone_c1 if _barrel_fire_left else _bone_c2
+				var rest_pos = _rest_c1 if _barrel_fire_left else _rest_c2
+				if active_b >= 0:
+					_skel_combat.set_bone_pose_position(active_b, rest_pos + Vector3(0.0, _recoil_slide, 0.0))
+				var other_b = _bone_c2 if _barrel_fire_left else _bone_c1
+				var other_rest = _rest_c2 if _barrel_fire_left else _rest_c1
+				if other_b >= 0:
+					_skel_combat.set_bone_pose_position(other_b, other_rest)
+		elif _skel_combat and (_bone_c1 >= 0 or _bone_c2 >= 0):
+			_recoil_slide = 0.0
+			if _bone_c1 >= 0:
+				_skel_combat.set_bone_pose_position(_bone_c1, _rest_c1)
+			if _bone_c2 >= 0:
+				_skel_combat.set_bone_pose_position(_bone_c2, _rest_c2)
+
+## Cập nhật ngắm và khai hỏa cho Combat Turret 3D (Xoay 360 độ chính xác từng độ một, thân ụ súng cố định 100%)
+func _update_combat_aim_and_fire(delta: float) -> void:
+	var eff_cooldown = get_effective_cooldown()
+	var has_target = is_instance_valid(current_target) and not current_target.is_queued_for_deletion() and not current_target.get("_is_dead")
+
+	if has_target:
+		var target_chest = current_target.get_chest_world_pos() if current_target.has_method("get_chest_world_pos") else current_target.global_position + Vector2(0.0, -22.0)
+		var diff = target_chest - (global_position + _turret_mount_pos)
+		# Góc yaw chuẩn xác từ 2D sang 3D (Độ chính xác từng độ một, khớp tuyệt đối với bake camera):
+		var target_yaw_3d = -diff.angle() + deg_to_rad(90.0)
+		_cur_yaw_3d = lerp_angle(_cur_yaw_3d, target_yaw_3d, delta * 16.0)
+		_aim_dir = diff.normalized()
+
+		if _armature_combat:
+			_armature_combat.rotation.y = _cur_yaw_3d
+		if _baserotate_combat:
+			_baserotate_combat.rotation.y = _cur_yaw_3d
+		if _skel_combat and _bone_mane >= 0 and not _armature_combat:
+			_skel_combat.set_bone_pose_rotation(_bone_mane, Quaternion(Vector3.UP, _cur_yaw_3d))
+
+		# Firing gate mượt mà, duy trì nhịp bắn cơ khí đều đặn (không giật khựng, không ngắt quãng):
+		var angle_err = absf(angle_difference(_cur_yaw_3d, target_yaw_3d))
+		if angle_err <= deg_to_rad(28.0) and _cooldown_timer <= 0.0:
+			_cooldown_timer = eff_cooldown
+			_initiate_attack(current_target)
+	else:
+		# Quét tuần tra 360 độ mượt mà khi chưa có mục tiêu
+		_idle_patrol_timer += delta * 0.85
+		var patrol_target = sin(_idle_patrol_timer) * deg_to_rad(60.0) + deg_to_rad(90.0)
+		_cur_yaw_3d = lerp_angle(_cur_yaw_3d, patrol_target, delta * 3.5)
+		if _armature_combat:
+			_armature_combat.rotation.y = _cur_yaw_3d
+		if _baserotate_combat:
+			_baserotate_combat.rotation.y = _cur_yaw_3d
+		if _skel_combat and _bone_mane >= 0 and not _armature_combat:
+			_skel_combat.set_bone_pose_rotation(_bone_mane, Quaternion(Vector3.UP, _cur_yaw_3d))
+		var aim_a = -(_cur_yaw_3d - deg_to_rad(90.0))
+		_aim_dir = Vector2(cos(aim_a), sin(aim_a) * 0.5).normalized()
+
+	# Thân ụ súng CỐ ĐỊNH 100%, không bị dựt hay rung lắc
+	if sprite_head:
+		sprite_head.position = _turret_mount_pos
+		sprite_head.rotation = 0.0
+		sprite_head.scale = Vector2(_base_scale, _base_scale)
+
 func _update_aim_and_fire(delta: float) -> void:
 	var eff_range = get_effective_range()
 	var eff_cooldown = get_effective_cooldown()
 
 	if is_instance_valid(current_target) and not current_target.is_queued_for_deletion() and not current_target.get("_is_dead"):
-		if global_position.distance_to(current_target.global_position) > eff_range:
+		if global_position.distance_squared_to(current_target.global_position) > eff_range * eff_range:
 			current_target = null
 	else:
 		current_target = null
 
 	if not current_target:
 		current_target = _find_best_enemy()
+
+	if tower_type == TowerType.COMBAT_TURRET:
+		_update_combat_aim_and_fire(delta)
+		return
 
 	var prev_angle = _aim_angle
 	var pivot_pos = get_gun_pivot_world_pos()
@@ -894,19 +1140,21 @@ func _update_aim_and_fire(delta: float) -> void:
 				_update_gatling_shader_dir()
 			elif tower_type == TowerType.PLASMA_CANNON and sprite_head:
 				sprite_head.texture = TEX_PLASMA_32DIR[_current_dir_idx]
+			elif tower_type == TowerType.COMBAT_TURRET and sprite_head:
+				sprite_head.texture = TEX_COMBAT_32DIR[_current_dir_idx]
 
 			if sound_synth and _swivel_cooldown <= 0.0:
 				sound_synth.play_turret_swivel()
 				_swivel_cooldown = 0.25
 
 		# 2. TRỤC NÒNG SÚNG CHUẨN XÁC 100%: Đường đạn bắt buộc đồng trục hoàn toàn với nòng súng
-		var barrel_table: Array[float] = GATLING_BARREL_ANGLES if tower_type == TowerType.GATLING_GUN else PLASMA_BARREL_ANGLES
+		var barrel_table: Array[float] = GATLING_BARREL_ANGLES if tower_type == TowerType.GATLING_GUN or tower_type == TowerType.COMBAT_TURRET else PLASMA_BARREL_ANGLES
 		var cur_barrel_angle: float = barrel_table[_current_dir_idx]
 		_aim_dir = Vector2(cos(cur_barrel_angle), sin(cur_barrel_angle))
 
 		# 3. FIRING GATE: Cho phép khai hỏa khi nòng súng đã xoay khớp vào vùng mục tiêu (18° cho Gatling, 12° cho Plasma)
 		var angle_err = absf(angle_difference(cur_barrel_angle, _target_aim_angle))
-		var max_err = deg_to_rad(18.0) if tower_type == TowerType.GATLING_GUN else deg_to_rad(12.0)
+		var max_err = deg_to_rad(18.0) if tower_type == TowerType.GATLING_GUN or tower_type == TowerType.COMBAT_TURRET else deg_to_rad(12.0)
 		var is_aim_aligned = angle_err <= max_err
 
 		if is_aim_aligned and _cooldown_timer <= 0.0:
@@ -929,8 +1177,10 @@ func _update_aim_and_fire(delta: float) -> void:
 					_update_gatling_shader_dir()
 				elif tower_type == TowerType.PLASMA_CANNON:
 					sprite_head.texture = TEX_PLASMA_32DIR[_current_dir_idx]
+				elif tower_type == TowerType.COMBAT_TURRET:
+					sprite_head.texture = TEX_COMBAT_32DIR[_current_dir_idx]
 
-			var barrel_table: Array[float] = GATLING_BARREL_ANGLES if tower_type == TowerType.GATLING_GUN else PLASMA_BARREL_ANGLES
+			var barrel_table: Array[float] = GATLING_BARREL_ANGLES if tower_type == TowerType.GATLING_GUN or tower_type == TowerType.COMBAT_TURRET else PLASMA_BARREL_ANGLES
 			var cur_barrel_angle: float = barrel_table[_current_dir_idx]
 			_aim_dir = Vector2(cos(cur_barrel_angle), sin(cur_barrel_angle))
 
@@ -951,10 +1201,13 @@ func _update_aim_and_fire(delta: float) -> void:
 		sprite_head.rotation = 0.0
 		sprite_head.scale = Vector2(_base_scale, _base_scale)
 
-	# ĐẢM BẢO SPRITE ĐẦU THÁP GATLING LUÔN GIỮ TEXTURE 32 HƯỚNG CHUẨN XÁC, KHÔNG BỊ CO GIẬT MÉO HÌNH
+	# ĐẢM BẢO SPRITE ĐẦU THÁP LUÔN GIỮ TEXTURE 32 HƯỚNG CHUẨN XÁC, KHÔNG BỊ CO GIẬT MÉO HÌNH
 	if tower_type == TowerType.GATLING_GUN and sprite_head:
 		if sprite_head.texture != TEX_GATLING_32DIR[_current_dir_idx]:
 			sprite_head.texture = TEX_GATLING_32DIR[_current_dir_idx]
+	elif tower_type == TowerType.COMBAT_TURRET and sprite_head:
+		if sprite_head.texture != TEX_COMBAT_32DIR[_current_dir_idx]:
+			sprite_head.texture = TEX_COMBAT_32DIR[_current_dir_idx]
 
 	# Với Tesla: Tự phóng điện râm ran
 	if tower_type == TowerType.TESLA_COIL and is_instance_valid(current_target):
@@ -973,13 +1226,14 @@ func _find_best_enemy() -> Node2D:
 		return null
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	var eff_range = get_effective_range()
+	var range_sq: float = eff_range * eff_range
 	var in_range: Array[Node2D] = []
 
 	# Lọc kẻ địch còn sống trong tầm bắn
 	for e in enemies:
 		if is_instance_valid(e) and not e.is_queued_for_deletion() and not e.get("_is_dead"):
-			var d = global_position.distance_to(e.global_position)
-			if d <= eff_range:
+			var d_sq = global_position.distance_squared_to(e.global_position)
+			if d_sq <= range_sq:
 				in_range.append(e)
 
 	if in_range.is_empty():
@@ -1000,7 +1254,7 @@ func _find_best_enemy() -> Node2D:
 		TargetPriority.FIRST:
 			var max_prog: float = -999999.0
 			for e in in_range:
-				var prog = e.get_path_progress() if e.has_method("get_path_progress") else -global_position.distance_to(e.global_position)
+				var prog = e.get_path_progress() if e.has_method("get_path_progress") else -global_position.distance_squared_to(e.global_position)
 				if prog > max_prog:
 					max_prog = prog
 					best = e
@@ -1022,11 +1276,11 @@ func _find_best_enemy() -> Node2D:
 					best = e
 
 		TargetPriority.CLOSEST:
-			var min_dist: float = 999999.0
+			var min_dist_sq: float = 999999999.0
 			for e in in_range:
-				var d = global_position.distance_to(e.global_position)
-				if d < min_dist:
-					min_dist = d
+				var d_sq = global_position.distance_squared_to(e.global_position)
+				if d_sq < min_dist_sq:
+					min_dist_sq = d_sq
 					best = e
 
 		TargetPriority.FLYING:
@@ -1042,12 +1296,12 @@ func _find_best_enemy() -> Node2D:
 					if not has_flyer:
 						has_flyer = true
 						max_prog = -999999.0
-					var prog = e.get_path_progress() if e.has_method("get_path_progress") else -global_position.distance_to(e.global_position)
+					var prog = e.get_path_progress() if e.has_method("get_path_progress") else -global_position.distance_squared_to(e.global_position)
 					if prog > max_prog:
 						max_prog = prog
 						best = e
 				elif not has_flyer:
-					var prog = e.get_path_progress() if e.has_method("get_path_progress") else -global_position.distance_to(e.global_position)
+					var prog = e.get_path_progress() if e.has_method("get_path_progress") else -global_position.distance_squared_to(e.global_position)
 					if prog > max_prog:
 						max_prog = prog
 						best = e
@@ -1072,6 +1326,8 @@ func _initiate_attack(target: Node2D) -> void:
 			_fire_void(target)
 		TowerType.SPORE_SPITTER:
 			_fire_spore(target)
+		TowerType.COMBAT_TURRET:
+			_fire_combat(target)
 
 ## 1. GATLING GUN: Bắn liên thanh vệt vàng siêu tốc, nòng giật ngang, vỏ đạn văng theo video
 func _fire_gatling(target: Node2D) -> void:
@@ -1277,8 +1533,8 @@ func _fire_tesla(target: Node2D) -> void:
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and e != target and not e.is_queued_for_deletion():
-			var dist = target.global_position.distance_to(e.global_position)
-			if dist <= 130.0:
+			var dist_sq = target.global_position.distance_squared_to(e.global_position)
+			if dist_sq <= 16900.0: # 130.0 * 130.0
 				secondary_targets.append(e.global_position + Vector2(0, -22.0))
 				if e.has_method("electrocute"):
 					e.electrocute(0.20)
@@ -1379,22 +1635,63 @@ func _fire_spore(target: Node2D) -> void:
 	if sound_synth:
 		sound_synth.play_hit()
 
+## 10. COMBAT TURRET: Tháp pháo chiến đấu hạng nặng nòng đôi 3D (combat_turret.glb)
+## Nòng thụt lùi giật nảy (Recoil), xoay 360 độ, bắn đạn từ chính xác từng đầu nòng súng, nhịp điệu đều đặn
+func _fire_combat(target: Node2D) -> void:
+	emit_signal("tower_fired", self, target)
+	_shots_fired_count += 1
+	var eff_dmg = get_effective_damage()
+
+	# THÂN Ụ SÚNG CỐ ĐỊNH 100%, TUYỆT ĐỐI KHÔNG BỊ DỰT KHI BẮN:
+	_recoil_offset = Vector2.ZERO
+	if sprite_head:
+		sprite_head.position = _turret_mount_pos
+
+	# Luân phiên bắn giữa nòng trái và nòng phải theo nhịp cơ khí đều đặn:
+	_barrel_fire_left = not _barrel_fire_left
+	_recoil_slide = -0.28
+	_recoil_time = 0.12
+
+	var is_left = _barrel_fire_left
+	var muzzle_pos = global_position + get_combat_muzzle_pos(is_left)
+
+	# Chớp lửa đầu nòng đúng tại vị trí đầu nòng bắn:
+	_muzzle_flash_timer = 0.08
+	_muzzle_flash_rot = randf_range(-PI, PI)
+	_muzzle_flash_scale = randf_range(1.10, 1.30)
+	_spawn_muzzle_smoke(muzzle_pos, _aim_dir)
+
+	# Bắn đạn chính xác từ ĐẦU NÒNG SÚNG đang khai hỏa:
+	var spawn_parent = _get_spawn_parent()
+	var proj = ProjectileClass.new()
+	proj.source_tower = self
+	if spawn_parent:
+		spawn_parent.add_child(proj)
+
+	var dmg_factor = 1.0 if level < 3 else (1.25 if level == 3 else 1.55)
+	proj.launch_straight(muzzle_pos, _aim_dir, target, eff_dmg * dmg_factor, ProjectileClass.ProjectileType.GATLING_BULLET)
+
+	# Phát âm thanh pháo chiến đấu nòng đôi dội vang, đanh thép, đều đặn theo nhịp cơ khí:
+	if sound_synth:
+		sound_synth.play_combat_cannon_shot(is_left)
+
 ## 9. PYLON BUFFER: Hào quang buff tốc đánh + tầm bắn & thanh tẩy trừ tà
 func _pulse_pylon_aura() -> void:
 	var eff_range = get_effective_range()
+	var eff_range_sq = eff_range * eff_range
 	var spd_mult = 1.35 if level >= 3 else 1.25
 	var rng_mult = 1.25 if level >= 3 else 1.15
 	var parent_node = get_parent()
 	if parent_node:
 		for sibling in parent_node.get_children():
 			if is_instance_valid(sibling) and sibling is AnimatedTower and sibling != self:
-				if global_position.distance_to(sibling.global_position) <= eff_range:
+				if global_position.distance_squared_to(sibling.global_position) <= eff_range_sq:
 					sibling.apply_pylon_buff(spd_mult, rng_mult, 0.75)
 
 	var enemies = get_tree().get_nodes_in_group("animated_enemies")
 	for e in enemies:
 		if is_instance_valid(e) and not e.is_queued_for_deletion() and not e.get("_is_dead"):
-			if global_position.distance_to(e.global_position) <= eff_range:
+			if global_position.distance_squared_to(e.global_position) <= eff_range_sq:
 				if e.get("is_ethereal") or e.get("armor_type") == AnimatedEnemy.ArmorType.ETHEREAL:
 					e.take_damage(25.0, AnimatedEnemy.DamageType.TRUE_DAMAGE)
 
@@ -1440,6 +1737,12 @@ func apply_jammed(duration: float = 3.0, slow_pct: float = 0.35) -> void:
 	queue_redraw()
 
 func _spawn_combat_text(txt: String, col: Color) -> void:
+	var spawn_pos = global_position + Vector2(randf_range(-20.0, 10.0), -65.0)
+	var pool = CombatTextPoolClass.get_instance()
+	if pool:
+		pool.spawn_text(spawn_pos, txt, col, 16, 32.0, 0.65)
+		return
+
 	if not is_inside_tree() or not get_tree() or not get_tree().current_scene:
 		return
 	var label = Label.new()
@@ -1448,7 +1751,7 @@ func _spawn_combat_text(txt: String, col: Color) -> void:
 	label.add_theme_color_override("font_color", col)
 	label.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05, 0.95))
 	label.add_theme_constant_override("outline_size", 4)
-	label.global_position = global_position + Vector2(randf_range(-20.0, 10.0), -65.0)
+	label.global_position = spawn_pos
 	label.z_index = 32
 	get_tree().current_scene.add_child(label)
 
@@ -1533,8 +1836,8 @@ func _draw() -> void:
 	var center_ground = Vector2(0.0, 0.0)
 
 	# 0. BỆ ĐÁ CỔ NGỮ ISOMETRIC 2 LỚP & BÓNG TIẾP ĐẤT DƯỚI CHÂN TRỤ (GROUNDING & TACTICAL STONE PLINTH)
-	# Quy tắc 4 AGENTS.md: Trụ Gatling đã có chân đế cơ giới và đổ bóng nguyên vẹn, cấm vẽ vòng tròn/đa giác đen giả nhân tạo
-	if tower_type != TowerType.GATLING_GUN:
+	# Quy tắc 4 AGENTS.md: Trụ Gatling và Combat Turret đã có chân đế cơ giới và đổ bóng nguyên vẹn, cấm vẽ vòng tròn/đa giác đen giả nhân tạo
+	if tower_type != TowerType.GATLING_GUN and tower_type != TowerType.COMBAT_TURRET:
 		_ensure_static_plinth()
 
 		# Lớp 1 (Ambient Occlusion Shadow): Elip đen mềm rx = 26, ry = 13, Color(0.02, 0.05, 0.02, 0.55)

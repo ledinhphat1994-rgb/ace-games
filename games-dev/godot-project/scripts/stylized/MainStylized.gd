@@ -15,6 +15,7 @@ const EnemyClass = preload("res://scripts/stylized/AnimatedEnemy.gd")
 const CameraClass = preload("res://scripts/stylized/StylizedCameraController.gd")
 const SoundSynthClass = preload("res://scripts/audio/SoundSynthesizer.gd")
 const HudVectorIcon = preload("res://scripts/stylized/HudVectorIcon.gd")
+const CombatTextPoolClass = preload("res://scripts/stylized/CombatTextPool.gd")
 
 # Card Tháp Pháo chân thực, sắc nét 100% (Render từ mô hình tháp thật)
 const CardGatling = preload("res://assets/textures/cards/card_gatling.png")
@@ -22,6 +23,7 @@ const CardPlasma = preload("res://assets/textures/cards/card_plasma.png")
 const CardTesla = preload("res://assets/textures/cards/card_tesla.png")
 const CardSAM = preload("res://assets/textures/cards/card_sam.png")
 const CardFrost = preload("res://assets/textures/cards/card_frost.png")
+const CardCombat = preload("res://assets/textures/cards/card_combat_turret.png")
 
 # Icon Nút Bottom Bar
 const IconBtnTower = preload("res://assets/textures/cards/btn_hud_tower.png")
@@ -58,6 +60,8 @@ const TexGatlingTurretDir0 = preload("res://assets/sprites/towers/gatling/gatlin
 const TexPlasmaBase = preload("res://assets/sprites/tower_plasma_base.png")
 const TexPlasmaTurretDir0 = preload("res://assets/sprites/towers/plasma/plasma_dir_0.png")
 const TexTesla = preload("res://assets/sprites/tower_tesla_coil.png")
+const TexCombatBase = preload("res://assets/sprites/towers/combat/combat_base.png")
+const TexCombatHeadDir0 = preload("res://assets/sprites/towers/combat/combat_head_dir_0.png")
 const TexPlacementMask = preload("res://assets/textures/placement_mask.png")
 
 var placement_mask_image: Image = null
@@ -238,17 +242,46 @@ class MapAnimatedFXLayer extends Node2D:
 			var sp_alpha = maxf(0.0, sin(t * 3.0 + float(j) * 1.7)) * 0.75
 			draw_circle(Vector2(sp_x, sp_y), 2.2, Color(1.0, 1.0, 1.0, sp_alpha))
 
-		# 2. VÒNG XOÁY CỔ NGỮ TÍM QUAY TRÒN TRONG CỔNG DỊCH CHUYỂN (Portal Vortex)
-		var portal_pos = Vector2(115.0, 395.0)
+		# 2. VÒNG XOÁY CỔ NGỮ TÍM QUAY TRÒN TRONG 2 CỔNG DỊCH CHUYỂN (Dual Purple Portal Vortexes)
+		var portal_positions = [Vector2(115.0, 395.0), Vector2(235.0, 155.0)]
 		var portal_rot = t * 2.2
 		var p_glow = 0.5 + 0.5 * sin(t * 4.0)
-		draw_circle(portal_pos, 24.0, Color(0.55, 0.15, 0.85, 0.20 + 0.10 * p_glow))
-		for ring in range(3):
-			var r_rad = 10.0 + float(ring) * 6.5
-			var r_dir = 1.0 if ring % 2 == 0 else -1.0
-			var r_rot = portal_rot * r_dir + float(ring) * 0.8
-			draw_arc(portal_pos, r_rad, r_rot, r_rot + PI * 1.35, 20, Color(0.75, 0.35, 1.0, 0.65), 1.8)
-		draw_circle(portal_pos, 5.0, Color(0.95, 0.85, 1.0, 0.85))
+		for p_pos in portal_positions:
+			draw_circle(p_pos, 26.0, Color(0.45, 0.10, 0.75, 0.25 + 0.15 * p_glow))
+			draw_circle(p_pos, 16.0, Color(0.20, 0.05, 0.35, 0.85))
+			for ring in range(3):
+				var r_rad = 10.0 + float(ring) * 6.0
+				var r_dir = 1.0 if ring % 2 == 0 else -1.0
+				var r_rot = portal_rot * r_dir + float(ring) * 0.85
+				draw_arc(p_pos, r_rad, r_rot, r_rot + PI * 1.35, 20, Color(0.85, 0.35, 1.0, 0.80), 2.2)
+			draw_circle(p_pos, 6.0, Color(1.0, 0.85, 1.0, 0.95))
+			# Hạt lượng tử xoắn ốc hút vào tâm cổng (Quantum Spiral Particles)
+			for p_idx in range(6):
+				var p_angle = portal_rot * 1.8 + float(p_idx) * (TAU / 6.0)
+				var p_dist = fmod(t * 22.0 + float(p_idx) * 4.5, 24.0)
+				var pt = p_pos + Vector2(cos(p_angle), sin(p_angle) * 0.65) * (26.0 - p_dist)
+				var p_a = (p_dist / 24.0) * 0.90
+				draw_circle(pt, 1.8, Color(0.55, 0.90, 1.0, p_a))
+
+		# 3. NGỌN LỬA RỰC CHÁY TRÊN ĐỈNH THÁP CANH ĐÁ TRUNG TÂM (Central Watchtower Fire Brazier)
+		var tower_roof = Vector2(675.0, 305.0)
+		var f_flicker = sin(t * 12.0) * 2.5
+		var f_h = 16.0 + sin(t * 9.0) * 4.0
+		# Đốm lửa ngoài cam đỏ
+		var pts_f1 = PackedVector2Array([
+			tower_roof + Vector2(-10.0, 0.0),
+			tower_roof + Vector2(0.0, -f_h + f_flicker),
+			tower_roof + Vector2(10.0, 0.0)
+		])
+		draw_colored_polygon(pts_f1, Color(1.0, 0.35, 0.05, 0.85))
+		# Lõi lửa vàng sáng
+		var pts_f2 = PackedVector2Array([
+			tower_roof + Vector2(-6.0, 0.0),
+			tower_roof + Vector2(f_flicker * 0.5, -f_h * 0.7),
+			tower_roof + Vector2(6.0, 0.0)
+		])
+		draw_colored_polygon(pts_f2, Color(1.0, 0.85, 0.20, 0.95))
+		draw_circle(tower_roof + Vector2(0.0, -2.0), 5.0, Color(1.0, 0.95, 0.65, 0.95))
 
 
 
@@ -327,6 +360,46 @@ var is_placement_valid: bool = false
 var targeted_build_pos: Vector2 = Vector2.ZERO
 var _js_callbacks: Array = []
 
+# Sci-Fi Holographic Tactical Deck References
+const TowerFanOutArcScript = preload("res://scripts/stylized/TowerFanOutArc.gd")
+const HexHoloGridLayerScript = preload("res://scripts/stylized/HexHoloGridLayer.gd")
+const SciFiHoloReticleScript = preload("res://scripts/stylized/SciFiHoloReticle.gd")
+const FlyingCreditParticleScript = preload("res://scripts/stylized/FlyingCreditParticle.gd")
+const SciFiCardTooltipHUDScript = preload("res://scripts/stylized/SciFiCardTooltipHUD.gd")
+
+var health_plasma_rect: ColorRect = null
+var wave_holo_dropdown: PanelContainer = null
+var tower_fan_out_arc: Control = null
+var hex_holo_grid_layer: Node2D = null
+var active_reticle: Node2D = null
+var card_tooltip_hud: Control = null
+
+
+# Tuyến đường phân nhánh & Ô địa hình mở rộng
+const PATH_NORTH_BRANCH: Array[Vector2] = [
+	Vector2(145.0, 400.0), # W0: Cổng Portal Tây
+	Vector2(185.0, 345.0), # W1: Rẽ nhánh Bắc ven rừng thông
+	Vector2(245.0, 305.0), # W2: Tiến vào thềm cầu gỗ Bắc
+	Vector2(310.0, 280.0), # W3: Vượt suối qua cầu gỗ Tây Bắc
+	Vector2(380.0, 265.0), # W4: Ven mỏm đồi tháp Bắc
+	Vector2(460.0, 255.0), # W5: Bình nguyên mỏm đá hoa cương
+	Vector2(550.0, 250.0), # W6: Vượt ngang phía sau tháp canh
+	Vector2(660.0, 260.0), # W7: Đồng cỏ Bắc
+	Vector2(780.0, 280.0), # W8: Thung lũng cối xay gió
+	Vector2(880.0, 320.0), # W9: Ngã ba đường đồi Đông Bắc
+	Vector2(980.0, 350.0), # W10: Ven bờ hồ nước
+	Vector2(1060.0, 375.0), # W11: Nhập vào đại lộ trước pháo đài
+	Vector2(1140.0, 335.0), # W12: Tim sàn dốc đá
+	Vector2(1178.0, 312.0)  # W13: Cửa Pháo Đài
+]
+
+const EXPANDED_TACTICAL_PADS: Array[Vector2] = [
+	Vector2(440.0, 315.0), # Pad 14: Thềm đá kiểm soát nhánh cầu gỗ Bắc
+	Vector2(760.0, 310.0), # Pad 15: Vọng đồi cối xay gió Bắc
+	Vector2(330.0, 350.0), # Pad 16: Thảo nguyên ngã ba đường đồi Tây
+	Vector2(910.0, 270.0)  # Pad 17: Mỏm đá cao điểm Đông Bắc
+]
+
 # Node tham chiếu
 
 @onready var island_sprite: Sprite2D = $IslandContainer/IslandSprite
@@ -337,7 +410,7 @@ var _js_callbacks: Array = []
 # UI References
 @onready var label_score: Label = $UI/HUD/ScoreBox/Margin/HBox/LabelScoreVal
 @onready var label_health: Label = get_node_or_null("UI/HUD/HealthBox/Margin/HBox/LabelHealthVal")
-var health_progress_bar: ProgressBar = null
+var health_progress_bar: Range = null
 @onready var label_wave: Label = $UI/HUD/WaveBox/Margin/HBox/LabelWaveVal
 @onready var label_gold: Label = $UI/HUD/WaveBox/Margin/HBox/LabelGoldVal
 @onready var label_wave_intel: Label = get_node_or_null("UI/HUD/WaveIntelBox/Margin/LabelWaveIntel")
@@ -357,6 +430,7 @@ var health_progress_bar: ProgressBar = null
 @onready var btn_quick_gatling: Button = $UI/HUD/QuickTowerTray/Margin/HBox/BtnQuickGatling
 @onready var btn_quick_plasma: Button = $UI/HUD/QuickTowerTray/Margin/HBox/BtnQuickPlasma
 @onready var btn_quick_tesla: Button = $UI/HUD/QuickTowerTray/Margin/HBox/BtnQuickTesla
+@onready var btn_quick_combat: Button = $UI/HUD/QuickTowerTray/Margin/HBox/BtnQuickCombat
 var btn_quick_sam: Button = null
 var btn_quick_frost: Button = null
 @onready var btn_close_tower_tray: Button = $UI/HUD/QuickTowerTray/Margin/HBox/BtnCloseTowerTray
@@ -458,6 +532,12 @@ var is_sound_muted: bool = false
 
 # Mobile Touch UX: Nút Bẫy Cầu Trực Quan Trên Màn Hình Cảm Ứng [E]
 var btn_bridge_emp: Button = null
+var _cached_cd_overlay: Node = null
+var _cached_cd_lbl: Label = null
+var _last_bridge_emp_cd_sec: int = -1
+
+var _cached_lbl_tube: Label = null
+var _cached_status_led: ColorRect = null
 
 # Sprint 9: Chế Độ Vô Tận (Endless Survival Wave 11+)
 var is_endless_mode: bool = false
@@ -498,6 +578,7 @@ var bridge_emp_timer: float = 0.0
 var _bridge_emp_shockwave_radius: float = 0.0
 var _bridge_emp_shockwave_alpha: float = 0.0
 var _castle_hit_shake: float = 0.0
+var _watchtower_fire_timer: float = 0.0
 
 # Dữ liệu Cây Kỹ Năng / Vi Mạch Hoạt Tính (Kingdom Rush Skill Tree)
 var skill_tier_range: int = 0
@@ -530,7 +611,37 @@ const SKILL_DATA: Dictionary = {
 	}
 }
 
+func _setup_scifi_world_environment() -> void:
+	var we = get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if not we:
+		we = WorldEnvironment.new()
+		we.name = "WorldEnvironment"
+		add_child(we)
+
+	var env = we.environment
+	if not env:
+		env = Environment.new()
+		we.environment = env
+
+	env.background_mode = Environment.BG_CANVAS
+	env.glow_enabled = true
+	env.glow_intensity = 0.85
+	env.glow_bloom = 0.25
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	env.glow_hdr_threshold = 1.0
+	env.glow_hdr_scale = 1.8
+
+func _is_mobile_platform() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+
 func _ready() -> void:
+	_setup_scifi_world_environment()
+
+	if not hex_holo_grid_layer:
+		hex_holo_grid_layer = HexHoloGridLayerScript.new()
+		hex_holo_grid_layer.name = "HexHoloGridLayer"
+		add_child(hex_holo_grid_layer)
+
 	static_atmosphere_layer = StaticAtmosphereLayer.new()
 	static_atmosphere_layer.name = "StaticAtmosphereLayer"
 	add_child(static_atmosphere_layer)
@@ -540,6 +651,10 @@ func _ready() -> void:
 	map_animated_fx_layer.main_ref = self
 	map_animated_fx_layer.z_index = -2 # Trên IslandSprite (z = -5), dưới TowersContainer/EnemiesContainer (z = 0)
 	add_child(map_animated_fx_layer)
+
+	var combat_text_pool = CombatTextPoolClass.new()
+	combat_text_pool.name = "CombatTextPool"
+	add_child(combat_text_pool)
 
 	if TexPlacementMask:
 		placement_mask_image = TexPlacementMask.get_image()
@@ -570,6 +685,7 @@ func _ready() -> void:
 	if btn_quick_gatling: btn_quick_gatling.pressed.connect(func(): _on_quick_tower_selected(TowerClass.TowerType.GATLING_GUN, 100))
 	if btn_quick_plasma: btn_quick_plasma.pressed.connect(func(): _on_quick_tower_selected(TowerClass.TowerType.PLASMA_CANNON, 60))
 	if btn_quick_tesla: btn_quick_tesla.pressed.connect(func(): _on_quick_tower_selected(TowerClass.TowerType.TESLA_COIL, 150))
+	if btn_quick_combat: btn_quick_combat.pressed.connect(func(): _on_quick_tower_selected(TowerClass.TowerType.COMBAT_TURRET, 120))
 	if btn_quick_sam: btn_quick_sam.pressed.connect(func(): _on_quick_tower_selected(TowerClass.TowerType.SAM_BATTERY, 120))
 	if btn_quick_frost: btn_quick_frost.pressed.connect(func(): _on_quick_tower_selected(TowerClass.TowerType.FROST_SPIRE, 90))
 	if btn_close_tower_tray: btn_close_tower_tray.pressed.connect(func(): quick_tower_tray.visible = false)
@@ -808,11 +924,29 @@ func _ready() -> void:
 			_js_callbacks.append(cb_overclock)
 			win.activateOverclock = cb_overclock
 
+			var cb_holo = JavaScriptBridge.create_callback(func(args):
+				_toggle_wave_holo_dropdown()
+			)
+			_js_callbacks.append(cb_holo)
+			win.toggleHoloDropdown = cb_holo
+
+			var cb_meteor = JavaScriptBridge.create_callback(func(args):
+				_cast_spell_meteor()
+			)
+			_js_callbacks.append(cb_meteor)
+			win.castMeteor = cb_meteor
+
+			var cb_credits = JavaScriptBridge.create_callback(func(args):
+				_trigger_call_wave_bezier_particles()
+			)
+			_js_callbacks.append(cb_credits)
+			win.triggerCreditParticles = cb_credits
+
 
 
 
 	# Đặt sẵn 2 tháp phòng thủ mẫu trên thềm cỏ chiến thuật (Pad 6 & Pad 7) vững chãi sát mặt đất
-	_build_tower_at_position(BUILD_PADS[6], TowerClass.TowerType.GATLING_GUN, true)
+	_build_tower_at_position(BUILD_PADS[6], TowerClass.TowerType.COMBAT_TURRET, true)
 	_build_tower_at_position(BUILD_PADS[7], TowerClass.TowerType.PLASMA_CANNON, true)
 
 	# Tự động khởi động Đợt 1 sau 1.2s để người chơi thấy quái xuất trận ngay
@@ -823,6 +957,52 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	Engine.time_scale = 1.0
+
+func _fire_watchtower_cannonball(target_p: Vector2) -> void:
+	var cannonball = Node2D.new()
+	cannonball.position = Vector2(675.0, 305.0)
+	cannonball.z_index = 8
+	add_child(cannonball)
+
+	var start_p = cannonball.position
+	var tw = cannonball.create_tween()
+	var duration = 0.42
+	tw.tween_method(func(progress: float):
+		if not is_instance_valid(cannonball): return
+		var p0 = start_p
+		var p2 = target_p
+		var p1 = (p0 + p2) * 0.5 + Vector2(0.0, -50.0)
+		cannonball.position = (1.0 - progress) * (1.0 - progress) * p0 + 2.0 * (1.0 - progress) * progress * p1 + progress * progress * p2
+		cannonball.queue_redraw()
+	, 0.0, 1.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	cannonball.draw.connect(func():
+		if is_instance_valid(cannonball):
+			cannonball.draw_circle(Vector2.ZERO, 9.0, Color(1.0, 0.45, 0.1, 0.45))
+			cannonball.draw_circle(Vector2.ZERO, 6.0, Color(1.0, 0.85, 0.2, 0.90))
+			cannonball.draw_circle(Vector2.ZERO, 3.0, Color(1.0, 1.0, 1.0, 1.0))
+	)
+
+	tw.tween_callback(func():
+		if is_instance_valid(cannonball):
+			if sound_synth:
+				sound_synth.play_plasma_cannon()
+			var shock = ShockwaveRing.new()
+			shock.position = target_p
+			shock.color = Color(1.0, 0.55, 0.15)
+			shock.max_radius = 45.0
+			shock.duration = 0.35
+			add_child(shock)
+
+			var enemies = AnimatedEnemy.get_active_enemies() if not AnimatedEnemy.get_active_enemies().is_empty() else get_tree().get_nodes_in_group("animated_enemies")
+			for e in enemies:
+				if is_instance_valid(e) and e.has_method("take_damage"):
+					if target_p.distance_squared_to(e.global_position) <= 5625.0: # 75.0^2
+						e.take_damage(40.0, 2) # DamageType.THERMAL_PLASMA
+						if e.has_method("_spawn_combat_text"):
+							e._spawn_combat_text("-40 HỎA PHÁO!", Color(1.0, 0.6, 0.2))
+			cannonball.queue_free()
+	)
 
 func _process(delta: float) -> void:
 	_idle_time += delta
@@ -847,6 +1027,24 @@ func _process(delta: float) -> void:
 		if supply_pods[p_idx]["time_left"] <= 0.0:
 			collect_supply_pod(p_idx, true)
 		p_idx -= 1
+
+	# Pháo đài tháp canh đá trung tâm bắn đạn pháo lửa yểm trợ khi có quái tiếp cận
+	if is_wave_active:
+		_watchtower_fire_timer += delta
+		if _watchtower_fire_timer >= 2.4:
+			var tower_p = Vector2(675.0, 360.0)
+			var enemies = AnimatedEnemy.get_active_enemies() if not AnimatedEnemy.get_active_enemies().is_empty() else get_tree().get_nodes_in_group("animated_enemies")
+			var candidate = null
+			var closest_d_sq = 115600.0 # 340.0 * 340.0
+			for e in enemies:
+				if is_instance_valid(e) and e.get("current_hp") > 0:
+					var d_sq = tower_p.distance_squared_to(e.global_position)
+					if d_sq < closest_d_sq:
+						closest_d_sq = d_sq
+						candidate = e
+			if candidate:
+				_watchtower_fire_timer = 0.0
+				_fire_watchtower_cannonball(candidate.global_position)
 
 	# Nhịp sinh quái
 	if is_wave_active and _enemies_remaining > 0:
@@ -1071,6 +1269,13 @@ func _draw_placement_preview() -> void:
 			var base_dest = Rect2(pos + Vector2(-2.0, -27.0) - Vector2(180.0, 335.0) * scale_t, Vector2(360.0, 670.0) * scale_t)
 			draw_texture_rect(TexTesla, base_dest, false, ghost_modulate)
 
+		TowerClass.TowerType.COMBAT_TURRET:
+			var scale_c = 0.145
+			var mount_offset = Vector2(0.0, -18.0)
+			var base_dest = Rect2(pos + mount_offset - Vector2(320.0, 320.0) * scale_c, Vector2(640.0, 640.0) * scale_c)
+			draw_texture_rect(TexCombatBase, base_dest, false, ghost_modulate)
+			draw_texture_rect(TexCombatHeadDir0, base_dest, false, ghost_modulate)
+
 	# 4. NHÃN TRẠNG THÁI NỔI (STATUS BADGE)
 	var badge_pos = pos + Vector2(0.0, -85.0)
 	var badge_w = 230.0
@@ -1142,7 +1347,10 @@ func _input(event: InputEvent) -> void:
 			var inside_any_popup: bool = false
 			for p in popups_to_check:
 				if p and is_instance_valid(p) and p.is_visible_in_tree():
-					if p.get_global_rect().has_point(screen_pos):
+					var r = p.get_global_rect()
+					if r.position.x < 0.0 or r.position.y < 0.0:
+						r.position += Vector2(688.0, 384.0)
+					if r.has_point(screen_pos):
 						inside_any_popup = true
 						break
 
@@ -1213,6 +1421,15 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_btn_next_wave_pressed()
 				get_viewport().set_input_as_handled()
 				return
+		elif event.keycode == KEY_F:
+			_cast_spell_meteor()
+			get_viewport().set_input_as_handled()
+			return
+		elif event.keycode == KEY_N:
+			if btn_next_wave and btn_next_wave.visible and not btn_next_wave.disabled:
+				call_wave_early()
+				get_viewport().set_input_as_handled()
+				return
 		elif event.keycode == KEY_E:
 			activate_bridge_emp()
 			get_viewport().set_input_as_handled()
@@ -1229,6 +1446,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_ESCAPE:
 			if is_placing_tower:
 				is_placing_tower = false
+				if hex_holo_grid_layer: hex_holo_grid_layer.hide_grid()
 				queue_redraw()
 				if web_bridge: web_bridge.show_toast("Đã hủy đặt tháp.", "info")
 				get_viewport().set_input_as_handled()
@@ -1246,6 +1464,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if quick_tower_tray and quick_tower_tray.visible:
 				quick_tower_tray.visible = false
 				closed_any = true
+			if tower_fan_out_arc and tower_fan_out_arc.is_open:
+				tower_fan_out_arc.close_arc()
+				closed_any = true
 			if quick_spell_tray and quick_spell_tray.visible:
 				quick_spell_tray.visible = false
 				closed_any = true
@@ -1262,13 +1483,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.is_pressed():
 				if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 					is_placing_tower = false
+					if hex_holo_grid_layer: hex_holo_grid_layer.hide_grid()
 					queue_redraw()
 					if web_bridge: web_bridge.show_toast("Đã hủy đặt tháp.", "info")
 					return
 				var click_pos = get_global_mouse_position()
-				# Tối ưu Cảm ứng: Snap vào tâm BUILD_PADS gần nhất nếu trong bán kính 48px
+				# Tối ưu Cảm ứng: Snap vào tâm BUILD_PADS hoặc EXPANDED_TACTICAL_PADS gần nhất nếu trong bán kính 48px
 				var target_pos = click_pos
-				for p in BUILD_PADS:
+				var all_pads = BUILD_PADS.duplicate()
+				all_pads.append_array(EXPANDED_TACTICAL_PADS)
+				for p in all_pads:
 					if click_pos.distance_to(p) <= 48.0:
 						var occupied = false
 						for t in towers_container.get_children():
@@ -1286,6 +1510,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_build_tower_at_position(placement_preview_pos, placing_tower_type, false)
 						_update_hud()
 						is_placing_tower = false
+						if hex_holo_grid_layer: hex_holo_grid_layer.hide_grid()
 						queue_redraw()
 					else:
 						if web_bridge:
@@ -1415,6 +1640,7 @@ func _on_select_tower_type(type: int, cost: int) -> void:
 		TowerClass.TowerType.VOID_OBELISK: placing_range = 250.0
 		TowerClass.TowerType.SPORE_SPITTER: placing_range = 210.0
 		TowerClass.TowerType.PYLON_BUFFER: placing_range = 180.0
+		TowerClass.TowerType.COMBAT_TURRET: placing_range = 280.0
 	placing_range *= TowerClass.tech_range_mult
 	placement_preview_pos = get_global_mouse_position()
 	is_placement_valid = _is_valid_build_position(placement_preview_pos)
@@ -1758,6 +1984,9 @@ func _on_btn_next_wave_pressed() -> void:
 
 	_update_hud()
 
+	# Bắn các khối Credits bay theo đường cong Bezier lên ô VÀNG ở góc phải
+	_trigger_call_wave_bezier_particles()
+
 	if web_bridge:
 		web_bridge.trigger_haptic("medium")
 
@@ -1818,7 +2047,7 @@ func _restart_game(keep_hardcore: bool = false) -> void:
 	_refresh_skill_tree_ui()
 
 	# Dựng lại 2 tháp mẫu mặc định tại Pad 6 và Pad 7 vững chãi sát mặt đất
-	_build_tower_at_position(BUILD_PADS[6], TowerClass.TowerType.GATLING_GUN, true)
+	_build_tower_at_position(BUILD_PADS[6], TowerClass.TowerType.COMBAT_TURRET, true)
 	_build_tower_at_position(BUILD_PADS[7], TowerClass.TowerType.PLASMA_CANNON, true)
 
 	btn_next_wave.disabled = false
@@ -1914,7 +2143,12 @@ func _spawn_enemy_for_wave() -> void:
 	if is_hardcore_mode:
 		wave_mult *= 1.25 # Hardcore Mode: Máu quái tăng +25%
 
-	enemy.setup(e_type, PATH_WAYPOINTS, wave_mult, variant)
+	var chosen_path: Array[Vector2] = PATH_WAYPOINTS
+	# Đa tuyến đường: Quái bay (AIR_DRONE) hoặc quái xen kẽ các đợt rẽ theo nhánh Bắc
+	if variant == EnemyClass.EnemyVariant.AIR_DRONE or (current_wave >= 2 and _enemies_remaining % 2 == 1):
+		chosen_path = PATH_NORTH_BRANCH
+
+	enemy.setup(e_type, chosen_path, wave_mult, variant)
 
 	# Sprint 6: Bão Từ Trường Ion tăng nhẹ +15% lượng khiên khởi điểm cho quái SUPPORT và AIR_DRONE
 	if is_ion_storm_active and (variant == EnemyClass.EnemyVariant.SUPPORT or variant == EnemyClass.EnemyVariant.AIR_DRONE):
@@ -2006,16 +2240,43 @@ func _on_btn_build_pressed() -> void:
 	if skill_tree_modal: skill_tree_modal.visible = false
 	if quick_spell_tray: quick_spell_tray.visible = false
 	if build_popup: build_popup.visible = false
+	if tower_fan_out_arc and is_instance_valid(tower_fan_out_arc) and tower_fan_out_arc.is_open:
+		tower_fan_out_arc.close_arc()
 
-	# Bật/tắt khay chọn trụ nhanh
+	# Bật/tắt khay chọn trụ nhanh Hologram 2026 độc quyền (Armory Tray)
 	if quick_tower_tray:
 		quick_tower_tray.visible = not quick_tower_tray.visible
+		if quick_tower_tray.visible:
+			_animate_tray_open(quick_tower_tray)
+			if sound_synth:
+				sound_synth.play_select()
 		if web_bridge and quick_tower_tray.visible:
 			web_bridge.trigger_haptic("selection")
+
+func _animate_tray_open(tray: Control) -> void:
+	if not tray: return
+	tray.z_index = 25
+	tray.modulate = Color(1, 1, 1, 1)
+
+
+
 
 func _on_quick_tower_selected(type: int, cost: int) -> void:
 	if quick_tower_tray:
 		quick_tower_tray.visible = false
+	if tower_fan_out_arc and is_instance_valid(tower_fan_out_arc):
+		tower_fan_out_arc.close_arc()
+
+	# Hiển thị lưới lục giác phát sáng trên các ô đất trống
+	if not hex_holo_grid_layer or not is_instance_valid(hex_holo_grid_layer):
+		hex_holo_grid_layer = HexHoloGridLayerScript.new()
+		hex_holo_grid_layer.name = "HexHoloGridLayer"
+		add_child(hex_holo_grid_layer)
+
+	var all_pads = BUILD_PADS.duplicate()
+	all_pads.append_array(EXPANDED_TACTICAL_PADS)
+	hex_holo_grid_layer.show_grid(all_pads)
+
 	# Giữ lại targeted_build_pos để _on_select_tower_type dựng tháp ngay tại ô người chơi đã chọn!
 	_on_select_tower_type(type, cost)
 	if web_bridge and is_placing_tower:
@@ -2029,12 +2290,19 @@ func _on_btn_spell_pressed() -> void:
 	if skill_tree_modal: skill_tree_modal.visible = false
 	if quick_tower_tray: quick_tower_tray.visible = false
 	if build_popup: build_popup.visible = false
+	if tower_fan_out_arc and is_instance_valid(tower_fan_out_arc) and tower_fan_out_arc.is_open:
+		tower_fan_out_arc.close_arc()
 
 	# Bật/tắt khay phép thuật nhanh
 	if quick_spell_tray:
 		quick_spell_tray.visible = not quick_spell_tray.visible
+		if quick_spell_tray.visible:
+			_animate_tray_open(quick_spell_tray)
+			if sound_synth:
+				sound_synth.play_select()
 		if web_bridge and quick_spell_tray.visible:
 			web_bridge.trigger_haptic("selection")
+
 
 func _cast_spell_lightning() -> void:
 	var spell_cost = 80
@@ -2096,13 +2364,37 @@ func _cast_spell_meteor() -> void:
 	_update_hud()
 	if quick_spell_tray: quick_spell_tray.visible = false
 
-	var enemies = get_tree().get_nodes_in_group("animated_enemies")
+	# Tìm vị trí tập trung nhiều quái nhất trên đường đi, hoặc ngã ba trung tâm (620, 420)
+	var target_pos = Vector2(620.0, 420.0)
+	var enemies = AnimatedEnemy.get_active_enemies() if not AnimatedEnemy.get_active_enemies().is_empty() else get_tree().get_nodes_in_group("animated_enemies")
+	var max_cluster_count = 0
+	for e in enemies:
+		if is_instance_valid(e) and e.get("current_hp") > 0:
+			var ep = e.global_position
+			var count = 0
+			for other in enemies:
+				if is_instance_valid(other) and other.global_position.distance_squared_to(ep) <= 22500.0: # 150.0^2
+					count += 1
+			if count > max_cluster_count:
+				max_cluster_count = count
+				target_pos = ep
+
+	# Gây sát thương bùng nổ diện rộng cho quái vật
 	for e in enemies:
 		if is_instance_valid(e) and e.has_method("take_damage"):
-			e.take_damage(125.0, EnemyClass.DamageType.THERMAL_PLASMA)
+			if target_pos.distance_squared_to(e.global_position) <= 48400.0 or enemies.size() <= 2: # 220.0^2
+				e.take_damage(125.0, EnemyClass.DamageType.THERMAL_PLASMA)
 
-	if sound_synth:
-		sound_synth.play_plasma_cannon()
+	# Kích hoạt hiệu ứng Vòng Ma Pháp & Sci-Fi Holo Reticle
+	var reticle = SciFiHoloReticleScript.new()
+	reticle.global_position = target_pos
+	add_child(reticle)
+	reticle.activate(1.2)
+
+	var fx = MeteorSpellEffect.new()
+	fx.target_pos = target_pos
+	fx.main_scene = self
+	add_child(fx)
 
 	if web_bridge:
 		web_bridge.show_toast("MƯA THIÊN THẠCH! BÙNG NỔ 125 SÁT THƯƠNG DIỆN RỘNG!", "info")
@@ -2341,13 +2633,24 @@ func _on_btn_reset_skills_pressed() -> void:
 func _set_button_dock_label(btn: Button, title_text: String, hotkey_text: String = "") -> void:
 	if not btn: return
 	btn.text = title_text
-	var title_lbl = btn.find_child("Title", true, false) as Label
+	btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.0))
+	btn.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.0))
+	btn.add_theme_constant_override("outline_size", 0)
+	btn.add_theme_font_size_override("font_size", 1)
+	var has_tex = (btn.find_child("CardTexture", true, false) != null)
+	var title_lbl = btn.find_child("LabelCardTitle", true, false) as Label
+	if not title_lbl:
+		title_lbl = btn.find_child("Title", true, false) as Label
 	if title_lbl:
 		title_lbl.text = title_text
+		title_lbl.visible = not has_tex
 	if hotkey_text != "":
-		var hotkey_lbl = btn.find_child("Hotkey", true, false) as Label
+		var hotkey_lbl = btn.find_child("LabelCardHotkey", true, false) as Label
+		if not hotkey_lbl:
+			hotkey_lbl = btn.find_child("Hotkey", true, false) as Label
 		if hotkey_lbl:
 			hotkey_lbl.text = hotkey_text
+			hotkey_lbl.visible = (not has_tex and not _is_mobile_platform())
 
 func _update_speed_button_style() -> void:
 	if not btn_speed: return
@@ -2398,10 +2701,26 @@ func _update_sound_button_style() -> void:
 func _update_bridge_emp_button_style() -> void:
 	if not btn_bridge_emp:
 		return
+	if not _cached_cd_overlay:
+		_cached_cd_overlay = btn_bridge_emp.get_node_or_null("CooldownOverlay")
+	if not _cached_cd_lbl:
+		_cached_cd_lbl = btn_bridge_emp.find_child("CooldownLabel", true, false) as Label
+
 	if bridge_emp_timer > 0.0:
-		_set_button_dock_label(btn_bridge_emp, "HỒI CHIÊU: %ds" % int(ceilf(bridge_emp_timer)), "[E]")
+		var cur_cd_sec: int = int(ceilf(bridge_emp_timer))
+		if cur_cd_sec != _last_bridge_emp_cd_sec:
+			_last_bridge_emp_cd_sec = cur_cd_sec
+			_set_button_dock_label(btn_bridge_emp, "HỒI CHIÊU: %ds" % cur_cd_sec, "[E]")
+			if _cached_cd_overlay:
+				_cached_cd_overlay.visible = true
+			if _cached_cd_lbl:
+				_cached_cd_lbl.text = "%ds" % cur_cd_sec
 	else:
-		_set_button_dock_label(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]")
+		if _last_bridge_emp_cd_sec != 0:
+			_last_bridge_emp_cd_sec = 0
+			_set_button_dock_label(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]")
+			if _cached_cd_overlay:
+				_cached_cd_overlay.visible = false
 
 func toggle_sound() -> void:
 	if sound_synth:
@@ -2452,228 +2771,590 @@ func notify_combo_reaction() -> void:
 	if combo_reaction_count >= 10:
 		unlock_medal("combo_master", "ĐẠI SƯ PHỐI HỢP", "Kích hoạt >= 10 lần phản ứng Combo trong 1 trận!")
 
-func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color: Color, icon_type: int) -> void:
+func _create_wave_holo_dropdown() -> void:
+	var hud = get_node_or_null("UI/HUD")
+	if not hud: return
+	if wave_holo_dropdown and is_instance_valid(wave_holo_dropdown):
+		return
+
+	wave_holo_dropdown = PanelContainer.new()
+	wave_holo_dropdown.name = "WaveHoloDropdown"
+	wave_holo_dropdown.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	wave_holo_dropdown.offset_left = -380.0
+	wave_holo_dropdown.offset_top = 118.0
+	wave_holo_dropdown.offset_right = -20.0
+	wave_holo_dropdown.offset_bottom = 278.0
+	wave_holo_dropdown.custom_minimum_size = Vector2(360.0, 160.0)
+	wave_holo_dropdown.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	wave_holo_dropdown.z_index = 25
+	wave_holo_dropdown.visible = false
+
+	var sb = StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.07, 0.12, 0.95)
+	sb.border_color = Color(0.0, 0.85, 1.0, 0.85)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(10)
+	sb.shadow_size = 14
+	sb.shadow_color = Color(0.0, 0.2, 0.4, 0.5)
+	wave_holo_dropdown.add_theme_stylebox_override("panel", sb)
+
+	var margin = MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	wave_holo_dropdown.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	var lbl_hdr = Label.new()
+	lbl_hdr.name = "Header"
+	lbl_hdr.text = "◈ PHÂN TÍCH TÁC CHIẾN HOLOGRAPHIC ◈"
+	lbl_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_hdr.add_theme_font_size_override("font_size", 12)
+	lbl_hdr.add_theme_color_override("font_color", Color(0.0, 0.95, 1.0))
+	vbox.add_child(lbl_hdr)
+
+	var div = ColorRect.new()
+	div.custom_minimum_size = Vector2(0, 1.5)
+	div.color = Color(0.0, 0.8, 1.0, 0.6)
+	vbox.add_child(div)
+
+	var lbl_content = Label.new()
+	lbl_content.name = "Content"
+	lbl_content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl_content.add_theme_font_size_override("font_size", 11)
+	lbl_content.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+	lbl_content.text = "Đang quét tín hiệu radar chiến trường..."
+	vbox.add_child(lbl_content)
+
+	var lbl_tip = Label.new()
+	lbl_tip.name = "TacticalTip"
+	lbl_tip.add_theme_font_size_override("font_size", 10)
+	lbl_tip.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	lbl_tip.text = "GỢI Ý: Chạm vào bảng để đóng phân tích."
+	vbox.add_child(lbl_tip)
+
+	hud.add_child(wave_holo_dropdown)
+
+	wave_holo_dropdown.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_toggle_wave_holo_dropdown()
+	)
+
+func _update_wave_holo_dropdown_content() -> void:
+	if not wave_holo_dropdown or not is_instance_valid(wave_holo_dropdown): return
+	var content_lbl = wave_holo_dropdown.find_child("Content", true, false) as Label
+	if not content_lbl: return
+
+	var target_wave = current_wave if is_wave_active else maxi(1, current_wave + 1)
+	var intel_text = "ĐỢT %d: " % target_wave
+	match target_wave:
+		1: intel_text += "Quái Swarm Động Năng (Tốc nhanh, máu giấy).\nKhuyến nghị: Tháp Gatling Laser quét dọn."
+		2: intel_text += "Quái Swarm + Lính Trinh Sát.\nKhuyến nghị: Phối hợp Gatling và Plasma."
+		3: intel_text += "Đơn vị Bay (Air Drone) xuất hiện!\nKhuyến nghị: Tháp Tên Lửa SAM hoặc Gatling tốc độ."
+		4: intel_text += "Xe Lửa Cơ Khí + Chim Máy.\nKhuyến nghị: Dựng Tháp Sét EMP Coil gây tê liệt x2.2."
+		5: intel_text += "CẢNH BÁO BOSS MECH CỠ LỚN!\nKhiên năng lượng dày, cần chiêu Quá Tải hoặc Bão Sấm Sét."
+		6: intel_text += "Đội hình Hộ Tống Hồi Máu (Support Variant) + Không kích.\nƯu tiên diệt lính hỗ trợ."
+		7: intel_text += "BÃO TỪ TRƯỜNG ION KÍCH HOẠT!\nSát thương Điện +25%, Cooldown Bẫy Cầu giảm còn 10s."
+		8: intel_text += "Đoàn Mech Bọc Thép (Heavy Armor).\nKhuyến nghị: Nâng cấp Plasma Cannon Cực Phẩm Lv.3."
+		9: intel_text += "Bão Ion đợt 2 + Toàn bộ chủng loại quái tràn vào.\nDùng Bẫy Cầu liên hoàn ngắt nhịp."
+		10: intel_text += "BOSS CUỐI MECH OVERDRIVE!\nTích tụ xung phá hoại, cần dùng EMP/Tesla ngắt chiêu khẩn cấp."
+		_: intel_text += "ĐỢT VÔ TẬN %d: Sát thương và máu quái tăng lũy thừa 1.16x.\nSẵn sàng chiến đấu!" % target_wave
+	content_lbl.text = intel_text
+
+func _toggle_wave_holo_dropdown() -> void:
+	if not wave_holo_dropdown or not is_instance_valid(wave_holo_dropdown):
+		_create_wave_holo_dropdown()
+	wave_holo_dropdown.visible = !wave_holo_dropdown.visible
+	if wave_holo_dropdown.visible:
+		wave_holo_dropdown.modulate = Color(1, 1, 1, 0)
+		wave_holo_dropdown.offset_top = 90.0
+		wave_holo_dropdown.offset_bottom = 250.0
+		var tw = wave_holo_dropdown.create_tween()
+		tw.tween_property(wave_holo_dropdown, "modulate:a", 1.0, 0.20)
+		tw.parallel().tween_property(wave_holo_dropdown, "offset_top", 118.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(wave_holo_dropdown, "offset_bottom", 278.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_update_wave_holo_dropdown_content()
+		if sound_synth:
+			sound_synth.play_select()
+
+func _trigger_call_wave_bezier_particles() -> void:
+	var portal_pos = PATH_WAYPOINTS[0]
+	var hud_gold_pos = Vector2(1100.0, 40.0)
+	var cam_pos = $StylizedCamera.global_position if has_node("StylizedCamera") else Vector2(688.0, 384.0)
+	var screen_portal = portal_pos - (cam_pos - Vector2(688.0, 384.0))
+
+	# Radar shockwave circle pulse
+	var shockwave = ColorRect.new()
+	shockwave.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shockwave.custom_minimum_size = Vector2(10.0, 10.0)
+	shockwave.position = screen_portal - Vector2(5.0, 5.0)
+	$UI.add_child(shockwave)
+	var sw_tw = shockwave.create_tween()
+	sw_tw.tween_property(shockwave, "scale", Vector2(40.0, 40.0), 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	sw_tw.parallel().tween_property(shockwave, "modulate", Color(1.0, 0.25, 0.25, 0.0), 0.6)
+	sw_tw.tween_callback(shockwave.queue_free)
+
+	# 6 Bezier flying credit particles
+	for i in range(6):
+		var p = FlyingCreditParticleScript.new()
+		var p0 = screen_portal + Vector2(randf_range(-15.0, 15.0), randf_range(-15.0, 15.0))
+		var p2 = hud_gold_pos + Vector2(randf_range(-10.0, 10.0), randf_range(-10.0, 10.0))
+		var mid_x = (p0.x + p2.x) * 0.5 + randf_range(-60.0, 60.0)
+		var mid_y = minf(p0.y, p2.y) - randf_range(80.0, 180.0)
+		var p1 = Vector2(mid_x, mid_y)
+		$UI.add_child(p)
+		p.launch(p0, p1, p2, 0.70 + float(i) * 0.08, func():
+			if sound_synth:
+				sound_synth.play_credit_pickup()
+			if label_gold:
+				var g_tw = label_gold.create_tween()
+				g_tw.tween_property(label_gold, "scale", Vector2(1.25, 1.25), 0.08)
+				g_tw.tween_property(label_gold, "scale", Vector2(1.0, 1.0), 0.08)
+		)
+
+func _style_dock_button(btn: Button, title: String, hotkey: String, accent_color: Color, icon_type: int, card_texture_path: String = "") -> void:
 	if not btn: return
-	btn.custom_minimum_size = Vector2(175.0, 56.0)
+	btn.custom_minimum_size = Vector2(150.0, 192.0)
 	btn.text = title
 	btn.icon = null
+	btn.flat = true
+	btn.pivot_offset = Vector2(75.0, 96.0)
+	btn.focus_mode = Control.FOCUS_NONE
 
-	var make_btn_sb = func(bg_c: Color, border_c: Color, shadow_s: int = 4) -> StyleBoxFlat:
-		var sb = StyleBoxFlat.new()
-		sb.bg_color = bg_c
-		sb.set_border_width_all(2)
-		sb.border_color = border_c
-		sb.set_corner_radius_all(8)
-		sb.shadow_size = shadow_s
-		sb.shadow_color = Color(0, 0, 0, 0.45)
-		sb.shadow_offset = Vector2(0, 2)
-		return sb
+	var sb_empty = StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", sb_empty)
+	btn.add_theme_stylebox_override("hover", sb_empty)
+	btn.add_theme_stylebox_override("pressed", sb_empty)
+	btn.add_theme_stylebox_override("disabled", sb_empty)
+	btn.add_theme_stylebox_override("focus", sb_empty)
 
-	btn.add_theme_stylebox_override("normal", make_btn_sb.call(Color(0.06, 0.05, 0.08, 0.94), Color(0.82, 0.68, 0.35, 0.65)))
-	btn.add_theme_stylebox_override("hover", make_btn_sb.call(Color(0.12, 0.10, 0.15, 0.96), Color(0.98, 0.85, 0.45, 0.95), 8))
-	btn.add_theme_stylebox_override("pressed", make_btn_sb.call(Color(0.04, 0.03, 0.05, 0.98), Color(1.0, 0.92, 0.55, 1.0)))
-	btn.add_theme_stylebox_override("disabled", make_btn_sb.call(Color(0.04, 0.04, 0.06, 0.80), Color(0.35, 0.32, 0.28, 0.35), 0))
-
-	# Ẩn hoàn toàn chữ mặc định của Button gốc để không bị đè lên nhãn tùy biến DockContent
+	# Ẩn hoàn toàn chữ mặc định của Button gốc để giữ trọn vẹn đồ họa thẻ bài
 	btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.0))
 	btn.add_theme_color_override("font_hover_color", Color(0, 0, 0, 0.0))
 	btn.add_theme_color_override("font_pressed_color", Color(0, 0, 0, 0.0))
 	btn.add_theme_color_override("font_disabled_color", Color(0, 0, 0, 0.0))
 	btn.add_theme_color_override("font_focus_color", Color(0, 0, 0, 0.0))
+	btn.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.0))
+	btn.add_theme_constant_override("outline_size", 0)
+	btn.add_theme_font_size_override("font_size", 1)
 
-	# Khung nội dung bên trong
-	var content = btn.get_node_or_null("DockContent") as HBoxContainer
-	if not content:
-		content = HBoxContainer.new()
-		content.name = "DockContent"
-		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		content.alignment = BoxContainer.ALIGNMENT_CENTER
-		content.add_theme_constant_override("separation", 10)
-		btn.add_child(content)
+	# Visual Container độc lập (Khắc phục 100% xung đột layout với HBoxContainer gây giật rung / dự dựt)
+	var card_visual = btn.get_node_or_null("CardVisual") as Control
+	if not card_visual:
+		card_visual = Control.new()
+		card_visual.name = "CardVisual"
+		card_visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card_visual.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		card_visual.pivot_offset = Vector2(75.0, 96.0)
+		btn.add_child(card_visual)
+		btn.move_child(card_visual, 0)
 
-		# Khung Icon 38x38px bo góc 6px phong cách cơ khí
-		var icon_box = PanelContainer.new()
-		icon_box.name = "IconFrame"
-		icon_box.custom_minimum_size = Vector2(38, 38)
-		icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var sb_ib = StyleBoxFlat.new()
-		sb_ib.bg_color = Color(0.04, 0.03, 0.06, 0.90)
-		sb_ib.set_corner_radius_all(6)
-		sb_ib.set_border_width_all(1.5)
-		sb_ib.border_color = Color(0.85, 0.72, 0.38, 0.55)
-		icon_box.add_theme_stylebox_override("panel", sb_ib)
+	# Khung hình thẻ bài Hologram
+	var card_rect = card_visual.get_node_or_null("CardTexture") as TextureRect
+	if not card_rect:
+		var old_rect = btn.get_node_or_null("CardTexture")
+		if old_rect:
+			old_rect.reparent(card_visual)
+			card_rect = old_rect as TextureRect
+		else:
+			card_rect = TextureRect.new()
+			card_rect.name = "CardTexture"
+			card_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			card_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			card_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			card_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			card_visual.add_child(card_rect)
 
-		var icon = HudVectorIcon.new()
-		icon.name = "VectorIcon"
-		icon.custom_minimum_size = Vector2(24, 24)
-		icon.icon_type = icon_type
-		icon.icon_color = accent_color
-		icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-		icon_box.add_child(icon)
-		content.add_child(icon_box)
+	card_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
-		# Nhãn tên lệnh & Phím tắt
-		var vbox = VBoxContainer.new()
-		vbox.name = "LabelsVBox"
-		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-		vbox.add_theme_constant_override("separation", 1)
+	if card_texture_path != "" and ResourceLoader.exists(card_texture_path):
+		card_rect.texture = load(card_texture_path)
 
-		var lbl_t = Label.new()
-		lbl_t.name = "Title"
-		lbl_t.text = title
-		lbl_t.add_theme_font_size_override("font_size", 14)
-		lbl_t.add_theme_color_override("font_color", accent_color)
-		lbl_t.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.04, 0.95))
-		lbl_t.add_theme_constant_override("outline_size", 3)
-		vbox.add_child(lbl_t)
+	# Gán holo_card_3d shader
+	var holo_mat = card_rect.material as ShaderMaterial
+	if not holo_mat:
+		var shader = load("res://shaders/holo_card_3d.gdshader") as Shader
+		if shader:
+			holo_mat = ShaderMaterial.new()
+			holo_mat.shader = shader
+			card_rect.material = holo_mat
 
-		var lbl_h = Label.new()
-		lbl_h.name = "Hotkey"
-		lbl_h.text = hotkey
-		lbl_h.add_theme_font_size_override("font_size", 10)
-		lbl_h.add_theme_color_override("font_color", Color(0.90, 0.80, 0.55, 0.95))
-		vbox.add_child(lbl_h)
+	if holo_mat:
+		holo_mat.set_shader_parameter("neon_color", accent_color)
+		holo_mat.set_shader_parameter("corner_chamfer", 0.06)
+		holo_mat.set_shader_parameter("border_thickness", 0.016)
+		holo_mat.set_shader_parameter("glare_position", -1.0)
+		holo_mat.set_shader_parameter("is_active", false)
 
-		content.add_child(vbox)
+	# Tactical Header / Title Strip at the bottom of the card
+	var title_box = card_visual.get_node_or_null("TitleBox") as VBoxContainer
+	if not title_box:
+		var old_tb = btn.get_node_or_null("TitleBox")
+		if old_tb:
+			old_tb.reparent(card_visual)
+			title_box = old_tb as VBoxContainer
+		else:
+			title_box = VBoxContainer.new()
+			title_box.name = "TitleBox"
+			title_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			title_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+			title_box.offset_top = -20.0
+			title_box.offset_bottom = -2.0
+			title_box.add_theme_constant_override("separation", 0)
+			title_box.alignment = BoxContainer.ALIGNMENT_CENTER
+			card_visual.add_child(title_box)
+
+			var lbl_title = Label.new()
+			lbl_title.name = "LabelCardTitle"
+			lbl_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lbl_title.add_theme_font_size_override("font_size", 12)
+			lbl_title.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.95))
+			lbl_title.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.08, 0.95))
+			lbl_title.add_theme_constant_override("outline_size", 3)
+			lbl_title.visible = (card_texture_path == "")
+			title_box.add_child(lbl_title)
+
+			var lbl_hotkey = Label.new()
+			lbl_hotkey.name = "LabelCardHotkey"
+			lbl_hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lbl_hotkey.add_theme_font_size_override("font_size", 9)
+			lbl_hotkey.add_theme_color_override("font_color", accent_color)
+			lbl_hotkey.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.04, 0.95))
+			lbl_hotkey.add_theme_constant_override("outline_size", 2)
+			title_box.add_child(lbl_hotkey)
+
+	var l_t = title_box.get_node_or_null("LabelCardTitle") as Label
+	if l_t:
+		l_t.text = title
+		l_t.visible = (card_texture_path == "")
+
+	var l_hk = title_box.get_node_or_null("LabelCardHotkey") as Label
+	if l_hk:
+		if _is_mobile_platform() or card_texture_path != "":
+			l_hk.visible = false
+		else:
+			l_hk.visible = true
+			l_hk.text = hotkey
+	title_box.visible = (card_texture_path == "")
+
+	# Lớp phủ hồi chiêu (Cooldown Overlay dạng huy hiệu số tròn cyber)
+	var cd_overlay = card_visual.get_node_or_null("CooldownOverlay") as Control
+	if not cd_overlay:
+		var old_cd = btn.get_node_or_null("CooldownOverlay")
+		if old_cd:
+			old_cd.reparent(card_visual)
+			cd_overlay = old_cd as Control
+		else:
+			cd_overlay = Control.new()
+			cd_overlay.name = "CooldownOverlay"
+			cd_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cd_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			cd_overlay.visible = false
+			card_visual.add_child(cd_overlay)
+
+			var bg = ColorRect.new()
+			bg.name = "Bg"
+			bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			bg.color = Color(0.02, 0.03, 0.06, 0.55)
+			bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cd_overlay.add_child(bg)
+
+			var badge = PanelContainer.new()
+			badge.name = "CooldownBadge"
+			badge.custom_minimum_size = Vector2(56.0, 56.0)
+			badge.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+			badge.offset_left = -28.0
+			badge.offset_right = 28.0
+			badge.offset_top = -36.0
+			badge.offset_bottom = 20.0
+			badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var sb_cd = StyleBoxFlat.new()
+			sb_cd.bg_color = Color(0.12, 0.03, 0.05, 0.94)
+			sb_cd.set_border_width_all(2)
+			sb_cd.border_color = Color(1.0, 0.35, 0.35, 0.95)
+			sb_cd.set_corner_radius_all(28)
+			sb_cd.shadow_size = 10
+			sb_cd.shadow_color = Color(1.0, 0.2, 0.2, 0.5)
+			badge.add_theme_stylebox_override("panel", sb_cd)
+			cd_overlay.add_child(badge)
+
+			var cd_lbl = Label.new()
+			cd_lbl.name = "CooldownLabel"
+			cd_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cd_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			cd_lbl.add_theme_font_size_override("font_size", 18)
+			cd_lbl.add_theme_color_override("font_color", Color(1.0, 0.90, 0.90))
+			cd_lbl.add_theme_color_override("font_outline_color", Color(0.04, 0.01, 0.02, 0.95))
+			cd_lbl.add_theme_constant_override("outline_size", 3)
+			cd_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			badge.add_child(cd_lbl)
+
+	# Hiệu ứng hover nhô cao mượt mà (-10px), vệt sáng Holographic Foil Glare & Bật Tooltip
+	if not btn.has_meta("card_hover_setup"):
+		btn.set_meta("card_hover_setup", true)
+		btn.mouse_entered.connect(func():
+			var tw = card_visual.create_tween()
+			tw.tween_property(card_visual, "position:y", -10.0, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(card_visual, "scale", Vector2(1.03, 1.03), 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			if holo_mat:
+				holo_mat.set_shader_parameter("is_active", true)
+				var glare_tw = card_visual.create_tween()
+				glare_tw.tween_method(func(val: float):
+					holo_mat.set_shader_parameter("glare_position", val)
+				, -0.8, 1.8, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			if card_tooltip_hud:
+				var t_data = _get_dock_card_tooltip_data(title, hotkey, accent_color)
+				card_tooltip_hud.inspect_card(btn, t_data)
+		)
+		btn.mouse_exited.connect(func():
+			var tw = card_visual.create_tween()
+			tw.tween_property(card_visual, "position:y", 0.0, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(card_visual, "scale", Vector2(1.0, 1.0), 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			if holo_mat:
+				holo_mat.set_shader_parameter("is_active", false)
+				holo_mat.set_shader_parameter("glare_position", -1.0)
+			if card_tooltip_hud:
+				card_tooltip_hud.dismiss()
+		)
+		btn.button_down.connect(func():
+			var tw = card_visual.create_tween()
+			tw.tween_property(card_visual, "position:y", -4.0, 0.06)
+			tw.parallel().tween_property(card_visual, "scale", Vector2(0.97, 0.97), 0.06)
+		)
+		btn.button_up.connect(func():
+			var tw = card_visual.create_tween()
+			tw.tween_property(card_visual, "position:y", -10.0, 0.08)
+			tw.parallel().tween_property(card_visual, "scale", Vector2(1.03, 1.03), 0.08)
+		)
+
+func _get_dock_card_tooltip_data(title: String, hotkey: String, accent_color: Color) -> Dictionary:
+	var d = {
+		"title": title,
+		"badge": "[ CHIẾN LƯỢC ]",
+		"cost": "",
+		"hotkey": hotkey,
+		"desc": "Thao tác chỉ huy chiến lược trên Đảo Bay.",
+		"dmg_ratio": 0.75,
+		"spd_ratio": 0.70,
+		"rng_ratio": 0.75,
+		"accent": accent_color
+	}
+	if "MUA TRỤ" in title:
+		d["title"] = "KHO KHÍ TÀI CHIẾN LƯỢNG"
+		d["badge"] = "[ VŨ KHÍ ]"
+		d["cost"] = "60G - 150G"
+		d["desc"] = "Mở khay triển khai tháp pháo phòng thủ. Lựa chọn giữa Pháo Nòng Xoay, Pháo Plasma, Tháp Tesla hoặc Tên Lửa SAM 3D."
+		d["dmg_ratio"] = 0.85
+		d["spd_ratio"] = 0.75
+		d["rng_ratio"] = 0.80
+	elif "KỸ NĂNG" in title:
+		d["title"] = "VI MẠCH NĂNG LƯỢNG"
+		d["badge"] = "[ LƯỢNG TỬ ]"
+		d["cost"] = "100G+"
+		d["desc"] = "Kích hoạt mạng lưới vi mạch lượng tử. Nâng cấp vĩnh viễn Sát Thương, Tầm Bắn hoặc Tốc Độ cho toàn bộ tháp phòng thủ."
+		d["dmg_ratio"] = 0.70
+		d["spd_ratio"] = 0.90
+		d["rng_ratio"] = 0.80
+	elif "PHÉP THUẬT" in title:
+		d["title"] = "KHO PHÉP THUẬT TỐI CAO"
+		d["badge"] = "[ MA PHÁP ]"
+		d["cost"] = "60G - 120G"
+		d["desc"] = "Thi triển các bùa chú hủy diệt: Sấm Sét Toàn Bản Đồ, Bão Băng Khống Chế hoặc Mưa Thiên Thạch Thiêu Đốt."
+		d["dmg_ratio"] = 0.95
+		d["spd_ratio"] = 0.40
+		d["rng_ratio"] = 1.0
+	elif "GỌI ĐỢT" in title:
+		d["title"] = "TRIỆU HỒI ĐỢT TẤN CÔNG"
+		d["badge"] = "[ CẢNH BÁO ]"
+		d["cost"] = "+THƯỞNG G"
+		d["desc"] = "Mở cổng không gian gọi đợt quái tiếp theo ngay lập tức. Nhận thưởng vàng tiên phong và tăng nhịp độ chiến dịch."
+		d["dmg_ratio"] = 0.50
+		d["spd_ratio"] = 1.0
+		d["rng_ratio"] = 0.50
+	elif "BẪY CẦU" in title:
+		d["title"] = "BẪY XUNG ĐIỆN TỪ (EMP)"
+		d["badge"] = "[ BẪY ĐỊA HÌNH ]"
+		d["cost"] = "%d VÀNG" % BRIDGE_EMP_COST
+		d["desc"] = "Kích nổ sóng xung kích cực mạnh ngay giữa cầu đá hẹp. Làm tê liệt và hủy diệt toàn bộ đoàn quân địch đang băng qua."
+		d["dmg_ratio"] = 1.0
+		d["spd_ratio"] = 0.30
+		d["rng_ratio"] = 0.40
+	return d
+
 
 func _setup_hud_ui() -> void:
 	var hud = get_node_or_null("UI/HUD")
 	if not hud:
 		return
 
-	var make_steampunk_brass_box = func(accent_border: Color = Color(0.88, 0.74, 0.38, 0.90), corner_rad: int = 8) -> StyleBoxFlat:
-		var sb = StyleBoxFlat.new()
-		sb.bg_color = Color(0.06, 0.05, 0.08, 0.94)
-		sb.set_border_width_all(2)
-		sb.border_color = accent_border
-		sb.set_corner_radius_all(corner_rad)
-		sb.shadow_size = 6
-		sb.shadow_color = Color(0, 0, 0, 0.55)
-		sb.shadow_offset = Vector2(0, 3)
-		sb.content_margin_left = 12
-		sb.content_margin_right = 12
-		sb.content_margin_top = 6
-		sb.content_margin_bottom = 6
-		return sb
+	if not card_tooltip_hud:
+		card_tooltip_hud = SciFiCardTooltipHUDScript.new()
+		hud.add_child(card_tooltip_hud)
 
-	# 1 & 2. TOP-LEFT UNIFIED STATUS BAR (SCORE & HEALTH KHÔNG BAO GIỜ CHỒNG CHÉO)
+	# Lược bỏ bảng Điểm và Kỷ lục ở góc trái trên trong lúc chiến đấu
 	var top_status_hbox = hud.get_node_or_null("TopLeftStatusHBox") as HBoxContainer
-	if not top_status_hbox:
-		top_status_hbox = HBoxContainer.new()
-		top_status_hbox.name = "TopLeftStatusHBox"
-		hud.add_child(top_status_hbox)
-		hud.move_child(top_status_hbox, 0)
+	if top_status_hbox:
+		top_status_hbox.visible = false
 
-	top_status_hbox.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	top_status_hbox.position = Vector2(24.0, 14.0)
-	top_status_hbox.add_theme_constant_override("separation", 10)
-
-	# 1. SCORE BOX (Thẻ Điểm Đồng Thau Cao Cấp)
 	var score_box = hud.get_node_or_null("ScoreBox") as PanelContainer
 	if score_box:
-		if score_box.get_parent() != top_status_hbox:
-			score_box.reparent(top_status_hbox)
-		score_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.38, 0.90)))
-		score_box.custom_minimum_size = Vector2(175.0, 46.0)
-		_attach_corner_brackets(score_box, Color(0.88, 0.74, 0.38, 0.85))
-		var s_hbox = score_box.get_node_or_null("Margin/HBox") as HBoxContainer
-		if s_hbox:
-			s_hbox.add_theme_constant_override("separation", 8)
-			var title_lbl = s_hbox.get_node_or_null("LabelScoreTitle") as Label
-			if title_lbl:
-				title_lbl.text = "ĐIỂM:"
-				title_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
-				title_lbl.add_theme_font_size_override("font_size", 18)
-			if label_score:
-				label_score.add_theme_font_size_override("font_size", 22)
-			if not s_hbox.has_node("IconScore"):
-				var icon = HudVectorIcon.new()
-				icon.name = "IconScore"
-				icon.custom_minimum_size = Vector2(20, 20)
-				icon.icon_type = HudVectorIcon.Type.SCORE_STAR
-				icon.icon_color = Color(1.0, 0.85, 0.25)
-				s_hbox.add_child(icon)
-				s_hbox.move_child(icon, 0)
+		score_box.visible = false
 
-	# 2. HEALTH BOX (Thẻ Máu Đồng Thau Đồng Bộ Với Trái Tim Ruby)
+	var rec_box = hud.get_node_or_null("RecordBox") as PanelContainer
+	if rec_box:
+		rec_box.visible = false
+
+	# 2. TOP CENTER LÕI BẢO VỆ CĂN CỨ (Precision Quantum Reactor Core)
 	var health_box = hud.get_node_or_null("HealthBox") as PanelContainer
 	if health_box:
-		if health_box.get_parent() != top_status_hbox:
-			health_box.reparent(top_status_hbox)
-		health_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.38, 0.90)))
-		health_box.custom_minimum_size = Vector2(175.0, 46.0)
-		_attach_corner_brackets(health_box, Color(0.88, 0.74, 0.38, 0.85))
+		if health_box.get_parent() != hud:
+			health_box.reparent(hud)
+		health_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		health_box.offset_left = -175.0
+		health_box.offset_right = 175.0
+		health_box.offset_top = 12.0
+		health_box.offset_bottom = 56.0
+		health_box.custom_minimum_size = Vector2(350.0, 44.0)
 
-		var h_margin = health_box.get_node_or_null("Margin") as MarginContainer
+		# Titanium metallic chassis
+		var sb_tube = StyleBoxFlat.new()
+		sb_tube.bg_color = Color(0.03, 0.05, 0.08, 0.94)
+		sb_tube.set_border_width_all(1.5)
+		sb_tube.border_color = Color(0.0, 0.85, 1.0, 0.80)
+		sb_tube.set_corner_radius_all(8)
+		sb_tube.shadow_size = 10
+		sb_tube.shadow_color = Color(0.0, 0.15, 0.30, 0.50)
+		health_box.add_theme_stylebox_override("panel", sb_tube)
+		_attach_corner_brackets(health_box, Color(0.0, 0.85, 1.0, 0.90))
+
+		var h_margin = health_box.get_node_or_null("Margin")
 		if h_margin:
-			var old_vbox = h_margin.get_node_or_null("HealthVBox")
-			var h_hbox: HBoxContainer = null
-			if old_vbox:
-				h_hbox = old_vbox.get_node_or_null("HBox") as HBoxContainer
-			else:
-				h_hbox = h_margin.get_node_or_null("HBox") as HBoxContainer
+			h_margin.visible = false
+		if label_health:
+			label_health.visible = false
+		var h_title = health_box.get_node_or_null("Margin/HBox/LabelHealthTitle")
+		if h_title:
+			h_title.visible = false
 
-			if not h_margin.has_node("HealthVBoxUnified"):
-				var vbox = VBoxContainer.new()
-				vbox.name = "HealthVBoxUnified"
-				vbox.add_theme_constant_override("separation", 2)
-				if h_hbox:
-					if h_hbox.get_parent():
-						h_hbox.get_parent().remove_child(h_hbox)
-					vbox.add_child(h_hbox)
-				if old_vbox and old_vbox.get_parent():
-					h_margin.remove_child(old_vbox)
-				h_margin.add_child(vbox)
+		var old_pb = health_box.get_node_or_null("HealthTextureProgressBar")
+		if old_pb:
+			old_pb.visible = false
 
-				if h_hbox:
-					h_hbox.add_theme_constant_override("separation", 8)
-					var h_title = h_hbox.get_node_or_null("LabelHealthTitle") as Label
-					if h_title:
-						h_title.text = "MÁU:"
-						h_title.add_theme_color_override("font_color", Color(1.0, 0.40, 0.45))
-						h_title.add_theme_font_size_override("font_size", 18)
-					if label_health:
-						label_health.add_theme_font_size_override("font_size", 22)
-					if not h_hbox.has_node("IconHealth"):
-						var icon = HudVectorIcon.new()
-						icon.name = "IconHealth"
-						icon.custom_minimum_size = Vector2(18, 18)
-						icon.icon_type = HudVectorIcon.Type.HEALTH_HEART
-						icon.icon_color = Color(1.0, 0.35, 0.40)
-						h_hbox.add_child(icon)
-						h_hbox.move_child(icon, 0)
+		# Layout 2 tầng khoa học: Tầng trên chỉ số & Tầng dưới thước đo Plasma
+		var core_layout = health_box.get_node_or_null("CoreLayout") as VBoxContainer
+		if not core_layout:
+			core_layout = VBoxContainer.new()
+			core_layout.name = "CoreLayout"
+			core_layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			core_layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			core_layout.offset_left = 10.0
+			core_layout.offset_right = -10.0
+			core_layout.offset_top = 4.0
+			core_layout.offset_bottom = -4.0
+			core_layout.add_theme_constant_override("separation", 2)
+			health_box.add_child(core_layout)
 
-				health_progress_bar = ProgressBar.new()
-				health_progress_bar.name = "HealthProgressBar"
-				health_progress_bar.custom_minimum_size = Vector2(145, 4)
-				health_progress_bar.max_value = max_health
-				health_progress_bar.value = base_health
-				health_progress_bar.show_percentage = false
+			# Row 1: Status LED, Tiêu đề LÕI BẢO VỆ và Chỉ số HP
+			var header_row = HBoxContainer.new()
+			header_row.name = "HeaderRow"
+			header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			header_row.add_theme_constant_override("separation", 6)
+			core_layout.add_child(header_row)
 
-				var pb_bg = StyleBoxFlat.new()
-				pb_bg.bg_color = Color(0.12, 0.04, 0.06, 0.90)
-				pb_bg.set_corner_radius_all(2)
-				health_progress_bar.add_theme_stylebox_override("background", pb_bg)
+			var led = ColorRect.new()
+			led.name = "StatusLED"
+			led.custom_minimum_size = Vector2(8.0, 8.0)
+			led.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			led.color = Color(0.0, 1.0, 0.55)
+			header_row.add_child(led)
 
-				var pb_fill = StyleBoxFlat.new()
-				pb_fill.bg_color = Color(0.22, 0.92, 0.45, 0.95)
-				pb_fill.set_corner_radius_all(2)
-				health_progress_bar.add_theme_stylebox_override("fill", pb_fill)
+			var lbl_name = Label.new()
+			lbl_name.name = "LabelCoreName"
+			lbl_name.text = "LÕI BẢO VỆ"
+			lbl_name.add_theme_font_size_override("font_size", 11)
+			lbl_name.add_theme_color_override("font_color", Color(0.35, 0.85, 1.0))
+			lbl_name.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.04, 0.95))
+			lbl_name.add_theme_constant_override("outline_size", 2)
+			header_row.add_child(lbl_name)
 
-				vbox.add_child(health_progress_bar)
+			var sp = Control.new()
+			sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			header_row.add_child(sp)
 
-	# 3. WAVE & GOLD BOX (Khung đồng thau vương giả tách 2 ngăn)
+			var lbl_t = Label.new()
+			lbl_t.name = "LabelHealthTubeText"
+			lbl_t.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			lbl_t.add_theme_font_size_override("font_size", 12)
+			lbl_t.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+			lbl_t.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.04, 0.95))
+			lbl_t.add_theme_constant_override("outline_size", 2)
+			lbl_t.text = "%d / %d HP" % [base_health, max_health]
+			header_row.add_child(lbl_t)
+
+			# Row 2: Rãnh chứa Plasma năng lượng lõi 20 nấc
+			var track_panel = PanelContainer.new()
+			track_panel.name = "TrackPanel"
+			track_panel.custom_minimum_size = Vector2(0, 14.0)
+			track_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var sb_track = StyleBoxFlat.new()
+			sb_track.bg_color = Color(0.02, 0.03, 0.05, 0.95)
+			sb_track.set_border_width_all(1)
+			sb_track.border_color = Color(0.12, 0.22, 0.35, 0.70)
+			sb_track.set_corner_radius_all(3)
+			track_panel.add_theme_stylebox_override("panel", sb_track)
+			core_layout.add_child(track_panel)
+
+			health_plasma_rect = ColorRect.new()
+			health_plasma_rect.name = "HealthPlasmaRect"
+			health_plasma_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			health_plasma_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var shader = load("res://shaders/energy_core_bar.gdshader") as Shader
+			if shader:
+				var mat = ShaderMaterial.new()
+				mat.shader = shader
+				health_plasma_rect.material = mat
+			track_panel.add_child(health_plasma_rect)
+
+	# 3. TOP-RIGHT TACTICAL RADAR HUD (Đợt & Vàng)
 	var wave_box = hud.get_node_or_null("WaveBox") as PanelContainer
 	if wave_box:
-		wave_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.88, 0.74, 0.38, 0.90)))
+		var sb_wave = StyleBoxFlat.new()
+		sb_wave.bg_color = Color(0.03, 0.05, 0.08, 0.94)
+		sb_wave.border_color = Color(0.0, 0.85, 1.0, 0.80)
+		sb_wave.set_border_width_all(1.5)
+		sb_wave.set_corner_radius_all(8)
+		sb_wave.shadow_size = 10
+		sb_wave.shadow_color = Color(0.0, 0.15, 0.30, 0.50)
+		wave_box.add_theme_stylebox_override("panel", sb_wave)
 		wave_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-		wave_box.offset_left = -365.0
-		wave_box.offset_top = 14.0
-		wave_box.offset_right = -24.0
-		wave_box.offset_bottom = 60.0
-		_attach_corner_brackets(wave_box, Color(0.88, 0.74, 0.38, 0.85))
+		wave_box.offset_left = -350.0
+		wave_box.offset_top = 12.0
+		wave_box.offset_right = -20.0
+		wave_box.offset_bottom = 56.0
+		wave_box.custom_minimum_size = Vector2(330.0, 44.0)
+		wave_box.mouse_filter = Control.MOUSE_FILTER_STOP
+		_attach_corner_brackets(wave_box, Color(0.0, 0.85, 1.0, 0.90))
+
+		if not wave_box.has_meta("wave_box_click_connected"):
+			wave_box.set_meta("wave_box_click_connected", true)
+			wave_box.gui_input.connect(func(event: InputEvent):
+				if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_wave_holo_dropdown()
+			)
+
+		var w_margin = wave_box.get_node_or_null("Margin") as MarginContainer
+		if w_margin:
+			w_margin.add_theme_constant_override("margin_left", 12)
+			w_margin.add_theme_constant_override("margin_right", 12)
+			w_margin.add_theme_constant_override("margin_top", 4)
+			w_margin.add_theme_constant_override("margin_bottom", 4)
 
 		var w_hbox = wave_box.get_node_or_null("Margin/HBox") as HBoxContainer
 		if w_hbox:
@@ -2681,23 +3362,32 @@ func _setup_hud_ui() -> void:
 			var w_title = w_hbox.get_node_or_null("LabelWaveTitle") as Label
 			if w_title:
 				w_title.text = "ĐỢT:"
-				w_title.add_theme_color_override("font_color", Color(0.40, 0.85, 1.0))
+				w_title.add_theme_font_size_override("font_size", 13)
+				w_title.add_theme_color_override("font_color", Color(0.35, 0.85, 1.0))
 
-			if not w_hbox.has_node("IconWave"):
-				var icon_w = HudVectorIcon.new()
-				icon_w.name = "IconWave"
-				icon_w.custom_minimum_size = Vector2(20, 20)
-				icon_w.icon_type = HudVectorIcon.Type.WAVE_SWORDS
-				icon_w.icon_color = Color(0.40, 0.85, 1.0)
-				w_hbox.add_child(icon_w)
-				w_hbox.move_child(icon_w, 0)
+			if label_wave:
+				label_wave.add_theme_font_size_override("font_size", 15)
+				label_wave.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+
+			if not w_hbox.has_node("CrestShieldTexture"):
+				var crest_shield = TextureRect.new()
+				crest_shield.name = "CrestShieldTexture"
+				crest_shield.custom_minimum_size = Vector2(20, 20)
+				crest_shield.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				crest_shield.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				crest_shield.texture = load("res://assets/textures/ui/hud_crest_shield.png")
+				w_hbox.add_child(crest_shield)
+				w_hbox.move_child(crest_shield, 0)
+			elif w_hbox.has_node("IconWave"):
+				w_hbox.get_node("IconWave").visible = false
 
 			# Vạch phân cách đồng thau giữa Đợt và Vàng
 			if not w_hbox.has_node("WaveGoldDivider"):
 				var div = ColorRect.new()
 				div.name = "WaveGoldDivider"
-				div.custom_minimum_size = Vector2(2, 22)
-				div.color = Color(0.85, 0.70, 0.35, 0.50)
+				div.custom_minimum_size = Vector2(1.5, 18)
+				div.color = Color(0.85, 0.70, 0.35, 0.45)
+				div.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 				w_hbox.add_child(div)
 				var g_title = w_hbox.get_node_or_null("LabelGoldTitle")
 				if g_title:
@@ -2706,79 +3396,143 @@ func _setup_hud_ui() -> void:
 			var g_title_lbl = w_hbox.get_node_or_null("LabelGoldTitle") as Label
 			if g_title_lbl:
 				g_title_lbl.text = "VÀNG:"
+				g_title_lbl.add_theme_font_size_override("font_size", 13)
 				g_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
 
-			if not w_hbox.has_node("IconGold"):
-				var icon_g = HudVectorIcon.new()
-				icon_g.name = "IconGold"
-				icon_g.custom_minimum_size = Vector2(20, 20)
-				icon_g.icon_type = HudVectorIcon.Type.GOLD_COIN
-				icon_g.icon_color = Color(1.0, 0.85, 0.25)
-				w_hbox.add_child(icon_g)
+			if not w_hbox.has_node("GoldCoinTexture"):
+				var coin_tex = TextureRect.new()
+				coin_tex.name = "GoldCoinTexture"
+				coin_tex.custom_minimum_size = Vector2(20, 20)
+				coin_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				coin_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				coin_tex.texture = load("res://assets/textures/ui/hud_gold_coin.png")
+				w_hbox.add_child(coin_tex)
 				var g_lbl = w_hbox.get_node_or_null("LabelGoldTitle")
 				if g_lbl:
-					w_hbox.move_child(icon_g, g_lbl.get_index())
+					w_hbox.move_child(coin_tex, g_lbl.get_index())
+			elif w_hbox.has_node("IconGold"):
+				w_hbox.get_node("IconGold").visible = false
 
 			if label_gold:
-				label_gold.add_theme_color_override("font_color", Color(1.0, 0.92, 0.40))
-				label_gold.add_theme_font_size_override("font_size", 20)
+				label_gold.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+				label_gold.add_theme_font_size_override("font_size", 16)
 
-	# 4. WAVE INTEL BOX (Dải băng tình báo chiến thuật đồng thau)
+	# 4. WAVE INTEL BOX (Được neo liền mạch ngay phía dưới WaveBox)
 	var intel_box = hud.get_node_or_null("WaveIntelBox") as PanelContainer
 	if intel_box:
-		intel_box.add_theme_stylebox_override("panel", make_steampunk_brass_box.call(Color(0.82, 0.68, 0.32, 0.75), 6))
+		var sb_intel = StyleBoxFlat.new()
+		sb_intel.bg_color = Color(0.03, 0.05, 0.08, 0.88)
+		sb_intel.border_color = Color(0.0, 0.85, 1.0, 0.45)
+		sb_intel.set_border_width_all(1)
+		sb_intel.set_corner_radius_all(4)
+		sb_intel.shadow_size = 4
+		sb_intel.shadow_color = Color(0.0, 0.10, 0.20, 0.35)
+		intel_box.add_theme_stylebox_override("panel", sb_intel)
 		intel_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-		intel_box.offset_left = -365.0
-		intel_box.offset_top = 68.0
-		intel_box.offset_right = -24.0
-		intel_box.offset_bottom = 98.0
+		intel_box.offset_left = -350.0
+		intel_box.offset_top = 59.0
+		intel_box.offset_right = -20.0
+		intel_box.offset_bottom = 83.0
+		intel_box.custom_minimum_size = Vector2(330.0, 24.0)
+		intel_box.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not intel_box.has_meta("intel_click_connected"):
+			intel_box.set_meta("intel_click_connected", true)
+			intel_box.gui_input.connect(func(event: InputEvent):
+				if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_wave_holo_dropdown()
+			)
 
-	# 5. NÚT PILL CAMERA, TỐC ĐỘ, THỬ THÁCH, ÂM THANH (Xếp thẳng hàng HBox tại y=68px, cao 28px)
-	var quick_btn_hbox = hud.get_node_or_null("QuickBtnHBox") as HBoxContainer
+		var intel_margin = intel_box.get_node_or_null("Margin") as MarginContainer
+		if intel_margin:
+			intel_margin.add_theme_constant_override("margin_left", 10)
+			intel_margin.add_theme_constant_override("margin_right", 10)
+			intel_margin.add_theme_constant_override("margin_top", 2)
+			intel_margin.add_theme_constant_override("margin_bottom", 2)
+
+		if label_wave_intel:
+			label_wave_intel.add_theme_color_override("font_color", Color(0.0, 0.95, 1.0, 1.0))
+			label_wave_intel.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.08, 0.95))
+			label_wave_intel.add_theme_constant_override("outline_size", 2)
+			label_wave_intel.add_theme_font_size_override("font_size", 11)
+			label_wave_intel.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	# 5. TACTICAL COMMAND DOCK (Góc trên bên trái, cân đối hoàn hảo tại y=12px)
+	var cmd_dock = hud.get_node_or_null("TacticalCommandDock") as PanelContainer
+	if not cmd_dock:
+		cmd_dock = PanelContainer.new()
+		cmd_dock.name = "TacticalCommandDock"
+		hud.add_child(cmd_dock)
+		hud.move_child(cmd_dock, 1)
+
+	cmd_dock.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	cmd_dock.offset_left = 20.0
+	cmd_dock.offset_top = 12.0
+	cmd_dock.offset_right = 420.0
+	cmd_dock.offset_bottom = 56.0
+	cmd_dock.custom_minimum_size = Vector2(400.0, 44.0)
+
+	var sb_dock = StyleBoxFlat.new()
+	sb_dock.bg_color = Color(0.03, 0.05, 0.08, 0.94)
+	sb_dock.set_border_width_all(1.5)
+	sb_dock.border_color = Color(0.0, 0.85, 1.0, 0.80)
+	sb_dock.set_corner_radius_all(8)
+	sb_dock.shadow_size = 10
+	sb_dock.shadow_color = Color(0.0, 0.15, 0.30, 0.50)
+	cmd_dock.add_theme_stylebox_override("panel", sb_dock)
+	_attach_corner_brackets(cmd_dock, Color(0.0, 0.85, 1.0, 0.90))
+
+	var dock_margin = cmd_dock.get_node_or_null("Margin") as MarginContainer
+	if not dock_margin:
+		dock_margin = MarginContainer.new()
+		dock_margin.name = "Margin"
+		dock_margin.add_theme_constant_override("margin_left", 8)
+		dock_margin.add_theme_constant_override("margin_right", 8)
+		dock_margin.add_theme_constant_override("margin_top", 5)
+		dock_margin.add_theme_constant_override("margin_bottom", 5)
+		cmd_dock.add_child(dock_margin)
+
+	var quick_btn_hbox = dock_margin.get_node_or_null("QuickBtnHBox") as HBoxContainer
 	if not quick_btn_hbox:
 		quick_btn_hbox = HBoxContainer.new()
 		quick_btn_hbox.name = "QuickBtnHBox"
-		hud.add_child(quick_btn_hbox)
-		hud.move_child(quick_btn_hbox, 1)
+		dock_margin.add_child(quick_btn_hbox)
 
-	quick_btn_hbox.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	quick_btn_hbox.position = Vector2(24.0, 80.0)
 	quick_btn_hbox.add_theme_constant_override("separation", 6)
 
-	var make_pill_style = func(border_col: Color, bg_col: Color = Color(0.06, 0.05, 0.08, 0.92)) -> StyleBoxFlat:
+	var make_pill_style = func(border_col: Color, bg_col: Color = Color(0.06, 0.09, 0.15, 0.92)) -> StyleBoxFlat:
 		var sb = StyleBoxFlat.new()
 		sb.bg_color = bg_col
-		sb.set_border_width_all(1.5)
+		sb.set_border_width_all(1.2)
 		sb.border_color = border_col
-		sb.set_corner_radius_all(8)
-		sb.shadow_size = 4
-		sb.shadow_color = Color(0, 0, 0, 0.40)
-		sb.shadow_offset = Vector2(0, 2)
+		sb.set_corner_radius_all(6)
+		sb.shadow_size = 3
+		sb.shadow_color = Color(0, 0, 0, 0.35)
+		sb.shadow_offset = Vector2(0, 1)
 		return sb
 
 	if btn_camera_mode:
 		if btn_camera_mode.get_parent() != quick_btn_hbox:
 			btn_camera_mode.reparent(quick_btn_hbox)
-		btn_camera_mode.custom_minimum_size = Vector2(165.0, 28.0)
+		btn_camera_mode.custom_minimum_size = Vector2(130.0, 32.0)
 		btn_camera_mode.add_theme_font_size_override("font_size", 11)
-		btn_camera_mode.add_theme_color_override("font_color", Color(0.92, 0.88, 0.80))
-		btn_camera_mode.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.70))
-		btn_camera_mode.add_theme_color_override("font_pressed_color", Color(0.80, 0.75, 0.60))
-		btn_camera_mode.add_theme_stylebox_override("normal", make_pill_style.call(Color(0.85, 0.70, 0.35, 0.65)))
-		btn_camera_mode.add_theme_stylebox_override("hover", make_pill_style.call(Color(1.0, 0.88, 0.45, 0.95), Color(0.12, 0.10, 0.15, 0.96)))
-		btn_camera_mode.add_theme_stylebox_override("pressed", make_pill_style.call(Color(0.75, 0.60, 0.28, 1.0), Color(0.04, 0.03, 0.05, 0.98)))
+		btn_camera_mode.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+		btn_camera_mode.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0))
+		btn_camera_mode.add_theme_color_override("font_pressed_color", Color(0.70, 0.85, 1.0))
+		btn_camera_mode.add_theme_stylebox_override("normal", make_pill_style.call(Color(0.25, 0.45, 0.65, 0.80)))
+		btn_camera_mode.add_theme_stylebox_override("hover", make_pill_style.call(Color(0.0, 0.90, 1.0, 0.95), Color(0.10, 0.16, 0.26, 0.96)))
+		btn_camera_mode.add_theme_stylebox_override("pressed", make_pill_style.call(Color(0.0, 0.75, 0.90, 1.0), Color(0.04, 0.06, 0.10, 0.98)))
 
 	if btn_speed:
 		if btn_speed.get_parent() != quick_btn_hbox:
 			btn_speed.reparent(quick_btn_hbox)
-		btn_speed.custom_minimum_size = Vector2(52.0, 28.0)
+		btn_speed.custom_minimum_size = Vector2(48.0, 32.0)
 		btn_speed.add_theme_font_size_override("font_size", 12)
 		_update_speed_button_style()
 
 	if btn_hardcore:
 		if btn_hardcore.get_parent() != quick_btn_hbox:
 			btn_hardcore.reparent(quick_btn_hbox)
-		btn_hardcore.custom_minimum_size = Vector2(96.0, 28.0)
+		btn_hardcore.custom_minimum_size = Vector2(95.0, 32.0)
 		btn_hardcore.add_theme_font_size_override("font_size", 11)
 		_update_hardcore_button_style()
 
@@ -2790,17 +3544,16 @@ func _setup_hud_ui() -> void:
 	if btn_sound_toggle:
 		if btn_sound_toggle.get_parent() != quick_btn_hbox:
 			btn_sound_toggle.reparent(quick_btn_hbox)
-		btn_sound_toggle.custom_minimum_size = Vector2(100.0, 28.0)
+		btn_sound_toggle.custom_minimum_size = Vector2(95.0, 32.0)
 		btn_sound_toggle.add_theme_font_size_override("font_size", 11)
 		_update_sound_button_style()
 		if not btn_sound_toggle.pressed.is_connected(toggle_sound):
 			btn_sound_toggle.pressed.connect(toggle_sound)
 
-	# 6. RECORD BOX (Đưa xuống y=115px, cao 24px)
-	var rec_box = hud.get_node_or_null("RecordBox") as PanelContainer
+	# 6. RECORD BOX (Được ẩn sạch sẽ để giao diện thông thoáng)
 	if rec_box:
 		rec_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-		rec_box.position = Vector2(24.0, 115.0)
+		rec_box.position = Vector2(24.0, 102.0)
 		rec_box.size = Vector2(390.0, 24.0)
 		var sb_rec = StyleBoxFlat.new()
 		sb_rec.bg_color = Color(0.05, 0.04, 0.07, 0.88)
@@ -2815,64 +3568,86 @@ func _setup_hud_ui() -> void:
 		sb_rec.content_margin_bottom = 2
 		rec_box.add_theme_stylebox_override("panel", sb_rec)
 
-	# 7. BOTTOM COMMAND DOCK (Bệ chỉ huy vương giả đồng thau & đinh tán)
+	# 7. BOTTOM BACKDROP GRADIENT (Grounded Cinematic Vignette)
+	var bottom_backdrop = hud.get_node_or_null("BottomBackdrop") as TextureRect
+	if not bottom_backdrop:
+		bottom_backdrop = TextureRect.new()
+		bottom_backdrop.name = "BottomBackdrop"
+		bottom_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var grad = Gradient.new()
+		grad.set_color(0, Color(0.02, 0.03, 0.06, 0.0))
+		grad.set_color(1, Color(0.02, 0.03, 0.06, 0.85))
+		var grad_tex = GradientTexture2D.new()
+		grad_tex.gradient = grad
+		grad_tex.fill_from = Vector2(0.5, 0.0)
+		grad_tex.fill_to = Vector2(0.5, 1.0)
+		bottom_backdrop.texture = grad_tex
+		bottom_backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		hud.add_child(bottom_backdrop)
+		hud.move_child(bottom_backdrop, bottom_bar.get_index())
+	bottom_backdrop.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom_backdrop.offset_top = -250.0
+	bottom_backdrop.offset_bottom = 0.0
+
+	# 8. BOTTOM COMMAND DOCK (5 Thẻ Bài Hologram Chiến Thuật)
 	if bottom_bar:
 		var sb_bar = StyleBoxFlat.new()
-		sb_bar.bg_color = Color(0.06, 0.05, 0.08, 0.96)
-		sb_bar.border_width_top = 3
-		sb_bar.border_color = Color(0.88, 0.74, 0.38, 0.90)
-		sb_bar.border_width_left = 2
-		sb_bar.border_width_right = 2
+		sb_bar.bg_color = Color(0.03, 0.05, 0.09, 0.80)
+		sb_bar.border_width_top = 1
+		sb_bar.border_color = Color(0.0, 0.85, 1.0, 0.25)
+		sb_bar.border_width_left = 0
+		sb_bar.border_width_right = 0
 		sb_bar.border_width_bottom = 0
 		sb_bar.corner_radius_top_left = 16
 		sb_bar.corner_radius_top_right = 16
-		sb_bar.shadow_size = 12
-		sb_bar.shadow_color = Color(0, 0, 0, 0.55)
-		sb_bar.shadow_offset = Vector2(0, -4)
+		sb_bar.shadow_size = 14
+		sb_bar.shadow_color = Color(0.0, 0.15, 0.30, 0.60)
+		sb_bar.shadow_offset = Vector2(0, -3)
 		bottom_bar.add_theme_stylebox_override("panel", sb_bar)
-		bottom_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-		bottom_bar.offset_left = 280.0
-		bottom_bar.offset_right = -280.0
-		bottom_bar.offset_top = -80.0
-		bottom_bar.offset_bottom = -8.0
+		bottom_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		bottom_bar.offset_left = -420.0
+		bottom_bar.offset_right = 420.0
+		bottom_bar.offset_top = -216.0
+		bottom_bar.offset_bottom = 0.0
 
 		var b_margin = bottom_bar.get_node_or_null("Margin") as MarginContainer
+		var b_hbox: HBoxContainer = null
 		if b_margin:
 			b_margin.add_theme_constant_override("margin_left", 14)
 			b_margin.add_theme_constant_override("margin_right", 14)
-			b_margin.add_theme_constant_override("margin_top", 8)
+			b_margin.add_theme_constant_override("margin_top", 6)
 			b_margin.add_theme_constant_override("margin_bottom", 8)
-			var b_hbox = b_margin.get_node_or_null("HBox") as HBoxContainer
+			b_hbox = b_margin.get_node_or_null("HBox") as HBoxContainer
 			if b_hbox:
-				b_hbox.add_theme_constant_override("separation", 12)
+				b_hbox.add_theme_constant_override("separation", 10)
 
-		_style_dock_button(btn_build, "MUA TRỤ", "[SPACE]", Color(0.35, 0.85, 1.0), HudVectorIcon.Type.TOWER_CANNON)
-		_style_dock_button(btn_skill_tree, "KỸ NĂNG", "[W]", Color(0.35, 1.0, 0.65), HudVectorIcon.Type.SKILL_CHIP)
-		_style_dock_button(btn_spell, "PHÉP THUẬT", "[F]", Color(1.0, 0.85, 0.25), HudVectorIcon.Type.SPELL_BURST)
-		_style_dock_button(btn_next_wave, "GỌI ĐỢT", "[N]", Color(1.0, 0.42, 0.35), HudVectorIcon.Type.DEFEND_SHIELD)
+		# 8. NÚT BẪY CẦU ĐƯỢC TÍCH HỢP THÀNH THẺ THỨ 5 TRÊN DOCK
+		if not btn_bridge_emp:
+			btn_bridge_emp = Button.new()
+			btn_bridge_emp.name = "BtnBridgeEmp"
+			btn_bridge_emp.pressed.connect(activate_bridge_emp)
 
-		# 4 Dấu ngoặc kim loại chữ L ở 4 góc của các nút trên Bottom Command Dock
-		_attach_corner_brackets(btn_build, Color(0.88, 0.74, 0.38, 0.85))
-		_attach_corner_brackets(btn_skill_tree, Color(0.88, 0.74, 0.38, 0.85))
-		_attach_corner_brackets(btn_spell, Color(0.88, 0.74, 0.38, 0.85))
-		_attach_corner_brackets(btn_next_wave, Color(0.88, 0.74, 0.38, 0.85))
+		if b_hbox and btn_bridge_emp.get_parent() != b_hbox:
+			if btn_bridge_emp.get_parent():
+				btn_bridge_emp.get_parent().remove_child(btn_bridge_emp)
+			b_hbox.add_child(btn_bridge_emp)
 
-	# 8. NÚT BẪY CẦU TRÊN MÀN HÌNH (Touch Action Button [E] >= 48px)
-	if not btn_bridge_emp and hud:
-		btn_bridge_emp = Button.new()
-		btn_bridge_emp.name = "BtnBridgeEmp"
-		btn_bridge_emp.custom_minimum_size = Vector2(175.0, 56.0)
-		btn_bridge_emp.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-		btn_bridge_emp.offset_left = -260.0
-		btn_bridge_emp.offset_right = -80.0
-		btn_bridge_emp.offset_top = -80.0
-		btn_bridge_emp.offset_bottom = -24.0
-		hud.add_child(btn_bridge_emp)
-		_style_dock_button(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]", Color(0.25, 0.90, 1.0), HudVectorIcon.Type.LIGHTNING_EMP)
-		_attach_corner_brackets(btn_bridge_emp, Color(0.88, 0.74, 0.38, 0.85))
-		btn_bridge_emp.pressed.connect(activate_bridge_emp)
+		_style_dock_button(btn_build, "MUA TRỤ", "[SPACE]", Color(0.0, 0.95, 1.0), HudVectorIcon.Type.TOWER_CANNON, "res://assets/textures/cards/video_style/card_buy_tower.png")
+		_style_dock_button(btn_skill_tree, "KỸ NĂNG", "[W]", Color(0.0, 1.0, 0.65), HudVectorIcon.Type.SKILL_CHIP, "res://assets/textures/cards/video_style/card_skill.png")
+		_style_dock_button(btn_spell, "PHÉP THUẬT", "[F]", Color(1.0, 0.85, 0.25), HudVectorIcon.Type.SPELL_BURST, "res://assets/textures/cards/video_style/card_spell.png")
+		_style_dock_button(btn_next_wave, "GỌI ĐỢT", "[N]", Color(1.0, 0.35, 0.30), HudVectorIcon.Type.DEFEND_SHIELD, "res://assets/textures/cards/video_style/card_next_wave.png")
+		_style_dock_button(btn_bridge_emp, "BẪY CẦU (%dG)" % BRIDGE_EMP_COST, "[E]", Color(0.80, 0.45, 1.0), HudVectorIcon.Type.LIGHTNING_EMP, "res://assets/textures/cards/video_style/card_bridge_emp.png")
 
-	# 8. THIẾT LẬP QUICK TRAYS & CARDS
+	# Khởi tạo TowerFanOutArc xòe 4 mô-đun
+	if not tower_fan_out_arc and has_node("UI/HUD"):
+		tower_fan_out_arc = TowerFanOutArcScript.new()
+		tower_fan_out_arc.name = "TowerFanOutArc"
+		$UI/HUD.add_child(tower_fan_out_arc)
+		tower_fan_out_arc.tower_selected.connect(func(type: int, cost: int):
+			_on_quick_tower_selected(type, cost)
+		)
+
+	# 9. THIẾT LẬP QUICK TRAYS & CARDS
 	_setup_tray_icons()
 
 func _setup_button_icons() -> void:
@@ -3311,59 +4086,547 @@ func _on_btn_hardcore_modal_pressed() -> void:
 	is_hardcore_mode = true
 	_restart_game(true)
 
+func _style_armory_tower_card(btn: Button, title: String, tag: String, cost_str: String, accent: Color, icon_tex: Texture2D, tooltip_data: Dictionary) -> void:
+	if not btn: return
+	btn.custom_minimum_size = Vector2(178.0, 186.0)
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.text = ""
+	btn.icon = null
+	btn.pivot_offset = Vector2(89.0, 93.0)
+
+	var sb_empty = StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", sb_empty)
+	btn.add_theme_stylebox_override("hover", sb_empty)
+	btn.add_theme_stylebox_override("pressed", sb_empty)
+	btn.add_theme_stylebox_override("focus", sb_empty)
+	btn.add_theme_stylebox_override("disabled", sb_empty)
+
+	var armory_visual = btn.get_node_or_null("ArmoryVisual") as Control
+	if not armory_visual:
+		armory_visual = Control.new()
+		armory_visual.name = "ArmoryVisual"
+		armory_visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		armory_visual.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		armory_visual.pivot_offset = Vector2(89.0, 93.0)
+		btn.add_child(armory_visual)
+		btn.move_child(armory_visual, 0)
+
+	var card_bg = armory_visual.get_node_or_null("CardBg") as Panel
+	if not card_bg:
+		var old_bg = btn.get_node_or_null("CardBg")
+		if old_bg:
+			old_bg.reparent(armory_visual)
+			card_bg = old_bg as Panel
+		else:
+			card_bg = Panel.new()
+			card_bg.name = "CardBg"
+			card_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			card_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			armory_visual.add_child(card_bg)
+
+	var sb_card = StyleBoxFlat.new()
+	sb_card.bg_color = Color(0.04, 0.06, 0.10, 0.95)
+	sb_card.set_border_width_all(1.5)
+	sb_card.border_color = accent
+	sb_card.set_corner_radius_all(8)
+	sb_card.shadow_size = 12
+	sb_card.shadow_color = Color(0.0, 0.0, 0.0, 0.65)
+	sb_card.shadow_offset = Vector2(0, 3)
+	card_bg.add_theme_stylebox_override("panel", sb_card)
+	_attach_corner_brackets(card_bg, accent)
+
+	var margin = armory_visual.get_node_or_null("Margin") as MarginContainer
+	if not margin:
+		var old_mg = btn.get_node_or_null("Margin")
+		if old_mg:
+			old_mg.reparent(armory_visual)
+			margin = old_mg as MarginContainer
+		else:
+			margin = MarginContainer.new()
+			margin.name = "Margin"
+			margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			margin.add_theme_constant_override("margin_left", 8)
+			margin.add_theme_constant_override("margin_right", 8)
+			margin.add_theme_constant_override("margin_top", 8)
+			margin.add_theme_constant_override("margin_bottom", 8)
+			armory_visual.add_child(margin)
+
+	var vbox = margin.get_node_or_null("VBox") as VBoxContainer
+	if not vbox:
+		vbox = VBoxContainer.new()
+		vbox.name = "VBox"
+		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_theme_constant_override("separation", 4)
+		margin.add_child(vbox)
+
+		var top_row = HBoxContainer.new()
+		top_row.name = "TopRow"
+		top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(top_row)
+
+		var lbl_tag = Label.new()
+		lbl_tag.name = "LabelTag"
+		lbl_tag.add_theme_font_size_override("font_size", 10)
+		lbl_tag.add_theme_color_override("font_color", accent)
+		lbl_tag.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.08, 0.95))
+		lbl_tag.add_theme_constant_override("outline_size", 2)
+		top_row.add_child(lbl_tag)
+
+		var spacer = Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		top_row.add_child(spacer)
+
+		var dot = ColorRect.new()
+		dot.name = "StatusDot"
+		dot.custom_minimum_size = Vector2(6, 6)
+		dot.color = accent
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top_row.add_child(dot)
+
+		var center_box = CenterContainer.new()
+		center_box.name = "CenterBox"
+		center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		center_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vbox.add_child(center_box)
+
+		# Vòng bệ đỡ năng lượng Hologram phía sau tháp
+		var pedestal = Panel.new()
+		pedestal.name = "Pedestal"
+		pedestal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pedestal.custom_minimum_size = Vector2(85.0, 65.0)
+		var sb_ped = StyleBoxFlat.new()
+		sb_ped.bg_color = Color(accent.r, accent.g, accent.b, 0.08)
+		sb_ped.set_border_width_all(1)
+		sb_ped.border_color = Color(accent.r, accent.g, accent.b, 0.30)
+		sb_ped.set_corner_radius_all(32)
+		pedestal.add_theme_stylebox_override("panel", sb_ped)
+		center_box.add_child(pedestal)
+
+		var tex_rect = TextureRect.new()
+		tex_rect.name = "ModelTexture"
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex_rect.custom_minimum_size = Vector2(110.0, 78.0)
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		center_box.add_child(tex_rect)
+
+		var lbl_t = Label.new()
+		lbl_t.name = "LabelTitle"
+		lbl_t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl_t.add_theme_font_size_override("font_size", 12)
+		lbl_t.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.98))
+		lbl_t.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.08, 0.95))
+		lbl_t.add_theme_constant_override("outline_size", 3)
+		vbox.add_child(lbl_t)
+
+		var cost_panel = PanelContainer.new()
+		cost_panel.name = "CostPanel"
+		cost_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var sb_cost = StyleBoxFlat.new()
+		sb_cost.bg_color = Color(0.12, 0.09, 0.04, 0.92)
+		sb_cost.set_border_width_all(1)
+		sb_cost.border_color = Color(1.0, 0.85, 0.25, 0.90)
+		sb_cost.set_corner_radius_all(4)
+		cost_panel.add_theme_stylebox_override("panel", sb_cost)
+		vbox.add_child(cost_panel)
+
+		var cost_lbl = Label.new()
+		cost_lbl.name = "LabelCost"
+		cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cost_lbl.add_theme_font_size_override("font_size", 11)
+		cost_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+		cost_lbl.add_theme_color_override("font_outline_color", Color(0.04, 0.02, 0.0, 0.95))
+		cost_lbl.add_theme_constant_override("outline_size", 2)
+		cost_panel.add_child(cost_lbl)
+
+	var l_tag = vbox.get_node_or_null("TopRow/LabelTag") as Label
+	if l_tag: l_tag.text = tag
+	var t_tex = vbox.get_node_or_null("CenterBox/ModelTexture") as TextureRect
+	if t_tex:
+		t_tex.texture = icon_tex
+		t_tex.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var l_title = vbox.get_node_or_null("LabelTitle") as Label
+	if l_title: l_title.text = title
+	var l_cost = vbox.get_node_or_null("CostPanel/LabelCost") as Label
+	if l_cost: l_cost.text = cost_str
+
+	if not btn.has_meta("armory_card_hover_setup"):
+		btn.set_meta("armory_card_hover_setup", true)
+		btn.mouse_entered.connect(func():
+			var tw = armory_visual.create_tween()
+			tw.tween_property(armory_visual, "position:y", -8.0, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(armory_visual, "scale", Vector2(1.03, 1.03), 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(armory_visual, "modulate", Color(1.2, 1.2, 1.2), 0.14)
+			if card_tooltip_hud:
+				card_tooltip_hud.inspect_card(btn, tooltip_data)
+		)
+		btn.mouse_exited.connect(func():
+			var tw = armory_visual.create_tween()
+			tw.tween_property(armory_visual, "position:y", 0.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(armory_visual, "scale", Vector2(1.0, 1.0), 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(armory_visual, "modulate", Color(1.0, 1.0, 1.0), 0.12)
+			if card_tooltip_hud:
+				card_tooltip_hud.dismiss()
+		)
+		btn.button_down.connect(func():
+			var tw = armory_visual.create_tween()
+			tw.tween_property(armory_visual, "position:y", -3.0, 0.06)
+			tw.parallel().tween_property(armory_visual, "scale", Vector2(0.97, 0.97), 0.06)
+		)
+		btn.button_up.connect(func():
+			var tw = armory_visual.create_tween()
+			tw.tween_property(armory_visual, "position:y", -8.0, 0.08)
+			tw.parallel().tween_property(armory_visual, "scale", Vector2(1.03, 1.03), 0.08)
+		)
+
+func _style_spell_card(btn: Button, title: String, cost_str: String, accent: Color, icon_tex: Texture2D, tooltip_data: Dictionary) -> void:
+	if not btn: return
+	btn.custom_minimum_size = Vector2(210.0, 160.0)
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.text = ""
+	btn.icon = null
+	btn.pivot_offset = Vector2(105.0, 80.0)
+
+	var sb_empty = StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", sb_empty)
+	btn.add_theme_stylebox_override("hover", sb_empty)
+	btn.add_theme_stylebox_override("pressed", sb_empty)
+	btn.add_theme_stylebox_override("focus", sb_empty)
+	btn.add_theme_stylebox_override("disabled", sb_empty)
+
+	var spell_visual = btn.get_node_or_null("SpellVisual") as Control
+	if not spell_visual:
+		spell_visual = Control.new()
+		spell_visual.name = "SpellVisual"
+		spell_visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		spell_visual.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		spell_visual.pivot_offset = Vector2(105.0, 80.0)
+		btn.add_child(spell_visual)
+		btn.move_child(spell_visual, 0)
+
+	var card_bg = spell_visual.get_node_or_null("CardBg") as Panel
+	if not card_bg:
+		var old_bg = btn.get_node_or_null("CardBg")
+		if old_bg:
+			old_bg.reparent(spell_visual)
+			card_bg = old_bg as Panel
+		else:
+			card_bg = Panel.new()
+			card_bg.name = "CardBg"
+			card_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			card_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			spell_visual.add_child(card_bg)
+
+	var sb_card = StyleBoxFlat.new()
+	sb_card.bg_color = Color(0.05, 0.07, 0.12, 0.95)
+	sb_card.set_border_width_all(1.5)
+	sb_card.border_color = accent
+	sb_card.set_corner_radius_all(8)
+	sb_card.shadow_size = 12
+	sb_card.shadow_color = Color(0.0, 0.0, 0.0, 0.65)
+	sb_card.shadow_offset = Vector2(0, 3)
+	card_bg.add_theme_stylebox_override("panel", sb_card)
+	_attach_corner_brackets(card_bg, accent)
+
+	var margin = spell_visual.get_node_or_null("Margin") as MarginContainer
+	if not margin:
+		var old_mg = btn.get_node_or_null("Margin")
+		if old_mg:
+			old_mg.reparent(spell_visual)
+			margin = old_mg as MarginContainer
+		else:
+			margin = MarginContainer.new()
+			margin.name = "Margin"
+			margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			margin.add_theme_constant_override("margin_left", 8)
+			margin.add_theme_constant_override("margin_right", 8)
+			margin.add_theme_constant_override("margin_top", 8)
+			margin.add_theme_constant_override("margin_bottom", 8)
+			spell_visual.add_child(margin)
+
+	var vbox = margin.get_node_or_null("VBox") as VBoxContainer
+	if not vbox:
+		vbox = VBoxContainer.new()
+		vbox.name = "VBox"
+		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_theme_constant_override("separation", 4)
+		margin.add_child(vbox)
+
+		var top_row = HBoxContainer.new()
+		top_row.name = "TopRow"
+		top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(top_row)
+
+		var lbl_tag = Label.new()
+		lbl_tag.name = "LabelTag"
+		lbl_tag.add_theme_font_size_override("font_size", 9)
+		lbl_tag.add_theme_color_override("font_color", accent)
+		lbl_tag.text = "[ MA PHÁP ]"
+		top_row.add_child(lbl_tag)
+
+		var spacer = Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		top_row.add_child(spacer)
+
+		var dot = ColorRect.new()
+		dot.name = "StatusDot"
+		dot.custom_minimum_size = Vector2(6, 6)
+		dot.color = accent
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		top_row.add_child(dot)
+
+		var center_box = CenterContainer.new()
+		center_box.name = "CenterBox"
+		center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		center_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vbox.add_child(center_box)
+
+		var tex_rect = TextureRect.new()
+		tex_rect.name = "ModelTexture"
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex_rect.custom_minimum_size = Vector2(80.0, 75.0)
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		center_box.add_child(tex_rect)
+
+		var lbl_t = Label.new()
+		lbl_t.name = "LabelTitle"
+		lbl_t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl_t.add_theme_font_size_override("font_size", 11)
+		lbl_t.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.95))
+		lbl_t.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.08, 0.95))
+		lbl_t.add_theme_constant_override("outline_size", 2)
+		vbox.add_child(lbl_t)
+
+		var cost_panel = PanelContainer.new()
+		cost_panel.name = "CostPanel"
+		cost_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var sb_cost = StyleBoxFlat.new()
+		sb_cost.bg_color = Color(0.12, 0.09, 0.04, 0.90)
+		sb_cost.set_border_width_all(1)
+		sb_cost.border_color = Color(1.0, 0.85, 0.25, 0.85)
+		sb_cost.set_corner_radius_all(4)
+		cost_panel.add_theme_stylebox_override("panel", sb_cost)
+		vbox.add_child(cost_panel)
+
+		var cost_lbl = Label.new()
+		cost_lbl.name = "LabelCost"
+		cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cost_lbl.add_theme_font_size_override("font_size", 10)
+		cost_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+		cost_panel.add_child(cost_lbl)
+
+	var t_tex = vbox.get_node_or_null("CenterBox/ModelTexture") as TextureRect
+	if t_tex:
+		t_tex.texture = icon_tex
+		t_tex.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var l_title = vbox.get_node_or_null("LabelTitle") as Label
+	if l_title: l_title.text = title
+	var l_cost = vbox.get_node_or_null("CostPanel/LabelCost") as Label
+	if l_cost: l_cost.text = cost_str
+
+	if not btn.has_meta("spell_card_hover_setup"):
+		btn.set_meta("spell_card_hover_setup", true)
+		btn.mouse_entered.connect(func():
+			var tw = spell_visual.create_tween()
+			tw.tween_property(spell_visual, "position:y", -8.0, 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(spell_visual, "scale", Vector2(1.03, 1.03), 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(spell_visual, "modulate", Color(1.2, 1.2, 1.2), 0.14)
+			if card_tooltip_hud:
+				card_tooltip_hud.inspect_card(btn, tooltip_data)
+		)
+		btn.mouse_exited.connect(func():
+			var tw = spell_visual.create_tween()
+			tw.tween_property(spell_visual, "position:y", 0.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(spell_visual, "scale", Vector2(1.0, 1.0), 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(spell_visual, "modulate", Color(1.0, 1.0, 1.0), 0.12)
+			if card_tooltip_hud:
+				card_tooltip_hud.dismiss()
+		)
+		btn.button_down.connect(func():
+			var tw = spell_visual.create_tween()
+			tw.tween_property(spell_visual, "position:y", -3.0, 0.06)
+			tw.parallel().tween_property(spell_visual, "scale", Vector2(0.97, 0.97), 0.06)
+		)
+		btn.button_up.connect(func():
+			var tw = spell_visual.create_tween()
+			tw.tween_property(spell_visual, "position:y", -8.0, 0.08)
+			tw.parallel().tween_property(spell_visual, "scale", Vector2(1.03, 1.03), 0.08)
+		)
+
 func _setup_tray_icons() -> void:
 	if quick_tower_tray:
+		quick_tower_tray.z_index = 25
+		quick_tower_tray.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		quick_tower_tray.offset_left = -420.0
+		quick_tower_tray.offset_right = 420.0
+		quick_tower_tray.offset_bottom = -226.0
+		quick_tower_tray.offset_top = -436.0
 		var sb_tray = StyleBoxFlat.new()
-		sb_tray.bg_color = Color(0.06, 0.08, 0.12, 0.96)
-		sb_tray.set_border_width_all(2)
-		sb_tray.border_color = Color(0.88, 0.75, 0.40, 0.95)
-		sb_tray.set_corner_radius_all(12)
+		sb_tray.bg_color = Color(0.03, 0.05, 0.09, 0.96)
+		sb_tray.set_border_width_all(1.5)
+		sb_tray.border_color = Color(0.0, 0.85, 1.0, 0.85)
+		sb_tray.set_corner_radius_all(10)
 		sb_tray.shadow_size = 16
-		sb_tray.shadow_color = Color(0, 0, 0, 0.70)
-		sb_tray.shadow_offset = Vector2(0, 6)
+		sb_tray.shadow_color = Color(0.0, 0.15, 0.30, 0.65)
+		sb_tray.shadow_offset = Vector2(0, -4)
 		quick_tower_tray.add_theme_stylebox_override("panel", sb_tray)
-		_attach_corner_brackets(quick_tower_tray, Color(0.88, 0.75, 0.40, 0.90))
+		_attach_corner_brackets(quick_tower_tray, Color(0.0, 0.85, 1.0, 0.90))
 
 	if btn_close_tower_tray:
-		btn_close_tower_tray.text = "✕"
-		btn_close_tower_tray.add_theme_font_size_override("font_size", 18)
-		btn_close_tower_tray.add_theme_color_override("font_color", Color(1.0, 0.45, 0.45))
-		btn_close_tower_tray.custom_minimum_size = Vector2(40, 150)
+		btn_close_tower_tray.text = "X"
+		btn_close_tower_tray.add_theme_font_size_override("font_size", 16)
+		btn_close_tower_tray.add_theme_color_override("font_color", Color(1.0, 0.50, 0.50))
+		btn_close_tower_tray.custom_minimum_size = Vector2(32, 186)
 		var sb_x = StyleBoxFlat.new()
-		sb_x.bg_color = Color(0.24, 0.08, 0.10, 0.92)
-		sb_x.set_border_width_all(1.5)
-		sb_x.border_color = Color(0.85, 0.35, 0.35, 0.85)
-		sb_x.set_corner_radius_all(8)
+		sb_x.bg_color = Color(0.18, 0.05, 0.07, 0.92)
+		sb_x.set_border_width_all(1.2)
+		sb_x.border_color = Color(1.0, 0.35, 0.35, 0.85)
+		sb_x.set_corner_radius_all(6)
 		btn_close_tower_tray.add_theme_stylebox_override("normal", sb_x)
 
+	var tex_gatling = load("res://assets/sprites/tower_gatling_turret.png")
+	var tex_plasma = load("res://assets/sprites/tower_plasma_turret.png")
+	var tex_tesla = load("res://assets/sprites/tower_tesla_coil.png")
+	var tex_combat = load("res://assets/textures/cards/turret_combat_icon.png")
+
 	if btn_quick_gatling:
-		btn_quick_gatling.icon = CardGatling
-		btn_quick_gatling.expand_icon = true
-		btn_quick_gatling.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn_quick_gatling.text = ""
+		var d_gatling = {
+			"title": "PHÁO NÒNG XOAY GATLING",
+			"badge": "[ CƠ KHÍ ]",
+			"cost": "100 VÀNG",
+			"hotkey": "[1]",
+			"desc": "Vũ khí liên thanh hạng nặng. Tốc độ xả đạn cực cao, tối ưu tiêu diệt quái trinh sát cơ động nhanh.",
+			"dmg_ratio": 0.55,
+			"spd_ratio": 0.95,
+			"rng_ratio": 0.60,
+			"accent": Color(0.0, 0.95, 1.0)
+		}
+		_style_armory_tower_card(btn_quick_gatling, "GATLING GUN", "[ CƠ KHÍ ]", "100 VÀNG", Color(0.0, 0.95, 1.0), tex_gatling, d_gatling)
+
 	if btn_quick_plasma:
-		btn_quick_plasma.icon = CardPlasma
-		btn_quick_plasma.expand_icon = true
-		btn_quick_plasma.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn_quick_plasma.text = ""
+		var d_plasma = {
+			"title": "PHÁO NHIỆT HẠCH PLASMA",
+			"badge": "[ NHIỆT HẠCH ]",
+			"cost": "60 VÀNG",
+			"hotkey": "[2]",
+			"desc": "Phóng đạn cầu plasma nổ diện rộng (AoE). Hiệu ứng nhiệt thiêu đốt và phá vỡ cụm lính bọc thép dày đặc.",
+			"dmg_ratio": 0.85,
+			"spd_ratio": 0.45,
+			"rng_ratio": 0.65,
+			"accent": Color(1.0, 0.80, 0.20)
+		}
+		_style_armory_tower_card(btn_quick_plasma, "PLASMA CANNON", "[ NHIỆT HẠCH ]", "60 VÀNG", Color(1.0, 0.80, 0.20), tex_plasma, d_plasma)
+
 	if btn_quick_tesla:
-		btn_quick_tesla.icon = CardTesla
-		btn_quick_tesla.expand_icon = true
-		btn_quick_tesla.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn_quick_tesla.text = ""
+		var d_tesla = {
+			"title": "THÁP SẤM SÉT TESLA",
+			"badge": "[ ĐIỆN TỬ ]",
+			"cost": "150 VÀNG",
+			"hotkey": "[3]",
+			"desc": "Phóng hồ quang điện chuỗi giật lan nhiều mục tiêu. Làm tê liệt động cơ và vô hiệu hóa khiên năng lượng.",
+			"dmg_ratio": 0.90,
+			"spd_ratio": 0.65,
+			"rng_ratio": 0.70,
+			"accent": Color(0.80, 0.45, 1.0)
+		}
+		_style_armory_tower_card(btn_quick_tesla, "TESLA COIL", "[ ĐIỆN TỬ ]", "150 VÀNG", Color(0.80, 0.45, 1.0), tex_tesla, d_tesla)
+
+	if btn_quick_combat:
+		var d_combat = {
+			"title": "TỔ HỢP TÊN LỬA COMBAT SAM",
+			"badge": "[ HÀNG KHÔNG ]",
+			"cost": "120 VÀNG",
+			"hotkey": "[4]",
+			"desc": "Bệ phóng tên lửa thông minh tầm xa tự tìm mục tiêu. Khắc chế tuyệt đối máy bay trinh sát và quái bay.",
+			"dmg_ratio": 0.95,
+			"spd_ratio": 0.40,
+			"rng_ratio": 0.95,
+			"accent": Color(0.0, 1.0, 0.65)
+		}
+		_style_armory_tower_card(btn_quick_combat, "COMBAT SAM 3D", "[ HÀNG KHÔNG ]", "120 VÀNG", Color(0.0, 1.0, 0.65), tex_combat, d_combat)
+
+	if quick_spell_tray:
+		quick_spell_tray.z_index = 25
+		quick_spell_tray.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		quick_spell_tray.offset_left = -440.0
+		quick_spell_tray.offset_right = 440.0
+		quick_spell_tray.offset_bottom = -226.0
+		quick_spell_tray.offset_top = -410.0
+
+		var sb_s = StyleBoxFlat.new()
+		sb_s.bg_color = Color(0.04, 0.06, 0.10, 0.96)
+		sb_s.set_border_width_all(2)
+		sb_s.border_color = Color(1.0, 0.80, 0.25, 0.85)
+		sb_s.set_corner_radius_all(12)
+		sb_s.shadow_size = 20
+		sb_s.shadow_color = Color(0.3, 0.2, 0.05, 0.70)
+		sb_s.shadow_offset = Vector2(0, -4)
+		quick_spell_tray.add_theme_stylebox_override("panel", sb_s)
+		_attach_corner_brackets(quick_spell_tray, Color(1.0, 0.80, 0.25, 0.90))
+
+	if btn_close_spell_tray:
+		btn_close_spell_tray.text = "X"
+		btn_close_spell_tray.add_theme_font_size_override("font_size", 16)
+		btn_close_spell_tray.add_theme_color_override("font_color", Color(1.0, 0.50, 0.50))
+		btn_close_spell_tray.custom_minimum_size = Vector2(32, 160)
+		var sb_sx = StyleBoxFlat.new()
+		sb_sx.bg_color = Color(0.20, 0.06, 0.08, 0.92)
+		sb_sx.set_border_width_all(1.5)
+		sb_sx.border_color = Color(1.0, 0.35, 0.35, 0.85)
+		sb_sx.set_corner_radius_all(8)
+		btn_close_spell_tray.add_theme_stylebox_override("normal", sb_sx)
 
 	if btn_spell_lightning:
-		btn_spell_lightning.icon = IconSpellLightning
-		btn_spell_lightning.expand_icon = true
-		btn_spell_lightning.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var d_lightning = {
+			"title": "SẤM SÉT TOÀN ĐẢO",
+			"badge": "[ MA PHÁP ]",
+			"cost": "80 VÀNG",
+			"hotkey": "[1]",
+			"desc": "Giáng tia sét năng lượng đánh trúng toàn bộ quái vật đang có mặt trên đảo bay, gây 65 sát thương điện.",
+			"dmg_ratio": 0.80,
+			"spd_ratio": 1.0,
+			"rng_ratio": 1.0,
+			"accent": Color(0.0, 0.95, 1.0)
+		}
+		_style_spell_card(btn_spell_lightning, "SẤM SÉT", "80 VÀNG", Color(0.0, 0.95, 1.0), IconSpellLightning, d_lightning)
+
 	if btn_spell_freeze:
-		btn_spell_freeze.icon = IconSpellFreeze
-		btn_spell_freeze.expand_icon = true
-		btn_spell_freeze.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var d_freeze = {
+			"title": "BÃO BĂNG KHỐNG CHẾ",
+			"badge": "[ BĂNG GIÁ ]",
+			"cost": "60 VÀNG",
+			"hotkey": "[2]",
+			"desc": "Hạ nhiệt độ cực hạn, đóng băng toàn bộ kẻ địch trong 4 giây và vô hiệu hóa hoàn toàn chuyển động.",
+			"dmg_ratio": 0.20,
+			"spd_ratio": 0.10,
+			"rng_ratio": 1.0,
+			"accent": Color(0.35, 0.85, 1.0)
+		}
+		_style_spell_card(btn_spell_freeze, "BÃO BĂNG", "60 VÀNG", Color(0.35, 0.85, 1.0), IconSpellFreeze, d_freeze)
+
 	if btn_spell_meteor:
-		btn_spell_meteor.icon = IconSpellMeteor
-		btn_spell_meteor.expand_icon = true
-		btn_spell_meteor.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var d_meteor = {
+			"title": "MƯA THIÊN THẠCH",
+			"badge": "[ HỦY DIỆT ]",
+			"cost": "120 VÀNG",
+			"hotkey": "[3]",
+			"desc": "Triệu hồi khối thiên thạch khổng lồ từ vũ trụ dội xuống tâm đảo, gây 150 sát thương diện rộng hủy diệt.",
+			"dmg_ratio": 1.0,
+			"spd_ratio": 0.30,
+			"rng_ratio": 0.85,
+			"accent": Color(1.0, 0.35, 0.20)
+		}
+		_style_spell_card(btn_spell_meteor, "THIÊN THẠCH", "120 VÀNG", Color(1.0, 0.35, 0.20), IconSpellMeteor, d_meteor)
+
 
 	if btn_skill_r1: btn_skill_r1.icon = IconSkillR1; btn_skill_r1.expand_icon = true
 	if btn_skill_r2: btn_skill_r2.icon = IconSkillR2; btn_skill_r2.expand_icon = true
@@ -3645,11 +4908,12 @@ func activate_bridge_emp() -> bool:
 		web_bridge.show_toast(toast_msg, "success")
 		web_bridge.trigger_haptic("heavy")
 
-	var enemies = get_tree().get_nodes_in_group("animated_enemies")
+	var enemies = AnimatedEnemy.get_active_enemies() if not AnimatedEnemy.get_active_enemies().is_empty() else get_tree().get_nodes_in_group("animated_enemies")
 	var emp_dmg = 80.0 * (1.25 if is_ion_storm_active else 1.0)
+	var emp_r_sq = BRIDGE_EMP_RADIUS * BRIDGE_EMP_RADIUS
 	for e in enemies:
 		if is_instance_valid(e) and not e.is_queued_for_deletion() and not e.get("_is_dead"):
-			if BRIDGE_EMP_POS.distance_to(e.global_position) <= BRIDGE_EMP_RADIUS:
+			if BRIDGE_EMP_POS.distance_squared_to(e.global_position) <= emp_r_sq:
 				if "current_shield" in e and e.current_shield > 0.0:
 					e.current_shield *= 0.50
 				var shield_save = e.current_shield if "current_shield" in e else 0.0
@@ -3745,6 +5009,10 @@ func collect_supply_pod(pod_idx: int, is_auto: bool = false) -> int:
 	return gained
 
 func _spawn_floating_map_text(txt: String, pos: Vector2, col: Color) -> void:
+	var pool = CombatTextPoolClass.get_instance()
+	if pool:
+		pool.spawn_text(pos, txt, col, 18, 35.0, 0.65)
+		return
 	if not is_inside_tree() or not get_tree() or not get_tree().current_scene:
 		return
 	var label = Label.new()
@@ -3779,15 +5047,41 @@ func _update_hud() -> void:
 	if health_progress_bar:
 		health_progress_bar.max_value = float(max_health)
 		health_progress_bar.value = float(base_health)
-		var ratio = float(base_health) / float(maxi(1, max_health))
-		var fill_sb = health_progress_bar.get_theme_stylebox("fill") as StyleBoxFlat
-		if fill_sb:
-			if ratio > 0.5:
-				fill_sb.bg_color = Color(0.2, 0.95, 0.40, 0.95)
-			elif ratio > 0.25:
-				fill_sb.bg_color = Color(1.0, 0.85, 0.20, 0.95)
+		if health_progress_bar is ProgressBar:
+			var ratio = float(base_health) / float(maxi(1, max_health))
+			var fill_sb = health_progress_bar.get_theme_stylebox("fill") as StyleBoxFlat
+			if fill_sb:
+				if ratio > 0.5:
+					fill_sb.bg_color = Color(0.2, 0.95, 0.40, 0.95)
+				elif ratio > 0.25:
+					fill_sb.bg_color = Color(1.0, 0.85, 0.20, 0.95)
+				else:
+					fill_sb.bg_color = Color(1.0, 0.25, 0.30, 0.95)
+	if health_plasma_rect and is_instance_valid(health_plasma_rect) and health_plasma_rect.material:
+		var ratio = clampf(float(base_health) / float(maxi(1, max_health)), 0.0, 1.0)
+		health_plasma_rect.material.set_shader_parameter("health_ratio", ratio)
+
+	var hud_ref = get_node_or_null("UI/HUD")
+	if hud_ref:
+		if not _cached_lbl_tube:
+			_cached_lbl_tube = hud_ref.find_child("LabelHealthTubeText", true, false) as Label
+		if _cached_lbl_tube:
+			_cached_lbl_tube.text = "%d / %d HP" % [base_health, max_health]
+			if base_health <= 5:
+				_cached_lbl_tube.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
 			else:
-				fill_sb.bg_color = Color(1.0, 0.25, 0.30, 0.95)
+				_cached_lbl_tube.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+
+		if not _cached_status_led:
+			_cached_status_led = hud_ref.find_child("StatusLED", true, false) as ColorRect
+		if _cached_status_led:
+			var ratio = float(base_health) / float(maxi(1, max_health))
+			if ratio > 0.5:
+				_cached_status_led.color = Color(0.0, 1.0, 0.5)
+			elif ratio > 0.25:
+				_cached_status_led.color = Color(1.0, 0.85, 0.2)
+			else:
+				_cached_status_led.color = Color(1.0, 0.2, 0.25)
 	if label_wave_intel:
 		var target_wave = current_wave if is_wave_active else maxi(1, current_wave + 1)
 		label_wave_intel.text = get_wave_intel(target_wave)
@@ -3835,42 +5129,37 @@ func _draw() -> void:
 		draw_arc(BRIDGE_EMP_POS, _bridge_emp_shockwave_radius, 0, TAU, 36, Color(0.2, 0.95, 1.0, _bridge_emp_shockwave_alpha), 3.0)
 		_draw_isometric_ellipse(BRIDGE_EMP_POS, _bridge_emp_shockwave_radius, _bridge_emp_shockwave_radius * 0.5, Color(0.2, 0.9, 1.0, _bridge_emp_shockwave_alpha * 0.25))
 
-	# 0d. THANH MÁU LÂU ĐÀI NHÀ CHÍNH (CASTLE CORE HEALTH BAR)
-	# Đặt trang trọng ngay trên vòm cổng pháo đài hoàng gia W20
-	var bar_pos = Vector2(1125.0, 260.0)
+	# 0d. THANH MÁU LÂU ĐÀI NHÀ CHÍNH (Chỉ hiển thị rung chớp đỏ cảnh báo khi bị quái công phá)
 	if _castle_hit_shake > 0.0:
-		bar_pos += Vector2(randf_range(-4.0, 4.0), randf_range(-2.5, 2.5))
+		var bar_pos = Vector2(1125.0, 260.0) + Vector2(randf_range(-4.0, 4.0), randf_range(-2.5, 2.5))
+		var box_w = 156.0
+		var box_h = 24.0
+		var box_rect = Rect2(bar_pos.x - box_w * 0.5, bar_pos.y - box_h * 0.5, box_w, box_h)
 
-	var box_w = 156.0
-	var box_h = 24.0
-	var box_rect = Rect2(bar_pos.x - box_w * 0.5, bar_pos.y - box_h * 0.5, box_w, box_h)
+		# Khung viền mạ đồng hoàng gia & Nền tối
+		draw_rect(box_rect, Color(0.08, 0.07, 0.10, 0.92))
+		var border_col = Color(1.0, 0.25, 0.20, 0.95)
+		draw_rect(box_rect, border_col, false, 2.0)
 
-	# Khung viền mạ đồng hoàng gia & Nền tối
-	draw_rect(box_rect, Color(0.08, 0.07, 0.10, 0.92))
-	var border_col = Color(1.0, 0.25, 0.20, 0.95) if _castle_hit_shake > 0.0 else Color(0.88, 0.74, 0.38, 0.95)
-	draw_rect(box_rect, border_col, false, 2.0)
+		# 4 đinh tán đồng ở 4 góc pháo đài
+		draw_circle(Vector2(box_rect.position.x + 4.0, box_rect.position.y + 4.0), 1.8, Color(0.95, 0.85, 0.45))
+		draw_circle(Vector2(box_rect.position.x + box_w - 4.0, box_rect.position.y + 4.0), 1.8, Color(0.95, 0.85, 0.45))
+		draw_circle(Vector2(box_rect.position.x + 4.0, box_rect.position.y + box_h - 4.0), 1.8, Color(0.95, 0.85, 0.45))
+		draw_circle(Vector2(box_rect.position.x + box_w - 4.0, box_rect.position.y + box_h - 4.0), 1.8, Color(0.95, 0.85, 0.45))
 
-	# 4 đinh tán đồng ở 4 góc pháo đài
-	draw_circle(Vector2(box_rect.position.x + 4.0, box_rect.position.y + 4.0), 1.8, Color(0.95, 0.85, 0.45))
-	draw_circle(Vector2(box_rect.position.x + box_w - 4.0, box_rect.position.y + 4.0), 1.8, Color(0.95, 0.85, 0.45))
-	draw_circle(Vector2(box_rect.position.x + 4.0, box_rect.position.y + box_h - 4.0), 1.8, Color(0.95, 0.85, 0.45))
-	draw_circle(Vector2(box_rect.position.x + box_w - 4.0, box_rect.position.y + box_h - 4.0), 1.8, Color(0.95, 0.85, 0.45))
+		# Thanh máu ruột gradient
+		var pad_m = 3.5
+		var hp_ratio = clampf(float(base_health) / float(maxi(1, max_health)), 0.0, 1.0)
+		var inner_w = (box_w - pad_m * 2.0) * hp_ratio
+		if inner_w > 0.0:
+			var hp_col = Color(1.0, 0.35, 0.30, 1.0)
+			draw_rect(Rect2(box_rect.position.x + pad_m, box_rect.position.y + pad_m, inner_w, box_h - pad_m * 2.0), hp_col)
 
-	# Thanh máu ruột gradient
-	var pad_m = 3.5
-	var hp_ratio = clampf(float(base_health) / float(maxi(1, max_health)), 0.0, 1.0)
-	var inner_w = (box_w - pad_m * 2.0) * hp_ratio
-	if inner_w > 0.0:
-		var hp_col = Color(0.20, 0.92, 0.45, 0.95) if base_health >= 12 else (Color(1.0, 0.65, 0.15, 0.95) if base_health >= 6 else Color(1.0, 0.20, 0.20, 0.95))
-		if _castle_hit_shake > 0.0:
-			hp_col = Color(1.0, 0.35, 0.30, 1.0)
-		draw_rect(Rect2(box_rect.position.x + pad_m, box_rect.position.y + pad_m, inner_w, box_h - pad_m * 2.0), hp_col)
-
-	# Chữ hiển thị máu lâu đài
-	var hp_text = "🏰 LÂU ĐÀI: %d/%d HP" % [base_health, max_health]
-	if base_health <= 0:
-		hp_text = "🏰 CĂN CỨ SỤP ĐỔ!"
-	draw_string(ThemeDB.fallback_font, Vector2(box_rect.position.x, bar_pos.y + 5.0), hp_text, HORIZONTAL_ALIGNMENT_CENTER, box_w, 11, Color(1.0, 1.0, 1.0, 0.95))
+		# Chữ hiển thị máu lâu đài
+		var hp_text = "LÂU ĐÀI: %d/%d HP" % [base_health, max_health]
+		if base_health <= 0:
+			hp_text = "CĂN CỨ SỤP ĐỔ!"
+		draw_string(ThemeDB.fallback_font, Vector2(box_rect.position.x, bar_pos.y + 5.0), hp_text, HORIZONTAL_ALIGNMENT_CENTER, box_w, 11, Color(1.0, 1.0, 1.0, 0.95))
 
 	# 0e. Hiệu ứng Bão Từ Trường Ion ở Wave 7 & 9
 	if is_ion_storm_active:
