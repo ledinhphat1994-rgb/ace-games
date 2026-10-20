@@ -299,18 +299,19 @@ socialApp.get('/search', async (c) => {
 
 /**
  * Hồ sơ công khai của một tài khoản đang hoạt động (bấm vào ảnh trong chat / kết quả tìm kiếm).
+ * Cho phép xem công khai (khách chơi nhanh xem được hồ sơ người chơi khác).
  * Ẩn với tài khoản hệ thống và với người đã chặn nhau (hai chiều) — trả 404 như thể không tồn tại.
  */
 socialApp.get('/profile/:id', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
-  const myId = kq.taiKhoan.id
+  const phien = await layPhien(c.req.raw, c.env)
+  const kq = phien ? await kiemTraPhien(phien, c.env) : null
+  const myId = kq?.hopLe ? kq.taiKhoan.id : 0
 
   const id = Number(c.req.param('id'))
   if (!Number.isInteger(id) || id <= 0) return loi('Mã tài khoản không hợp lệ.', 400)
 
   const hoSo = await c.env.DB.prepare(
-    `SELECT tk.id, tk.ten_hien_thi AS displayName, tk.avatar, tk.vai_tro AS role,
+    `SELECT tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName, tk.avatar, tk.vai_tro AS role,
             tk.tieu_de_ho_so AS tieuDeHoSo, l.ten AS lopTen, COALESCE(ep.total_xp, 0) AS totalXp
        FROM tai_khoan_campus tk
        LEFT JOIN lop l ON l.id = tk.lop_id
@@ -318,14 +319,14 @@ socialApp.get('/profile/:id', async (c) => {
       WHERE tk.id = ?1 AND tk.dang_hoat_dong = 1 AND tk.ten_dang_nhap != 'system'
         AND NOT EXISTS (
           SELECT 1 FROM blocks b
-           WHERE (b.blocker_id = ?2 AND b.blocked_id = tk.id) OR (b.blocker_id = tk.id AND b.blocked_id = ?2)
+           WHERE (?2 > 0) AND ((b.blocker_id = ?2 AND b.blocked_id = tk.id) OR (b.blocker_id = tk.id AND b.blocked_id = ?2))
         )`,
   )
     .bind(id, myId)
     .first<HoSoNguoiDung>()
 
   if (!hoSo) return loi('Không tìm thấy người dùng.', 404)
-  hoSo.tag = `@c10a7_${hoSo.id}`
+  hoSo.tag = hoSo.username ? `@${hoSo.username}` : `@campus_${hoSo.id}`
   return c.json({ ok: true, profile: hoSo })
 })
 

@@ -136,11 +136,9 @@ export function AuthGate() {
 
   if (phien.isPending) {
     return (
-      <KhungNen>
-        <div role="status" className="flex flex-1 items-center justify-center select-none" aria-label="Đang tải">
-          <DigitalCampusLogo size="2xl" loading showGlow />
-        </div>
-      </KhungNen>
+      <div role="status" className="fixed inset-0 z-[9999] flex items-center justify-center select-none bg-[#020617]" aria-label="Đang tải">
+        <DigitalCampusLogo size="2xl" loading showGlow />
+      </div>
     )
   }
 

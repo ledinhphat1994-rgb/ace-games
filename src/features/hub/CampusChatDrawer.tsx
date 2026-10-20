@@ -62,6 +62,8 @@ interface CampusChatDrawerProps {
   emptyMessage?: string
   scope?: 'campus' | 'room'
   roomId?: string
+  avatarMap?: Map<number, string>
+  avatarByNameMap?: Map<string, string>
 }
 
 /** Tin liên tiếp của cùng một người trong khoảng này được gộp dưới một tên. */
@@ -194,20 +196,29 @@ function CampusChatInputBar({
   const [moPickerEmoji, setMoPickerEmoji] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  const xuLyGui = async (e?: React.FormEvent) => {
+  const xuLyGui = (e?: React.FormEvent) => {
     e?.preventDefault()
     const text = noiDung.trim()
     if (!text || dangGui) return
 
+    setNoiDung('')
     setDangGui(true)
-    const kq = await onSendMessage(text)
-    setDangGui(false)
+    inputRef.current?.focus({ preventScroll: true })
 
-    if (kq.ok) {
-      setNoiDung((hienTai) => (hienTai.trim() === text ? '' : hienTai))
-    } else {
-      toast.error(kq.loi || 'Không gửi được tin nhắn')
-    }
+    onSendMessage(text)
+      .then((kq) => {
+        if (!kq.ok) {
+          setNoiDung(text)
+          toast.error(kq.loi || 'Không gửi được tin nhắn')
+        }
+      })
+      .catch(() => {
+        setNoiDung(text)
+        toast.error('Không gửi được tin nhắn')
+      })
+      .finally(() => {
+        setDangGui(false)
+      })
   }
 
   if (hideInput) return null
@@ -318,6 +329,8 @@ export function CampusChatDrawer({
   emptyMessage = 'Gửi lời chào đầu tiên tới thầy cô và các bạn trong trường.',
   scope = 'campus',
   roomId,
+  avatarMap,
+  avatarByNameMap,
 }: CampusChatDrawerProps) {
   const { nguoiDung, lamMoiPhien } = usePhien()
   const [moDoiTen, setMoDoiTen] = useState(false)
@@ -406,7 +419,7 @@ export function CampusChatDrawer({
     } catch {}
   }, [storageReactionsKey, storageUsersKey, storageCountsKey, isRoomScope])
 
-  const EMOJI_CLICK_COOLDOWN_MS = 650
+  const EMOJI_CLICK_COOLDOWN_MS = 150
   const lastReactionTimeRef = useRef<Record<string, number>>({})
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isLongPressRef = useRef(false)
@@ -1097,12 +1110,22 @@ export function CampusChatDrawer({
                                 setMoDoiAvatar(true)
                                 return
                               }
+                              const liveAvatar =
+                                (laCuaMinh
+                                  ? (nguoiDung?.avatar || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') : null))
+                                  : null) ||
+                                avatarMap?.get(msg.accountId) ||
+                                avatarByNameMap?.get(msg.ten) ||
+                                msg.avatar ||
+                                undefined
+
                               const rect = e.currentTarget.getBoundingClientRect()
                               setNguoiXem({
                                 id: msg.accountId,
                                 ten: msg.ten,
                                 lopTen: msg.lopTen,
                                 vaiTro: msg.vaiTro,
+                                avatar: liveAvatar,
                                 anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
                               })
                             }}
@@ -1111,7 +1134,18 @@ export function CampusChatDrawer({
                             data-testid={`chat-anh-${msg.accountId}`}
                             className="block cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
                           >
-                            <AnhNguoiDung ten={msg.ten} avatar={msg.avatar} className="size-8 text-[11px]" />
+                            <AnhNguoiDung
+                              ten={msg.ten}
+                              avatar={
+                                (laCuaMinh
+                                  ? (nguoiDung?.avatar || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') : null))
+                                  : null) ||
+                                avatarMap?.get(msg.accountId) ||
+                                avatarByNameMap?.get(msg.ten) ||
+                                msg.avatar
+                              }
+                              className="size-8 text-[11px]"
+                            />
                           </button>
                           {/* Icon nhỏ góc trên như đã code (bóng đèn suy nghĩ hoặc giáo viên) */}
                           {msg.tieuDeHoSo ? (

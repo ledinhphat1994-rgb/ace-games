@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { toast } from 'sonner'
+import { DigitalCampusLogo } from '@/components/brand/DigitalCampusLogo'
 
 export interface GodotGameViewProps {
   gamePath?: string
@@ -166,9 +167,8 @@ export const GodotGameView: React.FC<GodotGameViewProps> = ({
 
         {/* Màn hình chờ khi game đang tải */}
         {!isLoaded && !loadError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020c24] text-cyan-400 gap-3 z-0">
-            <div className="w-9 h-9 border-3 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
-            <span className="text-xs text-slate-400">Đang khởi chạy Godot Engine...</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020617] text-cyan-400 gap-3 z-0 select-none">
+            <DigitalCampusLogo size="2xl" loading showGlow />
           </div>
         )}
 

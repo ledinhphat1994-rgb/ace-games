@@ -46,8 +46,9 @@ describe('Logo tab, Logo Vùng X & Màn hình loading Ace Games', () => {
     expect(authGateRaw).not.toContain('Loader2')
   })
 
-  it('4. Khung giữ chỗ khi tải trang (KhungChoTrang.tsx) đồng bộ hiển thị logo animated', () => {
-    expect(khungChoTrangRaw).toContain('<DigitalCampusLogo size="xl" loading')
+  it('4. Khung giữ chỗ khi tải trang (KhungChoTrang.tsx) đồng bộ hiển thị màn hình loading cố định 1 loại', () => {
+    expect(khungChoTrangRaw).toContain('<DigitalCampusLogo size="2xl" loading showGlow />')
+    expect(khungChoTrangRaw).toContain('fixed inset-0')
   })
 
   it('5. Màn hình loading ban đầu trong index.html và DigitalCampusLogo có tia laser chuẩn xác dọc chữ A', () => {

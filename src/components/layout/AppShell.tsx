@@ -319,7 +319,7 @@ export function AppShell({ children }: AppShellProps) {
             'fixed z-[80] flex items-center justify-center rounded-full text-white cursor-pointer transition-colors duration-150',
             isChatOpen && 'max-sm:hidden max-lg:landscape:hidden',
             isActivityRoom
-              ? 'bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] right-2.5 sm:right-3.5'
+              ? 'bottom-[max(0.875rem,calc(env(safe-area-inset-bottom,0px)+0.625rem))] right-2.5 sm:right-3.5 xl:hidden'
               : 'bottom-20 right-4 sm:bottom-6 sm:right-6',
             isChatOpen
               ? cn(

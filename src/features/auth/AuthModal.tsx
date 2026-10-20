@@ -259,13 +259,13 @@ export function AuthModal({
             <div className="space-y-3.5">
               <div className="space-y-1.5">
                 <Label htmlFor="auth-username" className="text-xs font-medium text-text-secondary">
-                  Tên đăng nhập
+                  Tag Name / Tên đăng nhập
                 </Label>
                 <Input
                   id="auth-username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Nhập tên tài khoản"
+                  placeholder="Nhập Tag Name (@username)"
                   required
                   autoComplete="username"
                   className="h-10 text-sm"
@@ -336,7 +336,7 @@ export function AuthModal({
             <div className="space-y-2">
               <div className="space-y-1">
                 <Label htmlFor="dk-username" className="text-xs font-medium text-text-secondary">
-                  Tên đăng nhập <span className="text-destructive">*</span>
+                  Tag Name định danh <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="dk-username"
@@ -364,7 +364,7 @@ export function AuthModal({
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="dk-pwd" className="text-xs font-medium text-text-secondary">
-                    Mật khẩu <span className="text-destructive">*</span>
+                    Mật khẩu riêng <span className="text-destructive">*</span>
                   </Label>
                   <PasswordInput
                     id="dk-pwd"
@@ -377,7 +377,7 @@ export function AuthModal({
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="dk-pwd-cf" className="text-xs font-medium text-text-secondary">
-                    Xác nhận <span className="text-destructive">*</span>
+                    Xác nhận mật khẩu <span className="text-destructive">*</span>
                   </Label>
                   <PasswordInput
                     id="dk-pwd-cf"

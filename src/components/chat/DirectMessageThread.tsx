@@ -141,7 +141,7 @@ function getPickerPosition(rect?: AnchorRect | null, laCuaMinh = false) {
 }
 
 export function DirectMessageThread({ target, onBack, className }: DirectMessageThreadProps) {
-  const { nguoiDung } = usePhien()
+  const { nguoiDung, moAuthModal } = usePhien()
   const {
     socialState,
     friendsPresence,
@@ -176,7 +176,16 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
     }
   })
 
-  const [isLoading, setIsLoading] = useState(true)
+  const isGuestTarget = target.id <= 0
+  const isGuestViewer = !nguoiDung || nguoiDung.accountId === 0
+
+  const guestError = isGuestTarget
+    ? 'Tài khoản chơi nhanh chưa đăng ký, không thể nhắn tin riêng.'
+    : isGuestViewer
+      ? 'Bạn đang chơi nhanh với tên thông thường. Vui lòng tạo Tag Name và mật khẩu riêng để nhắn tin!'
+      : null
+
+  const [isLoading, setIsLoading] = useState(() => !guestError)
   const [error, setError] = useState<string | null>(null)
   const [noiDung, setNoiDung] = useState('')
   const [dangGui, setDangGui] = useState(false)
@@ -186,6 +195,7 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
   const [bayGio, setBayGio] = useState(() => Date.now())
 
   const khungRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const daCuonLanDau = useRef(false)
   const oDayRef = useRef(true)
   const [oDay, setODay] = useState(true)
@@ -283,6 +293,7 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
 
   // Tải danh sách tin nhắn và biểu cảm từ máy chủ kèm bộ nhớ cục bộ
   useEffect(() => {
+    if (guestError) return
     let active = true
     setIsLoading(true)
     setError(null)
@@ -600,15 +611,18 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
     const text = noiDung.trim()
     if (!text || dangGui || !isFriend) return
 
+    setNoiDung('')
     setDangGui(true)
+    inputRef.current?.focus({ preventScroll: true })
+
     try {
       const newMsg = await guiTinNhanRieng(target.id, text)
       setMessages((prev) => {
         if (prev.some((m) => m.id === newMsg.id)) return prev
         return [...prev, newMsg]
       })
-      setNoiDung('')
     } catch {
+      setNoiDung(text)
       toast.error('Gửi tin thất bại')
     } finally {
       setDangGui(false)
@@ -616,6 +630,11 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
   }
 
   const handleSendFriendRequest = async () => {
+    if (!nguoiDung || nguoiDung.accountId === 0) {
+      toast.info('Vui lòng tạo Tag Name và mật khẩu để kết bạn!')
+      moAuthModal('dang_ky')
+      return
+    }
     setDangKetBan(true)
     try {
       const res = await sendFriendRequest(target.id)
@@ -782,7 +801,11 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
       </div>
 
       {/* 2. Cảnh báo nếu chưa kết bạn */}
-      {!isFriend && (
+      {target.id <= 0 ? (
+        <div className="flex shrink-0 items-center justify-center gap-3 border-b border-warning/20 bg-warning/10 px-4 py-2.5 text-xs text-warning">
+          <p>{target.displayName} đang chơi nhanh (chưa đăng ký Tag Name & mật khẩu), không thể nhận tin nhắn.</p>
+        </div>
+      ) : !isFriend && (
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-warning/20 bg-warning/10 px-4 py-2.5 text-xs text-warning">
           <p className="truncate">Hai bạn chưa là bạn bè. Hãy kết bạn để gửi tin nhắn.</p>
           <Button
@@ -808,20 +831,26 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
           className="styled-scrollbar h-full overflow-y-auto overscroll-contain px-3 py-2 sm:px-4 sm:py-3 touch-pan-y"
           style={{ overflowAnchor: 'none', WebkitOverflowScrolling: 'touch' }}
         >
-          {isLoading ? (
+          {(!guestError && isLoading) ? (
             <div className="flex h-full flex-col items-center justify-center py-10 text-center text-text-tertiary">
               <Loader2 className="size-6 animate-spin mb-2" />
               <p className="text-xs">Đang tải cuộc trò chuyện…</p>
             </div>
-          ) : error && messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center py-10 text-center">
+          ) : (guestError || error) && messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center py-10 px-4 text-center">
               <span className="flex size-11 items-center justify-center rounded-2xl bg-destructive/10 text-destructive mb-3">
                 <AlertCircle className="size-5" />
               </span>
-              <p className="text-sm font-semibold text-text-primary">{error}</p>
-              <Button size="sm" variant="outline" className="mt-3" onClick={() => setTaiLaiCount((c) => c + 1)}>
-                Thử lại
-              </Button>
+              <p className="text-sm font-semibold text-text-primary">{guestError || error}</p>
+              {(!nguoiDung || nguoiDung.accountId === 0) ? (
+                <Button size="sm" className="mt-3 bg-brand text-brand-foreground font-semibold cursor-pointer" onClick={() => moAuthModal('dang_ky')}>
+                  Tạo tài khoản ngay
+                </Button>
+              ) : target.id > 0 ? (
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => setTaiLaiCount((c) => c + 1)}>
+                  Thử lại
+                </Button>
+              ) : null}
             </div>
           ) : hopLeMessages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center py-10 text-center">
@@ -1222,6 +1251,7 @@ export function DirectMessageThread({ target, onBack, className }: DirectMessage
 
           {/* Ô nhập nội dung */}
           <input
+            ref={inputRef}
             value={noiDung}
             onChange={(e) => setNoiDung(e.target.value.slice(0, 500))}
             placeholder={isFriend ? `Nhắn tin cho ${target.displayName}…` : 'Kết bạn để nhắn tin…'}

@@ -155,12 +155,16 @@ engagementApp.get('/leaderboard/school', async (c) => {
 
 // ─── 3. Achievements Catalog & Unlocks ────────────────────────────────────────
 engagementApp.get('/achievements', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const phien = await layPhien(c.req.raw, c.env)
+  const kq = phien ? await kiemTraPhien(phien, c.env) : null
 
   const queryAccount = c.req.query('accountId')
   const parsedTarget = queryAccount ? parseInt(queryAccount, 10) : NaN
-  const accountId = Number.isInteger(parsedTarget) && parsedTarget > 0 ? parsedTarget : kq.taiKhoan.id
+  const accountId = Number.isInteger(parsedTarget) && parsedTarget > 0 ? parsedTarget : (kq?.hopLe ? kq.taiKhoan.id : 0)
+
+  if (accountId <= 0) {
+    if (!kq?.hopLe) return loi(kq?.thongBao || 'Vui lòng đăng nhập.', 401)
+  }
   const unlocks = await c.env.DB.prepare(
     'SELECT achievement_key, unlocked_at FROM achievement_unlocks WHERE account_id = ?1',
   )

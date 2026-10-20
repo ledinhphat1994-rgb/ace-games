@@ -38,6 +38,14 @@ describe('Đồng bộ thanh công cụ đáy Vùng 2 và tin nhắn nhanh đố
         expect(raw).toContain('VỊ TRÍ ĐỐI XỨNG: TIN NHẮN NHANH CỦA TA (DƯỚI THANH NGƯỜI CHƠI)')
         expect(raw).toContain('data-testid="player-quick-message-bubble"')
       })
+
+      it('thanh công cụ desktop-tools-bar nằm ngang cho web PC giống web mobile', () => {
+        expect(raw).toContain('id="desktop-tools-bar"')
+        expect(raw).toContain('hidden xl:flex w-full max-w-[540px] items-center justify-between')
+        expect(raw).toContain('id="desktop-game-leave-btn"')
+        expect(raw).toContain('id="desktop-tool-chat"')
+        expect(raw).toContain('campus:toggle-chat')
+      })
     })
   })
 })

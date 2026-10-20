@@ -276,6 +276,32 @@ export function GameSocialSidebar({
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
 
+  const avatarMap = useMemo(() => {
+    const map = new Map<number, string>()
+    if (nguoiDung?.accountId && nguoiDung?.avatar) {
+      map.set(nguoiDung.accountId, nguoiDung.avatar)
+    }
+    for (const f of friends) {
+      if (f.id && f.avatar) {
+        map.set(f.id, f.avatar)
+      }
+    }
+    return map
+  }, [nguoiDung?.accountId, nguoiDung?.avatar, friends])
+
+  const avatarByNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    if (nguoiDung?.ten && nguoiDung?.avatar) {
+      map.set(nguoiDung.ten, nguoiDung.avatar)
+    }
+    for (const f of friends) {
+      if (f.displayName && f.avatar) {
+        map.set(f.displayName, f.avatar)
+      }
+    }
+    return map
+  }, [nguoiDung?.ten, nguoiDung?.avatar, friends])
+
   // Tính số bạn bè đang online
   const onlineFriendsCount = useMemo(() => {
     return friends.filter((f) => {
@@ -596,6 +622,8 @@ export function GameSocialSidebar({
             hideHeader={true}
             hideInput={true}
             className="border-none bg-transparent flex-1 h-full shadow-none p-0 min-h-0"
+            avatarMap={avatarMap}
+            avatarByNameMap={avatarByNameMap}
           />
 
           {/* VÙNG 3 ĐỒNG BỘ: Quick chips của chat chung */}
@@ -610,12 +638,16 @@ export function GameSocialSidebar({
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              if (!campusText.trim() || isSendingCampus) return
+              const text = campusText.trim()
+              if (!text || isSendingCampus) return
+              setCampusText('')
               setIsSendingCampus(true)
-              guiChat(campusText.trim())
+              campusInputRef.current?.focus({ preventScroll: true })
+              guiChat(text)
                 .then((res) => {
-                  if (res.ok) setCampusText('')
+                  if (!res.ok) setCampusText(text)
                 })
+                .catch(() => setCampusText(text))
                 .finally(() => setIsSendingCampus(false))
             }}
             className="p-2 border-t border-border-default bg-surface-overlay flex items-center gap-1.5 shrink-0"

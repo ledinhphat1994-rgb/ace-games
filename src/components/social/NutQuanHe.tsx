@@ -22,11 +22,13 @@ interface NutQuanHeProps {
 }
 
 export function NutQuanHe({ id, trangThaiMayChu, day = false }: NutQuanHeProps) {
-  const { nguoiDung } = usePhien()
+  const { nguoiDung, moAuthModal } = usePhien()
   const { socialState, guiLoiMoiKetBan, chapNhanKetBan, tuChoiKetBan, huyLoiMoi, unfriend, guiLoiMoiBanThan, huyBanThan } = useCampus()
   const [dangXuLy, setDangXuLy] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
   const { zIndex: optionsZIndex, bringToFront: bringOptionsToFront } = useTopLayerZIndex(optionsOpen, 'popover')
+
+  if (id <= 0) return null
 
   const quanHe: RelationshipStatus | null =
     socialState && nguoiDung ? suyRaQuanHe(id, nguoiDung.accountId, socialState) : (trangThaiMayChu ?? null)
@@ -34,6 +36,11 @@ export function NutQuanHe({ id, trangThaiMayChu, day = false }: NutQuanHeProps) 
   const yeuCauDi = socialState?.outgoingRequests.find((r) => r.receiver?.id === id)
 
   const chay = async (viec: () => Promise<KetQuaThaoTac>, thanhCong: string) => {
+    if (!nguoiDung || nguoiDung.accountId === 0) {
+      toast.info('Vui lòng tạo Tag Name và mật khẩu để kết bạn!')
+      moAuthModal('dang_ky')
+      return
+    }
     setDangXuLy(true)
     try {
       const kq = await viec()

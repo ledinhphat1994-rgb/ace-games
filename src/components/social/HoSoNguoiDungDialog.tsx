@@ -53,8 +53,11 @@ export function HoSoNguoiDungDialog({ nguoi, onDong }: HoSoNguoiDungDialogProps)
 }
 
 function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void }) {
-  const { nguoiDung } = usePhien()
-  const isMe = nguoiDung ? nguoiDung.accountId === nguoi.id : false
+  const { nguoiDung, moAuthModal } = usePhien()
+  const isMe = nguoiDung ? (nguoiDung.accountId > 0 ? nguoiDung.accountId === nguoi.id : nguoi.id <= 0) : nguoi.id <= 0
+  const isGuestTarget = nguoi.id <= 0
+  const isGuestViewer = !nguoiDung || nguoiDung.accountId === 0
+
   const [xemThanhTuu, setXemThanhTuu] = useState(false)
   const [moModalGhiChu, setMoModalGhiChu] = useState(false)
   const { zIndex, bringToFront } = useTopLayerZIndex(true, 'popover')
@@ -73,6 +76,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const { data: hoSo, isPending, isError } = useQuery({
     queryKey: ['ho-so-nguoi-dung', nguoi.id],
     queryFn: () => layHoSoNguoiDung(nguoi.id),
+    enabled: nguoi.id > 0,
     staleTime: 60_000,
     retry: false,
   })
@@ -96,6 +100,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
       if (!res.ok) throw new Error('Không tải được thành tựu.')
       return res.json()
     },
+    enabled: nguoi.id > 0,
     staleTime: 60_000,
   })
 
@@ -104,12 +109,11 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const vaiTro = nhanVaiTro(hoSo?.role ?? nguoi.vaiTro)
   const lopTen = hoSo ? hoSo.lopTen : (nguoi.lopTen ?? null)
   const capDo = hoSo ? tinhLevel(hoSo.totalXp) : null
-  const isGuest = (isMe && (!nguoiDung || nguoiDung.accountId === 0)) || nguoi.id <= 0
-  const tagDinhDanh = isGuest
+  const tagDinhDanh = isGuestTarget
     ? null
     : (isMe && nguoiDung?.username)
       ? `@${nguoiDung.username}`
-      : (hoSo?.tag || `@campus_${nguoi.id}`)
+      : (hoSo?.username ? `@${hoSo.username}` : (hoSo?.tag || (nguoi.id > 0 ? `@campus_${nguoi.id}` : null)))
 
   const danhSachThanhTuu = achievementsData?.achievements ?? []
   const unlockedCount =
@@ -207,7 +211,15 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
 
                       {/* Tag người dùng: mỗi tài khoản có 1 tag riêng để xác thực */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {tagDinhDanh && (
+                        {isGuestTarget ? (
+                          <span
+                            data-testid="tag-choi-nhanh"
+                            title="Tài khoản chơi nhanh với tên thông thường"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-slate-300 text-xs font-semibold"
+                          >
+                            <span>⚡ Chơi nhanh</span>
+                          </span>
+                        ) : tagDinhDanh ? (
                           <span
                             data-testid="tag-xac-thuc"
                             title="Tag định danh xác thực tài khoản"
@@ -216,7 +228,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                             <BadgeCheck className="size-3 shrink-0" />
                             <span>{tagDinhDanh}</span>
                           </span>
-                        )}
+                        ) : null}
                         {vaiTro && <span className="text-xs text-text-tertiary">· {vaiTro}</span>}
                       </div>
                     </div>
@@ -274,9 +286,28 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
             ) : (
               <>
                 <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
-                  {isError && !isGuest ? (
+                  {isGuestTarget ? (
+                    <div className="space-y-3">
+                      {nguoi.gameElo !== undefined && nguoi.gameElo !== null && (
+                        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-800/40 border border-slate-700/50 text-xs">
+                          <span className="text-text-secondary font-medium">Elo {nguoi.gameName || 'trò chơi'}:</span>
+                          <span className="font-bold text-amber-400 tabular-nums text-sm">{nguoi.gameElo}</span>
+                        </div>
+                      )}
+                      <div className="rounded-xl bg-slate-800/30 border border-slate-800 p-3 text-xs text-text-secondary leading-relaxed space-y-1">
+                        <p className="font-medium text-text-primary">
+                          {isMe ? 'Tài khoản chơi nhanh' : `${ten} đang chơi nhanh`}
+                        </p>
+                        <p className="text-text-tertiary">
+                          {isMe
+                            ? 'Bạn đang chơi với tên thông thường. Hãy tạo Tag Name và mật khẩu riêng để mở khóa tính năng kết bạn, nhắn tin riêng và mời bạn bè!'
+                            : 'Người chơi dùng tên thông thường, chưa tạo Tag Name & mật khẩu nên không thể kết bạn hoặc nhắn tin riêng.'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : isError ? (
                     <p data-testid="ho-so-loi" role="status" className="mt-4 text-sm text-text-secondary">Không tải được thông tin.</p>
-                  ) : isGuest ? null : (
+                  ) : (
                     <div className="flex min-w-0 items-center justify-between gap-3">
                       <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums text-text-secondary" aria-busy={isPending}>
                         <div className="flex items-baseline gap-2"><dt>Cấp</dt><dd data-testid="ho-so-cap" className="min-w-4 font-semibold text-text-primary">{isPending ? '—' : capDo}</dd></div>
@@ -305,9 +336,42 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                     </div>
                   )}
                 </div>
-                {/* Vùng 4 và Vùng 5 cùng 1 hàng chia đôi card ra (grid-cols-2) */}
-                {!isGuest && (
-                  <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 border-t border-border-subtle p-3.5">
+
+                {/* Vùng Footer: Quan hệ & Nhắn tin */}
+                <footer data-testid="ho-so-quan-he-row" className="min-w-0 shrink-0 border-t border-border-subtle p-3.5">
+                  {isGuestTarget ? (
+                    isMe ? (
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          onDong()
+                          moAuthModal('dang_ky')
+                        }}
+                        className="w-full min-h-11 rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 font-semibold cursor-pointer"
+                        title="Tạo Tag Name & Mật khẩu riêng"
+                      >
+                        Tạo Tag Name & Mật khẩu
+                      </Button>
+                    ) : (
+                      <div className="text-center py-0.5">
+                        <span className="text-xs text-text-tertiary">Tài khoản chơi nhanh không hỗ trợ kết bạn & nhắn tin riêng</span>
+                      </div>
+                    )
+                  ) : isGuestViewer ? (
+                    <div className="flex flex-col gap-2 w-full">
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          onDong()
+                          moAuthModal('dang_ky')
+                        }}
+                        className="w-full min-h-11 rounded-xl bg-brand text-brand-foreground hover:bg-brand/90 font-semibold cursor-pointer"
+                        title="Tạo tài khoản để kết bạn và nhắn tin"
+                      >
+                        Tạo tài khoản để kết bạn & nhắn tin
+                      </Button>
+                    </div>
+                  ) : (
                     <div className={cn("grid gap-2 w-full", isMe ? "grid-cols-1" : "grid-cols-2")}>
                       {!isMe && <NutQuanHe id={nguoi.id} day />}
                       <Button
@@ -326,8 +390,8 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
                         <span className="truncate">{isMe ? 'Hồ sơ' : 'Nhắn tin'}</span>
                       </Button>
                     </div>
-                  </footer>
-                )}
+                  )}
+                </footer>
               </>
             )}
               </>

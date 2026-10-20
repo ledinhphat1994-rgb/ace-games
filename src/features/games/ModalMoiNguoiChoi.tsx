@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useCampus } from '@/hooks/use-campus'
+import { usePhien } from '@/app/phien'
 import { timKiemNguoiDung, guiTinNhanRieng } from '@/lib/api'
 import type { SearchResultItem, FriendItem } from '@shared/protocol/social'
 import { Search, UserPlus, Check, Copy, Users, Eye } from 'lucide-react'
@@ -37,6 +38,7 @@ export function ModalMoiNguoiChoi({
   spectators,
   onInviteSpectator,
 }: ModalMoiNguoiChoiProps) {
+  const { nguoiDung, moAuthModal } = usePhien()
   const { socialState, friendsPresence } = useCampus()
   const [tuKhoa, setTuKhoa] = useState('')
   const [dangTimKiem, setDangTimKiem] = useState(false)
@@ -79,6 +81,12 @@ export function ModalMoiNguoiChoi({
   // Gửi lời mời tới 1 người chơi
   const handleMoiNguoiChoi = useCallback(
     async (targetId: number, targetName: string) => {
+      if (!nguoiDung || nguoiDung.accountId === 0) {
+        toast.info('Vui lòng tạo Tag Name và mật khẩu riêng để sử dụng tính năng mời bạn bè!')
+        moAuthModal('dang_ky')
+        return
+      }
+
       try {
         const tinNhanMoi = `Lời mời tham gia bàn đấu ${roomName}: ${linkMoi}`
         await guiTinNhanRieng(targetId, tinNhanMoi)
@@ -95,7 +103,7 @@ export function ModalMoiNguoiChoi({
         }
       }
     },
-    [linkMoi, roomName],
+    [linkMoi, roomName, nguoiDung, moAuthModal],
   )
 
   // Sao chép link mời
@@ -136,6 +144,25 @@ export function ModalMoiNguoiChoi({
             Mời người chơi vào bàn
           </DialogDescription>
         </DialogHeader>
+
+        {/* Thông báo chế độ chơi nhanh cho khách */}
+        {(!nguoiDung || nguoiDung.accountId === 0) && (
+          <div className="relative z-10 shrink-0 mb-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2 text-xs">
+            <span className="text-amber-200">
+              Chơi nhanh không hỗ trợ mời bạn qua tin nhắn. Tạo tài khoản để mở khóa!
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                moAuthModal('dang_ky')
+              }}
+              className="px-2.5 py-1 rounded-lg bg-brand text-brand-foreground font-semibold shrink-0 cursor-pointer text-xs hover:bg-brand/90 transition-colors"
+            >
+              Đăng ký
+            </button>
+          </div>
+        )}
 
         {/* Ô tìm kiếm người chơi */}
         <div className="relative z-10 shrink-0 mb-3">

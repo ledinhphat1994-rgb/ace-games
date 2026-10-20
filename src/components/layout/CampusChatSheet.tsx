@@ -455,9 +455,20 @@ export function CampusChatSheet({
       })
   }, [effectiveRoomMessages, avatarMap, avatarByNameMap])
 
-  // Lọc tin nhắn toàn trường theo từ khóa tìm kiếm
+  // Lọc tin nhắn toàn trường theo từ khóa tìm kiếm kèm đồng bộ avatar thời gian thực
   const campusMessagesFiltered = useMemo(() => {
-    const list = messages.filter((m) => !m.noiDung.trim().startsWith('[SYS_'))
+    const list = messages
+      .filter((m) => !m.noiDung.trim().startsWith('[SYS_'))
+      .map((m) => {
+        const liveAvatar =
+          (m.accountId === nguoiDung?.accountId
+            ? (nguoiDung?.avatar || (typeof window !== 'undefined' ? localStorage.getItem('dc_guest_avatar') : null))
+            : null) ||
+          avatarMap.get(m.accountId) ||
+          avatarByNameMap.get(m.ten) ||
+          m.avatar
+        return liveAvatar && liveAvatar !== m.avatar ? { ...m, avatar: liveAvatar } : m
+      })
     if (!searchQuery.trim()) return list
     const q = searchQuery.trim().toLowerCase()
     return list.filter(
@@ -465,7 +476,7 @@ export function CampusChatSheet({
         m.noiDung.toLowerCase().includes(q) ||
         m.ten.toLowerCase().includes(q),
     )
-  }, [messages, searchQuery])
+  }, [messages, searchQuery, avatarMap, avatarByNameMap, nguoiDung?.accountId, nguoiDung?.avatar])
 
   // Lọc tin nhắn phòng theo từ khóa tìm kiếm
   const roomMessagesFiltered = useMemo(() => {
@@ -710,6 +721,8 @@ export function CampusChatSheet({
                   emptyMessage={searchQuery ? 'Không tìm thấy tin nhắn nào khớp.' : 'Chưa có tin nhắn trong phòng.'}
                   scope="room"
                   roomId={inRoomInfo?.id ? String(inRoomInfo.id) : undefined}
+                  avatarMap={avatarMap}
+                  avatarByNameMap={avatarByNameMap}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center py-10 px-4">
@@ -728,6 +741,8 @@ export function CampusChatSheet({
                 className="min-h-0 flex-1"
                 placeholder="Nhập tin nhắn chung…"
                 emptyMessage={searchQuery ? 'Không tìm thấy tin nhắn nào khớp.' : 'Chưa có tin nhắn chung.'}
+                avatarMap={avatarMap}
+                avatarByNameMap={avatarByNameMap}
               />
             ) : currentDmTarget ? (
               <DirectMessageThread
