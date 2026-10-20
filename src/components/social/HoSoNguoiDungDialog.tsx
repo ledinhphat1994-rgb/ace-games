@@ -34,6 +34,7 @@ export interface NguoiXem {
   anchorRect?: AnchorRect | null
   gameElo?: number | null
   gameName?: string | null
+  isMe?: boolean
 }
 
 interface HoSoNguoiDungDialogProps {
@@ -54,7 +55,11 @@ export function HoSoNguoiDungDialog({ nguoi, onDong }: HoSoNguoiDungDialogProps)
 
 function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void }) {
   const { nguoiDung, moAuthModal } = usePhien()
-  const isMe = nguoiDung ? (nguoiDung.accountId > 0 ? nguoiDung.accountId === nguoi.id : nguoi.id <= 0) : nguoi.id <= 0
+  const isMe = nguoi.isMe !== undefined
+    ? nguoi.isMe
+    : (nguoiDung && nguoiDung.accountId > 0 && nguoi.id > 0)
+      ? nguoiDung.accountId === nguoi.id
+      : false
   const isGuestTarget = nguoi.id <= 0
   const isGuestViewer = !nguoiDung || nguoiDung.accountId === 0
 

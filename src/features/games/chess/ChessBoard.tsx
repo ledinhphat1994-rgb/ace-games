@@ -1492,6 +1492,7 @@ export function ChessBoard({
                   avatar: opponentAvatarUrl,
                   gameElo: opponentElo,
                   gameName: 'Cờ Vua',
+                  isMe: false,
                   anchorRect: {
                     top: rect.top,
                     left: rect.left,
@@ -1999,6 +2000,7 @@ export function ChessBoard({
                       avatar: opponentAvatarUrl,
                       gameElo: opponentElo,
                       gameName: 'Cờ Vua',
+                      isMe: false,
                       anchorRect: {
                         top: rect.top,
                         left: rect.left,
@@ -2198,6 +2200,7 @@ export function ChessBoard({
                     avatar: myAvatarUrl,
                     gameElo: myElo,
                     gameName: 'Cờ Vua',
+                    isMe: true,
                     anchorRect: {
                       top: rect.top,
                       left: rect.left,

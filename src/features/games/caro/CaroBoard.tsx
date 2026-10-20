@@ -1183,6 +1183,7 @@ export function CaroBoard({
                   avatar: opponentAvatarUrl,
                   gameElo: opponentElo,
                   gameName: 'Cờ Caro',
+                  isMe: false,
                   anchorRect: {
                     top: rect.top,
                     left: rect.left,
@@ -1807,6 +1808,7 @@ export function CaroBoard({
                       avatar: opponentAvatarUrl,
                       gameElo: opponentElo,
                       gameName: 'Cờ Caro',
+                      isMe: false,
                       anchorRect: {
                         top: rect.top,
                         left: rect.left,
@@ -1974,6 +1976,7 @@ export function CaroBoard({
                     avatar: myAvatarUrl,
                     gameElo: myElo,
                     gameName: 'Cờ Caro',
+                    isMe: true,
                     anchorRect: {
                       top: rect.top,
                       left: rect.left,

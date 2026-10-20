@@ -2133,6 +2133,7 @@ export function XiangqiBoard({
                   avatar: opponentAvatarUrl,
                   gameElo: opponentElo,
                   gameName: 'Cờ Tướng',
+                  isMe: false,
                   anchorRect: {
                     top: rect.top,
                     left: rect.left,
@@ -2920,6 +2921,7 @@ export function XiangqiBoard({
                       avatar: opponentAvatarUrl,
                       gameElo: opponentElo,
                       gameName: 'Cờ Tướng',
+                      isMe: false,
                       anchorRect: {
                         top: rect.top,
                         left: rect.left,
@@ -3053,6 +3055,7 @@ export function XiangqiBoard({
                     avatar: myAvatarUrl,
                     gameElo: myElo,
                     gameName: 'Cờ Tướng',
+                    isMe: true,
                     anchorRect: {
                       top: rect.top,
                       left: rect.left,

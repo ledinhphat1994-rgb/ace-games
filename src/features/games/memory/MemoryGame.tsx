@@ -1071,6 +1071,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                   id: 0,
                   ten: 'Người chơi 2',
                   gameName: 'Trí Nhớ',
+                  isMe: false,
                   anchorRect: {
                     top: rect.top,
                     left: rect.left,
@@ -1556,6 +1557,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                     id: 0,
                     ten: 'Người chơi 2',
                     gameName: 'Trí Nhớ',
+                    isMe: false,
                     anchorRect: {
                       top: rect.top,
                       left: rect.left,
@@ -1707,6 +1709,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
                     avatar: myAvatarUrl,
                     gameElo: myElo,
                     gameName: 'Trí Nhớ',
+                    isMe: true,
                     anchorRect: {
                       top: rect.top,
                       left: rect.left,
