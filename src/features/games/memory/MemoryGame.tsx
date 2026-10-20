@@ -1022,10 +1022,10 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
   )
 
   return (
-    <div className="flex flex-col items-center justify-start w-full h-full min-w-0 overflow-hidden relative select-none">
+    <div className="flex flex-col items-center justify-start xl:justify-center w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ TRÊN CÙNG: TÊN GAME TIÊU CHUẨN CỜ TƯỚNG */}
-      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 relative flex items-center min-h-[40px] shrink-0">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
+      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 xl:mb-0 xl:absolute xl:top-3 xl:left-4 xl:w-auto xl:pointer-events-none relative flex items-center min-h-[40px] shrink-0 z-30">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10 xl:pointer-events-auto">
           <div
             id="room-number-badge-header"
             className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-violet-950/40 via-slate-900/80 to-slate-900/60 border border-violet-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.5)] shrink-0 select-none hover:border-violet-500/50 transition-colors duration-150"
@@ -1045,7 +1045,7 @@ export function MemoryGame({ onSaveScore, onBack, onInvite, initialTurnSeconds }
       </header>
 
       {/* VÙNG BÀN CHƠI VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-24 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-24 xl:py-0 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): THÔNG TIN ĐỐI THỦ TRÊN MOBILE (< xl) ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
           {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}

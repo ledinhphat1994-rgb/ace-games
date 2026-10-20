@@ -2056,11 +2056,11 @@ export function XiangqiBoard({
   }
 
   return (
-    <div className="flex flex-col items-center justify-between w-full h-full min-w-0 overflow-hidden select-none">
+    <div className="flex flex-col items-center justify-between xl:justify-center w-full h-full min-w-0 overflow-hidden relative select-none">
       {/* 1. HÀNG CÔNG CỤ NHANH TRÊN CÙNG: RỘNG RÃI, THOÁNG MẮT, VÙNG 3 SÁT GÓC TRÁI & ĐỒNG HỒ CHÍNH GIỮA */}
-      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 relative flex items-center min-h-[40px] shrink-0">
+      <header className="w-full px-2 sm:px-4 py-1 mb-0.5 xl:mb-0 xl:absolute xl:top-3 xl:left-4 xl:w-auto xl:pointer-events-none relative flex items-center min-h-[40px] shrink-0 z-30">
         {/* CỤM TRÁI: VÙNG 2 THAY THẾ VÙNG 1 (SỐ BÀN ĐẤU ĐƯA LÊN HEADER) & BADGE RIÊNG TƯ */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0 z-10 xl:pointer-events-auto">
           {roomName && (
             <div
               id="room-number-badge-header"
@@ -2091,7 +2091,7 @@ export function XiangqiBoard({
       </header>
 
       {/* VÙNG BÀN CỜ VÀ ĐIỀU KHIỂN CHÍNH: CĂN GIỮA TUYỆT ĐỐI, CÂN ĐỐI CÔNG THÁI HỌC 3 TẦNG KHÔNG ĐỂ KHOẢNG ĐEN THỪA */}
-      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-24 xl:py-0.5 min-h-0 max-w-[480px] xl:max-w-none">
+      <main className="w-full xl:w-fit flex-1 xl:flex-initial flex flex-col items-center justify-between xl:justify-center mx-auto relative pt-0.5 pb-24 xl:py-0 min-h-0 max-w-[480px] xl:max-w-none">
         {/* ==================== KHỐI TRÊN MOBILE (< xl): ĐỐI THỦ & KHOẢNG ĐỆM ĐỐI XỨNG CÂN BẰNG ==================== */}
         <div className="flex xl:hidden flex-col items-center justify-end w-full max-w-[480px] flex-1 min-h-0 pb-1 sm:pb-1.5 select-none z-20">
           {/* VÙNG X: TIN NHẮN NHANH CỦA ĐỐI THỦ (TRÊN THANH ĐỐI THỦ) */}
