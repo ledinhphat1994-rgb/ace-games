@@ -11,6 +11,7 @@ import { GameTetris } from '../games/GameTetris';
 import { GameChess } from '../games/GameChess';
 import { GameXiangqi } from '../games/GameXiangqi';
 import { GameBreakout } from '../games/GameBreakout';
+import { soundManager } from '../utils/sound';
 import { AdBanner } from './AdBanner';
 
 interface GameModalProps {
@@ -25,12 +26,18 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   if (!game) return null;
 
   const toggleFullscreen = () => {
+    soundManager.playButtonClick();
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
     } else {
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
+  };
+
+  const handleClose = () => {
+    soundManager.playButtonClick();
+    onClose();
   };
 
   const renderGameContent = () => {
@@ -80,8 +87,8 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-rose-400 bg-arcade-hover hover:bg-rose-500/10 rounded-xl transition"
+              onClick={handleClose}
+              className="p-2 text-gray-400 hover:text-rose-400 bg-arcade-hover hover:bg-rose-500/10 rounded-xl transition cursor-pointer"
               title="Đóng game"
             >
               <X className="w-5 h-5" />
