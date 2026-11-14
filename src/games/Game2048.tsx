@@ -229,25 +229,25 @@ export const Game2048: React.FC = () => {
     >
       {/* Score Header - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
       <div className="flex items-center justify-between w-full mb-3 px-3 sm:px-4 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
-        {/* Left: Điểm Số & Kỷ Lục - Tiêu đề căn ngang hàng chuẩn, icon cup trong hàng tiêu đề */}
+        {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Điểm Số
             </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1">
+            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
               {score}
             </span>
           </div>
 
           <div className="h-8 w-px bg-white/10" />
 
-          <div className="flex flex-col">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5 h-4 leading-none">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
               <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
               <span>Kỷ Lục</span>
             </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1">
+            <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
               {bestScore}
             </span>
           </div>

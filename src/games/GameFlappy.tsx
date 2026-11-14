@@ -306,25 +306,25 @@ export const GameFlappy: React.FC = () => {
       {/* Top HUD - Tiêu đề căn ngang hàng chuẩn xác, icon cup nằm gọn trong hàng tiêu đề */}
       <div className="flex items-center w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
         <div className="flex items-center gap-4 sm:gap-6">
-          {/* Cột Điểm Số */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+          {/* Cột Điểm Số: Căn giữa hoàn toàn theo trục dọc */}
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Điểm Số
             </span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none mt-1">
+            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
               {score}
             </span>
           </div>
 
           <div className="h-8 w-px bg-white/10" />
 
-          {/* Cột Kỷ Lục: Icon cúp nằm cùng hàng 1 với chữ Kỷ Lục, căn ngang hàng hoàn hảo với Điểm Số */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center gap-1.5 h-4 leading-none">
+          {/* Cột Kỷ Lục: Căn giữa hoàn toàn theo trục dọc, con số nằm chính giữa tiêu đề */}
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
               <Trophy className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
               <span>Kỷ Lục</span>
             </span>
-            <span className="text-2xl sm:text-3xl font-black text-yellow-300 font-mono leading-none mt-1">
+            <span className="text-2xl sm:text-3xl font-black text-yellow-300 font-mono leading-none mt-1 text-center">
               {bestScore}
             </span>
           </div>

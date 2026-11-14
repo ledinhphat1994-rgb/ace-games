@@ -469,36 +469,36 @@ export const GameSpaceShooter: React.FC = () => {
     <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
       <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
-        {/* Left: Điểm Số, Kỷ Lục & Wave - Tiêu đề căn ngang hàng chuẩn, icon cup trong hàng tiêu đề */}
+        {/* Left: Điểm Số, Kỷ Lục & Wave - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Điểm Số
             </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1">
+            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
               {score}
             </span>
           </div>
 
           <div className="h-8 w-px bg-white/10" />
 
-          <div className="flex flex-col">
-            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center gap-1.5 h-4 leading-none">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
               <Trophy className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
               <span>Kỷ Lục</span>
             </span>
-            <span className="text-xl sm:text-2xl font-black text-yellow-400 font-mono leading-none mt-1">
+            <span className="text-xl sm:text-2xl font-black text-yellow-400 font-mono leading-none mt-1 text-center">
               {highScore}
             </span>
           </div>
 
           <div className="h-8 w-px bg-white/10 hidden sm:block" />
 
-          <div className="hidden sm:flex flex-col">
-            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Đợt (Wave)
             </span>
-            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1">
+            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
               #{wave}
             </span>
           </div>
