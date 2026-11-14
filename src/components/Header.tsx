@@ -52,16 +52,17 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-xl border-b border-white/10 shadow-2xl transition-all">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
-        {/* Main Header Bar */}
+      <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5">
+        {/* Main Header Bar - Full width with Logo at Vùng 1+ (Top-Left Corner) */}
         <div className="flex items-center justify-between gap-3">
-          {/* Brand Logo */}
+          {/* Brand Logo - VÙNG 1+ (Góc trên cùng bên trái) */}
           <div
             onClick={() => {
               soundManager.playButtonClick();
               onCategoryChange('all');
             }}
             className="flex items-center gap-2.5 cursor-pointer group flex-shrink-0"
+            title="Ace Games - Trang chủ"
           >
             <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-indigo-600 to-pink-500 flex items-center justify-center shadow-lg shadow-cyan-500/30 group-hover:scale-105 group-hover:shadow-cyan-400/50 transition-all duration-300">
               <Gamepad2 className="w-5 h-5 text-white group-hover:rotate-12 transition-transform duration-300" />
@@ -77,8 +78,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative flex-1 max-w-xs sm:max-w-md mx-2">
+          {/* Search Bar - Center Balanced */}
+          <div className="relative flex-1 max-w-xs sm:max-w-md lg:max-w-lg mx-2">
             <Search className="w-4 h-4 text-cyan-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -152,8 +153,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Category Pills Bar (Sleek Horizontal Slider) */}
-        <div className="flex items-center gap-2 mt-2.5 overflow-x-auto no-scrollbar pb-0.5">
+        {/* Category Pills Bar (Centered strictly in the Central Content Arena between the 2 vertical lines) */}
+        <div className="max-w-[1360px] mx-auto flex items-center gap-2 mt-2.5 overflow-x-auto no-scrollbar pb-0.5">
           {categories.map(cat => {
             const isActive = selectedCategory === cat.id;
             return (

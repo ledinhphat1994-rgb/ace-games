@@ -4,7 +4,7 @@ import { Gamepad2, Heart } from 'lucide-react';
 export const Footer: React.FC = () => {
   return (
     <footer className="relative z-10 border-t border-white/5 bg-slate-950/80 backdrop-blur-md py-6 text-xs text-gray-500 mt-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Brand & Copyright */}
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
