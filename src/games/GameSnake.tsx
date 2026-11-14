@@ -235,10 +235,10 @@ export const GameSnake: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => setSoundEnabled(p => !p)}
-            className="p-2 rounded-xl bg-slate-800 text-gray-300 hover:text-white"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition"
             title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
@@ -247,17 +247,17 @@ export const GameSnake: React.FC = () => {
           <button
             onClick={() => setIsPaused(p => !p)}
             disabled={!hasStarted || isGameOver}
-            className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/5 transition"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/5 transition"
+            title={isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}
           >
             {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-amber-400" />}
-            <span className="hidden sm:inline">{isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}</span>
           </button>
 
           {/* Show reset in HUD ONLY when game is actively playing, avoid duplicate with Game Over overlay */}
           {!isGameOver && hasStarted && (
             <button
               onClick={resetGame}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 transition"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition"
               title="Chơi lại từ đầu"
             >
               <RotateCcw className="w-4 h-4" />
@@ -266,9 +266,9 @@ export const GameSnake: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Arcade Board (Fills 1920x1080 PC Screen!) */}
+      {/* Massive 16:9 Widescreen Arcade Board - Fits 100% inside container */}
       <div 
-        className="relative bg-[#0b1120] p-2 sm:p-3 rounded-3xl w-full max-w-[min(94vw,1550px)] max-h-[min(92vw,calc(100vh-140px),820px)] border-4 border-emerald-500/40 shadow-[0_0_60px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center"
+        className="relative bg-[#0b1120] p-2 sm:p-2.5 rounded-3xl w-full max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] border-4 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center flex-shrink min-h-0"
         style={{ aspectRatio: `${cols} / ${rows}` }}
       >
         {/* Grid cells */}

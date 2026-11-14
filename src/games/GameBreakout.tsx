@@ -421,8 +421,8 @@ export const GameBreakout: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Arcade Canvas container */}
-      <div className="relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100vh-175px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
+      {/* Massive 16:9 Widescreen Arcade Canvas container - Scaled to never exceed viewport */}
+      <div className="relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none flex-shrink min-h-0">
         <canvas
           ref={canvasRef}
           width={960}

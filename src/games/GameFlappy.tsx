@@ -331,9 +331,9 @@ export const GameFlappy: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Arcade Board (Fills entire screen width!) */}
+      {/* Massive 16:9 Widescreen Arcade Board - Scaled to never exceed container */}
       <div
-        className="relative rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(245,158,11,0.35)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100vh-175px)]"
+        className="relative rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(245,158,11,0.35)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] flex-shrink min-h-0"
         onClick={jump}
       >
         <canvas

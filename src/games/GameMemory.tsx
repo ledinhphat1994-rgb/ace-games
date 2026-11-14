@@ -134,13 +134,12 @@ export const GameMemory: React.FC = () => {
               key={card.id}
               onClick={() => handleCardClick(idx)}
               disabled={card.isFlipped || card.isMatched || isChecking}
-              className={`rounded-xl text-3xl sm:text-5xl md:text-6xl flex items-center justify-center transition-all duration-300 transform perspective-1000 ${
-                card.isMatched
+              className={`rounded-xl text-3xl sm:text-5xl md:text-6xl flex items-center justify-center transition-all duration-300 transform perspective-1000 ${card.isMatched
                   ? 'bg-emerald-500/20 border-2 border-emerald-400/80 scale-95 opacity-80'
                   : card.isFlipped
-                  ? 'bg-slate-700 border-2 border-pink-400 shadow-lg scale-100 rotate-y-180'
-                  : 'bg-gradient-to-br from-indigo-700 to-purple-800 hover:from-indigo-600 hover:to-purple-700 border border-purple-500/30 active:scale-95 shadow-md'
-              }`}
+                    ? 'bg-slate-700 border-2 border-pink-400 shadow-lg scale-100 rotate-y-180'
+                    : 'bg-gradient-to-br from-indigo-700 to-purple-800 hover:from-indigo-600 hover:to-purple-700 border border-purple-500/30 active:scale-95 shadow-md'
+                }`}
             >
               {card.isFlipped || card.isMatched ? (
                 <span>{card.icon}</span>
@@ -160,9 +159,8 @@ export const GameMemory: React.FC = () => {
               {Array.from({ length: 3 }).map((_, i) => (
                 <Star
                   key={i}
-                  className={`w-8 h-8 ${
-                    i < getStars() ? 'text-amber-400 fill-amber-400' : 'text-gray-600'
-                  }`}
+                  className={`w-8 h-8 ${i < getStars() ? 'text-amber-400 fill-amber-400' : 'text-gray-600'
+                    }`}
                 />
               ))}
             </div>

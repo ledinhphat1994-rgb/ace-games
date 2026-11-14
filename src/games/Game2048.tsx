@@ -244,26 +244,27 @@ export const Game2048: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={handleUndo}
             disabled={!history || gameOver}
-            className={`flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-xl border transition ${
+            className={`p-2 rounded-xl border transition ${
               history && !gameOver
-                ? 'bg-slate-800 hover:bg-slate-700 border-white/10 text-gray-200 cursor-pointer'
-                : 'opacity-40 border-transparent text-gray-500 cursor-not-allowed'
+                ? 'bg-slate-800 hover:bg-slate-700 border-white/10 text-cyan-400 cursor-pointer shadow-sm active:scale-95'
+                : 'opacity-40 border-transparent text-gray-600 cursor-not-allowed'
             }`}
-            title="Đi lại 1 bước"
+            title="Đi lại 1 bước (Undo)"
           >
-            <Undo2 className="w-4 h-4 text-cyan-400" /> Đi lại
+            <Undo2 className="w-4 h-4 text-cyan-400" />
           </button>
 
           {!gameOver && (
             <button
               onClick={initGame}
-              className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 transition shadow-lg shadow-amber-500/30 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-amber-400 hover:text-amber-300 transition shadow-sm cursor-pointer active:scale-95"
+              title="Ván mới (Chơi lại)"
             >
-              <RotateCcw className="w-4 h-4" /> Chơi Lại
+              <RotateCcw className="w-4 h-4" />
             </button>
           )}
         </div>

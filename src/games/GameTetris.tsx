@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Volume2, VolumeX, Pause, Play } from 'lucide-react';
 
 const COLS = 10;
 const ROWS = 20;
@@ -373,9 +373,10 @@ export const GameTetris: React.FC = () => {
           <button
             onClick={() => setIsPaused(prev => !prev)}
             disabled={gameOver}
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
+            title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
           >
-            {isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+            {isPaused ? <Play size={16} className="text-emerald-400" /> : <Pause size={16} className="text-amber-400" />}
           </button>
           {!gameOver && (
             <button

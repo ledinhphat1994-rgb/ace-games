@@ -211,34 +211,36 @@ export const GameMinesweeper: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => setFlagMode(!flagMode)}
             disabled={gameOver || gameWon}
-            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition ${
+            className={`p-2 rounded-xl border transition ${
               flagMode
                 ? 'bg-rose-500 text-white border-rose-400 shadow-md'
                 : 'bg-slate-800 border-white/10 text-gray-300 hover:text-white'
             }`}
+            title={flagMode ? 'Chế độ cắm cờ (BẬT)' : 'Chế độ cắm cờ (TẮT)'}
           >
-            <Flag className="w-4 h-4" /> Cắm Cờ: {flagMode ? 'BẬT' : 'TẮT'}
+            <Flag className="w-4 h-4" />
           </button>
 
           {!gameOver && !gameWon && (
             <button
               onClick={initBoard}
-              className="flex items-center gap-1 text-xs font-bold px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition"
+              className="p-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition"
+              title="Ván mới"
             >
-              <RotateCcw className="w-4 h-4" /> Ván Mới
+              <RotateCcw className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Massive Grid Board */}
-      <div className="relative bg-[#0b1120] p-2.5 sm:p-4 rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.25)]">
+      {/* Massive Grid Board - Scaled to never exceed container */}
+      <div className="relative bg-[#0b1120] p-2 sm:p-3 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-rose-500/40 shadow-[0_0_40px_rgba(244,63,94,0.25)] flex-shrink min-h-0">
         <div 
-          className="grid gap-1 sm:gap-2"
+          className="grid gap-1 sm:gap-1.5"
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           }}
@@ -249,7 +251,7 @@ export const GameMinesweeper: React.FC = () => {
                 key={`${r}-${c}`}
                 onClick={() => handleCellClick(r, c)}
                 onContextMenu={e => handleContextMenu(e, r, c)}
-                className={`w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-18 lg:h-18 rounded-xl sm:rounded-2xl font-black text-lg sm:text-2xl md:text-3xl flex items-center justify-center transition-all select-none ${
+                className={`w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl font-black text-base sm:text-2xl md:text-3xl flex items-center justify-center transition-all select-none ${
                   cell.isOpen
                     ? cell.isMine
                       ? 'bg-rose-600 text-white animate-bounce shadow-lg'

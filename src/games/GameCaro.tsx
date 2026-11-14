@@ -187,82 +187,67 @@ export const GameCaro: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-80px),920px)] mx-auto select-none p-1 sm:p-2">
-      {/* Header HUD */}
-      <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
+    <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
+      {/* Unified Compact HUD */}
+      <div className="flex items-center justify-between w-full max-w-[min(94vw,560px)] mb-2 px-3 py-1.5 bg-slate-900/90 border border-white/10 rounded-2xl flex-shrink-0">
         <div className="flex items-center gap-2">
           {winnerInfo ? (
-            <span className="text-amber-400 font-black text-sm flex items-center gap-1">
+            <span className="text-amber-400 font-black text-xs sm:text-sm flex items-center gap-1">
               <Award className="w-4 h-4" />
-              {winnerInfo.winner === 'X' ? 'Người chơi (X) Thắng!' : winnerInfo.winner === 'O' ? (isAiMode ? 'AI (O) Đã Thắng!' : 'Người chơi (O) Thắng!') : 'Trận Đấu Hòa!'}
+              {winnerInfo.winner === 'X' ? 'X Thắng!' : winnerInfo.winner === 'O' ? (isAiMode ? 'AI Thắng!' : 'O Thắng!') : 'Hòa!'}
             </span>
           ) : (
             <span className="text-xs font-bold text-gray-300">
-              Lượt đi: <span className={isXNext ? 'text-cyan-400 font-black text-sm' : 'text-rose-400 font-black text-sm'}>{isXNext ? 'X (Bạn)' : isAiMode ? 'AI (O)...' : 'O'}</span>
+              Lượt: <span className={isXNext ? 'text-cyan-400 font-black' : 'text-rose-400 font-black'}>{isXNext ? 'X' : isAiMode ? 'AI' : 'O'}</span>
             </span>
           )}
+          <div className="h-5 w-px bg-white/10" />
+          <div className="flex items-center gap-1 font-mono text-[11px]">
+            <span className="text-emerald-400 font-bold px-1.5 py-0.5 rounded bg-emerald-500/10">W:{stats.win}</span>
+            <span className="text-gray-400 font-bold px-1.5 py-0.5 rounded bg-slate-800">D:{stats.draw}</span>
+            <span className="text-rose-400 font-bold px-1.5 py-0.5 rounded bg-rose-500/10">L:{stats.loss}</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          <span className="text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-500/10">W: {stats.win}</span>
-          <span className="text-gray-400 font-bold px-2 py-0.5 rounded bg-slate-800">D: {stats.draw}</span>
-          <span className="text-rose-400 font-bold px-2 py-0.5 rounded bg-rose-500/10">L: {stats.loss}</span>
-        </div>
-      </div>
-
-      {/* Mode & Difficulty Selector */}
-      <div className="flex items-center justify-between w-full mb-3 gap-2">
-        <div className="flex bg-slate-900 p-1 rounded-xl border border-white/10">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => {
-              setIsAiMode(true);
+              setIsAiMode(prev => !prev);
               resetGame();
             }}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition font-bold ${
-              isAiMode ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-gray-400 hover:text-white'
-            }`}
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition"
+            title={isAiMode ? 'Chế độ: Đấu Máy (Bấm để đổi 2 người)' : 'Chế độ: 2 Người (Bấm để đổi đấu máy)'}
           >
-            <Bot className="w-3.5 h-3.5" /> Đấu AI
+            {isAiMode ? <Bot className="w-4 h-4 text-cyan-400" /> : <Users className="w-4 h-4 text-emerald-400" />}
           </button>
+
+          {isAiMode && (
+            <select
+              value={difficulty}
+              onChange={e => {
+                setDifficulty(e.target.value as Difficulty);
+                resetGame();
+              }}
+              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2 py-1 focus:outline-none cursor-pointer"
+            >
+              <option value="EASY">Dễ</option>
+              <option value="MEDIUM">Vừa</option>
+              <option value="UNBEATABLE">Khó</option>
+            </select>
+          )}
+
           <button
-            onClick={() => {
-              setIsAiMode(false);
-              resetGame();
-            }}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition font-bold ${
-              !isAiMode ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-gray-400 hover:text-white'
-            }`}
+            onClick={resetGame}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 border border-white/10 text-gray-200 rounded-xl transition"
+            title="Ván mới"
           >
-            <Users className="w-3.5 h-3.5" /> 2 Người
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
-
-        {isAiMode && (
-          <select
-            value={difficulty}
-            onChange={e => {
-              setDifficulty(e.target.value as Difficulty);
-              resetGame();
-            }}
-            className="bg-slate-900 border border-white/10 text-gray-200 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none"
-          >
-            <option value="EASY">Dễ</option>
-            <option value="MEDIUM">Vừa</option>
-            <option value="UNBEATABLE">Bất Khả Chiến Bại</option>
-          </select>
-        )}
-
-        <button
-          onClick={resetGame}
-          className="p-2 bg-slate-900 hover:bg-slate-800 border border-white/10 text-gray-200 rounded-xl transition"
-          title="Ván mới"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Massive 3x3 Board - Scaled to never exceed container */}
-      <div className="relative bg-[#0d1222] p-2.5 sm:p-4 rounded-3xl w-full aspect-square max-w-[min(92vw,calc(100dvh-220px),580px)] max-h-[min(92vw,calc(100dvh-220px),580px)] border-3 sm:border-4 border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.25)] flex-shrink min-h-0">
+      <div className="relative bg-[#0d1222] p-2.5 sm:p-3.5 rounded-2xl sm:rounded-3xl w-full aspect-square max-w-[min(92vw,calc(100dvh-200px),560px)] max-h-[min(92vw,calc(100dvh-200px),560px)] border-3 sm:border-4 border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.25)] flex-shrink min-h-0">
         <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-4 w-full h-full">
           {board.map((cell, idx) => {
             const isWinningCell = winnerInfo?.line?.includes(idx);
