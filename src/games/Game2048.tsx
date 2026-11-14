@@ -8,7 +8,7 @@ export const Game2048: React.FC = () => {
   const [board, setBoard] = useState<Board>(createEmptyBoard());
   const [score, setScore] = useState<number>(0);
   const [bestScore, setBestScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem('playzone_2048_best') || '0', 10);
+    return parseInt(localStorage.getItem('acegames_2048_best') || '0', 10);
   });
   const [history, setHistory] = useState<{ board: Board; score: number } | null>(null);
   const [won, setWon] = useState<boolean>(false);
@@ -139,7 +139,7 @@ export const Game2048: React.FC = () => {
 
       if (nextScore > bestScore) {
         setBestScore(nextScore);
-        localStorage.setItem('playzone_2048_best', nextScore.toString());
+        localStorage.setItem('acegames_2048_best', nextScore.toString());
       }
 
       if (checkGameOver(boardWithNewTile)) {

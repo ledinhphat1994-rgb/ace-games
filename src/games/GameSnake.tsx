@@ -17,7 +17,7 @@ export const GameSnake: React.FC = () => {
   const [direction, setDirection] = useState<Direction>('UP');
   const [score, setScore] = useState<number>(0);
   const [bestScore, setBestScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem('playzone_snake_best') || '0', 10);
+    return parseInt(localStorage.getItem('acegames_snake_best') || '0', 10);
   });
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -129,7 +129,7 @@ export const GameSnake: React.FC = () => {
             const nextScore = s + 10;
             if (nextScore > bestScore) {
               setBestScore(nextScore);
-              localStorage.setItem('playzone_snake_best', nextScore.toString());
+              localStorage.setItem('acegames_snake_best', nextScore.toString());
             }
             return nextScore;
           });

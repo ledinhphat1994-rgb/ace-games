@@ -12,7 +12,7 @@ export const GameFlappy: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [score, setScore] = useState<number>(0);
   const [bestScore, setBestScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem('playzone_flappy_best') || '0', 10);
+    return parseInt(localStorage.getItem('acegames_flappy_best') || '0', 10);
   });
   const [gameState, setGameState] = useState<'IDLE' | 'PLAYING' | 'GAMEOVER'>('IDLE');
 
@@ -162,7 +162,7 @@ export const GameFlappy: React.FC = () => {
 
             setBestScore(prev => {
               if (scoreRef.current > prev) {
-                localStorage.setItem('playzone_flappy_best', scoreRef.current.toString());
+                localStorage.setItem('acegames_flappy_best', scoreRef.current.toString());
                 return scoreRef.current;
               }
               return prev;

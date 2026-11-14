@@ -70,7 +70,7 @@ export const GameTetris: React.FC = () => {
   const [lines, setLines] = useState<number>(0);
   const [level, setLevel] = useState<number>(1);
   const [highScore, setHighScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem('playzone_tetris_highscore') || '0', 10);
+    return parseInt(localStorage.getItem('acegames_tetris_highscore') || '0', 10);
   });
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -207,7 +207,7 @@ export const GameTetris: React.FC = () => {
         const nextScore = prev + points * level;
         if (nextScore > highScore) {
           setHighScore(nextScore);
-          localStorage.setItem('playzone_tetris_highscore', nextScore.toString());
+          localStorage.setItem('acegames_tetris_highscore', nextScore.toString());
         }
         return nextScore;
       });

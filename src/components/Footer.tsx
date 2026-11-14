@@ -9,13 +9,13 @@ export const Footer: React.FC = () => {
           {/* Brand Col */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+              <div className="w-8 h-8 rounded-lg bg-cyan-600 flex items-center justify-center text-white">
                 <Gamepad2 className="w-5 h-5" />
               </div>
-              <span className="text-xl font-black text-white font-['Orbitron']">PLAYZONE</span>
+              <span className="text-xl font-black text-white font-['Orbitron']">ACE GAMES</span>
             </div>
             <p className="text-gray-400 leading-relaxed">
-              Cổng web game HTML5 giải trí miễn phí số 1. Không cần cài đặt, không chứa mã độc, tải siêu nhanh và tối ưu tuyệt vời cho mọi thiết bị từ máy tính, laptop đến iPad và điện thoại.
+              Đấu trường game trực tuyến HTML5 giải trí miễn phí số 1. Không cần cài đặt, không chứa mã độc, tải siêu nhanh và tối ưu tuyệt vời cho mọi thiết bị từ máy tính, laptop đến iPad và điện thoại.
             </p>
           </div>
 
@@ -26,7 +26,7 @@ export const Footer: React.FC = () => {
               <span>Bản Quyền Tự Do & Minh Bạch</span>
             </div>
             <p className="text-gray-400 leading-relaxed">
-              Toàn bộ các tựa game trên nền tảng PlayZone được tích hợp từ các dự án mã nguồn mở có giấy phép tự do (MIT, Apache 2.0, CC0). Chúng tôi tôn trọng quyền tác giả và phát triển bền vững.
+              Toàn bộ các tựa game trên nền tảng Ace Games được tích hợp từ các dự án mã nguồn mở có giấy phép tự do (MIT, Apache 2.0, CC0). Chúng tôi tôn trọng quyền tác giả và phát triển bền vững.
             </p>
           </div>
 
@@ -35,7 +35,7 @@ export const Footer: React.FC = () => {
             <span className="text-gray-200 font-bold block mb-3">Thông Tin & Hỗ Trợ</span>
             <ul className="space-y-2">
               <li>
-                <a href="#about" className="hover:text-indigo-400 transition">Giới Thiệu Về PlayZone</a>
+                <a href="#about" className="hover:text-cyan-400 transition">Giới Thiệu Về Ace Games</a>
               </li>
               <li>
                 <a href="#privacy" className="hover:text-indigo-400 transition">Chính Sách Quyền Riêng Tư (Privacy)</a>

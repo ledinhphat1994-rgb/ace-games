@@ -35,14 +35,14 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 font-['Orbitron']">
-                  PLAYZONE
+                <span className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 font-['Orbitron']">
+                  ACE GAMES
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-widest bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded">
-                  Free
+                <span className="text-[10px] uppercase font-bold tracking-widest bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded">
+                  VIP
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400 font-medium">Cổng Game HTML5 Không Cần Cài Đặt</p>
+              <p className="text-[11px] text-gray-400 font-medium">Đấu Trường Game Trực Tuyến Đỉnh Cao</p>
             </div>
           </div>
 

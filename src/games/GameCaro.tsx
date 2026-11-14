@@ -13,7 +13,7 @@ export const GameCaro: React.FC = () => {
   const [winnerInfo, setWinnerInfo] = useState<{ winner: Player | 'DRAW'; line?: number[] } | null>(null);
 
   const [stats, setStats] = useState<{ win: number; loss: number; draw: number }>(() => {
-    const saved = localStorage.getItem('playzone_caro_stats');
+    const saved = localStorage.getItem('acegames_caro_stats');
     return saved ? JSON.parse(saved) : { win: 0, loss: 0, draw: 0 };
   });
 
@@ -181,7 +181,7 @@ export const GameCaro: React.FC = () => {
       } else {
         updated.draw += 1;
       }
-      localStorage.setItem('playzone_caro_stats', JSON.stringify(updated));
+      localStorage.setItem('acegames_caro_stats', JSON.stringify(updated));
       return updated;
     });
   };
