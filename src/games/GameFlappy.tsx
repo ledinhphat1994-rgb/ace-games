@@ -263,37 +263,46 @@ export const GameFlappy: React.FC = () => {
   }, [jump]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 sm:p-6 w-full max-w-md mx-auto select-none">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,540px)] mx-auto select-none p-1 sm:p-2">
       {/* Score Header */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <div>
-          <h2 className="text-3xl font-extrabold text-amber-400 font-['Orbitron']">FLAPPY</h2>
-          <p className="text-xs text-gray-400">Thử Thách Chim Bay</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="bg-arcade-card border border-arcade-border px-3 py-1.5 rounded-lg text-center min-w-[70px]">
+      <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
+        <div className="flex items-center gap-4">
+          <div>
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm</span>
-            <span className="text-base sm:text-lg font-bold text-white">{score}</span>
+            <span className="text-2xl font-black text-amber-400 font-mono leading-none">{score}</span>
           </div>
-          <div className="bg-arcade-card border border-amber-500/30 px-3 py-1.5 rounded-lg text-center min-w-[70px]">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1">
-              <Trophy className="w-2.5 h-2.5" /> Kỷ Lục
-            </span>
-            <span className="text-base sm:text-lg font-bold text-amber-300">{bestScore}</span>
+          <div className="h-6 w-px bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <div>
+              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
+              <span className="text-base font-bold text-amber-300 font-mono leading-none">{bestScore}</span>
+            </div>
           </div>
         </div>
+
+        <button
+          onClick={e => {
+            e.stopPropagation();
+            resetGame();
+          }}
+          className="p-2 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-xl transition"
+          title="Chơi lại"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Canvas Container */}
+      {/* Massive Canvas Container */}
       <div 
-        className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-500/30 cursor-pointer"
+        className="relative rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.3)] border-4 border-amber-500/40 cursor-pointer w-full max-h-[min(70vh,580px)] aspect-[3/4]"
         onClick={jump}
       >
         <canvas
           ref={canvasRef}
           width={360}
           height={480}
-          className="w-full max-w-[360px] aspect-[3/4] block"
+          className="w-full h-full block"
         />
 
         {/* Start / Idle Screen */}

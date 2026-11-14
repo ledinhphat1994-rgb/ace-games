@@ -382,20 +382,20 @@ export const GameBreakout: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center select-none w-full max-w-lg mx-auto py-1">
+    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(94vw,560px)] mx-auto p-1">
       {/* Top HUD */}
-      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-slate-700/60 rounded-xl px-4 py-2 mb-2 shadow-inner">
+      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
         <div className="flex items-center gap-4">
           <div>
             <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Điểm số</div>
-            <div className="text-xl font-black text-amber-400 font-mono leading-none">{score}</div>
+            <div className="text-2xl font-black text-amber-400 font-mono leading-none">{score}</div>
           </div>
-          <div className="h-6 w-px bg-slate-700" />
-          <div className="flex items-center gap-1">
-            <Trophy className="w-3.5 h-3.5 text-yellow-500" />
+          <div className="h-6 w-px bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-4 h-4 text-yellow-500" />
             <div>
               <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Kỷ lục</div>
-              <div className="text-xs font-bold text-yellow-400 font-mono leading-none">{highScore}</div>
+              <div className="text-base font-bold text-yellow-400 font-mono leading-none">{highScore}</div>
             </div>
           </div>
         </div>
@@ -406,14 +406,14 @@ export const GameBreakout: React.FC = () => {
             {[1, 2, 3].map(i => (
               <Heart
                 key={i}
-                className={`w-4 h-4 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
+                className={`w-5 h-5 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
               />
             ))}
           </div>
 
           <button
             onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
             title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
@@ -421,8 +421,8 @@ export const GameBreakout: React.FC = () => {
         </div>
       </div>
 
-      {/* Canvas container */}
-      <div className="relative w-full aspect-[480/560] max-w-[480px] bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl touch-none">
+      {/* Massive Canvas container */}
+      <div className="relative w-full aspect-[480/560] max-h-[min(70vh,580px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
         <canvas
           ref={canvasRef}
           width={480}

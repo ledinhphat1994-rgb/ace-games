@@ -143,14 +143,14 @@ export const GameChess: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center select-none w-full max-w-lg mx-auto py-2">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,620px)] mx-auto select-none p-1 sm:p-2">
       {/* Control bar */}
-      <div className="w-full flex items-center justify-between bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-2.5 mb-3 shadow-inner text-xs sm:text-sm">
+      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner text-xs sm:text-sm">
         <div className="flex items-center gap-2">
-          <span className="font-extrabold text-amber-400 font-mono">{statusMessage}</span>
+          <span className="font-black text-amber-400 font-mono text-sm sm:text-base">{statusMessage}</span>
           {isThinking && (
-            <span className="text-[11px] text-cyan-400 animate-pulse font-semibold">
-              (AI đang tính toán...)
+            <span className="text-xs text-cyan-400 animate-pulse font-bold">
+              (AI đang tính...)
             </span>
           )}
         </div>
@@ -158,7 +158,7 @@ export const GameChess: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300"
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
             title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
           >
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-red-400" />}
@@ -168,16 +168,16 @@ export const GameChess: React.FC = () => {
               setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
               resetGame();
             }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 font-semibold text-xs"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5"
           >
-            {mode === 'ai' ? <Bot size={14} className="text-cyan-400" /> : <Users size={14} className="text-emerald-400" />}
+            {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
             {mode === 'ai' ? 'Đấu Máy' : '2 Người'}
           </button>
           {mode === 'ai' && (
             <select
               value={aiLevel}
               onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs rounded-lg px-2 py-1 outline-none"
+              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
             >
               <option value={1}>Dễ</option>
               <option value={2}>Vừa</option>
@@ -186,7 +186,7 @@ export const GameChess: React.FC = () => {
           )}
           <button
             onClick={resetGame}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white"
             title="Ván mới"
           >
             <RotateCcw size={16} />
@@ -194,16 +194,15 @@ export const GameChess: React.FC = () => {
         </div>
       </div>
 
-      {/* Chessboard (8x8) */}
-      <div className="relative p-2 bg-slate-900 border-2 border-amber-600/40 rounded-2xl shadow-2xl">
+      {/* Massive Chessboard (8x8) */}
+      <div className="relative p-2.5 sm:p-3 bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 border-4 border-amber-600/50 rounded-3xl shadow-[0_0_50px_rgba(245,158,11,0.25)]">
         <div 
-          className="grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border border-slate-800 shadow-inner"
-          style={{ width: 'min(88vw, 360px)', height: 'min(88vw, 360px)' }}
+          className="grid grid-cols-8 grid-rows-8 rounded-2xl overflow-hidden border-2 border-slate-950 shadow-inner"
+          style={{ width: 'min(90vw, 560px, 70vh)', height: 'min(90vw, 560px, 70vh)' }}
         >
           {Array.from({ length: 64 }).map((_, idx) => {
             const row = Math.floor(idx / 8);
             const col = idx % 8;
-            // Board mapping: standard 0..63 where 0 is a8 or a1
             const sq = (7 - row) * 8 + col;
             const piece = pos.board[sq];
             const isLight = (row + col) % 2 === 0;
@@ -225,13 +224,13 @@ export const GameChess: React.FC = () => {
               >
                 {/* Target move dot indicator */}
                 {isTarget && (
-                  <div className={`absolute z-10 rounded-full ${piece ? 'w-full h-full border-4 border-emerald-500/80 bg-emerald-500/20' : 'w-3 h-3 sm:w-4 sm:h-4 bg-emerald-600/70 shadow'}`} />
+                  <div className={`absolute z-10 rounded-full ${piece ? 'w-full h-full border-4 border-emerald-500/90 bg-emerald-500/25' : 'w-4 h-4 sm:w-6 sm:h-6 bg-emerald-600/80 shadow-md'}`} />
                 )}
 
-                {/* Chess piece icon */}
+                {/* Massive Chess piece icon */}
                 {piece && (
                   <span
-                    className={`text-3xl sm:text-4xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]' : 'text-slate-950'}`}
+                    className={`text-4xl sm:text-6xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_3px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
                   >
                     {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                   </span>

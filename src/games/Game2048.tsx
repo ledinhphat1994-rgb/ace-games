@@ -203,84 +203,80 @@ export const Game2048: React.FC = () => {
     }
   };
 
-  // Color generator for tiles
+  // Color generator for tiles with massive typography
   const getTileColor = (val: number) => {
     switch (val) {
-      case 2: return 'bg-[#EEE4DA] text-[#776E65]';
-      case 4: return 'bg-[#EDE0C8] text-[#776E65]';
-      case 8: return 'bg-[#F2B179] text-white shadow-sm';
-      case 16: return 'bg-[#F59563] text-white shadow';
-      case 32: return 'bg-[#F67C5F] text-white shadow';
-      case 64: return 'bg-[#F65E3B] text-white shadow-md';
-      case 128: return 'bg-[#EDCF72] text-white shadow-md text-2xl';
-      case 256: return 'bg-[#EDCC61] text-white shadow-lg text-2xl';
-      case 512: return 'bg-[#EDC850] text-white shadow-lg text-2xl';
-      case 1024: return 'bg-[#EDC53F] text-white shadow-xl text-xl';
-      case 2048: return 'bg-[#EDC22E] text-white shadow-2xl text-xl animate-pulse';
-      default: return val > 2048 ? 'bg-[#3C3A32] text-white text-lg' : 'bg-[#CDC1B4]/20';
+      case 2: return 'bg-[#EEE4DA] text-[#776E65] text-3xl sm:text-5xl';
+      case 4: return 'bg-[#EDE0C8] text-[#776E65] text-3xl sm:text-5xl';
+      case 8: return 'bg-[#F2B179] text-white shadow-md text-3xl sm:text-5xl';
+      case 16: return 'bg-[#F59563] text-white shadow-md text-2xl sm:text-4xl';
+      case 32: return 'bg-[#F67C5F] text-white shadow-lg text-2xl sm:text-4xl';
+      case 64: return 'bg-[#F65E3B] text-white shadow-lg text-2xl sm:text-4xl';
+      case 128: return 'bg-[#EDCF72] text-white shadow-xl text-xl sm:text-3xl';
+      case 256: return 'bg-[#EDCC61] text-white shadow-xl text-xl sm:text-3xl';
+      case 512: return 'bg-[#EDC850] text-white shadow-xl text-xl sm:text-3xl';
+      case 1024: return 'bg-[#EDC53F] text-white shadow-2xl text-lg sm:text-2xl';
+      case 2048: return 'bg-[#EDC22E] text-white shadow-[0_0_30px_rgba(237,194,46,0.9)] text-lg sm:text-2xl animate-pulse';
+      default: return val > 2048 ? 'bg-[#3C3A32] text-white text-base sm:text-xl' : 'bg-[#CDC1B4]/20';
     }
   };
 
   return (
     <div 
-      className="flex flex-col items-center justify-center p-3 sm:p-6 w-full max-w-md mx-auto select-none"
+      className="flex flex-col items-center justify-center w-full h-full max-w-[min(90vw,580px)] select-none p-1 sm:p-2"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Score Header */}
-      <div className="flex items-center justify-between w-full mb-4">
-        <div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-amber-400 font-['Orbitron']">2048</h2>
-          <p className="text-xs text-gray-400">Trượt và hợp nhất các ô số!</p>
+      <div className="flex items-center justify-between w-full mb-3 px-2 bg-slate-900/80 border border-white/10 rounded-2xl py-2">
+        <div className="flex items-center gap-4">
+          <div>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none">{score}</span>
+          </div>
+          <div className="h-7 w-px bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            <div>
+              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
+              <span className="text-lg sm:text-xl font-black text-amber-300 font-mono leading-none">{bestScore}</span>
+            </div>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="bg-arcade-card border border-arcade-border px-3 py-1.5 rounded-lg text-center min-w-[70px]">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm</span>
-            <span className="text-base sm:text-lg font-bold text-white">{score}</span>
-          </div>
-          <div className="bg-arcade-card border border-amber-500/30 px-3 py-1.5 rounded-lg text-center min-w-[70px] shadow-sm">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1">
-              <Trophy className="w-2.5 h-2.5" /> Kỷ Lục
-            </span>
-            <span className="text-base sm:text-lg font-bold text-amber-300">{bestScore}</span>
-          </div>
+          <button
+            onClick={handleUndo}
+            disabled={!history}
+            className={`flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-xl border transition ${
+              history
+                ? 'bg-slate-800 hover:bg-slate-700 border-white/10 text-gray-200 cursor-pointer'
+                : 'opacity-40 border-transparent text-gray-500 cursor-not-allowed'
+            }`}
+            title="Đi lại 1 bước"
+          >
+            <Undo2 className="w-4 h-4 text-cyan-400" /> Đi lại
+          </button>
+
+          <button
+            onClick={initGame}
+            className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 transition shadow-lg shadow-amber-500/30 cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" /> Chơi Lại
+          </button>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <button
-          onClick={handleUndo}
-          disabled={!history}
-          className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition ${
-            history
-              ? 'bg-arcade-card hover:bg-arcade-hover border-arcade-border text-gray-200'
-              : 'opacity-40 border-transparent text-gray-500 cursor-not-allowed'
-          }`}
-          title="Đi lại 1 bước"
-        >
-          <Undo2 className="w-3.5 h-3.5" /> Đi lại
-        </button>
-
-        <button
-          onClick={initGame}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition shadow-md"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> Chơi Lại
-        </button>
-      </div>
-
-      {/* 4x4 Grid Board */}
-      <div className="relative bg-[#BBADA0] p-2 sm:p-3 rounded-2xl w-full aspect-square shadow-xl border-4 border-[#A39485]/40">
-        <div className="grid grid-cols-4 grid-rows-4 gap-2 sm:gap-3 w-full h-full">
+      {/* Massive 4x4 Grid Board */}
+      <div className="relative bg-[#948171] p-3 sm:p-4 rounded-3xl w-full aspect-square max-h-[min(70vh,540px)] shadow-2xl border-4 border-[#7a6859]">
+        <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
           {board.map((row, r) =>
             row.map((cell, c) => (
               <div
                 key={`${r}-${c}`}
-                className={`flex items-center justify-center font-bold rounded-xl transition-all duration-100 ${
-                  cell === 0 ? 'bg-[#CDC1B4]/30' : getTileColor(cell)
-                } ${cell > 0 ? 'scale-100' : 'scale-95'}`}
-                style={{ fontSize: cell > 512 ? '1.25rem' : cell > 64 ? '1.5rem' : '1.75rem' }}
+                className={`flex items-center justify-center font-black rounded-2xl transition-all duration-100 select-none ${
+                  getTileColor(cell)
+                }`}
               >
                 {cell > 0 ? cell : ''}
               </div>
@@ -325,11 +321,6 @@ export const Game2048: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Guide hint */}
-      <p className="text-[11px] text-gray-400 text-center mt-3">
-        💡 <span className="text-gray-300">Mẹo:</span> Hãy dồn ô số lớn nhất vào 1 góc cố định để dễ kết hợp các số nhỏ xung quanh!
-      </p>
     </div>
   );
 };

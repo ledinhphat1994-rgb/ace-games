@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCcw, Trophy, Play, Pause, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RotateCcw, Trophy, Play, Pause, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 
 const GRID_SIZE = 20;
-const INITIAL_SPEED = 140;
+const INITIAL_SPEED = 130;
 
 type Point = { x: number; y: number };
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
@@ -22,11 +22,34 @@ export const GameSnake: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const directionRef = useRef<Direction>(direction);
   directionRef.current = direction;
 
-  // Generate random food not on snake
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const playTone = useCallback((freq: number, duration: number = 0.08) => {
+    if (!soundEnabled) return;
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {}
+  }, [soundEnabled]);
+
   const generateFood = useCallback((currentSnake: Point[]): Point => {
     while (true) {
       const newFood: Point = {
@@ -53,9 +76,9 @@ export const GameSnake: React.FC = () => {
     setIsGameOver(false);
     setIsPaused(false);
     setHasStarted(true);
-  }, [generateFood]);
+    playTone(520, 0.1);
+  }, [generateFood, playTone]);
 
-  // Handle direction change with reverse guard
   const changeDirection = useCallback((newDir: Direction) => {
     if (!hasStarted) setHasStarted(true);
     const cur = directionRef.current;
@@ -66,8 +89,9 @@ export const GameSnake: React.FC = () => {
       (newDir === 'RIGHT' && cur !== 'LEFT')
     ) {
       setDirection(newDir);
+      playTone(400, 0.03);
     }
-  }, [hasStarted]);
+  }, [hasStarted, playTone]);
 
   // Keyboard controls
   useEffect(() => {
@@ -86,38 +110,61 @@ export const GameSnake: React.FC = () => {
         changeDirection('RIGHT');
       } else if (e.code === 'Space') {
         e.preventDefault();
-        setIsPaused(p => !p);
+        if (!hasStarted || isGameOver) resetGame();
+        else setIsPaused(p => !p);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [changeDirection]);
+  }, [changeDirection, hasStarted, isGameOver, resetGame]);
+
+  // Touch Swipe on mobile
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 20) changeDirection('RIGHT');
+      else if (dx < -20) changeDirection('LEFT');
+    } else {
+      if (dy > 20) changeDirection('DOWN');
+      else if (dy < -20) changeDirection('UP');
+    }
+  };
 
   // Game Loop
   useEffect(() => {
     if (!hasStarted || isGameOver || isPaused) return;
 
-    const speed = Math.max(70, INITIAL_SPEED - Math.floor(score / 5) * 5);
+    const speed = Math.max(70, INITIAL_SPEED - Math.floor(score / 5) * 6);
+
     const interval = setInterval(() => {
       setSnake(prevSnake => {
         const head = { ...prevSnake[0] };
-        const curDir = directionRef.current;
 
-        if (curDir === 'UP') head.y -= 1;
-        if (curDir === 'DOWN') head.y += 1;
-        if (curDir === 'LEFT') head.x -= 1;
-        if (curDir === 'RIGHT') head.x += 1;
+        switch (directionRef.current) {
+          case 'UP': head.y -= 1; break;
+          case 'DOWN': head.y += 1; break;
+          case 'LEFT': head.x -= 1; break;
+          case 'RIGHT': head.x += 1; break;
+        }
 
         // Wall collision
         if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
           setIsGameOver(true);
+          playTone(180, 0.3);
           return prevSnake;
         }
 
         // Self collision
-        if (prevSnake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        if (prevSnake.some(seg => seg.x === head.x && seg.y === head.y)) {
           setIsGameOver(true);
+          playTone(180, 0.3);
           return prevSnake;
         }
 
@@ -125,8 +172,9 @@ export const GameSnake: React.FC = () => {
 
         // Eat food
         if (head.x === food.x && head.y === food.y) {
+          playTone(660, 0.08);
           setScore(s => {
-            const nextScore = s + 10;
+            const nextScore = s + 1;
             if (nextScore > bestScore) {
               setBestScore(nextScore);
               localStorage.setItem('acegames_snake_best', nextScore.toString());
@@ -135,7 +183,7 @@ export const GameSnake: React.FC = () => {
           });
           setFood(generateFood(newSnake));
         } else {
-          newSnake.pop(); // remove tail
+          newSnake.pop();
         }
 
         return newSnake;
@@ -143,54 +191,64 @@ export const GameSnake: React.FC = () => {
     }, speed);
 
     return () => clearInterval(interval);
-  }, [hasStarted, isGameOver, isPaused, food, score, bestScore, generateFood]);
+  }, [hasStarted, isGameOver, isPaused, food, score, bestScore, generateFood, playTone]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 sm:p-6 w-full max-w-md mx-auto select-none">
-      {/* Score Header */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <div>
-          <h2 className="text-3xl font-extrabold text-emerald-400 font-['Orbitron']">SNAKE</h2>
-          <p className="text-xs text-gray-400">Rắn Săn Mồi Cổ Điển</p>
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="flex flex-col items-center justify-center w-full h-full max-w-[min(90vw,620px)] mx-auto select-none p-1 sm:p-2"
+    >
+      {/* Top Large HUD */}
+      <div className="flex items-center justify-between w-full mb-2 px-2 bg-slate-900/80 border border-white/10 rounded-2xl py-2 shadow-inner">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <div>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
+            <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono leading-none">{score}</span>
+          </div>
+          <div className="h-7 w-px bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            <div>
+              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
+              <span className="text-lg sm:text-xl font-black text-amber-300 font-mono leading-none">{bestScore}</span>
+            </div>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="bg-arcade-card border border-arcade-border px-3 py-1.5 rounded-lg text-center min-w-[70px]">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm</span>
-            <span className="text-base sm:text-lg font-bold text-white">{score}</span>
-          </div>
-          <div className="bg-arcade-card border border-amber-500/30 px-3 py-1.5 rounded-lg text-center min-w-[70px]">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1">
-              <Trophy className="w-2.5 h-2.5" /> Kỷ Lục
-            </span>
-            <span className="text-base sm:text-lg font-bold text-amber-300">{bestScore}</span>
-          </div>
+          <button
+            onClick={() => setSoundEnabled(p => !p)}
+            className="p-2 rounded-xl bg-slate-800 text-gray-300 hover:text-white"
+            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+          </button>
+
+          <button
+            onClick={() => setIsPaused(p => !p)}
+            disabled={!hasStarted || isGameOver}
+            className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/5 transition"
+          >
+            {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-amber-400" />}
+            <span className="hidden sm:inline">{isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}</span>
+          </button>
+
+          <button
+            onClick={resetGame}
+            className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 transition shadow-lg shadow-emerald-500/30"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>{hasStarted ? 'Chơi Lại' : 'Bắt Đầu'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Control Actions */}
-      <div className="flex items-center justify-between w-full mb-2">
-        <button
-          onClick={() => setIsPaused(p => !p)}
-          disabled={!hasStarted || isGameOver}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-arcade-card hover:bg-arcade-hover border border-arcade-border text-gray-200 transition"
-        >
-          {isPaused ? <Play className="w-3.5 h-3.5 text-green-400" /> : <Pause className="w-3.5 h-3.5 text-amber-400" />}
-          {isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}
-        </button>
-
-        <button
-          onClick={resetGame}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition shadow-md"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> {hasStarted ? 'Chơi Lại' : 'Bắt Đầu'}
-        </button>
-      </div>
-
-      {/* Game Canvas Board */}
-      <div className="relative bg-[#0F172A] p-2 rounded-2xl w-full aspect-square border-4 border-emerald-500/30 shadow-2xl overflow-hidden">
+      {/* Massive Game Canvas Board (Fills space!) */}
+      <div className="relative bg-[#0b1120] p-2 rounded-3xl w-full aspect-square max-h-[min(70vh,560px)] border-4 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.3)] overflow-hidden">
         {/* Grid cells */}
         <div 
-          className="grid w-full h-full gap-[1px] bg-slate-800/40 rounded-xl overflow-hidden"
+          className="grid w-full h-full gap-[2px] bg-slate-950/80 rounded-2xl overflow-hidden p-1"
           style={{
             gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${GRID_SIZE}, minmax(0, 1fr))`
@@ -206,91 +264,78 @@ export const GameSnake: React.FC = () => {
             return (
               <div
                 key={idx}
-                className={`transition-colors duration-75 rounded-[2px] ${
+                className={`transition-colors duration-75 rounded-[3px] ${
                   isHead
-                    ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] z-10'
+                    ? 'bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,1)] z-10 scale-105'
                     : isBody
-                    ? 'bg-emerald-600/90'
+                    ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]'
                     : isFood
-                    ? 'bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.9)]'
-                    : 'bg-transparent'
+                    ? 'bg-rose-500 rounded-full animate-pulse shadow-[0_0_14px_rgba(244,63,94,1)] scale-110'
+                    : 'bg-slate-900/30'
                 }`}
               />
             );
           })}
         </div>
 
-        {/* Start Game Overlay */}
-        {!hasStarted && (
-          <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 z-20">
-            <span className="text-4xl mb-2 animate-bounce">🐍</span>
-            <h3 className="text-2xl font-black text-emerald-400 mb-1">RẮN SĂN MỒI</h3>
-            <p className="text-xs text-gray-300 mb-4 text-center">Dùng phím mũi tên hoặc nút ảo để điều khiển rắn ăn táo!</p>
+        {/* Start Overlay */}
+        {!hasStarted && !isGameOver && (
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+            <span className="text-6xl mb-3 animate-bounce">🐍</span>
+            <h3 className="text-3xl font-black text-emerald-400 mb-2 font-['Orbitron']">RẮN SĂN MỒI</h3>
+            <p className="text-xs text-gray-400 mb-6">Dùng phím mũi tên hoặc vuốt màn hình để săn táo!</p>
             <button
               onClick={resetGame}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition text-sm flex items-center gap-2"
+              className="px-8 py-3.5 bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <Play className="w-4 h-4 fill-white" /> Bắt Đầu Chơi
+              <Play className="w-5 h-5 fill-slate-950" /> Bắt Đầu Chơi
             </button>
           </div>
         )}
 
         {/* Game Over Overlay */}
         {isGameOver && (
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 z-20 animate-fade-in">
-            <h3 className="text-2xl font-black text-rose-500 mb-1">THUA CUỘC!</h3>
-            <p className="text-xs text-gray-300 mb-1">Điểm đạt được: <span className="font-bold text-emerald-400 text-base">{score}</span></p>
-            <p className="text-[11px] text-gray-400 mb-4">Rắn đã va chạm vào tường hoặc tự cắn vào đuôi.</p>
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+            <span className="text-6xl mb-2">💥</span>
+            <h3 className="text-3xl font-black text-rose-500 mb-2 font-['Orbitron']">ĐÂM VÀO TƯỜNG!</h3>
+            <p className="text-sm text-gray-400 mb-1">Điểm số của bạn:</p>
+            <p className="text-4xl font-black text-amber-400 font-mono mb-6">{score}</p>
             <button
               onClick={resetGame}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition text-sm flex items-center gap-1.5"
+              className="px-8 py-3.5 bg-gradient-to-r from-rose-500 to-red-600 text-white font-black rounded-2xl text-base shadow-[0_0_30px_rgba(244,63,94,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <RotateCcw className="w-4 h-4" /> Chơi Lại Ngay
-            </button>
-          </div>
-        )}
-
-        {/* Pause Overlay */}
-        {isPaused && !isGameOver && (
-          <div className="absolute inset-0 bg-slate-900/75 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 z-20">
-            <Pause className="w-12 h-12 text-amber-400 mb-2" />
-            <h3 className="text-xl font-bold mb-3">ĐÃ TẠM DỪNG</h3>
-            <button
-              onClick={() => setIsPaused(false)}
-              className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs"
-            >
-              Tiếp Tục
+              <RotateCcw className="w-5 h-5" /> Chơi Lại Ngay
             </button>
           </div>
         )}
       </div>
 
-      {/* On-screen D-Pad for Mobile & Touch devices */}
-      <div className="flex flex-col items-center mt-3 sm:hidden">
+      {/* On-Screen Mobile D-Pad (Only on small screens) */}
+      <div className="flex sm:hidden flex-col items-center mt-3 gap-1">
         <button
           onClick={() => changeDirection('UP')}
-          className="w-12 h-12 bg-arcade-card active:bg-emerald-600/50 border border-arcade-border rounded-xl flex items-center justify-center text-gray-200 mb-1 shadow active:scale-95 transition"
+          className="w-12 h-12 bg-slate-800 active:bg-emerald-500 active:text-slate-950 text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/10"
         >
-          <ChevronUp className="w-7 h-7" />
+          <ChevronUp className="w-6 h-6" />
         </button>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => changeDirection('LEFT')}
-            className="w-12 h-12 bg-arcade-card active:bg-emerald-600/50 border border-arcade-border rounded-xl flex items-center justify-center text-gray-200 shadow active:scale-95 transition"
+            className="w-12 h-12 bg-slate-800 active:bg-emerald-500 active:text-slate-950 text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/10"
           >
-            <ChevronLeft className="w-7 h-7" />
+            <ChevronLeft className="w-6 h-6" />
           </button>
           <button
             onClick={() => changeDirection('DOWN')}
-            className="w-12 h-12 bg-arcade-card active:bg-emerald-600/50 border border-arcade-border rounded-xl flex items-center justify-center text-gray-200 shadow active:scale-95 transition"
+            className="w-12 h-12 bg-slate-800 active:bg-emerald-500 active:text-slate-950 text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/10"
           >
-            <ChevronDown className="w-7 h-7" />
+            <ChevronDown className="w-6 h-6" />
           </button>
           <button
             onClick={() => changeDirection('RIGHT')}
-            className="w-12 h-12 bg-arcade-card active:bg-emerald-600/50 border border-arcade-border rounded-xl flex items-center justify-center text-gray-200 shadow active:scale-95 transition"
+            className="w-12 h-12 bg-slate-800 active:bg-emerald-500 active:text-slate-950 text-white rounded-2xl flex items-center justify-center shadow-lg border border-white/10"
           >
-            <ChevronRight className="w-7 h-7" />
+            <ChevronRight className="w-6 h-6" />
           </button>
         </div>
       </div>

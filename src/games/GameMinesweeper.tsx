@@ -196,50 +196,46 @@ export const GameMinesweeper: React.FC = () => {
   const flagsUsed = grid.reduce((acc, row) => acc + row.filter(c => c.isFlagged).length, 0);
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 sm:p-6 w-full max-w-md mx-auto select-none">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,600px)] mx-auto select-none p-1 sm:p-2">
       {/* Header */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <div>
-          <h2 className="text-3xl font-extrabold text-rose-500 font-['Orbitron']">DÒ MÌN</h2>
-          <p className="text-xs text-gray-400">Minesweeper Cổ Điển</p>
+      <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-rose-400 font-mono font-bold text-base">
+            <span className="text-xl">💣</span>
+            <span>{minesCount - flagsUsed}</span>
+          </div>
+          <div className="h-6 w-px bg-white/10" />
+          <div className="flex items-center gap-1.5 text-amber-300 font-mono font-bold text-base">
+            <Clock className="w-4 h-4 text-amber-400" />
+            <span>{timer}s</span>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="bg-arcade-card border border-arcade-border px-3 py-1.5 rounded-lg text-center flex items-center gap-1.5">
-            <span className="text-xs">💣</span>
-            <span className="text-sm font-bold text-rose-400">{minesCount - flagsUsed}</span>
-          </div>
-          <div className="bg-arcade-card border border-arcade-border px-3 py-1.5 rounded-lg text-center flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-sm font-bold text-amber-300">{timer}s</span>
-          </div>
+          <button
+            onClick={() => setFlagMode(!flagMode)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition ${
+              flagMode
+                ? 'bg-rose-500 text-white border-rose-400 shadow-md'
+                : 'bg-slate-800 border-white/10 text-gray-300 hover:text-white'
+            }`}
+          >
+            <Flag className="w-4 h-4" /> Cắm Cờ: {flagMode ? 'BẬT' : 'TẮT'}
+          </button>
+
+          <button
+            onClick={initBoard}
+            className="flex items-center gap-1 text-xs font-bold px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition"
+          >
+            <RotateCcw className="w-4 h-4" /> Ván Mới
+          </button>
         </div>
       </div>
 
-      {/* Control bar */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <button
-          onClick={() => setFlagMode(!flagMode)}
-          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition ${
-            flagMode
-              ? 'bg-rose-500/20 border-rose-500 text-rose-300 font-bold'
-              : 'bg-arcade-card border-arcade-border text-gray-300 hover:text-white'
-          }`}
-        >
-          <Flag className="w-3.5 h-3.5" /> Chế Độ Cắm Cờ: {flagMode ? 'BẬT' : 'TẮT'}
-        </button>
-
-        <button
-          onClick={initBoard}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 bg-arcade-card hover:bg-arcade-hover border border-arcade-border rounded-xl text-gray-200 transition"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> Ván Mới
-        </button>
-      </div>
-
-      {/* Grid Canvas */}
-      <div className="relative bg-[#0F172A] p-2.5 rounded-2xl border-4 border-rose-500/30 shadow-2xl">
+      {/* Massive Grid Board */}
+      <div className="relative bg-[#0b1120] p-3 sm:p-4 rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.25)]">
         <div 
-          className="grid gap-1"
+          className="grid gap-1.5 sm:gap-2.5"
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           }}
@@ -250,12 +246,12 @@ export const GameMinesweeper: React.FC = () => {
                 key={`${r}-${c}`}
                 onClick={() => handleCellClick(r, c)}
                 onContextMenu={e => handleContextMenu(e, r, c)}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center transition-all ${
+                className={`w-11 h-11 sm:w-15 sm:h-15 rounded-xl sm:rounded-2xl font-black text-xl sm:text-3xl flex items-center justify-center transition-all select-none ${
                   cell.isOpen
                     ? cell.isMine
-                      ? 'bg-rose-600/90 text-white animate-bounce'
-                      : 'bg-slate-800/80 text-gray-200'
-                    : 'bg-slate-700/80 hover:bg-slate-600/80 active:scale-95 border border-slate-600/60 shadow-sm'
+                      ? 'bg-rose-600 text-white animate-bounce shadow-lg'
+                      : 'bg-slate-900/90 text-gray-100 border border-white/5'
+                    : 'bg-slate-800 hover:bg-slate-700 active:scale-95 border-2 border-slate-700/80 shadow-md cursor-pointer'
                 }`}
               >
                 {cell.isOpen ? (

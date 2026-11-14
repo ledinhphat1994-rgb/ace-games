@@ -145,13 +145,13 @@ export const GameXiangqi: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center select-none w-full max-w-lg mx-auto py-2">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,620px)] mx-auto select-none p-1 sm:p-2">
       {/* Control bar */}
-      <div className="w-full flex items-center justify-between bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-2.5 mb-3 shadow-inner text-xs sm:text-sm">
+      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner text-xs sm:text-sm">
         <div className="flex items-center gap-2">
-          <span className="font-extrabold text-amber-400 font-mono">{statusMessage}</span>
+          <span className="font-black text-rose-400 font-mono text-sm sm:text-base">{statusMessage}</span>
           {isThinking && (
-            <span className="text-[11px] text-cyan-400 animate-pulse font-semibold">
+            <span className="text-xs text-cyan-400 animate-pulse font-bold">
               (AI đang tính...)
             </span>
           )}
@@ -160,7 +160,7 @@ export const GameXiangqi: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300"
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
             title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
           >
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-red-400" />}
@@ -170,16 +170,16 @@ export const GameXiangqi: React.FC = () => {
               setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
               resetGame();
             }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 font-semibold text-xs"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5"
           >
-            {mode === 'ai' ? <Bot size={14} className="text-cyan-400" /> : <Users size={14} className="text-emerald-400" />}
+            {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
             {mode === 'ai' ? 'Đấu Máy' : '2 Người'}
           </button>
           {mode === 'ai' && (
             <select
               value={aiLevel}
               onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs rounded-lg px-2 py-1 outline-none"
+              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
             >
               <option value={1}>Dễ</option>
               <option value={2}>Vừa</option>
@@ -188,7 +188,7 @@ export const GameXiangqi: React.FC = () => {
           )}
           <button
             onClick={resetGame}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white"
             title="Ván mới"
           >
             <RotateCcw size={16} />
@@ -196,23 +196,20 @@ export const GameXiangqi: React.FC = () => {
         </div>
       </div>
 
-      {/* Xiangqi Board (9 files x 10 ranks) */}
-      <div className="relative p-2.5 bg-amber-950/70 border-2 border-amber-600/50 rounded-2xl shadow-2xl">
+      {/* Massive Xiangqi Board (9 files x 10 ranks) */}
+      <div className="relative p-2 sm:p-3 bg-gradient-to-br from-amber-950 via-neutral-900 to-rose-950 border-4 border-rose-700/50 rounded-3xl shadow-[0_0_50px_rgba(225,29,72,0.25)]">
         <div
-          className="relative bg-[#deb887] border-2 border-[#8b4513] rounded-lg shadow-inner overflow-hidden"
-          style={{ width: 'min(90vw, 360px)', height: 'calc(min(90vw, 360px) * 1.11)' }}
+          className="relative bg-[#dec196] border-4 border-[#78350f] rounded-2xl shadow-inner overflow-hidden"
+          style={{ width: 'min(90vw, 520px, 64vh)', height: 'calc(min(90vw, 520px, 64vh) * 1.11)' }}
         >
-          {/* Grid lines background */}
-          <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none opacity-40">
-            {/* River Divider */}
-            <div className="absolute top-[45%] left-0 right-0 h-[10%] flex items-center justify-around text-amber-900 font-serif font-black text-xs tracking-widest border-y border-amber-900/40 bg-amber-600/10">
-              <span>楚 河</span>
-              <span>漢 界</span>
-            </div>
+          {/* River Divider */}
+          <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-sm sm:text-base tracking-[0.4em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">
+            <span>楚 河</span>
+            <span>漢 界</span>
           </div>
 
           {/* 90 intersections */}
-          <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10 p-2 sm:p-2.5">
+          <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10 p-1.5 sm:p-2.5">
             {Array.from({ length: 90 }).map((_, idx) => {
               const r = 9 - Math.floor(idx / 9);
               const f = idx % 9;
@@ -230,13 +227,19 @@ export const GameXiangqi: React.FC = () => {
                 >
                   {/* Target move indicator */}
                   {isTarget && (
-                    <div className={`absolute z-20 rounded-full ${piece ? 'w-8 h-8 border-2 border-emerald-600 bg-emerald-500/30' : 'w-3 h-3 bg-emerald-600 shadow'}`} />
+                    <div className={`absolute z-20 rounded-full ${piece ? 'w-10 h-10 border-4 border-emerald-500 bg-emerald-500/30' : 'w-4 h-4 bg-emerald-600 shadow-md'}`} />
                   )}
 
-                  {/* Piece token */}
+                  {/* Massive Piece token */}
                   {piece ? (
                     <div
-                      className={`relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-serif font-bold text-base sm:text-lg shadow-md transition-transform duration-100 ${isSelected ? 'scale-115 ring-2 ring-yellow-400 ring-offset-1' : isLast ? 'ring-1 ring-amber-500' : ''} ${sideOf(piece) === RED ? 'bg-[#fdfbf7] text-rose-700 border-2 border-rose-700 shadow-rose-900/30' : 'bg-[#fdfbf7] text-slate-900 border-2 border-slate-900 shadow-black/40'}`}
+                      className={`relative z-10 w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-serif font-black text-xl sm:text-3xl shadow-xl transition-transform duration-100 ${
+                        isSelected ? 'scale-120 ring-4 ring-yellow-400' : isLast ? 'ring-2 ring-amber-500' : ''
+                      } ${
+                        sideOf(piece) === RED
+                          ? 'bg-[#fff5f5] text-rose-700 border-3 border-rose-600 shadow-rose-950/40'
+                          : 'bg-[#f8fafc] text-slate-950 border-3 border-slate-900 shadow-black/50'
+                      }`}
                     >
                       {XIANGQI_PIECES[sideOf(piece)]?.[typeOf(piece)] || ''}
                     </div>

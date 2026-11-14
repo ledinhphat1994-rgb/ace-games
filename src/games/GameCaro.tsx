@@ -187,39 +187,39 @@ export const GameCaro: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 sm:p-6 w-full max-w-md mx-auto select-none">
-      {/* Header */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <div>
-          <h2 className="text-3xl font-extrabold text-indigo-400 font-['Orbitron']">TIC-TAC-TOE</h2>
-          <p className="text-xs text-gray-400">Cờ Caro Chiến Thuật</p>
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(90vw,560px)] mx-auto select-none p-1 sm:p-2">
+      {/* Header HUD */}
+      <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
+        <div className="flex items-center gap-2">
+          {winnerInfo ? (
+            <span className="text-amber-400 font-black text-sm flex items-center gap-1">
+              <Award className="w-4 h-4" />
+              {winnerInfo.winner === 'X' ? 'Người chơi (X) Thắng!' : winnerInfo.winner === 'O' ? (isAiMode ? 'AI (O) Đã Thắng!' : 'Người chơi (O) Thắng!') : 'Trận Đấu Hòa!'}
+            </span>
+          ) : (
+            <span className="text-xs font-bold text-gray-300">
+              Lượt đi: <span className={isXNext ? 'text-cyan-400 font-black text-sm' : 'text-rose-400 font-black text-sm'}>{isXNext ? 'X (Bạn)' : isAiMode ? 'AI (O)...' : 'O'}</span>
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="bg-arcade-card border border-arcade-border px-2.5 py-1 rounded-lg text-center">
-            <span className="text-[10px] text-emerald-400 font-bold block">Thắng</span>
-            <span className="text-sm font-bold text-white">{stats.win}</span>
-          </div>
-          <div className="bg-arcade-card border border-arcade-border px-2.5 py-1 rounded-lg text-center">
-            <span className="text-[10px] text-gray-400 font-bold block">Hòa</span>
-            <span className="text-sm font-bold text-gray-300">{stats.draw}</span>
-          </div>
-          <div className="bg-arcade-card border border-arcade-border px-2.5 py-1 rounded-lg text-center">
-            <span className="text-[10px] text-rose-400 font-bold block">Thua</span>
-            <span className="text-sm font-bold text-rose-300">{stats.loss}</span>
-          </div>
+
+        <div className="flex items-center gap-1.5 font-mono text-xs">
+          <span className="text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-500/10">W: {stats.win}</span>
+          <span className="text-gray-400 font-bold px-2 py-0.5 rounded bg-slate-800">D: {stats.draw}</span>
+          <span className="text-rose-400 font-bold px-2 py-0.5 rounded bg-rose-500/10">L: {stats.loss}</span>
         </div>
       </div>
 
       {/* Mode & Difficulty Selector */}
       <div className="flex items-center justify-between w-full mb-3 gap-2">
-        <div className="flex bg-arcade-card p-1 rounded-xl border border-arcade-border">
+        <div className="flex bg-slate-900 p-1 rounded-xl border border-white/10">
           <button
             onClick={() => {
               setIsAiMode(true);
               resetGame();
             }}
-            className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition ${
-              isAiMode ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'
+            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition font-bold ${
+              isAiMode ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-gray-400 hover:text-white'
             }`}
           >
             <Bot className="w-3.5 h-3.5" /> Đấu AI
@@ -229,8 +229,8 @@ export const GameCaro: React.FC = () => {
               setIsAiMode(false);
               resetGame();
             }}
-            className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition ${
-              !isAiMode ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'
+            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition font-bold ${
+              !isAiMode ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-gray-400 hover:text-white'
             }`}
           >
             <Users className="w-3.5 h-3.5" /> 2 Người
@@ -244,40 +244,26 @@ export const GameCaro: React.FC = () => {
               setDifficulty(e.target.value as Difficulty);
               resetGame();
             }}
-            className="bg-arcade-card border border-arcade-border text-gray-300 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+            className="bg-slate-900 border border-white/10 text-gray-200 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none"
           >
-            <option value="EASY">Dễ (Tập Chơi)</option>
-            <option value="MEDIUM">Vừa (Biết Đỡ)</option>
+            <option value="EASY">Dễ</option>
+            <option value="MEDIUM">Vừa</option>
             <option value="UNBEATABLE">Bất Khả Chiến Bại</option>
           </select>
         )}
 
         <button
           onClick={resetGame}
-          className="p-1.5 bg-arcade-card hover:bg-arcade-hover border border-arcade-border text-gray-200 rounded-xl transition"
+          className="p-2 bg-slate-900 hover:bg-slate-800 border border-white/10 text-gray-200 rounded-xl transition"
           title="Ván mới"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Turn indicator */}
-      <div className="text-xs font-semibold mb-2 flex items-center gap-2">
-        {winnerInfo ? (
-          <span className="text-yellow-400 flex items-center gap-1">
-            <Award className="w-4 h-4" />
-            {winnerInfo.winner === 'X' ? 'Người chơi (X) Chiến Thắng!' : winnerInfo.winner === 'O' ? (isAiMode ? 'AI (O) Đã Thắng!' : 'Người chơi (O) Thắng!') : 'Trận Đấu Hòa!'}
-          </span>
-        ) : (
-          <span className="text-gray-300">
-            Lượt đi: <span className={isXNext ? 'text-indigo-400 font-bold' : 'text-rose-400 font-bold'}>{isXNext ? 'X' : isAiMode ? 'AI (O)...' : 'O'}</span>
-          </span>
-        )}
-      </div>
-
-      {/* 3x3 Board */}
-      <div className="relative bg-[#111827] p-3 rounded-2xl w-full aspect-square border-4 border-indigo-500/30 shadow-2xl">
-        <div className="grid grid-cols-3 grid-rows-3 gap-2.5 w-full h-full">
+      {/* Massive 3x3 Board */}
+      <div className="relative bg-[#0d1222] p-3 sm:p-4 rounded-3xl w-full aspect-square max-h-[min(68vh,520px)] border-4 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.25)]">
+        <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-3.5 w-full h-full">
           {board.map((cell, idx) => {
             const isWinningCell = winnerInfo?.line?.includes(idx);
             return (
@@ -285,25 +271,21 @@ export const GameCaro: React.FC = () => {
                 key={idx}
                 onClick={() => handleClick(idx)}
                 disabled={cell !== null || (isAiMode && !isXNext) || winnerInfo !== null}
-                className={`flex items-center justify-center font-['Orbitron'] font-black rounded-xl text-4xl sm:text-5xl transition-all duration-150 ${
+                className={`flex items-center justify-center font-['Orbitron'] font-black rounded-2xl text-6xl sm:text-8xl transition-all duration-150 select-none ${
                   cell === null
-                    ? 'bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 active:scale-95'
+                    ? 'bg-slate-900/80 hover:bg-slate-800/80 border border-white/5 active:scale-95 cursor-pointer'
                     : isWinningCell
-                    ? 'bg-emerald-500/25 border-2 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                    : 'bg-slate-800/90 border border-slate-700'
+                    ? 'bg-emerald-500/25 border-4 border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.7)] scale-105'
+                    : 'bg-slate-900 border border-white/10'
                 }`}
               >
-                {cell === 'X' && <span className="text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.7)]">X</span>}
-                {cell === 'O' && <span className="text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.7)]">O</span>}
+                {cell === 'X' && <span className="text-cyan-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.9)]">X</span>}
+                {cell === 'O' && <span className="text-rose-400 drop-shadow-[0_0_15px_rgba(244,63,94,0.9)]">O</span>}
               </button>
             );
           })}
         </div>
       </div>
-
-      <p className="text-[11px] text-gray-400 text-center mt-3">
-        💡 <span className="text-gray-300">Luật chơi:</span> Đặt 3 dấu X hoặc O thẳng hàng để chiến thắng!
-      </p>
     </div>
   );
 };

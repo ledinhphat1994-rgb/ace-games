@@ -387,15 +387,15 @@ export const GameTetris: React.FC = () => {
       </div>
 
       {/* Main Game Arena */}
-      <div className="flex items-start justify-center gap-3 w-full">
-        {/* Tetris Board */}
-        <div className="relative bg-slate-950 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-2xl">
+      <div className="flex items-start justify-center gap-3 sm:gap-6 w-full">
+        {/* Massive Tetris Board */}
+        <div className="relative bg-slate-950 p-2 sm:p-3 rounded-3xl border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.25)]">
           <div 
-            className="grid gap-[1px] bg-slate-900 border border-slate-800 rounded-lg overflow-hidden"
+            className="grid gap-[2px] bg-slate-900/90 border-2 border-slate-800 rounded-2xl overflow-hidden p-1"
             style={{
               gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
-              width: 'min(72vw, 250px)',
-              height: 'calc(min(72vw, 250px) * 2)'
+              width: 'min(70vw, 330px, 36vh)',
+              height: 'calc(min(70vw, 330px, 36vh) * 2)'
             }}
           >
             {displayGrid.map((row, r) =>

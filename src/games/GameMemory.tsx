@@ -106,37 +106,33 @@ export const GameMemory: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 sm:p-6 w-full max-w-md mx-auto select-none">
-      {/* Header */}
-      <div className="flex items-center justify-between w-full mb-3">
-        <div>
-          <h2 className="text-3xl font-extrabold text-pink-400 font-['Orbitron']">MEMORY</h2>
-          <p className="text-xs text-gray-400">Lật Hình Tìm Cặp</p>
-        </div>
+    <div className="flex flex-col items-center justify-center w-full select-none gap-3">
+      {/* Slim HUD */}
+      <div className="flex items-center justify-between w-full max-w-[min(90vw,560px)] px-2">
         <div className="flex items-center gap-2">
-          <div className="bg-arcade-card border border-arcade-border px-3 py-1.5 rounded-lg text-center">
-            <span className="text-[10px] text-gray-400 font-bold block">Lượt Mở</span>
-            <span className="text-base font-bold text-white">{moves}</span>
-          </div>
-          <button
-            onClick={initGame}
-            className="p-2 bg-pink-600 hover:bg-pink-500 text-white rounded-xl transition shadow"
-            title="Ván mới"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+          <span className="text-sm font-black text-pink-400 tracking-wider">LƯỢT MỞ:</span>
+          <span className="text-xl font-black text-white px-3 py-1 bg-slate-800/80 rounded-lg border border-pink-500/30 font-mono">
+            {moves}
+          </span>
         </div>
+        <button
+          onClick={initGame}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Ván Mới</span>
+        </button>
       </div>
 
-      {/* 4x4 Grid of Cards */}
-      <div className="relative bg-[#111827] p-3 rounded-2xl w-full aspect-square border-4 border-pink-500/30 shadow-2xl">
+      {/* 4x4 Grid of Cards - Big & Bold */}
+      <div className="relative bg-[#0d1322] p-3 sm:p-4 rounded-2xl w-full max-w-[min(90vw,560px)] max-h-[min(70vh,560px)] aspect-square border-2 border-pink-500/40 shadow-2xl">
         <div className="grid grid-cols-4 grid-rows-4 gap-2 sm:gap-3 w-full h-full">
           {cards.map((card, idx) => (
             <button
               key={card.id}
               onClick={() => handleCardClick(idx)}
               disabled={card.isFlipped || card.isMatched || isChecking}
-              className={`rounded-xl text-3xl sm:text-4xl flex items-center justify-center transition-all duration-300 transform perspective-1000 ${
+              className={`rounded-xl text-4xl sm:text-6xl flex items-center justify-center transition-all duration-300 transform perspective-1000 ${
                 card.isMatched
                   ? 'bg-emerald-500/20 border-2 border-emerald-400/80 scale-95 opacity-80'
                   : card.isFlipped
@@ -147,7 +143,7 @@ export const GameMemory: React.FC = () => {
               {card.isFlipped || card.isMatched ? (
                 <span>{card.icon}</span>
               ) : (
-                <span className="text-purple-300 text-lg opacity-60">❓</span>
+                <span className="text-purple-300 text-2xl sm:text-3xl opacity-60">❓</span>
               )}
             </button>
           ))}
@@ -155,33 +151,29 @@ export const GameMemory: React.FC = () => {
 
         {/* Victory Screen */}
         {isWon && (
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
-            <Award className="w-14 h-14 text-yellow-300 mb-2 animate-bounce" />
-            <h3 className="text-2xl font-black text-pink-400 mb-1">HOÀN THÀNH XUẤT SẮC!</h3>
-            <div className="flex gap-1 mb-2">
+          <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center text-white p-6 animate-fade-in z-20">
+            <Award className="w-20 h-20 text-yellow-300 mb-3 animate-bounce" />
+            <h3 className="text-3xl font-black text-pink-400 mb-2">CHIẾN THẮNG!</h3>
+            <div className="flex gap-2 mb-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Star
                   key={i}
-                  className={`w-6 h-6 ${
+                  className={`w-8 h-8 ${
                     i < getStars() ? 'text-amber-400 fill-amber-400' : 'text-gray-600'
                   }`}
                 />
               ))}
             </div>
-            <p className="text-xs text-gray-300 mb-4">Bạn đã ghép thành công tất cả 8 cặp trong {moves} lượt!</p>
+            <p className="text-sm text-gray-300 mb-6">Bạn hoàn thành với {moves} lượt mở!</p>
             <button
               onClick={initGame}
-              className="px-6 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl shadow-lg transition text-xs"
+              className="px-8 py-3 bg-pink-600 hover:bg-pink-500 text-white font-black rounded-xl shadow-xl transition active:scale-95"
             >
-              Chơi Lại Ván Khác
+              CHƠI LẠI
             </button>
           </div>
         )}
       </div>
-
-      <p className="text-[11px] text-gray-400 text-center mt-3">
-        💡 <span className="text-gray-300">Mẹo:</span> Ghi nhớ vị trí các biểu tượng để hoàn thành với dưới 15 lượt mở để đạt 3 sao!
-      </p>
     </div>
   );
 };
