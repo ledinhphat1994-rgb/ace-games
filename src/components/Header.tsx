@@ -133,8 +133,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Category Pills Slider */}
-        <div className="flex items-center gap-2 mt-2.5 overflow-x-auto no-scrollbar pb-0.5">
+        {/* Category Pills Slider (Visible on Mobile & Tablet) */}
+        <div className="flex md:hidden items-center gap-2 mt-2.5 overflow-x-auto no-scrollbar pb-0.5">
           {categories.map(cat => {
             const isActive = selectedCategory === cat.id;
             return (

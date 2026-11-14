@@ -224,5 +224,28 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Phá gạch', 'Breakout', 'Arcade', 'Bóng nảy', 'Phản xạ'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'space-shooter',
+    title: 'Chiến Cơ Không Gian (Space Arcade)',
+    category: 'arcade',
+    categoryLabel: 'Bắn Súng Không Gian',
+    description: 'Điều khiển phi thuyền không gian né làn mưa đạn la-de, tiêu diệt hạm đội quái vật ngoài hành tinh để bảo vệ vũ trụ.',
+    instructions: [
+      'Dùng phím A/D hoặc mũi tên ← → (hoặc kéo chuột/ngón tay) để di chuyển tàu.',
+      'Bấm phím Cách hoặc chạm màn hình để liên tục khai hỏa tia la-de.',
+      'Tiêu diệt toàn bộ hạm đội địch qua từng đợt tấn công để ghi điểm kỷ lục.'
+    ],
+    controls: {
+      desktop: 'Phím A/D hoặc Mũi tên di chuyển, Phím Cách bắn la-de',
+      mobile: 'Kéo ngón tay trên màn hình để vừa di chuyển vừa bắn tự động'
+    },
+    thumbnailIcon: '🚀',
+    accentColor: 'from-violet-600 to-indigo-700',
+    rating: 4.97,
+    plays: 215000,
+    tags: ['Bắn ruồi', 'Không gian', 'Phi thuyền', 'Arcade', 'Bắn súng'],
+    isHot: true,
+    isNew: true
   }
 ];

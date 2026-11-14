@@ -11,6 +11,7 @@ import { GameTetris } from '../games/GameTetris';
 import { GameChess } from '../games/GameChess';
 import { GameXiangqi } from '../games/GameXiangqi';
 import { GameBreakout } from '../games/GameBreakout';
+import { GameSpaceShooter } from '../games/GameSpaceShooter';
 import { soundManager } from '../utils/sound';
 import { AdBanner } from './AdBanner';
 
@@ -52,6 +53,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'chess': return <GameChess />;
       case 'xiangqi': return <GameXiangqi />;
       case 'breakout': return <GameBreakout />;
+      case 'space-shooter': return <GameSpaceShooter />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

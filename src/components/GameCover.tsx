@@ -336,6 +336,45 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'space-shooter':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-950 to-sky-950 ${className}`}>
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Stars */}
+            <circle cx="30" cy="20" r="1" fill="#ffffff" opacity="0.6" />
+            <circle cx="170" cy="30" r="1.5" fill="#38bdf8" opacity="0.8" />
+            <circle cx="80" cy="80" r="1" fill="#ffffff" opacity="0.4" />
+            <circle cx="150" cy="90" r="1.2" fill="#ffffff" opacity="0.5" />
+            {/* Enemy Alien ships */}
+            <g transform="translate(40, 25)">
+              <rect width="24" height="16" rx="4" fill="#f43f5e" stroke="#fda4af" strokeWidth="1" />
+              <circle cx="7" cy="8" r="2" fill="#ffffff" />
+              <circle cx="17" cy="8" r="2" fill="#ffffff" />
+            </g>
+            <g transform="translate(85, 20)">
+              <rect width="30" height="18" rx="4" fill="#a855f7" stroke="#e9d5ff" strokeWidth="1" />
+              <circle cx="9" cy="9" r="2.5" fill="#ffffff" />
+              <circle cx="21" cy="9" r="2.5" fill="#ffffff" />
+            </g>
+            <g transform="translate(135, 25)">
+              <rect width="24" height="16" rx="4" fill="#ec4899" stroke="#fbcfe8" strokeWidth="1" />
+              <circle cx="7" cy="8" r="2" fill="#ffffff" />
+              <circle cx="17" cy="8" r="2" fill="#ffffff" />
+            </g>
+            {/* Cyan Laser Blasts */}
+            <rect x="98" y="55" width="4" height="16" rx="2" fill="#38bdf8" />
+            <rect x="106" y="50" width="4" height="16" rx="2" fill="#38bdf8" />
+            {/* Hero Spaceship */}
+            <g transform="translate(82, 85)">
+              <polygon points="20,0 40,35 20,28 0,35" fill="#38bdf8" stroke="#e0f2fe" strokeWidth="1.5" />
+              <polygon points="20,10 26,26 14,26" fill="#0284c7" />
+              {/* Thrust fire */}
+              <polygon points="15,29 25,29 20,40" fill="#f97316" />
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>
