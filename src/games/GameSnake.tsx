@@ -220,19 +220,27 @@ export const GameSnake: React.FC = () => {
     >
       {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG (VÙNG 5 ĐÃ ĐƯỢC ĐƯA LÊN VÙNG 6) */}
       <div className="flex items-center justify-between w-full max-w-[min(94vw,1550px)] mb-2 px-3 sm:px-5 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
-        {/* Left: Điểm Số & Kỷ Lục */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="px-3 py-1 bg-slate-800/80 border border-white/10 rounded-xl">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
-            <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono leading-none">{score}</span>
+        {/* Left: Điểm Số & Kỷ Lục - Tiêu đề căn ngang hàng chuẩn, icon cup trong hàng tiêu đề */}
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+              Điểm Số
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono leading-none mt-1">
+              {score}
+            </span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <div>
-              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
-              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-none">{bestScore}</span>
-            </div>
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="flex flex-col">
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5 h-4 leading-none">
+              <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+              <span>Kỷ Lục</span>
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1">
+              {bestScore}
+            </span>
           </div>
         </div>
 

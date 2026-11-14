@@ -344,21 +344,40 @@ export const GameTetris: React.FC = () => {
       {/* Top Status Bar */}
       <div className="w-full flex items-center justify-between bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-2 mb-3 shadow-inner">
         <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-          <div className="px-2.5 py-1 bg-slate-800/80 rounded-xl border border-white/10 text-center">
-            <span className="text-gray-400 block text-[9px] uppercase font-bold">ĐIỂM SỐ</span>
-            <span className="font-extrabold text-amber-400 text-base sm:text-lg font-mono leading-none">{score}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-gray-400 text-[9px] uppercase font-bold flex items-center h-4 leading-none">
+              ĐIỂM SỐ
+            </span>
+            <span className="font-extrabold text-amber-400 text-base sm:text-lg font-mono leading-none mt-1">
+              {score}
+            </span>
           </div>
-          <div className="px-2 py-1 bg-slate-800/50 rounded-xl text-center hidden xs:block">
-            <span className="text-gray-400 block text-[9px] uppercase font-bold">HÀNG</span>
-            <span className="font-bold text-cyan-400 text-xs sm:text-sm font-mono leading-none">{lines}</span>
+          <div className="h-7 w-px bg-white/10 hidden xs:block" />
+          <div className="hidden xs:flex flex-col items-center">
+            <span className="text-gray-400 text-[9px] uppercase font-bold flex items-center h-4 leading-none">
+              HÀNG
+            </span>
+            <span className="font-bold text-cyan-400 text-xs sm:text-sm font-mono leading-none mt-1">
+              {lines}
+            </span>
           </div>
-          <div className="px-2 py-1 bg-slate-800/50 rounded-xl text-center hidden xs:block">
-            <span className="text-gray-400 block text-[9px] uppercase font-bold">CẤP</span>
-            <span className="font-bold text-emerald-400 text-xs sm:text-sm font-mono leading-none">{level}</span>
+          <div className="h-7 w-px bg-white/10 hidden xs:block" />
+          <div className="hidden xs:flex flex-col items-center">
+            <span className="text-gray-400 text-[9px] uppercase font-bold flex items-center h-4 leading-none">
+              CẤP
+            </span>
+            <span className="font-bold text-emerald-400 text-xs sm:text-sm font-mono leading-none mt-1">
+              {level}
+            </span>
           </div>
-          <div className="px-2.5 py-1 bg-purple-500/10 rounded-xl border border-purple-500/20 text-center">
-            <span className="text-gray-400 block text-[9px] uppercase font-bold">KỶ LỤC</span>
-            <span className="font-bold text-purple-400 text-xs sm:text-sm font-mono leading-none">{highScore}</span>
+          <div className="h-7 w-px bg-white/10" />
+          <div className="flex flex-col items-center">
+            <span className="text-purple-400 text-[9px] uppercase font-bold flex items-center h-4 leading-none">
+              KỶ LỤC
+            </span>
+            <span className="font-bold text-purple-300 text-xs sm:text-sm font-mono leading-none mt-1">
+              {highScore}
+            </span>
           </div>
         </div>
 

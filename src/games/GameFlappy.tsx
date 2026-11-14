@@ -303,20 +303,30 @@ export const GameFlappy: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
-      {/* Top HUD - Điểm Số & Kỷ Lục sát nhau, không trùng lặp chức năng */}
+      {/* Top HUD - Tiêu đề căn ngang hàng chuẩn xác, icon cup nằm gọn trong hàng tiêu đề */}
       <div className="flex items-center w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
-        <div className="flex items-center gap-3 sm:gap-6">
-          <div>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none">{score}</span>
+        <div className="flex items-center gap-4 sm:gap-6">
+          {/* Cột Điểm Số */}
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+              Điểm Số
+            </span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none mt-1">
+              {score}
+            </span>
           </div>
-          <div className="h-7 w-px bg-white/10" />
-          <div className="flex items-center gap-1.5">
-            <Trophy className="w-5 h-5 text-yellow-400" />
-            <div>
-              <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
-              <span className="text-lg sm:text-xl font-black text-yellow-300 font-mono leading-none">{bestScore}</span>
-            </div>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          {/* Cột Kỷ Lục: Icon cúp nằm cùng hàng 1 với chữ Kỷ Lục, căn ngang hàng hoàn hảo với Điểm Số */}
+          <div className="flex flex-col">
+            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center gap-1.5 h-4 leading-none">
+              <Trophy className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
+              <span>Kỷ Lục</span>
+            </span>
+            <span className="text-2xl sm:text-3xl font-black text-yellow-300 font-mono leading-none mt-1">
+              {bestScore}
+            </span>
           </div>
         </div>
       </div>

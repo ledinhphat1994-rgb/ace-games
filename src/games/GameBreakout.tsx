@@ -385,18 +385,27 @@ export const GameBreakout: React.FC = () => {
     <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
       <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="px-3 py-1 bg-slate-800/80 border border-white/10 rounded-xl">
-            <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Điểm số</div>
-            <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none">{score}</div>
+        {/* Left: Điểm Số & Kỷ Lục - Tiêu đề căn ngang hàng chuẩn, icon cup trong hàng tiêu đề */}
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center h-4 leading-none">
+              Điểm Số
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1">
+              {score}
+            </span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl">
-            <Trophy className="w-4 h-4 text-yellow-500" />
-            <div>
-              <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Kỷ lục</div>
-              <div className="text-base sm:text-lg font-bold text-yellow-400 font-mono leading-none">{highScore}</div>
-            </div>
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="flex flex-col">
+            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center gap-1.5 h-4 leading-none">
+              <Trophy className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+              <span>Kỷ Lục</span>
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-yellow-400 font-mono leading-none mt-1">
+              {highScore}
+            </span>
           </div>
         </div>
 
