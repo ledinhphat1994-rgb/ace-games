@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Gamepad2, Search, Volume2, VolumeX, Music, Dices, Maximize, Minimize } from 'lucide-react';
+import { Gamepad2, Search, Volume2, VolumeX, Music, Dices } from 'lucide-react';
 import type { GameCategory } from '../types/game';
 import { soundManager } from '../utils/sound';
 
@@ -20,7 +20,6 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
   const [musicOn, setMusicOn] = useState(() => soundManager.isMusicOn());
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleSound = () => {
     const next = soundManager.toggleSound();
@@ -30,15 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
   const toggleMusic = () => {
     const next = soundManager.toggleMusic();
     setMusicOn(next);
-  };
-
-  const toggleFullscreen = () => {
-    soundManager.playButtonClick();
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
-    } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
-    }
   };
 
   const categories: { id: GameCategory; label: string; icon: string }[] = [
@@ -140,15 +130,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {soundOn ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
               <span className="hidden md:inline">Âm Thanh</span>
-            </button>
-
-            {/* Fullscreen Button */}
-            <button
-              onClick={toggleFullscreen}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-gray-400 hover:text-white transition"
-              title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
-            >
-              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
           </div>
         </div>

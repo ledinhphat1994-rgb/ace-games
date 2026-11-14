@@ -25,6 +25,14 @@ export function App() {
   const handlePlayGame = (game: GameInfo) => {
     soundManager.playGameLaunch();
     setActiveGame(game);
+    setTimeout(() => {
+      const el = document.getElementById('active-game-arena');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 50);
   };
 
   const handleToggleFavorite = (e: React.MouseEvent, gameId: string) => {
@@ -74,86 +82,75 @@ export function App() {
         onRandomGame={handleRandomGame}
       />
 
-      {/* 3-Column Arena: Left Ad Gutter | Central Content Arena (Between 2 Vertical Lines) | Right Ad Gutter */}
-      <div className="relative z-10 flex-1 w-full flex justify-center px-2 sm:px-4">
-        {/* Left Ad Gutter (Outside Left Line - Dedicated space for future 160x600 / 300x600 ads) */}
-        <aside 
-          id="ad-slot-left"
-          className="hidden 2xl:flex flex-col items-center justify-start w-[230px] px-2 py-6 flex-shrink-0"
-        >
-          <div className="sticky top-32 w-full h-[600px] rounded-3xl border border-dashed border-white/10 bg-slate-900/10 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center transition hover:border-cyan-500/20">
-            <span className="text-3xl mb-2 opacity-30">📢</span>
-            <span className="text-xs font-mono font-bold tracking-wider uppercase text-gray-400 opacity-60">Vị trí Quảng Cáo</span>
-            <span className="text-[11px] font-mono text-cyan-400/60 mt-1">Banner Trái (160x600)</span>
-            <span className="text-[10px] font-mono text-gray-500 mt-2 opacity-40">Chờ gắn AdSense / Banner</span>
+      {/* Main Content Arena: VÙNG 2 (Central Container, Max-width: 1360px) */}
+      <main className="relative z-10 flex-1 max-w-[1360px] mx-auto w-full py-4 sm:py-6 px-3 sm:px-6">
+        {/* Active Game Player - Defaults directly to VÙNG 2 area */}
+        {activeGame && (
+          <div id="active-game-arena" className="w-full">
+            <GameModal
+              game={activeGame}
+              onClose={() => setActiveGame(null)}
+            />
           </div>
-        </aside>
+        )}
 
-        {/* Central Content Arena (Strictly inside the 2 Vertical Lines - Max-w: 1360px) */}
-        <main className="flex-1 max-w-[1360px] w-full py-4 sm:py-6 px-2 sm:px-4">
-          {filteredGames.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4.5">
-              {filteredGames.map((game, idx) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  onPlay={handlePlayGame}
-                  isFavorite={favorites.includes(game.id)}
-                  onToggleFavorite={handleToggleFavorite}
-                  isFeatured={selectedCategory === 'all' && !searchQuery && idx === 0}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 max-w-md mx-auto my-12">
-              <span className="text-5xl mb-3 block">
-                {selectedCategory === 'favorites' ? '💔' : '🔍'}
-              </span>
-              <h3 className="text-lg font-bold text-white mb-2">
-                {selectedCategory === 'favorites'
-                  ? 'Chưa có game nào trong mục Yêu Thích'
-                  : 'Không tìm thấy trò chơi phù hợp!'}
+        {/* Catalog Section Header when a game is actively playing */}
+        {activeGame && (
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🕹️</span>
+              <h3 className="text-base sm:text-lg font-black text-white font-['Orbitron']">
+                Khám Phá Các Trò Chơi Khác
               </h3>
-              <p className="text-xs text-gray-400 mb-5">
-                {selectedCategory === 'favorites'
-                  ? 'Hãy bấm vào biểu tượng Trái Tim ❤️ ở các thẻ game để lưu lại những trò chơi yêu thích nhất.'
-                  : 'Hãy thử tìm với từ khóa khác như "cờ", "tetris", "rắn", "bắn súng"...'}
-              </p>
-              <button
-                onClick={() => {
-                  soundManager.playButtonClick();
-                  setSearchQuery('');
-                  setSelectedCategory('all');
-                }}
-                className="px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-full text-xs shadow-lg shadow-cyan-500/30 transition cursor-pointer"
-              >
-                Xem Toàn Bộ Game
-              </button>
             </div>
-          )}
-        </main>
-
-        {/* Right Ad Gutter (Outside Right Line - Dedicated space for future 160x600 / 300x600 ads) */}
-        <aside 
-          id="ad-slot-right"
-          className="hidden 2xl:flex flex-col items-center justify-start w-[230px] px-2 py-6 flex-shrink-0"
-        >
-          <div className="sticky top-32 w-full h-[600px] rounded-3xl border border-dashed border-white/10 bg-slate-900/10 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center transition hover:border-cyan-500/20">
-            <span className="text-3xl mb-2 opacity-30">📢</span>
-            <span className="text-xs font-mono font-bold tracking-wider uppercase text-gray-400 opacity-60">Vị trí Quảng Cáo</span>
-            <span className="text-[11px] font-mono text-cyan-400/60 mt-1">Banner Phải (160x600)</span>
-            <span className="text-[10px] font-mono text-gray-500 mt-2 opacity-40">Chờ gắn AdSense / Banner</span>
+            <span className="text-xs text-gray-400 font-mono">
+              {filteredGames.length} trò chơi có sẵn
+            </span>
           </div>
-        </aside>
-      </div>
+        )}
 
-      {/* Active Game Modal */}
-      {activeGame && (
-        <GameModal
-          game={activeGame}
-          onClose={() => setActiveGame(null)}
-        />
-      )}
+        {/* Game Cards Grid */}
+        {filteredGames.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4.5">
+            {filteredGames.map((game, idx) => (
+              <GameCard
+                key={game.id}
+                game={game}
+                onPlay={handlePlayGame}
+                isFavorite={favorites.includes(game.id)}
+                onToggleFavorite={handleToggleFavorite}
+                isFeatured={!activeGame && selectedCategory === 'all' && !searchQuery && idx === 0}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 max-w-md mx-auto my-12">
+            <span className="text-5xl mb-3 block">
+              {selectedCategory === 'favorites' ? '💔' : '🔍'}
+            </span>
+            <h3 className="text-lg font-bold text-white mb-2">
+              {selectedCategory === 'favorites'
+                ? 'Chưa có game nào trong mục Yêu Thích'
+                : 'Không tìm thấy trò chơi phù hợp!'}
+            </h3>
+            <p className="text-xs text-gray-400 mb-5">
+              {selectedCategory === 'favorites'
+                ? 'Hãy bấm vào biểu tượng Trái Tim ❤️ ở các thẻ game để lưu lại những trò chơi yêu thích nhất.'
+                : 'Hãy thử tìm với từ khóa khác như "cờ", "tetris", "rắn", "bắn súng"...'}
+            </p>
+            <button
+              onClick={() => {
+                soundManager.playButtonClick();
+                setSearchQuery('');
+                setSelectedCategory('all');
+              }}
+              className="px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-full text-xs shadow-lg shadow-cyan-500/30 transition cursor-pointer"
+            >
+              Xem Toàn Bộ Game
+            </button>
+          </div>
+        )}
+      </main>
 
       {/* Footer */}
       <Footer />

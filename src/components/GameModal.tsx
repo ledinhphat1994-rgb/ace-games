@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { X, Maximize2 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
@@ -20,23 +20,23 @@ interface GameModalProps {
 }
 
 export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
-  // 'near-full': Spacious floating window (92vh, max-w-[1760px]), lets user see web background & multitask
-  // 'fullscreen': True 100vw x 100vh cinema mode covering full display (1920x1080)
-  const [viewMode, setViewMode] = useState<'near-full' | 'fullscreen'>('near-full');
+  // 'vung2': Default in-place theater inside VÙNG 2 (central content area)
+  // 'fullscreen': True 100vw x 100vh full screen for all monitors (PC 1920x1080) & mobile
+  const [viewMode, setViewMode] = useState<'vung2' | 'fullscreen'>('vung2');
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   if (!game) return null;
 
   const toggleViewMode = () => {
     soundManager.playButtonClick();
-    if (viewMode === 'near-full') {
+    if (viewMode === 'vung2') {
       setViewMode('fullscreen');
       window.history.pushState({ inGameFullscreen: true }, '');
       if (containerRef.current && !document.fullscreenElement) {
         containerRef.current.requestFullscreen?.().catch(() => {});
       }
     } else {
-      setViewMode('near-full');
+      setViewMode('vung2');
       if (document.fullscreenElement) {
         document.exitFullscreen?.().catch(() => {});
       }
@@ -44,10 +44,10 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   };
 
   // Sync state if user presses ESC to exit browser fullscreen or back button on mobile
-  React.useEffect(() => {
+  useEffect(() => {
     const handleFsChange = () => {
       if (!document.fullscreenElement && viewMode === 'fullscreen') {
-        setViewMode('near-full');
+        setViewMode('vung2');
       }
     };
 
@@ -56,7 +56,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
         if (document.fullscreenElement) {
           document.exitFullscreen?.().catch(() => {});
         }
-        setViewMode('near-full');
+        setViewMode('vung2');
       }
     };
 
@@ -65,7 +65,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
         if (document.fullscreenElement) {
           document.exitFullscreen?.().catch(() => {});
         }
-        setViewMode('near-full');
+        setViewMode('vung2');
       }
     };
 
@@ -86,12 +86,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       document.exitFullscreen?.().catch(() => {});
     }
     onClose();
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && viewMode === 'near-full') {
-      handleClose();
-    }
   };
 
   const renderGameContent = () => {
@@ -118,64 +112,59 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   };
 
   return (
-    <div 
-      onClick={handleBackdropClick}
-      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden animate-in fade-in duration-200 ${
-        viewMode === 'near-full'
-          ? 'bg-black/75 backdrop-blur-md p-2 sm:p-4 md:p-6'
-          : 'bg-[#03060c] p-0'
+    <div
+      ref={containerRef}
+      className={`transition-all duration-300 overflow-hidden flex flex-col ${
+        viewMode === 'vung2'
+          ? 'relative w-full h-[76vh] min-h-[580px] max-h-[820px] bg-[#070b14] rounded-2xl sm:rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_rgba(0,0,0,0.85)] mb-8'
+          : 'fixed inset-0 z-50 w-screen h-screen bg-[#03060c] p-0 rounded-none border-0'
       }`}
     >
-      <div 
-        ref={containerRef}
-        onClick={(e) => e.stopPropagation()}
-        className={`relative bg-[#070b14] overflow-hidden flex flex-col transition-all duration-300 ${
-          viewMode === 'near-full'
-            ? 'w-[95vw] max-w-[1760px] h-[92vh] max-h-[980px] border border-cyan-500/30 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.95)]'
-            : 'w-screen h-screen rounded-none border-0'
-        }`}
-      >
-        {/* Sleek Theater Top Header - Shown ONLY in Near-Full mode. In Fullscreen, completely removed (exited by ESC on PC or Back on mobile) */}
-        {viewMode === 'near-full' && (
-          <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
-            <div className="flex items-center gap-2.5">
-              <span className="text-2xl sm:text-3xl drop-shadow-md">{game.thumbnailIcon}</span>
-              <div>
-                <h2 className="text-sm sm:text-lg font-black text-white leading-tight font-['Orbitron'] flex items-center gap-2">
-                  <span>{game.title}</span>
-                  <span className="hidden sm:inline-block text-[10px] font-bold text-cyan-400 bg-cyan-400/15 border border-cyan-400/30 px-2 py-0.5 rounded-full font-sans">
-                    {game.categoryLabel}
-                  </span>
-                </h2>
-              </div>
-            </div>
-
-            {/* Action controls */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <button
-                onClick={toggleViewMode}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 rounded-xl transition cursor-pointer shadow-md"
-                title="Phóng to toàn màn hình 100%"
-              >
-                <Maximize2 className="w-4 h-4 text-cyan-400" />
-                <span className="hidden sm:inline">Toàn Màn Hình</span>
-              </button>
-
-              <button
-                onClick={handleClose}
-                className="p-2 text-gray-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/30 rounded-xl transition cursor-pointer"
-                title="Đóng game"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* Sleek Header Bar - Shown ONLY in VÙNG 2. In Fullscreen, completely removed (exited by ESC on PC or Back on mobile) */}
+      {viewMode === 'vung2' && (
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl sm:text-3xl drop-shadow-md">{game.thumbnailIcon}</span>
+            <div>
+              <h2 className="text-base sm:text-xl font-black text-white leading-tight font-['Orbitron'] flex items-center gap-2">
+                <span>{game.title}</span>
+                <span className="hidden sm:inline-block text-[10px] font-bold text-cyan-400 bg-cyan-400/15 border border-cyan-400/30 px-2.5 py-0.5 rounded-full font-sans">
+                  {game.categoryLabel}
+                </span>
+              </h2>
             </div>
           </div>
-        )}
 
-        {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
-        <div className="flex-1 w-full h-full overflow-hidden flex items-center justify-center p-1 sm:p-2 bg-gradient-to-b from-[#060913] to-[#04060a]">
-          {renderGameContent()}
+          {/* Action controls in Vùng 2 */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleViewMode}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 rounded-xl transition cursor-pointer shadow-lg shadow-cyan-500/20 active:scale-95"
+              title="Phóng to toàn màn hình 100%"
+            >
+              <Maximize2 className="w-4 h-4 text-cyan-400" />
+              <span className="font-black">Toàn Màn Hình</span>
+            </button>
+
+            <button
+              onClick={handleClose}
+              className="flex items-center gap-1 px-3 py-2 text-xs sm:text-sm font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/30 rounded-xl transition cursor-pointer active:scale-95"
+              title="Đóng game và quay lại danh sách"
+            >
+              <X className="w-4 h-4" />
+              <span className="hidden sm:inline">Đóng</span>
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
+      <div className={`flex-1 w-full h-full overflow-hidden flex items-center justify-center ${
+        viewMode === 'vung2'
+          ? 'p-2 sm:p-4 bg-gradient-to-b from-[#060913] to-[#04060a]'
+          : 'p-0 bg-black'
+      }`}>
+        {renderGameContent()}
       </div>
     </div>
   );
