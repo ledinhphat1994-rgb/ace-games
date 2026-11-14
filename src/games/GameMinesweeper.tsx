@@ -236,9 +236,9 @@ export const GameMinesweeper: React.FC = () => {
       </div>
 
       {/* Massive Grid Board */}
-      <div className="relative bg-[#0b1120] p-3 sm:p-5 rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.25)]">
+      <div className="relative bg-[#0b1120] p-2.5 sm:p-4 rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.25)]">
         <div 
-          className="grid gap-1.5 sm:gap-2.5"
+          className="grid gap-1 sm:gap-2"
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           }}
@@ -249,7 +249,7 @@ export const GameMinesweeper: React.FC = () => {
                 key={`${r}-${c}`}
                 onClick={() => handleCellClick(r, c)}
                 onContextMenu={e => handleContextMenu(e, r, c)}
-                className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl sm:rounded-2xl font-black text-xl sm:text-3xl md:text-4xl flex items-center justify-center transition-all select-none ${
+                className={`w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-18 lg:h-18 rounded-xl sm:rounded-2xl font-black text-lg sm:text-2xl md:text-3xl flex items-center justify-center transition-all select-none ${
                   cell.isOpen
                     ? cell.isMine
                       ? 'bg-rose-600 text-white animate-bounce shadow-lg'
@@ -305,10 +305,6 @@ export const GameMinesweeper: React.FC = () => {
           </div>
         )}
       </div>
-
-      <p className="text-[11px] text-gray-400 text-center mt-3">
-        💡 <span className="text-gray-300">Mẹo trên điện thoại:</span> Bấm nút "Chế độ cắm cờ" để cắm cờ đánh dấu ô có mìn!
-      </p>
     </div>
   );
 };

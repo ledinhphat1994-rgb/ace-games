@@ -25,14 +25,6 @@ export function App() {
   const handlePlayGame = (game: GameInfo) => {
     soundManager.playGameLaunch();
     setActiveGame(game);
-    setTimeout(() => {
-      const el = document.getElementById('active-game-arena');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }, 50);
   };
 
   const handleToggleFavorite = (e: React.MouseEvent, gameId: string) => {
@@ -69,91 +61,90 @@ export function App() {
   }, [searchQuery, selectedCategory, favorites]);
 
   return (
-    <div className="relative min-h-screen bg-[#05070c] text-gray-100 flex flex-col font-sans selection:bg-cyan-400 selection:text-slate-950 overflow-x-hidden">
+    <div className={`relative bg-[#05070c] text-gray-100 flex flex-col font-sans selection:bg-cyan-400 selection:text-slate-950 ${
+      activeGame ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen overflow-x-hidden'
+    }`}>
       {/* Interactive Animated Cyberpunk Arcade Background */}
       <ArcadeBackground />
 
       {/* Top Navigation */}
       <Header
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          if (q) setActiveGame(null);
+        }}
         selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+        onCategoryChange={(cat) => {
+          setSelectedCategory(cat);
+          setActiveGame(null);
+        }}
         onRandomGame={handleRandomGame}
       />
 
       {/* Main Content Arena: VÙNG 2 (Central Container, Max-width: 1360px) */}
-      <main className="relative z-10 flex-1 max-w-[1360px] mx-auto w-full py-4 sm:py-6 px-3 sm:px-6">
-        {/* Active Game Player - Defaults directly to VÙNG 2 area */}
-        {activeGame && (
-          <div id="active-game-arena" className="w-full">
+      <main className={`relative z-10 flex-1 max-w-[1360px] mx-auto w-full px-3 sm:px-6 ${
+        activeGame 
+          ? 'h-[calc(100dvh-104px)] py-2 sm:py-3 flex flex-col overflow-hidden' 
+          : 'py-4 sm:py-6'
+      }`}>
+        {/* If a game is active: ONLY show the current game in VÙNG 2, NO scrollbar, NO other games */}
+        {activeGame ? (
+          <div className="w-full h-full flex flex-col overflow-hidden">
             <GameModal
               game={activeGame}
               onClose={() => setActiveGame(null)}
             />
           </div>
-        )}
-
-        {/* Catalog Section Header when a game is actively playing */}
-        {activeGame && (
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🕹️</span>
-              <h3 className="text-base sm:text-lg font-black text-white font-['Orbitron']">
-                Khám Phá Các Trò Chơi Khác
-              </h3>
-            </div>
-            <span className="text-xs text-gray-400 font-mono">
-              {filteredGames.length} trò chơi có sẵn
-            </span>
-          </div>
-        )}
-
-        {/* Game Cards Grid */}
-        {filteredGames.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4.5">
-            {filteredGames.map((game, idx) => (
-              <GameCard
-                key={game.id}
-                game={game}
-                onPlay={handlePlayGame}
-                isFavorite={favorites.includes(game.id)}
-                onToggleFavorite={handleToggleFavorite}
-                isFeatured={!activeGame && selectedCategory === 'all' && !searchQuery && idx === 0}
-              />
-            ))}
-          </div>
         ) : (
-          <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 max-w-md mx-auto my-12">
-            <span className="text-5xl mb-3 block">
-              {selectedCategory === 'favorites' ? '💔' : '🔍'}
-            </span>
-            <h3 className="text-lg font-bold text-white mb-2">
-              {selectedCategory === 'favorites'
-                ? 'Chưa có game nào trong mục Yêu Thích'
-                : 'Không tìm thấy trò chơi phù hợp!'}
-            </h3>
-            <p className="text-xs text-gray-400 mb-5">
-              {selectedCategory === 'favorites'
-                ? 'Hãy bấm vào biểu tượng Trái Tim ❤️ ở các thẻ game để lưu lại những trò chơi yêu thích nhất.'
-                : 'Hãy thử tìm với từ khóa khác như "cờ", "tetris", "rắn", "bắn súng"...'}
-            </p>
-            <button
-              onClick={() => {
-                soundManager.playButtonClick();
-                setSearchQuery('');
-                setSelectedCategory('all');
-              }}
-              className="px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-full text-xs shadow-lg shadow-cyan-500/30 transition cursor-pointer"
-            >
-              Xem Toàn Bộ Game
-            </button>
-          </div>
+          /* Normal Catalog Mode: Show Game Cards Grid when not playing */
+          <>
+            {filteredGames.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4.5">
+                {filteredGames.map((game, idx) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    onPlay={handlePlayGame}
+                    isFavorite={favorites.includes(game.id)}
+                    onToggleFavorite={handleToggleFavorite}
+                    isFeatured={selectedCategory === 'all' && !searchQuery && idx === 0}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 max-w-md mx-auto my-12">
+                <span className="text-5xl mb-3 block">
+                  {selectedCategory === 'favorites' ? '💔' : '🔍'}
+                </span>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  {selectedCategory === 'favorites'
+                    ? 'Chưa có game nào trong mục Yêu Thích'
+                    : 'Không tìm thấy trò chơi phù hợp!'}
+                </h3>
+                <p className="text-xs text-gray-400 mb-5">
+                  {selectedCategory === 'favorites'
+                    ? 'Hãy bấm vào biểu tượng Trái Tim ❤️ ở các thẻ game để lưu lại những trò chơi yêu thích nhất.'
+                    : 'Hãy thử tìm với từ khóa khác như "cờ", "tetris", "rắn", "bắn súng"...'}
+                </p>
+                <button
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                  }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-full text-xs shadow-lg shadow-cyan-500/30 transition cursor-pointer"
+                >
+                  Xem Toàn Bộ Game
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer: Shown ONLY in catalog mode, hidden when playing to avoid scrolling */}
+      {!activeGame && <Footer />}
     </div>
   );
 }

@@ -116,7 +116,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       ref={containerRef}
       className={`transition-all duration-300 overflow-hidden flex flex-col ${
         viewMode === 'vung2'
-          ? 'relative w-full h-[76vh] min-h-[580px] max-h-[820px] bg-[#070b14] rounded-2xl sm:rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_rgba(0,0,0,0.85)] mb-8'
+          ? 'relative w-full h-full bg-[#070b14] rounded-2xl sm:rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_rgba(0,0,0,0.85)]'
           : 'fixed inset-0 z-50 w-screen h-screen bg-[#03060c] p-0 rounded-none border-0'
       }`}
     >
