@@ -5,6 +5,7 @@ class SoundManager {
   private soundEnabled: boolean = true;
   private musicEnabled: boolean = false;
   private lastHoverTime: number = 0;
+  private listeners: Array<() => void> = [];
 
   // BGM Synthesizer state
   private bgmTimer: number | null = null;
@@ -44,6 +45,21 @@ class SoundManager {
     }
   }
 
+  public subscribe(fn: () => void): () => void {
+    this.listeners.push(fn);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== fn);
+    };
+  }
+
+  private notify() {
+    this.listeners.forEach(fn => {
+      try {
+        fn();
+      } catch {}
+    });
+  }
+
   public unlockContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
@@ -77,6 +93,7 @@ class SoundManager {
     try {
       localStorage.setItem('acegames_sound', String(this.soundEnabled));
     } catch {}
+    this.notify();
     if (this.soundEnabled) {
       this.unlockContext();
       this.playButtonClick();
@@ -89,6 +106,7 @@ class SoundManager {
     try {
       localStorage.setItem('acegames_music', String(this.musicEnabled));
     } catch {}
+    this.notify();
     this.unlockContext();
 
     if (this.musicEnabled) {

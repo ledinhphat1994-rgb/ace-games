@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { ChessPosition, type ChessMove, WHITE, BLACK, colorOf, typeOf, ROOK, KNIGHT, BISHOP, QUEEN, KING, PAWN } from './chess/chess-engine';
 import { findBestChessMove } from './chess/chess-ai';
-import { RotateCcw, Bot, Users, Volume2, VolumeX } from 'lucide-react';
+import { RotateCcw, Bot, Users, Trophy } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 const PIECE_SYMBOLS: Record<number, Record<number, string>> = {
   [WHITE]: {
@@ -22,7 +23,11 @@ const PIECE_SYMBOLS: Record<number, Record<number, string>> = {
   },
 };
 
-export const GameChess: React.FC = () => {
+interface GameChessProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameChess: React.FC<GameChessProps> = ({ onOpenLeaderboard }) => {
   const [pos, setPos] = useState<ChessPosition>(() => ChessPosition.fromFen());
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<ChessMove[]>([]);
@@ -30,13 +35,12 @@ export const GameChess: React.FC = () => {
   const [mode, setMode] = useState<'ai' | 'pvp'>('ai');
   const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(2);
   const [isThinking, setIsThinking] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Trắng');
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playTone = useCallback((freq: number, duration: number = 0.1) => {
-    if (!soundEnabled) return;
+    if (!soundManager.isSoundOn()) return;
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -53,7 +57,7 @@ export const GameChess: React.FC = () => {
       osc.start();
       osc.stop(ctx.currentTime + duration);
     } catch {}
-  }, [soundEnabled]);
+  }, []);
 
   const updateStatus = useCallback((currentPos: ChessPosition) => {
     const outcome = currentPos.outcome();
@@ -156,12 +160,16 @@ export const GameChess: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Nút Bảng Xếp Hạng */}
           <button
-            onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
-            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="p-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition"
+            title="Bảng Xếp Hạng Cờ Vua"
           >
-            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} className="text-red-400" />}
+            <Trophy className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => {

@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Users, Bot, Award } from 'lucide-react';
+import { RotateCcw, Users, Bot, Award, Trophy } from 'lucide-react';
 
 type Player = 'X' | 'O' | null;
 type Difficulty = 'EASY' | 'MEDIUM' | 'UNBEATABLE';
 
-export const GameCaro: React.FC = () => {
+interface GameCaroProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameCaro: React.FC<GameCaroProps> = ({ onOpenLeaderboard }) => {
   const [board, setBoard] = useState<Player[]>(Array(9).fill(null));
   const [isXNext, setIsXNext] = useState<boolean>(true);
   const [isAiMode, setIsAiMode] = useState<boolean>(true);
@@ -176,6 +180,7 @@ export const GameCaro: React.FC = () => {
       if (winner === 'X') {
         updated.win += 1;
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        localStorage.setItem('acegames_caro_wins', updated.win.toString());
       } else if (winner === 'O') {
         updated.loss += 1;
       } else {
@@ -210,6 +215,18 @@ export const GameCaro: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Nút Bảng Xếp Hạng */}
+          <button
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="p-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition"
+            title="Bảng Xếp Hạng Caro"
+          >
+            <Trophy className="w-3.5 h-3.5" />
+          </button>
+
           <button
             onClick={() => {
               setIsAiMode(prev => !prev);

@@ -4,7 +4,11 @@ import { RotateCcw, Undo2, Trophy, Award } from 'lucide-react';
 
 type Board = number[][];
 
-export const Game2048: React.FC = () => {
+interface Game2048Props {
+  onOpenLeaderboard?: () => void;
+}
+
+export const Game2048: React.FC<Game2048Props> = ({ onOpenLeaderboard }) => {
   const [board, setBoard] = useState<Board>(createEmptyBoard());
   const [score, setScore] = useState<number>(0);
   const [bestScore, setBestScore] = useState<number>(() => {
@@ -227,24 +231,37 @@ export const Game2048: React.FC = () => {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Score Header */}
-      <div className="flex items-center justify-between w-full mb-3 px-3 bg-slate-900/85 border border-white/10 rounded-2xl py-2">
-        <div className="flex items-center gap-4">
-          <div>
+      {/* Score Header - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
+      <div className="flex items-center justify-between w-full mb-3 px-3 sm:px-4 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="px-3 py-1 bg-slate-800/80 border border-white/10 rounded-xl">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none">{score}</span>
+            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none">{score}</span>
           </div>
-          <div className="h-7 w-px bg-white/10" />
-          <div className="flex items-center gap-1.5">
-            <Trophy className="w-5 h-5 text-amber-400" />
+
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl">
+            <Trophy className="w-4 h-4 text-amber-400" />
             <div>
               <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
-              <span className="text-lg sm:text-xl font-black text-amber-300 font-mono leading-none">{bestScore}</span>
+              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-none">{bestScore}</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Nút Bảng Xếp Hạng */}
+          <button
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
+            title="Xem Bảng Xếp Hạng Cao Thủ"
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span className="hidden xs:inline sm:inline font-extrabold">Bảng Xếp Hạng</span>
+          </button>
+
           <button
             onClick={handleUndo}
             disabled={!history || gameOver}

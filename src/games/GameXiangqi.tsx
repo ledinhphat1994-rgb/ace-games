@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { XiangqiPosition, type XiangqiMove, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
-import { RotateCcw, Bot, Users, Volume2, VolumeX } from 'lucide-react';
+import { RotateCcw, Bot, Users, Trophy } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 const XIANGQI_PIECES: Record<number, Record<number, string>> = {
   [RED]: {
@@ -24,7 +25,11 @@ const XIANGQI_PIECES: Record<number, Record<number, string>> = {
   },
 };
 
-export const GameXiangqi: React.FC = () => {
+interface GameXiangqiProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameXiangqi: React.FC<GameXiangqiProps> = ({ onOpenLeaderboard }) => {
   const [pos, setPos] = useState<XiangqiPosition>(() => XiangqiPosition.fromFen());
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<XiangqiMove[]>([]);
@@ -32,13 +37,12 @@ export const GameXiangqi: React.FC = () => {
   const [mode, setMode] = useState<'ai' | 'pvp'>('ai');
   const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(2);
   const [isThinking, setIsThinking] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Đỏ (Đi trước)');
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playTone = useCallback((freq: number, duration: number = 0.1) => {
-    if (!soundEnabled) return;
+    if (!soundManager.isSoundOn()) return;
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -55,7 +59,7 @@ export const GameXiangqi: React.FC = () => {
       osc.start();
       osc.stop(ctx.currentTime + duration);
     } catch {}
-  }, [soundEnabled]);
+  }, []);
 
   const updateStatus = useCallback((currentPos: XiangqiPosition) => {
     const outcome = currentPos.outcome();
@@ -158,12 +162,16 @@ export const GameXiangqi: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Nút Bảng Xếp Hạng */}
           <button
-            onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
-            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="p-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition"
+            title="Bảng Xếp Hạng Cờ Tướng"
           >
-            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} className="text-red-400" />}
+            <Trophy className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => {

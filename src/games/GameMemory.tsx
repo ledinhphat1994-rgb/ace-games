@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Award, Star } from 'lucide-react';
+import { RotateCcw, Award, Star, Trophy } from 'lucide-react';
 
 interface Card {
   id: number;
@@ -11,7 +11,11 @@ interface Card {
 
 const EMOJI_PAIRS = ['🚀', '🎮', '💎', '🔥', '⚡', '👑', '🎯', '🪐'];
 
-export const GameMemory: React.FC = () => {
+interface GameMemoryProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameMemory: React.FC<GameMemoryProps> = ({ onOpenLeaderboard }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [moves, setMoves] = useState<number>(0);
@@ -77,6 +81,12 @@ export const GameMemory: React.FC = () => {
             if (updated.every(c => c.isMatched)) {
               setIsWon(true);
               confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+              try {
+                const best = parseInt(localStorage.getItem('acegames_memory_best') || '999', 10);
+                if (moves + 1 < best) {
+                  localStorage.setItem('acegames_memory_best', (moves + 1).toString());
+                }
+              } catch {}
             }
             return updated;
           });
@@ -115,15 +125,28 @@ export const GameMemory: React.FC = () => {
             {moves}
           </span>
         </div>
-        {!isWon && (
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={initGame}
-            className="flex items-center gap-1.5 px-3 py-1 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition active:scale-95"
+            title="Bảng Xếp Hạng Lật Hình"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Ván Mới</span>
+            <Trophy className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">BXH</span>
           </button>
-        )}
+          {!isWon && (
+            <button
+              onClick={initGame}
+              className="flex items-center gap-1.5 px-3 py-1 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Ván Mới</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 4x4 Grid of Cards - Scaled to never exceed container */}

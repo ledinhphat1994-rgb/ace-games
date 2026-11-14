@@ -23,6 +23,15 @@ export const Header: React.FC<HeaderProps> = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
 
+  // Synchronize sound and music states
+  useEffect(() => {
+    const unsubscribe = soundManager.subscribe(() => {
+      setSoundOn(soundManager.isSoundOn());
+      setMusicOn(soundManager.isMusicOn());
+    });
+    return unsubscribe;
+  }, []);
+
   const toggleSound = () => {
     const next = soundManager.toggleSound();
     setSoundOn(next);
@@ -167,43 +176,39 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* VÙNG 4: Category Pills Bar + VÙNG 3 (Nút Ngẫu Nhiên được đưa xuống đây) */}
-      {/* Căn chỉnh vị trí bằng chính xác với màn hình nội dung (max-w-[1360px] mx-auto px-3 sm:px-6) */}
+      {/* Category Pills Bar with VÙNG 1 moved into VÙNG 2 right beside the last category button */}
       <div className="w-full border-t border-white/5 bg-slate-950/50">
-        <div className="max-w-[1360px] mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-3">
-          {/* Category Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-            {categories.map(cat => {
-              const isActive = selectedCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onMouseEnter={() => soundManager.playCardHover()}
-                  onClick={() => {
-                    soundManager.playButtonClick();
-                    onCategoryChange(cat.id);
-                  }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/40 ring-2 ring-cyan-300 scale-102 font-black'
-                      : 'bg-slate-900/90 text-gray-400 hover:text-white hover:bg-slate-800 border border-slate-800/90 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="text-sm">{cat.icon}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="max-w-[1360px] mx-auto px-3 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          {categories.map(cat => {
+            const isActive = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onMouseEnter={() => soundManager.playCardHover()}
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  onCategoryChange(cat.id);
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer flex-shrink-0 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/40 ring-2 ring-cyan-300 scale-102 font-black'
+                    : 'bg-slate-900/90 text-gray-400 hover:text-white hover:bg-slate-800 border border-slate-800/90 hover:border-slate-700'
+                }`}
+              >
+                <span className="text-sm">{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
 
-          {/* VÙNG 3 được đưa xuống VÙNG 4: Nút Ngẫu Nhiên canh lề phải thẳng hàng nội dung */}
+          {/* VÙNG 1 ĐƯA VÀO VÙNG 2 SÁT BÊN: Nút Ngẫu Nhiên nằm ngay sau nút Giải Đố & Số */}
           <button
             onClick={() => {
               soundManager.playGameLaunch();
               onRandomGame();
             }}
             onMouseEnter={() => soundManager.playCardHover()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition flex-shrink-0 cursor-pointer shadow-md shadow-amber-500/10 active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition flex-shrink-0 cursor-pointer shadow-md shadow-amber-500/10 active:scale-95 whitespace-nowrap"
             title="Chơi ngẫu nhiên 1 trò chơi"
           >
             <Dices className="w-4 h-4 text-amber-400 animate-spin-slow" />

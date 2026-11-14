@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCcw, Trophy, Play, Pause, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react';
+import { RotateCcw, Trophy, Play, Pause, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 // Dynamic grid for 16:9 widescreen arcade experience on PC, vertical on mobile
 const getGridConfig = () => {
@@ -14,7 +15,11 @@ const INITIAL_SPEED = 120;
 type Point = { x: number; y: number };
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
-export const GameSnake: React.FC = () => {
+interface GameSnakeProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameSnake: React.FC<GameSnakeProps> = ({ onOpenLeaderboard }) => {
   const [gridConfig, setGridConfig] = useState(getGridConfig);
   const { cols, rows } = gridConfig;
 
@@ -39,7 +44,6 @@ export const GameSnake: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const directionRef = useRef<Direction>(direction);
   directionRef.current = direction;
@@ -47,7 +51,7 @@ export const GameSnake: React.FC = () => {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playTone = useCallback((freq: number, duration: number = 0.08) => {
-    if (!soundEnabled) return;
+    if (!soundManager.isSoundOn()) return;
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -65,7 +69,7 @@ export const GameSnake: React.FC = () => {
       osc.start();
       osc.stop(ctx.currentTime + duration);
     } catch {}
-  }, [soundEnabled]);
+  }, []);
 
   const generateFood = useCallback((currentSnake: Point[]): Point => {
     while (true) {
@@ -218,32 +222,40 @@ export const GameSnake: React.FC = () => {
       onTouchEnd={handleTouchEnd}
       className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,1600px)] mx-auto select-none p-1 sm:p-2"
     >
-      {/* Top HUD (Single Source of Score - Clean, No Duplicate Restart) */}
+      {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG (VÙNG 5 ĐÃ ĐƯỢC ĐƯA LÊN VÙNG 6) */}
       <div className="flex items-center justify-between w-full max-w-[min(94vw,1550px)] mb-2 px-3 sm:px-5 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
-        <div className="flex items-center gap-3 sm:gap-6">
-          <div>
+        {/* Left: Điểm Số & Kỷ Lục */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="px-3 py-1 bg-slate-800/80 border border-white/10 rounded-xl">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
-            <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono leading-none">{score}</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono leading-none">{score}</span>
           </div>
-          <div className="h-7 w-px bg-white/10" />
-          <div className="flex items-center gap-1.5">
-            <Trophy className="w-5 h-5 text-amber-400" />
+
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl">
+            <Trophy className="w-4 h-4 text-amber-400" />
             <div>
               <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
-              <span className="text-lg sm:text-xl font-black text-amber-300 font-mono leading-none">{bestScore}</span>
+              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-none">{bestScore}</span>
             </div>
           </div>
         </div>
 
+        {/* Right: Bảng Xếp Hạng & Game Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Nút Bảng Xếp Hạng */}
           <button
-            onClick={() => setSoundEnabled(p => !p)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition"
-            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
+            title="Xem Bảng Xếp Hạng Cao Thủ"
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span className="hidden xs:inline sm:inline font-extrabold">Bảng Xếp Hạng</span>
           </button>
 
+          {/* Nút Tạm Dừng */}
           <button
             onClick={() => setIsPaused(p => !p)}
             disabled={!hasStarted || isGameOver}
@@ -253,7 +265,7 @@ export const GameSnake: React.FC = () => {
             {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-amber-400" />}
           </button>
 
-          {/* Show reset in HUD ONLY when game is actively playing, avoid duplicate with Game Over overlay */}
+          {/* Show reset in HUD ONLY when game is actively playing */}
           {!isGameOver && hasStarted && (
             <button
               onClick={resetGame}

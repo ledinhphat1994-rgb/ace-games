@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, RotateCcw, Volume2, VolumeX, Heart, Trophy, Sparkles } from 'lucide-react';
+import { Play, RotateCcw, Heart, Trophy, Sparkles } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 interface Bullet {
   x: number;
@@ -29,7 +30,11 @@ interface Particle {
   maxLife: number;
 }
 
-export const GameSpaceShooter: React.FC = () => {
+interface GameSpaceShooterProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameSpaceShooter: React.FC<GameSpaceShooterProps> = ({ onOpenLeaderboard }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -39,12 +44,11 @@ export const GameSpaceShooter: React.FC = () => {
   });
   const [wave, setWave] = useState(1);
   const [lives, setLives] = useState(3);
-  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playSound = useCallback((type: 'laser' | 'hit' | 'boom' | 'gameover') => {
-    if (!soundEnabled) return;
+    if (!soundManager.isSoundOn()) return;
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -96,7 +100,7 @@ export const GameSpaceShooter: React.FC = () => {
         osc.stop(now + 0.42);
       }
     } catch {}
-  }, [soundEnabled]);
+  }, []);
 
   const stateRef = useRef({
     cw: 960,
@@ -467,45 +471,51 @@ export const GameSpaceShooter: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
-      {/* Top HUD */}
+      {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
       <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
-        <div className="flex items-center gap-4">
-          <div>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="px-3 py-1 bg-slate-800/80 border border-white/10 rounded-xl">
             <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Điểm số</div>
-            <div className="text-2xl font-black text-amber-400 font-mono leading-none">{score}</div>
+            <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none">{score}</div>
           </div>
-          <div className="h-6 w-px bg-white/10" />
-          <div className="flex items-center gap-1.5">
+
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl">
             <Trophy className="w-4 h-4 text-yellow-500" />
             <div>
               <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Kỷ lục</div>
-              <div className="text-base font-bold text-yellow-400 font-mono leading-none">{highScore}</div>
+              <div className="text-base sm:text-lg font-bold text-yellow-400 font-mono leading-none">{highScore}</div>
             </div>
           </div>
-          <div className="h-6 w-px bg-white/10" />
-          <div>
+
+          <div className="hidden sm:block px-2.5 py-1 bg-cyan-950/40 border border-cyan-500/20 rounded-xl">
             <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Đợt (Wave)</div>
             <div className="text-sm font-bold text-cyan-400 font-mono leading-none">#{wave}</div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
+          {/* Nút Bảng Xếp Hạng */}
+          <button
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
+            title="Xem Bảng Xếp Hạng Cao Thủ"
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span className="hidden xs:inline sm:inline font-extrabold">Bảng Xếp Hạng</span>
+          </button>
+
+          {/* Hearts */}
+          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 rounded-xl border border-white/5">
             {[1, 2, 3].map(i => (
               <Heart
                 key={i}
-                className={`w-5 h-5 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
+                className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
               />
             ))}
           </div>
-
-          <button
-            onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
-            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-          </button>
         </div>
       </div>
 

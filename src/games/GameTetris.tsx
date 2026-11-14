@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Volume2, VolumeX, Pause, Play } from 'lucide-react';
+import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Pause, Play, Trophy } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 const COLS = 10;
 const ROWS = 20;
@@ -60,7 +61,11 @@ interface Piece {
   y: number;
 }
 
-export const GameTetris: React.FC = () => {
+interface GameTetrisProps {
+  onOpenLeaderboard?: () => void;
+}
+
+export const GameTetris: React.FC<GameTetrisProps> = ({ onOpenLeaderboard }) => {
   const [board, setBoard] = useState<(string | null)[][]>(() =>
     Array(ROWS).fill(null).map(() => Array(COLS).fill(null))
   );
@@ -74,12 +79,11 @@ export const GameTetris: React.FC = () => {
   });
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playTone = useCallback((freq: number, type: OscillatorType = 'sine', duration: number = 0.1) => {
-    if (!soundEnabled) return;
+    if (!soundManager.isSoundOn()) return;
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -99,7 +103,7 @@ export const GameTetris: React.FC = () => {
     } catch {
       // Audio not permitted
     }
-  }, [soundEnabled]);
+  }, []);
 
   const getRandomPieceType = (): string => {
     const keys = Object.keys(SHAPES);
@@ -343,37 +347,43 @@ export const GameTetris: React.FC = () => {
     <div className="flex flex-col items-center select-none w-full max-w-lg mx-auto py-2">
       {/* Top Status Bar */}
       <div className="w-full flex items-center justify-between bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-2 mb-3 shadow-inner">
-        <div className="flex items-center gap-4 text-xs sm:text-sm">
-          <div>
-            <span className="text-gray-400 block text-[10px]">ĐIỂM SỐ</span>
-            <span className="font-extrabold text-amber-400 text-lg sm:text-xl font-mono">{score}</span>
+        <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+          <div className="px-2.5 py-1 bg-slate-800/80 rounded-xl border border-white/10 text-center">
+            <span className="text-gray-400 block text-[9px] uppercase font-bold">ĐIỂM SỐ</span>
+            <span className="font-extrabold text-amber-400 text-base sm:text-lg font-mono leading-none">{score}</span>
           </div>
-          <div>
-            <span className="text-gray-400 block text-[10px]">HÀNG</span>
-            <span className="font-bold text-cyan-400 text-sm sm:text-base font-mono">{lines}</span>
+          <div className="px-2 py-1 bg-slate-800/50 rounded-xl text-center hidden xs:block">
+            <span className="text-gray-400 block text-[9px] uppercase font-bold">HÀNG</span>
+            <span className="font-bold text-cyan-400 text-xs sm:text-sm font-mono leading-none">{lines}</span>
           </div>
-          <div>
-            <span className="text-gray-400 block text-[10px]">CẤP ĐỘ</span>
-            <span className="font-bold text-emerald-400 text-sm sm:text-base font-mono">{level}</span>
+          <div className="px-2 py-1 bg-slate-800/50 rounded-xl text-center hidden xs:block">
+            <span className="text-gray-400 block text-[9px] uppercase font-bold">CẤP</span>
+            <span className="font-bold text-emerald-400 text-xs sm:text-sm font-mono leading-none">{level}</span>
           </div>
-          <div className="hidden sm:block">
-            <span className="text-gray-400 block text-[10px]">KỶ LỤC</span>
-            <span className="font-bold text-purple-400 text-sm sm:text-base font-mono">{highScore}</span>
+          <div className="px-2.5 py-1 bg-purple-500/10 rounded-xl border border-purple-500/20 text-center">
+            <span className="text-gray-400 block text-[9px] uppercase font-bold">KỶ LỤC</span>
+            <span className="font-bold text-purple-400 text-xs sm:text-sm font-mono leading-none">{highScore}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Nút Bảng Xếp Hạng */}
           <button
-            onClick={() => setSoundEnabled(prev => !prev)}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
-            title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
+            onClick={() => {
+              if (onOpenLeaderboard) onOpenLeaderboard();
+              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
+            title="Xem Bảng Xếp Hạng Cao Thủ"
           >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-red-400" />}
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline font-extrabold">BXH</span>
           </button>
+
           <button
             onClick={() => setIsPaused(prev => !prev)}
             disabled={gameOver}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors border border-white/5"
             title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
           >
             {isPaused ? <Play size={16} className="text-emerald-400" /> : <Pause size={16} className="text-amber-400" />}
@@ -381,7 +391,7 @@ export const GameTetris: React.FC = () => {
           {!gameOver && (
             <button
               onClick={resetGame}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors border border-white/5"
               title="Chơi lại từ đầu"
             >
               <RotateCcw size={16} />
