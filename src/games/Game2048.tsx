@@ -4,11 +4,7 @@ import { RotateCcw, Undo2, Trophy, Award } from 'lucide-react';
 
 type Board = number[][];
 
-interface Game2048Props {
-  onOpenLeaderboard?: () => void;
-}
-
-export const Game2048: React.FC<Game2048Props> = ({ onOpenLeaderboard }) => {
+export const Game2048: React.FC = () => {
   const [board, setBoard] = useState<Board>(createEmptyBoard());
   const [score, setScore] = useState<number>(0);
   const [bestScore, setBestScore] = useState<number>(() => {
@@ -249,19 +245,6 @@ export const Game2048: React.FC<Game2048Props> = ({ onOpenLeaderboard }) => {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Nút Bảng Xếp Hạng */}
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
-            title="Xem Bảng Xếp Hạng Cao Thủ"
-          >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="hidden xs:inline sm:inline font-extrabold">Bảng Xếp Hạng</span>
-          </button>
-
           <button
             onClick={handleUndo}
             disabled={!history || gameOver}

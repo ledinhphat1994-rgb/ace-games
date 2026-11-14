@@ -9,11 +9,7 @@ interface Pipe {
   passed: boolean;
 }
 
-interface GameFlappyProps {
-  onOpenLeaderboard?: () => void;
-}
-
-export const GameFlappy: React.FC<GameFlappyProps> = ({ onOpenLeaderboard }) => {
+export const GameFlappy: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [score, setScore] = useState<number>(0);
   const [bestScore, setBestScore] = useState<number>(() => {
@@ -307,37 +303,21 @@ export const GameFlappy: React.FC<GameFlappyProps> = ({ onOpenLeaderboard }) => 
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
-      {/* Top Balanced HUD - VÙNG 4 CÂN BẰNG LẠI & CÓ THÊM CHỨC NĂNG BẢNG XẾP HẠNG (Vùng 5 đã đưa lên vùng 6) */}
-      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
-        {/* Left: Score Box */}
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1 bg-slate-800/80 border border-white/10 rounded-xl">
+      {/* Top HUD - Điểm Số & Kỷ Lục sát nhau, không trùng lặp chức năng */}
+      <div className="flex items-center w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <div>
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
-            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none">{score}</span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none">{score}</span>
           </div>
-        </div>
-
-        {/* Right: Best Score & Leaderboard Button */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl">
-            <Trophy className="w-4 h-4 text-amber-400" />
+          <div className="h-7 w-px bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-5 h-5 text-yellow-400" />
             <div>
-              <span className="text-[10px] text-amber-400/90 font-bold uppercase tracking-wider block">Kỷ Lục</span>
-              <span className="text-base sm:text-lg font-black text-amber-300 font-mono leading-none">{bestScore}</span>
+              <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
+              <span className="text-lg sm:text-xl font-black text-yellow-300 font-mono leading-none">{bestScore}</span>
             </div>
           </div>
-
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
-            title="Xem Bảng Xếp Hạng Cao Thủ"
-          >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="hidden xs:inline sm:inline font-extrabold">Bảng Xếp Hạng</span>
-          </button>
         </div>
       </div>
 

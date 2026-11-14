@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Award, Star, Trophy } from 'lucide-react';
+import { RotateCcw, Award, Star } from 'lucide-react';
 
 interface Card {
   id: number;
@@ -11,11 +11,7 @@ interface Card {
 
 const EMOJI_PAIRS = ['🚀', '🎮', '💎', '🔥', '⚡', '👑', '🎯', '🪐'];
 
-interface GameMemoryProps {
-  onOpenLeaderboard?: () => void;
-}
-
-export const GameMemory: React.FC<GameMemoryProps> = ({ onOpenLeaderboard }) => {
+export const GameMemory: React.FC = () => {
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [moves, setMoves] = useState<number>(0);
@@ -126,17 +122,6 @@ export const GameMemory: React.FC<GameMemoryProps> = ({ onOpenLeaderboard }) => 
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition active:scale-95"
-            title="Bảng Xếp Hạng Lật Hình"
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">BXH</span>
-          </button>
           {!isWon && (
             <button
               onClick={initGame}

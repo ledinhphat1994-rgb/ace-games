@@ -15,11 +15,7 @@ const INITIAL_SPEED = 120;
 type Point = { x: number; y: number };
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
-interface GameSnakeProps {
-  onOpenLeaderboard?: () => void;
-}
-
-export const GameSnake: React.FC<GameSnakeProps> = ({ onOpenLeaderboard }) => {
+export const GameSnake: React.FC = () => {
   const [gridConfig, setGridConfig] = useState(getGridConfig);
   const { cols, rows } = gridConfig;
 
@@ -240,21 +236,8 @@ export const GameSnake: React.FC<GameSnakeProps> = ({ onOpenLeaderboard }) => {
           </div>
         </div>
 
-        {/* Right: Bảng Xếp Hạng & Game Controls */}
+        {/* Right: Game Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Nút Bảng Xếp Hạng */}
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
-            title="Xem Bảng Xếp Hạng Cao Thủ"
-          >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="hidden xs:inline sm:inline font-extrabold">Bảng Xếp Hạng</span>
-          </button>
-
           {/* Nút Tạm Dừng */}
           <button
             onClick={() => setIsPaused(p => !p)}

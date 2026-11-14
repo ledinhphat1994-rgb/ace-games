@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { XiangqiPosition, type XiangqiMove, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
-import { RotateCcw, Bot, Users, Trophy } from 'lucide-react';
+import { RotateCcw, Bot, Users } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
 const XIANGQI_PIECES: Record<number, Record<number, string>> = {
@@ -25,11 +25,7 @@ const XIANGQI_PIECES: Record<number, Record<number, string>> = {
   },
 };
 
-interface GameXiangqiProps {
-  onOpenLeaderboard?: () => void;
-}
-
-export const GameXiangqi: React.FC<GameXiangqiProps> = ({ onOpenLeaderboard }) => {
+export const GameXiangqi: React.FC = () => {
   const [pos, setPos] = useState<XiangqiPosition>(() => XiangqiPosition.fromFen());
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<XiangqiMove[]>([]);
@@ -162,17 +158,6 @@ export const GameXiangqi: React.FC<GameXiangqiProps> = ({ onOpenLeaderboard }) =
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Nút Bảng Xếp Hạng */}
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="p-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition"
-            title="Bảng Xếp Hạng Cờ Tướng"
-          >
-            <Trophy className="w-3.5 h-3.5" />
-          </button>
           <button
             onClick={() => {
               setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));

@@ -121,17 +121,17 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
 
   const renderGameContent = () => {
     switch (game.id) {
-      case '2048': return <Game2048 key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'snake': return <GameSnake key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'flappy': return <GameFlappy key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'caro': return <GameCaro key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'minesweeper': return <GameMinesweeper key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'memory': return <GameMemory key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'tetris': return <GameTetris key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'chess': return <GameChess key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'xiangqi': return <GameXiangqi key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'breakout': return <GameBreakout key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
-      case 'space-shooter': return <GameSpaceShooter key={game.id} onOpenLeaderboard={handleOpenLeaderboard} />;
+      case '2048': return <Game2048 key={game.id} />;
+      case 'snake': return <GameSnake key={game.id} />;
+      case 'flappy': return <GameFlappy key={game.id} />;
+      case 'caro': return <GameCaro key={game.id} />;
+      case 'minesweeper': return <GameMinesweeper key={game.id} />;
+      case 'memory': return <GameMemory key={game.id} />;
+      case 'tetris': return <GameTetris key={game.id} />;
+      case 'chess': return <GameChess key={game.id} />;
+      case 'xiangqi': return <GameXiangqi key={game.id} />;
+      case 'breakout': return <GameBreakout key={game.id} />;
+      case 'space-shooter': return <GameSpaceShooter key={game.id} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

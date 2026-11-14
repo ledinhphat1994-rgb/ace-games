@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Pause, Play, Trophy } from 'lucide-react';
+import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Pause, Play } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
 const COLS = 10;
@@ -61,11 +61,7 @@ interface Piece {
   y: number;
 }
 
-interface GameTetrisProps {
-  onOpenLeaderboard?: () => void;
-}
-
-export const GameTetris: React.FC<GameTetrisProps> = ({ onOpenLeaderboard }) => {
+export const GameTetris: React.FC = () => {
   const [board, setBoard] = useState<(string | null)[][]>(() =>
     Array(ROWS).fill(null).map(() => Array(COLS).fill(null))
   );
@@ -367,19 +363,6 @@ export const GameTetris: React.FC<GameTetrisProps> = ({ onOpenLeaderboard }) => 
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Nút Bảng Xếp Hạng */}
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 text-xs font-bold shadow-md shadow-amber-500/10 transition cursor-pointer active:scale-95"
-            title="Xem Bảng Xếp Hạng Cao Thủ"
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline font-extrabold">BXH</span>
-          </button>
-
           <button
             onClick={() => setIsPaused(prev => !prev)}
             disabled={gameOver}

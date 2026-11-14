@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Flag, Clock, Trophy } from 'lucide-react';
+import { RotateCcw, Flag, Clock } from 'lucide-react';
 
 interface Cell {
   r: number;
@@ -11,11 +11,7 @@ interface Cell {
   neighborMines: number;
 }
 
-interface GameMinesweeperProps {
-  onOpenLeaderboard?: () => void;
-}
-
-export const GameMinesweeper: React.FC<GameMinesweeperProps> = ({ onOpenLeaderboard }) => {
+export const GameMinesweeper: React.FC = () => {
   const [rows] = useState(8);
   const [cols] = useState(8);
   const [minesCount] = useState(10);
@@ -216,19 +212,6 @@ export const GameMinesweeper: React.FC<GameMinesweeperProps> = ({ onOpenLeaderbo
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Nút Bảng Xếp Hạng */}
-          <button
-            onClick={() => {
-              if (onOpenLeaderboard) onOpenLeaderboard();
-              else window.dispatchEvent(new CustomEvent('acegames:open_leaderboard'));
-            }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer active:scale-95"
-            title="Bảng Xếp Hạng Dò Mìn"
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline font-extrabold">BXH</span>
-          </button>
-
           <button
             onClick={() => setFlagMode(!flagMode)}
             disabled={gameOver || gameWon}
