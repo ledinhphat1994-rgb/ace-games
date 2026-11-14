@@ -59,10 +59,10 @@ export const GameBreakout: React.FC = () => {
 
   // Game state refs for 60fps loop
   const stateRef = useRef({
-    cw: 480,
-    ch: 560,
-    paddle: { x: 200, y: 520, w: 85, h: 12, speed: 7 },
-    ball: { x: 240, y: 505, vx: 3.5, vy: -4.5, radius: 6, stuck: true },
+    cw: 960,
+    ch: 540,
+    paddle: { x: 405, y: 500, w: 150, h: 16, speed: 10 },
+    ball: { x: 480, y: 488, vx: 4.5, vy: -5.5, radius: 8, stuck: true },
     bricks: [] as Brick[],
     particles: [] as Particle[],
     keys: { left: false, right: false },
@@ -73,12 +73,12 @@ export const GameBreakout: React.FC = () => {
 
   const initBricks = () => {
     const rows = 5;
-    const cols = 8;
-    const bw = 52;
-    const bh = 18;
-    const pad = 6;
-    const leftOffset = 11;
-    const topOffset = 60;
+    const cols = 12;
+    const bw = 70;
+    const bh = 22;
+    const pad = 8;
+    const leftOffset = 16;
+    const topOffset = 50;
     const colors = [
       { color: '#ef4444', pts: 50 }, // red
       { color: '#f97316', pts: 40 }, // orange
@@ -382,9 +382,9 @@ export const GameBreakout: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,calc((100vh-140px)*480/560),820px)] mx-auto p-1">
+    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD */}
-      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
+      <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
         <div className="flex items-center gap-4">
           <div>
             <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Điểm số</div>
@@ -421,12 +421,12 @@ export const GameBreakout: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive Canvas container */}
-      <div className="relative w-full aspect-[480/560] max-h-[min(96vw*560/480,calc(100vh-160px),880px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
+      {/* Massive 16:9 Widescreen Arcade Canvas container */}
+      <div className="relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100vh-175px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
         <canvas
           ref={canvasRef}
-          width={480}
-          height={560}
+          width={960}
+          height={540}
           onPointerMove={handlePointerMove}
           onPointerDown={handlePointerDown}
           className="w-full h-full cursor-pointer block"

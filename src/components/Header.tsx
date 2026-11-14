@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Gamepad2, Search, Volume2, VolumeX, Music, Dices } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Gamepad2, Search, Volume2, VolumeX, Music, Dices, Settings } from 'lucide-react';
 import type { GameCategory } from '../types/game';
 import { soundManager } from '../utils/sound';
 
@@ -20,6 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
   const [musicOn, setMusicOn] = useState(() => soundManager.isMusicOn());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement | null>(null);
 
   const toggleSound = () => {
     const next = soundManager.toggleSound();
@@ -31,6 +33,17 @@ export const Header: React.FC<HeaderProps> = ({
     setMusicOn(next);
   };
 
+  // Close settings popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const categories: { id: GameCategory; label: string; icon: string }[] = [
     { id: 'all', label: 'Tất Cả', icon: '🔥' },
     { id: 'favorites', label: 'Yêu Thích', icon: '❤️' },
@@ -41,9 +54,9 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-950/85 backdrop-blur-xl border-b border-white/10 shadow-2xl transition-all">
-      <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5">
-        {/* Main Header Bar - Full width with Logo at Vùng 1+ (Top-Left Corner) */}
+    <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-2xl transition-all">
+      {/* Top Bar: Logo (Vùng 1+), Search Bar, and Settings Button (Vùng 2) */}
+      <div className="w-full px-3 sm:px-6 py-2.5">
         <div className="flex items-center justify-between gap-3">
           {/* Brand Logo - VÙNG 1+ (Góc trên cùng bên trái) */}
           <div
@@ -88,75 +101,114 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Action Buttons: Sound, Music, Random, Fullscreen */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Random Game Dice Button */}
+          {/* VÙNG 2: Settings Icon Button (Gộp toàn bộ cài đặt âm thanh, nhạc nền vào 1 icon) */}
+          <div className="relative flex-shrink-0" ref={settingsRef}>
             <button
               onClick={() => {
-                soundManager.playGameLaunch();
-                onRandomGame();
+                soundManager.playButtonClick();
+                setSettingsOpen(prev => !prev);
               }}
-              onMouseEnter={() => soundManager.playCardHover()}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition text-xs font-bold"
-              title="Chơi ngẫu nhiên 1 game"
+              className={`p-2.5 rounded-2xl border transition-all cursor-pointer shadow-md ${
+                settingsOpen || musicOn || soundOn
+                  ? 'bg-slate-900 border-cyan-500/50 text-cyan-300 shadow-cyan-500/20'
+                  : 'bg-slate-900 border-slate-800 text-gray-400 hover:text-white'
+              }`}
+              title="Cài đặt âm thanh & nhạc nền"
             >
-              <Dices className="w-4 h-4 text-amber-400 animate-spin-slow" />
-              <span className="hidden lg:inline">Ngẫu Nhiên</span>
+              <Settings className={`w-5 h-5 transition-transform duration-300 ${settingsOpen ? 'rotate-90 text-cyan-400' : ''}`} />
             </button>
 
-            {/* Background Music Toggle */}
-            <button
-              onClick={toggleMusic}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition ${
-                musicOn
-                  ? 'bg-fuchsia-500/20 border-fuchsia-500/50 text-fuchsia-300 shadow-sm shadow-fuchsia-500/30'
-                  : 'bg-slate-900 border-slate-800 text-gray-500 hover:text-gray-300'
-              }`}
-              title={musicOn ? 'Nhạc nền: ĐANG BẬT' : 'Nhạc nền: TẮT (Bấm để bật)'}
-            >
-              <Music className={`w-4 h-4 ${musicOn ? 'text-fuchsia-400 animate-bounce' : 'text-gray-500'}`} />
-              <span className="hidden md:inline">Nhạc Nền</span>
-            </button>
+            {/* Cyberpunk Settings Popover Menu */}
+            {settingsOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl p-3 shadow-2xl shadow-cyan-500/10 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  <span>Cài Đặt Âm Thanh</span>
+                  <span className="text-[10px] text-cyan-400 font-mono">Audio Hub</span>
+                </div>
 
-            {/* UI Sound Effects Toggle */}
-            <button
-              onClick={toggleSound}
-              className={`flex items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold transition ${
-                soundOn
-                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-sm shadow-cyan-500/30'
-                  : 'bg-slate-900 border-slate-800 text-gray-500 hover:text-gray-300'
-              }`}
-              title={soundOn ? 'Âm thanh: ĐANG BẬT' : 'Âm thanh: TẮT (Bấm để bật)'}
-            >
-              {soundOn ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-              <span className="hidden md:inline">Âm Thanh</span>
-            </button>
+                {/* Sound FX Toggle */}
+                <div className="flex items-center justify-between py-2 px-1">
+                  <div className="flex items-center gap-2">
+                    {soundOn ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+                    <span className="text-xs font-semibold text-gray-200">Hiệu Ứng Game</span>
+                  </div>
+                  <button
+                    onClick={toggleSound}
+                    className={`px-3 py-1 rounded-full text-[11px] font-black transition ${
+                      soundOn
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
+                        : 'bg-slate-800 text-gray-500 border border-slate-700'
+                    }`}
+                  >
+                    {soundOn ? 'BẬT' : 'TẮT'}
+                  </button>
+                </div>
+
+                {/* Music Toggle */}
+                <div className="flex items-center justify-between py-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <Music className={`w-4 h-4 ${musicOn ? 'text-fuchsia-400 animate-bounce' : 'text-gray-500'}`} />
+                    <span className="text-xs font-semibold text-gray-200">Nhạc Nền Arcade</span>
+                  </div>
+                  <button
+                    onClick={toggleMusic}
+                    className={`px-3 py-1 rounded-full text-[11px] font-black transition ${
+                      musicOn
+                        ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 shadow-sm shadow-fuchsia-500/20'
+                        : 'bg-slate-800 text-gray-500 border border-slate-700'
+                    }`}
+                  >
+                    {musicOn ? 'BẬT' : 'TẮT'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Category Pills Bar (Centered strictly in the Central Content Arena between the 2 vertical lines) */}
-        <div className="max-w-[1360px] mx-auto flex items-center gap-2 mt-2.5 overflow-x-auto no-scrollbar pb-0.5">
-          {categories.map(cat => {
-            const isActive = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onMouseEnter={() => soundManager.playCardHover()}
-                onClick={() => {
-                  soundManager.playButtonClick();
-                  onCategoryChange(cat.id);
-                }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/40 ring-2 ring-cyan-300 scale-102 font-black'
-                    : 'bg-slate-900/90 text-gray-400 hover:text-white hover:bg-slate-800 border border-slate-800/90 hover:border-slate-700'
-                }`}
-              >
-                <span className="text-sm">{cat.icon}</span>
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
+      {/* VÙNG 4: Category Pills Bar + VÙNG 3 (Nút Ngẫu Nhiên được đưa xuống đây) */}
+      {/* Căn chỉnh vị trí bằng chính xác với màn hình nội dung (max-w-[1360px] mx-auto px-3 sm:px-6) */}
+      <div className="w-full border-t border-white/5 bg-slate-950/50">
+        <div className="max-w-[1360px] mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-3">
+          {/* Category Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {categories.map(cat => {
+              const isActive = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onMouseEnter={() => soundManager.playCardHover()}
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    onCategoryChange(cat.id);
+                  }}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/40 ring-2 ring-cyan-300 scale-102 font-black'
+                      : 'bg-slate-900/90 text-gray-400 hover:text-white hover:bg-slate-800 border border-slate-800/90 hover:border-slate-700'
+                  }`}
+                >
+                  <span className="text-sm">{cat.icon}</span>
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* VÙNG 3 được đưa xuống VÙNG 4: Nút Ngẫu Nhiên canh lề phải thẳng hàng nội dung */}
+          <button
+            onClick={() => {
+              soundManager.playGameLaunch();
+              onRandomGame();
+            }}
+            onMouseEnter={() => soundManager.playCardHover()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition flex-shrink-0 cursor-pointer shadow-md shadow-amber-500/10 active:scale-95"
+            title="Chơi ngẫu nhiên 1 trò chơi"
+          >
+            <Dices className="w-4 h-4 text-amber-400 animate-spin-slow" />
+            <span className="font-extrabold">Ngẫu Nhiên</span>
+          </button>
         </div>
       </div>
     </header>

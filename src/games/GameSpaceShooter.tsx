@@ -99,9 +99,9 @@ export const GameSpaceShooter: React.FC = () => {
   }, [soundEnabled]);
 
   const stateRef = useRef({
-    cw: 440,
-    ch: 560,
-    player: { x: 200, y: 500, w: 36, h: 36, speed: 6 },
+    cw: 960,
+    ch: 540,
+    player: { x: 459, y: 470, w: 42, h: 42, speed: 8 },
     bullets: [] as Bullet[],
     enemies: [] as Enemy[],
     particles: [] as Particle[],
@@ -118,16 +118,16 @@ export const GameSpaceShooter: React.FC = () => {
   const initEnemies = (currWave: number) => {
     const enemies: Enemy[] = [];
     const rows = Math.min(5, 2 + currWave);
-    const cols = 6;
+    const cols = 10;
     const colors = ['#f43f5e', '#ec4899', '#a855f7', '#38bdf8', '#34d399'];
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         enemies.push({
-          x: 40 + c * 60,
-          y: 40 + r * 42,
-          w: 36,
-          h: 26,
+          x: 80 + c * 80,
+          y: 40 + r * 44,
+          w: 44,
+          h: 30,
           hp: r === 0 ? 2 : 1,
           maxHp: r === 0 ? 2 : 1,
           color: colors[r % colors.length],
@@ -141,7 +141,7 @@ export const GameSpaceShooter: React.FC = () => {
   const resetGame = () => {
     const s = stateRef.current;
     s.player.x = (s.cw - s.player.w) / 2;
-    s.player.y = 500;
+    s.player.y = 470;
     s.bullets = [];
     s.enemies = initEnemies(1);
     s.particles = [];
@@ -466,9 +466,9 @@ export const GameSpaceShooter: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,calc((100vh-140px)*440/560),820px)] mx-auto p-1">
+    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD */}
-      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
+      <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
         <div className="flex items-center gap-4">
           <div>
             <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Điểm số</div>
@@ -509,12 +509,12 @@ export const GameSpaceShooter: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive Canvas */}
-      <div className="relative w-full aspect-[440/560] max-h-[min(96vw*560/440,calc(100vh-160px),880px)] bg-[#060814] rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
+      {/* Massive 16:9 Widescreen Canvas */}
+      <div className="relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100vh-175px)] bg-[#060814] rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
         <canvas
           ref={canvasRef}
-          width={440}
-          height={560}
+          width={960}
+          height={540}
           onPointerMove={handlePointerMove}
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}

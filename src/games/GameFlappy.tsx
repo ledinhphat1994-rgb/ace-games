@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCcw, Trophy, Play } from 'lucide-react';
+import { RotateCcw, Trophy, Play, Volume2, VolumeX } from 'lucide-react';
 
 interface Pipe {
   x: number;
@@ -15,53 +15,58 @@ export const GameFlappy: React.FC = () => {
     return parseInt(localStorage.getItem('acegames_flappy_best') || '0', 10);
   });
   const [gameState, setGameState] = useState<'IDLE' | 'PLAYING' | 'GAMEOVER'>('IDLE');
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Game physics state
+  // Widescreen physics state (960 x 540)
   const birdRef = useRef({
-    x: 60,
-    y: 180,
+    x: 180,
+    y: 240,
     velocity: 0,
-    radius: 14,
-    gravity: 0.38,
-    jump: -6.8,
+    radius: 18,
+    gravity: 0.42,
+    jump: -7.6,
   });
 
   const pipesRef = useRef<Pipe[]>([]);
-  const frameIdRef = useRef<number>(0);
   const scoreRef = useRef<number>(0);
+  const cloudsRef = useRef<{ x: number; y: number; s: number; speed: number }[]>([
+    { x: 100, y: 70, s: 1.2, speed: 0.6 },
+    { x: 420, y: 110, s: 0.9, speed: 0.4 },
+    { x: 740, y: 80, s: 1.1, speed: 0.5 },
+    { x: 920, y: 140, s: 0.8, speed: 0.3 },
+  ]);
 
-  // Play simple sound with Web Audio API
-  const playBeep = useCallback((freq: number, duration: number) => {
+  // Audio tone generator
+  const playTone = useCallback((freq: number, duration: number, type: OscillatorType = 'sine') => {
+    if (!soundEnabled) return;
     try {
       const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sine';
+      osc.type = type;
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
       osc.stop(audioCtx.currentTime + duration);
-    } catch {
-      // AudioContext muted/blocked by browser
-    }
-  }, []);
+    } catch {}
+  }, [soundEnabled]);
 
   const jump = useCallback(() => {
     if (gameState === 'IDLE') {
       setGameState('PLAYING');
       birdRef.current.velocity = birdRef.current.jump;
-      playBeep(450, 0.1);
+      playTone(480, 0.1);
     } else if (gameState === 'PLAYING') {
       birdRef.current.velocity = birdRef.current.jump;
-      playBeep(450, 0.1);
+      playTone(480, 0.1);
     }
-  }, [gameState, playBeep]);
+  }, [gameState, playTone]);
 
   const resetGame = useCallback(() => {
-    birdRef.current.y = 180;
+    birdRef.current.y = 240;
     birdRef.current.velocity = 0;
     pipesRef.current = [];
     scoreRef.current = 0;
@@ -69,60 +74,97 @@ export const GameFlappy: React.FC = () => {
     setGameState('PLAYING');
   }, []);
 
-  // Main game loop
+  // Keyboard space / arrow up listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) {
+        e.preventDefault();
+        if (gameState === 'GAMEOVER') resetGame();
+        else jump();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState, jump, resetGame]);
+
+  // Main 16:9 widescreen arcade loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const pipeGap = 115;
-    const pipeWidth = 52;
-    const pipeSpeed = 2.4;
+    const width = 960;
+    const height = 540;
+    const pipeGap = 155;
+    const pipeWidth = 72;
+    const pipeSpeed = 3.2;
+    const groundHeight = 60;
+
+    let animId = 0;
 
     const loop = () => {
-      // 1. Clear background (Sky)
-      ctx.fillStyle = '#38BDF8';
+      // 1. Sky Gradient Background
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height - groundHeight);
+      skyGrad.addColorStop(0, '#0284c7');
+      skyGrad.addColorStop(1, '#7dd3fc');
+      ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Clouds decoration
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      // 2. Parallax Clouds
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      cloudsRef.current.forEach(cloud => {
+        cloud.x -= cloud.speed;
+        if (cloud.x < -150) cloud.x = width + 50;
+
+        ctx.beginPath();
+        ctx.arc(cloud.x, cloud.y, 25 * cloud.s, 0, Math.PI * 2);
+        ctx.arc(cloud.x + 30 * cloud.s, cloud.y - 10 * cloud.s, 35 * cloud.s, 0, Math.PI * 2);
+        ctx.arc(cloud.x + 65 * cloud.s, cloud.y, 25 * cloud.s, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 3. Distant City / Mountain Silhouette
+      ctx.fillStyle = 'rgba(30, 58, 138, 0.25)';
       ctx.beginPath();
-      ctx.arc(80, 70, 25, 0, Math.PI * 2);
-      ctx.arc(115, 65, 35, 0, Math.PI * 2);
-      ctx.arc(150, 70, 25, 0, Math.PI * 2);
+      ctx.moveTo(0, height - groundHeight);
+      ctx.lineTo(80, height - groundHeight - 60);
+      ctx.lineTo(160, height - groundHeight);
+      ctx.lineTo(280, height - groundHeight - 90);
+      ctx.lineTo(400, height - groundHeight);
+      ctx.lineTo(540, height - groundHeight - 75);
+      ctx.lineTo(680, height - groundHeight);
+      ctx.lineTo(800, height - groundHeight - 110);
+      ctx.lineTo(960, height - groundHeight);
       ctx.fill();
 
-      ctx.beginPath();
-      ctx.arc(260, 110, 20, 0, Math.PI * 2);
-      ctx.arc(290, 105, 30, 0, Math.PI * 2);
-      ctx.arc(320, 110, 20, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Ground
-      const groundHeight = 50;
-      ctx.fillStyle = '#D97706';
+      // 4. Ground
+      ctx.fillStyle = '#b45309';
       ctx.fillRect(0, height - groundHeight, width, groundHeight);
-      ctx.fillStyle = '#10B981';
-      ctx.fillRect(0, height - groundHeight, width, 12);
+      // Grass strip
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, height - groundHeight, width, 14);
+      // Ground accents
+      ctx.fillStyle = '#15803d';
+      for (let gx = 0; gx < width; gx += 40) {
+        ctx.fillRect(gx, height - groundHeight + 10, 18, 4);
+      }
 
       const bird = birdRef.current;
 
       if (gameState === 'PLAYING') {
-        // Apply physics
+        // Physics update
         bird.velocity += bird.gravity;
         bird.y += bird.velocity;
 
-        // Spawn pipes
+        // Spawn pipes across widescreen distance
         if (
           pipesRef.current.length === 0 ||
-          pipesRef.current[pipesRef.current.length - 1].x < width - 170
+          pipesRef.current[pipesRef.current.length - 1].x < width - 260
         ) {
-          const minHeight = 45;
-          const maxHeight = height - groundHeight - pipeGap - minHeight;
-          const topH = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+          const minH = 60;
+          const maxH = height - groundHeight - pipeGap - minH;
+          const topH = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
           const bottomH = height - groundHeight - pipeGap - topH;
 
           pipesRef.current.push({
@@ -133,32 +175,40 @@ export const GameFlappy: React.FC = () => {
           });
         }
 
-        // Move and draw pipes
+        // Draw and update pipes
         for (let i = 0; i < pipesRef.current.length; i++) {
           const p = pipesRef.current[i];
           p.x -= pipeSpeed;
 
-          // Draw Top Pipe
-          ctx.fillStyle = '#22C55E';
+          // Top Pipe
+          const topGrad = ctx.createLinearGradient(p.x, 0, p.x + pipeWidth, 0);
+          topGrad.addColorStop(0, '#22c55e');
+          topGrad.addColorStop(0.5, '#4ade80');
+          topGrad.addColorStop(1, '#15803d');
+          ctx.fillStyle = topGrad;
           ctx.fillRect(p.x, 0, pipeWidth, p.topHeight);
-          // Pipe cap
-          ctx.fillStyle = '#16A34A';
-          ctx.fillRect(p.x - 3, p.topHeight - 20, pipeWidth + 6, 20);
+          // Top Pipe Lip
+          ctx.fillStyle = '#16a34a';
+          ctx.fillRect(p.x - 4, p.topHeight - 24, pipeWidth + 8, 24);
+          ctx.strokeStyle = '#14532d';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(p.x - 4, p.topHeight - 24, pipeWidth + 8, 24);
 
-          // Draw Bottom Pipe
+          // Bottom Pipe
           const bottomY = height - groundHeight - p.bottomHeight;
-          ctx.fillStyle = '#22C55E';
+          ctx.fillStyle = topGrad;
           ctx.fillRect(p.x, bottomY, pipeWidth, p.bottomHeight);
-          // Pipe cap
-          ctx.fillStyle = '#16A34A';
-          ctx.fillRect(p.x - 3, bottomY, pipeWidth + 6, 20);
+          // Bottom Pipe Lip
+          ctx.fillStyle = '#16a34a';
+          ctx.fillRect(p.x - 4, bottomY, pipeWidth + 8, 24);
+          ctx.strokeRect(p.x - 4, bottomY, pipeWidth + 8, 24);
 
-          // Check score pass
+          // Pass scoring
           if (!p.passed && p.x + pipeWidth < bird.x) {
             p.passed = true;
             scoreRef.current += 1;
             setScore(scoreRef.current);
-            playBeep(650, 0.12);
+            playTone(700, 0.12);
 
             setBestScore(prev => {
               if (scoreRef.current > prev) {
@@ -176,22 +226,22 @@ export const GameFlappy: React.FC = () => {
           ) {
             if (
               bird.y - bird.radius < p.topHeight ||
-              bird.y + bird.radius > height - groundHeight - p.bottomHeight
+              bird.y + bird.radius > bottomY
             ) {
               setGameState('GAMEOVER');
-              playBeep(180, 0.3);
+              playTone(180, 0.3, 'sawtooth');
             }
           }
         }
 
-        // Remove off-screen pipes
-        pipesRef.current = pipesRef.current.filter(p => p.x + pipeWidth > -10);
+        // Clean off-screen pipes
+        pipesRef.current = pipesRef.current.filter(p => p.x + pipeWidth > -20);
 
-        // Ground / Ceiling collision
+        // Ground & Ceiling collision
         if (bird.y + bird.radius >= height - groundHeight) {
           bird.y = height - groundHeight - bird.radius;
           setGameState('GAMEOVER');
-          playBeep(180, 0.3);
+          playTone(180, 0.3, 'sawtooth');
         }
         if (bird.y - bird.radius <= 0) {
           bird.y = bird.radius;
@@ -199,143 +249,130 @@ export const GameFlappy: React.FC = () => {
         }
       }
 
-      // Draw Bird
+      // Draw Arcade Bird (Yellow round with beak & wings)
       ctx.save();
       ctx.translate(bird.x, bird.y);
-      const angle = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (bird.velocity * 4 * Math.PI) / 180));
+      const angle = Math.min(Math.PI / 3.5, Math.max(-Math.PI / 4, (bird.velocity * 3.5 * Math.PI) / 180));
       ctx.rotate(angle);
 
-      // Body (Yellow)
-      ctx.fillStyle = '#FBBF24';
+      // Bird Body
+      ctx.fillStyle = '#fbbf24';
       ctx.beginPath();
       ctx.arc(0, 0, bird.radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#D97706';
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#b45309';
       ctx.stroke();
 
       // Wing
-      ctx.fillStyle = '#F59E0B';
+      ctx.fillStyle = '#f59e0b';
       ctx.beginPath();
-      ctx.ellipse(-4, 2, 7, 5, 0, 0, Math.PI * 2);
+      ctx.ellipse(-5, 2, 9, 6, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Eye
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(6, -5, 5, 0, Math.PI * 2);
+      ctx.arc(8, -5, 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#000000';
       ctx.beginPath();
-      ctx.arc(8, -5, 2.5, 0, Math.PI * 2);
+      ctx.arc(10, -5, 3, 0, Math.PI * 2);
       ctx.fill();
 
-      // Beak (Orange)
-      ctx.fillStyle = '#EA580C';
+      // Beak
+      ctx.fillStyle = '#ea580c';
       ctx.beginPath();
-      ctx.moveTo(11, -2);
-      ctx.lineTo(21, 2);
-      ctx.lineTo(11, 6);
+      ctx.moveTo(14, -2);
+      ctx.lineTo(26, 3);
+      ctx.lineTo(14, 8);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
 
       ctx.restore();
 
-      // Loop frame
-      frameIdRef.current = requestAnimationFrame(loop);
+      animId = requestAnimationFrame(loop);
     };
 
-    frameIdRef.current = requestAnimationFrame(loop);
-
-    return () => cancelAnimationFrame(frameIdRef.current);
-  }, [gameState, playBeep]);
-
-  // Keyboard Space to jump
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        jump();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [jump]);
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, [gameState, playTone]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,540px)] mx-auto select-none p-1 sm:p-2">
-      {/* Score Header */}
-      <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
-        <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
+      {/* Top HUD */}
+      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
+        <div className="flex items-center gap-3 sm:gap-6">
           <div>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm</span>
-            <span className="text-2xl font-black text-amber-400 font-mono leading-none">{score}</span>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none">{score}</span>
           </div>
-          <div className="h-6 w-px bg-white/10" />
+          <div className="h-7 w-px bg-white/10" />
           <div className="flex items-center gap-1.5">
-            <Trophy className="w-4 h-4 text-amber-400" />
+            <Trophy className="w-5 h-5 text-yellow-400" />
             <div>
-              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
-              <span className="text-base font-bold text-amber-300 font-mono leading-none">{bestScore}</span>
+              <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider block">Kỷ Lục</span>
+              <span className="text-lg sm:text-xl font-black text-yellow-300 font-mono leading-none">{bestScore}</span>
             </div>
           </div>
         </div>
 
-        {gameState !== 'GAMEOVER' && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={e => {
-              e.stopPropagation();
-              resetGame();
-            }}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-xl transition"
-            title="Chơi lại"
+            onClick={() => setSoundEnabled(p => !p)}
+            className="p-2 rounded-xl bg-slate-800 text-gray-300 hover:text-white"
+            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
           >
-            <RotateCcw className="w-4 h-4" />
+            {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
           </button>
-        )}
+        </div>
       </div>
 
-      {/* Massive Canvas Container */}
-      <div 
-        className="relative rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.3)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,calc((100vh-140px)*3/4),720px)] max-h-[min(96vw*4/3,calc(100vh-150px),880px)] aspect-[3/4]"
+      {/* Massive 16:9 Widescreen Arcade Board (Fills entire screen width!) */}
+      <div
+        className="relative rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(245,158,11,0.35)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100vh-175px)]"
         onClick={jump}
       >
         <canvas
           ref={canvasRef}
-          width={360}
-          height={480}
+          width={960}
+          height={540}
           className="w-full h-full block"
         />
 
         {/* Start / Idle Screen */}
         {gameState === 'IDLE' && (
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4">
-            <span className="text-5xl mb-3 animate-bounce">🐥</span>
-            <h3 className="text-2xl font-black text-amber-300 mb-2">FLAPPY BIRD</h3>
-            <p className="text-xs text-white/90 mb-4 text-center">Chạm vào màn hình hoặc bấm phím Space để chim bay lên!</p>
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4">
+            <span className="text-6xl mb-3 animate-bounce">🐥</span>
+            <h3 className="text-3xl sm:text-4xl font-black text-amber-400 mb-2 font-['Orbitron']">FLAPPY BIRD 16:9</h3>
+            <p className="text-sm text-yellow-100/90 mb-5 text-center">Bấm chuột, chạm màn hình hoặc bấm phím Space để chim bay lên!</p>
             <button
               onClick={e => {
                 e.stopPropagation();
                 jump();
               }}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl shadow-lg transition text-sm flex items-center gap-2"
+              className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-2xl shadow-xl transition text-base flex items-center gap-2 transform active:scale-95"
             >
-              <Play className="w-4 h-4 fill-slate-900" /> Bắt Đầu Chơi
+              <Play className="w-5 h-5 fill-slate-950" /> Bắt Đầu Chơi
             </button>
           </div>
         )}
 
         {/* Game Over Screen */}
         {gameState === 'GAMEOVER' && (
-          <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 animate-fade-in">
-            <h3 className="text-3xl font-black text-rose-500 mb-6 font-['Orbitron']">GAME OVER</h3>
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 animate-fade-in">
+            <span className="text-5xl mb-2">💥</span>
+            <h3 className="text-3xl sm:text-4xl font-black text-rose-500 mb-6 font-['Orbitron']">GAME OVER</h3>
             
             <button
               onClick={e => {
                 e.stopPropagation();
                 resetGame();
               }}
-              className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-black rounded-2xl shadow-xl transition text-base flex items-center gap-2"
+              className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-2xl shadow-xl transition text-base flex items-center gap-2 transform active:scale-95"
             >
               <RotateCcw className="w-5 h-5" /> Chơi Lại (Phím Space)
             </button>
