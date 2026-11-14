@@ -17,10 +17,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const categories: { id: GameCategory; label: string; icon: string }[] = [
     { id: 'all', label: 'Tất Cả Game', icon: '🔥' },
+    { id: 'favorites', label: 'Yêu Thích', icon: '❤️' },
+    { id: 'strategy', label: 'Cờ & Chiến Thuật', icon: '♟️' },
+    { id: 'classic', label: 'Kinh Điển Arcade', icon: '🕹️' },
     { id: 'puzzle', label: 'Trí Tuệ & Số', icon: '🧩' },
-    { id: 'arcade', label: 'Phản Xạ Cổ Điển', icon: '⚡' },
-    { id: 'strategy', label: 'Chiến Thuật', icon: '♟️' },
-    { id: 'classic', label: 'Huyền Thoại', icon: '🕹️' },
+    { id: 'arcade', label: 'Phản Xạ Nhanh', icon: '⚡' },
   ];
 
   return (

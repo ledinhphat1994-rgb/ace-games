@@ -155,5 +155,74 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Tetris', 'Xếp gạch', 'Retro', 'Kinh điển', 'Arcade'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'chess',
+    title: 'Cờ Vua Quốc Tế (Chess AI)',
+    category: 'strategy',
+    categoryLabel: 'Chiến Thuật Quốc Tế',
+    description: 'Bàn cờ 8×8 tiêu chuẩn quốc tế! Đấu trí chiến thuật đỉnh cao cùng AI nhiều cấp độ hoặc so tài 2 người chơi trên cùng thiết bị.',
+    instructions: [
+      'Chạm hoặc nhấp chuột vào quân cờ để xem các nước đi hợp lệ.',
+      'Bảo vệ Vua của bạn và tìm cách chiếu bí Vua đối phương.',
+      'Hỗ trợ chế độ Đấu Máy thông minh và chế độ 2 Người chơi đối kháng.'
+    ],
+    controls: {
+      desktop: 'Nhấp chuột chọn quân và ô đích đến',
+      mobile: 'Chạm ngón tay chọn quân và ô di chuyển'
+    },
+    thumbnailIcon: '♟️',
+    accentColor: 'from-amber-600 to-yellow-700',
+    rating: 4.98,
+    plays: 230000,
+    tags: ['Cờ vua', 'Chess', 'Chiến thuật', 'Trí tuệ', '1v1'],
+    isHot: true,
+    isNew: true
+  },
+  {
+    id: 'xiangqi',
+    title: 'Cờ Tướng Đông Phương (Xiangqi AI)',
+    category: 'strategy',
+    categoryLabel: 'Kỳ Nghệ Á Đông',
+    description: 'Bàn cờ 9×10 kinh điển sông Sở Hà Hán Giới! Tấn công Cửu Cung, phối hợp Xe Pháo Mã cùng AI hoặc bạn bè.',
+    instructions: [
+      'Nhấp chọn quân cờ để hiển thị các chấm xanh nước đi hợp lệ.',
+      'Sĩ Tượng thủ cung, Mã phóng càn quét, Pháo cách ngòi bắn phá thành.',
+      'Chiếu bí Tướng đối phương để giành thắng lợi vinh quang!'
+    ],
+    controls: {
+      desktop: 'Nhấp chuột chọn quân cờ và nước đi',
+      mobile: 'Chạm chọn quân cờ và điểm đến'
+    },
+    thumbnailIcon: '🏮',
+    accentColor: 'from-rose-600 to-red-700',
+    rating: 4.96,
+    plays: 198000,
+    tags: ['Cờ tướng', 'Xiangqi', 'Cổ điển', 'Chiến thuật', 'Trí tuệ'],
+    isHot: true,
+    isNew: true
+  },
+  {
+    id: 'breakout',
+    title: 'Bắn Bóng Phá Gạch (Breakout)',
+    category: 'arcade',
+    categoryLabel: 'Arcade Thử Thách',
+    description: 'Bắn bóng đập tan toàn bộ các hàng gạch màu rực rỡ! Di chuyển thanh trượt nhịp nhàng và bắt kịp tốc độ bóng nảy cực gắt.',
+    instructions: [
+      'Di chuyển chuột, vuốt màn hình hoặc dùng phím A/D để trượt thanh đỡ.',
+      'Bấm phím Cách hoặc chạm màn hình để phóng quả bóng đầu tiên.',
+      'Phá hủy toàn bộ các hàng gạch nhiều màu để chiến thắng mà không để rơi bóng.'
+    ],
+    controls: {
+      desktop: 'Kéo chuột hoặc Phím Mũi tên ← → / A D, Phím Cách bắn bóng',
+      mobile: 'Kéo ngón tay trên màn hình để trượt thanh đỡ'
+    },
+    thumbnailIcon: '🏓',
+    accentColor: 'from-cyan-500 to-indigo-600',
+    rating: 4.92,
+    plays: 145000,
+    tags: ['Phá gạch', 'Breakout', 'Arcade', 'Bóng nảy', 'Phản xạ'],
+    isHot: true,
+    isNew: true
   }
 ];

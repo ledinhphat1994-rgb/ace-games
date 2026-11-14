@@ -8,6 +8,9 @@ import { GameCaro } from '../games/GameCaro';
 import { GameMinesweeper } from '../games/GameMinesweeper';
 import { GameMemory } from '../games/GameMemory';
 import { GameTetris } from '../games/GameTetris';
+import { GameChess } from '../games/GameChess';
+import { GameXiangqi } from '../games/GameXiangqi';
+import { GameBreakout } from '../games/GameBreakout';
 import { AdBanner } from './AdBanner';
 
 interface GameModalProps {
@@ -39,6 +42,9 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'minesweeper': return <GameMinesweeper />;
       case 'memory': return <GameMemory />;
       case 'tetris': return <GameTetris />;
+      case 'chess': return <GameChess />;
+      case 'xiangqi': return <GameXiangqi />;
+      case 'breakout': return <GameBreakout />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

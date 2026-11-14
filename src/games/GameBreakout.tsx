@@ -1,0 +1,512 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Play, RotateCcw, Volume2, VolumeX, Heart, Trophy, Sparkles } from 'lucide-react';
+
+interface Brick {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  points: number;
+  alive: boolean;
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
+export const GameBreakout: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [isWon, setIsWon] = useState(false);
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(() => {
+    return Number(localStorage.getItem('acegames_breakout_best') || 0);
+  });
+  const [lives, setLives] = useState(3);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Play sound
+  const playTone = useCallback((freq: number, type: OscillatorType = 'sine', duration: number = 0.08) => {
+    if (!soundEnabled) return;
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {}
+  }, [soundEnabled]);
+
+  // Game state refs for 60fps loop
+  const stateRef = useRef({
+    cw: 480,
+    ch: 560,
+    paddle: { x: 200, y: 520, w: 85, h: 12, speed: 7 },
+    ball: { x: 240, y: 505, vx: 3.5, vy: -4.5, radius: 6, stuck: true },
+    bricks: [] as Brick[],
+    particles: [] as Particle[],
+    keys: { left: false, right: false },
+    score: 0,
+    lives: 3,
+    running: false,
+  });
+
+  const initBricks = () => {
+    const rows = 5;
+    const cols = 8;
+    const bw = 52;
+    const bh = 18;
+    const pad = 6;
+    const leftOffset = 11;
+    const topOffset = 60;
+    const colors = [
+      { color: '#ef4444', pts: 50 }, // red
+      { color: '#f97316', pts: 40 }, // orange
+      { color: '#eab308', pts: 30 }, // yellow
+      { color: '#10b981', pts: 20 }, // green
+      { color: '#3b82f6', pts: 10 }, // blue
+    ];
+
+    const bricks: Brick[] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        bricks.push({
+          x: leftOffset + c * (bw + pad),
+          y: topOffset + r * (bh + pad),
+          w: bw,
+          h: bh,
+          color: colors[r].color,
+          points: colors[r].pts,
+          alive: true,
+        });
+      }
+    }
+    return bricks;
+  };
+
+  const resetGame = () => {
+    const s = stateRef.current;
+    s.paddle.x = (s.cw - s.paddle.w) / 2;
+    s.ball.x = s.paddle.x + s.paddle.w / 2;
+    s.ball.y = s.paddle.y - s.ball.radius - 2;
+    s.ball.vx = (Math.random() > 0.5 ? 1 : -1) * 3.5;
+    s.ball.vy = -4.5;
+    s.ball.stuck = true;
+    s.bricks = initBricks();
+    s.particles = [];
+    s.score = 0;
+    s.lives = 3;
+    s.running = true;
+
+    setScore(0);
+    setLives(3);
+    setIsGameOver(false);
+    setIsWon(false);
+    setIsPlaying(true);
+  };
+
+  const launchBall = () => {
+    const s = stateRef.current;
+    if (s.ball.stuck) {
+      s.ball.stuck = false;
+      playTone(550, 'triangle', 0.1);
+    }
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    stateRef.current.bricks = initBricks();
+
+    let animId: number;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) stateRef.current.keys.left = true;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) stateRef.current.keys.right = true;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        launchBall();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (['ArrowLeft', 'KeyA'].includes(e.code)) stateRef.current.keys.left = false;
+      if (['ArrowRight', 'KeyD'].includes(e.code)) stateRef.current.keys.right = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    // Main animation loop
+    const loop = () => {
+      animId = requestAnimationFrame(loop);
+      const s = stateRef.current;
+      const { cw, ch, paddle, ball } = s;
+
+      // Update paddle
+      if (s.keys.left) paddle.x = Math.max(0, paddle.x - paddle.speed);
+      if (s.keys.right) paddle.x = Math.min(cw - paddle.w, paddle.x + paddle.speed);
+
+      // Update ball
+      if (s.running && !ball.stuck) {
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // Wall collisions
+        if (ball.x - ball.radius <= 0) {
+          ball.x = ball.radius;
+          ball.vx = -ball.vx;
+          playTone(400, 'sine', 0.05);
+        } else if (ball.x + ball.radius >= cw) {
+          ball.x = cw - ball.radius;
+          ball.vx = -ball.vx;
+          playTone(400, 'sine', 0.05);
+        }
+
+        if (ball.y - ball.radius <= 0) {
+          ball.y = ball.radius;
+          ball.vy = -ball.vy;
+          playTone(450, 'sine', 0.05);
+        }
+
+        // Paddle collision
+        if (
+          ball.y + ball.radius >= paddle.y &&
+          ball.y - ball.radius <= paddle.y + paddle.h &&
+          ball.x >= paddle.x &&
+          ball.x <= paddle.x + paddle.w &&
+          ball.vy > 0
+        ) {
+          // Angle based on hit location
+          const hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+          const maxAngle = Math.PI / 3; // 60 degrees
+          const angle = hitPos * maxAngle;
+          const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+          ball.vx = speed * Math.sin(angle);
+          ball.vy = -speed * Math.cos(angle);
+          ball.y = paddle.y - ball.radius - 1;
+          playTone(520, 'triangle', 0.08);
+        }
+
+        // Brick collision
+        let remainingBricks = 0;
+        for (const b of s.bricks) {
+          if (!b.alive) continue;
+          remainingBricks++;
+
+          if (
+            ball.x + ball.radius >= b.x &&
+            ball.x - ball.radius <= b.x + b.w &&
+            ball.y + ball.radius >= b.y &&
+            ball.y - ball.radius <= b.y + b.h
+          ) {
+            b.alive = false;
+            remainingBricks--;
+            s.score += b.points;
+            setScore(s.score);
+            if (s.score > highScore) {
+              setHighScore(s.score);
+              localStorage.setItem('acegames_breakout_best', String(s.score));
+            }
+
+            // Particles
+            for (let i = 0; i < 6; i++) {
+              s.particles.push({
+                x: b.x + b.w / 2,
+                y: b.y + b.h / 2,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                color: b.color,
+                life: 18,
+                maxLife: 18,
+              });
+            }
+
+            playTone(600 + b.points * 4, 'square', 0.07);
+
+            // Determine bounce direction
+            const prevX = ball.x - ball.vx;
+            const prevY = ball.y - ball.vy;
+            if (prevX <= b.x || prevX >= b.x + b.w) ball.vx = -ball.vx;
+            if (prevY <= b.y || prevY >= b.y + b.h) ball.vy = -ball.vy;
+            break;
+          }
+        }
+
+        // Win check
+        if (remainingBricks === 0) {
+          s.running = false;
+          setIsWon(true);
+          setIsPlaying(false);
+          playTone(880, 'triangle', 0.3);
+        }
+
+        // Ball fell down
+        if (ball.y - ball.radius > ch) {
+          s.lives--;
+          setLives(s.lives);
+          playTone(180, 'sawtooth', 0.2);
+
+          if (s.lives <= 0) {
+            s.running = false;
+            setIsGameOver(true);
+            setIsPlaying(false);
+          } else {
+            // Reset ball onto paddle
+            ball.stuck = true;
+            ball.x = paddle.x + paddle.w / 2;
+            ball.y = paddle.y - ball.radius - 2;
+            ball.vx = (Math.random() > 0.5 ? 1 : -1) * 3.5;
+            ball.vy = -4.5;
+          }
+        }
+      } else if (ball.stuck) {
+        ball.x = paddle.x + paddle.w / 2;
+        ball.y = paddle.y - ball.radius - 2;
+      }
+
+      // Update particles
+      for (let i = s.particles.length - 1; i >= 0; i--) {
+        const p = s.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) s.particles.splice(i, 1);
+      }
+
+      // DRAWING
+      ctx.clearRect(0, 0, cw, ch);
+
+      // Background grid subtle effect
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(0, 0, cw, ch);
+
+      // Top ceiling line
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, cw, ch);
+
+      // Draw bricks
+      for (const b of s.bricks) {
+        if (!b.alive) continue;
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.roundRect(b.x, b.y, b.w, b.h, 4);
+        ctx.fill();
+
+        // Highlight top border
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(b.x + 2, b.y + 1, b.w - 4, 3);
+      }
+      ctx.shadowBlur = 0;
+
+      // Draw particles
+      for (const p of s.particles) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillRect(p.x, p.y, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+
+      // Draw paddle
+      const paddleGrad = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.h);
+      paddleGrad.addColorStop(0, '#38bdf8');
+      paddleGrad.addColorStop(1, '#0284c7');
+      ctx.fillStyle = paddleGrad;
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, 6);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Draw ball
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    };
+
+    loop();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [highScore, playTone]);
+
+  // Touch / mouse dragging on canvas
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scale = stateRef.current.cw / rect.width;
+    const clientX = e.clientX - rect.left;
+    const canvasX = clientX * scale;
+    const p = stateRef.current.paddle;
+    p.x = Math.max(0, Math.min(stateRef.current.cw - p.w, canvasX - p.w / 2));
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    handlePointerMove(e);
+    launchBall();
+  };
+
+  return (
+    <div className="flex flex-col items-center select-none w-full max-w-lg mx-auto py-1">
+      {/* Top HUD */}
+      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-slate-700/60 rounded-xl px-4 py-2 mb-2 shadow-inner">
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Điểm số</div>
+            <div className="text-xl font-black text-amber-400 font-mono leading-none">{score}</div>
+          </div>
+          <div className="h-6 w-px bg-slate-700" />
+          <div className="flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5 text-yellow-500" />
+            <div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Kỷ lục</div>
+              <div className="text-xs font-bold text-yellow-400 font-mono leading-none">{highScore}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Hearts */}
+          <div className="flex items-center gap-1">
+            {[1, 2, 3].map(i => (
+              <Heart
+                key={i}
+                className={`w-4 h-4 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={() => setSoundEnabled(prev => !prev)}
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300"
+            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Canvas container */}
+      <div className="relative w-full aspect-[480/560] max-w-[480px] bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl touch-none">
+        <canvas
+          ref={canvasRef}
+          width={480}
+          height={560}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          className="w-full h-full cursor-pointer block"
+        />
+
+        {/* Start / Stuck prompt */}
+        {isPlaying && stateRef.current.ball.stuck && !isGameOver && !isWon && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 pointer-events-none animate-bounce">
+            <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold shadow-lg">
+              Chạm hoặc bấm Phím Cách để bắn bóng! 🚀
+            </span>
+          </div>
+        )}
+
+        {/* Start screen overlay */}
+        {!isPlaying && !isGameOver && !isWon && (
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Phá Gạch Classic</h3>
+            <p className="text-xs text-gray-400 max-w-xs mb-6">
+              Điều khiển thanh đỡ phá tan toàn bộ các hàng gạch màu! Căn góc chuẩn xác để giữ bóng không rơi.
+            </p>
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-xl shadow-cyan-500/25 transition-transform hover:scale-105 active:scale-95"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              Bắt Đầu Chơi
+            </button>
+          </div>
+        )}
+
+        {/* Game Over overlay */}
+        {isGameOver && (
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+            <span className="text-4xl mb-2">💥</span>
+            <h3 className="text-2xl font-black text-red-500 mb-1">Hết Lượt!</h3>
+            <p className="text-sm text-gray-300 mb-2">Điểm của bạn:</p>
+            <p className="text-3xl font-black text-amber-400 font-mono mb-6">{score}</p>
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white font-bold text-sm shadow-xl shadow-red-500/25 transition-transform hover:scale-105 active:scale-95"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Chơi Lại Ngay
+            </button>
+          </div>
+        )}
+
+        {/* Won overlay */}
+        {isWon && (
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+            <span className="text-4xl mb-2">🏆</span>
+            <h3 className="text-2xl font-black text-emerald-400 mb-1">Chiến Thắng Tuyệt Đối!</h3>
+            <p className="text-sm text-gray-300 mb-2">Bạn đã phá sạch toàn bộ bảng gạch!</p>
+            <p className="text-3xl font-black text-amber-400 font-mono mb-6">{score}</p>
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-500/25 transition-transform hover:scale-105 active:scale-95"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Chơi Ván Mới
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile controls bar */}
+      <div className="w-full max-w-[480px] mt-2 flex items-center justify-between text-xs text-gray-400 px-2">
+        <span>🎮 Kéo chuột/ngón tay hoặc dùng phím A/D, ←/→</span>
+        <button
+          onClick={resetGame}
+          className="flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Đặt lại
+        </button>
+      </div>
+    </div>
+  );
+};
