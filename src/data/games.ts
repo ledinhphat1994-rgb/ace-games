@@ -132,5 +132,28 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 42100,
     tags: ['Trí nhớ', 'Lật bài', 'Tìm cặp', 'Thư giãn'],
     isNew: true
+  },
+  {
+    id: 'tetris',
+    title: 'Tetris Xếp Gạch Cổ Điển',
+    category: 'classic',
+    categoryLabel: 'Kinh Điển Mọi Thời Đại',
+    description: 'Huyền thoại xếp gạch mọi thời đại! Xếp các khối gạch tetrominoes kín hàng để ghi điểm combo và chạm kỷ lục thế giới.',
+    instructions: [
+      'Điều khiển các khối gạch rơi xuống, xoay góc hợp lý để xếp khít vào nhau.',
+      'Mỗi khi lấp đầy 1 hoặc nhiều hàng ngang, hàng gạch sẽ biến mất và bạn được cộng điểm thưởng.',
+      'Khối gạch xếp chồng chạm đến đỉnh thì ván chơi sẽ kết thúc!'
+    ],
+    controls: {
+      desktop: 'Mũi tên ← → di chuyển, ↑ xoay, ↓ hạ nhanh, Phím Cách rơi ngay',
+      mobile: 'Nút bấm cảm ứng D-Pad tiện lợi trên màn hình'
+    },
+    thumbnailIcon: '🧱',
+    accentColor: 'from-cyan-500 to-blue-600',
+    rating: 4.95,
+    plays: 185000,
+    tags: ['Tetris', 'Xếp gạch', 'Retro', 'Kinh điển', 'Arcade'],
+    isHot: true,
+    isNew: true
   }
 ];
