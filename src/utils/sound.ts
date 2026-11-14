@@ -1,20 +1,50 @@
-// Web Audio API Synthesizer for high-performance, zero-latency gaming UI sound effects
+// Web Audio API Synthesizer with AudioContext Auto-Unlock & Retro Arcade BGM
 
 class SoundManager {
   private ctx: AudioContext | null = null;
-  private enabled: boolean = true;
+  private soundEnabled: boolean = true;
+  private musicEnabled: boolean = false;
   private lastHoverTime: number = 0;
+
+  // BGM Synthesizer state
+  private bgmTimer: number | null = null;
+  private bgmStep: number = 0;
+  private bgmGain: GainNode | null = null;
+
+  // Retro chill arcade melody (pentatonic notes in Hz)
+  private readonly bgmMelody = [
+    261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
+    293.66, 349.23, 440.00, 587.33, 440.00, 349.23,
+    220.00, 261.63, 329.63, 440.00, 329.63, 261.63,
+    196.00, 246.94, 293.66, 392.00, 293.66, 246.94,
+  ];
 
   constructor() {
     try {
-      const saved = localStorage.getItem('acegames_sound_enabled');
-      this.enabled = saved !== null ? saved === 'true' : true;
+      const savedSound = localStorage.getItem('acegames_sound');
+      this.soundEnabled = savedSound !== null ? savedSound === 'true' : true;
+      const savedMusic = localStorage.getItem('acegames_music');
+      this.musicEnabled = savedMusic !== null ? savedMusic === 'true' : false;
     } catch {
-      this.enabled = true;
+      this.soundEnabled = true;
+      this.musicEnabled = false;
+    }
+
+    // Auto-unlock on first user interaction anywhere in the window
+    if (typeof window !== 'undefined') {
+      const unlock = () => {
+        this.unlockContext();
+        window.removeEventListener('pointerdown', unlock);
+        window.removeEventListener('keydown', unlock);
+        window.removeEventListener('touchstart', unlock);
+      };
+      window.addEventListener('pointerdown', unlock);
+      window.addEventListener('keydown', unlock);
+      window.addEventListener('touchstart', unlock);
     }
   }
 
-  private initContext(): AudioContext | null {
+  public unlockContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -25,75 +55,145 @@ class SoundManager {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+
+    // If music was enabled, start playing
+    if (this.musicEnabled && !this.bgmTimer) {
+      this.startBGM();
+    }
+
     return this.ctx;
   }
 
-  public isEnabled(): boolean {
-    return this.enabled;
+  public isSoundOn(): boolean {
+    return this.soundEnabled;
   }
 
-  public setEnabled(val: boolean) {
-    this.enabled = val;
+  public isMusicOn(): boolean {
+    return this.musicEnabled;
+  }
+
+  public toggleSound(): boolean {
+    this.soundEnabled = !this.soundEnabled;
     try {
-      localStorage.setItem('acegames_sound_enabled', String(val));
+      localStorage.setItem('acegames_sound', String(this.soundEnabled));
     } catch {}
-  }
-
-  public toggle(): boolean {
-    this.setEnabled(!this.enabled);
-    if (this.enabled) {
+    if (this.soundEnabled) {
+      this.unlockContext();
       this.playButtonClick();
     }
-    return this.enabled;
+    return this.soundEnabled;
   }
 
-  /**
-   * Crisp, subtle micro-blip when hovering over game cards or buttons
-   */
+  public toggleMusic(): boolean {
+    this.musicEnabled = !this.musicEnabled;
+    try {
+      localStorage.setItem('acegames_music', String(this.musicEnabled));
+    } catch {}
+    this.unlockContext();
+
+    if (this.musicEnabled) {
+      this.startBGM();
+      this.playButtonClick();
+    } else {
+      this.stopBGM();
+    }
+    return this.musicEnabled;
+  }
+
+  // --- BACKGROUND MUSIC SYNTHESIZER ---
+  private startBGM() {
+    this.stopBGM();
+    if (!this.musicEnabled) return;
+    const ctx = this.unlockContext();
+    if (!ctx) return;
+
+    this.bgmGain = ctx.createGain();
+    this.bgmGain.gain.setValueAtTime(0.025, ctx.currentTime); // gentle background level
+    this.bgmGain.connect(ctx.destination);
+
+    const tempoMs = 180; // ~160 BPM
+
+    this.bgmTimer = window.setInterval(() => {
+      if (!this.musicEnabled || !this.ctx || !this.bgmGain) return;
+      try {
+        const now = this.ctx.currentTime;
+        const freq = this.bgmMelody[this.bgmStep % this.bgmMelody.length];
+        this.bgmStep++;
+
+        const osc = this.ctx.createOscillator();
+        const noteGain = this.ctx.createGain();
+
+        // Soft warm triangle wave
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+
+        // Pluck envelope
+        noteGain.gain.setValueAtTime(0.035, now);
+        noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+        osc.connect(noteGain);
+        noteGain.connect(this.bgmGain);
+
+        osc.start(now);
+        osc.stop(now + 0.17);
+      } catch {}
+    }, tempoMs);
+  }
+
+  private stopBGM() {
+    if (this.bgmTimer !== null) {
+      clearInterval(this.bgmTimer);
+      this.bgmTimer = null;
+    }
+    if (this.bgmGain) {
+      try {
+        this.bgmGain.disconnect();
+      } catch {}
+      this.bgmGain = null;
+    }
+  }
+
+  // --- UI SOUND EFFECTS ---
   public playCardHover() {
-    if (!this.enabled) return;
+    if (!this.soundEnabled) return;
     const now = Date.now();
-    // Throttle hover sounds so rapid mouse movement doesn't create harsh noise
-    if (now - this.lastHoverTime < 60) return;
+    if (now - this.lastHoverTime < 70) return;
     this.lastHoverTime = now;
 
     try {
-      const ctx = this.initContext();
+      const ctx = this.unlockContext();
       if (!ctx) return;
 
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(620, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.04);
+      osc.frequency.setValueAtTime(580, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(920, ctx.currentTime + 0.045);
 
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.045);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.045);
+      osc.stop(ctx.currentTime + 0.05);
     } catch {}
   }
 
-  /**
-   * Tactile click when pressing a button or switching categories
-   */
   public playButtonClick() {
-    if (!this.enabled) return;
+    if (!this.soundEnabled) return;
     try {
-      const ctx = this.initContext();
+      const ctx = this.unlockContext();
       if (!ctx) return;
 
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(750, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.06);
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.06);
 
       gain.gain.setValueAtTime(0.08, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
@@ -106,19 +206,15 @@ class SoundManager {
     } catch {}
   }
 
-  /**
-   * Fun, sweet bell chime when bookmarking / favoriting a game
-   */
   public playFavorite() {
-    if (!this.enabled) return;
+    if (!this.soundEnabled) return;
     try {
-      const ctx = this.initContext();
+      const ctx = this.unlockContext();
       if (!ctx) return;
 
-      // Two harmonic notes (Ding-Dong)
       [
         { f: 880, start: 0, dur: 0.12 },
-        { f: 1320, start: 0.06, dur: 0.18 },
+        { f: 1320, start: 0.07, dur: 0.2 },
       ].forEach(tone => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -138,13 +234,10 @@ class SoundManager {
     } catch {}
   }
 
-  /**
-   * Epic, exciting arcade riser sound when launching a game!
-   */
   public playGameLaunch() {
-    if (!this.enabled) return;
+    if (!this.soundEnabled) return;
     try {
-      const ctx = this.initContext();
+      const ctx = this.unlockContext();
       if (!ctx) return;
 
       const now = ctx.currentTime;
@@ -154,34 +247,34 @@ class SoundManager {
       const gain = ctx.createGain();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(260, now);
-      osc.frequency.exponentialRampToValueAtTime(980, now + 0.22);
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(1100, now + 0.24);
 
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.25);
+      osc.stop(now + 0.26);
 
-      // Sparkle chord
+      // Victory chime chord
       [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
         const chordOsc = ctx.createOscillator();
         const chordGain = ctx.createGain();
 
         chordOsc.type = 'sine';
-        chordOsc.frequency.setValueAtTime(freq, now + 0.12 + idx * 0.03);
+        chordOsc.frequency.setValueAtTime(freq, now + 0.1 + idx * 0.035);
 
-        chordGain.gain.setValueAtTime(0.05, now + 0.12 + idx * 0.03);
-        chordGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35 + idx * 0.03);
+        chordGain.gain.setValueAtTime(0.06, now + 0.1 + idx * 0.035);
+        chordGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35 + idx * 0.035);
 
         chordOsc.connect(chordGain);
         chordGain.connect(ctx.destination);
 
-        chordOsc.start(now + 0.12 + idx * 0.03);
-        chordOsc.stop(now + 0.36 + idx * 0.03);
+        chordOsc.start(now + 0.1 + idx * 0.035);
+        chordOsc.stop(now + 0.38 + idx * 0.035);
       });
     } catch {}
   }
