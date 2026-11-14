@@ -206,29 +206,29 @@ export const Game2048: React.FC = () => {
   // Color generator for tiles with massive typography
   const getTileColor = (val: number) => {
     switch (val) {
-      case 2: return 'bg-[#EEE4DA] text-[#776E65] text-3xl sm:text-5xl';
-      case 4: return 'bg-[#EDE0C8] text-[#776E65] text-3xl sm:text-5xl';
-      case 8: return 'bg-[#F2B179] text-white shadow-md text-3xl sm:text-5xl';
-      case 16: return 'bg-[#F59563] text-white shadow-md text-2xl sm:text-4xl';
-      case 32: return 'bg-[#F67C5F] text-white shadow-lg text-2xl sm:text-4xl';
-      case 64: return 'bg-[#F65E3B] text-white shadow-lg text-2xl sm:text-4xl';
-      case 128: return 'bg-[#EDCF72] text-white shadow-xl text-xl sm:text-3xl';
-      case 256: return 'bg-[#EDCC61] text-white shadow-xl text-xl sm:text-3xl';
-      case 512: return 'bg-[#EDC850] text-white shadow-xl text-xl sm:text-3xl';
-      case 1024: return 'bg-[#EDC53F] text-white shadow-2xl text-lg sm:text-2xl';
-      case 2048: return 'bg-[#EDC22E] text-white shadow-[0_0_30px_rgba(237,194,46,0.9)] text-lg sm:text-2xl animate-pulse';
-      default: return val > 2048 ? 'bg-[#3C3A32] text-white text-base sm:text-xl' : 'bg-[#CDC1B4]/20';
+      case 2: return 'bg-[#EEE4DA] text-[#776E65] text-3xl sm:text-5xl md:text-6xl';
+      case 4: return 'bg-[#EDE0C8] text-[#776E65] text-3xl sm:text-5xl md:text-6xl';
+      case 8: return 'bg-[#F2B179] text-white shadow-md text-3xl sm:text-5xl md:text-6xl';
+      case 16: return 'bg-[#F59563] text-white shadow-md text-2xl sm:text-4xl md:text-5xl';
+      case 32: return 'bg-[#F67C5F] text-white shadow-lg text-2xl sm:text-4xl md:text-5xl';
+      case 64: return 'bg-[#F65E3B] text-white shadow-lg text-2xl sm:text-4xl md:text-5xl';
+      case 128: return 'bg-[#EDCF72] text-white shadow-xl text-xl sm:text-3xl md:text-4xl';
+      case 256: return 'bg-[#EDCC61] text-white shadow-xl text-xl sm:text-3xl md:text-4xl';
+      case 512: return 'bg-[#EDC850] text-white shadow-xl text-xl sm:text-3xl md:text-4xl';
+      case 1024: return 'bg-[#EDC53F] text-white shadow-2xl text-lg sm:text-2xl md:text-3xl';
+      case 2048: return 'bg-[#EDC22E] text-white shadow-[0_0_30px_rgba(237,194,46,0.9)] text-lg sm:text-2xl md:text-3xl animate-pulse';
+      default: return val > 2048 ? 'bg-[#3C3A32] text-white text-base sm:text-xl md:text-2xl' : 'bg-[#CDC1B4]/20';
     }
   };
 
   return (
     <div 
-      className="flex flex-col items-center justify-center w-full h-full max-w-[min(90vw,580px)] select-none p-1 sm:p-2"
+      className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-80px),960px)] select-none p-1 sm:p-2"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Score Header */}
-      <div className="flex items-center justify-between w-full mb-3 px-2 bg-slate-900/80 border border-white/10 rounded-2xl py-2">
+      <div className="flex items-center justify-between w-full mb-3 px-3 bg-slate-900/85 border border-white/10 rounded-2xl py-2">
         <div className="flex items-center gap-4">
           <div>
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
@@ -268,7 +268,7 @@ export const Game2048: React.FC = () => {
       </div>
 
       {/* Massive 4x4 Grid Board */}
-      <div className="relative bg-[#948171] p-3 sm:p-4 rounded-3xl w-full aspect-square max-h-[min(70vh,540px)] shadow-2xl border-4 border-[#7a6859]">
+      <div className="relative bg-[#948171] p-3 sm:p-5 rounded-3xl w-full aspect-square max-h-[min(96vw,calc(100vh-160px),920px)] shadow-2xl border-4 border-[#7a6859]">
         <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
           {board.map((row, r) =>
             row.map((cell, c) => (

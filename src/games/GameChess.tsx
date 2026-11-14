@@ -195,10 +195,10 @@ export const GameChess: React.FC = () => {
       </div>
 
       {/* Massive Chessboard (8x8) */}
-      <div className="relative p-2.5 sm:p-3 bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 border-4 border-amber-600/50 rounded-3xl shadow-[0_0_50px_rgba(245,158,11,0.25)]">
+      <div className="relative p-2.5 sm:p-4 bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 border-4 border-amber-600/50 rounded-3xl shadow-[0_0_50px_rgba(245,158,11,0.25)]">
         <div 
           className="grid grid-cols-8 grid-rows-8 rounded-2xl overflow-hidden border-2 border-slate-950 shadow-inner"
-          style={{ width: 'min(90vw, 560px, 70vh)', height: 'min(90vw, 560px, 70vh)' }}
+          style={{ width: 'min(96vw, calc(100vh - 150px), 920px)', height: 'min(96vw, calc(100vh - 150px), 920px)' }}
         >
           {Array.from({ length: 64 }).map((_, idx) => {
             const row = Math.floor(idx / 8);
@@ -230,7 +230,7 @@ export const GameChess: React.FC = () => {
                 {/* Massive Chess piece icon */}
                 {piece && (
                   <span
-                    className={`text-4xl sm:text-6xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_3px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
+                    className={`text-5xl sm:text-7xl md:text-8xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_3px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
                   >
                     {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                   </span>

@@ -196,7 +196,7 @@ export const GameMinesweeper: React.FC = () => {
   const flagsUsed = grid.reduce((acc, row) => acc + row.filter(c => c.isFlagged).length, 0);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,600px)] mx-auto select-none p-1 sm:p-2">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-140px),920px)] mx-auto select-none p-1 sm:p-2">
       {/* Header */}
       <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
         <div className="flex items-center gap-3">
@@ -233,7 +233,7 @@ export const GameMinesweeper: React.FC = () => {
       </div>
 
       {/* Massive Grid Board */}
-      <div className="relative bg-[#0b1120] p-3 sm:p-4 rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.25)]">
+      <div className="relative bg-[#0b1120] p-3 sm:p-5 rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.25)]">
         <div 
           className="grid gap-1.5 sm:gap-2.5"
           style={{
@@ -246,7 +246,7 @@ export const GameMinesweeper: React.FC = () => {
                 key={`${r}-${c}`}
                 onClick={() => handleCellClick(r, c)}
                 onContextMenu={e => handleContextMenu(e, r, c)}
-                className={`w-11 h-11 sm:w-15 sm:h-15 rounded-xl sm:rounded-2xl font-black text-xl sm:text-3xl flex items-center justify-center transition-all select-none ${
+                className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl sm:rounded-2xl font-black text-xl sm:text-3xl md:text-4xl flex items-center justify-center transition-all select-none ${
                   cell.isOpen
                     ? cell.isMine
                       ? 'bg-rose-600 text-white animate-bounce shadow-lg'

@@ -197,10 +197,10 @@ export const GameSnake: React.FC = () => {
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="flex flex-col items-center justify-center w-full h-full max-w-[min(90vw,620px)] mx-auto select-none p-1 sm:p-2"
+      className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-80px),1000px)] mx-auto select-none p-1 sm:p-2"
     >
       {/* Top Large HUD */}
-      <div className="flex items-center justify-between w-full mb-2 px-2 bg-slate-900/80 border border-white/10 rounded-2xl py-2 shadow-inner">
+      <div className="flex items-center justify-between w-full mb-2 px-3 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
         <div className="flex items-center gap-3 sm:gap-6">
           <div>
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
@@ -244,8 +244,8 @@ export const GameSnake: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive Game Canvas Board (Fills space!) */}
-      <div className="relative bg-[#0b1120] p-2 rounded-3xl w-full aspect-square max-h-[min(70vh,560px)] border-4 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.3)] overflow-hidden">
+      {/* Massive Game Canvas Board (Fills maximum screen size!) */}
+      <div className="relative bg-[#0b1120] p-2 sm:p-3 rounded-3xl w-full aspect-square max-h-[min(94vw,56vh)] sm:max-h-[min(96vw,calc(100vh-160px),920px)] border-4 border-emerald-500/40 shadow-[0_0_60px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center">
         {/* Grid cells */}
         <div 
           className="grid w-full h-full gap-[2px] bg-slate-950/80 rounded-2xl overflow-hidden p-1"

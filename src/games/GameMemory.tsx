@@ -108,7 +108,7 @@ export const GameMemory: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center w-full select-none gap-3">
       {/* Slim HUD */}
-      <div className="flex items-center justify-between w-full max-w-[min(90vw,560px)] px-2">
+      <div className="flex items-center justify-between w-full max-w-[min(96vw,calc(100vh-140px),920px)] px-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-black text-pink-400 tracking-wider">LƯỢT MỞ:</span>
           <span className="text-xl font-black text-white px-3 py-1 bg-slate-800/80 rounded-lg border border-pink-500/30 font-mono">
@@ -125,7 +125,7 @@ export const GameMemory: React.FC = () => {
       </div>
 
       {/* 4x4 Grid of Cards - Big & Bold */}
-      <div className="relative bg-[#0d1322] p-3 sm:p-4 rounded-2xl w-full max-w-[min(90vw,560px)] max-h-[min(70vh,560px)] aspect-square border-2 border-pink-500/40 shadow-2xl">
+      <div className="relative bg-[#0d1322] p-3 sm:p-5 rounded-3xl w-full max-w-[min(96vw,calc(100vh-140px),920px)] max-h-[min(96vw,calc(100vh-160px),920px)] aspect-square border-4 border-pink-500/40 shadow-2xl">
         <div className="grid grid-cols-4 grid-rows-4 gap-2 sm:gap-3 w-full h-full">
           {cards.map((card, idx) => (
             <button

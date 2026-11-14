@@ -197,10 +197,10 @@ export const GameXiangqi: React.FC = () => {
       </div>
 
       {/* Massive Xiangqi Board (9 files x 10 ranks) */}
-      <div className="relative p-2 sm:p-3 bg-gradient-to-br from-amber-950 via-neutral-900 to-rose-950 border-4 border-rose-700/50 rounded-3xl shadow-[0_0_50px_rgba(225,29,72,0.25)]">
+      <div className="relative p-2 sm:p-4 bg-gradient-to-br from-amber-950 via-neutral-900 to-rose-950 border-4 border-rose-700/50 rounded-3xl shadow-[0_0_50px_rgba(225,29,72,0.25)] flex items-center justify-center">
         <div
           className="relative bg-[#dec196] border-4 border-[#78350f] rounded-2xl shadow-inner overflow-hidden"
-          style={{ width: 'min(90vw, 520px, 64vh)', height: 'calc(min(90vw, 520px, 64vh) * 1.11)' }}
+          style={{ height: 'min(96vw * 1.11, calc(100vh - 150px), 880px)', width: 'calc(min(96vw * 1.11, calc(100vh - 150px), 880px) * 0.9)' }}
         >
           {/* River Divider */}
           <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-sm sm:text-base tracking-[0.4em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">
@@ -233,7 +233,7 @@ export const GameXiangqi: React.FC = () => {
                   {/* Massive Piece token */}
                   {piece ? (
                     <div
-                      className={`relative z-10 w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-serif font-black text-xl sm:text-3xl shadow-xl transition-transform duration-100 ${
+                      className={`relative z-10 w-9 h-9 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center font-serif font-black text-xl sm:text-3xl md:text-4xl shadow-xl transition-transform duration-100 ${
                         isSelected ? 'scale-120 ring-4 ring-yellow-400' : isLast ? 'ring-2 ring-amber-500' : ''
                       } ${
                         sideOf(piece) === RED

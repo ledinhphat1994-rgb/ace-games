@@ -466,7 +466,7 @@ export const GameSpaceShooter: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(94vw,560px)] mx-auto p-1">
+    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,calc((100vh-140px)*440/560),820px)] mx-auto p-1">
       {/* Top HUD */}
       <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
         <div className="flex items-center gap-4">
@@ -510,7 +510,7 @@ export const GameSpaceShooter: React.FC = () => {
       </div>
 
       {/* Massive Canvas */}
-      <div className="relative w-full aspect-[440/560] max-h-[min(70vh,580px)] bg-[#060814] rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
+      <div className="relative w-full aspect-[440/560] max-h-[min(96vw*560/440,calc(100vh-160px),880px)] bg-[#060814] rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none">
         <canvas
           ref={canvasRef}
           width={440}

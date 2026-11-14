@@ -20,21 +20,39 @@ interface GameModalProps {
 }
 
 export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  // 'near-full': Spacious floating window (88vh, max-w-7xl), lets user see web background & multitask
+  // 'fullscreen': True 100vw x 100vh cinema mode covering full display
+  const [viewMode, setViewMode] = useState<'near-full' | 'fullscreen'>('near-full');
   const [gameKey, setGameKey] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   if (!game) return null;
 
-  const toggleFullscreen = () => {
+  const toggleViewMode = () => {
     soundManager.playButtonClick();
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    if (viewMode === 'near-full') {
+      setViewMode('fullscreen');
+      if (containerRef.current && !document.fullscreenElement) {
+        containerRef.current.requestFullscreen?.().catch(() => {});
+      }
     } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+      setViewMode('near-full');
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
     }
   };
+
+  // Sync state if user presses ESC to exit browser fullscreen
+  React.useEffect(() => {
+    const handleFsChange = () => {
+      if (!document.fullscreenElement && viewMode === 'fullscreen') {
+        setViewMode('near-full');
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, [viewMode]);
 
   const handleRestart = () => {
     soundManager.playButtonClick();
@@ -43,7 +61,16 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
 
   const handleClose = () => {
     soundManager.playButtonClick();
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
     onClose();
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && viewMode === 'near-full') {
+      handleClose();
+    }
   };
 
   const renderGameContent = () => {
@@ -70,13 +97,25 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#03060c]/95 backdrop-blur-2xl flex flex-col p-1 sm:p-2 md:p-3 overflow-hidden animate-in fade-in duration-200">
+    <div 
+      onClick={handleBackdropClick}
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden animate-in fade-in duration-200 ${
+        viewMode === 'near-full'
+          ? 'bg-black/75 backdrop-blur-md p-2 sm:p-4 md:p-6'
+          : 'bg-[#03060c] p-0'
+      }`}
+    >
       <div 
         ref={containerRef}
-        className="relative w-full h-full bg-[#080d19] border border-white/10 rounded-2xl sm:rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        className={`relative bg-[#070b14] overflow-hidden flex flex-col transition-all duration-300 ${
+          viewMode === 'near-full'
+            ? 'w-full max-w-7xl h-[90vh] border border-cyan-500/30 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.95)]'
+            : 'w-screen h-screen rounded-none border-0'
+        }`}
       >
         {/* Sleek Theater Top Header */}
-        <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 border-b border-white/10 bg-slate-950/80 backdrop-blur-md flex-shrink-0 z-20">
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl sm:text-3xl drop-shadow-md">{game.thumbnailIcon}</span>
             <div>
@@ -91,26 +130,37 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
 
           {/* Action controls */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* View Mode Toggle: Gần Full vs Toàn Màn Hình */}
+            <button
+              onClick={toggleViewMode}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 rounded-xl transition cursor-pointer shadow-md"
+              title={viewMode === 'near-full' ? 'Phóng to toàn màn hình hết cỡ' : 'Thu về dạng cửa sổ gần full'}
+            >
+              {viewMode === 'near-full' ? (
+                <>
+                  <Maximize2 className="w-4 h-4 text-cyan-400" />
+                  <span className="hidden sm:inline">Toàn Màn Hình</span>
+                </>
+              ) : (
+                <>
+                  <Minimize2 className="w-4 h-4 text-cyan-400" />
+                  <span className="hidden sm:inline">Gần Full</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={handleRestart}
               className="p-2 sm:px-3 sm:py-1.5 text-xs font-bold text-gray-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-white/10 rounded-xl transition flex items-center gap-1 cursor-pointer"
               title="Chơi lại ván mới"
             >
-              <RotateCcw className="w-4 h-4 text-cyan-400" />
+              <RotateCcw className="w-4 h-4 text-emerald-400" />
               <span className="hidden md:inline">Chơi Lại</span>
             </button>
 
             <button
-              onClick={toggleFullscreen}
-              className="p-2 text-gray-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-white/10 rounded-xl transition cursor-pointer"
-              title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-
-            <button
               onClick={handleClose}
-              className="p-2 text-gray-400 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/30 rounded-xl transition cursor-pointer"
+              className="p-2 text-gray-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/30 rounded-xl transition cursor-pointer"
               title="Đóng game"
             >
               <X className="w-5 h-5" />

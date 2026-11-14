@@ -295,7 +295,7 @@ export const GameFlappy: React.FC = () => {
 
       {/* Massive Canvas Container */}
       <div 
-        className="relative rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.3)] border-4 border-amber-500/40 cursor-pointer w-full max-h-[min(70vh,580px)] aspect-[3/4]"
+        className="relative rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.3)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,calc((100vh-140px)*3/4),720px)] max-h-[min(96vw*4/3,calc(100vh-150px),880px)] aspect-[3/4]"
         onClick={jump}
       >
         <canvas
@@ -357,10 +357,6 @@ export const GameFlappy: React.FC = () => {
           </div>
         )}
       </div>
-
-      <p className="text-[11px] text-gray-400 text-center mt-3">
-        💡 <span className="text-gray-300">Hướng dẫn:</span> Bấm phím <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-gray-200">Space</kbd> hoặc nhấp chuột / chạm nhẹ vào màn hình để bay!
-      </p>
     </div>
   );
 };

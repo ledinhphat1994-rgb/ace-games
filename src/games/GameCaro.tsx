@@ -187,7 +187,7 @@ export const GameCaro: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(90vw,560px)] mx-auto select-none p-1 sm:p-2">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-80px),920px)] mx-auto select-none p-1 sm:p-2">
       {/* Header HUD */}
       <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
         <div className="flex items-center gap-2">
@@ -262,8 +262,8 @@ export const GameCaro: React.FC = () => {
       </div>
 
       {/* Massive 3x3 Board */}
-      <div className="relative bg-[#0d1222] p-3 sm:p-4 rounded-3xl w-full aspect-square max-h-[min(68vh,520px)] border-4 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.25)]">
-        <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-3.5 w-full h-full">
+      <div className="relative bg-[#0d1222] p-3 sm:p-5 rounded-3xl w-full aspect-square max-h-[min(96vw,calc(100vh-160px),920px)] border-4 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.25)]">
+        <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-4 w-full h-full">
           {board.map((cell, idx) => {
             const isWinningCell = winnerInfo?.line?.includes(idx);
             return (
@@ -271,7 +271,7 @@ export const GameCaro: React.FC = () => {
                 key={idx}
                 onClick={() => handleClick(idx)}
                 disabled={cell !== null || (isAiMode && !isXNext) || winnerInfo !== null}
-                className={`flex items-center justify-center font-['Orbitron'] font-black rounded-2xl text-6xl sm:text-8xl transition-all duration-150 select-none ${
+                className={`flex items-center justify-center font-['Orbitron'] font-black rounded-2xl text-7xl sm:text-9xl md:text-[10rem] transition-all duration-150 select-none ${
                   cell === null
                     ? 'bg-slate-900/80 hover:bg-slate-800/80 border border-white/5 active:scale-95 cursor-pointer'
                     : isWinningCell
