@@ -106,19 +106,19 @@ export const GameMemory: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full select-none gap-3">
+    <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2 gap-2">
       {/* Slim HUD */}
-      <div className="flex items-center justify-between w-full max-w-[min(96vw,calc(100vh-140px),920px)] px-2">
+      <div className="flex items-center justify-between w-full max-w-[min(94vw,580px)] px-2 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-pink-400 tracking-wider">LƯỢT MỞ:</span>
-          <span className="text-xl font-black text-white px-3 py-1 bg-slate-800/80 rounded-lg border border-pink-500/30 font-mono">
+          <span className="text-xs sm:text-sm font-black text-pink-400 tracking-wider">LƯỢT MỞ:</span>
+          <span className="text-base sm:text-lg font-black text-white px-2.5 py-0.5 bg-slate-800/80 rounded-lg border border-pink-500/30 font-mono">
             {moves}
           </span>
         </div>
         {!isWon && (
           <button
             onClick={initGame}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Ván Mới</span>
@@ -126,15 +126,15 @@ export const GameMemory: React.FC = () => {
         )}
       </div>
 
-      {/* 4x4 Grid of Cards - Big & Bold */}
-      <div className="relative bg-[#0d1322] p-3 sm:p-5 rounded-3xl w-full max-w-[min(96vw,calc(100vh-140px),920px)] max-h-[min(96vw,calc(100vh-160px),920px)] aspect-square border-4 border-pink-500/40 shadow-2xl">
-        <div className="grid grid-cols-4 grid-rows-4 gap-2 sm:gap-3 w-full h-full">
+      {/* 4x4 Grid of Cards - Scaled to never exceed container */}
+      <div className="relative bg-[#0d1322] p-2 sm:p-3.5 rounded-2xl w-full max-w-[min(92vw,calc(100dvh-215px),580px)] max-h-[min(92vw,calc(100dvh-215px),580px)] aspect-square border-3 sm:border-4 border-pink-500/40 shadow-2xl flex-shrink min-h-0">
+        <div className="grid grid-cols-4 grid-rows-4 gap-2 sm:gap-2.5 w-full h-full">
           {cards.map((card, idx) => (
             <button
               key={card.id}
               onClick={() => handleCardClick(idx)}
               disabled={card.isFlipped || card.isMatched || isChecking}
-              className={`rounded-xl text-4xl sm:text-6xl flex items-center justify-center transition-all duration-300 transform perspective-1000 ${
+              className={`rounded-xl text-3xl sm:text-5xl md:text-6xl flex items-center justify-center transition-all duration-300 transform perspective-1000 ${
                 card.isMatched
                   ? 'bg-emerald-500/20 border-2 border-emerald-400/80 scale-95 opacity-80'
                   : card.isFlipped
@@ -145,7 +145,7 @@ export const GameMemory: React.FC = () => {
               {card.isFlipped || card.isMatched ? (
                 <span>{card.icon}</span>
               ) : (
-                <span className="text-purple-300 text-2xl sm:text-3xl opacity-60">❓</span>
+                <span className="text-purple-300 text-xl sm:text-2xl opacity-60">❓</span>
               )}
             </button>
           ))}

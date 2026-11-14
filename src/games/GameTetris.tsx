@@ -397,8 +397,8 @@ export const GameTetris: React.FC = () => {
             className="grid gap-[2px] bg-slate-900/90 border-2 border-slate-800 rounded-2xl overflow-hidden p-1"
             style={{
               gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
-              width: 'min(70vw, 420px, 42vh, calc((100vh - 160px) / 2))',
-              height: 'calc(min(70vw, 420px, 42vh, calc((100vh - 160px) / 2)) * 2)'
+              width: 'min(50vw, 260px, calc((100dvh - 270px) / 2))',
+              height: 'calc(min(50vw, 260px, calc((100dvh - 270px) / 2)) * 2)'
             }}
           >
             {displayGrid.map((row, r) =>

@@ -261,8 +261,8 @@ export const GameCaro: React.FC = () => {
         </button>
       </div>
 
-      {/* Massive 3x3 Board */}
-      <div className="relative bg-[#0d1222] p-3 sm:p-5 rounded-3xl w-full aspect-square max-h-[min(96vw,calc(100vh-160px),920px)] border-4 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.25)]">
+      {/* Massive 3x3 Board - Scaled to never exceed container */}
+      <div className="relative bg-[#0d1222] p-2.5 sm:p-4 rounded-3xl w-full aspect-square max-w-[min(92vw,calc(100dvh-220px),580px)] max-h-[min(92vw,calc(100dvh-220px),580px)] border-3 sm:border-4 border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.25)] flex-shrink min-h-0">
         <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-4 w-full h-full">
           {board.map((cell, idx) => {
             const isWinningCell = winnerInfo?.line?.includes(idx);

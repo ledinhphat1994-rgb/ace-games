@@ -269,8 +269,8 @@ export const Game2048: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 4x4 Grid Board */}
-      <div className="relative bg-[#948171] p-3 sm:p-5 rounded-3xl w-full aspect-square max-h-[min(96vw,calc(100vh-160px),920px)] shadow-2xl border-4 border-[#7a6859]">
+      {/* Massive 4x4 Grid Board - Scaled to never exceed container */}
+      <div className="relative bg-[#948171] p-2.5 sm:p-4 rounded-3xl w-full aspect-square max-w-[min(92vw,calc(100dvh-220px),580px)] max-h-[min(92vw,calc(100dvh-220px),580px)] shadow-2xl border-3 sm:border-4 border-[#7a6859] flex-shrink min-h-0">
         <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
           {board.map((row, r) =>
             row.map((cell, c) => (

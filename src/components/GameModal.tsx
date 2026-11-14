@@ -120,39 +120,39 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
           : 'fixed inset-0 z-50 w-screen h-screen bg-[#03060c] p-0 rounded-none border-0'
       }`}
     >
-      {/* Sleek Header Bar - Shown ONLY in VÙNG 2. In Fullscreen, completely removed (exited by ESC on PC or Back on mobile) */}
+      {/* Sleek Header Bar - Shown ONLY in VÙNG 2 */}
       {viewMode === 'vung2' && (
-        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl sm:text-3xl drop-shadow-md">{game.thumbnailIcon}</span>
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl sm:text-2xl drop-shadow-md">{game.thumbnailIcon}</span>
             <div>
-              <h2 className="text-base sm:text-xl font-black text-white leading-tight font-['Orbitron'] flex items-center gap-2">
+              <h2 className="text-sm sm:text-lg font-black text-white leading-tight font-['Orbitron'] flex items-center gap-2">
                 <span>{game.title}</span>
-                <span className="hidden sm:inline-block text-[10px] font-bold text-cyan-400 bg-cyan-400/15 border border-cyan-400/30 px-2.5 py-0.5 rounded-full font-sans">
+                <span className="hidden sm:inline-block text-[10px] font-bold text-cyan-400 bg-cyan-400/15 border border-cyan-400/30 px-2 py-0.5 rounded-full font-sans">
                   {game.categoryLabel}
                 </span>
               </h2>
             </div>
           </div>
 
-          {/* Action controls in Vùng 2 */}
-          <div className="flex items-center gap-2">
+          {/* VÙNG 1: Pure Icon Buttons (Tạo Icon, KHÔNG tạo Card chứa chữ) */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Fullscreen Icon Button */}
             <button
               onClick={toggleViewMode}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 rounded-xl transition cursor-pointer shadow-lg shadow-cyan-500/20 active:scale-95"
-              title="Phóng to toàn màn hình 100%"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/50 transition cursor-pointer shadow-md active:scale-95"
+              title="Toàn Màn Hình"
             >
-              <Maximize2 className="w-4 h-4 text-cyan-400" />
-              <span className="font-black">Toàn Màn Hình</span>
+              <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
+            {/* Close Icon Button */}
             <button
               onClick={handleClose}
-              className="flex items-center gap-1 px-3 py-2 text-xs sm:text-sm font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/30 rounded-xl transition cursor-pointer active:scale-95"
-              title="Đóng game và quay lại danh sách"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/50 transition cursor-pointer shadow-md active:scale-95"
+              title="Đóng Trò Chơi"
             >
-              <X className="w-4 h-4" />
-              <span className="hidden sm:inline">Đóng</span>
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -161,7 +161,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
       <div className={`flex-1 w-full h-full overflow-hidden flex items-center justify-center ${
         viewMode === 'vung2'
-          ? 'p-2 sm:p-4 bg-gradient-to-b from-[#060913] to-[#04060a]'
+          ? 'p-1.5 sm:p-3 bg-gradient-to-b from-[#060913] to-[#04060a]'
           : 'p-0 bg-black'
       }`}>
         {renderGameContent()}

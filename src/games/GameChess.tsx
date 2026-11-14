@@ -143,41 +143,41 @@ export const GameChess: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(94vw,620px)] mx-auto select-none p-1 sm:p-2">
+    <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Control bar */}
-      <div className="w-full flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner text-xs sm:text-sm">
+      <div className="w-full max-w-[min(96vw,560px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-3 py-1.5 mb-1.5 shadow-inner text-xs sm:text-sm flex-shrink-0">
         <div className="flex items-center gap-2">
-          <span className="font-black text-amber-400 font-mono text-sm sm:text-base">{statusMessage}</span>
+          <span className="font-black text-amber-400 font-mono text-xs sm:text-sm">{statusMessage}</span>
           {isThinking && (
-            <span className="text-xs text-cyan-400 animate-pulse font-bold">
+            <span className="text-[11px] text-cyan-400 animate-pulse font-bold">
               (AI đang tính...)
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => setSoundEnabled(prev => !prev)}
             className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300"
             title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
           >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-red-400" />}
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} className="text-red-400" />}
           </button>
           <button
             onClick={() => {
               setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
               resetGame();
             }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5"
           >
-            {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
-            {mode === 'ai' ? 'Đấu Máy' : '2 Người'}
+            {mode === 'ai' ? <Bot size={14} className="text-cyan-400" /> : <Users size={14} className="text-emerald-400" />}
+            <span>{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
           </button>
           {mode === 'ai' && (
             <select
               value={aiLevel}
               onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
+              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2 py-1 outline-none cursor-pointer"
             >
               <option value={1}>Dễ</option>
               <option value={2}>Vừa</option>
@@ -186,19 +186,22 @@ export const GameChess: React.FC = () => {
           )}
           <button
             onClick={resetGame}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white"
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white"
             title="Ván mới"
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={15} />
           </button>
         </div>
       </div>
 
-      {/* Massive Chessboard (8x8) */}
-      <div className="relative p-2.5 sm:p-4 bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 border-4 border-amber-600/50 rounded-3xl shadow-[0_0_50px_rgba(245,158,11,0.25)]">
+      {/* Massive Chessboard (8x8) - Fits 100% inside container */}
+      <div className="relative p-1.5 sm:p-2.5 bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 border-3 sm:border-4 border-amber-600/50 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.25)] flex-shrink min-h-0">
         <div 
-          className="grid grid-cols-8 grid-rows-8 rounded-2xl overflow-hidden border-2 border-slate-950 shadow-inner"
-          style={{ width: 'min(96vw, calc(100vh - 150px), 920px)', height: 'min(96vw, calc(100vh - 150px), 920px)' }}
+          className="grid grid-cols-8 grid-rows-8 rounded-xl overflow-hidden border-2 border-slate-950 shadow-inner"
+          style={{
+            width: 'min(calc(100dvh - 215px), 580px, 86vw)',
+            height: 'min(calc(100dvh - 215px), 580px, 86vw)'
+          }}
         >
           {Array.from({ length: 64 }).map((_, idx) => {
             const row = Math.floor(idx / 8);
@@ -224,13 +227,13 @@ export const GameChess: React.FC = () => {
               >
                 {/* Target move dot indicator */}
                 {isTarget && (
-                  <div className={`absolute z-10 rounded-full ${piece ? 'w-full h-full border-4 border-emerald-500/90 bg-emerald-500/25' : 'w-4 h-4 sm:w-6 sm:h-6 bg-emerald-600/80 shadow-md'}`} />
+                  <div className={`absolute z-10 rounded-full ${piece ? 'w-full h-full border-3 border-emerald-500/90 bg-emerald-500/25' : 'w-3 h-3 sm:w-5 sm:h-5 bg-emerald-600/80 shadow-md'}`} />
                 )}
 
                 {/* Massive Chess piece icon */}
                 {piece && (
                   <span
-                    className={`text-5xl sm:text-7xl md:text-8xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_3px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
+                    className={`text-3xl sm:text-5xl md:text-6xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
                   >
                     {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                   </span>
