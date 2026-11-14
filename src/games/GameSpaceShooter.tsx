@@ -544,30 +544,17 @@ export const GameSpaceShooter: React.FC = () => {
         {/* Game Over overlay */}
         {isGameOver && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
-            <span className="text-4xl mb-2">🚀💥</span>
-            <h3 className="text-2xl font-black text-rose-500 mb-1">Chiến Cơ Bị Phá Hủy!</h3>
-            <p className="text-sm text-gray-300 mb-2">Điểm số của bạn:</p>
-            <p className="text-3xl font-black text-amber-400 font-mono mb-6">{score}</p>
+            <span className="text-5xl mb-2">🚀💥</span>
+            <h3 className="text-3xl font-black text-rose-500 mb-6 font-['Orbitron']">CHIẾN CƠ BỊ PHÁ HỦY!</h3>
             <button
               onClick={resetGame}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-bold text-sm shadow-xl shadow-rose-500/25 transition-transform hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-black text-base shadow-xl shadow-rose-500/30 transition-transform hover:scale-105 active:scale-95"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-5 h-5" />
               Thử Lại Ngay
             </button>
           </div>
         )}
-      </div>
-
-      {/* Control Tips */}
-      <div className="w-full max-w-[440px] mt-2 flex items-center justify-between text-xs text-gray-400 px-2">
-        <span>🎮 Dùng phím A/D, ←/→ hoặc Kéo chuột/ngón tay để bắn</span>
-        <button
-          onClick={resetGame}
-          className="flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80"
-        >
-          <RotateCcw className="w-3 h-3" /> Đặt lại
-        </button>
       </div>
     </div>
   );

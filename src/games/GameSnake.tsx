@@ -1,17 +1,34 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RotateCcw, Trophy, Play, Pause, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 
-const GRID_SIZE = 20;
-const INITIAL_SPEED = 130;
+// Dynamic grid for 16:9 widescreen arcade experience on PC, vertical on mobile
+const getGridConfig = () => {
+  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+    return { cols: 32, rows: 18 }; // 16:9 Widescreen Theater Grid
+  }
+  return { cols: 18, rows: 22 };   // Mobile Portrait Grid
+};
+
+const INITIAL_SPEED = 120;
 
 type Point = { x: number; y: number };
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
 export const GameSnake: React.FC = () => {
+  const [gridConfig, setGridConfig] = useState(getGridConfig);
+  const { cols, rows } = gridConfig;
+
+  // Responsive grid listener
+  useEffect(() => {
+    const handleResize = () => setGridConfig(getGridConfig());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [snake, setSnake] = useState<Point[]>([
-    { x: 10, y: 10 },
-    { x: 10, y: 11 },
-    { x: 10, y: 12 },
+    { x: Math.floor(cols / 2), y: Math.floor(rows / 2) },
+    { x: Math.floor(cols / 2), y: Math.floor(rows / 2) + 1 },
+    { x: Math.floor(cols / 2), y: Math.floor(rows / 2) + 2 },
   ]);
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
   const [direction, setDirection] = useState<Direction>('UP');
@@ -53,21 +70,23 @@ export const GameSnake: React.FC = () => {
   const generateFood = useCallback((currentSnake: Point[]): Point => {
     while (true) {
       const newFood: Point = {
-        x: Math.floor(Math.random() * GRID_SIZE),
-        y: Math.floor(Math.random() * GRID_SIZE),
+        x: Math.floor(Math.random() * cols),
+        y: Math.floor(Math.random() * rows),
       };
       const isOnSnake = currentSnake.some(
         segment => segment.x === newFood.x && segment.y === newFood.y
       );
       if (!isOnSnake) return newFood;
     }
-  }, []);
+  }, [cols, rows]);
 
   const resetGame = useCallback(() => {
+    const midX = Math.floor(cols / 2);
+    const midY = Math.floor(rows / 2);
     const initialSnake: Point[] = [
-      { x: 10, y: 10 },
-      { x: 10, y: 11 },
-      { x: 10, y: 12 },
+      { x: midX, y: midY },
+      { x: midX, y: midY + 1 },
+      { x: midX, y: midY + 2 },
     ];
     setSnake(initialSnake);
     setFood(generateFood(initialSnake));
@@ -77,7 +96,7 @@ export const GameSnake: React.FC = () => {
     setIsPaused(false);
     setHasStarted(true);
     playTone(520, 0.1);
-  }, [generateFood, playTone]);
+  }, [cols, rows, generateFood, playTone]);
 
   const changeDirection = useCallback((newDir: Direction) => {
     if (!hasStarted) setHasStarted(true);
@@ -141,7 +160,7 @@ export const GameSnake: React.FC = () => {
   useEffect(() => {
     if (!hasStarted || isGameOver || isPaused) return;
 
-    const speed = Math.max(70, INITIAL_SPEED - Math.floor(score / 5) * 6);
+    const speed = Math.max(65, INITIAL_SPEED - Math.floor(score / 5) * 5);
 
     const interval = setInterval(() => {
       setSnake(prevSnake => {
@@ -155,7 +174,7 @@ export const GameSnake: React.FC = () => {
         }
 
         // Wall collision
-        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+        if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
           setIsGameOver(true);
           playTone(180, 0.3);
           return prevSnake;
@@ -191,16 +210,16 @@ export const GameSnake: React.FC = () => {
     }, speed);
 
     return () => clearInterval(interval);
-  }, [hasStarted, isGameOver, isPaused, food, score, bestScore, generateFood, playTone]);
+  }, [hasStarted, isGameOver, isPaused, food, score, bestScore, cols, rows, generateFood, playTone]);
 
   return (
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-80px),1000px)] mx-auto select-none p-1 sm:p-2"
+      className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,1600px)] mx-auto select-none p-1 sm:p-2"
     >
-      {/* Top Large HUD */}
-      <div className="flex items-center justify-between w-full mb-2 px-3 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
+      {/* Top HUD (Single Source of Score - Clean, No Duplicate Restart) */}
+      <div className="flex items-center justify-between w-full max-w-[min(94vw,1550px)] mb-2 px-3 sm:px-5 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
         <div className="flex items-center gap-3 sm:gap-6">
           <div>
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Điểm Số</span>
@@ -234,29 +253,35 @@ export const GameSnake: React.FC = () => {
             <span className="hidden sm:inline">{isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}</span>
           </button>
 
-          <button
-            onClick={resetGame}
-            className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 transition shadow-lg shadow-emerald-500/30"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>{hasStarted ? 'Chơi Lại' : 'Bắt Đầu'}</span>
-          </button>
+          {/* Show reset in HUD ONLY when game is actively playing, avoid duplicate with Game Over overlay */}
+          {!isGameOver && hasStarted && (
+            <button
+              onClick={resetGame}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 transition"
+              title="Chơi lại từ đầu"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Massive Game Canvas Board (Fills maximum screen size!) */}
-      <div className="relative bg-[#0b1120] p-2 sm:p-3 rounded-3xl w-full aspect-square max-h-[min(94vw,56vh)] sm:max-h-[min(96vw,calc(100vh-160px),920px)] border-4 border-emerald-500/40 shadow-[0_0_60px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center">
+      {/* Massive 16:9 Widescreen Arcade Board (Fills 1920x1080 PC Screen!) */}
+      <div 
+        className="relative bg-[#0b1120] p-2 sm:p-3 rounded-3xl w-full max-w-[min(94vw,1550px)] max-h-[min(92vw,calc(100vh-140px),820px)] border-4 border-emerald-500/40 shadow-[0_0_60px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center"
+        style={{ aspectRatio: `${cols} / ${rows}` }}
+      >
         {/* Grid cells */}
         <div 
           className="grid w-full h-full gap-[2px] bg-slate-950/80 rounded-2xl overflow-hidden p-1"
           style={{
-            gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${GRID_SIZE}, minmax(0, 1fr))`
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`
           }}
         >
-          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
-            const x = idx % GRID_SIZE;
-            const y = Math.floor(idx / GRID_SIZE);
+          {Array.from({ length: cols * rows }).map((_, idx) => {
+            const x = idx % cols;
+            const y = Math.floor(idx / cols);
             const isHead = snake[0].x === x && snake[0].y === y;
             const isBody = snake.slice(1).some(s => s.x === x && s.y === y);
             const isFood = food.x === x && food.y === y;
@@ -280,10 +305,10 @@ export const GameSnake: React.FC = () => {
 
         {/* Start Overlay */}
         {!hasStarted && !isGameOver && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
             <span className="text-6xl mb-3 animate-bounce">🐍</span>
             <h3 className="text-3xl font-black text-emerald-400 mb-2 font-['Orbitron']">RẮN SĂN MỒI</h3>
-            <p className="text-xs text-gray-400 mb-6">Dùng phím mũi tên hoặc vuốt màn hình để săn táo!</p>
+            <p className="text-xs text-gray-400 mb-6">Dùng phím mũi tên hoặc phím W, A, S, D để săn táo!</p>
             <button
               onClick={resetGame}
               className="px-8 py-3.5 bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
@@ -293,18 +318,18 @@ export const GameSnake: React.FC = () => {
           </div>
         )}
 
-        {/* Game Over Overlay */}
+        {/* Game Over Overlay (Zero Duplicate Score & Single Big Button) */}
         {isGameOver && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in z-20">
             <span className="text-6xl mb-2">💥</span>
-            <h3 className="text-3xl font-black text-rose-500 mb-2 font-['Orbitron']">ĐÂM VÀO TƯỜNG!</h3>
-            <p className="text-sm text-gray-400 mb-1">Điểm số của bạn:</p>
-            <p className="text-4xl font-black text-amber-400 font-mono mb-6">{score}</p>
+            <h3 className="text-3xl font-black text-rose-500 mb-6 font-['Orbitron']">ĐÂM VÀO TƯỜNG!</h3>
+            
+            {/* The ONLY Play Again button on the screen */}
             <button
               onClick={resetGame}
-              className="px-8 py-3.5 bg-gradient-to-r from-rose-500 to-red-600 text-white font-black rounded-2xl text-base shadow-[0_0_30px_rgba(244,63,94,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-8 py-3.5 bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <RotateCcw className="w-5 h-5" /> Chơi Lại Ngay
+              <RotateCcw className="w-5 h-5" /> Chơi Lại (Phím Space)
             </button>
           </div>
         )}

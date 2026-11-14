@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 
 const COLS = 10;
 const ROWS = 20;
@@ -372,17 +372,20 @@ export const GameTetris: React.FC = () => {
           </button>
           <button
             onClick={() => setIsPaused(prev => !prev)}
+            disabled={gameOver}
             className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
           >
             {isPaused ? 'Tiếp tục' : 'Tạm dừng'}
           </button>
-          <button
-            onClick={resetGame}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
-            title="Chơi lại từ đầu"
-          >
-            <RotateCcw size={16} />
-          </button>
+          {!gameOver && (
+            <button
+              onClick={resetGame}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
+              title="Chơi lại từ đầu"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -417,15 +420,12 @@ export const GameTetris: React.FC = () => {
           {gameOver && (
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-4 text-center z-10 animate-fade-in">
               <span className="text-4xl mb-2">💥</span>
-              <h3 className="text-2xl font-black text-rose-500 mb-1">THUA CUỘC!</h3>
-              <p className="text-gray-300 text-xs mb-3">
-                Điểm số của bạn: <span className="font-bold text-amber-400">{score}</span>
-              </p>
+              <h3 className="text-2xl font-black text-rose-500 mb-6 font-['Orbitron']">THUA CUỘC!</h3>
               <button
                 onClick={resetGame}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 transform active:scale-95 transition-all text-sm"
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 transform active:scale-95 transition-all text-sm"
               >
-                <Play size={16} fill="white" /> Chơi Lại
+                <RotateCcw size={16} /> Chơi Lại (Phím Space)
               </button>
             </div>
           )}

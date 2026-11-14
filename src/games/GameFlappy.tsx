@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCcw, Trophy, Award, Play } from 'lucide-react';
+import { RotateCcw, Trophy, Play } from 'lucide-react';
 
 interface Pipe {
   x: number;
@@ -281,16 +281,18 @@ export const GameFlappy: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={e => {
-            e.stopPropagation();
-            resetGame();
-          }}
-          className="p-2 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-xl transition"
-          title="Chơi lại"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
+        {gameState !== 'GAMEOVER' && (
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              resetGame();
+            }}
+            className="p-2 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-xl transition"
+            title="Chơi lại"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Massive Canvas Container */}
@@ -326,33 +328,16 @@ export const GameFlappy: React.FC = () => {
         {/* Game Over Screen */}
         {gameState === 'GAMEOVER' && (
           <div className="absolute inset-0 bg-slate-900/85 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 animate-fade-in">
-            <h3 className="text-2xl font-black text-rose-500 mb-3">GAME OVER</h3>
+            <h3 className="text-3xl font-black text-rose-500 mb-6 font-['Orbitron']">GAME OVER</h3>
             
-            <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-4 w-4/5 mb-4 text-center">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-gray-400">Điểm số</span>
-                <span className="text-xl font-bold text-white">{score}</span>
-              </div>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-xs text-gray-400">Kỷ lục</span>
-                <span className="text-xl font-bold text-amber-400">{bestScore}</span>
-              </div>
-              {score >= 10 && (
-                <div className="flex items-center justify-center gap-1.5 text-xs text-yellow-300 bg-amber-500/20 py-1 rounded">
-                  <Award className="w-4 h-4" />
-                  {score >= 30 ? 'Huy Chương Vàng 🥇' : score >= 20 ? 'Huy Chương Bạc 🥈' : 'Huy Chương Đồng 🥉'}
-                </div>
-              )}
-            </div>
-
             <button
               onClick={e => {
                 e.stopPropagation();
                 resetGame();
               }}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl shadow-lg transition text-sm flex items-center gap-1.5"
+              className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-black rounded-2xl shadow-xl transition text-base flex items-center gap-2"
             >
-              <RotateCcw className="w-4 h-4" /> Chơi Lại Ngay
+              <RotateCcw className="w-5 h-5" /> Chơi Lại (Phím Space)
             </button>
           </div>
         )}

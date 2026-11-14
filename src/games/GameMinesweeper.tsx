@@ -214,6 +214,7 @@ export const GameMinesweeper: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFlagMode(!flagMode)}
+            disabled={gameOver || gameWon}
             className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition ${
               flagMode
                 ? 'bg-rose-500 text-white border-rose-400 shadow-md'
@@ -223,12 +224,14 @@ export const GameMinesweeper: React.FC = () => {
             <Flag className="w-4 h-4" /> Cắm Cờ: {flagMode ? 'BẬT' : 'TẮT'}
           </button>
 
-          <button
-            onClick={initBoard}
-            className="flex items-center gap-1 text-xs font-bold px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition"
-          >
-            <RotateCcw className="w-4 h-4" /> Ván Mới
-          </button>
+          {!gameOver && !gameWon && (
+            <button
+              onClick={initBoard}
+              className="flex items-center gap-1 text-xs font-bold px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition"
+            >
+              <RotateCcw className="w-4 h-4" /> Ván Mới
+            </button>
+          )}
         </div>
       </div>
 

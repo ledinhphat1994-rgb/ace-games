@@ -464,16 +464,14 @@ export const GameBreakout: React.FC = () => {
         {/* Game Over overlay */}
         {isGameOver && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
-            <span className="text-4xl mb-2">💥</span>
-            <h3 className="text-2xl font-black text-red-500 mb-1">Hết Lượt!</h3>
-            <p className="text-sm text-gray-300 mb-2">Điểm của bạn:</p>
-            <p className="text-3xl font-black text-amber-400 font-mono mb-6">{score}</p>
+            <span className="text-5xl mb-2">💥</span>
+            <h3 className="text-3xl font-black text-red-500 mb-6 font-['Orbitron']">HẾT LƯỢT!</h3>
             <button
               onClick={resetGame}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white font-bold text-sm shadow-xl shadow-red-500/25 transition-transform hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white font-black text-base shadow-xl shadow-red-500/30 transition-transform hover:scale-105 active:scale-95"
             >
-              <RotateCcw className="w-4 h-4" />
-              Chơi Lại Ngay
+              <RotateCcw className="w-5 h-5" />
+              Chơi Lại (Phím Space)
             </button>
           </div>
         )}
@@ -481,31 +479,17 @@ export const GameBreakout: React.FC = () => {
         {/* Won overlay */}
         {isWon && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
-            <span className="text-4xl mb-2">🏆</span>
-            <h3 className="text-2xl font-black text-emerald-400 mb-1">Chiến Thắng Tuyệt Đối!</h3>
-            <p className="text-sm text-gray-300 mb-2">Bạn đã phá sạch toàn bộ bảng gạch!</p>
-            <p className="text-3xl font-black text-amber-400 font-mono mb-6">{score}</p>
+            <span className="text-5xl mb-2">🏆</span>
+            <h3 className="text-3xl font-black text-emerald-400 mb-6 font-['Orbitron']">CHIẾN THẮNG TUYỆT ĐỐI!</h3>
             <button
               onClick={resetGame}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-500/25 transition-transform hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-base shadow-xl shadow-emerald-500/30 transition-transform hover:scale-105 active:scale-95"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-5 h-5" />
               Chơi Ván Mới
             </button>
           </div>
         )}
-      </div>
-
-      {/* Mobile controls bar */}
-      <div className="w-full max-w-[480px] mt-2 flex items-center justify-between text-xs text-gray-400 px-2">
-        <span>🎮 Kéo chuột/ngón tay hoặc dùng phím A/D, ←/→</span>
-        <button
-          onClick={resetGame}
-          className="flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80"
-        >
-          <RotateCcw className="w-3 h-3" />
-          Đặt lại
-        </button>
       </div>
     </div>
   );

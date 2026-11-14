@@ -115,13 +115,15 @@ export const GameMemory: React.FC = () => {
             {moves}
           </span>
         </div>
-        <button
-          onClick={initGame}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Ván Mới</span>
-        </button>
+        {!isWon && (
+          <button
+            onClick={initGame}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-lg font-bold text-xs shadow-lg transition active:scale-95"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Ván Mới</span>
+          </button>
+        )}
       </div>
 
       {/* 4x4 Grid of Cards - Big & Bold */}

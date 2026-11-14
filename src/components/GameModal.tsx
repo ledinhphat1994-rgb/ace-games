@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -20,10 +20,9 @@ interface GameModalProps {
 }
 
 export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
-  // 'near-full': Spacious floating window (88vh, max-w-7xl), lets user see web background & multitask
-  // 'fullscreen': True 100vw x 100vh cinema mode covering full display
+  // 'near-full': Spacious floating window (92vh, max-w-[1760px]), lets user see web background & multitask
+  // 'fullscreen': True 100vw x 100vh cinema mode covering full display (1920x1080)
   const [viewMode, setViewMode] = useState<'near-full' | 'fullscreen'>('near-full');
-  const [gameKey, setGameKey] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   if (!game) return null;
@@ -54,11 +53,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, [viewMode]);
 
-  const handleRestart = () => {
-    soundManager.playButtonClick();
-    setGameKey(k => k + 1);
-  };
-
   const handleClose = () => {
     soundManager.playButtonClick();
     if (document.fullscreenElement) {
@@ -75,17 +69,17 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
 
   const renderGameContent = () => {
     switch (game.id) {
-      case '2048': return <Game2048 key={gameKey} />;
-      case 'snake': return <GameSnake key={gameKey} />;
-      case 'flappy': return <GameFlappy key={gameKey} />;
-      case 'caro': return <GameCaro key={gameKey} />;
-      case 'minesweeper': return <GameMinesweeper key={gameKey} />;
-      case 'memory': return <GameMemory key={gameKey} />;
-      case 'tetris': return <GameTetris key={gameKey} />;
-      case 'chess': return <GameChess key={gameKey} />;
-      case 'xiangqi': return <GameXiangqi key={gameKey} />;
-      case 'breakout': return <GameBreakout key={gameKey} />;
-      case 'space-shooter': return <GameSpaceShooter key={gameKey} />;
+      case '2048': return <Game2048 key={game.id} />;
+      case 'snake': return <GameSnake key={game.id} />;
+      case 'flappy': return <GameFlappy key={game.id} />;
+      case 'caro': return <GameCaro key={game.id} />;
+      case 'minesweeper': return <GameMinesweeper key={game.id} />;
+      case 'memory': return <GameMemory key={game.id} />;
+      case 'tetris': return <GameTetris key={game.id} />;
+      case 'chess': return <GameChess key={game.id} />;
+      case 'xiangqi': return <GameXiangqi key={game.id} />;
+      case 'breakout': return <GameBreakout key={game.id} />;
+      case 'space-shooter': return <GameSpaceShooter key={game.id} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">
@@ -110,7 +104,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         className={`relative bg-[#070b14] overflow-hidden flex flex-col transition-all duration-300 ${
           viewMode === 'near-full'
-            ? 'w-full max-w-7xl h-[90vh] border border-cyan-500/30 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.95)]'
+            ? 'w-[95vw] max-w-[1760px] h-[92vh] max-h-[980px] border border-cyan-500/30 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.95)]'
             : 'w-screen h-screen rounded-none border-0'
         }`}
       >
@@ -128,13 +122,13 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
             </div>
           </div>
 
-          {/* Action controls */}
+          {/* Action controls (Only system controls: Fullscreen/Near-Full toggle & Close - ZERO redundant buttons) */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* View Mode Toggle: Gần Full vs Toàn Màn Hình */}
+            {/* View Mode Toggle: Gần Full (Cửa sổ 92vh x 1760px) vs Toàn Màn Hình (100% 1920x1080) */}
             <button
               onClick={toggleViewMode}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 rounded-xl transition cursor-pointer shadow-md"
-              title={viewMode === 'near-full' ? 'Phóng to toàn màn hình hết cỡ' : 'Thu về dạng cửa sổ gần full'}
+              title={viewMode === 'near-full' ? 'Phóng to toàn màn hình 100%' : 'Thu về dạng cửa sổ gần full để đa nhiệm'}
             >
               {viewMode === 'near-full' ? (
                 <>
@@ -144,18 +138,9 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
               ) : (
                 <>
                   <Minimize2 className="w-4 h-4 text-cyan-400" />
-                  <span className="hidden sm:inline">Gần Full</span>
+                  <span className="hidden sm:inline">Cửa Sổ Gần Full</span>
                 </>
               )}
-            </button>
-
-            <button
-              onClick={handleRestart}
-              className="p-2 sm:px-3 sm:py-1.5 text-xs font-bold text-gray-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-white/10 rounded-xl transition flex items-center gap-1 cursor-pointer"
-              title="Chơi lại ván mới"
-            >
-              <RotateCcw className="w-4 h-4 text-emerald-400" />
-              <span className="hidden md:inline">Chơi Lại</span>
             </button>
 
             <button

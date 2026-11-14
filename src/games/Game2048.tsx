@@ -247,9 +247,9 @@ export const Game2048: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={handleUndo}
-            disabled={!history}
+            disabled={!history || gameOver}
             className={`flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-xl border transition ${
-              history
+              history && !gameOver
                 ? 'bg-slate-800 hover:bg-slate-700 border-white/10 text-gray-200 cursor-pointer'
                 : 'opacity-40 border-transparent text-gray-500 cursor-not-allowed'
             }`}
@@ -258,12 +258,14 @@ export const Game2048: React.FC = () => {
             <Undo2 className="w-4 h-4 text-cyan-400" /> Đi lại
           </button>
 
-          <button
-            onClick={initGame}
-            className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 transition shadow-lg shadow-amber-500/30 cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4" /> Chơi Lại
-          </button>
+          {!gameOver && (
+            <button
+              onClick={initGame}
+              className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 transition shadow-lg shadow-amber-500/30 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" /> Chơi Lại
+            </button>
+          )}
         </div>
       </div>
 
