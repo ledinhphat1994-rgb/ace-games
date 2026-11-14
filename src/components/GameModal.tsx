@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -31,6 +31,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     soundManager.playButtonClick();
     if (viewMode === 'near-full') {
       setViewMode('fullscreen');
+      window.history.pushState({ inGameFullscreen: true }, '');
       if (containerRef.current && !document.fullscreenElement) {
         containerRef.current.requestFullscreen?.().catch(() => {});
       }
@@ -42,15 +43,41 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     }
   };
 
-  // Sync state if user presses ESC to exit browser fullscreen
+  // Sync state if user presses ESC to exit browser fullscreen or back button on mobile
   React.useEffect(() => {
     const handleFsChange = () => {
       if (!document.fullscreenElement && viewMode === 'fullscreen') {
         setViewMode('near-full');
       }
     };
+
+    const handlePopState = () => {
+      if (viewMode === 'fullscreen') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen?.().catch(() => {});
+        }
+        setViewMode('near-full');
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && viewMode === 'fullscreen') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen?.().catch(() => {});
+        }
+        setViewMode('near-full');
+      }
+    };
+
     document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [viewMode]);
 
   const handleClose = () => {
@@ -108,50 +135,42 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
             : 'w-screen h-screen rounded-none border-0'
         }`}
       >
-        {/* Sleek Theater Top Header */}
-        <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
-          <div className="flex items-center gap-2.5">
-            <span className="text-2xl sm:text-3xl drop-shadow-md">{game.thumbnailIcon}</span>
-            <div>
-              <h2 className="text-sm sm:text-lg font-black text-white leading-tight font-['Orbitron'] flex items-center gap-2">
-                <span>{game.title}</span>
-                <span className="hidden sm:inline-block text-[10px] font-bold text-cyan-400 bg-cyan-400/15 border border-cyan-400/30 px-2 py-0.5 rounded-full font-sans">
-                  {game.categoryLabel}
-                </span>
-              </h2>
+        {/* Sleek Theater Top Header - Shown ONLY in Near-Full mode. In Fullscreen, completely removed (exited by ESC on PC or Back on mobile) */}
+        {viewMode === 'near-full' && (
+          <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 border-b border-white/10 bg-slate-950/90 backdrop-blur-md flex-shrink-0 z-20">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl sm:text-3xl drop-shadow-md">{game.thumbnailIcon}</span>
+              <div>
+                <h2 className="text-sm sm:text-lg font-black text-white leading-tight font-['Orbitron'] flex items-center gap-2">
+                  <span>{game.title}</span>
+                  <span className="hidden sm:inline-block text-[10px] font-bold text-cyan-400 bg-cyan-400/15 border border-cyan-400/30 px-2 py-0.5 rounded-full font-sans">
+                    {game.categoryLabel}
+                  </span>
+                </h2>
+              </div>
+            </div>
+
+            {/* Action controls */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={toggleViewMode}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 rounded-xl transition cursor-pointer shadow-md"
+                title="Phóng to toàn màn hình 100%"
+              >
+                <Maximize2 className="w-4 h-4 text-cyan-400" />
+                <span className="hidden sm:inline">Toàn Màn Hình</span>
+              </button>
+
+              <button
+                onClick={handleClose}
+                className="p-2 text-gray-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/30 rounded-xl transition cursor-pointer"
+                title="Đóng game"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
-
-          {/* Action controls (Only system controls: Fullscreen/Near-Full toggle & Close - ZERO redundant buttons) */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* View Mode Toggle: Gần Full (Cửa sổ 92vh x 1760px) vs Toàn Màn Hình (100% 1920x1080) */}
-            <button
-              onClick={toggleViewMode}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 rounded-xl transition cursor-pointer shadow-md"
-              title={viewMode === 'near-full' ? 'Phóng to toàn màn hình 100%' : 'Thu về dạng cửa sổ gần full để đa nhiệm'}
-            >
-              {viewMode === 'near-full' ? (
-                <>
-                  <Maximize2 className="w-4 h-4 text-cyan-400" />
-                  <span className="hidden sm:inline">Toàn Màn Hình</span>
-                </>
-              ) : (
-                <>
-                  <Minimize2 className="w-4 h-4 text-cyan-400" />
-                  <span className="hidden sm:inline">Cửa Sổ Gần Full</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={handleClose}
-              className="p-2 text-gray-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/30 rounded-xl transition cursor-pointer"
-              title="Đóng game"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
         <div className="flex-1 w-full h-full overflow-hidden flex items-center justify-center p-1 sm:p-2 bg-gradient-to-b from-[#060913] to-[#04060a]">
