@@ -38,47 +38,45 @@ class MultiplayerService {
   private currentGameId: string = 'caro';
 
   constructor() {
-    // Generate unique session-based client ID so even 2 tabs in same browser can play against each other
-    let pid: string | null = null;
-    try {
-      pid = sessionStorage.getItem('ace_player_id');
-      if (!pid) {
-        pid = 'user_' + Math.random().toString(36).substring(2, 9);
-        sessionStorage.setItem('ace_player_id', pid);
-      }
-    } catch {
-      pid = 'user_' + Math.random().toString(36).substring(2, 9);
-    }
-    this.localPlayerId = pid;
+    // Unique in-memory client ID per tab/window so 2 tabs in same browser can play against each other smoothly
+    this.localPlayerId = 'p_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36).slice(-4);
   }
 
   public getPlayerId(): string {
     return this.localPlayerId;
   }
 
+  private inMemoryName: string | null = null;
+
   public getPlayerName(): string {
+    if (this.inMemoryName) return this.inMemoryName;
     try {
       const saved = sessionStorage.getItem('ace_player_name');
-      if (saved) return saved;
-      const animals = ['KỳThủ', 'CaoThủ', 'BạchHổ', 'HắcBáo', 'ChiếnBinh', 'HiệpSĩ'];
-      const chosen = animals[Math.floor(Math.random() * animals.length)];
-      const randomName = `${chosen}_${Math.floor(100 + Math.random() * 900)}`;
+      if (saved) {
+        this.inMemoryName = saved;
+        return saved;
+      }
+    } catch {}
+    const animals = ['KỳThủ', 'CaoThủ', 'BạchHổ', 'HắcBáo', 'ChiếnBinh', 'HiệpSĩ', 'PhượngHoàng', 'ĐạiBàng'];
+    const chosen = animals[Math.floor(Math.random() * animals.length)];
+    const randomName = `${chosen}_${Math.floor(10 + Math.random() * 90)}`;
+    this.inMemoryName = randomName;
+    try {
       sessionStorage.setItem('ace_player_name', randomName);
-      return randomName;
-    } catch {
-      return 'KỳThủ_' + Math.floor(100 + Math.random() * 900);
-    }
+    } catch {}
+    return randomName;
   }
 
   public setPlayerName(name: string) {
     const clean = name.trim() || this.getPlayerName();
+    this.inMemoryName = clean;
     try {
       sessionStorage.setItem('ace_player_name', clean);
     } catch {}
   }
 
   public getRandomNewName(): string {
-    const animals = ['Hổ', 'Rồng', 'Ưng', 'Báo', 'Sói', 'Phượng', 'ChiếnBinh', 'CaoThủ', 'HiệpSĩ'];
+    const animals = ['KỳThủ', 'CaoThủ', 'BạchHổ', 'HắcBáo', 'ChiếnBinh', 'HiệpSĩ', 'PhượngHoàng', 'ĐạiBàng'];
     const chosen = animals[Math.floor(Math.random() * animals.length)];
     const num = Math.floor(10 + Math.random() * 90);
     const newName = `${chosen}_${num}`;
@@ -164,7 +162,8 @@ class MultiplayerService {
   }
 
   private notifyRoomsUpdated() {
-    const list = Array.from(this.activeRooms.values()).filter(r => r.status === 'waiting');
+    const list = Array.from(this.activeRooms.values())
+      .filter(r => r.status === 'waiting' && r.hostId !== this.localPlayerId);
     this.roomUpdateListeners.forEach(cb => cb(list));
   }
 
@@ -402,6 +401,7 @@ class MultiplayerService {
 
   public leaveRoom() {
     if (this.currentRoom) {
+      this.activeRooms.delete(this.currentRoom.roomId);
       this.sendAction('player_left');
       if (this.currentRole === 'host') {
         this.broadcastToLobby({ type: 'room_closed', roomId: this.currentRoom.roomId });
@@ -416,6 +416,7 @@ class MultiplayerService {
     this.opponent = null;
     this.notifyStatus('idle');
     this.emitRoomChanged();
+    this.notifyRoomsUpdated();
   }
 
   private emitRoomChanged() {

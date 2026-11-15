@@ -628,6 +628,11 @@ export const GameCaro: React.FC = () => {
             <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
               {winnerInfo.winner === 'DRAW' ? '🤝 VÁN CỜ HÒA!' : `🏆 CHIẾN THẮNG: ${winnerInfo.winner}!`}
             </div>
+          ) : isWaitingForFriend ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+              <span>⏳ ĐANG CHỜ ĐỐI THỦ VÀO BÀN...</span>
+            </div>
           ) : isOnlineMode ? (
             ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)]">
