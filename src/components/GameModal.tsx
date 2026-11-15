@@ -12,6 +12,7 @@ import { GameChess } from '../games/GameChess';
 import { GameXiangqi } from '../games/GameXiangqi';
 import { GameBreakout } from '../games/GameBreakout';
 import { GameSpaceShooter } from '../games/GameSpaceShooter';
+import { GameOnet } from '../games/GameOnet';
 import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
@@ -179,6 +180,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'xiangqi': return <GameXiangqi key={`${game.id}-${sessionKey}`} />;
       case 'breakout': return <GameBreakout key={`${game.id}-${sessionKey}`} />;
       case 'space-shooter': return <GameSpaceShooter key={`${game.id}-${sessionKey}`} />;
+      case 'onet': return <GameOnet key={`${game.id}-${sessionKey}`} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

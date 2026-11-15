@@ -38,6 +38,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   2048: 'lofi',
   memory: 'zen',
   minesweeper: 'lofi',
+  onet: 'lofi',
 };
 
 class SoundManager {

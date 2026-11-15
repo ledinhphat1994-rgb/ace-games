@@ -113,6 +113,13 @@ const SEED_DATA: Record<string, { name: string; score: number; date: string }[]>
     { name: 'Mã Nhảy Tung Hoành', score: 14, date: '07/11/2026' },
     { name: 'Khắc Tinh Xe Pháo', score: 9, date: '04/11/2026' },
   ],
+  onet: [
+    { name: 'Thần Nối Hình', score: 8450, date: '15/11/2026' },
+    { name: 'Tinh Mắt Nhanh Tay', score: 6920, date: '14/11/2026' },
+    { name: 'PikachuMaster', score: 5340, date: '13/11/2026' },
+    { name: 'Siêu Cấp Kết Nối', score: 3890, date: '11/11/2026' },
+    { name: 'OnetPro99', score: 2450, date: '08/11/2026' },
+  ],
 };
 
 // Retrieve user's local best score for a specific game
@@ -130,6 +137,7 @@ const getUserScore = (gameId: string): number => {
       case 'xiangqi': return parseInt(localStorage.getItem('acegames_xiangqi_wins') || '0', 10);
       case 'minesweeper': return parseInt(localStorage.getItem('acegames_minesweeper_best') || '0', 10);
       case 'memory': return parseInt(localStorage.getItem('acegames_memory_best') || '0', 10);
+      case 'onet': return parseInt(localStorage.getItem('acegames_onet_best') || '0', 10);
       default: return 0;
     }
   } catch {

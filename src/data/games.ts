@@ -259,5 +259,30 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Bắn ruồi', 'Không gian', 'Phi thuyền', 'Arcade', 'Bắn súng'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'onet',
+    title: 'Onet Nối Hình',
+    subtitle: 'Onet Classic - Nối cặp hình Pikachu tuổi thơ',
+    category: 'puzzle',
+    categoryLabel: 'Giải Đố & Phản Xạ',
+    description: 'Nối các cặp hình giống nhau bằng đường gấp khúc không quá 3 đoạn thẳng! Huyền thoại giải đố kết nối kinh điển tuổi thơ.',
+    instructions: [
+      'Nhấp chọn 2 ô có biểu tượng giống nhau để nối chúng lại.',
+      'Đường nối giữa 2 ô không được gập quá 2 góc vuông (tối đa 3 đoạn thẳng).',
+      'Đường nối có thể đi vòng ra ngoài rìa bàn cờ nếu không có chướng ngại vật.',
+      'Dọn sạch toàn bộ bàn cờ trước khi hết giờ để giành chiến thắng!'
+    ],
+    controls: {
+      desktop: 'Nhấp chuột trái vào 2 ô giống nhau để nối',
+      mobile: 'Chạm ngón tay vào 2 ô cùng hình để nối'
+    },
+    thumbnailIcon: '🧩',
+    accentColor: 'from-emerald-500 to-cyan-600',
+    rating: 4.98,
+    plays: 186000,
+    tags: ['Onet', 'Pikachu', 'Nối hình', 'Giải đố', 'Kinh điển'],
+    isHot: true,
+    isNew: true
   }
 ];

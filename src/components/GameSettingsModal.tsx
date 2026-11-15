@@ -938,6 +938,58 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </div>
           )}
 
+          {/* ONET NỐI HÌNH */}
+          {game.id === 'onet' && (
+            <>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Grid3X3 className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Độ Khó Bàn</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'easy', label: 'Dễ' },
+                    { key: 'normal', label: 'Vừa' },
+                    { key: 'hard', label: 'Khó' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('difficulty', key)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.difficulty || 'normal') === key
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-purple-400">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Thời Gian</span>
+                </div>
+                <select
+                  value={settings.timeLimit !== undefined ? settings.timeLimit : 300}
+                  onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
+                  className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
+                >
+                  <option value={0}>Vô Hạn (Tự do)</option>
+                  <option value={180}>3 Phút (Nhanh)</option>
+                  <option value={300}>5 Phút (Chuẩn)</option>
+                  <option value={480}>8 Phút (Thong thả)</option>
+                </select>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar - Cố định độ cao và vị trí ở đáy, không bao giờ dịch chuyển */}
