@@ -212,6 +212,7 @@ class MultiplayerService {
     // Initial broadcast
     this.broadcastToLobby({ type: 'room_alive', room });
     this.notifyStatus('waiting_opponent');
+    this.emitRoomChanged();
 
     return room;
   }
@@ -232,6 +233,8 @@ class MultiplayerService {
       status: 'playing',
       createdAt: Date.now(),
     };
+
+    this.emitRoomChanged();
 
     // Chờ đăng ký topic hoàn tất trước khi phát tín hiệu vào phòng
     await this.subscribeToRoom(roomId);
@@ -412,6 +415,17 @@ class MultiplayerService {
     this.currentRole = null;
     this.opponent = null;
     this.notifyStatus('idle');
+    this.emitRoomChanged();
+  }
+
+  private emitRoomChanged() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('acegames:room_changed', { detail: this.currentRoom }));
+    }
+  }
+
+  public emitCurrentRoom() {
+    this.emitRoomChanged();
   }
 
   public getCurrentRoom(): RoomInfo | null {

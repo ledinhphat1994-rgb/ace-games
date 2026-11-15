@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ChessPosition, type ChessMove, WHITE, BLACK, colorOf, typeOf, ROOK, KNIGHT, BISHOP, QUEEN, KING, PAWN } from './chess/chess-engine';
 import { findBestChessMove } from './chess/chess-ai';
-import { RotateCcw, Bot, Users, Timer, Globe, Copy, Check, LogOut } from 'lucide-react';
+import { RotateCcw, Bot, Timer, Globe, Copy, Check, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
 import { multiplayer, type RoomInfo } from '../utils/multiplayer';
@@ -330,166 +330,113 @@ export const GameChess: React.FC = () => {
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
       <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              TRẠNG THÁI
-            </span>
-            <div className="flex items-center gap-2 mt-1">
-              {isOnlineMode ? (
-                <span className="font-bold text-xs sm:text-sm leading-none flex items-center gap-1.5">
-                  {((playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
-                    <span className="text-emerald-400 font-black animate-pulse">
-                      👉 Lượt của BẠN ({playerRole === 'host' ? 'Trắng' : 'Đen'})
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">
-                      Chờ {opponentName} ({playerRole === 'host' ? 'Đen' : 'Trắng'})...
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <>
-                  <span className="font-black text-amber-400 font-mono text-xs sm:text-sm leading-none">{statusMessage}</span>
-                  {isThinking && (
-                    <span className="text-[11px] text-cyan-400 animate-pulse font-bold leading-none">
-                      (AI đang tính...)
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+        
+        {/* VÙNG 2: TRẠNG THÁI & ĐỒNG HỒ (To rõ, ngắn gọn, thẩm mỹ, animated) */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Huy hiệu trạng thái / Lượt đi */}
+          {isOnlineMode ? (
+            ((playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#34d399]" />
+                <span>👉 LƯỢT CỦA BẠN ({playerRole === 'host' ? 'TRẮNG' : 'ĐEN'})</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                <span>⏳ ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
+              </div>
+            )
+          ) : (
+            isThinking ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
+                <span>⚡ MÁY ĐANG TÍNH NƯỚC...</span>
+              </div>
+            ) : pos.outcome().over ? (
+              <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
+                {statusMessage}
+              </div>
+            ) : pos.inCheck() ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/60 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_20px_rgba(244,63,94,0.4)]">
+                <span>⚠️ ĐANG BỊ CHIẾU VUA!</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 font-black text-xs sm:text-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
+                <span>LƯỢT ĐI: {pos.turn === WHITE ? 'TRẮNG (BẠN)' : 'ĐEN'}</span>
+              </div>
+            )
+          )}
 
-          <div className="h-7 w-px bg-white/10" />
-
-          {/* Cột Thời Gian Chờ Suy Nghĩ */}
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              THỜI GIAN
+          {/* Đồng hồ đếm ngược to rõ */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-purple-500/30 text-purple-300 font-mono text-xs sm:text-sm font-black shadow-inner">
+            <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-spin' : 'text-purple-400'}`} />
+            <span className={timeLeft <= 10 && timeLimit > 0 ? 'text-rose-400 animate-pulse drop-shadow-[0_0_8px_#f43f5e]' : ''}>
+              {timeLimit === 0 ? '∞' : `${timeLeft}s`}
             </span>
-            <div className="flex items-center gap-1.5 mt-1">
-              <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-pulse' : 'text-purple-400'}`} />
-              <span className={`font-mono text-xs sm:text-sm font-black ${
-                timeLimit === 0 
-                  ? 'text-gray-400' 
-                  : timeLeft <= 10 
-                    ? 'text-rose-400 animate-pulse' 
-                    : 'text-purple-300'
-              }`}>
-                {timeLimit === 0 ? 'Vô hạn' : `${timeLeft}s`}
-              </span>
-            </div>
           </div>
         </div>
 
+        {/* VÙNG 3: CỤM ĐIỀU KHIỂN (Đã xóa "Cùng Máy", to rõ, tinh gọn, không rối) */}
         <div className="flex items-center gap-2">
-          {isWaitingForFriend ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              <span>Đang đợi bạn vào ({onlineRoom?.roomId})...</span>
+          {isOnlineMode || isWaitingForFriend ? (
+            /* Khi đang trong trận Online */
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleCopyInvite}
-                className="px-2 py-0.5 rounded-lg bg-amber-500/30 hover:bg-amber-500/50 text-amber-200 text-[11px] font-bold border border-amber-500/40 transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-xs border border-cyan-500/40 shadow-sm transition cursor-pointer active:scale-95"
+                title="Sao chép link mời bạn bè vào chơi"
               >
-                {copiedInvite ? '✓ Đã chép' : 'Copy link'}
+                {copiedInvite ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
+                <span>{copiedInvite ? 'Đã Sao Chép Link' : 'Sao Chép Link Mời'}</span>
               </button>
+
               <button
                 onClick={handleLeaveRoom}
-                className="text-rose-400 hover:text-rose-300 text-xs font-bold cursor-pointer ml-1"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs border border-rose-500/40 shadow-sm transition cursor-pointer active:scale-95"
+                title="Rời khỏi phòng đấu"
               >
-                ✕ Hủy
-              </button>
-            </div>
-          ) : isOnlineMode ? (
-            <div className="flex items-center gap-1.5">
-              <span className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold font-mono">
-                {onlineRoom?.roomId}
-              </span>
-              <button
-                onClick={handleCopyInvite}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-white/10 transition cursor-pointer"
-                title="Sao chép link mời bạn bè"
-              >
-                {copiedInvite ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
-                <span className="hidden sm:inline">{copiedInvite ? 'Đã chép' : 'Mời'}</span>
-              </button>
-              <button
-                onClick={handleLeaveRoom}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold border border-rose-500/30 transition cursor-pointer"
-                title="Rời bàn đấu online"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Rời</span>
+                <LogOut className="w-4 h-4" />
+                <span>Rời Bàn</span>
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-2xl border border-white/10">
-              {/* Đấu Máy */}
-              <button
-                onClick={() => {
-                  setMode('ai');
-                  resetGame();
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                  mode === 'ai'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                title="Đấu với máy tính (AI)"
-              >
-                <Bot size={14} className={mode === 'ai' ? 'text-cyan-400' : 'text-gray-400'} />
-                <span>Đấu Máy</span>
-              </button>
-
-              {mode === 'ai' && (
+            /* Khi chơi bình thường (Đấu Máy) */
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-2xl border border-white/10">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 text-cyan-300 font-bold text-xs">
+                  <Bot size={15} className="text-cyan-400" />
+                  <span>Đấu Máy:</span>
+                </div>
                 <select
                   value={aiLevel}
                   onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-                  className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                  className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-lg px-2.5 py-1 outline-none cursor-pointer hover:border-cyan-500/40"
                 >
                   <option value={1}>Dễ</option>
                   <option value={2}>Vừa</option>
                   <option value={3}>Khó</option>
                 </select>
-              )}
+              </div>
 
-              {/* 2 Người Chung Màn Hình */}
-              <button
-                onClick={() => {
-                  setMode('pvp');
-                  resetGame();
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                  mode === 'pvp'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                title="Hai người ngồi cạnh nhau chơi chung trên màn hình này (Không cần mạng)"
-              >
-                <Users size={14} className={mode === 'pvp' ? 'text-emerald-400' : 'text-gray-400'} />
-                <span>Chung Màn Hình</span>
-              </button>
-
-              {/* Đấu Online Qua Mạng */}
               <button
                 onClick={() => setIsLobbyOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 transition cursor-pointer active:scale-95"
-                title="Tạo link mời bạn bè hoặc chơi qua mạng giữa 2 máy"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 transition cursor-pointer active:scale-95 shadow-sm"
+                title="Tạo phòng mời bạn bè hoặc chơi online qua mạng"
               >
-                <Globe className="w-3.5 h-3.5 text-amber-400" />
-                <span>Đấu Online</span>
+                <Globe className="w-4 h-4 text-amber-400" />
+                <span>Chơi Online</span>
+              </button>
+
+              <button
+                onClick={resetGame}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
+                title="Ván Mới"
+              >
+                <RotateCcw size={16} />
               </button>
             </div>
           )}
-
-          <button
-            onClick={resetGame}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
-            title="Ván mới"
-          >
-            <RotateCcw size={16} />
-          </button>
         </div>
       </div>
 

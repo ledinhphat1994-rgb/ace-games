@@ -6,7 +6,6 @@ import {
   Volume2, 
   VolumeX, 
   Bot, 
-  Users, 
   Gauge, 
   Grid3X3, 
   Layers, 
@@ -187,37 +186,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
           {/* CỜ TƯỚNG (Xiangqi) */}
           {game.id === 'xiangqi' && (
             <>
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
-                </div>
-                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-                  <button
-                    onClick={() => updateSetting('mode', 'ai')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      (settings.mode || 'ai') === 'ai'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Đấu Máy
-                  </button>
-                  <button
-                    onClick={() => updateSetting('mode', 'pvp')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      settings.mode === 'pvp'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    2 Người
-                  </button>
-                </div>
-              </div>
-
+              {/* ĐỘ KHÓ AI */}
               <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
@@ -302,37 +271,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
           {/* CỜ VUA (Chess) */}
           {game.id === 'chess' && (
             <>
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
-                </div>
-                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-                  <button
-                    onClick={() => updateSetting('mode', 'ai')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      (settings.mode || 'ai') === 'ai'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Đấu Máy
-                  </button>
-                  <button
-                    onClick={() => updateSetting('mode', 'pvp')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      settings.mode === 'pvp'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    2 Người
-                  </button>
-                </div>
-              </div>
-
+              {/* ĐỘ KHÓ AI */}
               <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
@@ -417,37 +356,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-slate-800 text-emerald-400">
-                    <Users className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
-                </div>
-                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-                  <button
-                    onClick={() => updateSetting('mode', 'ai')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      (settings.mode || 'ai') === 'ai'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Đấu Máy
-                  </button>
-                  <button
-                    onClick={() => updateSetting('mode', 'pvp')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      settings.mode === 'pvp'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    2 Người
-                  </button>
-                </div>
-              </div>
-
+              {/* ĐỘ KHÓ AI */}
               <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
