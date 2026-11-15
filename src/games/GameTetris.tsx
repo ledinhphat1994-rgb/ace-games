@@ -500,7 +500,7 @@ export const GameTetris: React.FC = () => {
         <button
           onClick={hardDrop}
           className="px-3 sm:px-4 py-2.5 sm:py-3 bg-rose-600 hover:bg-rose-500 active:bg-rose-400 rounded-xl text-white font-extrabold text-xs shadow-md shadow-rose-600/30 transition-all active:scale-95 cursor-pointer"
-          title="Rơi lập tức (Hard Drop)"
+          title="Rơi lập tức"
         >
           DROP
         </button>

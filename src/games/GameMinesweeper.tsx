@@ -218,8 +218,8 @@ export const GameMinesweeper: React.FC = () => {
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
-      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
-        <div className="flex items-center gap-4 sm:gap-6">
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
+        <div className="flex items-center gap-4 sm:gap-6 z-10">
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               MÌN CÒN LẠI
@@ -229,21 +229,20 @@ export const GameMinesweeper: React.FC = () => {
               <span>{Math.max(0, minesCount - flagsUsed)}</span>
             </div>
           </div>
-
-          <div className="h-8 w-px bg-white/10" />
-
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>THỜI GIAN</span>
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
-              {timer}s
-            </span>
-          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Căn chính giữa tuyệt đối: Đồng hồ thời gian */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex flex-col items-center text-center z-0 pointer-events-none">
+          <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span>THỜI GIAN</span>
+          </span>
+          <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
+            {timer}s
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 sm:gap-2 z-10">
           <button
             onClick={() => {
               soundManager.playButtonClick();
@@ -255,7 +254,7 @@ export const GameMinesweeper: React.FC = () => {
                 ? 'bg-rose-500 text-white border-rose-400 shadow-md animate-pulse'
                 : 'bg-slate-800 border-white/10 text-gray-300 hover:text-white'
             }`}
-            title={flagMode ? 'Chế độ cắm cờ (Đang BẬT)' : 'Chế độ cắm cờ (TẮT)'}
+            title={flagMode ? 'Cắm Cờ: Đang Bật' : 'Cắm Cờ: Đang Tắt'}
           >
             <Flag className="w-4 h-4 text-rose-400" />
             <span className="hidden sm:inline">{flagMode ? 'Cắm Cờ: BẬT' : 'Cắm Cờ: TẮT'}</span>

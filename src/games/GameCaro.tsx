@@ -706,110 +706,19 @@ export const GameCaro: React.FC = () => {
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Đầy đủ điều khiển và tỷ số */}
-      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
-        {/* VÙNG 2: TRẠNG THÁI & ĐỒNG HỒ (To rõ, ngắn gọn, thẩm mỹ, animated) */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Huy hiệu lượt đi / Kết quả */}
-          {timeoutOutcome ? (
-            ((isOnlineMode && ((playerRole === 'host' && timeoutOutcome.loser === 'X') || (playerRole === 'guest' && timeoutOutcome.loser === 'O'))) || (!isOnlineMode && timeoutOutcome.loser === 'X')) ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                <span>⏱️ HẾT GIỜ - BẠN THUA</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(16,185,129,0.5)]">
-                <span>🏆 ĐỐI THỦ HẾT GIỜ - BẠN THẮNG</span>
-              </div>
-            )
-          ) : winnerInfo ? (
-            <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-              {winnerInfo.winner === 'DRAW'
-                ? '🤝 VÁN CỜ HÒA!'
-                : ((isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'X') || (playerRole === 'guest' && winnerInfo.winner === 'O'))) || (!isOnlineMode && winnerInfo.winner === 'X'))
-                ? '🏆 BẠN THẮNG!'
-                : (isOnlineMode ? `⚔️ ${opponentName.toUpperCase()} THẮNG!` : '🤖 MÁY THẮNG!')}
-            </div>
-          ) : isWaitingForFriend ? (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)]">
-              <Timer className="w-4 h-4 text-amber-400 animate-spin" />
-              <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
-            </div>
-          ) : isOnlineMode ? (
-            threatResult && threatResult.winner ? (
-              threatResult.winner === (playerRole === 'host' ? 'X' : 'O') ? (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-                  <span>⚔️ BẠN ĐANG CHIẾU CỜ!</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                  <span>⚠️ ĐANG BỊ CHIẾU CỜ!</span>
-                </div>
-              )
-            ) : ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
-              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                <span>LƯỢT CỦA BẠN</span>
-              </div>
-            ) : (
-              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                <span>LƯỢT CỦA {opponentName.toUpperCase()}</span>
-              </div>
-            )
-          ) : (
-            (!isOnlineMode && !isXNext) ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
-                <span>⚡ MÁY ĐANG TÍNH...</span>
-              </div>
-            ) : threatResult && threatResult.winner ? (
-              threatResult.winner === 'X' ? (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-                  <span>⚔️ BẠN ĐANG CHIẾU CỜ!</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                  <span>⚠️ ĐANG BỊ CHIẾU CỜ!</span>
-                </div>
-              )
-            ) : isXNext ? (
-              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                <span>LƯỢT CỦA BẠN</span>
-              </div>
-            ) : (
-              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                <span>LƯỢT CỦA MÁY</span>
-              </div>
-            )
-          )}
-
-          {/* Cột Tỷ số & Đồng hồ (Chỉ hiển thị khi đang chơi) */}
-          {!isWaitingForFriend && (
-            <>
-              <div className="flex items-center gap-1 font-mono text-xs font-bold px-2.5 py-1.5 rounded-xl bg-slate-950/80 border border-white/5">
-                <span className="text-emerald-400 px-1 rounded bg-emerald-500/10">W:{stats.win}</span>
-                <span className="text-gray-400 px-1 rounded bg-slate-800">D:{stats.draw}</span>
-                <span className="text-rose-400 px-1 rounded bg-rose-500/10">L:{stats.loss}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-purple-500/30 text-purple-300 font-mono text-xs sm:text-sm font-black shadow-inner">
-                <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-spin' : 'text-purple-400'}`} />
-                <span className={timeLeft <= 10 && timeLimit > 0 ? 'text-rose-400 animate-pulse drop-shadow-[0_0_8px_#f43f5e]' : ''}>
-                  {timeLimit === 0 ? '∞' : `${timeLeft}s`}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* VÙNG 3: CỤM ĐIỀU KHIỂN (Đã xóa "Cùng Máy", to rõ, tinh gọn, không rối) */}
-        <div className="flex items-center gap-2">
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
+        
+        {/* KHỐI TRÁI: Chế độ chơi / Kích thước bàn / Thông tin phòng */}
+        <div className="flex items-center gap-2 z-10">
           {/* Nút Chọn Bàn Cờ 10x10 hoặc 3x3 */}
           {!isOnlineMode && (
             <button
               onClick={() => handleSizeChange(boardSize === 10 ? 3 : 10)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-white/5 transition cursor-pointer"
-              title={boardSize === 10 ? 'Bàn 10x10 (5 ô thắng). Bấm đổi 3x3' : 'Bàn 3x3 (3 ô thắng). Bấm đổi 10x10'}
+              title={boardSize === 10 ? 'Bàn 10x10: 5 ô thắng. Đổi sang 3x3' : 'Bàn 3x3: 3 ô thắng. Đổi sang 10x10'}
             >
               {boardSize === 10 ? <Grid className="w-4 h-4 text-cyan-400" /> : <Grid3X3 className="w-4 h-4 text-amber-400" />}
-              <span>{boardSize === 10 ? 'Bàn 10x10' : 'Bàn 3x3'}</span>
+              <span className="hidden sm:inline">{boardSize === 10 ? 'Bàn 10x10' : 'Bàn 3x3'}</span>
             </button>
           )}
 
@@ -835,7 +744,7 @@ export const GameCaro: React.FC = () => {
                 title="Rời khỏi phòng đấu"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Rời Bàn</span>
+                <span className="hidden sm:inline">Rời Bàn</span>
               </button>
             </div>
           ) : (
@@ -844,7 +753,7 @@ export const GameCaro: React.FC = () => {
               <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-2xl border border-white/10">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-cyan-300 font-bold text-xs">
                   <Bot size={15} className="text-cyan-400" />
-                  <span>Đấu Máy:</span>
+                  <span className="hidden sm:inline">Đấu Máy:</span>
                 </div>
                 <select
                   value={difficulty}
@@ -866,17 +775,113 @@ export const GameCaro: React.FC = () => {
                 title="Tạo phòng mời bạn bè hoặc chơi online qua mạng"
               >
                 <Globe className="w-4 h-4 text-amber-400" />
-                <span>Chơi Online</span>
+                <span className="hidden sm:inline">Chơi Online</span>
               </button>
             </div>
           )}
+        </div>
 
+        {/* KHỐI GIỮA: CĂN CHÍNH GIỮA TUYỆT ĐỐI THEO TÂM BÀN CỜ - TRẠNG THÁI, TỶ SỐ & ĐỒNG HỒ */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-3 z-0 pointer-events-none">
+          {/* Huy hiệu lượt đi / Kết quả */}
+          {timeoutOutcome ? (
+            ((isOnlineMode && ((playerRole === 'host' && timeoutOutcome.loser === 'X') || (playerRole === 'guest' && timeoutOutcome.loser === 'O'))) || (!isOnlineMode && timeoutOutcome.loser === 'X')) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)] whitespace-nowrap">
+                <span>⏱️ HẾT GIỜ - BẠN THUA</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(16,185,129,0.5)] whitespace-nowrap">
+                <span>🏆 ĐỐI THỦ HẾT GIỜ - BẠN THẮNG</span>
+              </div>
+            )
+          ) : winnerInfo ? (
+            <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)] whitespace-nowrap">
+              {winnerInfo.winner === 'DRAW'
+                ? '🤝 VÁN CỜ HÒA!'
+                : ((isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'X') || (playerRole === 'guest' && winnerInfo.winner === 'O'))) || (!isOnlineMode && winnerInfo.winner === 'X'))
+                ? '🏆 BẠN THẮNG!'
+                : (isOnlineMode ? `⚔️ ${opponentName.toUpperCase()} THẮNG!` : '🤖 MÁY THẮNG!')}
+            </div>
+          ) : isWaitingForFriend ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)] whitespace-nowrap">
+              <Timer className="w-4 h-4 text-amber-400 animate-spin" />
+              <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
+            </div>
+          ) : isOnlineMode ? (
+            threatResult && threatResult.winner ? (
+              threatResult.winner === (playerRole === 'host' ? 'X' : 'O') ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)] whitespace-nowrap">
+                  <span>⚔️ BẠN ĐANG CHIẾU CỜ!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)] whitespace-nowrap">
+                  <span>⚠️ ĐANG BỊ CHIẾU CỜ!</span>
+                </div>
+              )
+            ) : ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] whitespace-nowrap">
+                <span>LƯỢT CỦA BẠN</span>
+              </div>
+            ) : (
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)] whitespace-nowrap">
+                <span>LƯỢT CỦA {opponentName.toUpperCase()}</span>
+              </div>
+            )
+          ) : (
+            (!isOnlineMode && !isXNext) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)] whitespace-nowrap">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
+                <span>⚡ MÁY ĐANG TÍNH...</span>
+              </div>
+            ) : threatResult && threatResult.winner ? (
+              threatResult.winner === 'X' ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)] whitespace-nowrap">
+                  <span>⚔️ BẠN ĐANG CHIẾU CỜ!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)] whitespace-nowrap">
+                  <span>⚠️ ĐANG BỊ CHIẾU CỜ!</span>
+                </div>
+              )
+            ) : isXNext ? (
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] whitespace-nowrap">
+                <span>LƯỢT CỦA BẠN</span>
+              </div>
+            ) : (
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)] whitespace-nowrap">
+                <span>LƯỢT CỦA MÁY</span>
+              </div>
+            )
+          )}
+
+          {/* Cột Tỷ số & Đồng hồ */}
+          {!isWaitingForFriend && (
+            <>
+              <div className="hidden sm:flex items-center gap-1 font-mono text-xs font-bold px-2.5 py-1.5 rounded-xl bg-slate-950/80 border border-white/5 whitespace-nowrap">
+                <span className="text-emerald-400 px-1 rounded bg-emerald-500/10">W:{stats.win}</span>
+                <span className="text-gray-400 px-1 rounded bg-slate-800">D:{stats.draw}</span>
+                <span className="text-rose-400 px-1 rounded bg-rose-500/10">L:{stats.loss}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-purple-500/30 text-purple-300 font-mono text-xs sm:text-sm font-black shadow-inner whitespace-nowrap">
+                <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-spin' : 'text-purple-400'}`} />
+                <span className={timeLeft <= 10 && timeLimit > 0 ? 'text-rose-400 animate-pulse drop-shadow-[0_0_8px_#f43f5e]' : ''}>
+                  {timeLimit === 0 ? '∞' : `${timeLeft}s`}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* KHỐI PHẢI: Nút Thao tác Ván Mới */}
+        <div className="flex items-center gap-2 z-10">
           <button
             onClick={resetGame}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 hover:text-white border border-white/10 text-xs font-bold transition cursor-pointer active:scale-95 shadow-sm"
             title="Ván mới"
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={15} />
+            <span className="hidden sm:inline">Ván Mới</span>
           </button>
         </div>
       </div>

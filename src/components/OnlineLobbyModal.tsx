@@ -212,8 +212,9 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
         {/* Khu Vực Trọng Tâm: DANH SÁCH BÀN ĐANG ĐỢI */}
         <div className="px-5 py-3.5 flex-1 flex flex-col min-h-[160px]">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              BÀN ĐANG ĐỢI NGƯỜI CHƠI ({otherRooms.length})
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>BÀN ĐANG ĐỢI NGƯỜI CHƠI</span>
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-xs">{otherRooms.length}</span>
             </span>
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]" title="Trực tuyến" />
           </div>

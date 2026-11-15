@@ -424,9 +424,9 @@ export const GameSpaceShooter: React.FC = () => {
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
-      <div className="game-top-hud w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner flex-shrink-0">
-        {/* Left: Điểm Số, Kỷ Lục & Wave - Căn giữa tiêu đề và số liệu */}
-        <div className="flex items-center gap-4 sm:gap-6">
+      <div className="game-top-hud relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 min-h-[52px] shadow-inner flex-shrink-0">
+        {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
+        <div className="flex items-center gap-4 sm:gap-6 z-10">
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Điểm Số
@@ -447,20 +447,19 @@ export const GameSpaceShooter: React.FC = () => {
               {highScore}
             </span>
           </div>
-
-          <div className="h-8 w-px bg-white/10 hidden sm:block" />
-
-          <div className="hidden sm:flex flex-col items-center text-center">
-            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              Đợt Địch
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
-              #{wave}
-            </span>
-          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Center: Đợt Địch căn chính giữa tuyệt đối */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex flex-col items-center text-center z-0 pointer-events-none">
+          <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+            Đợt Địch
+          </span>
+          <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
+            #{wave}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 z-10">
           {/* Hearts */}
           <div className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 rounded-xl border border-white/5">
             {[1, 2, 3].map(i => (

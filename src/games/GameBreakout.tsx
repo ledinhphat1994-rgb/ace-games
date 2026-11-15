@@ -385,9 +385,9 @@ export const GameBreakout: React.FC = () => {
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
-      <div className="game-top-hud w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner flex-shrink-0">
+      <div className="game-top-hud relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 min-h-[52px] shadow-inner flex-shrink-0">
         {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-4 sm:gap-6 z-10">
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Điểm Số
@@ -410,16 +410,28 @@ export const GameBreakout: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Hearts */}
-          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 rounded-xl border border-white/5">
-            {[1, 2, 3].map(i => (
-              <Heart
-                key={i}
-                className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
-              />
-            ))}
-          </div>
+        {/* Center: Mạng sống căn chính giữa tuyệt đối */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-white/5 z-0 pointer-events-none">
+          {[1, 2, 3].map(i => (
+            <Heart
+              key={i}
+              className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${i <= lives ? 'fill-red-500 text-red-500' : 'text-slate-700'}`}
+            />
+          ))}
+        </div>
+
+        {/* Right: Nút Ván Mới */}
+        <div className="flex items-center gap-2 z-10">
+          {isPlaying && (
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
+              title="Ván Mới"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Ván Mới</span>
+            </button>
+          )}
         </div>
       </div>
 

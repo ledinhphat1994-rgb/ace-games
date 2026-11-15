@@ -452,8 +452,8 @@ export const GameOnet: React.FC = () => {
     <div className="game-arena-wrapper flex flex-col items-center justify-center select-none w-full h-full max-w-[min(98vw,1440px)] mx-auto p-1 sm:p-2">
       
       {/* Top Bar: Điểm số, Combo, Thời gian, Nút điều khiển */}
-      <div className="game-top-hud w-full max-w-[min(98vw,1440px)] flex items-center justify-between px-3 sm:px-5 py-2 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-lg backdrop-blur-md mb-2 flex-shrink-0">
-        <div className="flex items-center gap-3 sm:gap-6">
+      <div className="game-top-hud relative w-full max-w-[min(98vw,1440px)] flex items-center justify-between px-3 sm:px-5 py-2 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-lg backdrop-blur-md mb-2 min-h-[52px] flex-shrink-0">
+        <div className="flex items-center gap-3 sm:gap-6 z-10">
           {/* Điểm số */}
           <div className="flex items-center gap-1.5">
             <Trophy className="w-4 h-4 text-amber-400" />
@@ -478,25 +478,27 @@ export const GameOnet: React.FC = () => {
           </div>
         </div>
 
-        {/* Thời gian & Các nút bổ trợ */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Đồng hồ */}
-          {(settings.timeLimit || 300) > 0 && (
-            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border font-mono font-bold text-xs sm:text-sm ${
-              timeLeft <= 30
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse'
-                : 'bg-slate-950 text-cyan-300 border-cyan-500/30'
-            }`}>
-              <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>{formatTime(timeLeft)}</span>
-            </div>
-          )}
+        {/* Đồng hồ căn chính giữa tuyệt đối */}
+        {(settings.timeLimit || 300) > 0 && (
+          <div className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border font-mono font-bold text-xs sm:text-sm z-0 pointer-events-none shadow-sm ${
+            timeLeft <= 30
+              ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse'
+              : 'bg-slate-950 text-cyan-300 border-cyan-500/30'
+          }`}>
+            <Clock className={`w-3.5 h-3.5 ${timeLeft <= 30 ? 'text-rose-400 animate-spin' : 'text-cyan-400'}`} />
+            <span className={timeLeft <= 30 ? 'text-rose-400 animate-pulse font-black' : ''}>
+              {formatTime(timeLeft)}
+            </span>
+          </div>
+        )}
 
+        {/* Các nút bổ trợ */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
           {/* Gợi Ý */}
           <button
             onClick={handleUseHint}
             disabled={hintsLeft <= 0 || isGameOver || isWon}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition cursor-pointer active:scale-95 ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition cursor-pointer active:scale-95 ${
               hintsLeft > 0
                 ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40 shadow-sm'
                 : 'bg-slate-950 text-gray-600 border-white/5 cursor-not-allowed'
@@ -505,14 +507,14 @@ export const GameOnet: React.FC = () => {
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">Gợi Ý</span>
-            <span className="font-mono">({hintsLeft})</span>
+            <span className="font-mono font-bold">{hintsLeft}</span>
           </button>
 
           {/* Đổi Bàn */}
           <button
             onClick={handleManualShuffle}
             disabled={shufflesLeft <= 0 || isGameOver || isWon}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition cursor-pointer active:scale-95 ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition cursor-pointer active:scale-95 ${
               shufflesLeft > 0
                 ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40 shadow-sm'
                 : 'bg-slate-950 text-gray-600 border-white/5 cursor-not-allowed'
@@ -521,7 +523,7 @@ export const GameOnet: React.FC = () => {
           >
             <Shuffle className="w-3.5 h-3.5 text-cyan-400" />
             <span className="hidden sm:inline">Xáo Bài</span>
-            <span className="font-mono">({shufflesLeft})</span>
+            <span className="font-mono font-bold">{shufflesLeft}</span>
           </button>
 
           {/* Tạm dừng */}

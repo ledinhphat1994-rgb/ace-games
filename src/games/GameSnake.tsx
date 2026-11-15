@@ -219,9 +219,9 @@ export const GameSnake: React.FC = () => {
       className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,1320px)] mx-auto select-none p-1 sm:p-2"
     >
       {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
-      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
         {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-4 sm:gap-6 z-10">
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
               Điểm Số
@@ -244,13 +244,21 @@ export const GameSnake: React.FC = () => {
           </div>
         </div>
 
+        {/* Center: Chiều dài rắn căn chính giữa tuyệt đối */}
+        {hasStarted && !isGameOver && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs sm:text-sm font-bold z-0 pointer-events-none shadow-sm">
+            <span>Dài:</span>
+            <span className="font-black text-emerald-300">{snake.length}</span>
+          </div>
+        )}
+
         {/* Right: Game Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 z-10">
           {/* Nút Tạm Dừng */}
           <button
             onClick={() => setIsPaused(p => !p)}
             disabled={!hasStarted || isGameOver}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/5 transition"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/5 transition cursor-pointer"
             title={isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}
           >
             {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-amber-400" />}
@@ -260,7 +268,7 @@ export const GameSnake: React.FC = () => {
           {!isGameOver && hasStarted && (
             <button
               onClick={resetGame}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition cursor-pointer"
               title="Chơi lại từ đầu"
             >
               <RotateCcw className="w-4 h-4" />
