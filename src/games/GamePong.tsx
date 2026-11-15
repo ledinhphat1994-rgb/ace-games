@@ -5,7 +5,7 @@ import {
   RotateCcw, 
   Trophy, 
   Pause, 
-  Sparkles,
+  Timer,
   Bot,
   Globe,
   LogOut
@@ -291,7 +291,7 @@ export const GamePong: React.FC = () => {
     resetGame(false);
   }, [resetGame]);
 
-  // Tự động vào phòng khi mở qua Link URL ?game=pong&room=...
+  // Tự động vào phòng khi mở qua Link URL hoặc vào bàn game ngay khi mở trò chơi (đồng bộ với Cờ Tướng)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
@@ -316,6 +316,9 @@ export const GamePong: React.FC = () => {
           }
         }
       });
+    } else {
+      // Mặc định vào bàn game luôn, không qua màn hình chờ rườm rà
+      resetGame(false);
     }
   }, [resetGame]);
 
@@ -921,34 +924,43 @@ export const GamePong: React.FC = () => {
           )}
         </div>
 
-        {/* VÙNG 1: TỶ SỐ TRỰC TIẾP - CĂN CHÍNH GIỮA TUYỆT ĐỐI 100% THEO TÂM SÂN ĐẤU */}
+        {/* VÙNG 1: TỶ SỐ TRỰC TIẾP / TRẠNG THÁI CHỜ - CĂN CHÍNH GIỮA TUYỆT ĐỐI 100% THEO TÂM SÂN ĐẤU */}
         <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-3 sm:gap-6 z-0 pointer-events-none">
-          {/* Bên Trái: Xanh Cyan (Host / P1) */}
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#06b6d4]" />
-            <span className="text-xs sm:text-sm font-black text-cyan-400 tracking-wide">
-              {isOnlineMode ? (playerRole === 'host' ? 'BẠN' : opponentName.toUpperCase()) : 'BẠN'}
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-white font-mono">{p1Score}</span>
-          </div>
-
-          {/* Dấu hai chấm phân cách - Căn đúng trục giữa sân */}
-          <span className="text-gray-500 font-black text-base sm:text-lg select-none">:</span>
-
-          {/* Bên Phải: Đỏ Rose (Guest / P2 / Máy) */}
-          <div className="flex items-center gap-2">
-            <span className="text-xl sm:text-2xl font-black text-white font-mono">{p2Score}</span>
-            <span className="text-xs sm:text-sm font-black text-rose-400 tracking-wide">
-              {isOnlineMode ? (playerRole === 'guest' ? 'BẠN' : opponentName.toUpperCase()) : 'MÁY'}
-            </span>
-            <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
-          </div>
-
-          {rallyCount > 2 && (
-            <div className="hidden lg:flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-[11px] font-bold text-cyan-300 animate-pulse">
-              <span>Đường bóng:</span>
-              <span className="font-mono">{rallyCount}</span>
+          {isWaitingForFriend ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)] whitespace-nowrap">
+              <Timer className="w-4 h-4 text-amber-400 animate-spin" />
+              <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
+          ) : (
+            <>
+              {/* Bên Trái: Xanh Cyan (Host / P1) */}
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#06b6d4]" />
+                <span className="text-xs sm:text-sm font-black text-cyan-400 tracking-wide">
+                  {isOnlineMode ? (playerRole === 'host' ? 'BẠN' : opponentName.toUpperCase()) : 'BẠN'}
+                </span>
+                <span className="text-xl sm:text-2xl font-black text-white font-mono">{p1Score}</span>
+              </div>
+
+              {/* Dấu hai chấm phân cách - Căn đúng trục giữa sân */}
+              <span className="text-gray-500 font-black text-base sm:text-lg select-none">:</span>
+
+              {/* Bên Phải: Đỏ Rose (Guest / P2 / Máy) */}
+              <div className="flex items-center gap-2">
+                <span className="text-xl sm:text-2xl font-black text-white font-mono">{p2Score}</span>
+                <span className="text-xs sm:text-sm font-black text-rose-400 tracking-wide">
+                  {isOnlineMode ? (playerRole === 'guest' ? 'BẠN' : opponentName.toUpperCase()) : 'MÁY'}
+                </span>
+                <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
+              </div>
+
+              {rallyCount > 2 && (
+                <div className="hidden lg:flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-[11px] font-bold text-cyan-300 animate-pulse">
+                  <span>Đường bóng:</span>
+                  <span className="font-mono">{rallyCount}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1013,52 +1025,7 @@ export const GamePong: React.FC = () => {
           </div>
         )}
 
-        {/* Khung Chờ Bạn Vào Bàn (Online Host) */}
-        {isWaitingForFriend && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40 animate-in fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/30 animate-pulse">
-              <Globe className="w-8 h-8 text-amber-400" />
-            </div>
-            <h3 className="text-2xl font-black text-white tracking-wider mb-2">ĐANG CHỜ BẠN VÀO BÀN</h3>
-            <p className="text-sm text-amber-300 font-semibold mb-6 max-w-sm">
-              Chia sẻ link mời hoặc mã phòng để bắt đầu trận đấu trực tuyến.
-            </p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleCopyInvite}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/40 transition cursor-pointer active:scale-95 flex items-center gap-2 uppercase tracking-wider"
-              >
-                <span>{copiedInvite ? '✓ ĐÃ COPY LINK' : `COPY LINK PHÒNG: ${onlineRoom?.roomId || ''}`}</span>
-              </button>
-              <button
-                onClick={handleLeaveRoom}
-                className="px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-300 font-bold text-sm border border-white/10 transition cursor-pointer active:scale-95"
-              >
-                HỦY
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Màn hình bắt đầu ván (Offline) */}
-        {!isPlaying && !isGameOver && !isWaitingForFriend && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-in fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30">
-              <Sparkles className="w-8 h-8 text-cyan-400" />
-            </div>
-            <h3 className="text-3xl font-black text-white tracking-wider mb-2">BÓNG BÀN ARCADE</h3>
-            <p className="text-sm text-cyan-300 font-semibold mb-6 max-w-sm">
-              Di chuyển chuột hoặc phím W/S để đón bóng và ghi điểm.
-            </p>
-            <button
-              onClick={() => resetGame()}
-              className="px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-lg shadow-[0_0_35px_rgba(6,182,212,0.6)] transition cursor-pointer active:scale-95 flex items-center gap-2.5 tracking-wider uppercase"
-            >
-              <Play className="w-5 h-5 fill-current" />
-              <span>BẮT ĐẦU CHƠI</span>
-            </button>
-          </div>
-        )}
 
         {/* Màn hình tạm dừng (Offline) */}
         {isPaused && (
@@ -1125,6 +1092,21 @@ export const GamePong: React.FC = () => {
           resetGame(false);
         }}
         onWaitingInBackground={(room) => {
+          if (serveTimerRef.current) clearTimeout(serveTimerRef.current);
+          const s = stateRef.current;
+          s.isPlaying = false;
+          s.isWaitingForFriend = true;
+          s.ball.x = s.cw / 2;
+          s.ball.y = s.ch / 2;
+          s.ball.vx = 0;
+          s.ball.vy = 0;
+          s.ball.trail = [];
+          s.p1.y = s.ch / 2 - s.p1.h / 2;
+          s.p2.y = s.ch / 2 - s.p2.h / 2;
+          setP1Score(0);
+          setP2Score(0);
+          setServeNotice(null);
+          setIsPlaying(false);
           setOnlineRoom(room);
           setPlayerRole('host');
           setIsOnlineMode(true);
