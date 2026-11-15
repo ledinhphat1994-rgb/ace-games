@@ -140,6 +140,11 @@ export const GameCaro: React.FC = () => {
   });
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [winnerInfo, setWinnerInfo] = useState<{ winner: Player | 'DRAW'; line?: number[] } | null>(null);
+  const [timeoutOutcome, setTimeoutOutcome] = useState<{
+    loser: Player;
+    winner: Player;
+    isTimeout: boolean;
+  } | null>(null);
 
   // Trạng Thái Chơi Online Nhiều Người (Multiplayer)
   const [isOnlineMode, setIsOnlineMode] = useState<boolean>(false);
@@ -188,6 +193,7 @@ export const GameCaro: React.FC = () => {
     setBoard(Array(boardSize * boardSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
+    setTimeoutOutcome(null);
     setTimeLeft(timeLimit);
   };
 
@@ -253,7 +259,19 @@ export const GameCaro: React.FC = () => {
         setBoard(Array(boardSize * boardSize).fill(null));
         setIsXNext(true);
         setWinnerInfo(null);
+        setTimeoutOutcome(null);
         setTimeLeft(timeLimit);
+      } else if (data.type === 'timeout' && data.payload) {
+        setTimeoutOutcome({
+          loser: data.payload.loser,
+          winner: data.payload.winner,
+          isTimeout: true,
+        });
+        setWinnerInfo({ winner: data.payload.winner, line: [] });
+        updateStats(data.payload.winner);
+        const isMeLoser = (playerRole === 'host' && data.payload.loser === 'X') || (playerRole === 'guest' && data.payload.loser === 'O');
+        if (isMeLoser) soundManager.playDefeat();
+        else soundManager.playVictory();
       }
     };
 
@@ -320,16 +338,30 @@ export const GameCaro: React.FC = () => {
   // Bộ đếm thời gian suy nghĩ cho mỗi lượt Cờ Caro
   useEffect(() => {
     if (timeLimit <= 0 || isWaitingForFriend) return;
-    if (winnerInfo) return;
+    if (winnerInfo || timeoutOutcome) return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          const winner: Player = isXNext ? 'O' : 'X';
-          const result = { winner, line: [] };
+          const loserPiece: Player = isXNext ? 'X' : 'O';
+          const winnerPiece: Player = isXNext ? 'O' : 'X';
+          setTimeoutOutcome({
+            loser: loserPiece,
+            winner: winnerPiece,
+            isTimeout: true,
+          });
+          const result = { winner: winnerPiece, line: [] };
           setWinnerInfo(result);
-          updateStats(winner);
+          updateStats(winnerPiece);
+
+          const isMeLoser = (isOnlineMode && ((playerRole === 'host' && loserPiece === 'X') || (playerRole === 'guest' && loserPiece === 'O'))) || (!isOnlineMode && loserPiece === 'X');
+          if (isMeLoser) soundManager.playDefeat();
+          else soundManager.playVictory();
+
+          if (isOnlineMode && !isWaitingForFriend) {
+            multiplayer.sendAction('timeout', { loser: loserPiece, winner: winnerPiece });
+          }
           return 0;
         }
         return prev - 1;
@@ -337,7 +369,7 @@ export const GameCaro: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLimit, winnerInfo, isXNext]);
+  }, [timeLimit, winnerInfo, timeoutOutcome, isXNext, isOnlineMode, isWaitingForFriend, playerRole]);
 
   const [stats, setStats] = useState<{ win: number; loss: number; draw: number }>(() => {
     const saved = localStorage.getItem('acegames_caro_stats');
@@ -349,6 +381,7 @@ export const GameCaro: React.FC = () => {
     setBoard(Array(boardSize * boardSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
+    setTimeoutOutcome(null);
     setTimeLeft(timeLimit);
     if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
       multiplayer.sendAction('game_restart');
@@ -361,6 +394,7 @@ export const GameCaro: React.FC = () => {
     setBoard(Array(newSize * newSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
+    setTimeoutOutcome(null);
     setTimeLeft(timeLimit);
     soundManager.playButtonClick();
   };
@@ -673,7 +707,17 @@ export const GameCaro: React.FC = () => {
         {/* VÙNG 2: TRẠNG THÁI & ĐỒNG HỒ (To rõ, ngắn gọn, thẩm mỹ, animated) */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Huy hiệu lượt đi / Kết quả */}
-          {winnerInfo ? (
+          {timeoutOutcome ? (
+            ((isOnlineMode && ((playerRole === 'host' && timeoutOutcome.loser === 'X') || (playerRole === 'guest' && timeoutOutcome.loser === 'O'))) || (!isOnlineMode && timeoutOutcome.loser === 'X')) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                <span>⏱️ BẠN ĐÃ THUA (HẾT GIỜ)</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(16,185,129,0.5)]">
+                <span>🏆 ĐỐI THỦ HẾT GIỜ (BẠN THẮNG)</span>
+              </div>
+            )
+          ) : winnerInfo ? (
             <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
               {winnerInfo.winner === 'DRAW'
                 ? '🤝 VÁN CỜ HÒA!'
@@ -898,13 +942,18 @@ export const GameCaro: React.FC = () => {
             const isWinner = (isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'X') || (playerRole === 'guest' && winnerInfo.winner === 'O'))) || (!isOnlineMode && winnerInfo.winner === 'X');
             const isLoser = (isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'O') || (playerRole === 'guest' && winnerInfo.winner === 'X'))) || (!isOnlineMode && winnerInfo.winner === 'O');
 
+            const isTimeout = Boolean(timeoutOutcome?.isTimeout);
             const title = isWinner
-              ? 'CHIẾN THẮNG!'
+              ? (isTimeout ? 'THẮNG (HẾT GIỜ)!' : 'CHIẾN THẮNG!')
               : isLoser
-              ? 'THẤT BẠI!'
+              ? (isTimeout ? 'THUA (HẾT GIỜ)!' : 'THẤT BẠI!')
               : 'VÁN CỜ HÒA!';
 
-            const desc = isWinner
+            const desc = isTimeout
+              ? (isWinner
+                  ? (isOnlineMode ? `${opponentName.toUpperCase()} đã hết thời gian suy nghĩ. Bạn giành chiến thắng!` : 'Máy (AI) đã hết thời gian suy nghĩ. Bạn giành chiến thắng!')
+                  : 'Bạn đã hết thời gian suy nghĩ trong lượt đi của mình.')
+              : isWinner
               ? (isOnlineMode ? `Xuất sắc! Bạn đã vượt qua ${opponentName.toUpperCase()} để giành chiến thắng.` : `Xuất sắc! Bạn đã tạo thành công chuỗi ${winStreak} ô thẳng hàng.`)
               : isLoser
               ? (isOnlineMode ? `${opponentName.toUpperCase()} đã tạo thành công chuỗi ${winStreak} ô trước.` : `Máy (AI) đã tạo thành công chuỗi ${winStreak} ô trước.`)

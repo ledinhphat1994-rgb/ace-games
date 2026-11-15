@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Flag, Clock } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 interface Cell {
   r: number;
@@ -16,15 +17,15 @@ export const GameMinesweeper: React.FC = () => {
   const [cols] = useState(8);
   const [minesCount] = useState(10);
   const [grid, setGrid] = useState<Cell[][]>([]);
+  const [minesPlaced, setMinesPlaced] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
   const [flagMode, setFlagMode] = useState(false); // for mobile touch
   const [timer, setTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
 
-  // Initialize board
+  // Initialize board (Trống, sẵn sàng chờ nước đầu tiên an toàn tuyệt đối)
   const initBoard = useCallback(() => {
-    // 1. Create empty cells
     const newGrid: Cell[][] = [];
     for (let r = 0; r < rows; r++) {
       const row: Cell[] = [];
@@ -41,46 +42,51 @@ export const GameMinesweeper: React.FC = () => {
       newGrid.push(row);
     }
 
-    // 2. Place random mines
+    setGrid(newGrid);
+    setMinesPlaced(false);
+    setGameOver(false);
+    setGameWon(false);
+    setTimer(0);
+    setTimerActive(false);
+  }, [rows, cols]);
+
+  useEffect(() => {
+    initBoard();
+  }, [initBoard]);
+
+  // Rải mìn đảm bảo an toàn tuyệt đối cho ô click đầu tiên và các ô liền kề
+  const placeMines = (board: Cell[][], safeR: number, safeC: number) => {
     let placedMines = 0;
     while (placedMines < minesCount) {
       const rr = Math.floor(Math.random() * rows);
       const cc = Math.floor(Math.random() * cols);
-      if (!newGrid[rr][cc].isMine) {
-        newGrid[rr][cc].isMine = true;
+      // Không đặt mìn vào ô click đầu tiên và 8 ô xung quanh
+      const isAroundSafe = Math.abs(rr - safeR) <= 1 && Math.abs(cc - safeC) <= 1;
+      if (!board[rr][cc].isMine && !isAroundSafe) {
+        board[rr][cc].isMine = true;
         placedMines++;
       }
     }
 
-    // 3. Calculate neighbor mine numbers
+    // Tính toán số mìn xung quanh từng ô
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        if (!newGrid[r][c].isMine) {
+        if (!board[r][c].isMine) {
           let count = 0;
           for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
               const nr = r + dr;
               const nc = c + dc;
-              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && newGrid[nr][nc].isMine) {
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc].isMine) {
                 count++;
               }
             }
           }
-          newGrid[r][c].neighborMines = count;
+          board[r][c].neighborMines = count;
         }
       }
     }
-
-    setGrid(newGrid);
-    setGameOver(false);
-    setGameWon(false);
-    setTimer(0);
-    setTimerActive(false);
-  }, [rows, cols, minesCount]);
-
-  useEffect(() => {
-    initBoard();
-  }, [initBoard]);
+  };
 
   // Timer interval
   useEffect(() => {
@@ -122,18 +128,27 @@ export const GameMinesweeper: React.FC = () => {
     if (!timerActive) setTimerActive(true);
 
     const newGrid = grid.map(row => row.map(cell => ({ ...cell })));
-    const target = newGrid[r][c];
 
     if (flagMode) {
       // Toggle flag
+      const target = newGrid[r][c];
       if (!target.isOpen) {
         target.isFlagged = !target.isFlagged;
+        soundManager.playCardHover();
         setGrid(newGrid);
       }
       return;
     }
 
-    if (target.isFlagged || target.isOpen) return;
+    if (newGrid[r][c].isFlagged || newGrid[r][c].isOpen) return;
+
+    // First click safe: nếu chưa rải mìn, sinh mìn tránh xa ô này
+    if (!minesPlaced) {
+      placeMines(newGrid, r, c);
+      setMinesPlaced(true);
+    }
+
+    const target = newGrid[r][c];
 
     // Step on mine
     if (target.isMine) {
@@ -146,11 +161,14 @@ export const GameMinesweeper: React.FC = () => {
       }
       setGrid(newGrid);
       setGameOver(true);
+      soundManager.playExplosion();
+      soundManager.playDefeat();
       return;
     }
 
     // Safe cell
     target.isOpen = true;
+    soundManager.playChessMove();
     if (target.neighborMines === 0) {
       revealEmpty(newGrid, r, c);
     }
@@ -167,6 +185,7 @@ export const GameMinesweeper: React.FC = () => {
 
     if (openCount === rows * cols - minesCount) {
       setGameWon(true);
+      soundManager.playVictory();
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
     }
   };
@@ -178,6 +197,7 @@ export const GameMinesweeper: React.FC = () => {
     const target = newGrid[r][c];
     if (!target.isOpen) {
       target.isFlagged = !target.isFlagged;
+      soundManager.playCardHover();
       setGrid(newGrid);
     }
   };
@@ -225,7 +245,10 @@ export const GameMinesweeper: React.FC = () => {
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
-            onClick={() => setFlagMode(!flagMode)}
+            onClick={() => {
+              soundManager.playButtonClick();
+              setFlagMode(!flagMode);
+            }}
             disabled={gameOver || gameWon}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-xs transition cursor-pointer ${
               flagMode
@@ -240,7 +263,10 @@ export const GameMinesweeper: React.FC = () => {
 
           {!gameOver && !gameWon && (
             <button
-              onClick={initBoard}
+              onClick={() => {
+                soundManager.playButtonClick();
+                initBoard();
+              }}
               className="p-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition cursor-pointer"
               title="Ván mới"
             >
@@ -295,7 +321,10 @@ export const GameMinesweeper: React.FC = () => {
               <h3 className="text-3xl font-black text-emerald-400 mb-1 font-['Orbitron']">CHIẾN THẮNG!</h3>
               <p className="text-sm text-emerald-200 mb-4">Rà phá an toàn toàn bộ 10 quả mìn trong {timer} giây!</p>
               <button
-                onClick={initBoard}
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  initBoard();
+                }}
                 className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition cursor-pointer shadow-lg"
               >
                 Chơi Ván Mới
@@ -310,7 +339,10 @@ export const GameMinesweeper: React.FC = () => {
               <h3 className="text-3xl font-black text-rose-500 mb-1 font-['Orbitron']">NỔ MÌN!</h3>
               <p className="text-sm text-gray-300 mb-4">Bạn đã kích nổ quả mìn ẩn!</p>
               <button
-                onClick={initBoard}
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  initBoard();
+                }}
                 className="px-6 py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 font-bold rounded-xl text-sm transition cursor-pointer shadow-lg"
               >
                 Thử Lại Ngay

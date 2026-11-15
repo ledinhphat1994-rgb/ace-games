@@ -32,6 +32,7 @@ export const GameChess: React.FC = () => {
   posRef.current = pos;
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<ChessMove[]>([]);
+  const [pendingPromotion, setPendingPromotion] = useState<{ from: number; to: number } | null>(null);
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
   const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(() => {
     try {
@@ -130,6 +131,7 @@ export const GameChess: React.FC = () => {
     setPos(newPos);
     setSelectedSq(null);
     setValidMoves([]);
+    setPendingPromotion(null);
     setLastMove(null);
     setIsThinking(false);
     setTimeoutOutcome(null);
@@ -237,6 +239,7 @@ export const GameChess: React.FC = () => {
     setPos(newPos);
     setSelectedSq(null);
     setValidMoves([]);
+    setPendingPromotion(null);
     setLastMove(null);
     setIsThinking(false);
     setTimeoutOutcome(null);
@@ -330,6 +333,11 @@ export const GameChess: React.FC = () => {
 
     // If already selected, check if clicked square is a valid target move
     if (selectedSq !== null) {
+      const promoMoves = validMoves.filter(m => m.to === sq && m.promo);
+      if (promoMoves.length > 0) {
+        setPendingPromotion({ from: selectedSq, to: sq });
+        return;
+      }
       const move = validMoves.find(m => m.to === sq);
       if (move) {
         executeMove(move);
@@ -650,6 +658,63 @@ export const GameChess: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Modal Phong Cấp Tốt (Pawn Promotion) Chuẩn Luật Quốc Tế */}
+          {pendingPromotion && (
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-sm rounded-2xl flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="bg-slate-900 border-2 border-amber-500/80 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(245,158,11,0.4)] flex flex-col items-center text-center max-w-xs w-full">
+                <h4 className="text-base sm:text-lg font-black text-amber-300 uppercase tracking-wider mb-1 font-['Orbitron']">
+                  Phong Cấp Cho Tốt
+                </h4>
+                <p className="text-xs text-gray-300 mb-4 font-medium">
+                  Chọn quân cờ bạn muốn nâng cấp:
+                </p>
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  {[
+                    { type: QUEEN, label: 'Hậu', desc: 'Mạnh nhất' },
+                    { type: KNIGHT, label: 'Mã', desc: 'Nhảy góc' },
+                    { type: ROOK, label: 'Xe', desc: 'Thẳng hàng' },
+                    { type: BISHOP, label: 'Tượng', desc: 'Đường chéo' },
+                  ].map(item => {
+                    const myColor = pos.turn;
+                    const symbol = PIECE_SYMBOLS[myColor]?.[item.type] || '';
+                    return (
+                      <button
+                        key={item.type}
+                        onClick={() => {
+                          soundManager.playButtonClick();
+                          executeMove({
+                            from: pendingPromotion.from,
+                            to: pendingPromotion.to,
+                            promo: item.type,
+                          });
+                          setPendingPromotion(null);
+                        }}
+                        className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-800 hover:bg-amber-500/20 border border-white/10 hover:border-amber-400/70 transition-all active:scale-95 cursor-pointer shadow-md group"
+                      >
+                        <span className="text-3xl sm:text-4xl leading-none mb-1 group-hover:scale-110 transition-transform drop-shadow">
+                          {symbol}
+                        </span>
+                        <span className="text-xs font-black text-amber-200">{item.label}</span>
+                        <span className="text-[10px] text-gray-400">{item.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    setPendingPromotion(null);
+                    setSelectedSq(null);
+                    setValidMoves([]);
+                  }}
+                  className="mt-4 text-xs text-gray-400 hover:text-white transition underline cursor-pointer"
+                >
+                  Hủy chọn nước đi
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Hiệu Ứng Chiếu Vua Nổi Bật (Splash Banner) */}
           {checkBanner && (
