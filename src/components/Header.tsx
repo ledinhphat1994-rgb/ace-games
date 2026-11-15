@@ -204,7 +204,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* VÙNG 1 ĐƯA VÀO VÙNG 2 SÁT BÊN: Nút Ngẫu Nhiên nằm ngay sau nút Giải Đố & Số */}
           <button
             onClick={() => {
-              soundManager.playGameLaunch();
+              soundManager.playDiceRoll();
               onRandomGame();
             }}
             onMouseEnter={() => soundManager.playCardHover()}

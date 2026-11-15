@@ -364,6 +364,9 @@ export const GameCaro: React.FC = () => {
           }
           return 0;
         }
+        if (prev <= 11) {
+          soundManager.playLowTime();
+        }
         return prev - 1;
       });
     }, 1000);

@@ -58,10 +58,10 @@ export const GameFlappy: React.FC = () => {
     if (gameState === 'IDLE') {
       setGameState('PLAYING');
       birdRef.current.velocity = birdRef.current.jump;
-      soundManager.playCardHover();
+      soundManager.playWingFlap();
     } else if (gameState === 'PLAYING') {
       birdRef.current.velocity = birdRef.current.jump;
-      soundManager.playCardHover();
+      soundManager.playWingFlap();
     }
   }, [gameState]);
 

@@ -1,4 +1,4 @@
-// Web Audio API Synthesizer with AudioContext Auto-Unlock & Retro Arcade BGM
+// Web Audio API Synthesizer with AudioContext Auto-Unlock & Studio Quality BGM / SFX
 
 class SoundManager {
   private ctx: AudioContext | null = null;
@@ -7,23 +7,15 @@ class SoundManager {
   private lastHoverTime: number = 0;
   private listeners: Array<() => void> = [];
 
-  // BGM Synthesizer state
-  private bgmTimer: number | null = null;
-  private bgmStep: number = 0;
-  private bgmGain: GainNode | null = null;
-
-  // Retro chill arcade melody (pentatonic notes in Hz)
-  private readonly bgmMelody = [
-    261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
-    293.66, 349.23, 440.00, 587.33, 440.00, 349.23,
-    220.00, 261.63, 329.63, 440.00, 329.63, 261.63,
-    196.00, 246.94, 293.66, 392.00, 293.66, 246.94,
-  ];
+  // Dedicated HTML5 Loop Player for Studio Background Music (BGM)
+  private bgmAudio: HTMLAudioElement | null = null;
+  private currentBgmType: 'arcade' | 'strategy' = 'arcade';
 
   // Audio Buffers Cache for 0ms Low Latency Game Audio
   private audioBuffers: Map<string, AudioBuffer> = new Map();
   private rawBuffers: Map<string, ArrayBuffer> = new Map();
   private loadingAudios: Map<string, Promise<AudioBuffer | null>> = new Map();
+  private preloaded: boolean = false;
 
   constructor() {
     try {
@@ -43,6 +35,9 @@ class SoundManager {
       // Auto-unlock on first user interaction anywhere in the window
       const unlock = () => {
         this.unlockContext();
+        if (this.musicEnabled) {
+          this.startBGM();
+        }
         window.removeEventListener('pointerdown', unlock);
         window.removeEventListener('keydown', unlock);
         window.removeEventListener('touchstart', unlock);
@@ -64,9 +59,13 @@ class SoundManager {
       '/sounds/victory.mp3',
       '/sounds/defeat.mp3',
       '/sounds/draw.mp3',
-      '/sounds/low_time.mp3',
+      '/sounds/low_time.wav',
       '/sounds/explosion.mp3',
       '/sounds/notify.mp3',
+      '/sounds/dice_roll.wav',
+      '/sounds/card_flip.wav',
+      '/sounds/wing_flap.wav',
+      '/sounds/tetris_clear.wav',
     ];
     urls.forEach(async (url) => {
       try {
@@ -115,11 +114,6 @@ class SoundManager {
       this.preloadGameSounds();
     }
 
-    // If music was enabled, start playing
-    if (this.musicEnabled && !this.bgmTimer) {
-      this.startBGM();
-    }
-
     return this.ctx;
   }
 
@@ -161,56 +155,55 @@ class SoundManager {
     return this.musicEnabled;
   }
 
-  // --- BACKGROUND MUSIC SYNTHESIZER ---
-  private startBGM() {
-    this.stopBGM();
+  // --- STUDIO BACKGROUND MUSIC (BGM) SYSTEM ---
+  public startBGM(type?: 'arcade' | 'strategy') {
+    if (type) this.currentBgmType = type;
     if (!this.musicEnabled) return;
-    const ctx = this.unlockContext();
-    if (!ctx) return;
+    if (typeof window === 'undefined') return;
 
-    this.bgmGain = ctx.createGain();
-    this.bgmGain.gain.setValueAtTime(0.025, ctx.currentTime); // gentle background level
-    this.bgmGain.connect(ctx.destination);
+    const targetSrc = this.currentBgmType === 'strategy' 
+      ? '/sounds/bgm_strategy.wav' 
+      : '/sounds/bgm_arcade.wav';
 
-    const tempoMs = 180; // ~160 BPM
+    try {
+      if (!this.bgmAudio) {
+        this.bgmAudio = new Audio(targetSrc);
+        this.bgmAudio.loop = true;
+        this.bgmAudio.volume = 0.32;
+      } else if (!this.bgmAudio.src.endsWith(targetSrc)) {
+        this.bgmAudio.src = targetSrc;
+        this.bgmAudio.loop = true;
+        this.bgmAudio.volume = 0.32;
+      }
 
-    this.bgmTimer = window.setInterval(() => {
-      if (!this.musicEnabled || !this.ctx || !this.bgmGain) return;
-      try {
-        const now = this.ctx.currentTime;
-        const freq = this.bgmMelody[this.bgmStep % this.bgmMelody.length];
-        this.bgmStep++;
-
-        const osc = this.ctx.createOscillator();
-        const noteGain = this.ctx.createGain();
-
-        // Soft warm triangle wave
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-
-        // Pluck envelope
-        noteGain.gain.setValueAtTime(0.035, now);
-        noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-
-        osc.connect(noteGain);
-        noteGain.connect(this.bgmGain);
-
-        osc.start(now);
-        osc.stop(now + 0.17);
-      } catch {}
-    }, tempoMs);
+      this.bgmAudio.play().catch(() => {
+        // Queue to resume on user interaction if blocked by autoplay policy
+        const resumeOnInteraction = () => {
+          if (this.musicEnabled && this.bgmAudio) {
+            this.bgmAudio.play().catch(() => {});
+          }
+          window.removeEventListener('pointerdown', resumeOnInteraction);
+          window.removeEventListener('keydown', resumeOnInteraction);
+        };
+        window.addEventListener('pointerdown', resumeOnInteraction);
+        window.addEventListener('keydown', resumeOnInteraction);
+      });
+    } catch {}
   }
 
-  private stopBGM() {
-    if (this.bgmTimer !== null) {
-      clearInterval(this.bgmTimer);
-      this.bgmTimer = null;
-    }
-    if (this.bgmGain) {
+  public stopBGM() {
+    if (this.bgmAudio) {
       try {
-        this.bgmGain.disconnect();
+        this.bgmAudio.pause();
       } catch {}
-      this.bgmGain = null;
+    }
+  }
+
+  public setBgmContext(type: 'arcade' | 'strategy') {
+    if (this.currentBgmType === type && this.bgmAudio && !this.bgmAudio.paused) return;
+    this.currentBgmType = type;
+    if (this.musicEnabled) {
+      this.startBGM(type);
     }
   }
 
@@ -341,8 +334,6 @@ class SoundManager {
   }
 
   // --- LOW LATENCY BUFFER MANAGEMENT ---
-  private preloaded: boolean = false;
-
   private async loadAudioBuffer(url: string): Promise<AudioBuffer | null> {
     if (this.audioBuffers.has(url)) return this.audioBuffers.get(url)!;
     if (this.loadingAudios.has(url)) return this.loadingAudios.get(url)!;
@@ -383,9 +374,13 @@ class SoundManager {
       '/sounds/victory.mp3',
       '/sounds/defeat.mp3',
       '/sounds/draw.mp3',
-      '/sounds/low_time.mp3',
+      '/sounds/low_time.wav',
       '/sounds/explosion.mp3',
       '/sounds/notify.mp3',
+      '/sounds/dice_roll.wav',
+      '/sounds/card_flip.wav',
+      '/sounds/wing_flap.wav',
+      '/sounds/tetris_clear.wav',
     ];
     urls.forEach(u => this.loadAudioBuffer(u));
   }
@@ -482,8 +477,38 @@ class SoundManager {
   }
 
   public playLowTime() {
-    this.playSoundFile('/sounds/low_time.mp3', 0.65, () => {
+    this.playSoundFile('/sounds/low_time.wav', 0.8, () => {
       this.synthBeep(880, 0.05);
+    });
+  }
+
+  public playDiceRoll() {
+    this.playSoundFile('/sounds/dice_roll.wav', 0.85, () => {
+      this.playButtonClick();
+    });
+  }
+
+  public playCardFlip() {
+    this.playSoundFile('/sounds/card_flip.wav', 0.75, () => {
+      this.playCardHover();
+    });
+  }
+
+  public playWingFlap() {
+    this.playSoundFile('/sounds/wing_flap.wav', 0.8, () => {
+      this.playCardHover();
+    });
+  }
+
+  public playTetrisClear() {
+    this.playSoundFile('/sounds/tetris_clear.wav', 0.85, () => {
+      this.playGameLaunch();
+    });
+  }
+
+  public playStoneDrop() {
+    this.playSoundFile('/sounds/chess_move.mp3', 0.85, () => {
+      this.synthWoodClick(560, 0.05);
     });
   }
 

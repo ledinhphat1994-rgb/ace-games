@@ -189,6 +189,9 @@ export const GameChess: React.FC = () => {
           setStatusMessage(`⏱️ Hết giờ suy nghĩ! Bên ${turnName} bị xử thua.`);
           return 0;
         }
+        if (prev <= 11) {
+          soundManager.playLowTime();
+        }
         return prev - 1;
       });
     }, 1000);

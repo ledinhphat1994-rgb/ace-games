@@ -176,7 +176,7 @@ export const GameTetris: React.FC = () => {
     }
 
     if (clearedCount > 0) {
-      soundManager.playXiangqiCapture();
+      soundManager.playTetrisClear();
       const points = [0, 100, 300, 500, 800][clearedCount] || (clearedCount * 200);
       setScore(prev => {
         const nextScore = prev + points * level;

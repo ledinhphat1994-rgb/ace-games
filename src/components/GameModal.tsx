@@ -41,6 +41,20 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     return unsubscribe;
   }, []);
 
+  // Set appropriate BGM context (Strategy vs Arcade) based on active game
+  useEffect(() => {
+    if (game) {
+      if (game.category === 'strategy') {
+        soundManager.setBgmContext('strategy');
+      } else {
+        soundManager.setBgmContext('arcade');
+      }
+    }
+    return () => {
+      soundManager.setBgmContext('arcade');
+    };
+  }, [game]);
+
   // Listen for leaderboard open events dispatched by in-game HUDs
   useEffect(() => {
     const handleOpenLeaderboard = () => {

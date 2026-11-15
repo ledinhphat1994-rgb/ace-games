@@ -70,7 +70,7 @@ export const GameMemory: React.FC = () => {
     const card = cards[index];
     if (card.isFlipped || card.isMatched) return;
 
-    soundManager.playChessMove();
+    soundManager.playCardFlip();
 
     const newCards = [...cards];
     newCards[index].isFlipped = true;
