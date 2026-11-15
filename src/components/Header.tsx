@@ -18,33 +18,33 @@ export const Header: React.FC<HeaderProps> = ({
   onCategoryChange,
   onRandomGame,
 }) => {
-  const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
-  const [musicOn, setMusicOn] = useState(() => soundManager.isMusicOn());
-  const [sfxVolume, setSfxVolume] = useState(() => soundManager.getSoundVolume());
-  const [musicVolume, setMusicVolume] = useState(() => soundManager.getMusicVolume());
-  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getMusicTrack());
+  const [soundOn, setSoundOn] = useState(() => soundManager.getSystemSoundEnabled());
+  const [musicOn, setMusicOn] = useState(() => soundManager.getSystemMusicEnabled());
+  const [sfxVolume, setSfxVolume] = useState(() => soundManager.getSystemSoundVolume());
+  const [musicVolume, setMusicVolume] = useState(() => soundManager.getSystemMusicVolume());
+  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getSystemMusicTrack());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
 
-  // Synchronize sound and music states
+  // Synchronize VÙNG 1: System and UI Audio states
   useEffect(() => {
     const unsubscribe = soundManager.subscribe(() => {
-      setSoundOn(soundManager.isSoundOn());
-      setMusicOn(soundManager.isMusicOn());
-      setSfxVolume(soundManager.getSoundVolume());
-      setMusicVolume(soundManager.getMusicVolume());
-      setCurrentTrack(soundManager.getMusicTrack());
+      setSoundOn(soundManager.getSystemSoundEnabled());
+      setMusicOn(soundManager.getSystemMusicEnabled());
+      setSfxVolume(soundManager.getSystemSoundVolume());
+      setMusicVolume(soundManager.getSystemMusicVolume());
+      setCurrentTrack(soundManager.getSystemMusicTrack());
     });
     return unsubscribe;
   }, []);
 
   const toggleSound = () => {
-    const next = soundManager.toggleSound();
+    const next = soundManager.toggleSystemSound();
     setSoundOn(next);
   };
 
   const toggleMusic = () => {
-    const next = soundManager.toggleMusic();
+    const next = soundManager.toggleSystemMusic();
     setMusicOn(next);
   };
 
@@ -133,23 +133,34 @@ export const Header: React.FC<HeaderProps> = ({
               <SlidersHorizontal className={`w-5 h-5 transition-transform duration-300 ${settingsOpen ? 'scale-110 text-cyan-400' : ''}`} />
             </button>
 
-            {/* Cyberpunk Settings Popover Menu */}
+            {/* Cyberpunk Settings Popover Menu - VÙNG 1: ÂM THANH HỆ THỐNG & GIAO DIỆN (CHUNG TOÀN WEB) */}
             {settingsOpen && (
-              <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-3.5 shadow-2xl shadow-cyan-500/20 z-50 animate-in fade-in zoom-in-95 duration-150 text-left">
-                <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
+              <div className="absolute right-0 mt-2 w-84 max-w-[90vw] bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-3.5 shadow-2xl shadow-cyan-500/20 z-50 animate-in fade-in zoom-in-95 duration-150 text-left">
+                {/* Header VÙNG 1 */}
+                <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
                   <div className="flex items-center gap-1.5 text-cyan-400">
                     <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>CÀI ĐẶT ÂM THANH</span>
+                    <span>ÂM THANH HỆ THỐNG</span>
                   </div>
-                  <span className="text-[10px] text-cyan-400/80 font-mono tracking-widest bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/20">AUDIO HUB</span>
+                  <span className="text-[10px] text-cyan-400/90 font-mono tracking-widest bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                    WEB & GIAO DIỆN (CHUNG)
+                  </span>
                 </div>
 
-                {/* Section 1: Hiệu Ứng Game (SFX) */}
+                {/* Subtitle mô tả rõ ràng sự tách biệt */}
+                <div className="text-[11px] text-gray-400 mb-3 leading-relaxed bg-slate-900/70 p-2 rounded-xl border border-white/5">
+                  Âm thanh chung website & sảnh chờ, <span className="text-cyan-300 font-semibold">không liên quan tới ván đấu</span> (mỗi game có cài đặt riêng trong trận).
+                </div>
+
+                {/* Section 1: Âm Giao Diện (UI SFX) */}
                 <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 mb-2.5">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                      <span className="text-xs font-bold text-gray-200">Hiệu Ứng Game (SFX)</span>
+                      <div>
+                        <span className="text-xs font-bold text-gray-200 block">Âm Giao Diện (UI SFX)</span>
+                        <span className="text-[10px] text-gray-400">Click nút, hover thẻ, chuyển danh mục...</span>
+                      </div>
                     </div>
                     <button
                       onClick={toggleSound}
@@ -163,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                   </div>
                   
-                  {/* Slider âm lượng SFX */}
+                  {/* Slider âm lượng UI SFX */}
                   <div className="flex items-center gap-2.5 pt-1">
                     <span className="text-[10px] text-gray-400 font-mono w-7">{sfxVolume}%</span>
                     <input
@@ -172,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
                       max="100"
                       value={sfxVolume}
                       disabled={!soundOn}
-                      onChange={(e) => soundManager.setSoundVolume(Number(e.target.value))}
+                      onChange={(e) => soundManager.setSystemSoundVolume(Number(e.target.value))}
                       className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-800 ${
                         !soundOn ? 'opacity-40 cursor-not-allowed' : ''
                       }`}
@@ -180,12 +191,15 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Section 2: Nhạc Nền (BGM) */}
+                {/* Section 2: Nhạc Nền Sảnh Chờ (Lounge BGM) */}
                 <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 mb-2.5">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Music className={`w-4 h-4 ${musicOn ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                      <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
+                      <div>
+                        <span className="text-xs font-bold text-gray-200 block">Nhạc Nền Sảnh Chờ</span>
+                        <span className="text-[10px] text-gray-400">Giai điệu thư giãn ngoài trang web</span>
+                      </div>
                     </div>
                     <button
                       onClick={toggleMusic}
@@ -199,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                   </div>
 
-                  {/* Slider âm lượng BGM */}
+                  {/* Slider âm lượng Lounge BGM */}
                   <div className="flex items-center gap-2.5 pt-1">
                     <span className="text-[10px] text-gray-400 font-mono w-7">{musicVolume}%</span>
                     <input
@@ -208,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({
                       max="100"
                       value={musicVolume}
                       disabled={!musicOn}
-                      onChange={(e) => soundManager.setMusicVolume(Number(e.target.value))}
+                      onChange={(e) => soundManager.setSystemMusicVolume(Number(e.target.value))}
                       className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-800 ${
                         !musicOn ? 'opacity-40 cursor-not-allowed' : ''
                       }`}
@@ -216,10 +230,10 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Section 3: Chọn Bản Nhạc (Track Selection) */}
+                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ */}
                 <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
+                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Giai Điệu Sảnh Chờ:</span>
                     <span className="text-[10px] text-cyan-400 font-mono">
                       {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                     </span>
@@ -233,9 +247,9 @@ export const Header: React.FC<HeaderProps> = ({
                           key={t.id}
                           onClick={() => {
                             soundManager.playButtonClick();
-                            soundManager.setMusicTrack(t.id);
+                            soundManager.setSystemMusicTrack(t.id);
                             if (!musicOn) {
-                              soundManager.toggleMusic();
+                              soundManager.toggleSystemMusic();
                             }
                           }}
                           className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${

@@ -40,19 +40,23 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
 
 class SoundManager {
   private ctx: AudioContext | null = null;
-  private soundEnabled: boolean = true;
-  private musicEnabled: boolean = false;
-  private sfxVolume: number = 0.85; // 0.0 - 1.0 (Global web SFX)
-  private musicVolume: number = 0.35; // 0.0 - 1.0 (Global web music)
-  private currentTrack: BgmTrack = 'heroic';
   private lastHoverTime: number = 0;
   private listeners: Array<() => void> = [];
 
-  // Per-Game Audio Profile (Isolates game sound from global site sound)
+  // VÙNG 1: Âm Thanh Hệ Thống / Giao Diện Web (System & UI Audio)
+  // Tuyệt đối không liên quan và không ảnh hưởng tới ván chơi game
+  private systemSoundEnabled: boolean = true;
+  private systemSoundVolume: number = 85; // 0 - 100
+  private systemMusicEnabled: boolean = false;
+  private systemMusicVolume: number = 35; // 0 - 100
+  private systemMusicTrack: BgmTrack = 'lofi';
+
+  // VÙNG 2: Âm Thanh Trận Đấu / Ván Chơi Game (In-Game Audio)
+  // Độc lập hoàn toàn, tùy biến và lưu theo từng game riêng biệt
   private activeGameId: string | null = null;
   private activeGameConfig: GameAudioConfig | null = null;
 
-  // Dedicated HTML5 Loop Player for Studio Background Music (BGM)
+  // Dedicated HTML5 Loop Player for Background Music (BGM)
   private bgmAudio: HTMLAudioElement | null = null;
 
   // Audio Buffers Cache for 0ms Low Latency Game Audio
@@ -63,24 +67,27 @@ class SoundManager {
 
   constructor() {
     try {
-      const savedSound = localStorage.getItem('acegames_sound');
-      this.soundEnabled = savedSound !== null ? savedSound === 'true' : true;
-      const savedMusic = localStorage.getItem('acegames_music');
-      this.musicEnabled = savedMusic !== null ? savedMusic === 'true' : false;
-      const savedSfxVol = localStorage.getItem('acegames_sfx_volume');
-      if (savedSfxVol !== null) this.sfxVolume = Math.max(0, Math.min(1, parseFloat(savedSfxVol)));
-      const savedMusicVol = localStorage.getItem('acegames_music_volume');
-      if (savedMusicVol !== null) this.musicVolume = Math.max(0, Math.min(1, parseFloat(savedMusicVol)));
-      const savedTrack = localStorage.getItem('acegames_bgm_track') as BgmTrack;
-      if (savedTrack && ['heroic', 'lofi', 'arcade'].includes(savedTrack)) {
-        this.currentTrack = savedTrack;
+      // Load VÙNG 1: System Audio settings
+      const savedSysSound = localStorage.getItem('acegames_sys_sound') ?? localStorage.getItem('acegames_sound');
+      this.systemSoundEnabled = savedSysSound !== null ? savedSysSound === 'true' : true;
+      const savedSysSfxVol = localStorage.getItem('acegames_sys_sound_vol') ?? localStorage.getItem('acegames_sfx_volume');
+      if (savedSysSfxVol !== null) this.systemSoundVolume = Math.max(0, Math.min(100, parseFloat(savedSysSfxVol)));
+
+      const savedSysMusic = localStorage.getItem('acegames_sys_music') ?? localStorage.getItem('acegames_music');
+      this.systemMusicEnabled = savedSysMusic !== null ? savedSysMusic === 'true' : false;
+      const savedSysMusicVol = localStorage.getItem('acegames_sys_music_vol') ?? localStorage.getItem('acegames_music_volume');
+      if (savedSysMusicVol !== null) this.systemMusicVolume = Math.max(0, Math.min(100, parseFloat(savedSysMusicVol)));
+
+      const savedSysTrack = (localStorage.getItem('acegames_sys_music_track') ?? localStorage.getItem('acegames_bgm_track')) as BgmTrack;
+      if (savedSysTrack && ['heroic', 'lofi', 'arcade'].includes(savedSysTrack)) {
+        this.systemMusicTrack = savedSysTrack;
       }
     } catch {
-      this.soundEnabled = true;
-      this.musicEnabled = false;
-      this.sfxVolume = 0.85;
-      this.musicVolume = 0.35;
-      this.currentTrack = 'heroic';
+      this.systemSoundEnabled = true;
+      this.systemSoundVolume = 85;
+      this.systemMusicEnabled = false;
+      this.systemMusicVolume = 35;
+      this.systemMusicTrack = 'lofi';
     }
 
     // Eagerly prefetch audio files over network immediately so they are hot in memory
@@ -90,8 +97,8 @@ class SoundManager {
       // Auto-unlock on first user interaction anywhere in the window
       const unlock = () => {
         this.unlockContext();
-        if (this.musicEnabled) {
-          this.startBGM();
+        if (this.systemMusicEnabled && !this.activeGameId) {
+          this.startBGM(this.systemMusicTrack, this.systemMusicVolume / 100);
         }
         window.removeEventListener('pointerdown', unlock);
         window.removeEventListener('keydown', unlock);
@@ -172,7 +179,101 @@ class SoundManager {
     return this.ctx;
   }
 
-  // --- PER-GAME AUDIO PROFILE ISOLATION ---
+  // =========================================================================
+  // VÙNG 1: ÂM THANH HỆ THỐNG / GIAO DIỆN WEB (System & UI Sounds)
+  // Tuyệt đối không liên quan và không ảnh hưởng tới ván chơi game
+  // =========================================================================
+  public getSystemSoundEnabled(): boolean {
+    return this.systemSoundEnabled;
+  }
+
+  public setSystemSoundEnabled(enabled: boolean) {
+    this.systemSoundEnabled = enabled;
+    try { localStorage.setItem('acegames_sys_sound', String(enabled)); } catch {}
+    this.notify();
+    if (enabled) {
+      this.unlockContext();
+      this.playButtonClick();
+    }
+  }
+
+  public toggleSystemSound(): boolean {
+    this.setSystemSoundEnabled(!this.systemSoundEnabled);
+    return this.systemSoundEnabled;
+  }
+
+  public getSystemSoundVolume(): number {
+    return this.systemSoundVolume;
+  }
+
+  public setSystemSoundVolume(percent: number) {
+    this.systemSoundVolume = Math.max(0, Math.min(100, Math.round(percent)));
+    try { localStorage.setItem('acegames_sys_sound_vol', String(this.systemSoundVolume)); } catch {}
+    this.notify();
+  }
+
+  public getSystemMusicEnabled(): boolean {
+    return this.systemMusicEnabled;
+  }
+
+  public setSystemMusicEnabled(enabled: boolean) {
+    this.systemMusicEnabled = enabled;
+    try { localStorage.setItem('acegames_sys_music', String(enabled)); } catch {}
+    this.notify();
+    this.unlockContext();
+    if (enabled) {
+      if (!this.activeGameId) {
+        this.startBGM(this.systemMusicTrack, this.systemMusicVolume / 100);
+      }
+      this.playButtonClick();
+    } else {
+      if (!this.activeGameId) {
+        this.stopBGM();
+      }
+    }
+  }
+
+  public toggleSystemMusic(): boolean {
+    this.setSystemMusicEnabled(!this.systemMusicEnabled);
+    return this.systemMusicEnabled;
+  }
+
+  public getSystemMusicVolume(): number {
+    return this.systemMusicVolume;
+  }
+
+  public setSystemMusicVolume(percent: number) {
+    this.systemMusicVolume = Math.max(0, Math.min(100, Math.round(percent)));
+    try { localStorage.setItem('acegames_sys_music_vol', String(this.systemMusicVolume)); } catch {}
+    if (this.bgmAudio && !this.activeGameId) {
+      this.bgmAudio.volume = this.systemMusicVolume / 100;
+    }
+    this.notify();
+  }
+
+  public getSystemMusicTrack(): BgmTrack {
+    return this.systemMusicTrack;
+  }
+
+  public setSystemMusicTrack(track: BgmTrack) {
+    this.systemMusicTrack = track;
+    try { localStorage.setItem('acegames_sys_music_track', track); } catch {}
+    if (this.systemMusicEnabled && !this.activeGameId) {
+      this.startBGM(track, this.systemMusicVolume / 100);
+    }
+    this.notify();
+  }
+
+  public getSystemSfxGain(): number {
+    if (!this.systemSoundEnabled) return 0;
+    return Math.max(0, Math.min(1, this.systemSoundVolume / 100));
+  }
+
+
+  // =========================================================================
+  // VÙNG 2: ÂM THANH TRẬN ĐẤU / VÁN CHƠI GAME (In-Game Audio)
+  // Độc lập hoàn toàn, lưu và áp dụng riêng cho từng game
+  // =========================================================================
   public setActiveGame(gameId: string | null) {
     this.activeGameId = gameId;
     if (gameId) {
@@ -184,8 +285,8 @@ class SoundManager {
       }
     } else {
       this.activeGameConfig = null;
-      if (this.musicEnabled) {
-        this.startBGM(this.currentTrack, this.musicVolume);
+      if (this.systemMusicEnabled) {
+        this.startBGM(this.systemMusicTrack, this.systemMusicVolume / 100);
       } else {
         this.stopBGM();
       }
@@ -195,10 +296,6 @@ class SoundManager {
 
   public getActiveGameId(): string | null {
     return this.activeGameId;
-  }
-
-  public getActiveGameConfig(): GameAudioConfig | null {
-    return this.activeGameConfig;
   }
 
   public getGameAudioSettings(gameId: string): GameAudioConfig {
@@ -259,147 +356,99 @@ class SoundManager {
     return updated;
   }
 
-  public getEffectiveSfxVolume(): number {
-    if (this.activeGameConfig) {
-      if (!this.activeGameConfig.soundEnabled) return 0;
-      return Math.max(0, Math.min(1, this.activeGameConfig.sfxVolume / 100));
+  public getGameSfxGain(gameId?: string): number {
+    const target = gameId || this.activeGameId;
+    if (target) {
+      const cfg = this.getGameAudioSettings(target);
+      if (!cfg.soundEnabled) return 0;
+      return Math.max(0, Math.min(1, cfg.sfxVolume / 100));
     }
-    if (!this.soundEnabled) return 0;
-    return this.sfxVolume;
+    return this.getSystemSfxGain();
   }
 
+  public getEffectiveSfxVolume(gameId?: string): number {
+    return this.getGameSfxGain(gameId);
+  }
+
+  // Alias / Router functions for backward compatibility:
   public isSoundOn(): boolean {
-    if (this.activeGameConfig) {
-      return this.activeGameConfig.soundEnabled;
-    }
-    return this.soundEnabled;
+    if (this.activeGameConfig) return this.activeGameConfig.soundEnabled;
+    return this.systemSoundEnabled;
   }
 
   public isMusicOn(): boolean {
-    if (this.activeGameConfig) {
-      return this.activeGameConfig.musicEnabled;
-    }
-    return this.musicEnabled;
-  }
-
-  public getMusicTrack(): BgmTrack {
-    if (this.activeGameConfig) {
-      return this.activeGameConfig.bgmTrack;
-    }
-    return this.currentTrack;
-  }
-
-  public setMusicTrack(track: BgmTrack, forGameId?: string) {
-    const targetGame = forGameId || this.activeGameId;
-    if (targetGame) {
-      this.saveGameAudioSettings(targetGame, { bgmTrack: track });
-      return;
-    }
-    this.currentTrack = track;
-    try {
-      localStorage.setItem('acegames_bgm_track', track);
-    } catch {}
-    if (this.musicEnabled) {
-      this.startBGM(track, this.musicVolume);
-    }
-    this.notify();
-  }
-
-  public getMusicVolume(): number {
-    if (this.activeGameConfig) {
-      return this.activeGameConfig.musicVolume;
-    }
-    return Math.round(this.musicVolume * 100);
-  }
-
-  public setMusicVolume(percent: number, forGameId?: string) {
-    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
-    const targetGame = forGameId || this.activeGameId;
-    if (targetGame) {
-      this.saveGameAudioSettings(targetGame, { musicVolume: clamped });
-      return;
-    }
-    this.musicVolume = clamped / 100;
-    try {
-      localStorage.setItem('acegames_music_volume', String(this.musicVolume));
-    } catch {}
-    if (this.bgmAudio && !this.activeGameId) {
-      this.bgmAudio.volume = this.musicVolume;
-    }
-    this.notify();
+    if (this.activeGameConfig) return this.activeGameConfig.musicEnabled;
+    return this.systemMusicEnabled;
   }
 
   public getSoundVolume(): number {
-    if (this.activeGameConfig) {
-      return this.activeGameConfig.sfxVolume;
-    }
-    return Math.round(this.sfxVolume * 100);
+    if (this.activeGameConfig) return this.activeGameConfig.sfxVolume;
+    return this.systemSoundVolume;
   }
 
   public setSoundVolume(percent: number, forGameId?: string) {
-    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
-    const targetGame = forGameId || this.activeGameId;
-    if (targetGame) {
-      this.saveGameAudioSettings(targetGame, { sfxVolume: clamped });
-      return;
+    const target = forGameId || this.activeGameId;
+    if (target) {
+      this.saveGameAudioSettings(target, { sfxVolume: Math.max(0, Math.min(100, Math.round(percent))) });
+    } else {
+      this.setSystemSoundVolume(percent);
     }
-    this.sfxVolume = clamped / 100;
-    try {
-      localStorage.setItem('acegames_sfx_volume', String(this.sfxVolume));
-    } catch {}
-    this.notify();
+  }
+
+  public getMusicVolume(): number {
+    if (this.activeGameConfig) return this.activeGameConfig.musicVolume;
+    return this.systemMusicVolume;
+  }
+
+  public setMusicVolume(percent: number, forGameId?: string) {
+    const target = forGameId || this.activeGameId;
+    if (target) {
+      this.saveGameAudioSettings(target, { musicVolume: Math.max(0, Math.min(100, Math.round(percent))) });
+    } else {
+      this.setSystemMusicVolume(percent);
+    }
+  }
+
+  public getMusicTrack(): BgmTrack {
+    if (this.activeGameConfig) return this.activeGameConfig.bgmTrack;
+    return this.systemMusicTrack;
+  }
+
+  public setMusicTrack(track: BgmTrack, forGameId?: string) {
+    const target = forGameId || this.activeGameId;
+    if (target) {
+      this.saveGameAudioSettings(target, { bgmTrack: track });
+    } else {
+      this.setSystemMusicTrack(track);
+    }
   }
 
   public toggleSound(forGameId?: string): boolean {
-    const targetGame = forGameId || this.activeGameId;
-    if (targetGame) {
-      const current = this.getGameAudioSettings(targetGame);
+    const target = forGameId || this.activeGameId;
+    if (target) {
+      const current = this.getGameAudioSettings(target);
       const next = !current.soundEnabled;
-      this.saveGameAudioSettings(targetGame, { soundEnabled: next });
+      this.saveGameAudioSettings(target, { soundEnabled: next });
       if (next) {
         this.unlockContext();
         this.playButtonClick();
       }
       return next;
     }
-    this.soundEnabled = !this.soundEnabled;
-    try {
-      localStorage.setItem('acegames_sound', String(this.soundEnabled));
-    } catch {}
-    this.notify();
-    if (this.soundEnabled) {
-      this.unlockContext();
-      this.playButtonClick();
-    }
-    return this.soundEnabled;
+    return this.toggleSystemSound();
   }
 
   public toggleMusic(forGameId?: string): boolean {
-    const targetGame = forGameId || this.activeGameId;
-    if (targetGame) {
-      const current = this.getGameAudioSettings(targetGame);
+    const target = forGameId || this.activeGameId;
+    if (target) {
+      const current = this.getGameAudioSettings(target);
       const next = !current.musicEnabled;
-      this.saveGameAudioSettings(targetGame, { musicEnabled: next });
+      this.saveGameAudioSettings(target, { musicEnabled: next });
       this.unlockContext();
-      if (next) {
-        this.playButtonClick();
-      }
+      if (next) this.playButtonClick();
       return next;
     }
-    this.musicEnabled = !this.musicEnabled;
-    try {
-      localStorage.setItem('acegames_music', String(this.musicEnabled));
-    } catch {}
-    this.notify();
-    this.unlockContext();
-
-    if (this.musicEnabled) {
-      this.startBGM();
-      this.playButtonClick();
-    } else {
-      this.stopBGM();
-    }
-    return this.musicEnabled;
+    return this.toggleSystemMusic();
   }
 
   // --- STUDIO BACKGROUND MUSIC (BGM) SYSTEM ---
@@ -408,20 +457,20 @@ class SoundManager {
       if (this.activeGameId && this.activeGameConfig) {
         this.activeGameConfig.bgmTrack = track;
       } else {
-        this.currentTrack = track;
+        this.systemMusicTrack = track;
       }
     }
-    const isPlaying = this.activeGameConfig ? this.activeGameConfig.musicEnabled : this.musicEnabled;
+    const isPlaying = this.activeGameConfig ? this.activeGameConfig.musicEnabled : this.systemMusicEnabled;
     if (!isPlaying) return;
     if (typeof window === 'undefined') return;
 
-    const currentActiveTrack = this.activeGameConfig ? this.activeGameConfig.bgmTrack : this.currentTrack;
+    const currentActiveTrack = this.activeGameConfig ? this.activeGameConfig.bgmTrack : this.systemMusicTrack;
     const trackInfo = BGM_TRACKS.find(t => t.id === currentActiveTrack) || BGM_TRACKS[0];
     const targetSrc = trackInfo.file;
 
     const targetVolume = customVolume !== undefined 
       ? Math.max(0, Math.min(1, customVolume))
-      : (this.activeGameConfig ? this.activeGameConfig.musicVolume / 100 : this.musicVolume);
+      : (this.activeGameConfig ? this.activeGameConfig.musicVolume / 100 : this.systemMusicVolume / 100);
 
     try {
       if (!this.bgmAudio) {
@@ -459,20 +508,20 @@ class SoundManager {
   }
 
   public setBgmContext(category: 'arcade' | 'strategy') {
-    const saved = localStorage.getItem('acegames_bgm_track');
+    const saved = localStorage.getItem('acegames_sys_music_track');
     if (!saved) {
       const defaultTrack: BgmTrack = category === 'strategy' ? 'heroic' : 'arcade';
-      if (this.currentTrack !== defaultTrack) {
-        this.currentTrack = defaultTrack;
-        if (this.musicEnabled) this.startBGM(defaultTrack);
+      if (this.systemMusicTrack !== defaultTrack) {
+        this.systemMusicTrack = defaultTrack;
+        if (this.systemMusicEnabled && !this.activeGameId) this.startBGM(defaultTrack);
         this.notify();
       }
     }
   }
 
-  // --- UI SOUND EFFECTS ---
+  // --- UI SOUND EFFECTS (VÙNG 1: System / Web Audio) ---
   public playCardHover() {
-    const sfx = this.getEffectiveSfxVolume();
+    const sfx = this.getSystemSfxGain();
     if (sfx <= 0.001) return;
     const now = Date.now();
     if (now - this.lastHoverTime < 70) return;
@@ -501,7 +550,7 @@ class SoundManager {
   }
 
   public playButtonClick() {
-    const sfx = this.getEffectiveSfxVolume();
+    const sfx = this.getSystemSfxGain();
     if (sfx <= 0.001) return;
     try {
       const ctx = this.unlockContext();
@@ -526,7 +575,7 @@ class SoundManager {
   }
 
   public playFavorite() {
-    const sfx = this.getEffectiveSfxVolume();
+    const sfx = this.getSystemSfxGain();
     if (sfx <= 0.001) return;
     try {
       const ctx = this.unlockContext();

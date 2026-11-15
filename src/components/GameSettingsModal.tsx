@@ -205,13 +205,13 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
         {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
         <div className="flex-1 p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar text-left">
           
-          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game */}
+          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game - VÙNG 2 */}
           <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-3 shadow-lg shadow-cyan-950/20">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
-                  Âm Thanh Game: {game.title}
+                  Âm Thanh Ván Đấu: {game.title}
                 </span>
               </div>
               <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/25">
@@ -219,12 +219,20 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </span>
             </div>
 
+            {/* Subtitle mô tả tính độc lập */}
+            <div className="text-[11px] text-gray-400 leading-relaxed bg-slate-950/60 p-2 rounded-xl border border-white/5">
+              Cài đặt cho riêng trò chơi <span className="text-cyan-300 font-semibold">{game.title}</span>, tách biệt hoàn toàn với âm thanh hệ thống web.
+            </div>
+
             {/* Hiệu ứng âm thanh (SFX) của game */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                  <span className="text-xs font-bold text-gray-200">Hiệu Ứng Game (SFX)</span>
+                  <div>
+                    <span className="text-xs font-bold text-gray-200 block">Hiệu Ứng Ván Đấu ({game.title})</span>
+                    <span className="text-[10px] text-gray-400">Âm thanh di chuyển, va chạm, ghi điểm...</span>
+                  </div>
                 </div>
                 <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                   <button
@@ -270,7 +278,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Music className={`w-4 h-4 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                  <span className="text-xs font-bold text-gray-200">Nhạc Nền Game (BGM)</span>
+                  <div>
+                    <span className="text-xs font-bold text-gray-200 block">Nhạc Nền Ván Đấu (Game BGM)</span>
+                    <span className="text-[10px] text-gray-400">Giai điệu khi đang chơi {game.title}</span>
+                  </div>
                 </div>
                 <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                   <button
@@ -314,7 +325,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             {/* Chọn bản nhạc BGM cho game */}
             <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Giai Điệu Game:</span>
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Giai Điệu Ván Đấu ({game.title}):</span>
                 <span className="text-[10px] text-cyan-400 font-mono">
                   {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                 </span>
