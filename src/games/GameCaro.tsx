@@ -300,7 +300,7 @@ export const GameCaro: React.FC = () => {
       multiplayer.offMove(handleOpponentMove);
       multiplayer.offStatusChange(handleStatus);
     };
-  }, [isOnlineMode, isWaitingForFriend, boardSize, winStreak, timeLimit, checkWinner]);
+  }, [isOnlineMode, isWaitingForFriend, boardSize, winStreak, timeLimit]);
 
   // Rời phòng khi component unmount
   useEffect(() => {
@@ -469,7 +469,7 @@ export const GameCaro: React.FC = () => {
       }
     }
     return move;
-  }, [checkWinner]);
+  }, []);
 
   // Fast Heuristic AI for 10x10 Caro (Gomoku)
   const find10x10Move = useCallback((currentBoard: Player[], diff: Difficulty): number => {

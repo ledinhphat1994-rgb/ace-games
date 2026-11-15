@@ -63,6 +63,11 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     };
   }, [isOpen, gameId, onJoinedMatch, onClose]);
 
+  const handleClose = () => {
+    soundManager.playButtonClick();
+    onClose();
+  };
+
   // Handle ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -139,11 +144,6 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
         onWaitingInBackground(result.room);
       }
     }
-    onClose();
-  };
-
-  const handleClose = () => {
-    soundManager.playButtonClick();
     onClose();
   };
 

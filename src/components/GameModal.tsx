@@ -83,8 +83,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     return () => window.removeEventListener('acegames:open_leaderboard', handleOpenLeaderboard);
   }, []);
 
-  if (!game) return null;
-
   const handleOpenGuide = () => {
     soundManager.playButtonClick();
     setIsGuideOpen(true);
@@ -165,6 +163,8 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     soundManager.playButtonClick();
     setIsGameSettingsOpen(true);
   };
+
+  if (!game) return null;
 
   const renderGameContent = () => {
     switch (game.id) {
