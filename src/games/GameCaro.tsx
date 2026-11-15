@@ -161,7 +161,8 @@ export const GameCaro: React.FC = () => {
   const handleCopyInvite = () => {
     if (!onlineRoom) return;
     soundManager.playButtonClick();
-    const url = `${window.location.origin}${window.location.pathname}?game=caro&room=${onlineRoom.roomId}`;
+    const cleanId = multiplayer.normalizeRoomId(onlineRoom.roomId);
+    const url = `${window.location.origin}${window.location.pathname}?game=caro&room=${cleanId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedInvite(true);
       setTimeout(() => setCopiedInvite(false), 2000);
@@ -182,14 +183,17 @@ export const GameCaro: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
     if (roomParam) {
-      multiplayer.joinRoom('caro', roomParam.toUpperCase()).then(() => {
-        const room = multiplayer.getCurrentRoom();
-        if (room) {
-          setIsOnlineMode(true);
-          setOnlineRoom(room);
-          setPlayerRole('guest');
-          setBoard(Array(boardSize * boardSize).fill(null));
-          setIsXNext(true);
+      multiplayer.joinRoom('caro', roomParam).then((ok) => {
+        if (ok) {
+          const room = multiplayer.getCurrentRoom();
+          if (room) {
+            setIsOnlineMode(true);
+            setIsWaitingForFriend(false);
+            setOnlineRoom(room);
+            setPlayerRole('guest');
+            setBoard(Array(boardSize * boardSize).fill(null));
+            setIsXNext(true);
+          }
         }
       });
     }
@@ -197,7 +201,7 @@ export const GameCaro: React.FC = () => {
 
   // Nhận nước đi và hành động từ đối thủ online qua WebSockets
   useEffect(() => {
-    if (!isOnlineMode) return;
+    if (!isOnlineMode && !isWaitingForFriend) return;
 
     const handleOpponentMove = (data: any) => {
       if (data.type === 'game_move' && data.payload) {
@@ -246,7 +250,7 @@ export const GameCaro: React.FC = () => {
       multiplayer.offMove(handleOpponentMove);
       multiplayer.offStatusChange(handleStatus);
     };
-  }, [isOnlineMode, boardSize, winStreak, timeLimit, checkWinner]);
+  }, [isOnlineMode, isWaitingForFriend, boardSize, winStreak, timeLimit, checkWinner]);
 
   // Rời phòng khi component unmount
   useEffect(() => {
@@ -741,18 +745,22 @@ export const GameCaro: React.FC = () => {
               </button>
             </div>
           ) : (
-            <>
-              {/* Đấu Máy / 2 Người */}
+            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-2xl border border-white/10">
+              {/* Đấu Máy */}
               <button
                 onClick={() => {
-                  setIsAiMode(prev => !prev);
+                  setIsAiMode(true);
                   resetGame();
                 }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition cursor-pointer"
-                title={isAiMode ? 'Chế độ: Đấu Máy (Bấm để đổi 2 người)' : 'Chế độ: 2 Người (Bấm để đổi đấu máy)'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                  isAiMode
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Đấu với máy tính (AI)"
               >
-                {isAiMode ? <Bot className="w-4 h-4 text-cyan-400" /> : <Users className="w-4 h-4 text-emerald-400" />}
-                <span className="hidden sm:inline">{isAiMode ? 'Đấu Máy' : '2 Người'}</span>
+                <Bot className={`w-3.5 h-3.5 ${isAiMode ? 'text-cyan-400' : 'text-gray-400'}`} />
+                <span>Đấu Máy</span>
               </button>
 
               {isAiMode && (
@@ -762,7 +770,7 @@ export const GameCaro: React.FC = () => {
                     setDifficulty(e.target.value as Difficulty);
                     resetGame();
                   }}
-                  className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                  className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
                 >
                   <option value="EASY">Dễ</option>
                   <option value="MEDIUM">Vừa</option>
@@ -770,16 +778,33 @@ export const GameCaro: React.FC = () => {
                 </select>
               )}
 
-              {/* Nút Vào Sảnh Online */}
+              {/* 2 Người Cùng Máy */}
+              <button
+                onClick={() => {
+                  setIsAiMode(false);
+                  resetGame();
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                  !isAiMode
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Hai người chơi cùng trên một máy tính / màn hình"
+              >
+                <Users className={`w-3.5 h-3.5 ${!isAiMode ? 'text-emerald-400' : 'text-gray-400'}`} />
+                <span>Cùng Máy</span>
+              </button>
+
+              {/* PVP Online Qua Mạng */}
               <button
                 onClick={() => setIsLobbyOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 font-bold text-xs border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.2)] transition cursor-pointer active:scale-95"
-                title="Tìm trận online hoặc tham gia phòng"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 transition cursor-pointer active:scale-95"
+                title="Tạo link mời bạn bè hoặc chơi online qua mạng"
               >
-                <Globe className="w-4 h-4 text-cyan-400" />
-                <span>Online</span>
+                <Globe className="w-3.5 h-3.5 text-amber-400" />
+                <span>PVP Online</span>
               </button>
-            </>
+            </div>
           )}
 
           <button
@@ -910,6 +935,7 @@ export const GameCaro: React.FC = () => {
         }}
         onWaitingInBackground={(room) => {
           setIsWaitingForFriend(true);
+          setIsOnlineMode(true);
           setOnlineRoom(room);
           setPlayerRole('host');
         }}

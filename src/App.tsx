@@ -11,7 +11,18 @@ import { soundManager } from './utils/sound';
 export function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<GameCategory>('all');
-  const [activeGame, setActiveGame] = useState<GameInfo | null>(null);
+  
+  // Tự động mở đúng game khi mở qua Link mời PVP (vd: ?game=xiangqi&room=1234)
+  const [activeGame, setActiveGame] = useState<GameInfo | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const gameParam = params.get('game');
+      if (gameParam) {
+        return GAMES_CATALOG.find(g => g.id === gameParam) || null;
+      }
+    } catch {}
+    return null;
+  });
 
   // Favorites stored in localStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -25,6 +36,14 @@ export function App() {
   const handlePlayGame = (game: GameInfo) => {
     soundManager.playGameLaunch();
     setActiveGame(game);
+  };
+
+  const handleCloseActiveGame = () => {
+    setActiveGame(null);
+    // Dọn dẹp query param khi đóng game mà không cần reload trang
+    if (window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent, gameId: string) => {
@@ -94,7 +113,7 @@ export function App() {
           <div className="w-full h-full flex flex-col overflow-hidden">
             <GameModal
               game={activeGame}
-              onClose={() => setActiveGame(null)}
+              onClose={handleCloseActiveGame}
             />
           </div>
         ) : (

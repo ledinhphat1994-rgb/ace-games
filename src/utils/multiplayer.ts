@@ -168,13 +168,17 @@ class MultiplayerService {
     this.roomUpdateListeners.forEach(cb => cb(list));
   }
 
+  public normalizeRoomId(raw: string): string {
+    return raw.trim().toUpperCase().replace(/^(PHONG|ROOM)[-_]?/i, '');
+  }
+
   // --- ROOM HOSTING / JOINING ---
   public async createRoom(gameId: string, options?: Record<string, any>): Promise<RoomInfo> {
     this.currentGameId = gameId;
     await this.ensureConnected();
 
-    // 4-digit simple memorable room code
-    const roomId = 'PHONG-' + Math.floor(1000 + Math.random() * 9000);
+    // 4-digit clean room code (vd: 5829)
+    const roomId = Math.floor(1000 + Math.random() * 9000).toString();
     const room: RoomInfo = {
       roomId,
       gameId,
@@ -192,7 +196,7 @@ class MultiplayerService {
     this.notifyRoomsUpdated();
 
     // Subscribe to room topic
-    this.subscribeToRoom(roomId);
+    await this.subscribeToRoom(roomId);
 
     // Start advertising this room on lobby
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
@@ -212,29 +216,38 @@ class MultiplayerService {
     return room;
   }
 
-  public async joinRoom(gameId: string, roomId: string): Promise<boolean> {
+  public async joinRoom(gameId: string, rawRoomId: string): Promise<boolean> {
     this.currentGameId = gameId;
+    const roomId = this.normalizeRoomId(rawRoomId);
+    if (!roomId) return false;
+
     await this.ensureConnected();
 
     this.currentRole = 'guest';
     this.currentRoom = {
       roomId,
       gameId,
-      hostName: 'Đối thủ',
+      hostName: 'Chủ phòng',
       hostId: '',
       status: 'playing',
       createdAt: Date.now(),
     };
 
-    // Subscribe to room topic
-    this.subscribeToRoom(roomId);
+    // Chờ đăng ký topic hoàn tất trước khi phát tín hiệu vào phòng
+    await this.subscribeToRoom(roomId);
 
-    // Announce join to host
-    this.sendRoomMessage({
-      type: 'guest_joined',
-      guestId: this.localPlayerId,
-      guestName: this.getPlayerName(),
-    });
+    // Phát tín hiệu tham gia phòng
+    const sendJoin = () => {
+      this.sendRoomMessage({
+        type: 'guest_joined',
+        guestId: this.localPlayerId,
+        guestName: this.getPlayerName(),
+      });
+    };
+
+    sendJoin();
+    // Bắn thêm lần 2 sau 300ms đề phòng mạng chập chờn
+    setTimeout(sendJoin, 300);
 
     this.notifyStatus('connected');
     return true;
@@ -247,38 +260,16 @@ class MultiplayerService {
     return available || null;
   }
 
-  public createBotMatch(gameId: string): { room: RoomInfo; role: 'host'; botName: string } {
-    const botNames = [
-      'KỳThủ_HàNội', 'ChiếnBinh_SG', 'KỳVương_VN', 'CaoThủ_ĐàNẵng',
-      'PhượngHoàng_99', 'BạchHổ_88', 'PhiĐao_36', 'LãngTử_77', 'HắcBáo_55', 'ẨnDanh_42'
-    ];
-    const botName = botNames[Math.floor(Math.random() * botNames.length)];
-    const roomId = 'BOT-' + Math.floor(1000 + Math.random() * 9000);
-    const room: RoomInfo = {
-      roomId,
-      gameId,
-      hostName: this.getPlayerName(),
-      hostId: this.localPlayerId,
-      status: 'playing',
-      createdAt: Date.now(),
-      options: { isBot: true, botName },
-    };
-    this.currentRoom = room;
-    this.currentRole = 'host';
-    this.opponent = { id: 'bot', name: botName };
-    return { room, role: 'host', botName };
-  }
-
   public isBotMatch(): boolean {
-    return Boolean(this.currentRoom?.options?.isBot);
+    return false; // Chế độ PVP Online 100% người thật, không ép Bot
   }
 
-  // --- QUICK MATCH: 1-Click Instant Pairing ---
+  // --- QUICK MATCH: Tự động ghép với người đang chờ ---
   public async quickMatch(gameId: string): Promise<{ action: 'joined' | 'hosted'; room: RoomInfo }> {
     this.notifyStatus('searching');
     await this.ensureConnected();
 
-    // Look for any existing waiting room
+    // Tìm xem có phòng nào đang mở sẵn không
     const available = Array.from(this.activeRooms.values()).find(
       r => r.gameId === gameId && r.status === 'waiting' && r.hostId !== this.localPlayerId
     );
@@ -288,15 +279,18 @@ class MultiplayerService {
       return { action: 'joined', room: available };
     }
 
-    // Otherwise create room and wait for incoming player
+    // Nếu chưa có, tạo phòng mới và làm chủ phòng đợi người khác
     const room = await this.createRoom(gameId);
     return { action: 'hosted', room };
   }
 
-  private subscribeToRoom(roomId: string) {
-    if (this.client) {
-      this.client.subscribe(`acegames/v2/room/${roomId}`, { qos: 1 });
-    }
+  private subscribeToRoom(roomId: string): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.client) return resolve();
+      this.client.subscribe(`acegames/v2/room/${roomId}`, { qos: 1 }, () => {
+        resolve();
+      });
+    });
   }
 
   public sendMove(payload: any) {
