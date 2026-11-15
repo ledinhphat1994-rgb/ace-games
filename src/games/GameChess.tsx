@@ -27,6 +27,8 @@ const PIECE_SYMBOLS: Record<number, Record<number, string>> = {
 
 export const GameChess: React.FC = () => {
   const [pos, setPos] = useState<ChessPosition>(() => ChessPosition.fromFen());
+  const posRef = useRef<ChessPosition>(pos);
+  posRef.current = pos;
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<ChessMove[]>([]);
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
@@ -61,7 +63,6 @@ export const GameChess: React.FC = () => {
   const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
   const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
   const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
-  const [opponentName, setOpponentName] = useState<string>('Đối thủ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
 
   // Quản lý timeout AI để hủy ngay lập tức khi đổi phòng, chơi lại hoặc rời bàn cờ
@@ -107,10 +108,12 @@ export const GameChess: React.FC = () => {
     setOnlineRoom(null);
     setPlayerRole('host');
     const newPos = ChessPosition.fromFen();
+    posRef.current = newPos;
     setPos(newPos);
     setSelectedSq(null);
     setValidMoves([]);
     setLastMove(null);
+    setIsThinking(false);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
   };
@@ -191,10 +194,12 @@ export const GameChess: React.FC = () => {
     clearAiTimeout();
     const shouldNotify = typeof notifyRemote === 'boolean' ? notifyRemote : true;
     const newPos = ChessPosition.fromFen();
+    posRef.current = newPos;
     setPos(newPos);
     setSelectedSq(null);
     setValidMoves([]);
     setLastMove(null);
+    setIsThinking(false);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
     if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
@@ -202,49 +207,13 @@ export const GameChess: React.FC = () => {
     }
   }, [clearAiTimeout, timeLimit, isOnlineMode, isWaitingForFriend, updateStatus]);
 
-  const handleSquareClick = (sq: number) => {
-    if (isThinking) return;
-    const outcome = pos.outcome();
-    if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
-
-    // Khi đang chờ bạn vào bàn, không cho phép bấm đi quân
-    if (isWaitingForFriend) return;
-
-    // Chơi với máy: Lượt quân Đen là của máy
-    if (!isOnlineMode && pos.turn === BLACK) return;
-
-    if (isOnlineMode) {
-      const isMyTurn = (playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK);
-      if (!isMyTurn) return;
-    }
-
-    const piece = pos.board[sq];
-
-    // If already selected, check if clicked square is a valid target move
-    if (selectedSq !== null) {
-      const move = validMoves.find(m => m.to === sq);
-      if (move) {
-        executeMove(move);
-        return;
-      }
-    }
-
-    // Select piece of current turn's color
-    if (piece && colorOf(piece) === pos.turn) {
-      setSelectedSq(sq);
-      const moves = pos.legalMoves().filter(m => m.from === sq);
-      setValidMoves(moves);
-      playTone(400, 0.04);
-    } else {
-      setSelectedSq(null);
-      setValidMoves([]);
-    }
-  };
-
-  const executeMove = (move: ChessMove, isRemote: boolean = false) => {
-    const isCapture = Boolean(pos.board[move.to]);
-    const nextPos = pos.clone();
+  const executeMove = useCallback((move: ChessMove, isRemote: boolean = false) => {
+    const currentPos = posRef.current;
+    const isCapture = Boolean(currentPos.board[move.to]);
+    const nextPos = currentPos.clone();
     nextPos.makeMove(move);
+    
+    posRef.current = nextPos;
     setPos(nextPos);
     setLastMove(move);
     setSelectedSq(null);
@@ -258,26 +227,69 @@ export const GameChess: React.FC = () => {
     if (!isRemote && isOnlineMode) {
       multiplayer.sendMove(move);
     }
+  }, [isOnlineMode, timeLimit, updateStatus]);
 
-    // AI Turn trigger (khi chơi với máy)
-    const isBotTurn = !isOnlineMode && nextPos.turn === BLACK;
+  // Tự động kích hoạt nước đi của máy (AI) khi chơi offline
+  useEffect(() => {
+    if (isOnlineMode || isWaitingForFriend) return;
+    if (pos.turn !== BLACK) return;
+    if (pos.outcome().over) return;
 
-    if (isBotTurn && !nextPos.outcome().over) {
-      clearAiTimeout();
-      setIsThinking(true);
-      aiTimeoutRef.current = setTimeout(() => {
-        aiTimeoutRef.current = null;
-        if (isOnlineMode || isWaitingForFriend) {
-          setIsThinking(false);
-          return;
-        }
+    setIsThinking(true);
+    const timer = setTimeout(() => {
+      if (posRef.current.turn === BLACK) {
         const levelStr = aiLevel === 1 ? 'easy' : aiLevel === 3 ? 'hard' : 'medium';
-        const aiMove = findBestChessMove(nextPos, levelStr);
+        const aiMove = findBestChessMove(posRef.current, levelStr);
         if (aiMove) {
           executeMove(aiMove, true);
         }
-        setIsThinking(false);
-      }, Math.floor(700 + Math.random() * 600));
+      }
+      setIsThinking(false);
+    }, Math.floor(500 + Math.random() * 400));
+
+    return () => {
+      clearTimeout(timer);
+      setIsThinking(false);
+    };
+  }, [pos, isOnlineMode, isWaitingForFriend, aiLevel, executeMove]);
+
+  const handleSquareClick = (sq: number) => {
+    if (isThinking) return;
+    const currentPos = posRef.current;
+    const outcome = currentPos.outcome();
+    if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
+
+    // Khi đang chờ bạn vào bàn, không cho phép bấm đi quân
+    if (isWaitingForFriend) return;
+
+    // Chơi với máy: Lượt quân Đen là của máy
+    if (!isOnlineMode && currentPos.turn === BLACK) return;
+
+    if (isOnlineMode) {
+      const isMyTurn = (playerRole === 'host' && currentPos.turn === WHITE) || (playerRole === 'guest' && currentPos.turn === BLACK);
+      if (!isMyTurn) return;
+    }
+
+    const piece = currentPos.board[sq];
+
+    // If already selected, check if clicked square is a valid target move
+    if (selectedSq !== null) {
+      const move = validMoves.find(m => m.to === sq);
+      if (move) {
+        executeMove(move);
+        return;
+      }
+    }
+
+    // Select piece of current turn's color
+    if (piece && colorOf(piece) === currentPos.turn) {
+      setSelectedSq(sq);
+      const moves = currentPos.legalMoves().filter(m => m.from === sq);
+      setValidMoves(moves);
+      playTone(400, 0.04);
+    } else {
+      setSelectedSq(null);
+      setValidMoves([]);
     }
   };
 
@@ -323,6 +335,7 @@ export const GameChess: React.FC = () => {
       } else if (data.type === 'game_restart') {
         clearAiTimeout();
         const newPos = ChessPosition.fromFen();
+        posRef.current = newPos;
         setPos(newPos);
         setSelectedSq(null);
         setValidMoves([]);
@@ -334,8 +347,6 @@ export const GameChess: React.FC = () => {
 
     const handleStatus = (status: string) => {
       if (status === 'connected') {
-        const opp = multiplayer.getOpponent();
-        if (opp?.name) setOpponentName(opp.name);
         setIsWaitingForFriend(false);
         setIsOnlineMode(true);
         resetGame(false);
@@ -383,15 +394,15 @@ export const GameChess: React.FC = () => {
                 <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm">
-                <span>ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <span>LƯỢT ĐỐI THỦ</span>
               </div>
             )
           ) : (
             isThinking ? (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)]">
                 <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
-                <span>⚡ MÁY ĐANG TÍNH NƯỚC...</span>
+                <span>⚡ MÁY ĐANG TÍNH...</span>
               </div>
             ) : pos.outcome().over ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
@@ -569,9 +580,8 @@ export const GameChess: React.FC = () => {
           setIsWaitingForFriend(false);
           setOnlineRoom(room);
           setPlayerRole(role);
-          const oppName = room.options?.isBot ? (room.options.botName || 'Kỳ Thủ') : (role === 'host' ? 'Đối thủ' : room.hostName);
-          setOpponentName(oppName);
           const newPos = ChessPosition.fromFen();
+          posRef.current = newPos;
           setPos(newPos);
           setSelectedSq(null);
           setValidMoves([]);
@@ -587,6 +597,7 @@ export const GameChess: React.FC = () => {
           setOnlineRoom(room);
           setPlayerRole('host');
           const newPos = ChessPosition.fromFen();
+          posRef.current = newPos;
           setPos(newPos);
           setSelectedSq(null);
           setValidMoves([]);

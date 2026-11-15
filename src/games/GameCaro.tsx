@@ -146,7 +146,6 @@ export const GameCaro: React.FC = () => {
   const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
   const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
   const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
-  const [opponentName, setOpponentName] = useState<string>('Đối thủ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
 
   const handleCopyInvite = () => {
@@ -229,8 +228,6 @@ export const GameCaro: React.FC = () => {
 
     const handleStatus = (status: string) => {
       if (status === 'connected') {
-        const opp = multiplayer.getOpponent();
-        if (opp?.name) setOpponentName(opp.name);
         setIsWaitingForFriend(false);
         setIsOnlineMode(true);
         resetGame(false);
@@ -640,8 +637,8 @@ export const GameCaro: React.FC = () => {
                 <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm">
-                <span>ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <span>LƯỢT ĐỐI THỦ</span>
               </div>
             )
           ) : (
@@ -859,8 +856,6 @@ export const GameCaro: React.FC = () => {
           setIsWaitingForFriend(false);
           setOnlineRoom(room);
           setPlayerRole(role);
-          const oppName = room.options?.isBot ? (room.options.botName || 'Kỳ Thủ') : (role === 'host' ? 'Đối thủ' : room.hostName);
-          setOpponentName(oppName);
           setBoard(Array(boardSize * boardSize).fill(null));
           setIsXNext(true);
           setWinnerInfo(null);
