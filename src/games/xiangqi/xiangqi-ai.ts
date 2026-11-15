@@ -70,9 +70,9 @@ function minimaxXiangqi(
   if (maximizing) {
     let maxEval = -Infinity
     for (const m of moves) {
-      pos.makeMove(m)
+      pos.makeMove(m, false)
       const ev = minimaxXiangqi(pos, depth - 1, alpha, beta, false)
-      pos.unmakeMove()
+      pos.unmakeMove(false)
       maxEval = Math.max(maxEval, ev)
       alpha = Math.max(alpha, ev)
       if (beta <= alpha) break
@@ -81,9 +81,9 @@ function minimaxXiangqi(
   } else {
     let minEval = Infinity
     for (const m of moves) {
-      pos.makeMove(m)
+      pos.makeMove(m, false)
       const ev = minimaxXiangqi(pos, depth - 1, alpha, beta, true)
-      pos.unmakeMove()
+      pos.unmakeMove(false)
       minEval = Math.min(minEval, ev)
       beta = Math.min(beta, ev)
       if (beta <= alpha) break
@@ -93,9 +93,10 @@ function minimaxXiangqi(
 }
 
 export function findBestXiangqiMove(
-  pos: XiangqiPosition,
+  originalPos: XiangqiPosition,
   level: 'easy' | 'medium' | 'hard' = 'medium'
 ): XiangqiMove | null {
+  const pos = originalPos.clone()
   const moves = pos.legalMoves()
   if (moves.length === 0) return null
 
@@ -112,9 +113,9 @@ export function findBestXiangqiMove(
   let bestScore = isRed ? -Infinity : Infinity
 
   for (const m of moves) {
-    pos.makeMove(m)
+    pos.makeMove(m, false)
     const score = minimaxXiangqi(pos, depth - 1, -Infinity, Infinity, !isRed)
-    pos.unmakeMove()
+    pos.unmakeMove(false)
 
     const jitter = level === 'hard' ? 0 : (Math.random() - 0.5) * 20
     const adjustedScore = score + jitter

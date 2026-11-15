@@ -32,7 +32,6 @@ export const GameChess: React.FC = () => {
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<ChessMove[]>([]);
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
-  const mode = 'ai'; // Chế độ chơi offline luôn là Đấu Máy (AI)
   const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(() => {
     try {
       const s = localStorage.getItem('ace_game_settings_chess');
@@ -542,29 +541,63 @@ export const GameChess: React.FC = () => {
           </div>
 
           {/* Game Over / Result Overlay */}
-          {pos.outcome().over && (
-            <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in z-20">
-              <span className="text-6xl mb-3 animate-bounce">
-                {pos.outcome().winner ? '🏆' : '🤝'}
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-amber-400 mb-2 font-['Orbitron']">
-                {pos.outcome().winner === WHITE
-                  ? (isOnlineMode ? (playerRole === 'host' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (mode === 'ai' ? 'BẠN ĐÃ THẮNG!' : 'QUÂN TRẮNG THẮNG!'))
-                  : pos.outcome().winner === BLACK
-                  ? (isOnlineMode ? (playerRole === 'guest' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (mode === 'ai' ? 'AI ĐÃ THẮNG!' : 'QUÂN ĐEN THẮNG!'))
-                  : 'VÁN CỜ HÒA!'}
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium">
-                {statusMessage}
-              </p>
-              <button
-                onClick={resetGame}
-                className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black rounded-2xl shadow-xl transition active:scale-95 cursor-pointer text-sm flex items-center gap-2"
-              >
-                <RotateCcw size={16} /> Chơi Ván Mới
-              </button>
-            </div>
-          )}
+          {pos.outcome().over && (() => {
+            const outcome = pos.outcome();
+            const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === WHITE) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === WHITE);
+            const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === WHITE))) || (!isOnlineMode && outcome.winner === BLACK);
+
+            const title = isWinner
+              ? 'CHIẾN THẮNG!'
+              : isLoser
+              ? 'THẤT BẠI!'
+              : 'VÁN CỜ HÒA!';
+
+            const desc = isWinner
+              ? 'Chúc mừng! Bạn đã chiếu bí đối thủ xuất sắc.'
+              : isLoser
+              ? 'Bạn đã bị đối thủ chiếu bí.'
+              : outcome.reason === 'repetition'
+              ? 'Thế cờ lặp lại 3 lần liên tiếp.'
+              : outcome.reason === 'fifty_move'
+              ? 'Đã qua 50 nước cờ không bên nào ăn quân hay đẩy tốt.'
+              : 'Ván cờ kết thúc bất phân thắng bại.';
+
+            const titleColor = isWinner
+              ? 'text-emerald-400'
+              : isLoser
+              ? 'text-rose-500'
+              : 'text-amber-400';
+
+            const icon = isWinner ? '🏆' : isLoser ? '⚔️' : '🤝';
+
+            const btnGradient = isWinner
+              ? 'from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-emerald-950/50'
+              : isLoser
+              ? 'from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white shadow-rose-950/50'
+              : 'from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 shadow-amber-950/50 font-black';
+
+            return (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center p-4 z-20 animate-in fade-in duration-200">
+                <div className="relative w-full max-w-xs sm:max-w-sm bg-slate-950/95 border border-white/15 rounded-3xl p-6 sm:p-7 shadow-[0_25px_60px_rgba(0,0,0,0.85)] flex flex-col items-center text-center">
+                  <span className="text-5xl sm:text-6xl mb-3 drop-shadow-lg">
+                    {icon}
+                  </span>
+                  <h3 className={`text-2xl sm:text-3xl font-black mb-2 tracking-wide font-['Orbitron'] ${titleColor}`}>
+                    {title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium leading-relaxed">
+                    {desc}
+                  </p>
+                  <button
+                    onClick={resetGame}
+                    className={`px-7 py-3 rounded-2xl font-black text-sm shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-2 bg-gradient-to-r ${btnGradient}`}
+                  >
+                    <RotateCcw size={16} /> Chơi Ván Mới
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

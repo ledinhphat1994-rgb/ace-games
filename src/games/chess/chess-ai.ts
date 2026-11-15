@@ -127,9 +127,10 @@ function minimax(
 }
 
 export function findBestChessMove(
-  pos: ChessPosition,
+  originalPos: ChessPosition,
   level: 'easy' | 'medium' | 'hard' = 'medium'
 ): ChessMove | null {
+  const pos = originalPos.clone()
   const moves = pos.legalMoves()
   if (moves.length === 0) return null
 

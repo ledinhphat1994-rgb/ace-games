@@ -57,6 +57,7 @@ interface Undo {
   fullmove: number
   rookFrom: number
   rookTo: number
+  tracked?: boolean
 }
 
 // ─── Bảng dịch chuyển tính sẵn ────────────────────────────────────────────────
@@ -445,6 +446,7 @@ export class ChessPosition {
       fullmove: this.fullmove,
       rookFrom,
       rookTo,
+      tracked: trackKey,
     })
 
     b[m.to] = m.promo ? makePiece(us, m.promo) : moved
@@ -476,7 +478,7 @@ export class ChessPosition {
     if (trackKey) this.keys.push(this.positionKey())
   }
 
-  unmakeMove(trackKey = false): void {
+  unmakeMove(trackKey?: boolean): void {
     const u = this.undos.pop()
     if (!u) return
     const b = this.board
@@ -494,7 +496,8 @@ export class ChessPosition {
     this.ep = u.ep
     this.halfmove = u.halfmove
     this.fullmove = u.fullmove
-    if (trackKey) this.keys.pop()
+    const shouldPop = trackKey !== undefined ? trackKey : Boolean(u.tracked)
+    if (shouldPop) this.keys.pop()
   }
 
   // ─── Kết quả ────────────────────────────────────────────────────────────────

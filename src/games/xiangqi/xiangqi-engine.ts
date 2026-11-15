@@ -64,6 +64,7 @@ interface Undo {
   moved: number
   captured: number
   quiet: number
+  tracked?: boolean
 }
 
 export class XiangqiPosition {
@@ -304,7 +305,7 @@ export class XiangqiPosition {
     const b = this.board
     const moved = b[m.from]
     const captured = b[m.to]
-    this.undos.push({ move: m, moved, captured, quiet: this.quiet })
+    this.undos.push({ move: m, moved, captured, quiet: this.quiet, tracked: trackKey })
     b[m.to] = moved
     b[m.from] = 0
     if (typeOf(moved) === GENERAL) this.generalSq[sideOf(moved)] = m.to
@@ -313,7 +314,7 @@ export class XiangqiPosition {
     if (trackKey) this.keys.push(this.positionKey())
   }
 
-  unmakeMove(trackKey = false): void {
+  unmakeMove(trackKey?: boolean): void {
     const u = this.undos.pop()
     if (!u) return
     this.board[u.move.from] = u.moved
@@ -321,7 +322,8 @@ export class XiangqiPosition {
     if (typeOf(u.moved) === GENERAL) this.generalSq[sideOf(u.moved)] = u.move.from
     this.quiet = u.quiet
     this.turn = (this.turn ^ 1) as Side
-    if (trackKey) this.keys.pop()
+    const shouldPop = trackKey !== undefined ? trackKey : Boolean(u.tracked)
+    if (shouldPop) this.keys.pop()
   }
 
   outcome(): XiangqiOutcome {
