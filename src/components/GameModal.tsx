@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Maximize2, Volume2, VolumeX, Trophy } from 'lucide-react';
+import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -14,6 +14,7 @@ import { GameBreakout } from '../games/GameBreakout';
 import { GameSpaceShooter } from '../games/GameSpaceShooter';
 import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
+import { GameGuideModal } from './GameGuideModal';
 
 interface GameModalProps {
   game: GameInfo | null;
@@ -26,6 +27,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   const [viewMode, setViewMode] = useState<'vung2' | 'fullscreen'>('vung2');
   const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Sync sound state across components
@@ -47,6 +49,11 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   }, []);
 
   if (!game) return null;
+
+  const handleOpenGuide = () => {
+    soundManager.playButtonClick();
+    setIsGuideOpen(true);
+  };
 
   const handleToggleSound = () => {
     const next = soundManager.toggleSound();
@@ -173,8 +180,17 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
           </div>
         </div>
 
-        {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 5 ÂM THANH ĐƯỢC ĐƯA LÊN ĐÂY + BẢNG XẾP HẠNG + FULLSCREEN + ĐÓNG) */}
+        {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 5 ÂM THANH ĐƯỢC ĐƯA LÊN ĐÂY + HƯỚNG DẪN + BẢNG XẾP HẠNG + FULLSCREEN + ĐÓNG) */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Nút Hướng Dẫn Chơi (VÙNG 1 ĐƯỢC KHOANH TRÒN) */}
+          <button
+            onClick={handleOpenGuide}
+            className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/50 transition cursor-pointer shadow-md active:scale-95"
+            title="Hướng Dẫn Chơi & Phím Điều Khiển"
+          >
+            <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+          </button>
+
           {/* Nút Bảng Xếp Hạng */}
           <button
             onClick={handleOpenLeaderboard}
@@ -236,6 +252,13 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
         onClose={() => setIsLeaderboardOpen(false)}
         gameId={game.id}
         gameTitle={game.title}
+      />
+
+      {/* Hướng Dẫn Chơi Modal Popup */}
+      <GameGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        game={game}
       />
     </div>
   );
