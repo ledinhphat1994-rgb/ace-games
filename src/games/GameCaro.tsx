@@ -632,7 +632,11 @@ export const GameCaro: React.FC = () => {
           {/* Huy hiệu lượt đi / Kết quả */}
           {winnerInfo ? (
             <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-              {winnerInfo.winner === 'DRAW' ? '🤝 VÁN CỜ HÒA!' : `🏆 CHIẾN THẮNG: ${winnerInfo.winner}!`}
+              {winnerInfo.winner === 'DRAW'
+                ? '🤝 VÁN CỜ HÒA!'
+                : ((isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'X') || (playerRole === 'guest' && winnerInfo.winner === 'O'))) || (!isOnlineMode && winnerInfo.winner === 'X'))
+                ? '🏆 BẠN THẮNG!'
+                : (isOnlineMode ? `⚔️ ${opponentName.toUpperCase()} THẮNG!` : '🤖 MÁY THẮNG!')}
             </div>
           ) : isWaitingForFriend ? (
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)]">
@@ -812,48 +816,58 @@ export const GameCaro: React.FC = () => {
           </div>
 
           {/* RÕ RÀNG MINH BẠCH: Bảng Thông Báo Kết Quả Khi Hết Nước / Có Thắng Thua */}
-          {winnerInfo && (
-            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in z-20">
-              <span className="text-6xl mb-3 animate-bounce">
-                {winnerInfo.winner === 'DRAW'
-                  ? '🤝'
-                  : winnerInfo.winner === 'X'
-                  ? '🏆'
-                  : isAiMode
-                  ? '🤖'
-                  : '🎉'}
-              </span>
+          {winnerInfo && (() => {
+            const isWinner = (isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'X') || (playerRole === 'guest' && winnerInfo.winner === 'O'))) || (!isOnlineMode && winnerInfo.winner === 'X');
+            const isLoser = (isOnlineMode && ((playerRole === 'host' && winnerInfo.winner === 'O') || (playerRole === 'guest' && winnerInfo.winner === 'X'))) || (!isOnlineMode && winnerInfo.winner === 'O');
 
-              <h3
-                className={`text-2xl sm:text-4xl font-black mb-2 font-['Orbitron'] ${
-                  winnerInfo.winner === 'X'
-                    ? 'text-cyan-400 drop-shadow-[0_0_25px_rgba(6,182,212,0.8)]'
-                    : winnerInfo.winner === 'O'
-                    ? 'text-rose-400 drop-shadow-[0_0_25px_rgba(244,63,94,0.8)]'
-                    : 'text-amber-400'
-                }`}
-              >
-                {winnerInfo.winner === 'X'
-                  ? (isOnlineMode ? (playerRole === 'host' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : 'BẠN ĐÃ CHIẾN THẮNG!')
-                  : winnerInfo.winner === 'O'
-                  ? (isOnlineMode ? (playerRole === 'guest' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (isAiMode ? 'AI ĐÃ CHIẾN THẮNG!' : 'QUÂN O CHIẾN THẮNG!'))
-                  : 'VÁN CỜ HÒA!'}
-              </h3>
+            const title = isWinner
+              ? 'CHIẾN THẮNG!'
+              : isLoser
+              ? 'THẤT BẠI!'
+              : 'VÁN CỜ HÒA!';
 
-              <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium max-w-xs">
-                {winnerInfo.winner === 'DRAW'
-                  ? 'Đã đánh kín bàn cờ mà không có bên nào tạo đủ hàng thắng.'
-                  : `${winnerInfo.winner === 'X' ? 'Quân X' : 'Quân O'} đã tạo thành công chuỗi ${winStreak} ô thẳng hàng!`}
-              </p>
+            const desc = isWinner
+              ? (isOnlineMode ? `Xuất sắc! Bạn đã vượt qua ${opponentName.toUpperCase()} để giành chiến thắng.` : `Xuất sắc! Bạn đã tạo thành công chuỗi ${winStreak} ô thẳng hàng.`)
+              : isLoser
+              ? (isOnlineMode ? `${opponentName.toUpperCase()} đã tạo thành công chuỗi ${winStreak} ô trước.` : `Máy (AI) đã tạo thành công chuỗi ${winStreak} ô trước.`)
+              : 'Đã đánh kín bàn cờ mà không bên nào tạo đủ hàng thắng.';
 
-              <button
-                onClick={resetGame}
-                className="px-8 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(6,182,212,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                <RotateCcw className="w-5 h-5" /> Chơi Ván Mới
-              </button>
-            </div>
-          )}
+            const titleColor = isWinner
+              ? 'text-emerald-400'
+              : isLoser
+              ? 'text-rose-500'
+              : 'text-amber-400';
+
+            const icon = isWinner ? '🏆' : isLoser ? '⚔️' : '🤝';
+
+            const btnGradient = isWinner
+              ? 'from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-emerald-950/50'
+              : isLoser
+              ? 'from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white shadow-rose-950/50'
+              : 'from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 shadow-amber-950/50 font-black';
+
+            return (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center p-4 z-20 animate-in fade-in duration-200">
+                <div className="relative w-full max-w-xs sm:max-w-sm bg-slate-950/95 border border-white/15 rounded-3xl p-6 sm:p-7 shadow-[0_25px_60px_rgba(0,0,0,0.85)] flex flex-col items-center text-center">
+                  <span className="text-5xl sm:text-6xl mb-3 drop-shadow-lg">
+                    {icon}
+                  </span>
+                  <h3 className={`text-2xl sm:text-3xl font-black mb-2 tracking-wide font-['Orbitron'] ${titleColor}`}>
+                    {title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium leading-relaxed">
+                    {desc}
+                  </p>
+                  <button
+                    onClick={resetGame}
+                    className={`px-7 py-3 rounded-2xl font-black text-sm shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-2 bg-gradient-to-r ${btnGradient}`}
+                  >
+                    <RotateCcw size={16} /> Chơi Ván Mới
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
