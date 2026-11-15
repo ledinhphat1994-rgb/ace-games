@@ -4,12 +4,11 @@ import {
   X, 
   Zap, 
   Dices, 
-  Users, 
   Copy, 
   Check, 
   ArrowRight,
   Plus,
-  Share2
+  Loader2
 } from 'lucide-react';
 import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 import { soundManager } from '../utils/sound';
@@ -93,7 +92,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     setPlayerName(generated);
   };
 
-  // 1. TẠO PHÒNG MỜI BẠN (Chuẩn Lichess / GitHub)
+  // 1. TẠO PHÒNG (1-Click)
   const handleCreateRoom = async () => {
     soundManager.playButtonClick();
     setIsSearching(true);
@@ -112,7 +111,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     });
   };
 
-  // 2. VÀO BẰNG MÃ PHÒNG CỦA BẠN BÈ
+  // 2. VÀO BẰNG MÃ
   const handleJoinWithCode = async (code: string) => {
     const cleanId = multiplayer.normalizeRoomId(code);
     if (!cleanId) return;
@@ -129,7 +128,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     }
   };
 
-  // 3. GHÉP TRẬN TỰ ĐỘNG (Không ép bot)
+  // 3. GHÉP TỰ ĐỘNG
   const handleQuickMatch = async () => {
     soundManager.playButtonClick();
     setIsSearching(true);
@@ -168,20 +167,20 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Khung cố định chuẩn 480x490px, tuyệt đối không co giãn giật lag */}
+      {/* Khung gọn gàng, thẩm mỹ cao, ít chữ, to rõ */}
       <div
-        className="relative w-[92vw] max-w-[480px] h-[490px] min-h-[490px] max-h-[490px] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
+        className="relative w-[92vw] max-w-[420px] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
         <div className="h-14 px-5 border-b border-white/10 bg-slate-900/90 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-md shadow-cyan-500/20">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center">
               <Globe className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-black text-white font-['Orbitron'] tracking-wider">
-                CHƠI PVP ONLINE
+                CHƠI ONLINE
               </h3>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
                 {gameTitle}
@@ -192,182 +191,157 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
           <button
             onClick={handleClose}
             className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-            title="Đóng (Esc)"
+            title="Đóng"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 p-4 sm:p-5 flex flex-col space-y-3 overflow-y-auto custom-scrollbar text-left">
+        <div className="p-5 flex flex-col space-y-3.5 text-left">
 
-          {/* TRƯỜNG HỢP 1: ĐÃ TẠO PHÒNG & ĐANG CHỜ BẠN BÈ VÀO */}
+          {/* TRƯỜNG HỢP 1: ĐANG CHỜ BẠN VÀO */}
           {waitingRoom ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-900/60 border border-cyan-500/30 text-center space-y-3">
+            <div className="py-4 flex flex-col items-center justify-center text-center space-y-3.5">
+              {/* Radar pulse animation */}
               <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center animate-pulse">
-                  <Users className="w-7 h-7 text-cyan-400" />
+                <div className="w-16 h-16 rounded-full bg-cyan-500/10 border-2 border-cyan-400/40 flex items-center justify-center animate-pulse shadow-[0_0_25px_rgba(6,182,212,0.3)]">
+                  <Globe className="w-8 h-8 text-cyan-400" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full animate-ping" />
+                <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-40" />
               </div>
 
+              {/* Mã phòng to rõ */}
               <div>
-                <h4 className="text-sm font-black text-white font-['Orbitron'] tracking-wider">
-                  ĐANG ĐỢI ĐỐI THỦ VÀO BÀN...
-                </h4>
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-xs text-gray-400">Mã phòng:</span>
-                  <span className="text-amber-300 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-amber-500/30 text-sm font-mono font-black tracking-widest">
-                    {waitingRoom.roomId}
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-400 mt-1 max-w-[340px] mx-auto">
-                  Gửi link bên dưới cho bạn bè hoặc mở ở trình duyệt thứ 2 để vào bàn đấu ngay lập tức!
-                </p>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">MÃ PHÒNG CỦA BẠN</p>
+                <h2 className="text-3xl font-black text-amber-300 font-mono tracking-widest mt-0.5 drop-shadow-[0_0_15px_rgba(252,211,77,0.5)]">
+                  {waitingRoom.roomId}
+                </h2>
               </div>
 
-              {/* Nút Sao Chép Link */}
+              {/* Nút Sao Chép Link (Nổi Bật Nhất) */}
               <button
                 onClick={() => copyRoomLink(waitingRoom.roomId)}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-500/25 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/30 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
               >
-                {copiedLink ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedLink ? '✓ ĐÃ SAO CHÉP LINK MỜI!' : '📋 SAO CHÉP LINK MỜI BẠN BÈ'}</span>
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-950" /> : <Copy className="w-4 h-4 text-slate-950" />}
+                <span>{copiedLink ? 'ĐÃ SAO CHÉP LINK!' : 'SAO CHÉP LINK GỬI BẠN'}</span>
               </button>
 
-              {/* Nút Vào Bàn Chờ */}
-              <button
-                onClick={handlePlayWhileWaiting}
-                className="w-full py-2 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-cyan-300 font-bold text-xs border border-white/10 transition cursor-pointer flex items-center justify-center gap-2"
-              >
-                <ArrowRight className="w-4 h-4" />
-                <span>Ra Bàn Cờ Đợi Bạn (Thu Nhỏ)</span>
-              </button>
+              {/* Nút Vào Bàn Chờ & Hủy */}
+              <div className="w-full flex items-center gap-2 pt-1">
+                <button
+                  onClick={handlePlayWhileWaiting}
+                  className="flex-1 py-2 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-cyan-300 font-bold text-xs border border-white/10 transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Ra Bàn Đợi</span>
+                </button>
 
-              <button
-                onClick={handleCancelWaiting}
-                className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer pt-1"
-              >
-                ✕ Hủy Phòng Chờ
-              </button>
+                <button
+                  onClick={handleCancelWaiting}
+                  className="py-2 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold text-xs border border-rose-500/30 transition cursor-pointer"
+                >
+                  ✕ Hủy
+                </button>
+              </div>
             </div>
           ) : (
-            /* TRƯỜNG HỢP 2: LỰA CHỌN PVP - CHUẨN LICHESS / GITHUB */
+            /* TRƯỜNG HỢP 2: LỰA CHỌN ĐƠN GIẢN, ÍT CHỮ NHẤT */
             <>
-              {/* PHƯƠNG ÁN 1 (CHÍNH): TẠO LINK MỜI BẠN BÈ */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-cyan-500/30 flex flex-col space-y-2">
-                <div className="flex items-center gap-2">
-                  <Share2 className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs font-bold text-gray-200 uppercase tracking-wider">
-                    Chơi Với Bạn Bè (Play With Friend)
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Tạo phòng và lấy link mời. Bạn bè chỉ cần click vào link là vào bàn đấu ngay.
-                </p>
+              {/* NÚT 1: TẠO PHÒNG LẤY LINK (LỚN, NỔI BẬT) */}
+              <button
+                onClick={handleCreateRoom}
+                disabled={isSearching}
+                className="w-full h-13 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/30 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              >
+                <Plus className="w-5 h-5 stroke-[2.5]" />
+                <span>TẠO PHÒNG MỜI BẠN</span>
+              </button>
+
+              {/* NÚT 2: NHẬP MÃ PHÒNG (GỌN GÀNG) */}
+              <div className="flex items-center gap-2 bg-slate-900/80 p-2 rounded-2xl border border-white/10">
+                <input
+                  type="text"
+                  placeholder="Nhập mã 4 số..."
+                  value={customRoomCode}
+                  onChange={(e) => setCustomRoomCode(e.target.value)}
+                  maxLength={10}
+                  className="flex-1 px-3 py-1.5 bg-slate-950 text-cyan-300 text-xs sm:text-sm font-mono font-bold outline-none placeholder:text-gray-500 rounded-xl border border-white/5 text-center"
+                />
                 <button
-                  onClick={handleCreateRoom}
-                  disabled={isSearching}
-                  className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md shadow-cyan-500/25 transition cursor-pointer active:scale-98"
+                  onClick={() => handleJoinWithCode(customRoomCode)}
+                  disabled={!customRoomCode.trim() || isSearching}
+                  className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition disabled:opacity-40 cursor-pointer flex-shrink-0"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>TẠO PHÒNG & LẤY LINK MỜI</span>
+                  Vào Bàn
                 </button>
               </div>
 
-              {/* PHƯƠNG ÁN 2: VÀO BẰNG MÃ PHÒNG TỪ BẠN BÈ */}
-              <div className="p-3 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center justify-between gap-2">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-300">Có mã phòng?</span>
-                  <span className="text-[10px] text-gray-500">Nhập 4 số từ bạn bè</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                  <input
-                    type="text"
-                    placeholder="VD: 5829"
-                    value={customRoomCode}
-                    onChange={(e) => setCustomRoomCode(e.target.value)}
-                    maxLength={10}
-                    className="w-24 px-2 py-1 bg-transparent text-cyan-300 text-xs font-mono font-bold outline-none placeholder:text-gray-600 text-center"
-                  />
-                  <button
-                    onClick={() => handleJoinWithCode(customRoomCode)}
-                    disabled={!customRoomCode.trim()}
-                    className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition disabled:opacity-40 cursor-pointer"
-                  >
-                    Vào
-                  </button>
-                </div>
-              </div>
+              {/* NÚT 3: GHÉP NGẪU NHIÊN */}
+              <button
+                onClick={handleQuickMatch}
+                disabled={isSearching}
+                className="w-full h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-amber-300 hover:text-white font-bold text-xs border border-amber-500/30 hover:border-amber-500/50 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              >
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                ) : (
+                  <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+                )}
+                <span>Ghép Trận Ngẫu Nhiên</span>
+              </button>
 
-              {/* PHƯƠNG ÁN 3: GHÉP NGẪU NHIÊN & DANH SÁCH BÀN MỞ */}
-              <div className="flex-1 flex flex-col space-y-2 min-h-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-400">
-                    BÀN ĐANG MỞ ONLINE ({rooms.length})
+              {/* DANH SÁCH BÀN ĐANG MỞ (CHỈ HIỆN KHI CÓ NGƯỜI MỞ) */}
+              {rooms.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-bold text-gray-400">
+                    BÀN ĐANG CHỜ ({rooms.length}):
                   </span>
-                  <button
-                    onClick={handleQuickMatch}
-                    disabled={isSearching}
-                    className="flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:text-amber-200 cursor-pointer"
-                  >
-                    <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                    <span>Ghép Tự Động</span>
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-0.5">
-                  {rooms.length === 0 ? (
-                    <div className="h-full min-h-[70px] flex flex-col items-center justify-center text-center p-3 rounded-2xl bg-slate-900/40 border border-white/5 text-gray-400">
-                      <p className="text-xs">Chưa có ai mở bàn.</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">Bấm "Tạo Phòng" ở trên để người khác vào chơi cùng bạn!</p>
-                    </div>
-                  ) : (
-                    rooms.map((r) => (
+                  <div className="max-h-24 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                    {rooms.map((r) => (
                       <div
                         key={r.roomId}
-                        className="flex items-center justify-between p-2 px-3 rounded-xl bg-slate-900/90 border border-white/10 hover:border-cyan-500/40 transition"
+                        className="flex items-center justify-between p-2 px-3 rounded-xl bg-slate-900 border border-white/10"
                       >
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-xs font-black text-white font-['Orbitron']">
+                          <span className="text-xs font-bold text-white">
                             {r.hostName}
                           </span>
                           <span className="text-[10px] text-amber-300 font-mono">({r.roomId})</span>
                         </div>
-
                         <button
                           onClick={() => handleJoinWithCode(r.roomId)}
-                          className="flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-black border border-emerald-500/40 transition cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-500/40 transition cursor-pointer"
                         >
-                          <span>Vào Chơi</span>
-                          <ArrowRight className="w-3 h-3" />
+                          Vào
                         </button>
                       </div>
-                    ))
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
 
         </div>
 
-        {/* Footer Bar: Tên của bạn */}
-        <div className="h-12 px-5 border-t border-white/10 bg-slate-900/90 flex items-center justify-between gap-2 flex-shrink-0">
-          <span className="text-xs text-gray-400 font-medium">Tên hiển thị:</span>
+        {/* Footer Bar: Tên hiển thị (Tối giản 1 dòng) */}
+        <div className="h-11 px-5 border-t border-white/10 bg-slate-900/80 flex items-center justify-between gap-2 flex-shrink-0">
+          <span className="text-xs text-gray-400">Tên bạn:</span>
           <div className="flex items-center gap-1.5">
             <input
               type="text"
               value={playerName}
               onChange={(e) => handleNameChange(e.target.value)}
               maxLength={14}
-              className="w-32 px-2 py-0.5 bg-slate-950 text-cyan-300 text-xs font-bold border border-white/10 rounded-lg outline-none text-center font-['Orbitron']"
+              className="w-28 px-2 py-0.5 bg-slate-950 text-cyan-300 text-xs font-bold border border-white/10 rounded-lg outline-none text-center"
             />
             <button
               onClick={handleRandomizeName}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-cyan-300 transition cursor-pointer"
-              title="Đổi tên ngẫu nhiên"
+              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-cyan-300 transition cursor-pointer"
+              title="Đổi tên"
             >
               <Dices className="w-3.5 h-3.5" />
             </button>
