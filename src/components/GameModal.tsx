@@ -168,11 +168,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
               <h2 className="text-sm sm:text-lg font-black tracking-wider font-['Orbitron'] bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(6,182,212,0.5)]">
                 {game.title}
               </h2>
-              {game.subtitle && (
-                <span className="hidden md:inline-block text-[11px] font-bold text-gray-400/90 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/5">
-                  {game.subtitle}
-                </span>
-              )}
             </div>
             <div className="w-12 group-hover:w-full h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-400 transition-all duration-500 rounded-full mt-0.5 opacity-80" />
           </div>
