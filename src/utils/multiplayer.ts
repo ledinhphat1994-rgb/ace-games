@@ -38,11 +38,16 @@ class MultiplayerService {
   private currentGameId: string = 'caro';
 
   constructor() {
-    // Generate or load permanent unique anonymous client ID
-    let pid = localStorage.getItem('ace_player_id');
-    if (!pid) {
+    // Generate unique session-based client ID so even 2 tabs in same browser can play against each other
+    let pid: string | null = null;
+    try {
+      pid = sessionStorage.getItem('ace_player_id');
+      if (!pid) {
+        pid = 'user_' + Math.random().toString(36).substring(2, 9);
+        sessionStorage.setItem('ace_player_id', pid);
+      }
+    } catch {
       pid = 'user_' + Math.random().toString(36).substring(2, 9);
-      localStorage.setItem('ace_player_id', pid);
     }
     this.localPlayerId = pid;
   }
@@ -52,16 +57,24 @@ class MultiplayerService {
   }
 
   public getPlayerName(): string {
-    const saved = localStorage.getItem('ace_player_name');
-    if (saved) return saved;
-    const randomName = 'KỳThủ_' + Math.floor(100 + Math.random() * 900);
-    localStorage.setItem('ace_player_name', randomName);
-    return randomName;
+    try {
+      const saved = sessionStorage.getItem('ace_player_name');
+      if (saved) return saved;
+      const animals = ['KỳThủ', 'CaoThủ', 'BạchHổ', 'HắcBáo', 'ChiếnBinh', 'HiệpSĩ'];
+      const chosen = animals[Math.floor(Math.random() * animals.length)];
+      const randomName = `${chosen}_${Math.floor(100 + Math.random() * 900)}`;
+      sessionStorage.setItem('ace_player_name', randomName);
+      return randomName;
+    } catch {
+      return 'KỳThủ_' + Math.floor(100 + Math.random() * 900);
+    }
   }
 
   public setPlayerName(name: string) {
     const clean = name.trim() || this.getPlayerName();
-    localStorage.setItem('ace_player_name', clean);
+    try {
+      sessionStorage.setItem('ace_player_name', clean);
+    } catch {}
   }
 
   public getRandomNewName(): string {
