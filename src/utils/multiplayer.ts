@@ -227,6 +227,39 @@ class MultiplayerService {
     return true;
   }
 
+  public findAvailableRoom(gameId: string): RoomInfo | null {
+    const available = Array.from(this.activeRooms.values()).find(
+      r => r.gameId === gameId && r.status === 'waiting' && r.hostId !== this.localPlayerId
+    );
+    return available || null;
+  }
+
+  public createBotMatch(gameId: string): { room: RoomInfo; role: 'host'; botName: string } {
+    const botNames = [
+      'KỳThủ_HàNội', 'ChiếnBinh_SG', 'KỳVương_VN', 'CaoThủ_ĐàNẵng',
+      'PhượngHoàng_99', 'BạchHổ_88', 'PhiĐao_36', 'LãngTử_77', 'HắcBáo_55', 'ẨnDanh_42'
+    ];
+    const botName = botNames[Math.floor(Math.random() * botNames.length)];
+    const roomId = 'BOT-' + Math.floor(1000 + Math.random() * 9000);
+    const room: RoomInfo = {
+      roomId,
+      gameId,
+      hostName: this.getPlayerName(),
+      hostId: this.localPlayerId,
+      status: 'playing',
+      createdAt: Date.now(),
+      options: { isBot: true, botName },
+    };
+    this.currentRoom = room;
+    this.currentRole = 'host';
+    this.opponent = { id: 'bot', name: botName };
+    return { room, role: 'host', botName };
+  }
+
+  public isBotMatch(): boolean {
+    return Boolean(this.currentRoom?.options?.isBot);
+  }
+
   // --- QUICK MATCH: 1-Click Instant Pairing ---
   public async quickMatch(gameId: string): Promise<{ action: 'joined' | 'hosted'; room: RoomInfo }> {
     this.notifyStatus('searching');

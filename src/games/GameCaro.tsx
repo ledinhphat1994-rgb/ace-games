@@ -151,6 +151,7 @@ export const GameCaro: React.FC = () => {
 
   // Trạng Thái Chơi Online Nhiều Người (Multiplayer)
   const [isOnlineMode, setIsOnlineMode] = useState<boolean>(false);
+  const [isWaitingForFriend, setIsWaitingForFriend] = useState<boolean>(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
   const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
   const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
@@ -171,6 +172,7 @@ export const GameCaro: React.FC = () => {
     soundManager.playButtonClick();
     multiplayer.leaveRoom();
     setIsOnlineMode(false);
+    setIsWaitingForFriend(false);
     setOnlineRoom(null);
     resetGame();
   };
@@ -225,9 +227,14 @@ export const GameCaro: React.FC = () => {
       if (status === 'connected') {
         const opp = multiplayer.getOpponent();
         if (opp?.name) setOpponentName(opp.name);
+        setIsWaitingForFriend(false);
+        setIsOnlineMode(true);
+        resetGame();
+        soundManager.playGameLaunch();
       } else if (status === 'disconnected') {
         alert('Đối thủ đã rời bàn đấu!');
         setIsOnlineMode(false);
+        setIsWaitingForFriend(false);
         setOnlineRoom(null);
       }
     };
@@ -527,6 +534,7 @@ export const GameCaro: React.FC = () => {
 
     if (!isOnlineMode && isAiMode && !isXNext) return;
     if (isOnlineMode) {
+      if (isWaitingForFriend) return;
       const isMyTurn = (playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext);
       if (!isMyTurn) return;
     }
@@ -556,15 +564,18 @@ export const GameCaro: React.FC = () => {
     setIsXNext(!isXNext);
   };
 
-  // AI Turn effect
+  // AI / Online Bot Turn effect
   useEffect(() => {
-    if (!isOnlineMode && isAiMode && !isXNext && !winnerInfo) {
+    const isBotTurn = (isOnlineMode && multiplayer.isBotMatch() && ((playerRole === 'host' && !isXNext) || (playerRole === 'guest' && isXNext))) || (!isOnlineMode && isAiMode && !isXNext);
+
+    if (isBotTurn && !winnerInfo) {
       const timer = setTimeout(() => {
         const aiMove = findBestMove(board);
         if (aiMove !== -1) {
           soundManager.playButtonClick();
+          const botPiece: Player = isOnlineMode ? (playerRole === 'host' ? 'O' : 'X') : 'O';
           const newBoard = [...board];
-          newBoard[aiMove] = 'O';
+          newBoard[aiMove] = botPiece;
           setBoard(newBoard);
           setTimeLeft(timeLimit);
 
@@ -573,14 +584,14 @@ export const GameCaro: React.FC = () => {
             setWinnerInfo(result);
             updateStats(result.winner);
           } else {
-            setIsXNext(true);
+            setIsXNext(botPiece === 'X' ? false : true);
           }
         }
-      }, 300);
+      }, Math.floor(700 + Math.random() * 800));
 
       return () => clearTimeout(timer);
     }
-  }, [isOnlineMode, isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, checkWinner, timeLimit]);
+  }, [isOnlineMode, isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, timeLimit, playerRole]);
 
   const updateStats = (winner: Player | 'DRAW') => {
     setStats(prev => {
@@ -690,7 +701,24 @@ export const GameCaro: React.FC = () => {
             </button>
           )}
 
-          {isOnlineMode ? (
+          {isWaitingForFriend ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span>Đang đợi bạn vào ({onlineRoom?.roomId})...</span>
+              <button
+                onClick={handleCopyInvite}
+                className="px-2 py-0.5 rounded-lg bg-cyan-500/30 hover:bg-cyan-500/50 text-cyan-200 text-[11px] font-bold border border-cyan-500/40 transition cursor-pointer"
+              >
+                {copiedInvite ? '✓ Đã chép' : 'Copy link'}
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="text-rose-400 hover:text-rose-300 text-xs font-bold cursor-pointer ml-1"
+              >
+                ✕ Hủy
+              </button>
+            </div>
+          ) : isOnlineMode ? (
             <div className="flex items-center gap-1.5">
               <span className="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-mono">
                 {onlineRoom?.roomId}
@@ -870,13 +898,20 @@ export const GameCaro: React.FC = () => {
         gameTitle="Cờ Caro"
         onJoinedMatch={(room, role) => {
           setIsOnlineMode(true);
+          setIsWaitingForFriend(false);
           setOnlineRoom(room);
           setPlayerRole(role);
-          setOpponentName(role === 'host' ? 'Đối thủ' : room.hostName);
+          const oppName = room.options?.isBot ? (room.options.botName || 'Kỳ Thủ') : (role === 'host' ? 'Đối thủ' : room.hostName);
+          setOpponentName(oppName);
           setBoard(Array(boardSize * boardSize).fill(null));
           setIsXNext(true);
           setWinnerInfo(null);
           setTimeLeft(timeLimit);
+        }}
+        onWaitingInBackground={(room) => {
+          setIsWaitingForFriend(true);
+          setOnlineRoom(room);
+          setPlayerRole('host');
         }}
       />
     </div>
