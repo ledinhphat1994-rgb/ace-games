@@ -75,6 +75,9 @@ export const GameXiangqi: React.FC = () => {
   const [opponentName, setOpponentName] = useState<string>('Đối thủ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
 
+  // Khi chơi Online với vai trò Đen (guest), xoay bàn cờ để quân Đen nằm ở dưới cho dễ thao tác
+  const isFlipped = isOnlineMode && playerRole === 'guest';
+
   const handleCopyInvite = () => {
     if (!onlineRoom) return;
     soundManager.playButtonClick();
@@ -343,14 +346,12 @@ export const GameXiangqi: React.FC = () => {
             </div>
           ) : isOnlineMode ? (
             ((playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#34d399]" />
-                <span>👉 LƯỢT CỦA BẠN ({playerRole === 'host' ? 'ĐỎ' : 'ĐEN'})</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-                <span>⏳ ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm">
+                <span>ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
               </div>
             )
           ) : (
@@ -528,18 +529,20 @@ export const GameXiangqi: React.FC = () => {
 
               {/* Chữ Thư Pháp Giữa Dòng Sông (Sở Hà - Hán Giới) Mềm Mại, Dịu Mắt */}
               <text x="250" y="510" textAnchor="middle" fill="#5c2e0b" fontSize="28" fontFamily="'Noto Serif SC', serif" fontWeight="900" letterSpacing="16" opacity="0.75">
-                楚河
+                {isFlipped ? '漢界' : '楚河'}
               </text>
               <text x="650" y="510" textAnchor="middle" fill="#5c2e0b" fontSize="28" fontFamily="'Noto Serif SC', serif" fontWeight="900" letterSpacing="16" opacity="0.75">
-                漢界
+                {isFlipped ? '楚河' : '漢界'}
               </text>
             </svg>
 
             {/* 90 Giao Điểm Đặt Quân - Khớp Chuẩn Từng Pixel Với Lưới SVG */}
             <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10">
               {Array.from({ length: 90 }).map((_, idx) => {
-                const r = 9 - Math.floor(idx / 9);
-                const f = idx % 9;
+                const screenRow = Math.floor(idx / 9);
+                const screenCol = idx % 9;
+                const r = isFlipped ? screenRow : (9 - screenRow);
+                const f = isFlipped ? (8 - screenCol) : screenCol;
                 const sq = r * 9 + f;
                 const piece = pos.board[sq];
                 const isSelected = selectedSq === sq;
@@ -618,9 +621,9 @@ export const GameXiangqi: React.FC = () => {
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-black text-rose-500 mb-2 font-['Orbitron']">
                   {pos.outcome().winner === RED
-                    ? (mode === 'ai' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'BÊN ĐỎ THẮNG!')
+                    ? (isOnlineMode ? (playerRole === 'host' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (mode === 'ai' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'BÊN ĐỎ THẮNG!'))
                     : pos.outcome().winner === BLACK
-                    ? (mode === 'ai' ? 'AI ĐÃ CHIẾN THẮNG!' : 'BÊN ĐEN THẮNG!')
+                    ? (isOnlineMode ? (playerRole === 'guest' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (mode === 'ai' ? 'AI ĐÃ CHIẾN THẮNG!' : 'BÊN ĐEN THẮNG!'))
                     : 'VÁN CỜ HÒA!'}
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium">

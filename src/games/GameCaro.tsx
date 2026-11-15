@@ -635,14 +635,12 @@ export const GameCaro: React.FC = () => {
             </div>
           ) : isOnlineMode ? (
             ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#34d399]" />
-                <span>👉 LƯỢT CỦA BẠN ({playerRole === 'host' ? 'X' : 'O'})</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-                <span>⏳ ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm">
+                <span>ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
               </div>
             )
           ) : (

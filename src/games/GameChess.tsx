@@ -73,6 +73,9 @@ export const GameChess: React.FC = () => {
   const [opponentName, setOpponentName] = useState<string>('Đối thủ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
 
+  // Khi chơi Online với vai trò Đen (guest), xoay bàn cờ để quân Đen nằm ở dưới cho dễ thao tác
+  const isFlipped = isOnlineMode && playerRole === 'guest';
+
   const handleCopyInvite = () => {
     if (!onlineRoom) return;
     soundManager.playButtonClick();
@@ -341,14 +344,12 @@ export const GameChess: React.FC = () => {
             </div>
           ) : isOnlineMode ? (
             ((playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#34d399]" />
-                <span>👉 LƯỢT CỦA BẠN ({playerRole === 'host' ? 'TRẮNG' : 'ĐEN'})</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-                <span>⏳ ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm">
+                <span>ĐỐI THỦ ({opponentName}) ĐANG NGHĨ...</span>
               </div>
             )
           ) : (
@@ -454,11 +455,13 @@ export const GameChess: React.FC = () => {
         <div className="game-board-inner relative bg-[#0c0804] p-2.5 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-amber-600/60 shadow-2xl flex items-center justify-center">
           <div className="grid grid-cols-8 grid-rows-8 rounded-2xl overflow-hidden border-2 border-slate-950 shadow-inner w-full h-full">
             {Array.from({ length: 64 }).map((_, idx) => {
-              const row = Math.floor(idx / 8);
-              const col = idx % 8;
-              const sq = (7 - row) * 8 + col;
+              const screenRow = Math.floor(idx / 8);
+              const screenCol = idx % 8;
+              const rank = isFlipped ? screenRow : (7 - screenRow);
+              const file = isFlipped ? (7 - screenCol) : screenCol;
+              const sq = rank * 8 + file;
               const piece = pos.board[sq];
-              const isLight = (row + col) % 2 === 0;
+              const isLight = (rank + file) % 2 !== 0;
               const isSelected = selectedSq === sq;
               const isTarget = validMoves.some(m => m.to === sq);
               const isLastFrom = lastMove?.from === sq;
@@ -501,9 +504,9 @@ export const GameChess: React.FC = () => {
               </span>
               <h3 className="text-2xl sm:text-3xl font-black text-amber-400 mb-2 font-['Orbitron']">
                 {pos.outcome().winner === WHITE
-                  ? (mode === 'ai' ? 'BẠN ĐÃ THẮNG!' : 'QUÂN TRẮNG THẮNG!')
+                  ? (isOnlineMode ? (playerRole === 'host' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (mode === 'ai' ? 'BẠN ĐÃ THẮNG!' : 'QUÂN TRẮNG THẮNG!'))
                   : pos.outcome().winner === BLACK
-                  ? (mode === 'ai' ? 'AI ĐÃ THẮNG!' : 'QUÂN ĐEN THẮNG!')
+                  ? (isOnlineMode ? (playerRole === 'guest' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (mode === 'ai' ? 'AI ĐÃ THẮNG!' : 'QUÂN ĐEN THẮNG!'))
                   : 'VÁN CỜ HÒA!'}
               </h3>
               <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium">
