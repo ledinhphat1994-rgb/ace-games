@@ -1,10 +1,104 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Users, Bot, Award, Grid3X3, Grid, Timer } from 'lucide-react';
+import { RotateCcw, Users, Bot, Award, Grid3X3, Grid, Timer, Globe, Copy, Check, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
+import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
+import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 
 type Player = 'X' | 'O' | null;
 type Difficulty = 'EASY' | 'MEDIUM' | 'UNBEATABLE';
+
+// Check winner on arbitrary NxN board with streak target
+const checkWinner = (squares: Player[], size: number, target: number): { winner: Player | 'DRAW'; line?: number[] } | null => {
+  const getIndex = (r: number, c: number) => r * size + c;
+
+  // Horizontal
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c <= size - target; c++) {
+      const first = squares[getIndex(r, c)];
+      if (first) {
+        let match = true;
+        const line: number[] = [];
+        for (let k = 0; k < target; k++) {
+          const idx = getIndex(r, c + k);
+          line.push(idx);
+          if (squares[idx] !== first) {
+            match = false;
+            break;
+          }
+        }
+        if (match) return { winner: first, line };
+      }
+    }
+  }
+
+  // Vertical
+  for (let c = 0; c < size; c++) {
+    for (let r = 0; r <= size - target; r++) {
+      const first = squares[getIndex(r, c)];
+      if (first) {
+        let match = true;
+        const line: number[] = [];
+        for (let k = 0; k < target; k++) {
+          const idx = getIndex(r + k, c);
+          line.push(idx);
+          if (squares[idx] !== first) {
+            match = false;
+            break;
+          }
+        }
+        if (match) return { winner: first, line };
+      }
+    }
+  }
+
+  // Diagonal (\)
+  for (let r = 0; r <= size - target; r++) {
+    for (let c = 0; c <= size - target; c++) {
+      const first = squares[getIndex(r, c)];
+      if (first) {
+        let match = true;
+        const line: number[] = [];
+        for (let k = 0; k < target; k++) {
+          const idx = getIndex(r + k, c + k);
+          line.push(idx);
+          if (squares[idx] !== first) {
+            match = false;
+            break;
+          }
+        }
+        if (match) return { winner: first, line };
+      }
+    }
+  }
+
+  // Diagonal (/)
+  for (let r = 0; r <= size - target; r++) {
+    for (let c = target - 1; c < size; c++) {
+      const first = squares[getIndex(r, c)];
+      if (first) {
+        let match = true;
+        const line: number[] = [];
+        for (let k = 0; k < target; k++) {
+          const idx = getIndex(r + k, c - k);
+          line.push(idx);
+          if (squares[idx] !== first) {
+            match = false;
+            break;
+          }
+        }
+        if (match) return { winner: first, line };
+      }
+    }
+  }
+
+  // Draw check
+  if (squares.every(s => s !== null)) {
+    return { winner: 'DRAW' as const };
+  }
+
+  return null;
+};
 
 export const GameCaro: React.FC = () => {
   // Board size: 10 (10x10, 5 in a row - Cờ Caro Việt Nam) or 3 (3x3 - Tic Tac Toe nhanh)
@@ -54,6 +148,107 @@ export const GameCaro: React.FC = () => {
   });
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [winnerInfo, setWinnerInfo] = useState<{ winner: Player | 'DRAW'; line?: number[] } | null>(null);
+
+  // Trạng Thái Chơi Online Nhiều Người (Multiplayer)
+  const [isOnlineMode, setIsOnlineMode] = useState<boolean>(false);
+  const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
+  const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
+  const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
+  const [opponentName, setOpponentName] = useState<string>('Đối thủ');
+  const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
+
+  const handleCopyInvite = () => {
+    if (!onlineRoom) return;
+    soundManager.playButtonClick();
+    const url = `${window.location.origin}${window.location.pathname}?game=caro&room=${onlineRoom.roomId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedInvite(true);
+      setTimeout(() => setCopiedInvite(false), 2000);
+    });
+  };
+
+  const handleLeaveRoom = () => {
+    soundManager.playButtonClick();
+    multiplayer.leaveRoom();
+    setIsOnlineMode(false);
+    setOnlineRoom(null);
+    resetGame();
+  };
+
+  // Tự động vào phòng nếu có tham số URL ?game=caro&room=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      multiplayer.joinRoom('caro', roomParam.toUpperCase()).then(() => {
+        const room = multiplayer.getCurrentRoom();
+        if (room) {
+          setIsOnlineMode(true);
+          setOnlineRoom(room);
+          setPlayerRole('guest');
+          setBoard(Array(boardSize * boardSize).fill(null));
+          setIsXNext(true);
+        }
+      });
+    }
+  }, [boardSize]);
+
+  // Nhận nước đi và hành động từ đối thủ online qua WebSockets
+  useEffect(() => {
+    if (!isOnlineMode) return;
+
+    const handleOpponentMove = (data: any) => {
+      if (data.type === 'game_move' && data.payload) {
+        soundManager.playButtonClick();
+        const { index, piece } = data.payload;
+        setBoard(prev => {
+          const updated = [...prev];
+          updated[index] = piece;
+          const result = checkWinner(updated, boardSize, winStreak);
+          if (result) {
+            setWinnerInfo(result);
+            updateStats(result.winner);
+          }
+          return updated;
+        });
+        setTimeLeft(timeLimit);
+        setIsXNext(piece === 'X' ? false : true);
+      } else if (data.type === 'game_restart') {
+        setBoard(Array(boardSize * boardSize).fill(null));
+        setIsXNext(true);
+        setWinnerInfo(null);
+        setTimeLeft(timeLimit);
+      }
+    };
+
+    const handleStatus = (status: string) => {
+      if (status === 'connected') {
+        const opp = multiplayer.getOpponent();
+        if (opp?.name) setOpponentName(opp.name);
+      } else if (status === 'disconnected') {
+        alert('Đối thủ đã rời bàn đấu!');
+        setIsOnlineMode(false);
+        setOnlineRoom(null);
+      }
+    };
+
+    multiplayer.onMove(handleOpponentMove);
+    multiplayer.onStatusChange(handleStatus);
+
+    return () => {
+      multiplayer.offMove(handleOpponentMove);
+      multiplayer.offStatusChange(handleStatus);
+    };
+  }, [isOnlineMode, boardSize, winStreak, timeLimit, checkWinner]);
+
+  // Rời phòng khi component unmount
+  useEffect(() => {
+    return () => {
+      if (isOnlineMode) {
+        multiplayer.leaveRoom();
+      }
+    };
+  }, [isOnlineMode]);
 
   // Đồng bộ cài đặt thời gian thực với GameSettingsModal
   useEffect(() => {
@@ -107,105 +302,15 @@ export const GameCaro: React.FC = () => {
     return saved ? JSON.parse(saved) : { win: 0, loss: 0, draw: 0 };
   });
 
-  // Check winner on arbitrary NxN board with streak target
-  const checkWinner = useCallback((squares: Player[], size: number, target: number) => {
-    // Check horizontal, vertical, diagonal \, diagonal /
-    const getIndex = (r: number, c: number) => r * size + c;
-
-    // Horizontal
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c <= size - target; c++) {
-        const first = squares[getIndex(r, c)];
-        if (first) {
-          let match = true;
-          const line: number[] = [];
-          for (let k = 0; k < target; k++) {
-            const idx = getIndex(r, c + k);
-            line.push(idx);
-            if (squares[idx] !== first) {
-              match = false;
-              break;
-            }
-          }
-          if (match) return { winner: first, line };
-        }
-      }
-    }
-
-    // Vertical
-    for (let c = 0; c < size; c++) {
-      for (let r = 0; r <= size - target; r++) {
-        const first = squares[getIndex(r, c)];
-        if (first) {
-          let match = true;
-          const line: number[] = [];
-          for (let k = 0; k < target; k++) {
-            const idx = getIndex(r + k, c);
-            line.push(idx);
-            if (squares[idx] !== first) {
-              match = false;
-              break;
-            }
-          }
-          if (match) return { winner: first, line };
-        }
-      }
-    }
-
-    // Diagonal (\)
-    for (let r = 0; r <= size - target; r++) {
-      for (let c = 0; c <= size - target; c++) {
-        const first = squares[getIndex(r, c)];
-        if (first) {
-          let match = true;
-          const line: number[] = [];
-          for (let k = 0; k < target; k++) {
-            const idx = getIndex(r + k, c + k);
-            line.push(idx);
-            if (squares[idx] !== first) {
-              match = false;
-              break;
-            }
-          }
-          if (match) return { winner: first, line };
-        }
-      }
-    }
-
-    // Diagonal (/)
-    for (let r = 0; r <= size - target; r++) {
-      for (let c = target - 1; c < size; c++) {
-        const first = squares[getIndex(r, c)];
-        if (first) {
-          let match = true;
-          const line: number[] = [];
-          for (let k = 0; k < target; k++) {
-            const idx = getIndex(r + k, c - k);
-            line.push(idx);
-            if (squares[idx] !== first) {
-              match = false;
-              break;
-            }
-          }
-          if (match) return { winner: first, line };
-        }
-      }
-    }
-
-    // Draw check
-    if (squares.every(s => s !== null)) {
-      return { winner: 'DRAW' as const };
-    }
-
-    return null;
-  }, []);
-
   const resetGame = useCallback(() => {
     setBoard(Array(boardSize * boardSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
     setTimeLeft(timeLimit);
-  }, [boardSize, timeLimit]);
+    if (isOnlineMode) {
+      multiplayer.sendAction('game_restart');
+    }
+  }, [boardSize, timeLimit, isOnlineMode]);
 
   // Handle board size switch
   const handleSizeChange = (newSize: 10 | 3) => {
@@ -418,14 +523,28 @@ export const GameCaro: React.FC = () => {
 
   // Handle cell click
   const handleClick = (index: number) => {
-    if (board[index] || winnerInfo || (isAiMode && !isXNext) || (timeLimit > 0 && timeLeft === 0)) return;
+    if (board[index] || winnerInfo || (timeLimit > 0 && timeLeft === 0)) return;
+
+    if (!isOnlineMode && isAiMode && !isXNext) return;
+    if (isOnlineMode) {
+      const isMyTurn = (playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext);
+      if (!isMyTurn) return;
+    }
 
     soundManager.playButtonClick();
 
+    const myPiece: Player = isOnlineMode 
+      ? (playerRole === 'host' ? 'X' : 'O') 
+      : (isXNext ? 'X' : 'O');
+
     const newBoard = [...board];
-    newBoard[index] = isXNext ? 'X' : 'O';
+    newBoard[index] = myPiece;
     setBoard(newBoard);
     setTimeLeft(timeLimit);
+
+    if (isOnlineMode) {
+      multiplayer.sendMove({ index, piece: myPiece });
+    }
 
     const result = checkWinner(newBoard, boardSize, winStreak);
     if (result) {
@@ -439,7 +558,7 @@ export const GameCaro: React.FC = () => {
 
   // AI Turn effect
   useEffect(() => {
-    if (isAiMode && !isXNext && !winnerInfo) {
+    if (!isOnlineMode && isAiMode && !isXNext && !winnerInfo) {
       const timer = setTimeout(() => {
         const aiMove = findBestMove(board);
         if (aiMove !== -1) {
@@ -461,7 +580,7 @@ export const GameCaro: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, checkWinner, timeLimit]);
+  }, [isOnlineMode, isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, checkWinner, timeLimit]);
 
   const updateStats = (winner: Player | 'DRAW') => {
     setStats(prev => {
@@ -496,7 +615,23 @@ export const GameCaro: React.FC = () => {
               {winnerInfo ? (
                 <span className="text-amber-400 font-black text-xs sm:text-sm flex items-center gap-1 leading-none animate-pulse">
                   <Award className="w-4 h-4 text-amber-400" />
-                  {winnerInfo.winner === 'X' ? 'X Thắng!' : winnerInfo.winner === 'O' ? (isAiMode ? 'AI Thắng!' : 'O Thắng!') : 'Hòa Nhau!'}
+                  {winnerInfo.winner === 'X' 
+                    ? (isOnlineMode ? (playerRole === 'host' ? 'Bạn Thắng!' : `${opponentName} Thắng!`) : 'X Thắng!') 
+                    : winnerInfo.winner === 'O' 
+                    ? (isOnlineMode ? (playerRole === 'guest' ? 'Bạn Thắng!' : `${opponentName} Thắng!`) : isAiMode ? 'AI Thắng!' : 'O Thắng!') 
+                    : 'Hòa Nhau!'}
+                </span>
+              ) : isOnlineMode ? (
+                <span className="text-xs sm:text-sm font-bold flex items-center gap-1.5 leading-none">
+                  {((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
+                    <span className="text-emerald-400 font-black animate-pulse flex items-center gap-1">
+                      👉 Lượt của BẠN ({playerRole === 'host' ? 'X' : 'O'})
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 font-medium flex items-center gap-1">
+                      Chờ {opponentName} ({playerRole === 'host' ? 'O' : 'X'})...
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="text-xs sm:text-sm font-bold text-gray-200 flex items-center gap-1.5 leading-none">
@@ -541,44 +676,82 @@ export const GameCaro: React.FC = () => {
           </div>
         </div>
 
-        {/* Right actions: Chọn Bàn Cờ, Đấu Máy / 2 Người, Độ khó, Ván Mới */}
+        {/* Right actions: Chọn Bàn Cờ, Đấu Máy / 2 Người / Online, Độ khó, Ván Mới */}
         <div className="flex items-center gap-2">
           {/* Nút Chọn Bàn Cờ 10x10 hoặc 3x3 */}
-          <button
-            onClick={() => handleSizeChange(boardSize === 10 ? 3 : 10)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-white/5 transition cursor-pointer"
-            title={boardSize === 10 ? 'Đang chơi bàn 10x10 (5 ô thắng). Bấm để đổi sang 3x3' : 'Đang chơi bàn 3x3 (3 ô thắng). Bấm để đổi sang 10x10'}
-          >
-            {boardSize === 10 ? <Grid className="w-4 h-4 text-cyan-400" /> : <Grid3X3 className="w-4 h-4 text-amber-400" />}
-            <span>{boardSize === 10 ? 'Bàn 10x10 (5 ô)' : 'Bàn 3x3 (Nhanh)'}</span>
-          </button>
-
-          {/* Đấu Máy / 2 Người */}
-          <button
-            onClick={() => {
-              setIsAiMode(prev => !prev);
-              resetGame();
-            }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition"
-            title={isAiMode ? 'Chế độ: Đấu Máy (Bấm để đổi 2 người)' : 'Chế độ: 2 Người (Bấm để đổi đấu máy)'}
-          >
-            {isAiMode ? <Bot className="w-4 h-4 text-cyan-400" /> : <Users className="w-4 h-4 text-emerald-400" />}
-            <span className="hidden sm:inline">{isAiMode ? 'Đấu Máy' : '2 Người'}</span>
-          </button>
-
-          {isAiMode && (
-            <select
-              value={difficulty}
-              onChange={e => {
-                setDifficulty(e.target.value as Difficulty);
-                resetGame();
-              }}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
+          {!isOnlineMode && (
+            <button
+              onClick={() => handleSizeChange(boardSize === 10 ? 3 : 10)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-white/5 transition cursor-pointer"
+              title={boardSize === 10 ? 'Đang chơi bàn 10x10 (5 ô thắng). Bấm để đổi sang 3x3' : 'Đang chơi bàn 3x3 (3 ô thắng). Bấm để đổi sang 10x10'}
             >
-              <option value="EASY">Dễ</option>
-              <option value="MEDIUM">Vừa</option>
-              <option value="UNBEATABLE">Khó (AI)</option>
-            </select>
+              {boardSize === 10 ? <Grid className="w-4 h-4 text-cyan-400" /> : <Grid3X3 className="w-4 h-4 text-amber-400" />}
+              <span>{boardSize === 10 ? 'Bàn 10x10 (5 ô)' : 'Bàn 3x3 (Nhanh)'}</span>
+            </button>
+          )}
+
+          {isOnlineMode ? (
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-mono">
+                {onlineRoom?.roomId}
+              </span>
+              <button
+                onClick={handleCopyInvite}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold border border-white/10 transition cursor-pointer"
+                title="Sao chép link mời bạn bè"
+              >
+                {copiedInvite ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
+                <span className="hidden sm:inline">{copiedInvite ? 'Đã chép' : 'Mời'}</span>
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold border border-rose-500/30 transition cursor-pointer"
+                title="Rời bàn đấu online"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Rời</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Đấu Máy / 2 Người */}
+              <button
+                onClick={() => {
+                  setIsAiMode(prev => !prev);
+                  resetGame();
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition cursor-pointer"
+                title={isAiMode ? 'Chế độ: Đấu Máy (Bấm để đổi 2 người)' : 'Chế độ: 2 Người (Bấm để đổi đấu máy)'}
+              >
+                {isAiMode ? <Bot className="w-4 h-4 text-cyan-400" /> : <Users className="w-4 h-4 text-emerald-400" />}
+                <span className="hidden sm:inline">{isAiMode ? 'Đấu Máy' : '2 Người'}</span>
+              </button>
+
+              {isAiMode && (
+                <select
+                  value={difficulty}
+                  onChange={e => {
+                    setDifficulty(e.target.value as Difficulty);
+                    resetGame();
+                  }}
+                  className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                >
+                  <option value="EASY">Dễ</option>
+                  <option value="MEDIUM">Vừa</option>
+                  <option value="UNBEATABLE">Khó (AI)</option>
+                </select>
+              )}
+
+              {/* Nút Vào Sảnh Online */}
+              <button
+                onClick={() => setIsLobbyOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 font-bold text-xs border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.2)] transition cursor-pointer active:scale-95"
+                title="Tìm trận online hoặc tham gia phòng"
+              >
+                <Globe className="w-4 h-4 text-cyan-400" />
+                <span>Online</span>
+              </button>
+            </>
           )}
 
           <button
@@ -607,11 +780,15 @@ export const GameCaro: React.FC = () => {
           >
             {board.map((cell, idx) => {
               const isWinningCell = winnerInfo?.line?.includes(idx);
+              const isTurnDisabled = isOnlineMode
+                ? (playerRole === 'host' ? !isXNext : isXNext)
+                : (isAiMode && !isXNext);
+
               return (
                 <button
                   key={idx}
                   onClick={() => handleClick(idx)}
-                  disabled={cell !== null || (isAiMode && !isXNext) || winnerInfo !== null}
+                  disabled={cell !== null || isTurnDisabled || winnerInfo !== null}
                   className={`flex items-center justify-center font-['Orbitron'] font-black rounded-lg sm:rounded-xl transition-all duration-150 select-none ${
                     boardSize === 10
                       ? 'text-lg sm:text-2xl md:text-3xl'
@@ -684,6 +861,24 @@ export const GameCaro: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Online Multiplayer Lobby Modal */}
+      <OnlineLobbyModal
+        isOpen={isLobbyOpen}
+        onClose={() => setIsLobbyOpen(false)}
+        gameId="caro"
+        gameTitle="Cờ Caro"
+        onJoinedMatch={(room, role) => {
+          setIsOnlineMode(true);
+          setOnlineRoom(room);
+          setPlayerRole(role);
+          setOpponentName(role === 'host' ? 'Đối thủ' : room.hostName);
+          setBoard(Array(boardSize * boardSize).fill(null));
+          setIsXNext(true);
+          setWinnerInfo(null);
+          setTimeLeft(timeLimit);
+        }}
+      />
     </div>
   );
 };

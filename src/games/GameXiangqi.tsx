@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { XiangqiPosition, type XiangqiMove, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
-import { RotateCcw, Bot, Users, Timer } from 'lucide-react';
+import { RotateCcw, Bot, Users, Timer, Globe, Copy, Check, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
+import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
+import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 
 const XIANGQI_PIECES: Record<number, Record<number, string>> = {
   [RED]: {
@@ -63,6 +65,32 @@ export const GameXiangqi: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [isThinking, setIsThinking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Đỏ (Đi trước)');
+
+  // Trạng Thái Chơi Online Nhiều Người (Multiplayer)
+  const [isOnlineMode, setIsOnlineMode] = useState<boolean>(false);
+  const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
+  const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
+  const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
+  const [opponentName, setOpponentName] = useState<string>('Đối thủ');
+  const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
+
+  const handleCopyInvite = () => {
+    if (!onlineRoom) return;
+    soundManager.playButtonClick();
+    const url = `${window.location.origin}${window.location.pathname}?game=xiangqi&room=${onlineRoom.roomId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedInvite(true);
+      setTimeout(() => setCopiedInvite(false), 2000);
+    });
+  };
+
+  const handleLeaveRoom = () => {
+    soundManager.playButtonClick();
+    multiplayer.leaveRoom();
+    setIsOnlineMode(false);
+    setOnlineRoom(null);
+    resetGame();
+  };
 
   // Đồng bộ cài đặt thời gian thực với GameSettingsModal
   useEffect(() => {
@@ -146,6 +174,9 @@ export const GameXiangqi: React.FC = () => {
     setIsThinking(false);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
+    if (isOnlineMode) {
+      multiplayer.sendAction('game_restart');
+    }
   };
 
   const handleSquareClick = (sq: number) => {
@@ -153,7 +184,12 @@ export const GameXiangqi: React.FC = () => {
     const outcome = pos.outcome();
     if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
 
-    if (mode === 'ai' && pos.turn === BLACK) return;
+    if (!isOnlineMode && mode === 'ai' && pos.turn === BLACK) return;
+
+    if (isOnlineMode) {
+      const isMyTurn = (playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK);
+      if (!isMyTurn) return;
+    }
 
     const piece = pos.board[sq];
 
@@ -178,7 +214,7 @@ export const GameXiangqi: React.FC = () => {
     }
   };
 
-  const executeMove = (move: XiangqiMove) => {
+  const executeMove = (move: XiangqiMove, isRemote: boolean = false) => {
     const isCapture = Boolean(pos.board[move.to]);
     const nextPos = pos.clone();
     nextPos.makeMove(move);
@@ -192,8 +228,12 @@ export const GameXiangqi: React.FC = () => {
     if (isCapture) playTone(240, 0.12);
     else playTone(520, 0.06);
 
+    if (!isRemote && isOnlineMode) {
+      multiplayer.sendMove(move);
+    }
+
     // AI Turn trigger
-    if (mode === 'ai' && nextPos.turn === BLACK && !nextPos.outcome().over) {
+    if (!isOnlineMode && mode === 'ai' && nextPos.turn === BLACK && !nextPos.outcome().over) {
       setIsThinking(true);
       setTimeout(() => {
         const levelStr = aiLevel === 1 ? 'easy' : aiLevel === 3 ? 'hard' : 'medium';
@@ -213,6 +253,75 @@ export const GameXiangqi: React.FC = () => {
     }
   };
 
+  // Tự động vào phòng nếu có tham số URL ?game=xiangqi&room=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      multiplayer.joinRoom('xiangqi', roomParam.toUpperCase()).then(() => {
+        const room = multiplayer.getCurrentRoom();
+        if (room) {
+          setIsOnlineMode(true);
+          setOnlineRoom(room);
+          setPlayerRole('guest');
+          const newPos = XiangqiPosition.fromFen();
+          setPos(newPos);
+          setSelectedSq(null);
+          setValidMoves([]);
+          setLastMove(null);
+          setIsThinking(false);
+          updateStatus(newPos);
+          setTimeLeft(timeLimit);
+        }
+      });
+    }
+  }, [timeLimit, updateStatus]);
+
+  // Nhận nước đi và hành động từ đối thủ online
+  useEffect(() => {
+    if (!isOnlineMode) return;
+
+    const handleOpponentMove = (data: any) => {
+      if (data.type === 'game_move' && data.payload) {
+        executeMove(data.payload as XiangqiMove, true);
+      } else if (data.type === 'game_restart') {
+        const newPos = XiangqiPosition.fromFen();
+        setPos(newPos);
+        setSelectedSq(null);
+        setValidMoves([]);
+        setLastMove(null);
+        setIsThinking(false);
+        updateStatus(newPos);
+        setTimeLeft(timeLimit);
+      }
+    };
+
+    const handleStatus = (status: string) => {
+      if (status === 'connected') {
+        const opp = multiplayer.getOpponent();
+        if (opp?.name) setOpponentName(opp.name);
+      } else if (status === 'disconnected') {
+        alert('Đối thủ đã rời bàn cờ!');
+        setIsOnlineMode(false);
+        setOnlineRoom(null);
+      }
+    };
+
+    multiplayer.onMove(handleOpponentMove);
+    multiplayer.onStatusChange(handleStatus);
+
+    return () => {
+      multiplayer.offMove(handleOpponentMove);
+      multiplayer.offStatusChange(handleStatus);
+    };
+  }, [isOnlineMode, timeLimit, updateStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (isOnlineMode) multiplayer.leaveRoom();
+    };
+  }, [isOnlineMode]);
+
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
@@ -223,11 +332,27 @@ export const GameXiangqi: React.FC = () => {
               TRẠNG THÁI
             </span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="font-black text-rose-400 font-mono text-xs sm:text-sm leading-none">{statusMessage}</span>
-              {isThinking && (
-                <span className="text-[11px] text-cyan-400 animate-pulse font-bold leading-none">
-                  (AI đang tính...)
+              {isOnlineMode ? (
+                <span className="font-bold text-xs sm:text-sm leading-none flex items-center gap-1.5">
+                  {((playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
+                    <span className="text-emerald-400 font-black animate-pulse">
+                      👉 Lượt của BẠN ({playerRole === 'host' ? 'Đỏ' : 'Đen'})
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">
+                      Chờ {opponentName} ({playerRole === 'host' ? 'Đen' : 'Đỏ'})...
+                    </span>
+                  )}
                 </span>
+              ) : (
+                <>
+                  <span className="font-black text-rose-400 font-mono text-xs sm:text-sm leading-none">{statusMessage}</span>
+                  {isThinking && (
+                    <span className="text-[11px] text-cyan-400 animate-pulse font-bold leading-none">
+                      (AI đang tính...)
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -255,32 +380,68 @@ export const GameXiangqi: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
-              resetGame();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition cursor-pointer"
-          >
-            {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
-            <span className="hidden sm:inline">{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
-          </button>
-          
-          {mode === 'ai' && (
-            <select
-              value={aiLevel}
-              onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
-            >
-              <option value={1}>Dễ</option>
-              <option value={2}>Vừa</option>
-              <option value={3}>Khó</option>
-            </select>
+          {isOnlineMode ? (
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold font-mono">
+                {onlineRoom?.roomId}
+              </span>
+              <button
+                onClick={handleCopyInvite}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-white/10 transition cursor-pointer"
+                title="Sao chép link mời bạn bè"
+              >
+                {copiedInvite ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
+                <span className="hidden sm:inline">{copiedInvite ? 'Đã chép' : 'Mời'}</span>
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold border border-rose-500/30 transition cursor-pointer"
+                title="Rời bàn đấu online"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Rời</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
+                  resetGame();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition cursor-pointer"
+              >
+                {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
+                <span className="hidden sm:inline">{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
+              </button>
+              
+              {mode === 'ai' && (
+                <select
+                  value={aiLevel}
+                  onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
+                  className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
+                >
+                  <option value={1}>Dễ</option>
+                  <option value={2}>Vừa</option>
+                  <option value={3}>Khó</option>
+                </select>
+              )}
+
+              {/* Nút Sảnh Online */}
+              <button
+                onClick={() => setIsLobbyOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition cursor-pointer active:scale-95"
+                title="Tìm trận online hoặc tham gia phòng"
+              >
+                <Globe className="w-4 h-4 text-amber-400" />
+                <span>Online</span>
+              </button>
+            </>
           )}
 
           <button
             onClick={resetGame}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
             title="Ván mới"
           >
             <RotateCcw size={16} />
@@ -476,6 +637,28 @@ export const GameXiangqi: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Online Multiplayer Lobby Modal */}
+      <OnlineLobbyModal
+        isOpen={isLobbyOpen}
+        onClose={() => setIsLobbyOpen(false)}
+        gameId="xiangqi"
+        gameTitle="Cờ Tướng"
+        onJoinedMatch={(room, role) => {
+          setIsOnlineMode(true);
+          setOnlineRoom(room);
+          setPlayerRole(role);
+          setOpponentName(role === 'host' ? 'Đối thủ' : room.hostName);
+          const newPos = XiangqiPosition.fromFen();
+          setPos(newPos);
+          setSelectedSq(null);
+          setValidMoves([]);
+          setLastMove(null);
+          setIsThinking(false);
+          updateStatus(newPos);
+          setTimeLeft(timeLimit);
+        }}
+      />
     </div>
   );
 };
