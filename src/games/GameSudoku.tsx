@@ -32,6 +32,7 @@ export const GameSudoku: React.FC = () => {
   const [difficulty, setDifficulty] = useState<SudokuDifficulty>('easy');
   const [board, setBoard] = useState<SudokuCell[][]>([]);
   const [selected, setSelected] = useState<[number, number] | null>(null);
+  const [activeNumber, setActiveNumber] = useState<number | null>(null);
   const [isPencilMode, setIsPencilMode] = useState<boolean>(false);
   const [mistakes, setMistakes] = useState<number>(0);
   const [maxMistakes] = useState<number>(3);
@@ -41,7 +42,7 @@ export const GameSudoku: React.FC = () => {
   const [isWon, setIsWon] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [history, setHistory] = useState<HistoryStep[]>([]);
-  
+
   // Clone board deep
   const cloneBoard = (b: SudokuCell[][]): SudokuCell[][] => {
     return b.map(row => row.map(cell => ({ ...cell, notes: [...cell.notes] })));
@@ -53,6 +54,7 @@ export const GameSudoku: React.FC = () => {
     const { board: newBoard } = generateSudoku(diff);
     setBoard(newBoard);
     setSelected(null);
+    setActiveNumber(null);
     setMistakes(0);
     setHintsLeft(3);
     setElapsedTime(0);
@@ -86,7 +88,7 @@ export const GameSudoku: React.FC = () => {
   // Push history before mutating
   const pushHistory = () => {
     setHistory(prev => [
-      ...prev.slice(-20), // Keep up to 20 states
+      ...prev.slice(-20),
       {
         board: cloneBoard(board),
         selected,
@@ -106,20 +108,9 @@ export const GameSudoku: React.FC = () => {
     setHistory(prev => prev.slice(0, -1));
   };
 
-  // Handle cell click
-  const handleCellClick = (r: number, c: number) => {
-    if (isWon || isGameOver) return;
-    soundManager.playButtonClick();
-    setSelected([r, c]);
-  };
-
-  // Handle number input (1-9)
-  const handleNumberInput = (num: number) => {
-    if (!selected || isWon || isGameOver) return;
-    const [r, c] = selected;
+  // Process filling a number into cell (r, c)
+  const fillCell = (r: number, c: number, num: number) => {
     const cell = board[r][c];
-
-    // Cannot overwrite given clues
     if (cell.isGiven) return;
 
     pushHistory();
@@ -127,7 +118,6 @@ export const GameSudoku: React.FC = () => {
     const target = newBoard[r][c];
 
     if (isPencilMode) {
-      // Toggle note
       soundManager.playButtonClick();
       if (target.notes.includes(num)) {
         target.notes = target.notes.filter(n => n !== num);
@@ -138,9 +128,8 @@ export const GameSudoku: React.FC = () => {
       return;
     }
 
-    // Normal placement
+    // Toggle off if tapping same value
     if (target.value === num) {
-      // Clear if tapping same number
       target.value = 0;
       target.isError = false;
       setBoard(newBoard);
@@ -148,14 +137,14 @@ export const GameSudoku: React.FC = () => {
     }
 
     target.value = num;
-    target.notes = []; // Clear notes when placing number
+    target.notes = [];
 
-    // Check correctness
+    // Verify correctness
     if (num === target.solution) {
       soundManager.playChessMove();
       target.isError = false;
 
-      // Remove this number from notes in same row, column, and 3x3 block
+      // Auto-clear notes of this number from same row, column, 3x3 block
       const boxR = Math.floor(r / 3) * 3;
       const boxC = Math.floor(c / 3) * 3;
       for (let i = 0; i < 9; i++) {
@@ -170,18 +159,18 @@ export const GameSudoku: React.FC = () => {
 
       setBoard(newBoard);
 
-      // Check for win
+      // Check win
       if (isBoardSolved(newBoard)) {
         setIsWon(true);
         soundManager.playVictory();
         confetti({
-          particleCount: 100,
-          spread: 70,
+          particleCount: 150,
+          spread: 80,
           origin: { y: 0.6 }
         });
       }
     } else {
-      // Wrong number!
+      // Wrong move
       soundManager.playDefeat();
       target.isError = true;
       const nextMistakes = mistakes + 1;
@@ -194,9 +183,40 @@ export const GameSudoku: React.FC = () => {
     }
   };
 
+  // Handle cell click
+  const handleCellClick = (r: number, c: number) => {
+    if (isWon || isGameOver || isPaused) return;
+    soundManager.playButtonClick();
+
+    // If activeNumber is selected and cell is empty, fill immediately!
+    if (activeNumber && !board[r][c].isGiven && board[r][c].value === 0) {
+      setSelected([r, c]);
+      fillCell(r, c, activeNumber);
+      return;
+    }
+
+    setSelected([r, c]);
+    if (board[r][c].value > 0) {
+      setActiveNumber(board[r][c].value);
+    }
+  };
+
+  // Handle number input (from keypad or keyboard)
+  const handleNumberInput = (num: number) => {
+    if (isWon || isGameOver || isPaused) return;
+
+    setActiveNumber(num);
+
+    // If a cell is currently selected, fill it
+    if (selected) {
+      const [r, c] = selected;
+      fillCell(r, c, num);
+    }
+  };
+
   // Erase active cell
   const handleErase = () => {
-    if (!selected || isWon || isGameOver) return;
+    if (!selected || isWon || isGameOver || isPaused) return;
     const [r, c] = selected;
     const cell = board[r][c];
     if (cell.isGiven) return;
@@ -211,9 +231,9 @@ export const GameSudoku: React.FC = () => {
     setBoard(newBoard);
   };
 
-  // Hint button: Fills current cell or first empty cell with correct number
+  // Hint button
   const handleHint = () => {
-    if (hintsLeft <= 0 || isWon || isGameOver) return;
+    if (hintsLeft <= 0 || isWon || isGameOver || isPaused) return;
 
     let targetR = -1;
     let targetC = -1;
@@ -226,7 +246,6 @@ export const GameSudoku: React.FC = () => {
       }
     }
 
-    // Find any empty or wrong cell if not selected
     if (targetR === -1) {
       for (let r = 0; r < 9 && targetR === -1; r++) {
         for (let c = 0; c < 9; c++) {
@@ -249,7 +268,7 @@ export const GameSudoku: React.FC = () => {
     cell.isError = false;
     cell.notes = [];
 
-    // Remove from notes in neighborhood
+    // Clear notes from neighbors
     const boxR = Math.floor(targetR / 3) * 3;
     const boxC = Math.floor(targetC / 3) * 3;
     for (let i = 0; i < 9; i++) {
@@ -264,35 +283,33 @@ export const GameSudoku: React.FC = () => {
 
     setBoard(newBoard);
     setSelected([targetR, targetC]);
+    setActiveNumber(cell.solution);
     setHintsLeft(prev => prev - 1);
 
     if (isBoardSolved(newBoard)) {
       setIsWon(true);
       soundManager.playVictory();
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     }
   };
 
-  // Keyboard controls
+  // Keyboard navigation & inputs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isWon || isGameOver || isPaused) return;
 
-      // Numbers 1-9
       if (e.key >= '1' && e.key <= '9') {
         e.preventDefault();
         handleNumberInput(parseInt(e.key, 10));
         return;
       }
 
-      // Erase
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
         handleErase();
         return;
       }
 
-      // Notes mode
       if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'p') {
         e.preventDefault();
         setIsPencilMode(prev => !prev);
@@ -300,21 +317,18 @@ export const GameSudoku: React.FC = () => {
         return;
       }
 
-      // Hint
       if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
         handleHint();
         return;
       }
 
-      // Undo
       if (e.key.toLowerCase() === 'u' || (e.ctrlKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
         handleUndo();
         return;
       }
 
-      // Arrow navigation
       if (selected && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
         const [r, c] = selected;
@@ -325,6 +339,9 @@ export const GameSudoku: React.FC = () => {
         if (e.key === 'ArrowLeft') nextC = (c + 8) % 9;
         if (e.key === 'ArrowRight') nextC = (c + 1) % 9;
         setSelected([nextR, nextC]);
+        if (board[nextR][nextC].value > 0) {
+          setActiveNumber(board[nextR][nextC].value);
+        }
         soundManager.playButtonClick();
       }
     };
@@ -333,258 +350,259 @@ export const GameSudoku: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selected, board, isWon, isGameOver, isPaused, isPencilMode, hintsLeft]);
 
-  // Derived state for highlights
-  const selectedValue = selected ? board[selected[0]]?.[selected[1]]?.value : 0;
+  // Highlight number calculation
+  const highlightVal = activeNumber || (selected ? board[selected[0]]?.[selected[1]]?.value : 0);
   const remainingCounts = board.length > 0 ? getRemainingCounts(board) : {};
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#070b14]">
-      {/* Top HUD: Độ khó, Đồng hồ, Lỗi, Thao tác */}
-      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,820px)] px-3 sm:px-5 py-2 rounded-2xl bg-slate-900/90 border border-white/10 shadow-lg flex-shrink-0 mb-2">
-        {/* Left: Độ khó & Lỗi */}
-        <div className="flex items-center gap-3 sm:gap-5">
-          {/* Difficulty selector */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-            {(['easy', 'medium', 'hard'] as SudokuDifficulty[]).map((d) => (
-              <button
-                key={d}
-                onClick={() => {
-                  if (difficulty !== d) {
-                    setDifficulty(d);
-                  }
-                }}
-                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
-                  difficulty === d
-                    ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-sm'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
-              </button>
-            ))}
-          </div>
+    <div className="relative w-full h-full flex flex-col justify-center items-center p-2 sm:p-4 md:p-6 select-none overflow-hidden bg-[#070b14]">
+      {/* Container: Tự động chia 2 cột trên Desktop / Fullscreen, và xếp dọc trên Mobile */}
+      <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-8 w-full h-full max-w-[min(98vw,1440px)] mx-auto flex-1 min-h-0">
+        
+        {/* CỘT TRÁI / TRUNG TÂM: Bảng Sudoku 9x9 Khổng Lồ, Bung Hết Cỡ Cực Đã Mắt */}
+        <div className="flex-1 flex items-center justify-center w-full h-full min-h-0 min-w-0">
+          {board.length > 0 && (
+            <div className="relative aspect-square w-full h-full max-h-[min(88vw,calc(100vh-120px),820px)] bg-slate-950 p-2 sm:p-3.5 md:p-4 rounded-3xl border-4 border-cyan-500/60 shadow-[0_0_60px_rgba(6,182,212,0.35)] flex flex-col justify-between">
+              
+              {/* 9x9 Grid: Phân khối 3x3 bằng viền Cyan 4px cực kỳ rõ nét */}
+              <div className="grid grid-cols-9 grid-rows-9 w-full h-full border-2 border-cyan-400/80 rounded-2xl overflow-hidden bg-slate-900/80">
+                {board.map((row, r) =>
+                  row.map((cell, c) => {
+                    const isSelected = selected && selected[0] === r && selected[1] === c;
+                    const isCrosshair = selected && (selected[0] === r || selected[1] === c || (Math.floor(selected[0] / 3) === Math.floor(r / 3) && Math.floor(selected[1] / 3) === Math.floor(c / 3)));
+                    const isSameNumber = highlightVal > 0 && cell.value === highlightVal;
 
-          <div className="h-6 w-px bg-white/10" />
+                    // Đường ngăn 9 khối 3x3: Viền dày 3-4px nổi bật
+                    const borderR = (c % 3 === 2 && c !== 8) 
+                      ? 'border-r-3 sm:border-r-4 border-cyan-400/90' 
+                      : 'border-r border-white/10';
+                    const borderB = (r % 3 === 2 && r !== 8) 
+                      ? 'border-b-3 sm:border-b-4 border-cyan-400/90' 
+                      : 'border-b border-white/10';
 
-          {/* Mistakes badge */}
-          <div className="flex items-center gap-1.5 text-xs font-black">
-            <span className="text-gray-400 uppercase tracking-wider">Lỗi:</span>
-            <span className={`font-mono ${mistakes > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {mistakes}/{maxMistakes}
-            </span>
-          </div>
-        </div>
+                    // Hiệu ứng màu nền ô
+                    let bgStyle = 'bg-transparent';
+                    if (cell.isError) {
+                      bgStyle = 'bg-rose-950/85 ring-2 ring-rose-500 animate-pulse';
+                    } else if (isSelected) {
+                      bgStyle = 'bg-cyan-500/40 ring-3 ring-cyan-300 ring-inset shadow-inner';
+                    } else if (isSameNumber) {
+                      bgStyle = 'bg-cyan-500/25 ring-1.5 ring-cyan-400/70 ring-inset';
+                    } else if (isCrosshair) {
+                      bgStyle = 'bg-cyan-950/30';
+                    }
 
-        {/* Center: Timer */}
-        <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950/80 border border-cyan-500/30 text-cyan-300 font-mono font-bold text-sm sm:text-base">
-          <Timer className="w-4 h-4 text-cyan-400" />
-          <span>{formatTime(elapsedTime)}</span>
-        </div>
+                    return (
+                      <div
+                        key={`${r}-${c}`}
+                        onClick={() => handleCellClick(r, c)}
+                        className={`relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150 ${borderR} ${borderB} ${bgStyle}`}
+                      >
+                        {cell.value > 0 ? (
+                          <span
+                            className={`font-black font-mono leading-none select-none ${
+                              cell.isError
+                                ? 'text-rose-400 text-xl sm:text-2xl md:text-3xl lg:text-4xl'
+                                : cell.isGiven
+                                ? 'text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl drop-shadow-md'
+                                : 'text-cyan-400 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black drop-shadow-[0_0_10px_rgba(6,182,212,0.6)]'
+                            }`}
+                          >
+                            {cell.value}
+                          </span>
+                        ) : cell.notes.length > 0 ? (
+                          <div className="grid grid-cols-3 grid-rows-3 w-full h-full p-0.5 sm:p-1 pointer-events-none">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                              <span
+                                key={n}
+                                className={`flex items-center justify-center text-[9px] sm:text-[11px] md:text-xs font-mono font-bold leading-none ${
+                                  cell.notes.includes(n)
+                                    ? highlightVal === n
+                                      ? 'text-cyan-200 font-black scale-125'
+                                      : 'text-cyan-400/75'
+                                    : 'opacity-0'
+                                }`}
+                              >
+                                {n}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsPaused(prev => !prev)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95"
-            title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
-          >
-            {isPaused ? <Play className="w-4 h-4 text-emerald-400" /> : <Pause className="w-4 h-4" />}
-          </button>
-
-          <button
-            onClick={() => startNewGame()}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-white/10 transition cursor-pointer active:scale-95"
-            title="Ván Mới"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Arena: Sudoku 9x9 Board */}
-      <div className="relative flex-1 w-full max-w-[min(96vw,820px)] flex items-center justify-center min-h-0 py-1">
-        {board.length > 0 && (
-          <div className="relative aspect-square w-full max-w-[min(88vw,calc(100vh-290px),520px)] bg-slate-950 p-2 sm:p-3 rounded-2xl sm:rounded-3xl border-2 sm:border-3 border-cyan-500/50 shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col justify-between">
-            {/* 9x9 Grid */}
-            <div className="grid grid-cols-9 grid-rows-9 w-full h-full border border-cyan-500/40 rounded-xl overflow-hidden bg-slate-900/60">
-              {board.map((row, r) =>
-                row.map((cell, c) => {
-                  const isSelected = selected && selected[0] === r && selected[1] === c;
-                  const isCrosshair = selected && (selected[0] === r || selected[1] === c || (Math.floor(selected[0] / 3) === Math.floor(r / 3) && Math.floor(selected[1] / 3) === Math.floor(c / 3)));
-                  const isSameValue = selectedValue > 0 && cell.value === selectedValue;
-                  
-                  // Block borders (thick border every 3 cells)
-                  const borderRight = (c % 3 === 2 && c !== 8) ? 'border-r-2 sm:border-r-3 border-cyan-400/80' : 'border-r border-white/10';
-                  const borderBottom = (r % 3 === 2 && r !== 8) ? 'border-b-2 sm:border-b-3 border-cyan-400/80' : 'border-b border-white/10';
-
-                  // Styling background
-                  let bgStyle = 'bg-transparent';
-                  if (cell.isError) {
-                    bgStyle = 'bg-rose-950/80 animate-pulse';
-                  } else if (isSelected) {
-                    bgStyle = 'bg-cyan-500/40 ring-2 ring-cyan-300 ring-inset shadow-inner';
-                  } else if (isSameValue) {
-                    bgStyle = 'bg-cyan-500/25 ring-1 ring-cyan-400/50 ring-inset';
-                  } else if (isCrosshair) {
-                    bgStyle = 'bg-cyan-950/25';
-                  }
-
-                  return (
-                    <div
-                      key={`${r}-${c}`}
-                      onClick={() => handleCellClick(r, c)}
-                      className={`relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150 ${borderRight} ${borderBottom} ${bgStyle}`}
-                    >
-                      {cell.value > 0 ? (
-                        <span
-                          className={`font-black font-mono leading-none ${
-                            cell.isError
-                              ? 'text-rose-400 text-lg sm:text-2xl'
-                              : cell.isGiven
-                              ? 'text-white text-lg sm:text-2xl drop-shadow-md'
-                              : 'text-cyan-400 text-lg sm:text-2xl font-black'
-                          }`}
-                        >
-                          {cell.value}
-                        </span>
-                      ) : cell.notes.length > 0 ? (
-                        <div className="grid grid-cols-3 grid-rows-3 w-full h-full p-0.5 pointer-events-none">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                            <span
-                              key={n}
-                              className={`flex items-center justify-center text-[8px] sm:text-[10px] font-mono font-bold leading-none ${
-                                cell.notes.includes(n)
-                                  ? isSameValue && selectedValue === n
-                                    ? 'text-cyan-200 font-black scale-125'
-                                    : 'text-cyan-400/70'
-                                  : 'opacity-0'
-                              }`}
-                            >
-                              {n}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })
+              {/* Màn hình tạm dừng */}
+              {isPaused && (
+                <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center gap-4 z-20">
+                  <Pause className="w-14 h-14 text-cyan-400 animate-pulse" />
+                  <span className="text-2xl font-black text-white uppercase tracking-wider">ĐANG TẠM DỪNG</span>
+                  <button
+                    onClick={() => setIsPaused(false)}
+                    className="px-8 py-3 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-base uppercase tracking-wider transition cursor-pointer active:scale-95 shadow-lg shadow-cyan-500/40"
+                  >
+                    Tiếp Tục
+                  </button>
+                </div>
               )}
             </div>
+          )}
+        </div>
 
-            {/* Paused Overlay */}
-            {isPaused && (
-              <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center gap-4 z-20">
-                <Pause className="w-12 h-12 text-cyan-400 animate-pulse" />
-                <span className="text-xl font-black text-white uppercase tracking-wider">ĐANG TẠM DỪNG</span>
+        {/* CỘT PHẢI: Bảng Điều Khiển Hiện Đại & Bàn Phím Số Siêu Tiện Dụng */}
+        <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col justify-center gap-3 sm:gap-4 flex-shrink-0">
+          
+          {/* Card 1: Khối Thông Số Trận Đấu */}
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg space-y-3">
+            {/* Top row: Difficulty & Timer */}
+            <div className="flex items-center justify-between">
+              {/* Difficulty selector */}
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                {(['easy', 'medium', 'hard'] as SudokuDifficulty[]).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      if (difficulty !== d) setDifficulty(d);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
+                      difficulty === d
+                        ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Actions: Pause & New Game */}
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsPaused(false)}
-                  className="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-sm uppercase tracking-wider transition cursor-pointer active:scale-95 shadow-lg shadow-cyan-500/30"
+                  onClick={() => setIsPaused(prev => !prev)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+                  title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
                 >
-                  Tiếp Tục
+                  {isPaused ? <Play className="w-4 h-4 text-emerald-400" /> : <Pause className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => startNewGame()}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+                  title="Ván Mới"
+                >
+                  <RotateCcw className="w-4 h-4" />
                 </button>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Controls & Keypad */}
-      <div className="w-full max-w-[min(96vw,820px)] flex flex-col items-center gap-2 flex-shrink-0">
-        {/* Action Toolbar: Undo, Erase, Notes, Hint */}
-        <div className="grid grid-cols-4 gap-2 w-full max-w-[min(92vw,500px)]">
-          <button
-            onClick={handleUndo}
-            disabled={history.length === 0}
-            className={`flex flex-col items-center justify-center py-2 rounded-xl border text-xs font-bold transition ${
-              history.length > 0
-                ? 'bg-slate-900 hover:bg-slate-800 border-white/10 text-gray-200 hover:text-white cursor-pointer active:scale-95'
-                : 'bg-slate-950/60 border-white/5 text-gray-600 cursor-not-allowed'
-            }`}
-            title="Đi lại 1 bước"
-          >
-            <Undo2 className="w-4 h-4 mb-0.5 text-cyan-400" />
-            <span>Đi Lại</span>
-          </button>
-
-          <button
-            onClick={handleErase}
-            className="flex flex-col items-center justify-center py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-gray-200 hover:text-white cursor-pointer active:scale-95 transition"
-            title="Xóa số"
-          >
-            <Eraser className="w-4 h-4 mb-0.5 text-rose-400" />
-            <span>Xóa</span>
-          </button>
-
-          <button
-            onClick={() => setIsPencilMode(prev => !prev)}
-            className={`flex flex-col items-center justify-center py-2 rounded-xl border text-xs font-bold transition cursor-pointer active:scale-95 ${
-              isPencilMode
-                ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-md shadow-cyan-500/20'
-                : 'bg-slate-900 hover:bg-slate-800 border-white/10 text-gray-200 hover:text-white'
-            }`}
-            title="Bật/Tắt Ghi chú"
-          >
-            <div className="relative">
-              <Pencil className="w-4 h-4 mb-0.5 text-cyan-400" />
-              {isPencilMode && (
-                <span className="absolute -top-1 -right-2 px-1 rounded-full bg-cyan-400 text-[8px] text-slate-950 font-black">
-                  BẬT
-                </span>
-              )}
             </div>
-            <span>Ghi Chú</span>
-          </button>
 
-          <button
-            onClick={handleHint}
-            disabled={hintsLeft <= 0}
-            className={`flex flex-col items-center justify-center py-2 rounded-xl border text-xs font-bold transition ${
-              hintsLeft > 0
-                ? 'bg-slate-900 hover:bg-slate-800 border-white/10 text-amber-300 hover:text-amber-200 cursor-pointer active:scale-95'
-                : 'bg-slate-950/60 border-white/5 text-gray-600 cursor-not-allowed'
-            }`}
-            title="Gợi ý số chính xác"
-          >
-            <div className="relative">
-              <Lightbulb className="w-4 h-4 mb-0.5 text-amber-400" />
-              <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-amber-400 text-[9px] text-slate-950 font-black flex items-center justify-center">
+            {/* Bottom row: Mistakes & Timer Display */}
+            <div className="flex items-center justify-between pt-1 border-t border-white/5">
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black">
+                <span className="text-gray-400 uppercase tracking-wider">Lỗi:</span>
+                <span className={`font-mono text-base ${mistakes > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {mistakes}/{maxMistakes}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950 text-cyan-300 font-mono font-bold text-sm sm:text-base border border-cyan-500/30">
+                <Timer className="w-4 h-4 text-cyan-400" />
+                <span>{formatTime(elapsedTime)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: 4 Nút Chức Năng (Đi Lại, Xóa, Ghi Chú, Gợi Ý) */}
+          <div className="grid grid-cols-4 lg:grid-cols-2 gap-2 sm:gap-2.5">
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0}
+              className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl border text-xs sm:text-sm font-bold transition shadow-sm ${
+                history.length > 0
+                  ? 'bg-slate-900 hover:bg-slate-800 border-white/10 text-gray-200 hover:text-white cursor-pointer active:scale-95'
+                  : 'bg-slate-950/60 border-white/5 text-gray-600 cursor-not-allowed'
+              }`}
+              title="Đi lại 1 bước"
+            >
+              <Undo2 className="w-4 h-4 text-cyan-400" />
+              <span>Đi Lại</span>
+            </button>
+
+            <button
+              onClick={handleErase}
+              className="flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-gray-200 hover:text-white cursor-pointer active:scale-95 transition shadow-sm text-xs sm:text-sm font-bold"
+              title="Xóa số"
+            >
+              <Eraser className="w-4 h-4 text-rose-400" />
+              <span>Xóa</span>
+            </button>
+
+            <button
+              onClick={() => setIsPencilMode(prev => !prev)}
+              className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl border text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shadow-sm ${
+                isPencilMode
+                  ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-cyan-500/20'
+                  : 'bg-slate-900 hover:bg-slate-800 border-white/10 text-gray-200 hover:text-white'
+              }`}
+              title="Bật/Tắt Ghi chú"
+            >
+              <Pencil className="w-4 h-4 text-cyan-400" />
+              <span>Ghi Chú</span>
+              {isPencilMode && (
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              )}
+            </button>
+
+            <button
+              onClick={handleHint}
+              disabled={hintsLeft <= 0}
+              className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl border text-xs sm:text-sm font-bold transition shadow-sm ${
+                hintsLeft > 0
+                  ? 'bg-slate-900 hover:bg-slate-800 border-white/10 text-amber-300 hover:text-amber-200 cursor-pointer active:scale-95'
+                  : 'bg-slate-950/60 border-white/5 text-gray-600 cursor-not-allowed'
+              }`}
+              title="Gợi ý số chính xác"
+            >
+              <Lightbulb className="w-4 h-4 text-amber-400" />
+              <span>Gợi Ý</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-[10px] text-slate-950 font-black">
                 {hintsLeft}
               </span>
-            </div>
-            <span>Gợi Ý</span>
-          </button>
-        </div>
+            </button>
+          </div>
 
-        {/* 1-9 Number Keypad */}
-        <div className="grid grid-cols-9 gap-1 sm:gap-2 w-full max-w-[min(94vw,520px)]">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
-            const remaining = remainingCounts[num] || 0;
-            const isCompleted = remaining === 0;
+          {/* Card 3: Bàn Phím Số 1-9 (Dạng Numpad 3x3 trên Desktop và 1 hàng 9 nút trên Mobile) */}
+          <div className="grid grid-cols-9 lg:grid-cols-3 gap-1.5 sm:gap-2.5">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+              const remaining = remainingCounts[num] || 0;
+              const isCompleted = remaining === 0;
 
-            return (
-              <button
-                key={num}
-                onClick={() => handleNumberInput(num)}
-                disabled={isCompleted}
-                className={`relative flex flex-col items-center justify-center h-12 sm:h-14 rounded-xl font-mono font-black transition cursor-pointer select-none active:scale-90 ${
-                  isCompleted
-                    ? 'bg-slate-950/50 border border-white/5 text-gray-600 cursor-default opacity-40'
-                    : selectedValue === num
-                    ? 'bg-cyan-500/30 border-2 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/25 scale-105'
-                    : 'bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 text-white hover:border-cyan-400'
-                }`}
-              >
-                <span className="text-lg sm:text-2xl leading-none">{num}</span>
-                <span className="text-[9px] sm:text-[10px] text-gray-400 font-bold leading-none mt-1">
-                  {isCompleted ? <Check className="w-3 h-3 text-emerald-400 inline" /> : remaining}
-                </span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={num}
+                  onClick={() => handleNumberInput(num)}
+                  disabled={isCompleted}
+                  className={`relative flex flex-col items-center justify-center h-12 sm:h-14 lg:h-16 rounded-2xl font-mono font-black transition cursor-pointer select-none active:scale-95 shadow-md ${
+                    isCompleted
+                      ? 'bg-slate-950/50 border border-white/5 text-gray-600 cursor-default opacity-30'
+                      : highlightVal === num
+                      ? 'bg-cyan-500/35 border-2 border-cyan-400 text-cyan-200 shadow-cyan-500/30 scale-105'
+                      : 'bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/40 text-white hover:border-cyan-400'
+                  }`}
+                >
+                  <span className="text-xl sm:text-2xl lg:text-3xl leading-none">{num}</span>
+                  <span className="text-[10px] sm:text-xs text-gray-400 font-bold leading-none mt-1">
+                    {isCompleted ? <Check className="w-3.5 h-3.5 text-emerald-400 inline" /> : remaining}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
         </div>
       </div>
 
-      {/* Victory Modal */}
+      {/* Modal Chiến Thắng (Victory) */}
       {isWon && (
         <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-40 animate-in fade-in">
           <div className="w-full max-w-sm bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl p-6 text-center shadow-[0_0_60px_rgba(6,182,212,0.35)] space-y-4">
@@ -609,7 +627,7 @@ export const GameSudoku: React.FC = () => {
 
             <button
               onClick={() => startNewGame()}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base shadow-lg shadow-cyan-500/40 transition cursor-pointer active:scale-95 uppercase tracking-wider"
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base shadow-lg shadow-cyan-500/40 transition cursor-pointer active:scale-95 uppercase tracking-wider"
             >
               Ván Tiếp Theo
             </button>
@@ -617,7 +635,7 @@ export const GameSudoku: React.FC = () => {
         </div>
       )}
 
-      {/* Game Over Modal */}
+      {/* Modal Thất Bại (Game Over) */}
       {isGameOver && (
         <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-40 animate-in fade-in">
           <div className="w-full max-w-sm bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-rose-500/50 rounded-3xl p-6 text-center shadow-[0_0_60px_rgba(244,63,94,0.35)] space-y-4">
@@ -631,7 +649,7 @@ export const GameSudoku: React.FC = () => {
 
             <button
               onClick={() => startNewGame()}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-black text-base shadow-lg shadow-rose-500/40 transition cursor-pointer active:scale-95 uppercase tracking-wider"
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-black text-base shadow-lg shadow-rose-500/40 transition cursor-pointer active:scale-95 uppercase tracking-wider"
             >
               Chơi Lại
             </button>

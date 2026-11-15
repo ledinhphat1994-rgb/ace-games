@@ -76,116 +76,84 @@ export function generateFullSolution(): number[][] {
   return grid;
 }
 
-// Hand-crafted verified puzzle templates for fallback / instant loading
-const SEED_PUZZLES: Record<SudokuDifficulty, { puzzle: string; solution: string }[]> = {
-  easy: [
-    {
-      puzzle: '003020600900305001001806400008102900700000008006708200002609500800203009005010300',
-      solution: '483921657967345821251876493548132976729564138136798245372689514814253769695417382',
-    },
-    {
-      puzzle: '200080300060070084030500209000105408000000000402706000301007040720040060004010003',
-      solution: '245981376169273584837564219976125438513498627482736951391657842728349165654812793',
-    },
-  ],
-  medium: [
-    {
-      puzzle: '020608000580009700000040000370000500600000004008000013000020000009800036000306090',
-      solution: '123678945584239761967145823372984516615792384498563217836421159249857136751316492',
-    },
-    {
-      puzzle: '000600400700000000000006000000000000000000000000000000000000000000000000000000000',
-      solution: '123456789456789123789123456234567891567891234891234567345678912678912345912345678',
-    },
-  ],
-  hard: [
-    {
-      puzzle: '000000012000000003002300400001800005060070800000009000008500000900040500470006000',
-      solution: '634795812817429653592318476721834965369572841485691723148563297926147538473286195',
-    },
-  ],
-};
+// Count solutions up to 2 to verify unique solution
+function countSolutions(grid: number[][], counter: { count: number }): number {
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (grid[r][c] === 0) {
+        for (let num = 1; num <= 9; num++) {
+          if (isValid(grid, r, c, num)) {
+            grid[r][c] = num;
+            countSolutions(grid, counter);
+            grid[r][c] = 0;
+            if (counter.count >= 2) return counter.count;
+          }
+        }
+        return counter.count;
+      }
+    }
+  }
+  counter.count++;
+  return counter.count;
+}
 
-// Generate full Sudoku puzzle with target difficulty
+// Generate full Sudoku puzzle with target difficulty and GUARANTEED UNIQUE SOLUTION
 export function generateSudoku(difficulty: SudokuDifficulty): {
   board: SudokuCell[][];
   solution: number[][];
 } {
-  try {
-    const fullSolution = generateFullSolution();
-    const puzzleGrid = fullSolution.map(row => [...row]);
+  const fullSolution = generateFullSolution();
+  const puzzleGrid = fullSolution.map(row => [...row]);
 
-    // Number of clues to keep based on difficulty
-    // Easy: ~38 clues (remove 43)
-    // Medium: ~30 clues (remove 51)
-    // Hard: ~24 clues (remove 57)
-    const removeCount = difficulty === 'easy' ? 42 : difficulty === 'medium' ? 50 : 56;
+  // Target number of holes to remove based on difficulty:
+  // Easy: ~40 holes (41 clues left)
+  // Medium: ~48 holes (33 clues left)
+  // Hard: ~54 holes (27 clues left)
+  const targetRemove = difficulty === 'easy' ? 40 : difficulty === 'medium' ? 48 : 54;
 
-    // Create random list of cell coordinates
-    const positions: [number, number][] = [];
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        positions.push([r, c]);
-      }
+  const positions: [number, number][] = [];
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      positions.push([r, c]);
     }
-    const shuffledPositions = shuffle(positions);
-
-    // Remove numbers to create holes
-    for (let i = 0; i < removeCount && i < shuffledPositions.length; i++) {
-      const [r, c] = shuffledPositions[i];
-      puzzleGrid[r][c] = 0;
-    }
-
-    const board: SudokuCell[][] = [];
-    for (let r = 0; r < 9; r++) {
-      const row: SudokuCell[] = [];
-      for (let c = 0; c < 9; c++) {
-        const val = puzzleGrid[r][c];
-        row.push({
-          row: r,
-          col: c,
-          value: val,
-          solution: fullSolution[r][c],
-          isGiven: val !== 0,
-          notes: [],
-          isError: false,
-        });
-      }
-      board.push(row);
-    }
-
-    return { board, solution: fullSolution };
-  } catch {
-    // Fallback seed puzzle
-    const seeds = SEED_PUZZLES[difficulty] || SEED_PUZZLES.easy;
-    const seed = seeds[Math.floor(Math.random() * seeds.length)];
-    const board: SudokuCell[][] = [];
-    const solution: number[][] = [];
-
-    for (let r = 0; r < 9; r++) {
-      const row: SudokuCell[] = [];
-      const solRow: number[] = [];
-      for (let c = 0; c < 9; c++) {
-        const idx = r * 9 + c;
-        const pVal = parseInt(seed.puzzle[idx], 10) || 0;
-        const sVal = parseInt(seed.solution[idx], 10) || 1;
-        solRow.push(sVal);
-        row.push({
-          row: r,
-          col: c,
-          value: pVal,
-          solution: sVal,
-          isGiven: pVal !== 0,
-          notes: [],
-          isError: false,
-        });
-      }
-      board.push(row);
-      solution.push(solRow);
-    }
-
-    return { board, solution };
   }
+  const shuffledPositions = shuffle(positions);
+
+  let removed = 0;
+  for (const [r, c] of shuffledPositions) {
+    const backup = puzzleGrid[r][c];
+    puzzleGrid[r][c] = 0;
+
+    // Check if removing keeps exactly 1 unique solution
+    const counter = { count: 0 };
+    countSolutions(puzzleGrid, counter);
+    if (counter.count !== 1) {
+      puzzleGrid[r][c] = backup; // Cannot remove, restore
+    } else {
+      removed++;
+      if (removed >= targetRemove) break;
+    }
+  }
+
+  const board: SudokuCell[][] = [];
+  for (let r = 0; r < 9; r++) {
+    const row: SudokuCell[] = [];
+    for (let c = 0; c < 9; c++) {
+      const val = puzzleGrid[r][c];
+      row.push({
+        row: r,
+        col: c,
+        value: val,
+        solution: fullSolution[r][c],
+        isGiven: val !== 0,
+        notes: [],
+        isError: false,
+      });
+    }
+    board.push(row);
+  }
+
+  return { board, solution: fullSolution };
 }
 
 // Check if entire board is correctly solved
