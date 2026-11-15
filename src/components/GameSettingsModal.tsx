@@ -44,8 +44,6 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     return soundManager.isSoundOn();
   });
 
-  const [savedStatus, setSavedStatus] = useState(false);
-
   // Sync state when opening
   useEffect(() => {
     if (isOpen) {
@@ -87,9 +85,6 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     } catch (e) {
       console.error(e);
     }
-
-    setSavedStatus(true);
-    setTimeout(() => setSavedStatus(false), 1200);
   };
 
   const toggleSound = () => {
@@ -114,8 +109,6 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
       })
     );
     onRestartGame();
-    setSavedStatus(true);
-    setTimeout(() => setSavedStatus(false), 1200);
   };
 
   const handleClose = () => {
@@ -125,12 +118,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Cố định kích thước bảng cài đặt chính (Fixed Width & Height, không xô lệch giật nhảy) */}
+      {/* Cố định 100% kích thước bảng cài đặt (Tuyệt đối không co giãn, không nhảy giật) */}
       <div
-        className="relative w-full max-w-[480px] h-[480px] sm:h-[500px] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
+        className="relative w-[92vw] max-w-[480px] h-[490px] min-h-[490px] max-h-[490px] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Bar - Cố định độ cao */}
+        {/* Header Bar - Cố định độ cao h-14, không có thông báo nhảy đẩy vị trí */}
         <div className="h-14 px-5 border-b border-white/10 bg-slate-900/90 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-md shadow-cyan-500/20">
@@ -147,20 +140,13 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {savedStatus && (
-              <span className="text-[11px] font-bold text-emerald-400 animate-in fade-in">
-                ✓ Đã lưu
-              </span>
-            )}
-            <button
-              onClick={handleClose}
-              className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              title="Đóng (Esc)"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            title="Đóng (Esc)"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
