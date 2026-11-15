@@ -56,6 +56,7 @@ export const GameXiangqi: React.FC = () => {
     return 60; // 60 giây mặc định
   });
   const [timeLeft, setTimeLeft] = useState<number>(60);
+  const turnStartTimeRef = useRef<number>(Date.now());
   const [isThinking, setIsThinking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Đỏ (Đi trước)');
 
@@ -148,6 +149,7 @@ export const GameXiangqi: React.FC = () => {
           const newLimit = Number(e.detail.value);
           setTimeLimit(newLimit);
           setTimeLeft(newLimit);
+          turnStartTimeRef.current = Date.now();
         }
       }
     };
@@ -155,16 +157,45 @@ export const GameXiangqi: React.FC = () => {
     return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
   }, []);
 
-  // Bộ đếm thời gian suy nghĩ cho mỗi lượt
+  // Bộ đếm thời gian suy nghĩ cho mỗi lượt (Chạy ngầm liên tục qua Web Worker & Đồng bộ Timestamp thực)
   useEffect(() => {
     if (timeLimit <= 0 || isWaitingForFriend) return;
     const outcome = pos.outcome();
     if (outcome.over || timeoutOutcome !== null) return;
 
-    const timer = setInterval(() => {
+    const workerScript = `
+      let intervalId = null;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          if (!intervalId) {
+            intervalId = setInterval(function() {
+              self.postMessage('tick');
+            }, 250);
+          }
+        } else if (e.data === 'stop') {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      };
+    `;
+    const blob = new Blob([workerScript], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    let worker: Worker | null = null;
+    try {
+      worker = new Worker(workerUrl);
+    } catch {
+      worker = null;
+    }
+
+    const checkTimer = () => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - turnStartTimeRef.current) / 1000);
+      const remaining = Math.max(0, timeLimit - elapsed);
+
       setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
+        if (remaining <= 0) {
           const currentTurn = pos.turn;
           const loserSide = currentTurn;
           const winnerSide = currentTurn === RED ? BLACK : RED;
@@ -193,14 +224,37 @@ export const GameXiangqi: React.FC = () => {
           setStatusMessage(`⏱️ Hết giờ suy nghĩ! Bên ${turnName} bị xử thua.`);
           return 0;
         }
-        if (prev <= 11) {
+
+        if (remaining !== prev && remaining <= 10) {
           soundManager.playLowTime();
         }
-        return prev - 1;
+        return remaining;
       });
-    }, 1000);
+    };
 
-    return () => clearInterval(timer);
+    if (worker) {
+      worker.onmessage = () => {
+        checkTimer();
+      };
+      worker.postMessage('start');
+    }
+
+    const fallbackTimer = setInterval(checkTimer, 500);
+
+    const handleSync = () => checkTimer();
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      clearInterval(fallbackTimer);
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+      if (worker) {
+        worker.postMessage('stop');
+        worker.terminate();
+      }
+      URL.revokeObjectURL(workerUrl);
+    };
   }, [timeLimit, pos, pos.turn, timeoutOutcome, isOnlineMode, playerRole, isWaitingForFriend]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -250,9 +304,11 @@ export const GameXiangqi: React.FC = () => {
     setIsThinking(false);
     setTimeoutOutcome(null);
     updateStatus(newPos);
+    const turnStart = Date.now();
+    turnStartTimeRef.current = turnStart;
     setTimeLeft(timeLimit);
     if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
-      multiplayer.sendAction('game_restart');
+      multiplayer.sendAction('game_restart', { turnStartTime: turnStart });
     }
   }, [clearAiTimeout, timeLimit, isOnlineMode, isWaitingForFriend, updateStatus]);
 
@@ -268,6 +324,8 @@ export const GameXiangqi: React.FC = () => {
     setSelectedSq(null);
     setValidMoves([]);
     updateStatus(nextPos);
+    const turnStart = Date.now();
+    turnStartTimeRef.current = turnStart;
     setTimeLeft(timeLimit);
 
     const outcome = nextPos.outcome();
@@ -296,7 +354,7 @@ export const GameXiangqi: React.FC = () => {
     }
 
     if (!isRemote && isOnlineMode) {
-      multiplayer.sendMove(move);
+      multiplayer.sendMove({ ...move, turnStartTime: turnStart });
     }
   }, [isOnlineMode, playerRole, timeLimit, triggerCheckBanner, updateStatus]);
 
@@ -407,6 +465,7 @@ export const GameXiangqi: React.FC = () => {
     const handleOpponentMove = (data: any) => {
       if (data.type === 'game_move' && data.payload) {
         if (data.senderName) setOpponentName(data.senderName);
+        turnStartTimeRef.current = data.payload.turnStartTime || Date.now();
         executeMove(data.payload as XiangqiMove, true);
       } else if (data.type === 'game_restart') {
         clearAiTimeout();
@@ -418,6 +477,7 @@ export const GameXiangqi: React.FC = () => {
         setLastMove(null);
         setTimeoutOutcome(null);
         updateStatus(newPos);
+        turnStartTimeRef.current = data.payload?.turnStartTime || Date.now();
         setTimeLeft(timeLimit);
       } else if (data.type === 'timeout' && data.payload) {
         setTimeoutOutcome({
@@ -893,6 +953,7 @@ export const GameXiangqi: React.FC = () => {
           setLastMove(null);
           setIsThinking(false);
           updateStatus(newPos);
+          turnStartTimeRef.current = Date.now();
           setTimeLeft(timeLimit);
         }}
         onWaitingInBackground={(room) => {
@@ -910,6 +971,7 @@ export const GameXiangqi: React.FC = () => {
           setLastMove(null);
           setIsThinking(false);
           updateStatus(newPos);
+          turnStartTimeRef.current = Date.now();
           setTimeLeft(timeLimit);
         }}
       />

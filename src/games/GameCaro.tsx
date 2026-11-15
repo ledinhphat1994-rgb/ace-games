@@ -139,6 +139,7 @@ export const GameCaro: React.FC = () => {
     return 60; // 60s mặc định
   });
   const [timeLeft, setTimeLeft] = useState<number>(60);
+  const turnStartTimeRef = useRef<number>(Date.now());
   const [winnerInfo, setWinnerInfo] = useState<{ winner: Player | 'DRAW'; line?: number[] } | null>(null);
   const [timeoutOutcome, setTimeoutOutcome] = useState<{
     loser: Player;
@@ -234,7 +235,8 @@ export const GameCaro: React.FC = () => {
     const handleOpponentMove = (data: any) => {
       if (data.type === 'game_move' && data.payload) {
         if (data.senderName) setOpponentName(data.senderName);
-        const { index, piece } = data.payload;
+        const { index, piece, turnStartTime } = data.payload;
+        turnStartTimeRef.current = turnStartTime || Date.now();
         setBoard(prev => {
           const updated = [...prev];
           updated[index] = piece;
@@ -261,6 +263,7 @@ export const GameCaro: React.FC = () => {
         setIsXNext(true);
         setWinnerInfo(null);
         setTimeoutOutcome(null);
+        turnStartTimeRef.current = data.payload?.turnStartTime || Date.now();
         setTimeLeft(timeLimit);
       } else if (data.type === 'timeout' && data.payload) {
         setTimeoutOutcome({
@@ -329,6 +332,7 @@ export const GameCaro: React.FC = () => {
           const newLimit = Number(e.detail.value);
           setTimeLimit(newLimit);
           setTimeLeft(newLimit);
+          turnStartTimeRef.current = Date.now();
         }
       }
     };
@@ -336,15 +340,43 @@ export const GameCaro: React.FC = () => {
     return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
   }, [timeLimit]);
 
-  // Bộ đếm thời gian suy nghĩ cho mỗi lượt Cờ Caro
+  // Bộ đếm thời gian suy nghĩ cho mỗi lượt Cờ Caro (Chạy ngầm liên tục qua Web Worker & Đồng bộ Timestamp thực)
   useEffect(() => {
-    if (timeLimit <= 0 || isWaitingForFriend) return;
-    if (winnerInfo || timeoutOutcome) return;
+    if (timeLimit <= 0 || isWaitingForFriend || winnerInfo || timeoutOutcome) return;
 
-    const timer = setInterval(() => {
+    const workerScript = `
+      let intervalId = null;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          if (!intervalId) {
+            intervalId = setInterval(function() {
+              self.postMessage('tick');
+            }, 250);
+          }
+        } else if (e.data === 'stop') {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      };
+    `;
+    const blob = new Blob([workerScript], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    let worker: Worker | null = null;
+    try {
+      worker = new Worker(workerUrl);
+    } catch {
+      worker = null;
+    }
+
+    const checkTimer = () => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - turnStartTimeRef.current) / 1000);
+      const remaining = Math.max(0, timeLimit - elapsed);
+
       setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
+        if (remaining <= 0) {
           const loserPiece: Player = isXNext ? 'X' : 'O';
           const winnerPiece: Player = isXNext ? 'O' : 'X';
           setTimeoutOutcome({
@@ -365,14 +397,37 @@ export const GameCaro: React.FC = () => {
           }
           return 0;
         }
-        if (prev <= 11) {
+
+        if (remaining !== prev && remaining <= 10) {
           soundManager.playLowTime();
         }
-        return prev - 1;
+        return remaining;
       });
-    }, 1000);
+    };
 
-    return () => clearInterval(timer);
+    if (worker) {
+      worker.onmessage = () => {
+        checkTimer();
+      };
+      worker.postMessage('start');
+    }
+
+    const fallbackTimer = setInterval(checkTimer, 500);
+
+    const handleSync = () => checkTimer();
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      clearInterval(fallbackTimer);
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+      if (worker) {
+        worker.postMessage('stop');
+        worker.terminate();
+      }
+      URL.revokeObjectURL(workerUrl);
+    };
   }, [timeLimit, winnerInfo, timeoutOutcome, isXNext, isOnlineMode, isWaitingForFriend, playerRole]);
 
   const [stats, setStats] = useState<{ win: number; loss: number; draw: number }>(() => {
@@ -386,9 +441,11 @@ export const GameCaro: React.FC = () => {
     setIsXNext(true);
     setWinnerInfo(null);
     setTimeoutOutcome(null);
+    const turnStart = Date.now();
+    turnStartTimeRef.current = turnStart;
     setTimeLeft(timeLimit);
     if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
-      multiplayer.sendAction('game_restart');
+      multiplayer.sendAction('game_restart', { turnStartTime: turnStart });
     }
   }, [boardSize, timeLimit, isOnlineMode, isWaitingForFriend]);
 
@@ -623,10 +680,12 @@ export const GameCaro: React.FC = () => {
     const newBoard = [...board];
     newBoard[index] = myPiece;
     setBoard(newBoard);
+    const turnStart = Date.now();
+    turnStartTimeRef.current = turnStart;
     setTimeLeft(timeLimit);
 
     if (isOnlineMode) {
-      multiplayer.sendMove({ index, piece: myPiece });
+      multiplayer.sendMove({ index, piece: myPiece, turnStartTime: turnStart });
     }
 
     const result = checkWinner(newBoard, boardSize, winStreak);
@@ -661,6 +720,7 @@ export const GameCaro: React.FC = () => {
           const newBoard = [...board];
           newBoard[aiMove] = botPiece;
           setBoard(newBoard);
+          turnStartTimeRef.current = Date.now();
           setTimeLeft(timeLimit);
 
           const result = checkWinner(newBoard, boardSize, winStreak);
@@ -1022,6 +1082,7 @@ export const GameCaro: React.FC = () => {
           setBoard(Array(boardSize * boardSize).fill(null));
           setIsXNext(true);
           setWinnerInfo(null);
+          turnStartTimeRef.current = Date.now();
           setTimeLeft(timeLimit);
         }}
         onWaitingInBackground={(room) => {
@@ -1033,6 +1094,7 @@ export const GameCaro: React.FC = () => {
           setBoard(Array(boardSize * boardSize).fill(null));
           setIsXNext(true);
           setWinnerInfo(null);
+          turnStartTimeRef.current = Date.now();
           setTimeLeft(timeLimit);
         }}
       />
