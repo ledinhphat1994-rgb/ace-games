@@ -33,89 +33,101 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-md bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
+        className="relative w-full max-w-xl bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_70px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Bar - Gọn gàng, tinh tế */}
-        <div className="h-14 px-4 sm:px-5 border-b border-white/10 bg-slate-900/90 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-md shadow-cyan-500/20">
-              <span className="text-lg">{game.thumbnailIcon}</span>
+        {/* Header Bar - To, rõ ràng, đậm chất game */}
+        <div className="h-16 px-5 sm:px-6 border-b border-white/10 bg-slate-900/95 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+              <span className="text-2xl">{game.thumbnailIcon}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-black text-white font-['Orbitron'] tracking-wider">
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+              <h3 className="text-lg sm:text-2xl font-black text-white font-['Orbitron'] tracking-wider">
                 HƯỚNG DẪN
               </h3>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold">
+              <span className="text-sm sm:text-base font-black px-3.5 py-1 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-md">
                 {game.title}
               </span>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90"
             title="Đóng (Esc)"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6 sm:w-7 sm:h-7" />
           </button>
         </div>
 
-        {/* Modal Body - Ngắn gọn, súc tích, không rườm rà */}
-        <div className="p-4 sm:p-5 space-y-3.5 text-left">
-          {/* Thao tác điều khiển - 1 hàng ngang 2 cột siêu gọn */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-slate-900/80 border border-cyan-500/20 rounded-xl p-2.5 flex items-center gap-2">
-              <Monitor className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-              <div className="min-w-0">
-                <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider">PC</span>
-                <span className="text-xs text-gray-200 font-semibold truncate block">
+        {/* Modal Body - Chữ to, bự, rõ nét, cực kỳ dễ đọc */}
+        <div className="p-5 sm:p-6 space-y-5 text-left">
+          {/* Thao tác điều khiển - 2 thẻ to rõ cho PC & Mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Cột PC */}
+            <div className="bg-slate-900/90 border-2 border-cyan-500/40 hover:border-cyan-400/70 rounded-2xl p-4 flex items-center gap-4 transition shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center flex-shrink-0 text-cyan-400 shadow-md">
+                <Monitor className="w-6 h-6 sm:w-7 sm:h-7" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-xs sm:text-sm font-black text-cyan-400 block uppercase tracking-wider mb-0.5 font-['Orbitron']">
+                  MÁY TÍNH (PC)
+                </span>
+                <span className="text-base sm:text-lg font-bold text-white block leading-snug">
                   {game.controls.desktop}
                 </span>
               </div>
             </div>
 
-            <div className="bg-slate-900/80 border border-emerald-500/20 rounded-xl p-2.5 flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <div className="min-w-0">
-                <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider">Mobile</span>
-                <span className="text-xs text-gray-200 font-semibold truncate block">
+            {/* Cột Mobile */}
+            <div className="bg-slate-900/90 border-2 border-emerald-500/40 hover:border-emerald-400/70 rounded-2xl p-4 flex items-center gap-4 transition shadow-lg">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center flex-shrink-0 text-emerald-400 shadow-md">
+                <Smartphone className="w-6 h-6 sm:w-7 sm:h-7" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-xs sm:text-sm font-black text-emerald-400 block uppercase tracking-wider mb-0.5 font-['Orbitron']">
+                  ĐIỆN THOẠI (CẢM ỨNG)
+                </span>
+                <span className="text-base sm:text-lg font-bold text-white block leading-snug">
                   {game.controls.mobile}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Quy tắc chơi - Tối đa 3 gạch đầu dòng ngắn gọn */}
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              Cách Chơi:
+          {/* Quy tắc chơi - Chữ to, bự, rõ từng gạch đầu dòng */}
+          <div className="space-y-3">
+            <span className="text-xs sm:text-sm font-black text-cyan-300 uppercase tracking-widest block font-['Orbitron']">
+              CÁCH CHƠI & QUY LUẬT:
             </span>
-            <div className="space-y-1.5">
+            <div className="space-y-2.5">
               {game.instructions.map((step, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2.5 bg-slate-900/60 border border-white/5 rounded-xl px-3 py-2 text-xs text-gray-200"
+                  className="flex items-center gap-4 bg-slate-900/90 border-2 border-white/10 hover:border-cyan-500/50 rounded-2xl p-3.5 sm:p-4 transition shadow-md"
                 >
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold text-[11px] flex items-center justify-center flex-shrink-0 border border-cyan-500/30">
+                  <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/25 text-cyan-300 font-black text-base sm:text-lg flex items-center justify-center flex-shrink-0 border border-cyan-400/60 shadow-md font-['Orbitron']">
                     {idx + 1}
                   </span>
-                  <span className="font-medium leading-snug">{step}</span>
+                  <span className="text-base sm:text-lg font-bold text-white leading-relaxed flex-1">
+                    {step}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Footer - Nút Vào Chơi ngắn gọn, bắt mắt */}
-        <div className="px-4 sm:px-5 py-3 border-t border-white/10 bg-slate-900/90 flex items-center justify-end flex-shrink-0">
+        {/* Footer - Nút Vào Chơi to bự, hiệu ứng neon rực rỡ */}
+        <div className="px-5 sm:px-6 py-4 border-t border-white/10 bg-slate-900/95 flex items-center justify-end flex-shrink-0">
           <button
             onClick={handleClose}
-            className="w-full sm:w-auto px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.4)] transition cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base sm:text-lg shadow-[0_0_35px_rgba(6,182,212,0.6)] transition cursor-pointer active:scale-95 flex items-center justify-center gap-3 tracking-wider uppercase font-['Orbitron']"
           >
-            <Play className="w-4 h-4 fill-current" />
-            <span>VÀO CHƠI</span>
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+            <span>VÀO CHƠI NGAY</span>
           </button>
         </div>
       </div>

@@ -19,9 +19,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['"Chakra Petch"', 'Rajdhani', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Orbitron', '"Chakra Petch"', 'sans-serif'],
-        game: ['"Chakra Petch"', 'Rajdhani', 'sans-serif'],
+        sans: ["'Chakra Petch'", 'Rajdhani', 'sans-serif'],
+        display: ['Orbitron', "'Chakra Petch'", 'sans-serif'],
+        game: ["'Chakra Petch'", 'Rajdhani', 'sans-serif'],
       }
     },
   },
