@@ -452,7 +452,7 @@ export const GameSpaceShooter: React.FC = () => {
 
           <div className="hidden sm:flex flex-col items-center text-center">
             <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              Đợt (Wave)
+              Đợt Địch
             </span>
             <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
               #{wave}

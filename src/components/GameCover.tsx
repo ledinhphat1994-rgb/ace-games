@@ -418,6 +418,72 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'pong':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-cyan-950 via-slate-950 to-rose-950 ${className}`}>
+          {/* Cyberpunk grid */}
+          <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#06b6d4_1px,transparent_1px),linear-gradient(to_bottom,#06b6d4_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="pong-glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="pong-glow-rose" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="pong-ball-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {/* Background scoreboard numbers */}
+            <text x="60" y="78" fill="#06b6d4" opacity="0.12" fontSize="56" fontWeight="900" fontFamily="monospace" textAnchor="middle">3</text>
+            <text x="140" y="78" fill="#f43f5e" opacity="0.12" fontSize="56" fontWeight="900" fontFamily="monospace" textAnchor="middle">5</text>
+
+            {/* Center dashed neon line */}
+            <line x1="100" y1="0" x2="100" y2="140" stroke="#06b6d4" strokeWidth="2" strokeDasharray="6 6" opacity="0.35" />
+
+            {/* Left Paddle (Cyan) */}
+            <g filter="url(#pong-glow-cyan)">
+              <rect x="18" y="45" width="6" height="42" rx="3" fill="#06b6d4" stroke="#a5f3fc" strokeWidth="1" />
+            </g>
+
+            {/* Right Paddle (Rose) */}
+            <g filter="url(#pong-glow-rose)">
+              <rect x="176" y="55" width="6" height="42" rx="3" fill="#f43f5e" stroke="#fecdd3" strokeWidth="1" />
+            </g>
+
+            {/* Ball Motion Trail */}
+            <circle cx="72" cy="74" r="2.5" fill="#38bdf8" opacity="0.25" />
+            <circle cx="85" cy="70" r="3.5" fill="#38bdf8" opacity="0.45" />
+            <circle cx="102" cy="65" r="4.5" fill="#38bdf8" opacity="0.65" />
+            <circle cx="120" cy="60" r="5.5" fill="#38bdf8" opacity="0.85" />
+
+            {/* Ball Glowing */}
+            <g filter="url(#pong-ball-glow)">
+              <circle cx="138" cy="56" r="6.5" fill="#ffffff" stroke="#38bdf8" strokeWidth="1.5" />
+            </g>
+
+            {/* Sparks near collision */}
+            <circle cx="148" cy="50" r="1.5" fill="#f43f5e" opacity="0.8" />
+            <circle cx="152" cy="58" r="1.5" fill="#22d3ee" opacity="0.8" />
+            <circle cx="145" cy="65" r="1.5" fill="#f59e0b" opacity="0.8" />
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

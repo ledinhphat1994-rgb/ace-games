@@ -306,5 +306,29 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Sudoku', 'Số học', 'Trí tuệ', 'Logic', 'Kinh điển'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'pong',
+    title: 'Bóng Bàn',
+    subtitle: 'Bóng bàn phản xạ Arcade cổ điển',
+    category: 'arcade',
+    categoryLabel: 'Arcade Thử Thách',
+    description: 'Đón bóng phản xạ ghi điểm vượt qua đối thủ.',
+    instructions: [
+      'Di chuyển thanh đỡ đón bóng nảy.',
+      'Mỗi lần bóng qua thanh đối thủ được 1 điểm.',
+      'Đạt mốc điểm quy định trước để chiến thắng.'
+    ],
+    controls: {
+      desktop: 'Chuột hoặc phím W/S và phím Mũi tên',
+      mobile: 'Chạm kéo thanh đỡ trên màn hình'
+    },
+    thumbnailIcon: '🏓',
+    accentColor: 'from-cyan-500 to-rose-600',
+    rating: 4.95,
+    plays: 154000,
+    tags: ['Pong', 'Bóng bàn', 'Arcade', 'Retro', 'Phản xạ', 'Kinh điển'],
+    isHot: true,
+    isNew: true
   }
 ];
