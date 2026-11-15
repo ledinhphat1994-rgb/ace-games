@@ -375,6 +375,49 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'sudoku':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-900 to-cyan-950 ${className}`}>
+          {/* Subtle grid background */}
+          <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#06b6d4_1px,transparent_1px),linear-gradient(to_bottom,#06b6d4_1px,transparent_1px)] bg-[size:14px_14px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="sudoku-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            {/* Sudoku 3x3 block visual */}
+            <g transform="translate(50, 20)">
+              {/* Outer block container */}
+              <rect x="0" y="0" width="100" height="100" rx="16" fill="#0b1120" stroke="#06b6d4" strokeWidth="2.5" opacity="0.9" />
+              {/* Inner grid lines */}
+              <line x1="33" y1="4" x2="33" y2="96" stroke="#06b6d4" strokeWidth="1" opacity="0.4" />
+              <line x1="67" y1="4" x2="67" y2="96" stroke="#06b6d4" strokeWidth="1" opacity="0.4" />
+              <line x1="4" y1="33" x2="96" y2="33" stroke="#06b6d4" strokeWidth="1" opacity="0.4" />
+              <line x1="4" y1="67" x2="96" y2="67" stroke="#06b6d4" strokeWidth="1" opacity="0.4" />
+              {/* Highlight active cell */}
+              <rect x="36" y="36" width="28" height="28" rx="8" fill="#06b6d4" fillOpacity="0.3" stroke="#22d3ee" strokeWidth="1.5" />
+              {/* Numbers inside cells */}
+              <text x="17" y="24" fill="#ffffff" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">5</text>
+              <text x="50" y="24" fill="#67e8f9" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">3</text>
+              <text x="83" y="24" fill="#ffffff" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">8</text>
+              
+              <text x="17" y="57" fill="#67e8f9" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">9</text>
+              <text x="50" y="57" fill="#facc15" fontSize="20" fontWeight="900" fontFamily="monospace" textAnchor="middle" filter="url(#sudoku-glow)">7</text>
+              <text x="83" y="57" fill="#ffffff" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">1</text>
+              
+              <text x="17" y="90" fill="#ffffff" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">2</text>
+              <text x="50" y="90" fill="#67e8f9" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">6</text>
+              <text x="83" y="90" fill="#ffffff" fontSize="18" fontWeight="900" fontFamily="monospace" textAnchor="middle">4</text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

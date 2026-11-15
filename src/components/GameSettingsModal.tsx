@@ -1042,6 +1042,68 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {/* SUDOKU */}
+          {game.id === 'sudoku' && (
+            <>
+              {/* ĐỘ KHÓ */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Gauge className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Độ Khó Bàn</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {(['easy', 'medium', 'hard'] as const).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => updateSetting('difficulty', d)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.difficulty || 'easy') === d
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* GIỚI HẠN LỖI */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-rose-400">
+                    <Zap className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Giới Hạn Lỗi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('maxMistakes', 3)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.maxMistakes || 3) === 3
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    3 Lỗi
+                  </button>
+                  <button
+                    onClick={() => updateSetting('maxMistakes', 0)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.maxMistakes === 0
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Vô Hạn
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}

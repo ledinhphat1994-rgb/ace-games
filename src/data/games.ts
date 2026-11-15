@@ -282,5 +282,29 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Onet', 'Pikachu', 'Nối hình', 'Giải đố', 'Kinh điển'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'sudoku',
+    title: 'Sudoku',
+    subtitle: 'Giải đố số 9x9 kinh điển',
+    category: 'puzzle',
+    categoryLabel: 'Giải Đố & Số',
+    description: 'Điền các số từ 1 đến 9 không trùng hàng, cột và khối.',
+    instructions: [
+      'Điền số từ 1 đến 9 vào ô trống.',
+      'Mỗi hàng, cột và khối 3x3 không trùng số.',
+      'Điền kín bảng cờ chính xác để chiến thắng.'
+    ],
+    controls: {
+      desktop: 'Nhấp chuột và phím 1-9',
+      mobile: 'Chạm chọn ô và bàn phím ảo'
+    },
+    thumbnailIcon: '🔢',
+    accentColor: 'from-cyan-500 to-indigo-600',
+    rating: 4.97,
+    plays: 172000,
+    tags: ['Sudoku', 'Số học', 'Trí tuệ', 'Logic', 'Kinh điển'],
+    isHot: true,
+    isNew: true
   }
 ];

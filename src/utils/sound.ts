@@ -39,6 +39,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   memory: 'zen',
   minesweeper: 'lofi',
   onet: 'lofi',
+  sudoku: 'lofi',
 };
 
 class SoundManager {
