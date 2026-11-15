@@ -97,6 +97,7 @@ class MultiplayerService {
         clean: true,
         connectTimeout: 5000,
         reconnectPeriod: 3000,
+        queueQoSZero: false,
       });
 
       client.on('connect', () => {
@@ -303,7 +304,7 @@ class MultiplayerService {
   private subscribeToRoom(roomId: string): Promise<void> {
     return new Promise((resolve) => {
       if (!this.client) return resolve();
-      this.client.subscribe(`acegames/v2/room/${roomId}`, { qos: 1 }, () => {
+      this.client.subscribe(`acegames/v2/room/${roomId}`, { qos: 0 }, () => {
         resolve();
       });
     });
@@ -315,24 +316,24 @@ class MultiplayerService {
       payload,
       senderId: this.localPlayerId,
       senderName: this.getPlayerName(),
-    });
+    }, 0);
   }
 
-  public sendAction(type: string, payload: any = {}) {
+  public sendAction(type: string, payload: any = {}, qos: 0 | 1 = 0) {
     this.sendRoomMessage({
       type,
       payload,
       senderId: this.localPlayerId,
       senderName: this.getPlayerName(),
-    });
+    }, qos);
   }
 
-  private sendRoomMessage(data: any) {
+  private sendRoomMessage(data: any, qos: 0 | 1 = 0) {
     if (!this.currentRoom || !this.client) return;
     this.client.publish(
       `acegames/v2/room/${this.currentRoom.roomId}`,
       JSON.stringify(data),
-      { qos: 1 }
+      { qos }
     );
   }
 
