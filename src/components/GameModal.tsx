@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle, Settings, Music, ChevronDown, Check } from 'lucide-react';
+import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle, Settings } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -13,7 +13,7 @@ import { GameXiangqi } from '../games/GameXiangqi';
 import { GameBreakout } from '../games/GameBreakout';
 import { GameSpaceShooter } from '../games/GameSpaceShooter';
 import { GameOnet } from '../games/GameOnet';
-import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
+import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
 import { GameSettingsModal } from './GameSettingsModal';
@@ -29,12 +29,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   const [viewMode, setViewMode] = useState<'vung2' | 'fullscreen'>('vung2');
   const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
   const [musicOn, setMusicOn] = useState(() => soundManager.isMusicOn());
-  const [sfxVolume, setSfxVolume] = useState(() => soundManager.getSoundVolume());
-  const [musicVolume, setMusicVolume] = useState(() => soundManager.getMusicVolume());
-  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getMusicTrack());
-  const [isAudioMenuOpen, setIsAudioMenuOpen] = useState(false);
-  const [isMusicDropdownOpen, setIsMusicDropdownOpen] = useState(false);
-  const audioMenuRef = useRef<HTMLDivElement | null>(null);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isGameSettingsOpen, setIsGameSettingsOpen] = useState(false);
@@ -46,22 +40,8 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     const unsubscribe = soundManager.subscribe(() => {
       setSoundOn(soundManager.isSoundOn());
       setMusicOn(soundManager.isMusicOn());
-      setSfxVolume(soundManager.getSoundVolume());
-      setMusicVolume(soundManager.getMusicVolume());
-      setCurrentTrack(soundManager.getMusicTrack());
     });
     return unsubscribe;
-  }, []);
-
-  // Close audio menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (audioMenuRef.current && !audioMenuRef.current.contains(e.target as Node)) {
-        setIsAudioMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Set active game in soundManager so all in-game sound & music are isolated to this game!
@@ -89,9 +69,19 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     setIsGuideOpen(true);
   };
 
-  const handleToggleSound = () => {
-    const next = soundManager.toggleSound();
-    setSoundOn(next);
+  // Quick Mute / Unmute 1 chạm cho ván game - Không trùng lặp với menu Cài Đặt
+  const handleQuickMute = () => {
+    if (!game) return;
+    if (soundOn || musicOn) {
+      soundManager.saveGameAudioSettings(game.id, { soundEnabled: false, musicEnabled: false });
+      setSoundOn(false);
+      setMusicOn(false);
+    } else {
+      soundManager.saveGameAudioSettings(game.id, { soundEnabled: true, musicEnabled: true });
+      setSoundOn(true);
+      setMusicOn(true);
+      soundManager.playButtonClick();
+    }
   };
 
   const toggleViewMode = () => {
@@ -254,233 +244,22 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
               <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
             </button>
 
-            {/* VÙNG 5 ĐƯA LÊN VÙNG 6: Bộ Điều Khiển Âm Thanh In-Game & Popover */}
-            <div className="relative" ref={audioMenuRef}>
-              <button
-                onClick={() => {
-                  soundManager.playButtonClick();
-                  setIsAudioMenuOpen(prev => !prev);
-                }}
-                className={`p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border transition cursor-pointer shadow-md active:scale-95 ${
-                  isAudioMenuOpen || soundOn || musicOn
-                    ? 'text-cyan-400 border-cyan-500/60 shadow-cyan-500/20'
-                    : 'text-gray-500 border-slate-700/80'
-                }`}
-                title="Âm thanh trận đấu (Chọn nhạc, chỉnh âm lượng)"
-              >
-                {soundOn || musicOn ? (
-                  <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
-                ) : (
-                  <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                )}
-              </button>
-
-              {/* Popover Điều Khiển Âm Thanh Ngay Trong Trận - VÙNG 1: ÂM THANH TRẬN ĐẤU */}
-              {isAudioMenuOpen && (
-                <div className="absolute right-0 mt-3 w-96 max-w-[95vw] sm:w-[400px] bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-4 shadow-2xl shadow-cyan-500/20 z-50 animate-in fade-in zoom-in-95 duration-150 text-left space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
-                    <div className="flex items-center gap-2 text-cyan-400">
-                      <Volume2 className="w-4 h-4" />
-                      <span>ÂM THANH TRẬN ĐẤU</span>
-                    </div>
-                    <span className="text-[10px] text-cyan-400/90 font-mono tracking-widest bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
-                      GAME
-                    </span>
-                  </div>
-
-                  {/* SFX Section */}
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                        <span className="text-xs font-bold text-gray-200">Hiệu Ứng (SFX)</span>
-                      </div>
-                      <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
-                        <button
-                          onClick={() => !soundOn && handleToggleSound()}
-                          className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            soundOn
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          Bật
-                        </button>
-                        <button
-                          onClick={() => soundOn && handleToggleSound()}
-                          className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            !soundOn
-                              ? 'bg-slate-800 text-gray-300 border border-slate-700'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          Tắt
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2.5 pt-0.5">
-                      <span className="text-[10px] text-gray-400 font-mono w-7">{sfxVolume}%</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={sfxVolume}
-                        disabled={!soundOn}
-                        onChange={(e) => soundManager.setSoundVolume(Number(e.target.value), game.id)}
-                        className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-950 ${
-                          !soundOn ? 'opacity-40 cursor-not-allowed' : ''
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* BGM Section */}
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Music className={`w-4 h-4 ${musicOn ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                        <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
-                      </div>
-                      <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
-                        <button
-                          onClick={() => {
-                            if (!musicOn) {
-                              const next = soundManager.toggleMusic(game.id);
-                              setMusicOn(next);
-                            }
-                          }}
-                          className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            musicOn
-                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          Bật
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (musicOn) {
-                              const next = soundManager.toggleMusic(game.id);
-                              setMusicOn(next);
-                            }
-                          }}
-                          className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            !musicOn
-                              ? 'bg-slate-800 text-gray-300 border border-slate-700'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          Tắt
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 pt-0.5">
-                      <span className="text-[10px] text-gray-400 font-mono w-7">{musicVolume}%</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={musicVolume}
-                        disabled={!musicOn}
-                        onChange={(e) => soundManager.setMusicVolume(Number(e.target.value), game.id)}
-                        className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-950 ${
-                          !musicOn ? 'opacity-40 cursor-not-allowed' : ''
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Track Selection Dropdown - DROPDOWN OVERLAY TINH TẾ, KHÔNG CUỘN DỌC, KHÔNG CẮT CHỮ */}
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2 relative">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Nền:</span>
-                      <span className="text-[10px] text-cyan-400 font-mono font-semibold">
-                        {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
-                      </span>
-                    </div>
-
-                    {/* Dropdown Trigger Button */}
-                    <button
-                      type="button"
-                      onClick={() => setIsMusicDropdownOpen(prev => !prev)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer shadow-md ${
-                        isMusicDropdownOpen
-                          ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/20 ring-1 ring-cyan-500/30'
-                          : 'bg-slate-950/80 hover:bg-slate-900 border-cyan-500/30 hover:border-cyan-500/60 text-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-lg p-1 rounded-lg bg-cyan-950/70 border border-cyan-500/30 flex-shrink-0">
-                          {BGM_TRACKS.find(t => t.id === currentTrack)?.icon || '🎵'}
-                        </span>
-                        <div className="flex flex-col text-left min-w-0">
-                          <span className="text-xs sm:text-sm font-bold text-white tracking-wide truncate">
-                            {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
-                          </span>
-                          <span className="text-[10px] text-gray-400 truncate">
-                            {BGM_TRACKS.find(t => t.id === currentTrack)?.desc}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                        <span className="text-[10px] font-mono font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-500/40 px-2 py-0.5 rounded-full hidden sm:inline-block">
-                          Đang chọn
-                        </span>
-                        <ChevronDown className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${isMusicDropdownOpen ? 'rotate-180' : ''}`} />
-                      </div>
-                    </button>
-
-                    {/* Dropdown Menu List - Overlay nổi thông minh, không nhảy kích thước, trọn vẹn 5 bài, tự cuộn mượt khi danh sách dài */}
-                    {isMusicDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_15px_50px_rgba(0,0,0,0.95)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1 max-h-[260px] overflow-y-auto custom-scrollbar">
-                        {BGM_TRACKS.map((t) => {
-                          const isActive = currentTrack === t.id;
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => {
-                                soundManager.playButtonClick();
-                                soundManager.setMusicTrack(t.id, game.id);
-                                if (!musicOn) {
-                                  soundManager.toggleMusic(game.id);
-                                }
-                                setIsMusicDropdownOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left border transition-all cursor-pointer ${
-                                isActive
-                                  ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
-                                  : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-base flex-shrink-0">{t.icon}</span>
-                                <div className="flex flex-col min-w-0">
-                                  <span className={`text-xs font-bold truncate ${isActive ? 'text-cyan-200' : 'text-gray-200'}`}>
-                                    {t.title}
-                                  </span>
-                                  <span className="text-[10px] text-gray-400 truncate">
-                                    {t.desc}
-                                  </span>
-                                </div>
-                              </div>
-                              {isActive && (
-                                <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/90 border border-cyan-500/40 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
-                                  <Check className="w-3 h-3 text-cyan-400" />
-                                  <span>Phát</span>
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* Nút Bật/Tắt Nhanh Âm Thanh Trận Đấu (Quick Mute/Unmute - 1 Chạm, không popover trùng lặp) */}
+            <button
+              onClick={handleQuickMute}
+              className={`p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border transition cursor-pointer shadow-md active:scale-95 ${
+                soundOn || musicOn
+                  ? 'text-emerald-400 border-emerald-500/40 shadow-emerald-500/10'
+                  : 'text-gray-500 border-slate-700/80 hover:text-gray-300'
+              }`}
+              title={soundOn || musicOn ? 'Tắt âm thanh nhanh (Mute)' : 'Bật âm thanh (Unmute)'}
+            >
+              {soundOn || musicOn ? (
+                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+              ) : (
+                <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
               )}
-            </div>
+            </button>
 
             {/* Nút Toàn Màn Hình */}
             <button
