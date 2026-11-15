@@ -377,7 +377,7 @@ class MultiplayerService {
           }
           this.notifyStatus('connected');
         }
-      } else if (data.type === 'game_move' || data.type === 'game_restart') {
+      } else if (data.type !== 'guest_joined' && data.type !== 'host_ack' && data.type !== 'player_left') {
         if (data.senderId !== this.localPlayerId) {
           if (data.senderName && (!this.opponent || !this.opponent.name || this.opponent.name === 'ĐỐI THỦ')) {
             this.opponent = { id: data.senderId, name: data.senderName };
