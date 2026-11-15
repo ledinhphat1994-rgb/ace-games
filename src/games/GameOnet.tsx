@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Shuffle, Sparkles, Trophy, Flame, Pause, Play, Clock } from 'lucide-react';
 import { soundManager } from '../utils/sound';

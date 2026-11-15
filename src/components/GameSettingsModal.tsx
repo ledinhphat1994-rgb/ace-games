@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { 
   Settings, 
   X, 
-  RotateCcw, 
   Volume2, 
   VolumeX, 
   Music,
@@ -18,7 +17,7 @@ import {
   Check
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
-import { soundManager, BGM_TRACKS, DEFAULT_GAME_TRACKS, type BgmTrack } from '../utils/sound';
+import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
 
 interface GameSettingsModalProps {
   isOpen: boolean;
@@ -53,6 +52,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const musicDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Lưu trữ cấu hình ban đầu khi mở modal để phục vụ nút "Hủy Bỏ"
+  const initialSettingsRef = useRef<Record<string, any>>({});
+  const initialAudioRef = useRef<any>(null);
 
   const updateDropdownPos = () => {
     if (triggerRef.current) {
@@ -108,21 +111,26 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     };
   }, [isMusicDropdownOpen]);
 
-  // Sync state when opening
+  // Sync state when opening & lưu snapshot ban đầu
   useEffect(() => {
     if (isOpen) {
+      let initial: Record<string, any> = {};
       try {
         const saved = localStorage.getItem(storageKey);
-        setSettings(saved ? JSON.parse(saved) : {});
+        initial = saved ? JSON.parse(saved) : {};
       } catch {
-        setSettings({});
+        initial = {};
       }
+      setSettings(initial);
+      initialSettingsRef.current = JSON.parse(JSON.stringify(initial));
+
       const cfg = soundManager.getGameAudioSettings(game.id);
       setSoundEnabled(cfg.soundEnabled);
       setMusicEnabled(cfg.musicEnabled);
       setSfxVolume(cfg.sfxVolume);
       setMusicVolume(cfg.musicVolume);
       setCurrentTrack(cfg.bgmTrack);
+      initialAudioRef.current = { ...cfg };
       setIsMusicDropdownOpen(false);
     }
   }, [isOpen, storageKey, game.id]);
@@ -158,34 +166,24 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     return unsub;
   }, [game.id]);
 
-  // Handle ESC key to close
+  // Handle ESC key to close (Hủy bỏ)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        onClose();
+        handleCancel();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Cập nhật cài đặt mà KHÔNG làm reset ván game nền ngay lập tức (cố định bảng chính)
+  // Cập nhật cài đặt tạm thời trong modal
   const updateSetting = (key: string, value: any) => {
     soundManager.playButtonClick();
     const updated = { ...settings, [key]: value };
     setSettings(updated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      window.dispatchEvent(
-        new CustomEvent('ace-game-setting-changed', {
-          detail: { gameId: game.id, key, value, allSettings: updated },
-        })
-      );
-    } catch (e) {
-      console.error(e);
-    }
   };
 
   const handleToggleSound = () => {
@@ -219,34 +217,57 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     setMusicEnabled(true);
   };
 
-  const handleRestart = () => {
+  // Nút ÁP DỤNG: Lưu toàn bộ thay đổi và áp dụng vào game
+  const handleApply = () => {
     soundManager.playButtonClick();
-    onRestartGame();
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(settings));
+    } catch (e) {
+      console.error(e);
+    }
+
+    soundManager.saveGameAudioSettings(game.id, {
+      soundEnabled,
+      sfxVolume,
+      musicEnabled,
+      musicVolume,
+      bgmTrack: currentTrack,
+    });
+
+    window.dispatchEvent(
+      new CustomEvent('ace-game-setting-changed', {
+        detail: { gameId: game.id, key: 'APPLY_SETTINGS', value: null, allSettings: settings },
+      })
+    );
+
+    // Nếu cài đặt gameplay có thay đổi thì khởi động lại ván để áp dụng ngay
+    const hasGameplayChanged = JSON.stringify(settings) !== JSON.stringify(initialSettingsRef.current);
+    if (hasGameplayChanged) {
+      onRestartGame();
+    }
+
     onClose();
   };
 
-  const handleResetDefaults = () => {
+  // Nút HỦY BỎ: Khôi phục lại đúng trạng thái ban đầu và đóng cài đặt
+  const handleCancel = () => {
     soundManager.playButtonClick();
-    localStorage.removeItem(storageKey);
-    setSettings({});
-    const defaultTrack = DEFAULT_GAME_TRACKS[game.id] || 'arcade';
-    soundManager.saveGameAudioSettings(game.id, {
-      soundEnabled: true,
-      sfxVolume: 85,
-      musicEnabled: true,
-      musicVolume: 40,
-      bgmTrack: defaultTrack,
-    });
-    window.dispatchEvent(
-      new CustomEvent('ace-game-setting-changed', {
-        detail: { gameId: game.id, key: 'RESET', value: null, allSettings: {} },
-      })
-    );
-    onRestartGame();
-  };
+    setSettings(initialSettingsRef.current);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(initialSettingsRef.current));
+      window.dispatchEvent(
+        new CustomEvent('ace-game-setting-changed', {
+          detail: { gameId: game.id, key: 'REVERT_SETTINGS', value: null, allSettings: initialSettingsRef.current },
+        })
+      );
+    } catch (e) {
+      console.error(e);
+    }
 
-  const handleClose = () => {
-    soundManager.playButtonClick();
+    if (initialAudioRef.current) {
+      soundManager.saveGameAudioSettings(game.id, initialAudioRef.current);
+    }
+
     onClose();
   };
 
@@ -276,7 +297,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
           </div>
 
           <button
-            onClick={handleClose}
+            onClick={handleCancel}
             className="p-2 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90"
             title="Đóng (Esc)"
           >
@@ -1023,22 +1044,26 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
         </div>
 
-        {/* Footer Bar - To rõ, bề thế */}
+        {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}
         <div className="h-16 px-5 sm:px-6 border-t border-white/10 bg-slate-900/95 flex items-center justify-between gap-3 flex-shrink-0">
           <button
-            onClick={handleRestart}
-            className="flex-1 flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(6,182,212,0.4)] transition cursor-pointer active:scale-95 tracking-wider"
+            type="button"
+            onClick={handleCancel}
+            className="flex-1 flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 text-sm sm:text-base font-bold transition cursor-pointer active:scale-95 shadow-md"
+            title="Hủy bỏ mọi thay đổi và đóng cài đặt"
           >
-            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-            <span>KHỞI ĐỘNG LẠI VÁN GAME</span>
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>Hủy Bỏ</span>
           </button>
 
           <button
-            onClick={handleResetDefaults}
-            className="h-12 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95"
-            title="Khôi phục mặc định"
+            type="button"
+            onClick={handleApply}
+            className="flex-1 flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(6,182,212,0.4)] transition cursor-pointer active:scale-95 tracking-wide"
+            title="Lưu và áp dụng cài đặt mới"
           >
-            Mặc Định
+            <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" />
+            <span>Áp Dụng</span>
           </button>
         </div>
       </div>
