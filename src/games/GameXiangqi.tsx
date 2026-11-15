@@ -114,7 +114,7 @@ export const GameXiangqi: React.FC = () => {
 
   // Bộ đếm thời gian suy nghĩ cho mỗi lượt
   useEffect(() => {
-    if (timeLimit <= 0) return;
+    if (timeLimit <= 0 || isWaitingForFriend) return;
     const outcome = pos.outcome();
     if (outcome.over) return;
 
@@ -337,9 +337,9 @@ export const GameXiangqi: React.FC = () => {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Huy hiệu trạng thái / Lượt đi */}
           {isWaitingForFriend ? (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              <span>⏳ ĐANG CHỜ ĐỐI THỦ VÀO BÀN...</span>
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)]">
+              <Timer className="w-4 h-4 text-amber-400 animate-spin" />
+              <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
           ) : isOnlineMode ? (
             ((playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
@@ -375,13 +375,15 @@ export const GameXiangqi: React.FC = () => {
             )
           )}
 
-          {/* Đồng hồ đếm ngược to rõ */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-purple-500/30 text-purple-300 font-mono text-xs sm:text-sm font-black shadow-inner">
-            <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-spin' : 'text-purple-400'}`} />
-            <span className={timeLeft <= 10 && timeLimit > 0 ? 'text-rose-400 animate-pulse drop-shadow-[0_0_8px_#f43f5e]' : ''}>
-              {timeLimit === 0 ? '∞' : `${timeLeft}s`}
-            </span>
-          </div>
+          {/* Đồng hồ đếm ngược to rõ (Chỉ hiển thị khi đang trong trận đấu thực sự, không đếm khi đang chờ vào bàn) */}
+          {!isWaitingForFriend && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-purple-500/30 text-purple-300 font-mono text-xs sm:text-sm font-black shadow-inner">
+              <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-spin' : 'text-purple-400'}`} />
+              <span className={timeLeft <= 10 && timeLimit > 0 ? 'text-rose-400 animate-pulse drop-shadow-[0_0_8px_#f43f5e]' : ''}>
+                {timeLimit === 0 ? '∞' : `${timeLeft}s`}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* VÙNG 3: CỤM ĐIỀU KHIỂN (Đã xóa "Cùng Máy", to rõ, tinh gọn, không rối) */}
