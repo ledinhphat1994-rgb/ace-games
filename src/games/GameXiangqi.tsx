@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { XiangqiPosition, type XiangqiMove, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
-import { RotateCcw, Bot, Users } from 'lucide-react';
+import { RotateCcw, Bot, Users, Timer } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
 const XIANGQI_PIECES: Record<number, Record<number, string>> = {
@@ -50,6 +50,17 @@ export const GameXiangqi: React.FC = () => {
     } catch {}
     return 2;
   });
+  const [timeLimit, setTimeLimit] = useState<number>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_xiangqi');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.timeLimit !== undefined) return Number(parsed.timeLimit);
+      }
+    } catch {}
+    return 60; // 60 giây mặc định
+  });
+  const [timeLeft, setTimeLeft] = useState<number>(60);
   const [isThinking, setIsThinking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Đỏ (Đi trước)');
 
@@ -59,11 +70,37 @@ export const GameXiangqi: React.FC = () => {
       if (e.detail?.gameId === 'xiangqi') {
         if (e.detail.key === 'mode') setMode(e.detail.value);
         if (e.detail.key === 'aiLevel') setAiLevel(Number(e.detail.value) as 1 | 2 | 3);
+        if (e.detail.key === 'timeLimit') {
+          const newLimit = Number(e.detail.value);
+          setTimeLimit(newLimit);
+          setTimeLeft(newLimit);
+        }
       }
     };
     window.addEventListener('ace-game-setting-changed', handleSetting);
     return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
   }, []);
+
+  // Bộ đếm thời gian suy nghĩ cho mỗi lượt
+  useEffect(() => {
+    if (timeLimit <= 0) return;
+    const outcome = pos.outcome();
+    if (outcome.over) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          const turnName = pos.turn === RED ? 'Đỏ' : 'Đen';
+          setStatusMessage(`⏱️ Hết giờ suy nghĩ! Bên ${turnName} bị xử thua.`);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLimit, pos, pos.turn]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -108,12 +145,13 @@ export const GameXiangqi: React.FC = () => {
     setLastMove(null);
     setIsThinking(false);
     updateStatus(newPos);
+    setTimeLeft(timeLimit);
   };
 
   const handleSquareClick = (sq: number) => {
     if (isThinking) return;
     const outcome = pos.outcome();
-    if (outcome.over) return;
+    if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
 
     if (mode === 'ai' && pos.turn === BLACK) return;
 
@@ -149,6 +187,7 @@ export const GameXiangqi: React.FC = () => {
     setSelectedSq(null);
     setValidMoves([]);
     updateStatus(nextPos);
+    setTimeLeft(timeLimit);
 
     if (isCapture) playTone(240, 0.12);
     else playTone(520, 0.06);
@@ -190,6 +229,27 @@ export const GameXiangqi: React.FC = () => {
                   (AI đang tính...)
                 </span>
               )}
+            </div>
+          </div>
+
+          <div className="h-7 w-px bg-white/10" />
+
+          {/* Cột Thời Gian Chờ Suy Nghĩ */}
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              THỜI GIAN
+            </span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-pulse' : 'text-purple-400'}`} />
+              <span className={`font-mono text-xs sm:text-sm font-black ${
+                timeLimit === 0 
+                  ? 'text-gray-400' 
+                  : timeLeft <= 10 
+                    ? 'text-rose-400 animate-pulse' 
+                    : 'text-purple-300'
+              }`}>
+                {timeLimit === 0 ? 'Vô hạn' : `${timeLeft}s`}
+              </span>
             </div>
           </div>
         </div>

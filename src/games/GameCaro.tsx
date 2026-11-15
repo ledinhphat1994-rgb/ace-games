@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Users, Bot, Award, Grid3X3, Grid } from 'lucide-react';
+import { RotateCcw, Users, Bot, Award, Grid3X3, Grid, Timer } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
 type Player = 'X' | 'O' | null;
@@ -42,6 +42,17 @@ export const GameCaro: React.FC = () => {
     } catch {}
     return 'UNBEATABLE';
   });
+  const [timeLimit, setTimeLimit] = useState<number>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_caro');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.timeLimit !== undefined) return Number(parsed.timeLimit);
+      }
+    } catch {}
+    return 60; // 60s mặc định
+  });
+  const [timeLeft, setTimeLeft] = useState<number>(60);
   const [winnerInfo, setWinnerInfo] = useState<{ winner: Player | 'DRAW'; line?: number[] } | null>(null);
 
   // Đồng bộ cài đặt thời gian thực với GameSettingsModal
@@ -56,12 +67,40 @@ export const GameCaro: React.FC = () => {
           setBoard(Array(newSize === 10 ? 100 : 9).fill(null));
           setIsXNext(true);
           setWinnerInfo(null);
+          setTimeLeft(timeLimit);
+        }
+        if (e.detail.key === 'timeLimit') {
+          const newLimit = Number(e.detail.value);
+          setTimeLimit(newLimit);
+          setTimeLeft(newLimit);
         }
       }
     };
     window.addEventListener('ace-game-setting-changed', handleSetting);
     return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
-  }, []);
+  }, [timeLimit]);
+
+  // Bộ đếm thời gian suy nghĩ cho mỗi lượt Cờ Caro
+  useEffect(() => {
+    if (timeLimit <= 0) return;
+    if (winnerInfo) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          const winner: Player = isXNext ? 'O' : 'X';
+          const result = { winner, line: [] };
+          setWinnerInfo(result);
+          updateStats(winner);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLimit, winnerInfo, isXNext]);
 
   const [stats, setStats] = useState<{ win: number; loss: number; draw: number }>(() => {
     const saved = localStorage.getItem('acegames_caro_stats');
@@ -165,7 +204,8 @@ export const GameCaro: React.FC = () => {
     setBoard(Array(boardSize * boardSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
-  }, [boardSize]);
+    setTimeLeft(timeLimit);
+  }, [boardSize, timeLimit]);
 
   // Handle board size switch
   const handleSizeChange = (newSize: 10 | 3) => {
@@ -173,6 +213,7 @@ export const GameCaro: React.FC = () => {
     setBoard(Array(newSize * newSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
+    setTimeLeft(timeLimit);
     soundManager.playButtonClick();
   };
 
@@ -377,13 +418,14 @@ export const GameCaro: React.FC = () => {
 
   // Handle cell click
   const handleClick = (index: number) => {
-    if (board[index] || winnerInfo) return;
+    if (board[index] || winnerInfo || (isAiMode && !isXNext) || (timeLimit > 0 && timeLeft === 0)) return;
 
     soundManager.playButtonClick();
 
     const newBoard = [...board];
     newBoard[index] = isXNext ? 'X' : 'O';
     setBoard(newBoard);
+    setTimeLeft(timeLimit);
 
     const result = checkWinner(newBoard, boardSize, winStreak);
     if (result) {
@@ -405,6 +447,7 @@ export const GameCaro: React.FC = () => {
           const newBoard = [...board];
           newBoard[aiMove] = 'O';
           setBoard(newBoard);
+          setTimeLeft(timeLimit);
 
           const result = checkWinner(newBoard, boardSize, winStreak);
           if (result) {
@@ -418,7 +461,7 @@ export const GameCaro: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, checkWinner]);
+  }, [isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, checkWinner, timeLimit]);
 
   const updateStats = (winner: Player | 'DRAW') => {
     setStats(prev => {
@@ -473,6 +516,27 @@ export const GameCaro: React.FC = () => {
               <span className="text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-500/10">W:{stats.win}</span>
               <span className="text-gray-400 px-1.5 py-0.5 rounded bg-slate-800">D:{stats.draw}</span>
               <span className="text-rose-400 px-1.5 py-0.5 rounded bg-rose-500/10">L:{stats.loss}</span>
+            </div>
+          </div>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          {/* Cột Thời Gian Chờ Suy Nghĩ */}
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              THỜI GIAN
+            </span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Timer className={`w-3.5 h-3.5 ${timeLimit > 0 && timeLeft <= 10 ? 'text-rose-400 animate-pulse' : 'text-purple-400'}`} />
+              <span className={`font-mono text-xs sm:text-sm font-black ${
+                timeLimit === 0 
+                  ? 'text-gray-400' 
+                  : timeLeft <= 10 
+                    ? 'text-rose-400 animate-pulse' 
+                    : 'text-purple-300'
+              }`}>
+                {timeLimit === 0 ? 'Vô hạn' : `${timeLeft}s`}
+              </span>
             </div>
           </div>
         </div>

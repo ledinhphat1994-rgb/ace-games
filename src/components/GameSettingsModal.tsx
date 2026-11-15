@@ -13,7 +13,8 @@ import {
   Eye, 
   Sparkles,
   Zap,
-  Check
+  Check,
+  Timer
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { soundManager } from '../utils/sound';
@@ -269,6 +270,35 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                     {settings.showHints !== false ? 'Hiện' : 'Ẩn'}
                   </button>
                 </div>
+
+                {/* Thời gian chờ suy nghĩ cho mỗi lượt */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-white/5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                    <span>Thời Gian Chờ Suy Nghĩ</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 flex-wrap">
+                    {[
+                      { val: 0, label: 'Vô Hạn' },
+                      { val: 30, label: '30s' },
+                      { val: 60, label: '60s' },
+                      { val: 90, label: '90s' },
+                      { val: 120, label: '120s' },
+                    ].map(({ val, label }) => (
+                      <button
+                        key={val}
+                        onClick={() => updateSetting('timeLimit', val)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          (settings.timeLimit !== undefined ? settings.timeLimit : 60) === val
+                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-sm shadow-purple-500/20'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -321,6 +351,35 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                         className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                           (settings.aiLevel || 2) === level
                             ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Thời gian chờ suy nghĩ cho mỗi lượt */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-white/5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                    <span>Thời Gian Chờ Suy Nghĩ</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 flex-wrap">
+                    {[
+                      { val: 0, label: 'Vô Hạn' },
+                      { val: 30, label: '30s' },
+                      { val: 60, label: '60s' },
+                      { val: 90, label: '90s' },
+                      { val: 120, label: '120s' },
+                    ].map(({ val, label }) => (
+                      <button
+                        key={val}
+                        onClick={() => updateSetting('timeLimit', val)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          (settings.timeLimit !== undefined ? settings.timeLimit : 60) === val
+                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-sm shadow-purple-500/20'
                             : 'text-gray-400 hover:text-white'
                         }`}
                       >
@@ -425,6 +484,35 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                     >
                       Khó (AI Bất Khả)
                     </button>
+                  </div>
+                </div>
+
+                {/* Thời gian chờ suy nghĩ cho mỗi lượt */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-white/5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                    <span>Thời Gian Chờ Suy Nghĩ</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 flex-wrap">
+                    {[
+                      { val: 0, label: 'Vô Hạn' },
+                      { val: 30, label: '30s' },
+                      { val: 60, label: '60s' },
+                      { val: 90, label: '90s' },
+                      { val: 120, label: '120s' },
+                    ].map(({ val, label }) => (
+                      <button
+                        key={val}
+                        onClick={() => updateSetting('timeLimit', val)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          (settings.timeLimit !== undefined ? settings.timeLimit : 60) === val
+                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-sm shadow-purple-500/20'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
