@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Maximize2, Minimize2, Volume2, VolumeX, Trophy, HelpCircle } from 'lucide-react';
+import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -237,36 +237,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
         </div>
       )}
 
-      {/* Nút điều khiển thu nhỏ & đóng nổi khi ở chế độ Full màn hình (Tinh gọn, trong suốt mờ) */}
-      {viewMode === 'fullscreen' && (
-        <div className="fixed top-2.5 right-3 z-50 flex items-center gap-1.5 p-1 rounded-2xl bg-black/60 hover:bg-black/90 backdrop-blur-md border border-white/10 opacity-30 hover:opacity-100 transition-all duration-200 shadow-2xl">
-          <button
-            onClick={handleToggleSound}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-gray-300 hover:text-white transition cursor-pointer"
-            title={soundOn ? 'Tắt âm thanh game' : 'Bật âm thanh game'}
-          >
-            {soundOn ? (
-              <Volume2 className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <VolumeX className="w-4 h-4 text-gray-500" />
-            )}
-          </button>
-          <button
-            onClick={toggleViewMode}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
-            title="Thu nhỏ lại (Phím Esc)"
-          >
-            <Minimize2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleClose}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 hover:bg-rose-950/80 text-rose-400 hover:text-rose-300 transition cursor-pointer"
-            title="Đóng game"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
       <div className={`flex-1 w-full h-full overflow-hidden flex items-center justify-center ${
