@@ -145,9 +145,9 @@ export const GameXiangqi: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
+    <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
-      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
@@ -199,10 +199,10 @@ export const GameXiangqi: React.FC = () => {
       </div>
 
       {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1a0c06] via-[#0f0603] to-[#050201] rounded-3xl border-4 border-rose-700/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
+      <div className="game-arena-box relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1a0c06] via-[#0f0603] to-[#050201] rounded-3xl border-4 border-rose-700/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
         {/* Center: Massive Xiangqi Board taking full vertical height to rõ ở Vùng 1 */}
-        <div className="relative bg-[#0c0502] p-2.5 sm:p-4 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-260px)] border-4 border-amber-800/60 shadow-2xl flex items-center justify-center">
+        <div className="game-board-inner relative bg-[#0c0502] p-2.5 sm:p-4 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-260px)] border-4 border-amber-800/60 shadow-2xl flex items-center justify-center">
           <div className="relative bg-[#deb887] border-2 sm:border-3 border-[#78350f] rounded-2xl shadow-inner overflow-hidden w-full h-full">
             {/* River Divider */}
             <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-sm sm:text-base tracking-[0.4em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">

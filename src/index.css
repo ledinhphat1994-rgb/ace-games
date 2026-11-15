@@ -42,3 +42,39 @@
 .glow-neon {
   box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);
 }
+
+/* True Fullscreen Game Layout when user expands to full screen */
+.is-game-fullscreen .game-arena-wrapper {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  padding: 0 8px 8px 8px !important;
+  margin: 0 auto !important;
+  justify-content: flex-start !important;
+}
+
+.is-game-fullscreen .game-top-hud {
+  max-width: 100vw !important;
+  width: 100% !important;
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  border-radius: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+.is-game-fullscreen .game-arena-box {
+  max-width: 100vw !important;
+  max-height: calc(100vh - 54px) !important;
+  height: calc(100vh - 54px) !important;
+  border-radius: 16px !important;
+  margin: 0 auto !important;
+}
+
+.is-game-fullscreen .game-board-inner {
+  max-height: calc(100vh - 72px) !important;
+  height: 100% !important;
+}
+

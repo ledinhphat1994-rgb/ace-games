@@ -302,9 +302,9 @@ export const GameFlappy: React.FC = () => {
   }, [gameState, playTone]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
+    <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
       {/* Top HUD - Tiêu đề căn ngang hàng chuẩn xác, icon cup nằm gọn trong hàng tiêu đề */}
-      <div className="flex items-center w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
+      <div className="game-top-hud flex items-center w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
         <div className="flex items-center gap-4 sm:gap-6">
           {/* Cột Điểm Số: Căn giữa hoàn toàn theo trục dọc */}
           <div className="flex flex-col items-center text-center">
@@ -333,7 +333,7 @@ export const GameFlappy: React.FC = () => {
 
       {/* Massive 16:9 Widescreen Arcade Board - Scaled to never exceed container */}
       <div
-        className="relative rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(245,158,11,0.35)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] flex-shrink min-h-0"
+        className="game-arena-box relative rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(245,158,11,0.35)] border-4 border-amber-500/40 cursor-pointer w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] flex-shrink min-h-0"
         onClick={jump}
       >
         <canvas

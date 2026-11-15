@@ -225,12 +225,12 @@ export const Game2048: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2"
+      className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Top HUD - Chuẩn chiều rộng 1320px như Flappy Bird & Màn hình mặc định */}
-      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
         {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex flex-col items-center text-center">
@@ -295,10 +295,10 @@ export const Game2048: React.FC = () => {
       </div>
 
       {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c130b] via-[#100a05] to-[#050302] rounded-3xl border-4 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
+      <div className="game-arena-box relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c130b] via-[#100a05] to-[#050302] rounded-3xl border-4 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
         {/* Center: Massive 4x4 Grid Board taking full vertical height to rõ ở Vùng 1 */}
-        <div className="relative bg-[#8f7a66] p-3 sm:p-5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-amber-600/50 shadow-2xl flex items-center justify-center">
+        <div className="game-board-inner relative bg-[#8f7a66] p-3 sm:p-5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-amber-600/50 shadow-2xl flex items-center justify-center">
           <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-4 w-full h-full">
             {board.map((row, r) =>
               row.map((cell, c) => (

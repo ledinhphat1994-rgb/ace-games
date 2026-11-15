@@ -216,10 +216,10 @@ export const GameSnake: React.FC = () => {
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,1600px)] mx-auto select-none p-1 sm:p-2"
+      className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,1600px)] mx-auto select-none p-1 sm:p-2"
     >
       {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG (VÙNG 5 ĐÃ ĐƯỢC ĐƯA LÊN VÙNG 6) */}
-      <div className="flex items-center justify-between w-full max-w-[min(94vw,1550px)] mb-2 px-3 sm:px-5 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
+      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(94vw,1550px)] mb-2 px-3 sm:px-5 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
         {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex flex-col items-center text-center">
@@ -271,7 +271,7 @@ export const GameSnake: React.FC = () => {
 
       {/* Massive 16:9 Widescreen Arcade Board - Fits 100% inside container */}
       <div 
-        className="relative bg-[#0b1120] p-2 sm:p-2.5 rounded-3xl w-full max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] border-4 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center flex-shrink min-h-0"
+        className="game-arena-box relative bg-[#0b1120] p-2 sm:p-2.5 rounded-3xl w-full max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] border-4 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.35)] overflow-hidden flex items-center justify-center flex-shrink min-h-0"
         style={{ aspectRatio: `${cols} / ${rows}` }}
       >
         {/* Grid cells */}

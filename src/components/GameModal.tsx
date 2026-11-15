@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle } from 'lucide-react';
+import { X, Maximize2, Minimize2, Volume2, VolumeX, Trophy, HelpCircle } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -155,87 +155,118 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       className={`transition-all duration-300 overflow-hidden flex flex-col ${
         viewMode === 'vung2'
           ? 'relative w-full h-full bg-[#070b14] rounded-2xl sm:rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_rgba(0,0,0,0.85)]'
-          : 'fixed inset-0 z-50 w-screen h-screen bg-[#03060c] p-0 rounded-none border-0'
+          : 'fixed inset-0 z-50 w-screen h-screen bg-[#03060c] p-0 rounded-none border-0 is-game-fullscreen'
       }`}
     >
-      {/* Sleek Header Bar - Shown in VÙNG 2 and in Fullscreen overlay */}
-      <div className={`flex items-center justify-between px-3 sm:px-6 py-2 border-b border-white/10 flex-shrink-0 z-20 ${
-        viewMode === 'vung2' ? 'bg-slate-950/90 backdrop-blur-md' : 'bg-slate-950/80 backdrop-blur-md'
-      }`}>
-        {/* Game Title: Animated, Sinh động, Thẩm mỹ cao */}
-        <div 
-          className="flex items-center gap-2.5 group cursor-default"
-          title={`${game.title}: ${game.subtitle || game.description}`}
-        >
-          <span className="text-xl sm:text-2xl drop-shadow-md transform transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6">
-            {game.thumbnailIcon}
-          </span>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-lg font-black tracking-wider font-['Orbitron'] bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(6,182,212,0.5)]">
-                {game.title}
-              </h2>
+      {/* Sleek Header Bar - CHỈ HIỂN THỊ Ở VÙNG 2 (ẨN HOÀN TOÀN KHI FULL MÀN HÌNH THEO YÊU CẦU) */}
+      {viewMode === 'vung2' && (
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2 border-b border-white/10 flex-shrink-0 z-20 bg-slate-950/90 backdrop-blur-md">
+          {/* Game Title: Animated, Sinh động, Thẩm mỹ cao */}
+          <div 
+            className="flex items-center gap-2.5 group cursor-default"
+            title={`${game.title}: ${game.subtitle || game.description}`}
+          >
+            <span className="text-xl sm:text-2xl drop-shadow-md transform transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6">
+              {game.thumbnailIcon}
+            </span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-lg font-black tracking-wider font-['Orbitron'] bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(6,182,212,0.5)]">
+                  {game.title}
+                </h2>
+              </div>
+              <div className="w-12 group-hover:w-full h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-400 transition-all duration-500 rounded-full mt-0.5 opacity-80" />
             </div>
-            <div className="w-12 group-hover:w-full h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-400 transition-all duration-500 rounded-full mt-0.5 opacity-80" />
+          </div>
+
+          {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 5 ÂM THANH ĐƯỢC ĐƯA LÊN ĐÂY + HƯỚNG DẪN + BẢNG XẾP HẠNG + FULLSCREEN + ĐÓNG) */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Nút Hướng Dẫn Chơi */}
+            <button
+              onClick={handleOpenGuide}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/50 transition cursor-pointer shadow-md active:scale-95"
+              title="Hướng Dẫn Chơi & Phím Điều Khiển"
+            >
+              <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+            </button>
+
+            {/* Nút Bảng Xếp Hạng */}
+            <button
+              onClick={handleOpenLeaderboard}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-700/80 hover:border-amber-500/50 transition cursor-pointer shadow-md active:scale-95"
+              title="Bảng Xếp Hạng Cao Thủ"
+            >
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+            </button>
+
+            {/* VÙNG 5 ĐƯA LÊN VÙNG 6: Nút Bật/Tắt Âm Thanh */}
+            <button
+              onClick={handleToggleSound}
+              className={`p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border transition cursor-pointer shadow-md active:scale-95 ${
+                soundOn
+                  ? 'text-cyan-400 border-slate-700/80 hover:border-cyan-500/50'
+                  : 'text-gray-500 border-slate-700/80'
+              }`}
+              title={soundOn ? 'Tắt âm thanh game' : 'Bật âm thanh game'}
+            >
+              {soundOn ? (
+                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+              ) : (
+                <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+              )}
+            </button>
+
+            {/* Nút Toàn Màn Hình */}
+            <button
+              onClick={toggleViewMode}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/50 transition cursor-pointer shadow-md active:scale-95"
+              title="Toàn Màn Hình"
+            >
+              <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            {/* Nút Đóng Trò Chơi */}
+            <button
+              onClick={handleClose}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/50 transition cursor-pointer shadow-md active:scale-95"
+              title="Đóng Trò Chơi"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
           </div>
         </div>
+      )}
 
-        {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 5 ÂM THANH ĐƯỢC ĐƯA LÊN ĐÂY + HƯỚNG DẪN + BẢNG XẾP HẠNG + FULLSCREEN + ĐÓNG) */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Nút Hướng Dẫn Chơi (VÙNG 1 ĐƯỢC KHOANH TRÒN) */}
-          <button
-            onClick={handleOpenGuide}
-            className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/50 transition cursor-pointer shadow-md active:scale-95"
-            title="Hướng Dẫn Chơi & Phím Điều Khiển"
-          >
-            <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-          </button>
-
-          {/* Nút Bảng Xếp Hạng */}
-          <button
-            onClick={handleOpenLeaderboard}
-            className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-700/80 hover:border-amber-500/50 transition cursor-pointer shadow-md active:scale-95"
-            title="Bảng Xếp Hạng Cao Thủ"
-          >
-            <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-          </button>
-
-          {/* VÙNG 5 ĐƯA LÊN VÙNG 6: Nút Bật/Tắt Âm Thanh */}
+      {/* Nút điều khiển thu nhỏ & đóng nổi khi ở chế độ Full màn hình (Tinh gọn, trong suốt mờ) */}
+      {viewMode === 'fullscreen' && (
+        <div className="fixed top-2.5 right-3 z-50 flex items-center gap-1.5 p-1 rounded-2xl bg-black/60 hover:bg-black/90 backdrop-blur-md border border-white/10 opacity-30 hover:opacity-100 transition-all duration-200 shadow-2xl">
           <button
             onClick={handleToggleSound}
-            className={`p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border transition cursor-pointer shadow-md active:scale-95 ${
-              soundOn
-                ? 'text-cyan-400 border-slate-700/80 hover:border-cyan-500/50'
-                : 'text-gray-500 border-slate-700/80'
-            }`}
+            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-gray-300 hover:text-white transition cursor-pointer"
             title={soundOn ? 'Tắt âm thanh game' : 'Bật âm thanh game'}
           >
             {soundOn ? (
-              <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+              <Volume2 className="w-4 h-4 text-emerald-400" />
             ) : (
-              <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+              <VolumeX className="w-4 h-4 text-gray-500" />
             )}
           </button>
-
-          {/* Nút Toàn Màn Hình */}
           <button
             onClick={toggleViewMode}
-            className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/50 transition cursor-pointer shadow-md active:scale-95"
-            title={viewMode === 'fullscreen' ? 'Thoát Toàn Màn Hình' : 'Toàn Màn Hình'}
+            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
+            title="Thu nhỏ lại (Phím Esc)"
           >
-            <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Minimize2 className="w-4 h-4" />
           </button>
-
-          {/* Nút Đóng Trò Chơi */}
           <button
             onClick={handleClose}
-            className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/50 transition cursor-pointer shadow-md active:scale-95"
-            title="Đóng Trò Chơi"
+            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 hover:bg-rose-950/80 text-rose-400 hover:text-rose-300 transition cursor-pointer"
+            title="Đóng game"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
-      </div>
+      )}
 
       {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
       <div className={`flex-1 w-full h-full overflow-hidden flex items-center justify-center ${

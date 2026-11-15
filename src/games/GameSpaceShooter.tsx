@@ -466,9 +466,9 @@ export const GameSpaceShooter: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
+    <div className="game-arena-wrapper flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
       {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
-      <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
+      <div className="game-top-hud w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
         {/* Left: Điểm Số, Kỷ Lục & Wave - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex flex-col items-center text-center">
@@ -518,7 +518,7 @@ export const GameSpaceShooter: React.FC = () => {
       </div>
 
       {/* Massive 16:9 Widescreen Canvas - Scaled to never exceed viewport */}
-      <div className="relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] bg-[#060814] rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none flex-shrink min-h-0">
+      <div className="game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] bg-[#060814] rounded-3xl overflow-hidden border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] touch-none flex-shrink min-h-0">
         <canvas
           ref={canvasRef}
           width={960}
