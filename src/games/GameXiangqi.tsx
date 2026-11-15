@@ -199,19 +199,93 @@ export const GameXiangqi: React.FC = () => {
       </div>
 
       {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
-      <div className="game-arena-box relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1a0c06] via-[#0f0603] to-[#050201] rounded-3xl border-4 border-rose-700/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
+      <div className="game-arena-box relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c0f06] via-[#120904] to-[#070301] rounded-3xl border-4 border-amber-900/60 shadow-[0_0_60px_rgba(180,83,9,0.25)] overflow-hidden flex items-center justify-center p-2.5 sm:p-4 md:p-5 flex-shrink min-h-0">
         
         {/* Center: Massive Xiangqi Board taking full vertical height to rõ ở Vùng 1 */}
-        <div className="game-board-inner relative bg-[#0c0502] p-2.5 sm:p-4 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-260px)] border-4 border-amber-800/60 shadow-2xl flex items-center justify-center">
-          <div className="relative bg-[#deb887] border-2 sm:border-3 border-[#78350f] rounded-2xl shadow-inner overflow-hidden w-full h-full">
-            {/* River Divider */}
-            <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-sm sm:text-base tracking-[0.4em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">
-              <span>楚 河</span>
-              <span>漢 界</span>
-            </div>
+        <div className="game-board-inner relative bg-[#2a1306] p-2.5 sm:p-4 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-260px)] border-4 border-[#5a2a0c] shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-center">
+          {/* Bàn Cờ Gỗ Cổ Điển Tự Nhiên - Tinh Tế & Dịu Mắt */}
+          <div 
+            className="relative rounded-2xl shadow-inner overflow-hidden w-full h-full border-2 sm:border-3 border-[#421d06]"
+            style={{
+              background: 'radial-gradient(ellipse at center, #f5dfba 0%, #edd1a4 45%, #deb883 80%, #caa068 100%)',
+              boxShadow: 'inset 0 0 50px rgba(92, 46, 11, 0.4), 0 4px 15px rgba(0, 0, 0, 0.5)'
+            }}
+          >
+            {/* Lớp Đồ Họa SVG Vẽ Đường Lưới Bàn Cờ Chuẩn 100% Cờ Tướng */}
+            <svg viewBox="0 0 900 1000" className="absolute inset-0 w-full h-full pointer-events-none select-none">
+              {/* Khung viền đôi bao quanh */}
+              <rect x="40" y="40" width="820" height="920" rx="8" fill="none" stroke="#5c2e0b" strokeWidth="3" opacity="0.88" />
+              <rect x="49" y="49" width="802" height="902" rx="4" fill="none" stroke="#5c2e0b" strokeWidth="1.6" opacity="0.82" />
 
-            {/* 90 intersections */}
-            <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10 p-1">
+              {/* 10 Đường Ngang */}
+              {[50, 150, 250, 350, 450, 550, 650, 750, 850, 950].map(y => (
+                <line key={`h-${y}`} x1="50" y1={y} x2="850" y2={y} stroke="#5c2e0b" strokeWidth="2" opacity="0.85" />
+              ))}
+
+              {/* 2 Đường Dọc Ngoài Cùng (Chạy Suốt Qua Sông) */}
+              <line x1="50" y1="50" x2="50" y2="950" stroke="#5c2e0b" strokeWidth="2" opacity="0.85" />
+              <line x1="850" y1="50" x2="850" y2="950" stroke="#5c2e0b" strokeWidth="2" opacity="0.85" />
+
+              {/* 7 Đường Dọc Bên Trong (Ngắt Quãng Ở Sông Sở Hà Hán Giới) */}
+              {[150, 250, 350, 450, 550, 650, 750].map(x => (
+                <g key={`v-${x}`}>
+                  <line x1={x} y1="50" x2={x} y2="450" stroke="#5c2e0b" strokeWidth="2" opacity="0.85" />
+                  <line x1={x} y1="550" x2={x} y2="950" stroke="#5c2e0b" strokeWidth="2" opacity="0.85" />
+                </g>
+              ))}
+
+              {/* Đường Chéo Cung Tướng (Cửu Cung) Phía Đen */}
+              <line x1="350" y1="50" x2="550" y2="250" stroke="#5c2e0b" strokeWidth="1.8" opacity="0.75" />
+              <line x1="550" y1="50" x2="350" y2="250" stroke="#5c2e0b" strokeWidth="1.8" opacity="0.75" />
+
+              {/* Đường Chéo Cung Tướng (Cửu Cung) Phía Đỏ */}
+              <line x1="350" y1="750" x2="550" y2="950" stroke="#5c2e0b" strokeWidth="1.8" opacity="0.75" />
+              <line x1="550" y1="750" x2="350" y2="950" stroke="#5c2e0b" strokeWidth="1.8" opacity="0.75" />
+
+              {/* Dấu Chữ Thập Vị Trí Pháo và Tốt */}
+              {[
+                { cx: 150, cy: 250, l: true, r: true },
+                { cx: 750, cy: 250, l: true, r: true },
+                { cx: 150, cy: 750, l: true, r: true },
+                { cx: 750, cy: 750, l: true, r: true },
+                { cx: 50, cy: 350, l: false, r: true },
+                { cx: 250, cy: 350, l: true, r: true },
+                { cx: 450, cy: 350, l: true, r: true },
+                { cx: 650, cy: 350, l: true, r: true },
+                { cx: 850, cy: 350, l: true, r: false },
+                { cx: 50, cy: 650, l: false, r: true },
+                { cx: 250, cy: 650, l: true, r: true },
+                { cx: 450, cy: 650, l: true, r: true },
+                { cx: 650, cy: 650, l: true, r: true },
+                { cx: 850, cy: 650, l: true, r: false },
+              ].map(({ cx, cy, l, r }, i) => (
+                <g key={`star-${i}`} stroke="#5c2e0b" strokeWidth="1.6" opacity="0.8" fill="none">
+                  {l && (
+                    <>
+                      <path d={`M ${cx - 4} ${cy - 12} L ${cx - 4} ${cy - 4} L ${cx - 12} ${cy - 4}`} />
+                      <path d={`M ${cx - 4} ${cy + 12} L ${cx - 4} ${cy + 4} L ${cx - 12} ${cy + 4}`} />
+                    </>
+                  )}
+                  {r && (
+                    <>
+                      <path d={`M ${cx + 4} ${cy - 12} L ${cx + 4} ${cy - 4} L ${cx + 12} ${cy - 4}`} />
+                      <path d={`M ${cx + 4} ${cy + 12} L ${cx + 4} ${cy + 4} L ${cx + 12} ${cy + 4}`} />
+                    </>
+                  )}
+                </g>
+              ))}
+
+              {/* Chữ Thư Pháp Giữa Dòng Sông (Sở Hà - Hán Giới) Mềm Mại, Dịu Mắt */}
+              <text x="250" y="510" textAnchor="middle" fill="#5c2e0b" fontSize="28" fontFamily="'Noto Serif SC', serif" fontWeight="900" letterSpacing="16" opacity="0.75">
+                楚河
+              </text>
+              <text x="650" y="510" textAnchor="middle" fill="#5c2e0b" fontSize="28" fontFamily="'Noto Serif SC', serif" fontWeight="900" letterSpacing="16" opacity="0.75">
+                漢界
+              </text>
+            </svg>
+
+            {/* 90 Giao Điểm Đặt Quân - Khớp Chuẩn Từng Pixel Với Lưới SVG */}
+            <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10">
               {Array.from({ length: 90 }).map((_, idx) => {
                 const r = 9 - Math.floor(idx / 9);
                 const f = idx % 9;
@@ -227,23 +301,57 @@ export const GameXiangqi: React.FC = () => {
                     onClick={() => handleSquareClick(sq)}
                     className="relative flex items-center justify-center cursor-pointer select-none"
                   >
-                    {/* Target move indicator */}
+                    {/* Điểm Nước Đi Hợp Lệ (Ngọc Bích Dịu Mắt) */}
                     {isTarget && (
-                      <div className={`absolute z-20 rounded-full ${piece ? 'w-full h-full border-3 border-emerald-500 bg-emerald-500/30' : 'w-3 h-3 sm:w-4 sm:h-4 bg-emerald-600 shadow-md'}`} />
+                      piece ? (
+                        <div className="absolute inset-1.5 z-20 rounded-full border-3 border-emerald-400 bg-emerald-500/25 shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse" />
+                      ) : (
+                        <div className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full bg-emerald-500/90 border-2 border-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.85)] z-20 animate-pulse" />
+                      )
                     )}
 
-                    {/* Responsive Piece token (Scales with cell size, never overflows) */}
+                    {/* Quân Cờ Gỗ 3D Đích Thực - Tinh Xảo, Khắc Chìm & Dịu Mắt */}
                     {piece ? (
                       <div
-                        className={`relative z-10 w-[88%] h-[88%] max-w-[60px] max-h-[60px] rounded-full flex items-center justify-center font-serif font-black text-sm sm:text-xl md:text-2xl shadow-lg transition-transform duration-100 ${
-                          isSelected ? 'scale-115 ring-3 ring-yellow-400' : isLast ? 'ring-2 ring-amber-500' : ''
-                        } ${
-                          sideOf(piece) === RED
-                            ? 'bg-[#fff5f5] text-rose-700 border-2 sm:border-3 border-rose-600 shadow-rose-950/40'
-                            : 'bg-[#f8fafc] text-slate-950 border-2 sm:border-3 border-slate-900 shadow-black/50'
+                        className={`relative z-10 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
+                          isSelected
+                            ? 'scale-115 -translate-y-1.5 ring-4 ring-amber-400/95 shadow-[0_12px_25px_rgba(251,191,36,0.6)] z-30'
+                            : isLast
+                            ? 'ring-3 ring-amber-500/80 shadow-[0_6px_16px_rgba(245,158,11,0.4)]'
+                            : 'hover:scale-105 active:scale-95'
                         }`}
+                        style={{
+                          background: 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
+                          border: '2px solid #a67c48',
+                          boxShadow: isSelected
+                            ? '0 12px 25px rgba(251,191,36,0.55), inset 0 2px 3px rgba(255,255,255,0.9), inset 0 -3px 4px rgba(110,60,20,0.4)'
+                            : '0 5px 12px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.25), inset 0 2px 2px rgba(255,255,255,0.8), inset 0 -3px 4px rgba(110,60,20,0.35)'
+                        }}
                       >
-                        {XIANGQI_PIECES[sideOf(piece)]?.[typeOf(piece)] || ''}
+                        {/* Vòng Chỉ Tròn Khắc Chìm Trên Mặt Gỗ */}
+                        <div
+                          className={`w-[84%] h-[84%] rounded-full border flex items-center justify-center transition-colors ${
+                            sideOf(piece) === RED
+                              ? 'border-rose-600/40'
+                              : 'border-slate-800/35'
+                          }`}
+                        >
+                          {/* Chữ Hán Thư Pháp Khắc Khảm Sơn Mài */}
+                          <span
+                            className={`text-lg sm:text-2xl md:text-3xl leading-none font-black ${
+                              sideOf(piece) === RED
+                                ? 'text-rose-700'
+                                : 'text-slate-900'
+                            }`}
+                            style={{
+                              textShadow: sideOf(piece) === RED
+                                ? '0 1px 1px rgba(255,255,255,0.7), 0 -1px 1px rgba(136,19,19,0.45)'
+                                : '0 1px 1px rgba(255,255,255,0.65), 0 -1px 1px rgba(0,0,0,0.5)'
+                            }}
+                          >
+                            {XIANGQI_PIECES[sideOf(piece)]?.[typeOf(piece)] || ''}
+                          </span>
+                        </div>
                       </div>
                     ) : null}
                   </div>
