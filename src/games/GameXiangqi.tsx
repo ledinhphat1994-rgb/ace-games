@@ -68,6 +68,16 @@ export const GameXiangqi: React.FC = () => {
   const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
   const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
+  const [checkBanner, setCheckBanner] = useState<string | null>(null);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerCheckBanner = useCallback((text: string) => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    setCheckBanner(text);
+    bannerTimerRef.current = setTimeout(() => {
+      setCheckBanner(null);
+    }, 1600);
+  }, []);
 
   // Quản lý timeout AI để hủy ngay lập tức khi đổi phòng, chơi lại hoặc rời bàn cờ
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,13 +236,29 @@ export const GameXiangqi: React.FC = () => {
     updateStatus(nextPos);
     setTimeLeft(timeLimit);
 
-    if (isCapture) playTone(240, 0.12);
-    else playTone(520, 0.06);
+    const outcome = nextPos.outcome();
+    const inCheck = nextPos.inCheck();
+
+    if (outcome.over) {
+      const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === RED) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === RED);
+      const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === RED))) || (!isOnlineMode && outcome.winner === BLACK);
+      if (isWinner) soundManager.playVictory();
+      else if (isLoser) soundManager.playDefeat();
+      else soundManager.playDraw();
+    } else if (inCheck) {
+      soundManager.playXiangqiCheck();
+      const isMeInCheck = (isOnlineMode && ((playerRole === 'host' && nextPos.turn === RED) || (playerRole === 'guest' && nextPos.turn === BLACK))) || (!isOnlineMode && nextPos.turn === RED);
+      triggerCheckBanner(isMeInCheck ? 'BẠN ĐANG BỊ CHIẾU TƯỚNG!' : 'CHIẾU TƯỚNG!');
+    } else if (isCapture) {
+      soundManager.playXiangqiCapture();
+    } else {
+      soundManager.playXiangqiMove();
+    }
 
     if (!isRemote && isOnlineMode) {
       multiplayer.sendMove(move);
     }
-  }, [isOnlineMode, timeLimit, updateStatus]);
+  }, [isOnlineMode, playerRole, timeLimit, triggerCheckBanner, updateStatus]);
 
   // Tự động kích hoạt nước đi của máy (AI) khi chơi offline
   useEffect(() => {
@@ -401,8 +427,22 @@ export const GameXiangqi: React.FC = () => {
               <Timer className="w-4 h-4 text-amber-400 animate-spin" />
               <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
+          ) : pos.outcome().over ? (
+            <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
+              {statusMessage}
+            </div>
           ) : isOnlineMode ? (
-            ((playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
+            pos.inCheck() ? (
+              ((playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                  <span>⚠️ BẠN ĐANG BỊ CHIẾU TƯỚNG!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                  <span>⚔️ ĐANG CHIẾU TƯỚNG {opponentName.toUpperCase()}!</span>
+                </div>
+              )
+            ) : ((playerRole === 'host' && pos.turn === RED) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <span>LƯỢT CỦA BẠN</span>
               </div>
@@ -417,17 +457,23 @@ export const GameXiangqi: React.FC = () => {
                 <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
                 <span>⚡ MÁY ĐANG TÍNH...</span>
               </div>
-            ) : pos.outcome().over ? (
-              <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
-                {statusMessage}
-              </div>
             ) : pos.inCheck() ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/60 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_20px_rgba(244,63,94,0.4)]">
-                <span>⚠️ ĐANG BỊ CHIẾU TƯỚNG!</span>
-              </div>
-            ) : (
+              pos.turn === RED ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                  <span>⚠️ BẠN ĐANG BỊ CHIẾU TƯỚNG!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                  <span>⚔️ ĐANG CHIẾU TƯỚNG MÁY!</span>
+                </div>
+              )
+            ) : pos.turn === RED ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <span>LƯỢT CỦA BẠN</span>
+              </div>
+            ) : (
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <span>LƯỢT CỦA MÁY</span>
               </div>
             )
           )}
@@ -608,6 +654,7 @@ export const GameXiangqi: React.FC = () => {
                 const isSelected = selectedSq === sq;
                 const isTarget = validMoves.some(m => m.to === sq);
                 const isLast = lastMove?.from === sq || lastMove?.to === sq;
+                const isKingInCheck = piece && typeOf(piece) === GENERAL && sideOf(piece) === pos.turn && pos.inCheck();
 
                 return (
                   <div
@@ -615,6 +662,11 @@ export const GameXiangqi: React.FC = () => {
                     onClick={() => handleSquareClick(sq)}
                     className="relative flex items-center justify-center cursor-pointer select-none"
                   >
+                    {/* Vòng cảnh báo nguy hiểm đỏ rực khi Tướng bị chiếu */}
+                    {isKingInCheck && (
+                      <div className="absolute inset-0.5 rounded-full ring-4 ring-rose-500 bg-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.95)] z-20 animate-pulse pointer-events-none" />
+                    )}
+
                     {/* Điểm Nước Đi Hợp Lệ (Ngọc Bích Dịu Mắt) */}
                     {isTarget && (
                       piece ? (
@@ -630,6 +682,8 @@ export const GameXiangqi: React.FC = () => {
                         className={`relative z-10 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
                           isSelected
                             ? 'scale-115 -translate-y-1.5 ring-4 ring-amber-400/95 shadow-[0_12px_25px_rgba(251,191,36,0.6)] z-30'
+                            : isKingInCheck
+                            ? 'scale-110 ring-4 ring-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.9)] z-25 animate-pulse'
                             : isLast
                             ? 'ring-3 ring-amber-500/80 shadow-[0_6px_16px_rgba(245,158,11,0.4)]'
                             : 'hover:scale-105 active:scale-95'
@@ -672,6 +726,17 @@ export const GameXiangqi: React.FC = () => {
                 );
               })}
             </div>
+
+            {/* Hiệu Ứng Chiếu Tướng Nổi Bật (Splash Banner) */}
+            {checkBanner && (
+              <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center p-4 animate-in zoom-in-75 fade-in duration-200">
+                <div className="px-5 py-3 sm:px-7 sm:py-4 rounded-3xl bg-rose-600/95 border-2 border-rose-300 text-white font-black text-lg sm:text-2xl tracking-widest shadow-[0_0_50px_rgba(244,63,94,0.95)] backdrop-blur-md flex items-center gap-3 animate-pulse">
+                  <span className="text-2xl sm:text-3xl">⚠️</span>
+                  <span className="font-['Orbitron'] font-black">{checkBanner}</span>
+                  <span className="text-2xl sm:text-3xl">⚔️</span>
+                </div>
+              </div>
+            )}
 
             {/* Game Over / Result Overlay */}
             {pos.outcome().over && (() => {

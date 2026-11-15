@@ -208,7 +208,7 @@ export const GameBreakout: React.FC = () => {
           ball.vx = speed * Math.sin(angle);
           ball.vy = -speed * Math.cos(angle);
           ball.y = paddle.y - ball.radius - 1;
-          playTone(520, 'triangle', 0.08);
+          soundManager.playChessMove();
         }
 
         // Brick collision
@@ -245,7 +245,7 @@ export const GameBreakout: React.FC = () => {
               });
             }
 
-            playTone(600 + b.points * 4, 'square', 0.07);
+            soundManager.playXiangqiCapture();
 
             // Determine bounce direction
             const prevX = ball.x - ball.vx;
@@ -261,18 +261,19 @@ export const GameBreakout: React.FC = () => {
           s.running = false;
           setIsWon(true);
           setIsPlaying(false);
-          playTone(880, 'triangle', 0.3);
+          soundManager.playVictory();
         }
 
         // Ball fell down
         if (ball.y - ball.radius > ch) {
           s.lives--;
           setLives(s.lives);
-          playTone(180, 'sawtooth', 0.2);
+          soundManager.playExplosion();
 
           if (s.lives <= 0) {
             s.running = false;
             setIsGameOver(true);
+            soundManager.playDefeat();
             setIsPlaying(false);
           } else {
             // Reset ball onto paddle

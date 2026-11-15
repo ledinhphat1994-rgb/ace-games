@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Undo2, Trophy, Award } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 type Board = number[][];
 
@@ -131,6 +132,12 @@ export const Game2048: React.FC = () => {
     }
 
     if (hasMoved) {
+      if (addedScore > 0) {
+        soundManager.playXiangqiCapture();
+      } else {
+        soundManager.playChessMove();
+      }
+
       setHistory({ board: prevBoard, score: prevScore });
       const boardWithNewTile = addRandomTile(newBoard);
       const nextScore = score + addedScore;
@@ -144,6 +151,7 @@ export const Game2048: React.FC = () => {
 
       if (checkGameOver(boardWithNewTile)) {
         setGameOver(true);
+        soundManager.playDefeat();
       }
     }
   }, [board, score, bestScore, won, gameOver, addRandomTile]);

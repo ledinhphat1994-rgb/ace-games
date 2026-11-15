@@ -66,6 +66,16 @@ export const GameChess: React.FC = () => {
   const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
   const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
+  const [checkBanner, setCheckBanner] = useState<string | null>(null);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerCheckBanner = useCallback((text: string) => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    setCheckBanner(text);
+    bannerTimerRef.current = setTimeout(() => {
+      setCheckBanner(null);
+    }, 1600);
+  }, []);
 
   // Quản lý timeout AI để hủy ngay lập tức khi đổi phòng, chơi lại hoặc rời bàn cờ
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,13 +234,29 @@ export const GameChess: React.FC = () => {
     updateStatus(nextPos);
     setTimeLeft(timeLimit);
 
-    if (isCapture) playTone(250, 0.12);
-    else playTone(500, 0.06);
+    const outcome = nextPos.outcome();
+    const inCheck = nextPos.inCheck();
+
+    if (outcome.over) {
+      const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === WHITE) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === WHITE);
+      const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === WHITE))) || (!isOnlineMode && outcome.winner === BLACK);
+      if (isWinner) soundManager.playVictory();
+      else if (isLoser) soundManager.playDefeat();
+      else soundManager.playDraw();
+    } else if (inCheck) {
+      soundManager.playCheck();
+      const isMeInCheck = (isOnlineMode && ((playerRole === 'host' && nextPos.turn === WHITE) || (playerRole === 'guest' && nextPos.turn === BLACK))) || (!isOnlineMode && nextPos.turn === WHITE);
+      triggerCheckBanner(isMeInCheck ? 'BẠN ĐANG BỊ CHIẾU VUA!' : 'CHIẾU VUA!');
+    } else if (isCapture) {
+      soundManager.playChessCapture();
+    } else {
+      soundManager.playChessMove();
+    }
 
     if (!isRemote && isOnlineMode) {
       multiplayer.sendMove(move);
     }
-  }, [isOnlineMode, timeLimit, updateStatus]);
+  }, [isOnlineMode, playerRole, timeLimit, triggerCheckBanner, updateStatus]);
 
   // Tự động kích hoạt nước đi của máy (AI) khi chơi offline
   useEffect(() => {
@@ -399,8 +425,22 @@ export const GameChess: React.FC = () => {
               <Timer className="w-4 h-4 text-amber-400 animate-spin" />
               <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
+          ) : pos.outcome().over ? (
+            <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
+              {statusMessage}
+            </div>
           ) : isOnlineMode ? (
-            ((playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
+            pos.inCheck() ? (
+              ((playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                  <span>⚠️ BẠN ĐANG BỊ CHIẾU VUA!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                  <span>⚔️ ĐANG CHIẾU VUA {opponentName.toUpperCase()}!</span>
+                </div>
+              )
+            ) : ((playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK)) ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <span>LƯỢT CỦA BẠN</span>
               </div>
@@ -415,17 +455,23 @@ export const GameChess: React.FC = () => {
                 <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
                 <span>⚡ MÁY ĐANG TÍNH...</span>
               </div>
-            ) : pos.outcome().over ? (
-              <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
-                {statusMessage}
-              </div>
             ) : pos.inCheck() ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/60 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_20px_rgba(244,63,94,0.4)]">
-                <span>⚠️ ĐANG BỊ CHIẾU VUA!</span>
-              </div>
-            ) : (
+              pos.turn === WHITE ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                  <span>⚠️ BẠN ĐANG BỊ CHIẾU VUA!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                  <span>⚔️ ĐANG CHIẾU VUA MÁY!</span>
+                </div>
+              )
+            ) : pos.turn === WHITE ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <span>LƯỢT CỦA BẠN</span>
+              </div>
+            ) : (
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <span>LƯỢT CỦA MÁY</span>
               </div>
             )
           )}
@@ -526,16 +572,18 @@ export const GameChess: React.FC = () => {
               const isTarget = validMoves.some(m => m.to === sq);
               const isLastFrom = lastMove?.from === sq;
               const isLastTo = lastMove?.to === sq;
+              const isKingInCheck = piece && typeOf(piece) === KING && colorOf(piece) === pos.turn && pos.inCheck();
 
               let bgColor = isLight ? '#f0d9b5' : '#b58863';
-              if (isSelected) bgColor = '#facc15';
+              if (isKingInCheck) bgColor = '#f43f5e';
+              else if (isSelected) bgColor = '#facc15';
               else if (isLastFrom || isLastTo) bgColor = isLight ? '#ced887' : '#aaa23a';
 
               return (
                 <div
                   key={sq}
                   onClick={() => handleSquareClick(sq)}
-                  className="relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150"
+                  className={`relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150 ${isKingInCheck ? 'animate-pulse ring-4 ring-rose-400 z-20 shadow-[0_0_30px_#f43f5e]' : ''}`}
                   style={{ backgroundColor: bgColor }}
                 >
                   {/* Target move dot indicator */}
@@ -546,7 +594,7 @@ export const GameChess: React.FC = () => {
                   {/* Massive Chess piece icon */}
                   {piece && (
                     <span
-                      className={`text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
+                      className={`text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'} ${isKingInCheck ? 'drop-shadow-[0_0_15px_#fff]' : ''}`}
                     >
                       {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                     </span>
@@ -555,6 +603,17 @@ export const GameChess: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Hiệu Ứng Chiếu Vua Nổi Bật (Splash Banner) */}
+          {checkBanner && (
+            <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center p-4 animate-in zoom-in-75 fade-in duration-200">
+              <div className="px-5 py-3 sm:px-7 sm:py-4 rounded-3xl bg-rose-600/95 border-2 border-rose-300 text-white font-black text-lg sm:text-2xl tracking-widest shadow-[0_0_50px_rgba(244,63,94,0.95)] backdrop-blur-md flex items-center gap-3 animate-pulse">
+                <span className="text-2xl sm:text-3xl">⚠️</span>
+                <span className="font-['Orbitron'] font-black">{checkBanner}</span>
+                <span className="text-2xl sm:text-3xl">⚔️</span>
+              </div>
+            </div>
+          )}
 
           {/* Game Over / Result Overlay */}
           {pos.outcome().over && (() => {

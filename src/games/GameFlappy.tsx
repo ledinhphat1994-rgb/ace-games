@@ -58,12 +58,12 @@ export const GameFlappy: React.FC = () => {
     if (gameState === 'IDLE') {
       setGameState('PLAYING');
       birdRef.current.velocity = birdRef.current.jump;
-      playTone(480, 0.1);
+      soundManager.playCardHover();
     } else if (gameState === 'PLAYING') {
       birdRef.current.velocity = birdRef.current.jump;
-      playTone(480, 0.1);
+      soundManager.playCardHover();
     }
-  }, [gameState, playTone]);
+  }, [gameState]);
 
   const resetGame = useCallback(() => {
     birdRef.current.y = 240;
@@ -208,7 +208,7 @@ export const GameFlappy: React.FC = () => {
             p.passed = true;
             scoreRef.current += 1;
             setScore(scoreRef.current);
-            playTone(700, 0.12);
+            soundManager.playFavorite();
 
             setBestScore(prev => {
               if (scoreRef.current > prev) {
@@ -229,7 +229,7 @@ export const GameFlappy: React.FC = () => {
               bird.y + bird.radius > bottomY
             ) {
               setGameState('GAMEOVER');
-              playTone(180, 0.3, 'sawtooth');
+              soundManager.playExplosion();
             }
           }
         }
@@ -241,7 +241,7 @@ export const GameFlappy: React.FC = () => {
         if (bird.y + bird.radius >= height - groundHeight) {
           bird.y = height - groundHeight - bird.radius;
           setGameState('GAMEOVER');
-          playTone(180, 0.3, 'sawtooth');
+          soundManager.playExplosion();
         }
         if (bird.y - bird.radius <= 0) {
           bird.y = bird.radius;

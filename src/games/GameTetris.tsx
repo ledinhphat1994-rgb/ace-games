@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Pause, Play, Trophy } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -75,31 +75,6 @@ export const GameTetris: React.FC = () => {
   });
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  const playTone = useCallback((freq: number, type: OscillatorType = 'sine', duration: number = 0.1) => {
-    if (!soundManager.isSoundOn()) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
-    } catch {
-      // Audio not permitted
-    }
-  }, []);
 
   const getRandomPieceType = (): string => {
     const keys = Object.keys(SHAPES);
@@ -182,11 +157,11 @@ export const GameTetris: React.FC = () => {
 
     if (!placed || piece.y <= 0) {
       setGameOver(true);
-      playTone(150, 'sawtooth', 0.4);
+      soundManager.playDefeat();
       return;
     }
 
-    playTone(280, 'sine', 0.05);
+    soundManager.playChessMove();
 
     // Check cleared lines
     let clearedCount = 0;
@@ -201,7 +176,7 @@ export const GameTetris: React.FC = () => {
     }
 
     if (clearedCount > 0) {
-      playTone(520, 'triangle', 0.2);
+      soundManager.playXiangqiCapture();
       const points = [0, 100, 300, 500, 800][clearedCount] || (clearedCount * 200);
       setScore(prev => {
         const nextScore = prev + points * level;
@@ -224,26 +199,26 @@ export const GameTetris: React.FC = () => {
     const next = createPiece(nextPieceType);
     if (checkCollision(next, filteredB)) {
       setGameOver(true);
-      playTone(150, 'sawtooth', 0.4);
+      soundManager.playDefeat();
     } else {
       setCurrentPiece(next);
       setNextPieceType(getRandomPieceType());
     }
-  }, [checkCollision, highScore, level, nextPieceType, playTone]);
+  }, [checkCollision, highScore, level, nextPieceType]);
 
   const movePiece = useCallback((dx: number, dy: number): boolean => {
     if (!currentPiece || gameOver || isPaused) return false;
     const moved = { ...currentPiece, x: currentPiece.x + dx, y: currentPiece.y + dy };
     if (!checkCollision(moved, board)) {
       setCurrentPiece(moved);
-      if (dx !== 0) playTone(300, 'sine', 0.03);
+      if (dx !== 0) soundManager.playCardHover();
       return true;
     }
     if (dy > 0) {
       lockPiece(currentPiece, board);
     }
     return false;
-  }, [board, checkCollision, currentPiece, gameOver, isPaused, lockPiece, playTone]);
+  }, [board, checkCollision, currentPiece, gameOver, isPaused, lockPiece]);
 
   const rotatePiece = useCallback(() => {
     if (!currentPiece || gameOver || isPaused) return;
@@ -256,11 +231,11 @@ export const GameTetris: React.FC = () => {
       const kicked = { ...candidate, x: candidate.x + offset };
       if (!checkCollision(kicked, board)) {
         setCurrentPiece(kicked);
-        playTone(400, 'sine', 0.04);
+        soundManager.playButtonClick();
         return;
       }
     }
-  }, [board, checkCollision, currentPiece, gameOver, isPaused, playTone]);
+  }, [board, checkCollision, currentPiece, gameOver, isPaused]);
 
   const hardDrop = useCallback(() => {
     if (!currentPiece || gameOver || isPaused) return;
@@ -268,9 +243,9 @@ export const GameTetris: React.FC = () => {
     while (!checkCollision({ ...curr, y: curr.y + 1 }, board)) {
       curr = { ...curr, y: curr.y + 1 };
     }
-    playTone(350, 'square', 0.05);
+    soundManager.playXiangqiMove();
     lockPiece(curr, board);
-  }, [board, checkCollision, currentPiece, gameOver, isPaused, lockPiece, playTone]);
+  }, [board, checkCollision, currentPiece, gameOver, isPaused, lockPiece]);
 
   // Tick loop
   useEffect(() => {

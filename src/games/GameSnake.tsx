@@ -176,14 +176,14 @@ export const GameSnake: React.FC = () => {
         // Wall collision
         if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
           setIsGameOver(true);
-          playTone(180, 0.3);
+          soundManager.playExplosion();
           return prevSnake;
         }
 
         // Self collision
         if (prevSnake.some(seg => seg.x === head.x && seg.y === head.y)) {
           setIsGameOver(true);
-          playTone(180, 0.3);
+          soundManager.playExplosion();
           return prevSnake;
         }
 
@@ -191,7 +191,7 @@ export const GameSnake: React.FC = () => {
 
         // Eat food
         if (head.x === food.x && head.y === food.y) {
-          playTone(660, 0.08);
+          soundManager.playXiangqiCapture();
           setScore(s => {
             const nextScore = s + 1;
             if (nextScore > bestScore) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Bot, Grid3X3, Grid, Timer, Globe, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -150,6 +150,21 @@ export const GameCaro: React.FC = () => {
   const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
   const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
+  const [checkBanner, setCheckBanner] = useState<string | null>(null);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerCheckBanner = useCallback((text: string) => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    setCheckBanner(text);
+    bannerTimerRef.current = setTimeout(() => {
+      setCheckBanner(null);
+    }, 1600);
+  }, []);
+
+  const threatResult = useMemo(() => {
+    if (winnerInfo || isWaitingForFriend || boardSize !== 10) return null;
+    return checkWinner(board, boardSize, 4);
+  }, [board, boardSize, winnerInfo, isWaitingForFriend]);
 
   const handleCopyInvite = () => {
     if (!onlineRoom) return;
@@ -212,7 +227,6 @@ export const GameCaro: React.FC = () => {
     const handleOpponentMove = (data: any) => {
       if (data.type === 'game_move' && data.payload) {
         if (data.senderName) setOpponentName(data.senderName);
-        soundManager.playButtonClick();
         const { index, piece } = data.payload;
         setBoard(prev => {
           const updated = [...prev];
@@ -221,6 +235,15 @@ export const GameCaro: React.FC = () => {
           if (result) {
             setWinnerInfo(result);
             updateStats(result.winner);
+          } else {
+            const threatResult = boardSize === 10 ? checkWinner(updated, boardSize, 4) : null;
+            if (threatResult && threatResult.winner) {
+              soundManager.playCheck();
+              const myPiece: Player = playerRole === 'host' ? 'X' : 'O';
+              triggerCheckBanner(threatResult.winner === myPiece ? 'BẠN ĐANG CHIẾU CỜ!' : 'BỊ CHIẾU CỜ (CHUỖI 4)!');
+            } else {
+              soundManager.playChessMove();
+            }
           }
           return updated;
         });
@@ -575,6 +598,16 @@ export const GameCaro: React.FC = () => {
       return;
     }
 
+    // Check if 4 in a row threat (Chiếu cờ)
+    const threatResult = boardSize === 10 ? checkWinner(newBoard, boardSize, 4) : null;
+    if (threatResult && threatResult.winner) {
+      soundManager.playCheck();
+      const isMeThreat = threatResult.winner === myPiece;
+      triggerCheckBanner(isMeThreat ? 'BẠN ĐANG CHIẾU CỜ!' : 'BỊ CHIẾU CỜ (CHUỖI 4)!');
+    } else {
+      soundManager.playChessMove();
+    }
+
     setIsXNext(!isXNext);
   };
 
@@ -586,7 +619,6 @@ export const GameCaro: React.FC = () => {
       const timer = setTimeout(() => {
         const aiMove = findBestMove(board);
         if (aiMove !== -1) {
-          soundManager.playButtonClick();
           const botPiece: Player = 'O';
           const newBoard = [...board];
           newBoard[aiMove] = botPiece;
@@ -598,6 +630,13 @@ export const GameCaro: React.FC = () => {
             setWinnerInfo(result);
             updateStats(result.winner);
           } else {
+            const threatResult = boardSize === 10 ? checkWinner(newBoard, boardSize, 4) : null;
+            if (threatResult && threatResult.winner) {
+              soundManager.playCheck();
+              triggerCheckBanner(threatResult.winner === 'X' ? 'BẠN ĐANG CHIẾU CỜ!' : 'MÁY ĐANG CHIẾU CỜ!');
+            } else {
+              soundManager.playChessMove();
+            }
             setIsXNext(true);
           }
         }
@@ -605,7 +644,7 @@ export const GameCaro: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [isOnlineMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, timeLimit]);
+  }, [isOnlineMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, timeLimit, triggerCheckBanner]);
 
   const updateStats = (winner: Player | 'DRAW') => {
     setStats(prev => {
@@ -613,14 +652,14 @@ export const GameCaro: React.FC = () => {
       if (winner === 'X') {
         updated.win += 1;
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-        soundManager.playGameLaunch();
+        soundManager.playVictory();
         localStorage.setItem('acegames_caro_wins', updated.win.toString());
       } else if (winner === 'O') {
         updated.loss += 1;
-        soundManager.playButtonClick();
+        soundManager.playDefeat();
       } else {
         updated.draw += 1;
-        soundManager.playButtonClick();
+        soundManager.playDraw();
       }
       localStorage.setItem('acegames_caro_stats', JSON.stringify(updated));
       return updated;
@@ -648,7 +687,17 @@ export const GameCaro: React.FC = () => {
               <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
           ) : isOnlineMode ? (
-            ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
+            threatResult && threatResult.winner ? (
+              threatResult.winner === (playerRole === 'host' ? 'X' : 'O') ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                  <span>⚔️ BẠN ĐANG CHIẾU CỜ (CHUỖI 4)!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                  <span>⚠️ ĐANG BỊ CHIẾU CỜ (CHUỖI 4)!</span>
+                </div>
+              )
+            ) : ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <span>LƯỢT CỦA BẠN</span>
               </div>
@@ -658,14 +707,28 @@ export const GameCaro: React.FC = () => {
               </div>
             )
           ) : (
-            isXNext ? (
+            (!isOnlineMode && !isXNext) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
+                <span>⚡ MÁY ĐANG TÍNH...</span>
+              </div>
+            ) : threatResult && threatResult.winner ? (
+              threatResult.winner === 'X' ? (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                  <span>⚔️ BẠN ĐANG CHIẾU CỜ (CHUỖI 4)!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                  <span>⚠️ ĐANG BỊ CHIẾU CỜ (CHUỖI 4)!</span>
+                </div>
+              )
+            ) : isXNext ? (
               <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
-                <span>⚡ MÁY ĐANG TÍNH...</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <span>LƯỢT CỦA MÁY</span>
               </div>
             )
           )}
@@ -818,6 +881,17 @@ export const GameCaro: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Hiệu Ứng Chiếu Cờ Nổi Bật (Splash Banner) */}
+          {checkBanner && (
+            <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center p-4 animate-in zoom-in-75 fade-in duration-200">
+              <div className="px-5 py-3 sm:px-7 sm:py-4 rounded-3xl bg-rose-600/95 border-2 border-rose-300 text-white font-black text-lg sm:text-2xl tracking-widest shadow-[0_0_50px_rgba(244,63,94,0.95)] backdrop-blur-md flex items-center gap-3 animate-pulse">
+                <span className="text-2xl sm:text-3xl">⚠️</span>
+                <span className="font-['Orbitron'] font-black">{checkBanner}</span>
+                <span className="text-2xl sm:text-3xl">⚔️</span>
+              </div>
+            </div>
+          )}
 
           {/* RÕ RÀNG MINH BẠCH: Bảng Thông Báo Kết Quả Khi Hết Nước / Có Thắng Thua */}
           {winnerInfo && (() => {

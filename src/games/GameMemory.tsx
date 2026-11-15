@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Award, Star } from 'lucide-react';
+import { soundManager } from '../utils/sound';
 
 interface Card {
   id: number;
@@ -69,6 +70,8 @@ export const GameMemory: React.FC = () => {
     const card = cards[index];
     if (card.isFlipped || card.isMatched) return;
 
+    soundManager.playChessMove();
+
     const newCards = [...cards];
     newCards[index].isFlipped = true;
     setCards(newCards);
@@ -83,6 +86,7 @@ export const GameMemory: React.FC = () => {
       const [idx1, idx2] = newSelected;
       if (cards[idx1].icon === cards[idx2].icon) {
         // Matched!
+        soundManager.playFavorite();
         clearGameTimeout();
         timeoutRef.current = setTimeout(() => {
           timeoutRef.current = null;
@@ -94,6 +98,7 @@ export const GameMemory: React.FC = () => {
             // Check if all matched
             if (updated.every(c => c.isMatched)) {
               setIsWon(true);
+              soundManager.playVictory();
               confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
               try {
                 const best = parseInt(localStorage.getItem('acegames_memory_best') || '999', 10);
