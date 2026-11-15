@@ -210,9 +210,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-white/10 bg-slate-950/90 text-center flex-shrink-0">
-          <p className="text-[11px] text-gray-400">
-            🔥 Đạt điểm cao trong trò chơi để tự động ghi danh vào Bảng Xếp Hạng!
+        <div className="p-2.5 border-t border-white/10 bg-slate-950/90 text-center flex-shrink-0">
+          <p className="text-[11px] text-gray-400 font-medium">
+            🔥 Điểm kỷ lục tự động lưu vào BXH.
           </p>
         </div>
       </div>

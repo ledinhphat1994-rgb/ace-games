@@ -137,15 +137,15 @@ export function App() {
                 <span className="text-5xl mb-3 block">
                   {selectedCategory === 'favorites' ? '💔' : '🔍'}
                 </span>
-                <h3 className="text-lg font-bold text-white mb-2">
+                <h3 className="text-base font-bold text-white mb-1.5">
                   {selectedCategory === 'favorites'
-                    ? 'Chưa có game nào trong mục Yêu Thích'
-                    : 'Không tìm thấy trò chơi phù hợp!'}
+                    ? 'Chưa có game yêu thích'
+                    : 'Không tìm thấy game'}
                 </h3>
-                <p className="text-xs text-gray-400 mb-5">
+                <p className="text-xs text-gray-400 mb-4">
                   {selectedCategory === 'favorites'
-                    ? 'Hãy bấm vào biểu tượng Trái Tim ❤️ ở các thẻ game để lưu lại những trò chơi yêu thích nhất.'
-                    : 'Hãy thử tìm với từ khóa khác như "cờ", "tetris", "rắn", "bắn súng"...'}
+                    ? 'Bấm ❤️ ở thẻ game để lưu vào đây.'
+                    : 'Thử tìm từ khóa: cờ, 2048, rắn, gạch...'}
                 </p>
                 <button
                   onClick={() => {

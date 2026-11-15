@@ -678,15 +678,12 @@ export const GameOnet: React.FC = () => {
 
         {/* Modal Chiến Thắng (Victory) */}
         {isWon && (
-          <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 space-y-3.5 animate-in zoom-in-95 duration-200">
             <div className="text-5xl animate-bounce">🏆</div>
             <h3 className="text-2xl font-black bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-400 bg-clip-text text-transparent font-['Orbitron'] tracking-wider">
-              CHIẾN THẮNG HOÀN HẢO!
+              CHIẾN THẮNG!
             </h3>
-            <p className="text-sm text-gray-300">
-              Bạn đã dọn sạch toàn bộ bàn cờ xuất sắc!
-            </p>
-            <div className="flex items-center gap-4 bg-slate-900/90 border border-white/10 px-5 py-2.5 rounded-2xl font-mono text-sm">
+            <div className="flex items-center gap-4 bg-slate-900/90 border border-white/10 px-5 py-2 rounded-2xl font-mono text-sm">
               <span className="text-gray-400">Tổng Điểm:</span>
               <span className="text-xl font-black text-amber-300">
                 {score + timeLeft * 10}
@@ -694,7 +691,7 @@ export const GameOnet: React.FC = () => {
             </div>
             <button
               onClick={initGame}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/30 transition cursor-pointer active:scale-95"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/30 transition cursor-pointer active:scale-95"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Ván Mới</span>

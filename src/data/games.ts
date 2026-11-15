@@ -4,18 +4,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: '2048',
     title: '2048',
-    subtitle: '2048 Cổ Điển - Trượt ghép số đỉnh cao',
+    subtitle: 'Trượt ghép số chạm mốc 2048',
     category: 'puzzle',
-    categoryLabel: 'Trí Tuệ & Số Học',
-    description: 'Trượt các ô số giống nhau để hợp nhất và chạm mốc 2048 kỳ diệu! Game giải đố gây nghiện hàng đầu thế giới.',
+    categoryLabel: 'Trí Tuệ & Số',
+    description: 'Ghép các ô cùng số chạm mốc 2048.',
     instructions: [
-      'Dùng phím mũi tên hoặc vuốt trên màn hình để di chuyển toàn bộ các ô.',
-      'Khi hai ô có cùng số chạm vào nhau, chúng sẽ cộng lại thành một ô có giá trị gấp đôi.',
-      'Mục tiêu cao nhất là tạo ra được ô số 2048 và đạt điểm kỷ lục!'
+      'Dùng phím mũi tên hoặc vuốt để trượt ô.',
+      'Hai ô cùng số chạm nhau sẽ cộng đôi.',
+      'Tạo ô 2048 để chiến thắng.'
     ],
     controls: {
-      desktop: 'Phím mũi tên (↑ ↓ ← →) hoặc W, A, S, D',
-      mobile: 'Vuốt ngón tay lên, xuống, trái, phải'
+      desktop: 'Mũi tên / WASD',
+      mobile: 'Vuốt màn hình'
     },
     thumbnailIcon: '🔢',
     accentColor: 'from-amber-500 to-orange-600',
@@ -27,18 +27,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'snake',
     title: 'Rắn Săn Mồi',
-    subtitle: 'Rắn Săn Mồi Retro - Huyền thoại tuổi thơ Nokia',
+    subtitle: 'Rắn săn mồi cổ điển arcade',
     category: 'arcade',
     categoryLabel: 'Phản Xạ Cổ Điển',
-    description: 'Huyền thoại game rắn săn mồi Nokia với đồ họa arcade neon hiện đại, ăn táo để dài ra và lập kỷ lục điểm số!',
+    description: 'Ăn táo để dài ra và lập kỷ lục.',
     instructions: [
-      'Điều khiển chú rắn di chuyển quanh màn hình để ăn các quả táo đỏ.',
-      'Mỗi lần ăn táo, thân rắn sẽ dài ra và tốc độ sẽ tăng dần.',
-      'Tránh đâm đầu vào tường hoặc tự cắn vào đuôi của chính mình!'
+      'Điều khiển rắn ăn táo đỏ.',
+      'Mỗi lần ăn táo sẽ dài ra và nhanh hơn.',
+      'Tránh đâm tường hoặc tự cắn đuôi.'
     ],
     controls: {
-      desktop: 'Phím mũi tên hoặc W, A, S, D',
-      mobile: 'D-Pad nút bấm ảo hoặc vuốt màn hình'
+      desktop: 'Mũi tên / WASD',
+      mobile: 'Phím ảo / Vuốt'
     },
     thumbnailIcon: '🐍',
     accentColor: 'from-emerald-500 to-green-600',
@@ -50,18 +50,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'flappy',
     title: 'Flappy Bird',
-    subtitle: 'Flappy Bird Arcade - Thử thách phản xạ cực đỉnh',
+    subtitle: 'Bay qua các khe ống nước',
     category: 'arcade',
     categoryLabel: 'Thử Thách Phản Xạ',
-    description: 'Điều khiển chú chim vượt qua mê cung những ống nước xanh. Cực kỳ thử thách lòng kiên nhẫn!',
+    description: 'Vượt chướng ngại vật lập kỷ lục điểm.',
     instructions: [
-      'Nhấp chuột hoặc chạm vào màn hình để chim đập cánh bay lên.',
-      'Nếu không chạm, chim sẽ tự động rơi xuống do trọng lực.',
-      'Khéo léo căn nhịp bay để lọt qua khoảng trống giữa các ống nước.'
+      'Nhấp chuột hoặc chạm để bay lên.',
+      'Thả tay để chim rơi xuống.',
+      'Lách qua khe ống để ghi điểm.'
     ],
     controls: {
-      desktop: 'Phím Space (Cách) hoặc Chuột trái',
-      mobile: 'Chạm nhẹ ngón tay vào màn hình'
+      desktop: 'Phím Space / Chuột',
+      mobile: 'Chạm màn hình'
     },
     thumbnailIcon: '🐥',
     accentColor: 'from-yellow-400 to-amber-500',
@@ -73,19 +73,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'caro',
     title: 'Cờ Caro',
-    subtitle: 'Cờ Caro Đấu Trí - Bàn 10x10 (5 ô) & Bàn 3x3 cùng AI',
+    subtitle: 'Cờ Caro 10x10 & 3x3 cùng AI',
     category: 'strategy',
     categoryLabel: 'Chiến Thuật & Trí Tuệ',
-    description: 'Trò chơi cờ caro quen thuộc thời đi học! Thách đấu với AI thông minh ở bàn cờ 10x10 chuẩn 5 ô hoặc bàn 3x3 nhanh gọn.',
+    description: 'Đấu cờ caro 5 ô hoặc 3 ô với AI.',
     instructions: [
-      'Người chơi thay phiên nhau đánh dấu X hoặc O vào các ô trống trên bàn cờ.',
-      'Bàn 10x10: Tạo được 5 dấu thẳng hàng (ngang, dọc, chéo) để chiến thắng.',
-      'Bàn 3x3: Tạo được 3 dấu thẳng hàng để chiến thắng.',
-      'Có thể chuyển đổi linh hoạt giữa Bàn 10x10 và Bàn 3x3 ngay trên thanh công cụ.'
+      'Đánh dấu X hoặc O vào ô trống.',
+      'Tạo đủ hàng 5 ô (hoặc 3 ô) để thắng.',
+      'Chặn đối thủ tạo hàng liên tiếp.'
     ],
     controls: {
-      desktop: 'Nhấp chuột vào ô trống',
-      mobile: 'Chạm ngón tay vào ô trống'
+      desktop: 'Nhấp chuột vào ô',
+      mobile: 'Chạm vào ô'
     },
     thumbnailIcon: '⭕',
     accentColor: 'from-indigo-500 to-purple-600',
@@ -97,18 +96,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'minesweeper',
     title: 'Dò Mìn',
-    subtitle: 'Dò Mìn Cổ Điển - Rà phá bom mìn logic đỉnh cao',
+    subtitle: 'Rà phá bom mìn suy luận logic',
     category: 'classic',
     categoryLabel: 'Kinh Điển Văn Phòng',
-    description: 'Game dò mìn huyền thoại Windows! Suy luận logic từ các con số để cắm cờ toàn bộ bãi mìn mà không bị nổ.',
+    description: 'Mở hết ô an toàn và cắm cờ bãi mìn.',
     instructions: [
-      'Nhấp vào một ô để mở. Con số hiện ra cho biết số lượng mìn ở 8 ô xung quanh.',
-      'Dùng suy luận logic để xác định ô nào chứa mìn và cắm cờ đánh dấu.',
-      'Mở toàn bộ các ô an toàn để chiến thắng!'
+      'Nhấp mở ô để xem số mìn xung quanh.',
+      'Cắm cờ vào ô nghi có mìn.',
+      'Mở hết các ô sạch để chiến thắng.'
     ],
     controls: {
-      desktop: 'Chuột trái để mở ô, Chuột phải để cắm cờ',
-      mobile: 'Chạm để mở ô, bật nút [Cờ] để cắm cờ'
+      desktop: 'Chuột trái mở, phải cắm cờ',
+      mobile: 'Chạm mở, nút Cờ để cắm'
     },
     thumbnailIcon: '💣',
     accentColor: 'from-red-500 to-rose-600',
@@ -120,18 +119,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'memory',
     title: 'Lật Hình',
-    subtitle: 'Lật Hình Tìm Cặp - Rèn luyện trí nhớ siêu phàm 3 sao',
+    subtitle: 'Lật tìm các cặp hình trùng nhau',
     category: 'puzzle',
     categoryLabel: 'Rèn Luyện Trí Nhớ',
-    description: 'Lật tìm các cặp thẻ bài giống nhau trong thời gian ngắn nhất. Thích hợp cho cả trẻ em và người lớn xả stress!',
+    description: 'Tìm hết các cặp thẻ với số lượt ít nhất.',
     instructions: [
-      'Nhấp vào từng lá bài để lật mở hình ảnh bên dưới.',
-      'Ghi nhớ vị trí các hình và lật 2 lá bài giống nhau để triệt tiêu chúng.',
-      'Hoàn thành việc tìm tất cả các cặp thẻ với số lượt mở ít nhất để đạt 3 sao!'
+      'Lật mở 2 lá bài mỗi lượt.',
+      'Ghi nhớ vị trí các cặp giống nhau.',
+      'Triệt tiêu toàn bộ thẻ để đạt 3 sao.'
     ],
     controls: {
-      desktop: 'Nhấp chuột chọn lá bài',
-      mobile: 'Chạm ngón tay chọn lá bài'
+      desktop: 'Nhấp chuột chọn thẻ',
+      mobile: 'Chạm chọn thẻ'
     },
     thumbnailIcon: '🃏',
     accentColor: 'from-pink-500 to-rose-600',
@@ -143,18 +142,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'tetris',
     title: 'Xếp Gạch',
-    subtitle: 'Tetris Xếp Gạch - Huyền thoại giải đố kinh điển',
+    subtitle: 'Xếp gạch giải đố kinh điển',
     category: 'classic',
     categoryLabel: 'Kinh Điển Mọi Thời Đại',
-    description: 'Huyền thoại xếp gạch mọi thời đại! Xếp các khối gạch tetrominoes kín hàng để ghi điểm combo và chạm kỷ lục thế giới.',
+    description: 'Xếp kín hàng gạch để ghi điểm combo.',
     instructions: [
-      'Điều khiển các khối gạch rơi xuống, xoay góc hợp lý để xếp khít vào nhau.',
-      'Mỗi khi lấp đầy 1 hoặc nhiều hàng ngang, hàng gạch sẽ biến mất và bạn được cộng điểm thưởng.',
-      'Khối gạch xếp chồng chạm đến đỉnh thì ván chơi sẽ kết thúc!'
+      'Xoay và di chuyển khối gạch rơi.',
+      'Lấp đầy hàng ngang để xóa gạch.',
+      'Không để gạch chạm tới đỉnh.'
     ],
     controls: {
-      desktop: 'Mũi tên ← → di chuyển, ↑ xoay, ↓ hạ nhanh, Phím Cách rơi ngay',
-      mobile: 'Nút bấm cảm ứng D-Pad tiện lợi trên màn hình'
+      desktop: '← → di chuyển, ↑ xoay, Space thả',
+      mobile: 'Nút bấm D-Pad ảo'
     },
     thumbnailIcon: '🧱',
     accentColor: 'from-cyan-500 to-blue-600',
@@ -167,18 +166,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'chess',
     title: 'Cờ Vua',
-    subtitle: 'Cờ Vua Quốc Tế - Đấu trí chiến thuật đỉnh cao cùng AI',
+    subtitle: 'Cờ vua quốc tế đấu AI & 1v1',
     category: 'strategy',
     categoryLabel: 'Chiến Thuật Quốc Tế',
-    description: 'Bàn cờ 8×8 tiêu chuẩn quốc tế! Đấu trí chiến thuật đỉnh cao cùng AI nhiều cấp độ hoặc so tài 2 người chơi trên cùng thiết bị.',
+    description: 'Bảo vệ Vua và chiếu bí đối phương.',
     instructions: [
-      'Chạm hoặc nhấp chuột vào quân cờ để xem các nước đi hợp lệ.',
-      'Bảo vệ Vua của bạn và tìm cách chiếu bí Vua đối phương.',
-      'Hỗ trợ chế độ Đấu Máy thông minh và chế độ 2 Người chơi đối kháng.'
+      'Chọn quân cờ để xem nước đi hợp lệ.',
+      'Chiếu bí Vua đối phương để thắng.',
+      'Hỗ trợ đấu AI và 2 người chơi.'
     ],
     controls: {
-      desktop: 'Nhấp chuột chọn quân và ô đích đến',
-      mobile: 'Chạm ngón tay chọn quân và ô di chuyển'
+      desktop: 'Nhấp chọn quân và ô đi',
+      mobile: 'Chạm chọn quân và ô đi'
     },
     thumbnailIcon: '♟️',
     accentColor: 'from-amber-600 to-yellow-700',
@@ -191,18 +190,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'xiangqi',
     title: 'Cờ Tướng',
-    subtitle: 'Cờ Tướng Đông Phương - Kỳ nghệ sông Sở Hà Hán Giới',
+    subtitle: 'Cờ tướng Á Đông đấu AI & 1v1',
     category: 'strategy',
     categoryLabel: 'Kỳ Nghệ Á Đông',
-    description: 'Bàn cờ 9×10 kinh điển sông Sở Hà Hán Giới! Tấn công Cửu Cung, phối hợp Xe Pháo Mã cùng AI hoặc bạn bè.',
+    description: 'Chiếu bí Tướng đối phương để thắng.',
     instructions: [
-      'Nhấp chọn quân cờ để hiển thị các chấm xanh nước đi hợp lệ.',
-      'Sĩ Tượng thủ cung, Mã phóng càn quét, Pháo cách ngòi bắn phá thành.',
-      'Chiếu bí Tướng đối phương để giành thắng lợi vinh quang!'
+      'Chọn quân cờ để xem nước đi hợp lệ.',
+      'Phối hợp Xe, Pháo, Mã tấn công.',
+      'Chiếu bí Tướng đối thủ để thắng.'
     ],
     controls: {
-      desktop: 'Nhấp chuột chọn quân cờ và nước đi',
-      mobile: 'Chạm chọn quân cờ và điểm đến'
+      desktop: 'Nhấp chọn quân và ô đi',
+      mobile: 'Chạm chọn quân và ô đi'
     },
     thumbnailIcon: '🏮',
     accentColor: 'from-rose-600 to-red-700',
@@ -215,18 +214,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'breakout',
     title: 'Phá Gạch',
-    subtitle: 'Bắn Bóng Phá Gạch - Tốc độ nảy cực gắt nhịp nhàng',
+    subtitle: 'Bắn bóng đập tan các hàng gạch',
     category: 'arcade',
     categoryLabel: 'Arcade Thử Thách',
-    description: 'Bắn bóng đập tan toàn bộ các hàng gạch màu rực rỡ! Di chuyển thanh trượt nhịp nhàng và bắt kịp tốc độ bóng nảy cực gắt.',
+    description: 'Đón bóng nảy và phá hủy toàn bộ gạch.',
     instructions: [
-      'Di chuyển chuột, vuốt màn hình hoặc dùng phím A/D để trượt thanh đỡ.',
-      'Bấm phím Cách hoặc chạm màn hình để phóng quả bóng đầu tiên.',
-      'Phá hủy toàn bộ các hàng gạch nhiều màu để chiến thắng mà không để rơi bóng.'
+      'Di chuyển thanh đỡ đón bóng nảy.',
+      'Đập vỡ hết gạch để qua màn.',
+      'Không để bóng rơi xuống đáy.'
     ],
     controls: {
-      desktop: 'Kéo chuột hoặc Phím Mũi tên ← → / A D, Phím Cách bắn bóng',
-      mobile: 'Kéo ngón tay trên màn hình để trượt thanh đỡ'
+      desktop: 'Kéo chuột / ← →, Space bắn bóng',
+      mobile: 'Kéo ngón tay di chuyển'
     },
     thumbnailIcon: '🏓',
     accentColor: 'from-cyan-500 to-indigo-600',
@@ -239,18 +238,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'space-shooter',
     title: 'Chiến Cơ',
-    subtitle: 'Chiến Cơ Không Gian - Tiêu diệt hạm đội bảo vệ ngân hà',
+    subtitle: 'Bắn súng không gian diệt tàu địch',
     category: 'arcade',
     categoryLabel: 'Bắn Súng Không Gian',
-    description: 'Điều khiển phi thuyền không gian né làn mưa đạn la-de, tiêu diệt hạm đội quái vật ngoài hành tinh để bảo vệ vũ trụ.',
+    description: 'Né mưa đạn và tiêu diệt phi thuyền địch.',
     instructions: [
-      'Dùng phím A/D hoặc mũi tên ← → (hoặc kéo chuột/ngón tay) để di chuyển tàu.',
-      'Bấm phím Cách hoặc chạm màn hình để liên tục khai hỏa tia la-de.',
-      'Tiêu diệt toàn bộ hạm đội địch qua từng đợt tấn công để ghi điểm kỷ lục.'
+      'Di chuyển phi thuyền né đạn địch.',
+      'Bắn la-de diệt từng đợt quái vật.',
+      'Vượt qua các đợt để đạt điểm kỷ lục.'
     ],
     controls: {
-      desktop: 'Phím A/D hoặc Mũi tên di chuyển, Phím Cách bắn la-de',
-      mobile: 'Kéo ngón tay trên màn hình để vừa di chuyển vừa bắn tự động'
+      desktop: 'A/D / Mũi tên, Space bắn đạn',
+      mobile: 'Kéo ngón tay để lái & bắn'
     },
     thumbnailIcon: '🚀',
     accentColor: 'from-violet-600 to-indigo-700',
@@ -263,19 +262,18 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'onet',
     title: 'Onet Nối Hình',
-    subtitle: 'Onet Classic - Nối cặp hình Pikachu tuổi thơ',
+    subtitle: 'Nối cặp hình cổ điển Pikachu',
     category: 'puzzle',
     categoryLabel: 'Giải Đố & Phản Xạ',
-    description: 'Nối các cặp hình giống nhau bằng đường gấp khúc không quá 3 đoạn thẳng! Huyền thoại giải đố kết nối kinh điển tuổi thơ.',
+    description: 'Nối 2 hình giống nhau không quá 3 đoạn gấp khúc.',
     instructions: [
-      'Nhấp chọn 2 ô có biểu tượng giống nhau để nối chúng lại.',
-      'Đường nối giữa 2 ô không được gập quá 2 góc vuông (tối đa 3 đoạn thẳng).',
-      'Đường nối có thể đi vòng ra ngoài rìa bàn cờ nếu không có chướng ngại vật.',
-      'Dọn sạch toàn bộ bàn cờ trước khi hết giờ để giành chiến thắng!'
+      'Chọn 2 ô hình giống nhau để nối.',
+      'Đường nối tối đa 3 đoạn gấp khúc (2 góc).',
+      'Xóa sạch bàn cờ để chiến thắng.'
     ],
     controls: {
-      desktop: 'Nhấp chuột trái vào 2 ô giống nhau để nối',
-      mobile: 'Chạm ngón tay vào 2 ô cùng hình để nối'
+      desktop: 'Nhấp chọn 2 ô giống nhau',
+      mobile: 'Chạm chọn 2 ô giống nhau'
     },
     thumbnailIcon: '🧩',
     accentColor: 'from-emerald-500 to-cyan-600',
