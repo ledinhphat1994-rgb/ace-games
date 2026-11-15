@@ -645,13 +645,12 @@ export const GameCaro: React.FC = () => {
             )
           ) : (
             isXNext ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
-                <span>LƯỢT ĐI: X (BẠN)</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span>LƯỢT CỦA BẠN</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.3)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-400 animate-spin" />
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs sm:text-sm animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-spin" />
                 <span>⚡ MÁY ĐANG TÍNH...</span>
               </div>
             )
@@ -825,14 +824,10 @@ export const GameCaro: React.FC = () => {
                 }`}
               >
                 {winnerInfo.winner === 'X'
-                  ? isAiMode
-                    ? 'BẠN ĐÃ CHIẾN THẮNG!'
-                    : 'QUÂN X CHIẾN THẮNG!'
+                  ? (isOnlineMode ? (playerRole === 'host' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : 'BẠN ĐÃ CHIẾN THẮNG!')
                   : winnerInfo.winner === 'O'
-                  ? isAiMode
-                    ? 'AI ĐÃ CHIẾN THẮNG!'
-                    : 'QUÂN O CHIẾN THẮNG!'
-                  : 'HAI BÊN HÒA NHAU!'}
+                  ? (isOnlineMode ? (playerRole === 'guest' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'ĐỐI THỦ ĐÃ CHIẾN THẮNG!') : (isAiMode ? 'AI ĐÃ CHIẾN THẮNG!' : 'QUÂN O CHIẾN THẮNG!'))
+                  : 'VÁN CỜ HÒA!'}
               </h3>
 
               <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium max-w-xs">

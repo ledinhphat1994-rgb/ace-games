@@ -383,8 +383,8 @@ export const GameBreakout: React.FC = () => {
 
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center select-none w-full h-full max-w-[min(96vw,1320px)] mx-auto p-1 sm:p-2">
-      {/* Top HUD - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
-      <div className="game-top-hud w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner">
+      {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
+      <div className="game-top-hud w-full max-w-[min(96vw,1320px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-4 py-2 mb-2 shadow-inner flex-shrink-0">
         {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex flex-col items-center text-center">

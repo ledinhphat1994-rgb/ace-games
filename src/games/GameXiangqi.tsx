@@ -369,9 +369,8 @@ export const GameXiangqi: React.FC = () => {
                 <span>⚠️ ĐANG BỊ CHIẾU TƯỚNG!</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 font-black text-xs sm:text-sm">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" />
-                <span>LƯỢT ĐI: {pos.turn === RED ? 'ĐỎ (BẠN)' : 'ĐEN'}</span>
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span>LƯỢT CỦA BẠN</span>
               </div>
             )
           )}

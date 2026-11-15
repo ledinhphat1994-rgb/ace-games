@@ -303,8 +303,8 @@ export const GameFlappy: React.FC = () => {
 
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
-      {/* Top HUD - Tiêu đề căn ngang hàng chuẩn xác, icon cup nằm gọn trong hàng tiêu đề */}
-      <div className="game-top-hud flex items-center w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner">
+      {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
+      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
         <div className="flex items-center gap-4 sm:gap-6">
           {/* Cột Điểm Số: Căn giữa hoàn toàn theo trục dọc */}
           <div className="flex flex-col items-center text-center">
