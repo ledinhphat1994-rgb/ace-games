@@ -250,6 +250,31 @@ export const GameXiangqi: React.FC = () => {
                 );
               })}
             </div>
+
+            {/* Game Over / Result Overlay */}
+            {pos.outcome().over && (
+              <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in z-20">
+                <span className="text-6xl mb-3 animate-bounce">
+                  {pos.outcome().winner ? '🏆' : '🤝'}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-black text-rose-500 mb-2 font-['Orbitron']">
+                  {pos.outcome().winner === RED
+                    ? (mode === 'ai' ? 'BẠN ĐÃ CHIẾN THẮNG!' : 'BÊN ĐỎ THẮNG!')
+                    : pos.outcome().winner === BLACK
+                    ? (mode === 'ai' ? 'AI ĐÃ CHIẾN THẮNG!' : 'BÊN ĐEN THẮNG!')
+                    : 'VÁN CỜ HÒA!'}
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium">
+                  {statusMessage}
+                </p>
+                <button
+                  onClick={resetGame}
+                  className="px-8 py-3.5 bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white font-black rounded-2xl shadow-xl transition active:scale-95 cursor-pointer text-sm flex items-center gap-2"
+                >
+                  <RotateCcw size={16} /> Chơi Ván Mới
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

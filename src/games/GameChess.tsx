@@ -241,6 +241,31 @@ export const GameChess: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Game Over / Result Overlay */}
+          {pos.outcome().over && (
+            <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in z-20">
+              <span className="text-6xl mb-3 animate-bounce">
+                {pos.outcome().winner ? '🏆' : '🤝'}
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-amber-400 mb-2 font-['Orbitron']">
+                {pos.outcome().winner === WHITE
+                  ? (mode === 'ai' ? 'BẠN ĐÃ THẮNG!' : 'QUÂN TRẮNG THẮNG!')
+                  : pos.outcome().winner === BLACK
+                  ? (mode === 'ai' ? 'AI ĐÃ THẮNG!' : 'QUÂN ĐEN THẮNG!')
+                  : 'VÁN CỜ HÒA!'}
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium">
+                {statusMessage}
+              </p>
+              <button
+                onClick={resetGame}
+                className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black rounded-2xl shadow-xl transition active:scale-95 cursor-pointer text-sm flex items-center gap-2"
+              >
+                <RotateCcw size={16} /> Chơi Ván Mới
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

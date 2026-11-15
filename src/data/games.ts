@@ -73,14 +73,15 @@ export const GAMES_CATALOG: GameInfo[] = [
   {
     id: 'caro',
     title: 'Cờ Caro',
-    subtitle: 'Cờ Caro 3x3 - Đấu trí cùng AI Minimax hoặc bạn bè',
+    subtitle: 'Cờ Caro Đấu Trí - Bàn 10x10 (5 ô) & Bàn 3x3 cùng AI',
     category: 'strategy',
     categoryLabel: 'Chiến Thuật & Trí Tuệ',
-    description: 'Trò chơi cờ caro quen thuộc thời đi học! Thách đấu với AI thuật toán Minimax hoặc chơi cùng bạn bè trên cùng máy.',
+    description: 'Trò chơi cờ caro quen thuộc thời đi học! Thách đấu với AI thông minh ở bàn cờ 10x10 chuẩn 5 ô hoặc bàn 3x3 nhanh gọn.',
     instructions: [
-      'Người chơi thay phiên nhau đánh dấu X hoặc O vào các ô trống.',
-      'Người đầu tiên tạo được 3 dấu thẳng hàng (ngang, dọc hoặc chéo) sẽ giành chiến thắng!',
-      'Thử sức với chế độ "Bất Khả Chiến Bại" để xem bạn có thể thắng được AI không.'
+      'Người chơi thay phiên nhau đánh dấu X hoặc O vào các ô trống trên bàn cờ.',
+      'Bàn 10x10: Tạo được 5 dấu thẳng hàng (ngang, dọc, chéo) để chiến thắng.',
+      'Bàn 3x3: Tạo được 3 dấu thẳng hàng để chiến thắng.',
+      'Có thể chuyển đổi linh hoạt giữa Bàn 10x10 và Bàn 3x3 ngay trên thanh công cụ.'
     ],
     controls: {
       desktop: 'Nhấp chuột vào ô trống',
