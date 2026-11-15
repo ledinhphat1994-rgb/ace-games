@@ -713,22 +713,34 @@ export const GameXiangqi: React.FC = () => {
                       <div className="absolute inset-0.5 rounded-full ring-4 ring-rose-500 bg-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.95)] z-20 animate-pulse pointer-events-none" />
                     ) : null}
 
-                    {/* Vùng chỉ định chọn quân: Vành hào quang Cyan rực rỡ nổi bật tuyệt đối trên nền bàn cờ gỗ */}
+                    {/* Vùng hào quang tỏa sáng xung quanh quân cờ được chọn - Tinh tế, mềm mại, hoàn toàn không vẽ khung */}
                     {isSelected && (
-                      <div className="absolute inset-[-4px] rounded-2xl border-2 border-cyan-400 bg-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.85),inset_0_0_15px_rgba(6,182,212,0.4)] z-20 animate-pulse pointer-events-none flex items-center justify-center">
-                        <div className="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-cyan-300" />
-                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-cyan-300" />
-                        <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-cyan-300" />
-                        <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-300" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        {/* Hào quang tỏa rộng mềm mại */}
+                        <div
+                          className="absolute w-[160%] h-[160%] rounded-full animate-pulse opacity-90"
+                          style={{
+                            background: 'radial-gradient(circle, rgba(6, 182, 212, 0.65) 0%, rgba(14, 165, 233, 0.35) 45%, rgba(56, 189, 248, 0.12) 65%, transparent 75%)',
+                            filter: 'blur(6px)',
+                          }}
+                        />
+                        {/* Lớp sáng trung tâm huyền ảo */}
+                        <div
+                          className="absolute w-[130%] h-[130%] rounded-full opacity-90"
+                          style={{
+                            background: 'radial-gradient(circle, rgba(34, 211, 238, 0.5) 0%, rgba(6, 182, 212, 0.25) 55%, transparent 70%)',
+                            filter: 'blur(3px)',
+                          }}
+                        />
                       </div>
                     )}
 
                     {/* Quân Cờ Gỗ 3D Đích Thực - Tinh Xảo, Khắc Chìm & Dịu Mắt */}
                     {piece ? (
                       <div
-                        className={`relative z-10 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
+                        className={`relative z-20 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
                           isSelected
-                            ? 'scale-120 -translate-y-2 ring-4 ring-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.95),0_12px_28px_rgba(0,0,0,0.65)] z-30'
+                            ? 'scale-115 -translate-y-2 ring-2 ring-cyan-300 shadow-[0_0_28px_6px_rgba(6,182,212,0.85),0_12px_24px_rgba(0,0,0,0.55)] z-30'
                             : isKingInCheck
                             ? 'scale-110 ring-4 ring-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.9)] z-25 animate-pulse'
                             : isLast
@@ -736,12 +748,10 @@ export const GameXiangqi: React.FC = () => {
                             : 'hover:scale-105 active:scale-95'
                         }`}
                         style={{
-                          background: isSelected
-                            ? 'radial-gradient(circle at 35% 35%, #ffffff 0%, #f0fdfa 42%, #ccfbf1 82%, #99f6e4 100%)'
-                            : 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
+                          background: 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
                           border: isSelected ? '2.5px solid #22d3ee' : '2px solid #a67c48',
                           boxShadow: isSelected
-                            ? '0 0 30px rgba(6,182,212,0.9), 0 12px 25px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.95), inset 0 0 10px rgba(6,182,212,0.4)'
+                            ? '0 0 28px 6px rgba(6,182,212,0.85), 0 12px 24px rgba(0,0,0,0.55), inset 0 2px 4px rgba(255,255,255,0.95), inset 0 -3px 4px rgba(110,60,20,0.35)'
                             : '0 5px 12px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.25), inset 0 2px 2px rgba(255,255,255,0.8), inset 0 -3px 4px rgba(110,60,20,0.35)'
                         }}
                       >
