@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RotateCcw, Trophy, Play, Pause, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -310,7 +310,7 @@ export const GameSnake: React.FC = () => {
         {!hasStarted && !isGameOver && (
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
             <span className="text-6xl mb-3 animate-bounce">🐍</span>
-            <h3 className="text-3xl font-black text-emerald-400 mb-6 font-['Orbitron']">RẮN SĂN MỒI</h3>
+            <h3 className="text-3xl font-black text-emerald-400 mb-6 ">RẮN SĂN MỒI</h3>
             <button
               onClick={resetGame}
               className="px-8 py-3.5 bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
@@ -324,7 +324,7 @@ export const GameSnake: React.FC = () => {
         {isGameOver && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in z-20">
             <span className="text-6xl mb-2">💥</span>
-            <h3 className="text-3xl font-black text-rose-500 mb-6 font-['Orbitron']">ĐÂM VÀO TƯỜNG!</h3>
+            <h3 className="text-3xl font-black text-rose-500 mb-6 ">ĐÂM VÀO TƯỜNG!</h3>
             
             {/* The ONLY Play Again button on the screen */}
             <button
@@ -369,3 +369,4 @@ export const GameSnake: React.FC = () => {
     </div>
   );
 };
+

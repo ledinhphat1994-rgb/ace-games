@@ -45,7 +45,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
               <span className="text-2xl">{game.thumbnailIcon}</span>
             </div>
             <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-              <h3 className="text-lg sm:text-2xl font-black text-white font-['Orbitron'] tracking-wider">
+              <h3 className="text-lg sm:text-2xl font-black text-white tracking-wider">
                 HƯỚNG DẪN
               </h3>
               <span className="text-sm sm:text-base font-black px-3.5 py-1 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-md">
@@ -72,7 +72,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
                 <Monitor className="w-6 h-6 sm:w-7 sm:h-7" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="text-xs sm:text-sm font-black text-cyan-400 block uppercase tracking-wider mb-0.5 font-['Orbitron']">
+                <span className="text-xs sm:text-sm font-black text-cyan-400 block uppercase tracking-wider mb-0.5">
                   MÁY TÍNH (PC)
                 </span>
                 <span className="text-base sm:text-lg font-bold text-white block leading-snug">
@@ -87,7 +87,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
                 <Smartphone className="w-6 h-6 sm:w-7 sm:h-7" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="text-xs sm:text-sm font-black text-emerald-400 block uppercase tracking-wider mb-0.5 font-['Orbitron']">
+                <span className="text-xs sm:text-sm font-black text-emerald-400 block uppercase tracking-wider mb-0.5">
                   ĐIỆN THOẠI (CẢM ỨNG)
                 </span>
                 <span className="text-base sm:text-lg font-bold text-white block leading-snug">
@@ -99,7 +99,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
 
           {/* Quy tắc chơi - Chữ to, bự, rõ từng gạch đầu dòng */}
           <div className="space-y-3">
-            <span className="text-xs sm:text-sm font-black text-cyan-300 uppercase tracking-widest block font-['Orbitron']">
+            <span className="text-xs sm:text-sm font-black text-cyan-300 uppercase tracking-widest block">
               CÁCH CHƠI & QUY LUẬT:
             </span>
             <div className="space-y-2.5">
@@ -108,7 +108,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
                   key={idx}
                   className="flex items-center gap-4 bg-slate-900/90 border-2 border-white/10 hover:border-cyan-500/50 rounded-2xl p-3.5 sm:p-4 transition shadow-md"
                 >
-                  <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/25 text-cyan-300 font-black text-base sm:text-lg flex items-center justify-center flex-shrink-0 border border-cyan-400/60 shadow-md font-['Orbitron']">
+                  <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/25 text-cyan-300 font-black text-base sm:text-lg flex items-center justify-center flex-shrink-0 border border-cyan-400/60 shadow-md">
                     {idx + 1}
                   </span>
                   <span className="text-base sm:text-lg font-bold text-white leading-relaxed flex-1">
@@ -124,7 +124,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
         <div className="px-5 sm:px-6 py-4 border-t border-white/10 bg-slate-900/95 flex items-center justify-end flex-shrink-0">
           <button
             onClick={handleClose}
-            className="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base sm:text-lg shadow-[0_0_35px_rgba(6,182,212,0.6)] transition cursor-pointer active:scale-95 flex items-center justify-center gap-3 tracking-wider uppercase font-['Orbitron']"
+            className="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base sm:text-lg shadow-[0_0_35px_rgba(6,182,212,0.6)] transition cursor-pointer active:scale-95 flex items-center justify-center gap-3 tracking-wider uppercase"
           >
             <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
             <span>VÀO CHƠI NGAY</span>

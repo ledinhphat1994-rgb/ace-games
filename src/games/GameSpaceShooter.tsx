@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Play, RotateCcw, Heart, Trophy, Sparkles } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -506,7 +506,7 @@ export const GameSpaceShooter: React.FC = () => {
         {isGameOver && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
             <span className="text-5xl mb-2">🚀💥</span>
-            <h3 className="text-3xl font-black text-rose-500 mb-6 font-['Orbitron']">CHIẾN CƠ BỊ PHÁ HỦY!</h3>
+            <h3 className="text-3xl font-black text-rose-500 mb-6 ">CHIẾN CƠ BỊ PHÁ HỦY!</h3>
             <button
               onClick={resetGame}
               className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white font-black text-base shadow-xl shadow-rose-500/30 transition-transform hover:scale-105 active:scale-95"
@@ -520,3 +520,4 @@ export const GameSpaceShooter: React.FC = () => {
     </div>
   );
 };
+

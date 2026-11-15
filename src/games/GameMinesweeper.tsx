@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Flag, Clock } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -318,7 +318,7 @@ export const GameMinesweeper: React.FC = () => {
           {gameWon && (
             <div className="absolute inset-0 bg-emerald-950/92 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
               <span className="text-5xl mb-2 animate-bounce">🏆</span>
-              <h3 className="text-3xl font-black text-emerald-400 mb-1 font-['Orbitron']">CHIẾN THẮNG!</h3>
+              <h3 className="text-3xl font-black text-emerald-400 mb-1 ">CHIẾN THẮNG!</h3>
               <p className="text-sm text-emerald-200 mb-4">Rà phá an toàn toàn bộ 10 quả mìn trong {timer} giây!</p>
               <button
                 onClick={() => {
@@ -336,7 +336,7 @@ export const GameMinesweeper: React.FC = () => {
           {gameOver && (
             <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
               <span className="text-5xl mb-2">💥</span>
-              <h3 className="text-3xl font-black text-rose-500 mb-1 font-['Orbitron']">NỔ MÌN!</h3>
+              <h3 className="text-3xl font-black text-rose-500 mb-1 ">NỔ MÌN!</h3>
               <p className="text-sm text-gray-300 mb-4">Bạn đã kích nổ quả mìn ẩn!</p>
               <button
                 onClick={() => {
@@ -354,3 +354,4 @@ export const GameMinesweeper: React.FC = () => {
     </div>
   );
 };
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { RotateCw, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Pause, Play, Trophy } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -442,7 +442,7 @@ export const GameTetris: React.FC = () => {
           {gameOver && (
             <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-4 text-center z-20 animate-fade-in">
               <span className="text-4xl mb-2">💥</span>
-              <h3 className="text-2xl font-black text-rose-500 mb-6 font-['Orbitron']">THUA CUỘC!</h3>
+              <h3 className="text-2xl font-black text-rose-500 mb-6 ">THUA CUỘC!</h3>
               <button
                 onClick={resetGame}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 transform active:scale-95 transition-all text-sm cursor-pointer"
@@ -508,3 +508,4 @@ export const GameTetris: React.FC = () => {
     </div>
   );
 };
+

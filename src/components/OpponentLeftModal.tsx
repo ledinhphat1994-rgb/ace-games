@@ -48,7 +48,7 @@ export const OpponentLeftModal: React.FC<OpponentLeftModalProps> = ({
         </div>
 
         {/* Tiêu đề ngắn gọn, dễ hiểu */}
-        <h3 className="text-xl sm:text-2xl font-black text-rose-400 mb-2 font-['Orbitron'] tracking-wide">
+        <h3 className="text-xl sm:text-2xl font-black text-rose-400 mb-2 tracking-wide">
           ĐỐI THỦ ĐÃ RỜI PHÒNG
         </h3>
 

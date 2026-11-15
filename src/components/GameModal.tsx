@@ -203,7 +203,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
             </span>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-lg font-black tracking-wider font-['Orbitron'] bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(6,182,212,0.5)]">
+                <h2 className="text-sm sm:text-lg font-black tracking-wider bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(6,182,212,0.5)]">
                   {game.title}
                 </h2>
               </div>

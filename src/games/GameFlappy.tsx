@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RotateCcw, Trophy, Play } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -347,7 +347,7 @@ export const GameFlappy: React.FC = () => {
         {gameState === 'IDLE' && (
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4">
             <span className="text-6xl mb-3 animate-bounce">🐥</span>
-            <h3 className="text-3xl sm:text-4xl font-black text-amber-400 mb-6 font-['Orbitron']">FLAPPY BIRD</h3>
+            <h3 className="text-3xl sm:text-4xl font-black text-amber-400 mb-6 ">FLAPPY BIRD</h3>
             <button
               onClick={e => {
                 e.stopPropagation();
@@ -364,7 +364,7 @@ export const GameFlappy: React.FC = () => {
         {gameState === 'GAMEOVER' && (
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 animate-fade-in">
             <span className="text-5xl mb-2">💥</span>
-            <h3 className="text-3xl sm:text-4xl font-black text-rose-500 mb-6 font-['Orbitron']">GAME OVER</h3>
+            <h3 className="text-3xl sm:text-4xl font-black text-rose-500 mb-6 ">GAME OVER</h3>
             
             <button
               onClick={e => {
@@ -381,3 +381,4 @@ export const GameFlappy: React.FC = () => {
     </div>
   );
 };
+

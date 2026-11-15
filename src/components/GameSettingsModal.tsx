@@ -265,7 +265,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               <Settings className="w-5 h-5 text-cyan-400 rotate-45" />
             </div>
             <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-              <h3 className="text-base sm:text-xl font-black text-white font-['Orbitron'] tracking-wider">
+              <h3 className="text-base sm:text-xl font-black text-white tracking-wider">
                 CÀI ĐẶT
               </h3>
               <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 shadow-sm flex items-center gap-1.5">
@@ -292,7 +292,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div className="flex items-center gap-2.5">
                 <SlidersHorizontal className="w-5 h-5 text-cyan-400" />
-                <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
+                <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-cyan-300">
                   Âm Thanh Trận Đấu
                 </span>
               </div>
@@ -395,7 +395,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
             {/* Danh sách bản nhạc BGM cho game */}
             <div className="space-y-2 pt-2 border-t border-white/5">
-              <span className="text-xs sm:text-sm font-bold text-gray-300 uppercase tracking-wider font-['Orbitron'] block">
+              <span className="text-xs sm:text-sm font-bold text-gray-300 uppercase tracking-wider block">
                 Chọn Nhạc Nền:
               </span>
 
@@ -1027,7 +1027,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
         <div className="h-16 px-5 sm:px-6 border-t border-white/10 bg-slate-900/95 flex items-center justify-between gap-3 flex-shrink-0">
           <button
             onClick={handleRestart}
-            className="flex-1 flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(6,182,212,0.4)] transition cursor-pointer active:scale-95 font-['Orbitron'] tracking-wider"
+            className="flex-1 flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(6,182,212,0.4)] transition cursor-pointer active:scale-95 tracking-wider"
           >
             <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
             <span>KHỞI ĐỘNG LẠI VÁN GAME</span>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { XiangqiPosition, type XiangqiMove, type Side, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
 import { RotateCcw, Bot, Timer, Globe, LogOut } from 'lucide-react';
@@ -785,7 +785,7 @@ export const GameXiangqi: React.FC = () => {
               <div className="absolute inset-0 pointer-events-none z-40 flex items-center justify-center p-4 animate-in zoom-in-75 fade-in duration-200">
                 <div className="px-5 py-3 sm:px-7 sm:py-4 rounded-3xl bg-rose-600/95 border-2 border-rose-300 text-white font-black text-lg sm:text-2xl tracking-widest shadow-[0_0_50px_rgba(244,63,94,0.95)] backdrop-blur-md flex items-center gap-3 animate-pulse">
                   <span className="text-2xl sm:text-3xl">⚠️</span>
-                  <span className="font-['Orbitron'] font-black">{checkBanner}</span>
+                  <span className="font-black">{checkBanner}</span>
                   <span className="text-2xl sm:text-3xl">⚔️</span>
                 </div>
               </div>
@@ -840,7 +840,7 @@ export const GameXiangqi: React.FC = () => {
                     <span className="text-5xl sm:text-6xl mb-3 drop-shadow-lg">
                       {icon}
                     </span>
-                    <h3 className={`text-2xl sm:text-3xl font-black mb-2 tracking-wide font-['Orbitron'] ${titleColor}`}>
+                    <h3 className={`text-2xl sm:text-3xl font-black mb-2 tracking-wide ${titleColor}`}>
                       {title}
                     </h3>
                     <p className="text-xs sm:text-sm text-gray-300 mb-6 font-medium leading-relaxed">
@@ -912,3 +912,4 @@ export const GameXiangqi: React.FC = () => {
     </div>
   );
 };
+

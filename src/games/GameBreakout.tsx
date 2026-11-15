@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Play, RotateCcw, Heart, Trophy, Sparkles } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -455,7 +455,7 @@ export const GameBreakout: React.FC = () => {
         {isGameOver && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
             <span className="text-5xl mb-2">💥</span>
-            <h3 className="text-3xl font-black text-red-500 mb-6 font-['Orbitron']">HẾT LƯỢT!</h3>
+            <h3 className="text-3xl font-black text-red-500 mb-6 ">HẾT LƯỢT!</h3>
             <button
               onClick={resetGame}
               className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white font-black text-base shadow-xl shadow-red-500/30 transition-transform hover:scale-105 active:scale-95"
@@ -470,7 +470,7 @@ export const GameBreakout: React.FC = () => {
         {isWon && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
             <span className="text-5xl mb-2">🏆</span>
-            <h3 className="text-3xl font-black text-emerald-400 mb-6 font-['Orbitron']">CHIẾN THẮNG TUYỆT ĐỐI!</h3>
+            <h3 className="text-3xl font-black text-emerald-400 mb-6 ">CHIẾN THẮNG TUYỆT ĐỐI!</h3>
             <button
               onClick={resetGame}
               className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-base shadow-xl shadow-emerald-500/30 transition-transform hover:scale-105 active:scale-95"

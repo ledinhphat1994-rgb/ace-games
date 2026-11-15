@@ -66,7 +66,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               <Trophy className="w-5 h-5 text-amber-400 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-white font-['Orbitron'] flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <span>BẢNG XẾP HẠNG</span>
               </h3>
               <p className="text-xs text-cyan-400 font-semibold">{gameTitle}</p>

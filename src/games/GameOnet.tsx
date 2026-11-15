@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Shuffle, Sparkles, Trophy, Flame, Pause, Play, Clock } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -644,7 +644,7 @@ export const GameOnet: React.FC = () => {
         {/* Modal Tạm Dừng */}
         {isPaused && (
           <div className="absolute inset-0 z-40 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center space-y-4 animate-in fade-in">
-            <h3 className="text-xl sm:text-2xl font-black text-white font-['Orbitron'] tracking-wider">
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-wider">
               ĐANG TẠM DỪNG
             </h3>
             <button
@@ -660,7 +660,7 @@ export const GameOnet: React.FC = () => {
         {isGameOver && (
           <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="text-5xl">⏰</div>
-            <h3 className="text-2xl font-black text-rose-400 font-['Orbitron'] tracking-wider">
+            <h3 className="text-2xl font-black text-rose-400 tracking-wider">
               HẾT THỜI GIAN!
             </h3>
             <p className="text-sm text-gray-300 font-mono">
@@ -680,7 +680,7 @@ export const GameOnet: React.FC = () => {
         {isWon && (
           <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 space-y-3.5 animate-in zoom-in-95 duration-200">
             <div className="text-5xl animate-bounce">🏆</div>
-            <h3 className="text-2xl font-black bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-400 bg-clip-text text-transparent font-['Orbitron'] tracking-wider">
+            <h3 className="text-2xl font-black bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-400 bg-clip-text text-transparent tracking-wider">
               CHIẾN THẮNG!
             </h3>
             <div className="flex items-center gap-4 bg-slate-900/90 border border-white/10 px-5 py-2 rounded-2xl font-mono text-sm">
@@ -703,3 +703,4 @@ export const GameOnet: React.FC = () => {
     </div>
   );
 };
+

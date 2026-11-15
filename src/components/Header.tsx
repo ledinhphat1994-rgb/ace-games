@@ -95,7 +95,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <div>
-              <span className="text-xl sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-indigo-300 font-['Orbitron']">
+              <span className="text-xl sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-indigo-300">
                 ACE GAMES
               </span>
             </div>

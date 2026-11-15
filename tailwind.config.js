@@ -19,9 +19,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ["'Chakra Petch'", 'Rajdhani', 'sans-serif'],
-        display: ['Orbitron', "'Chakra Petch'", 'sans-serif'],
-        game: ["'Chakra Petch'", 'Rajdhani', 'sans-serif'],
+        sans: ["'Plus Jakarta Sans'", "'Inter'", "'Be Vietnam Pro'", 'sans-serif'],
+        display: ["'Plus Jakarta Sans'", "'Inter'", "'Be Vietnam Pro'", 'sans-serif'],
+        game: ["'Plus Jakarta Sans'", "'Inter'", "'Be Vietnam Pro'", 'sans-serif'],
       }
     },
   },

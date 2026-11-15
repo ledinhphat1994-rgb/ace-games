@@ -166,7 +166,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
               <Globe className="w-4 h-4 text-cyan-400" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-white font-['Orbitron'] tracking-wider leading-tight">
+              <h3 className="text-sm font-black text-white tracking-wider leading-tight">
                 SẢNH PVP ONLINE
               </h3>
               <span className="text-[11px] text-cyan-400 font-semibold">

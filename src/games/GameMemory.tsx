@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Award, Star } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -225,7 +225,7 @@ export const GameMemory: React.FC = () => {
           {isWon && (
             <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center text-white p-6 animate-fade-in z-20">
               <Award className="w-20 h-20 text-yellow-300 mb-3 animate-bounce" />
-              <h3 className="text-3xl font-black text-pink-400 mb-2 font-['Orbitron']">CHIẾN THẮNG!</h3>
+              <h3 className="text-3xl font-black text-pink-400 mb-2 ">CHIẾN THẮNG!</h3>
               <div className="flex gap-2 mb-3">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Star
@@ -248,3 +248,4 @@ export const GameMemory: React.FC = () => {
     </div>
   );
 };
+
