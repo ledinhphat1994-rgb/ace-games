@@ -49,24 +49,33 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   const [musicVolume, setMusicVolume] = useState<number>(() => soundManager.getGameAudioSettings(game.id).musicVolume);
   const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getGameAudioSettings(game.id).bgmTrack);
   const [isMusicDropdownOpen, setIsMusicDropdownOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 250, openUp: false });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const modalRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const musicDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const updateDropdownPos = () => {
-    if (triggerRef.current && modalRef.current) {
+    if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const modalRect = modalRef.current.getBoundingClientRect();
-      // Luôn mở xuống dưới đè lên các card bên dưới, tận dụng tối đa chiều cao cao ráo của modal
-      const spaceBelow = modalRect.bottom - rect.bottom - 20;
+      const dropdownHeight = 224; // Chiều cao chính xác của 5 bài nhạc
+      const viewportHeight = window.innerHeight;
+
+      // Mặc định mở đè xuống dưới ngay sát nút trigger
+      let top = rect.bottom + 6;
+
+      // Không bao giờ được đụng cạnh dưới màn hình (đảm bảo cách cạnh đáy màn hình tối thiểu 16px)
+      if (top + dropdownHeight > viewportHeight - 16) {
+        if (rect.top - 6 - dropdownHeight >= 16) {
+          top = rect.top - 6 - dropdownHeight;
+        } else {
+          top = Math.max(16, viewportHeight - dropdownHeight - 16);
+        }
+      }
 
       setDropdownPos({
-        top: rect.bottom - modalRect.top + 8,
-        left: rect.left - modalRect.left,
-        width: rect.width,
-        maxHeight: Math.max(280, spaceBelow),
-        openUp: false,
+        top: Math.round(top),
+        left: Math.round(rect.left),
+        width: Math.round(rect.width),
       });
     }
   };
@@ -80,12 +89,23 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     }
   };
 
-  // Recalculate dropdown position on window resize when open
+  // Cập nhật vị trí dropdown khi mở
+  useEffect(() => {
+    if (isMusicDropdownOpen) {
+      updateDropdownPos();
+    }
+  }, [isMusicDropdownOpen]);
+
+  // Cập nhật vị trí dropdown khi resize hoặc scroll cửa sổ / modal
   useEffect(() => {
     if (!isMusicDropdownOpen) return;
-    const handleRecalc = () => updateDropdownPos();
-    window.addEventListener('resize', handleRecalc);
-    return () => window.removeEventListener('resize', handleRecalc);
+    const handleUpdate = () => updateDropdownPos();
+    window.addEventListener('resize', handleUpdate);
+    window.addEventListener('scroll', handleUpdate, true);
+    return () => {
+      window.removeEventListener('resize', handleUpdate);
+      window.removeEventListener('scroll', handleUpdate, true);
+    };
   }, [isMusicDropdownOpen]);
 
   // Sync state when opening
@@ -231,11 +251,11 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Kích thước bảng cài đặt rộng rãi, chiều cao cao ráo để không cần dùng thanh trượt */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+      {/* Kích thước vừa vặn, không đụng cạnh màn hình, có khoảng thở xung quanh */}
       <div
         ref={modalRef}
-        className="relative w-[94vw] max-w-[560px] sm:max-w-[580px] h-[740px] max-h-[94vh] bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_80px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none"
+        className="relative w-[92vw] max-w-[500px] h-auto max-h-[82vh] bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_80px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar - To rõ, bề thế */}
@@ -1021,60 +1041,59 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             Mặc Định
           </button>
         </div>
-
-        {/* SMART DROPDOWN OVERLAY: Nằm ở cấp Modal Card, tự động khống chế maxHeight để KHÔNG BAO GIỜ bị cắt viền */}
-        {isMusicDropdownOpen && (
-          <div
-            ref={musicDropdownRef}
-            style={{
-              position: 'absolute',
-              top: dropdownPos.top,
-              left: dropdownPos.left,
-              width: dropdownPos.width,
-              maxHeight: dropdownPos.maxHeight || 340,
-            }}
-            className="bg-slate-950/98 backdrop-blur-2xl border-2 border-cyan-400/90 rounded-2xl p-2 shadow-[0_25px_70px_rgba(0,0,0,0.98)] z-[70] animate-in fade-in zoom-in-95 duration-150 space-y-1.5 overflow-y-auto custom-scrollbar"
-          >
-            {BGM_TRACKS.map((t) => {
-              const isActive = currentTrack === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    handleSelectTrack(t.id);
-                    setIsMusicDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl text-left border transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-md shadow-cyan-500/20'
-                      : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-200 hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xl flex-shrink-0">{t.icon}</span>
-                    <div className="flex flex-col min-w-0">
-                      <span className={`text-sm sm:text-base font-bold truncate ${isActive ? 'text-cyan-200' : 'text-white'}`}>
-                        {t.title}
-                      </span>
-                      <span className="text-xs text-gray-300 truncate">
-                        {t.desc}
-                      </span>
-                    </div>
-                  </div>
-                  {isActive && (
-                    <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-300 font-black bg-cyan-950/90 border border-cyan-400/60 px-3 py-1 rounded-full flex-shrink-0 ml-2 shadow-sm">
-                      <Check className="w-3.5 h-3.5 text-cyan-400 stroke-[3]" />
-                      <span>Phát</span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
       </div>
+
+      {/* SMART FIXED DROPDOWN OVERLAY: Nổi độc lập, không bị overflow-hidden cắt, đè lên mọi card bên dưới nhưng tuyệt đối không chạm cạnh màn hình */}
+      {isMusicDropdownOpen && (
+        <div
+          ref={musicDropdownRef}
+          style={{
+            position: 'fixed',
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            zIndex: 9999,
+          }}
+          className="bg-slate-950/98 backdrop-blur-2xl border-2 border-cyan-400/90 rounded-2xl p-1.5 shadow-[0_25px_70px_rgba(0,0,0,0.98)] animate-in fade-in zoom-in-95 duration-150 space-y-1 overflow-hidden select-none"
+        >
+          {BGM_TRACKS.map((t) => {
+            const isActive = currentTrack === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  handleSelectTrack(t.id);
+                  setIsMusicDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left border transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20'
+                    : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-200 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-xl flex-shrink-0">{t.icon}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-sm sm:text-base font-bold truncate ${isActive ? 'text-cyan-200' : 'text-white'}`}>
+                      {t.title}
+                    </span>
+                    <span className="text-xs text-gray-300 truncate">
+                      {t.desc}
+                    </span>
+                  </div>
+                </div>
+                {isActive && (
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-300 font-black bg-cyan-950/90 border border-cyan-400/60 px-2.5 py-0.5 rounded-full flex-shrink-0 ml-2 shadow-sm">
+                    <Check className="w-3.5 h-3.5 text-cyan-400 stroke-[3]" />
+                    <span>Phát</span>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
