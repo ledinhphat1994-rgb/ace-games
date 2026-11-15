@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ChessPosition, type ChessMove, WHITE, BLACK, colorOf, typeOf, ROOK, KNIGHT, BISHOP, QUEEN, KING, PAWN } from './chess/chess-engine';
 import { findBestChessMove } from './chess/chess-ai';
 import { RotateCcw, Bot, Users } from 'lucide-react';
@@ -28,10 +28,40 @@ export const GameChess: React.FC = () => {
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<ChessMove[]>([]);
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
-  const [mode, setMode] = useState<'ai' | 'pvp'>('ai');
-  const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(2);
+  const [mode, setMode] = useState<'ai' | 'pvp'>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_chess');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.mode) return parsed.mode;
+      }
+    } catch {}
+    return 'ai';
+  });
+  const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_chess');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.aiLevel) return Number(parsed.aiLevel) as 1 | 2 | 3;
+      }
+    } catch {}
+    return 2;
+  });
   const [isThinking, setIsThinking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Trắng');
+
+  // Đồng bộ cài đặt thời gian thực với GameSettingsModal
+  useEffect(() => {
+    const handleSetting = (e: any) => {
+      if (e.detail?.gameId === 'chess') {
+        if (e.detail.key === 'mode') setMode(e.detail.value);
+        if (e.detail.key === 'aiLevel') setAiLevel(Number(e.detail.value) as 1 | 2 | 3);
+      }
+    };
+    window.addEventListener('ace-game-setting-changed', handleSetting);
+    return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
+  }, []);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 

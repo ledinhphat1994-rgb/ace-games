@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Gamepad2, Search, Volume2, VolumeX, Music, Dices, Settings } from 'lucide-react';
+import { Gamepad2, Search, Volume2, VolumeX, Music, Dices, SlidersHorizontal } from 'lucide-react';
 import type { GameCategory } from '../types/game';
 import { soundManager } from '../utils/sound';
 
@@ -110,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* VÙNG 2: Settings Icon Button (Gộp toàn bộ cài đặt âm thanh, nhạc nền vào 1 icon) */}
+          {/* VÙNG 2: Audio/System Settings Button (Biểu tượng thanh gạt Equalizer, KHÔNG trùng với icon bánh răng cài đặt game) */}
           <div className="relative flex-shrink-0" ref={settingsRef}>
             <button
               onClick={() => {
@@ -122,9 +122,9 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-slate-900 border-cyan-500/50 text-cyan-300 shadow-cyan-500/20'
                   : 'bg-slate-900 border-slate-800 text-gray-400 hover:text-white'
               }`}
-              title="Cài đặt âm thanh & nhạc nền"
+              title="Bộ điều khiển âm thanh hệ thống (Audio Hub)"
             >
-              <Settings className={`w-5 h-5 transition-transform duration-300 ${settingsOpen ? 'rotate-90 text-cyan-400' : ''}`} />
+              <SlidersHorizontal className={`w-5 h-5 transition-transform duration-300 ${settingsOpen ? 'scale-110 text-cyan-400' : ''}`} />
             </button>
 
             {/* Cyberpunk Settings Popover Menu */}

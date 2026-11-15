@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle } from 'lucide-react';
+import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle, Settings } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
@@ -15,6 +15,7 @@ import { GameSpaceShooter } from '../games/GameSpaceShooter';
 import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
+import { GameSettingsModal } from './GameSettingsModal';
 
 interface GameModalProps {
   game: GameInfo | null;
@@ -28,6 +29,8 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isGameSettingsOpen, setIsGameSettingsOpen] = useState(false);
+  const [sessionKey, setSessionKey] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Sync sound state across components
@@ -126,19 +129,24 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     setIsLeaderboardOpen(true);
   };
 
+  const handleOpenSettings = () => {
+    soundManager.playButtonClick();
+    setIsGameSettingsOpen(true);
+  };
+
   const renderGameContent = () => {
     switch (game.id) {
-      case '2048': return <Game2048 key={game.id} />;
-      case 'snake': return <GameSnake key={game.id} />;
-      case 'flappy': return <GameFlappy key={game.id} />;
-      case 'caro': return <GameCaro key={game.id} />;
-      case 'minesweeper': return <GameMinesweeper key={game.id} />;
-      case 'memory': return <GameMemory key={game.id} />;
-      case 'tetris': return <GameTetris key={game.id} />;
-      case 'chess': return <GameChess key={game.id} />;
-      case 'xiangqi': return <GameXiangqi key={game.id} />;
-      case 'breakout': return <GameBreakout key={game.id} />;
-      case 'space-shooter': return <GameSpaceShooter key={game.id} />;
+      case '2048': return <Game2048 key={`${game.id}-${sessionKey}`} />;
+      case 'snake': return <GameSnake key={`${game.id}-${sessionKey}`} />;
+      case 'flappy': return <GameFlappy key={`${game.id}-${sessionKey}`} />;
+      case 'caro': return <GameCaro key={`${game.id}-${sessionKey}`} />;
+      case 'minesweeper': return <GameMinesweeper key={`${game.id}-${sessionKey}`} />;
+      case 'memory': return <GameMemory key={`${game.id}-${sessionKey}`} />;
+      case 'tetris': return <GameTetris key={`${game.id}-${sessionKey}`} />;
+      case 'chess': return <GameChess key={`${game.id}-${sessionKey}`} />;
+      case 'xiangqi': return <GameXiangqi key={`${game.id}-${sessionKey}`} />;
+      case 'breakout': return <GameBreakout key={`${game.id}-${sessionKey}`} />;
+      case 'space-shooter': return <GameSpaceShooter key={`${game.id}-${sessionKey}`} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">
@@ -179,8 +187,21 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
             </div>
           </div>
 
-          {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 5 ÂM THANH ĐƯỢC ĐƯA LÊN ĐÂY + HƯỚNG DẪN + BẢNG XẾP HẠNG + FULLSCREEN + ĐÓNG) */}
+          {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 1 THIẾT LẬP GAME + HƯỚNG DẪN + BẢNG XẾP HẠNG + ÂM THANH + FULLSCREEN + ĐÓNG) */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* VÙNG 1: Nút Thiết Lập Game Riêng (Icon Bánh Răng Độc Quyền Cho Game, Tuyệt Đối Không Trùng Icon) */}
+            <button
+              onClick={handleOpenSettings}
+              className={`p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border transition cursor-pointer shadow-md active:scale-95 ${
+                isGameSettingsOpen
+                  ? 'text-cyan-300 border-cyan-500/80 shadow-cyan-500/20 bg-slate-800'
+                  : 'text-cyan-400 hover:text-cyan-300 border-slate-700/80 hover:border-cyan-500/50'
+              }`}
+              title={`Thiết Lập Game: ${game.title}`}
+            >
+              <Settings className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${isGameSettingsOpen ? 'rotate-90 text-cyan-300' : ''}`} />
+            </button>
+
             {/* Nút Hướng Dẫn Chơi */}
             <button
               onClick={handleOpenGuide}
@@ -260,6 +281,14 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
         isOpen={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
         game={game}
+      />
+
+      {/* VÙNG 1: Thiết Lập Game Riêng Modal Popup */}
+      <GameSettingsModal
+        isOpen={isGameSettingsOpen}
+        onClose={() => setIsGameSettingsOpen(false)}
+        game={game}
+        onRestartGame={() => setSessionKey(k => k + 1)}
       />
     </div>
   );

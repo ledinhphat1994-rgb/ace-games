@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { XiangqiPosition, type XiangqiMove, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
 import { RotateCcw, Bot, Users } from 'lucide-react';
@@ -30,10 +30,40 @@ export const GameXiangqi: React.FC = () => {
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<XiangqiMove[]>([]);
   const [lastMove, setLastMove] = useState<XiangqiMove | null>(null);
-  const [mode, setMode] = useState<'ai' | 'pvp'>('ai');
-  const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(2);
+  const [mode, setMode] = useState<'ai' | 'pvp'>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_xiangqi');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.mode) return parsed.mode;
+      }
+    } catch {}
+    return 'ai';
+  });
+  const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_xiangqi');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.aiLevel) return Number(parsed.aiLevel) as 1 | 2 | 3;
+      }
+    } catch {}
+    return 2;
+  });
   const [isThinking, setIsThinking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Lượt đi: Đỏ (Đi trước)');
+
+  // Đồng bộ cài đặt thời gian thực với GameSettingsModal
+  useEffect(() => {
+    const handleSetting = (e: any) => {
+      if (e.detail?.gameId === 'xiangqi') {
+        if (e.detail.key === 'mode') setMode(e.detail.value);
+        if (e.detail.key === 'aiLevel') setAiLevel(Number(e.detail.value) as 1 | 2 | 3);
+      }
+    };
+    window.addEventListener('ace-game-setting-changed', handleSetting);
+    return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
+  }, []);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 

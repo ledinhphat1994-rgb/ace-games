@@ -8,14 +8,60 @@ type Difficulty = 'EASY' | 'MEDIUM' | 'UNBEATABLE';
 
 export const GameCaro: React.FC = () => {
   // Board size: 10 (10x10, 5 in a row - Cờ Caro Việt Nam) or 3 (3x3 - Tic Tac Toe nhanh)
-  const [boardSize, setBoardSize] = useState<10 | 3>(10);
+  const [boardSize, setBoardSize] = useState<10 | 3>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_caro');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.boardSize) return Number(parsed.boardSize) as 10 | 3;
+      }
+    } catch {}
+    return 10;
+  });
   const winStreak = useMemo(() => (boardSize === 10 ? 5 : 3), [boardSize]);
 
-  const [board, setBoard] = useState<Player[]>(() => Array(100).fill(null));
+  const [board, setBoard] = useState<Player[]>(() => Array(boardSize === 10 ? 100 : 9).fill(null));
   const [isXNext, setIsXNext] = useState<boolean>(true);
-  const [isAiMode, setIsAiMode] = useState<boolean>(true);
-  const [difficulty, setDifficulty] = useState<Difficulty>('UNBEATABLE');
+  const [isAiMode, setIsAiMode] = useState<boolean>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_caro');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.mode) return parsed.mode === 'ai';
+      }
+    } catch {}
+    return true;
+  });
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => {
+    try {
+      const s = localStorage.getItem('ace_game_settings_caro');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.difficulty) return parsed.difficulty as Difficulty;
+      }
+    } catch {}
+    return 'UNBEATABLE';
+  });
   const [winnerInfo, setWinnerInfo] = useState<{ winner: Player | 'DRAW'; line?: number[] } | null>(null);
+
+  // Đồng bộ cài đặt thời gian thực với GameSettingsModal
+  useEffect(() => {
+    const handleSetting = (e: any) => {
+      if (e.detail?.gameId === 'caro') {
+        if (e.detail.key === 'mode') setIsAiMode(e.detail.value === 'ai');
+        if (e.detail.key === 'difficulty') setDifficulty(e.detail.value as Difficulty);
+        if (e.detail.key === 'boardSize') {
+          const newSize = Number(e.detail.value) as 10 | 3;
+          setBoardSize(newSize);
+          setBoard(Array(newSize === 10 ? 100 : 9).fill(null));
+          setIsXNext(true);
+          setWinnerInfo(null);
+        }
+      }
+    };
+    window.addEventListener('ace-game-setting-changed', handleSetting);
+    return () => window.removeEventListener('ace-game-setting-changed', handleSetting);
+  }, []);
 
   const [stats, setStats] = useState<{ win: number; loss: number; draw: number }>(() => {
     const saved = localStorage.getItem('acegames_caro_stats');
