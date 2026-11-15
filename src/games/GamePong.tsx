@@ -114,8 +114,8 @@ export const GamePong: React.FC = () => {
   const stateRef = useRef({
     cw: 960,
     ch: 540,
-    p1: { x: 30, y: 225, w: 14, h: 90, speed: 9, targetY: 225 },
-    p2: { x: 916, y: 225, w: 14, h: 90, speed: 6.8, targetY: 225 },
+    p1: { x: 30, y: 222, w: 16, h: 96, speed: 9, targetY: 222 },
+    p2: { x: 914, y: 222, w: 16, h: 96, speed: 6.8, targetY: 222 },
     ball: { 
       x: 480, 
       y: 270, 
@@ -148,6 +148,7 @@ export const GamePong: React.FC = () => {
 
   const lastSyncTimeRef = useRef<number>(0);
   const lastPaddleSendTimeRef = useRef<number>(0);
+  const lastGuestHitTimeRef = useRef<number>(0);
   const serveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Đồng bộ props & state vào stateRef
@@ -338,6 +339,43 @@ export const GamePong: React.FC = () => {
           s.p1.y = data.payload.y;
           s.p1.targetY = data.payload.y;
         }
+      } else if (data.type === 'pong_p2_hit') {
+        // Khách (P2) thông báo đã đón đỡ bóng thành công
+        if (playerRole === 'host') {
+          const s = stateRef.current;
+          s.p2.y = data.payload.y;
+          s.p2.targetY = data.payload.y;
+
+          // Nếu bóng đang bay về phía P2 hoặc chưa lọt hẳn vào lưới
+          if (s.ball.vx > 0 || s.ball.x >= s.p2.x - 30) {
+            const hitOffset = data.payload.hitOffset ?? ((data.payload.ballY - (s.p2.y + s.p2.h / 2)) / (s.p2.h / 2));
+            const clampedOffset = Math.max(-1, Math.min(1, hitOffset));
+            const angle = clampedOffset * (Math.PI / 3);
+            s.ball.speed = Math.min(15.0, (data.payload.speed || s.ball.speed) + 0.35);
+            s.ball.vx = -s.ball.speed * Math.cos(angle);
+            s.ball.vy = s.ball.speed * Math.sin(angle);
+            s.ball.x = s.p2.x - s.ball.radius - 2;
+
+            s.rally++;
+            setRallyCount(s.rally);
+            playTone(520 + Math.min(s.rally * 30, 400), 'triangle', 0.08);
+            spawnSparks(s.ball.x, s.ball.y, '#f43f5e', 14);
+
+            // Gửi xác nhận trạng thái bóng mới ngay lập tức
+            multiplayer.sendAction('pong_state', {
+              bx: Math.round(s.ball.x * 10) / 10,
+              by: Math.round(s.ball.y * 10) / 10,
+              bvx: Math.round(s.ball.vx * 100) / 100,
+              bvy: Math.round(s.ball.vy * 100) / 100,
+              speed: s.ball.speed,
+              p1y: Math.round(s.p1.y),
+              s1: s.p1Score,
+              s2: s.p2Score,
+              rally: s.rally,
+              sound: 'hit'
+            });
+          }
+        }
       } else if (data.type === 'pong_serve_wait') {
         if (playerRole === 'guest') {
           const s = stateRef.current;
@@ -377,11 +415,19 @@ export const GamePong: React.FC = () => {
       } else if (data.type === 'pong_state') {
         if (playerRole === 'guest') {
           const s = stateRef.current;
-          s.ball.x = data.payload.bx;
-          s.ball.y = data.payload.by;
-          s.ball.vx = data.payload.bvx;
-          s.ball.vy = data.payload.bvy;
-          s.ball.speed = data.payload.speed || s.ball.speed;
+          const now = performance.now();
+          const justHit = (now - lastGuestHitTimeRef.current < 260);
+
+          // Nếu khách vừa đỡ bóng thành công trong vòng 260ms nhưng gói tin từ host mang hướng cũ (bvx > 0)
+          // thì bỏ qua tọa độ bóng từ gói cũ để tránh bóng bị giật ngược
+          if (!justHit || data.payload.bvx < 0) {
+            s.ball.x = data.payload.bx;
+            s.ball.y = data.payload.by;
+            s.ball.vx = data.payload.bvx;
+            s.ball.vy = data.payload.bvy;
+            s.ball.speed = data.payload.speed || s.ball.speed;
+          }
+
           s.p1.y = data.payload.p1y;
           s.p1Score = data.payload.s1;
           s.p2Score = data.payload.s2;
@@ -584,14 +630,14 @@ export const GamePong: React.FC = () => {
               spawnSparks(ball.x, ball.y, '#38bdf8', 6);
             }
 
-            // Va chạm thanh đỡ 1 (Bên Trái - Xanh Cyan)
+            // Va chạm thanh đỡ 1 (Bên Trái - Xanh Cyan - Quét liên tục tránh lọt bóng)
             let hit = false;
             if (
               ball.vx < 0 &&
-              ball.x - ball.radius <= p1.x + p1.w &&
-              ball.x + ball.radius >= p1.x &&
-              ball.y >= p1.y - 6 &&
-              ball.y <= p1.y + p1.h + 6
+              ball.x - ball.radius <= p1.x + p1.w + 6 &&
+              ball.x + ball.radius >= p1.x - 8 &&
+              ball.y >= p1.y - ball.radius - 8 &&
+              ball.y <= p1.y + p1.h + ball.radius + 8
             ) {
               ball.x = p1.x + p1.w + ball.radius;
               const hitOffset = (ball.y - (p1.y + p1.h / 2)) / (p1.h / 2);
@@ -607,13 +653,13 @@ export const GamePong: React.FC = () => {
               hit = true;
             }
 
-            // Va chạm thanh đỡ 2 (Bên Phải - Đỏ Rose)
+            // Va chạm thanh đỡ 2 (Bên Phải - Đỏ Rose - Quét liên tục tránh lọt bóng)
             if (
               ball.vx > 0 &&
-              ball.x + ball.radius >= p2.x &&
-              ball.x - ball.radius <= p2.x + p2.w &&
-              ball.y >= p2.y - 6 &&
-              ball.y <= p2.y + p2.h + 6
+              ball.x + ball.radius >= p2.x - 6 &&
+              ball.x - ball.radius <= p2.x + p2.w + 8 &&
+              ball.y >= p2.y - ball.radius - 8 &&
+              ball.y <= p2.y + p2.h + ball.radius + 8
             ) {
               ball.x = p2.x - ball.radius;
               const hitOffset = (ball.y - (p2.y + p2.h / 2)) / (p2.h / 2);
@@ -629,14 +675,14 @@ export const GamePong: React.FC = () => {
               hit = true;
             }
 
-            // Ghi bàn (Bóng lọt qua khung thành)
-            if (ball.x + ball.radius < 0) {
+            // Ghi bàn (Bóng lọt qua khung thành với vùng đệm triệt tiêu độ trễ mạng)
+            if (ball.x + ball.radius < -25) {
               // P2 ghi bàn!
               s.p2Score++;
               setP2Score(s.p2Score);
               s.shake = 12;
               playTone(180, 'sawtooth', 0.25);
-              spawnSparks(ball.x, ball.y, '#f43f5e', 30);
+              spawnSparks(10, s.ch / 2, '#f43f5e', 30);
 
               if (s.isOnlineMode) {
                 multiplayer.sendAction('pong_goal', { s1: s.p1Score, s2: s.p2Score, scorer: 'p2' });
@@ -654,13 +700,13 @@ export const GamePong: React.FC = () => {
               } else {
                 launchServe(true);
               }
-            } else if (ball.x - ball.radius > cw) {
+            } else if (ball.x - ball.radius > cw + 25) {
               // P1 ghi bàn!
               s.p1Score++;
               setP1Score(s.p1Score);
               s.shake = 12;
               playTone(680, 'sawtooth', 0.25);
-              spawnSparks(ball.x, ball.y, '#22d3ee', 30);
+              spawnSparks(s.cw - 10, s.ch / 2, '#22d3ee', 30);
 
               if (s.isOnlineMode) {
                 multiplayer.sendAction('pong_goal', { s1: s.p1Score, s2: s.p2Score, scorer: 'p1' });
@@ -702,13 +748,52 @@ export const GamePong: React.FC = () => {
             }
           }
         } else {
-          // Phía khách: Dự đoán di chuyển mượt mà giữa các gói tin mạng
+          // Phía khách: Dự đoán di chuyển mượt mà & phản hồi va chạm cục bộ tức thì!
           ball.x += ball.vx;
           ball.y += ball.vy;
-          if (ball.y - ball.radius <= 0) ball.vy = Math.abs(ball.vy);
-          else if (ball.y + ball.radius >= ch) ball.vy = -Math.abs(ball.vy);
-          // Giới hạn không để bóng bay mất tích
-          ball.x = Math.max(-10, Math.min(cw + 10, ball.x));
+          if (ball.y - ball.radius <= 0) {
+            ball.y = ball.radius;
+            ball.vy = Math.abs(ball.vy);
+            playTone(420, 'sine', 0.05);
+          } else if (ball.y + ball.radius >= ch) {
+            ball.y = ch - ball.radius;
+            ball.vy = -Math.abs(ball.vy);
+            playTone(420, 'sine', 0.05);
+          }
+
+          // Kiểm tra va chạm P2 ngay trên máy khách (Client-side Hit Prediction chống lọt bóng)
+          if (
+            ball.vx > 0 &&
+            ball.x + ball.radius >= p2.x - 6 &&
+            ball.x - ball.radius <= p2.x + p2.w + 8 &&
+            ball.y >= p2.y - ball.radius - 8 &&
+            ball.y <= p2.y + p2.h + ball.radius + 8
+          ) {
+            lastGuestHitTimeRef.current = performance.now();
+            ball.x = p2.x - ball.radius;
+            const hitOffset = (ball.y - (p2.y + p2.h / 2)) / (p2.h / 2);
+            const clampedOffset = Math.max(-1, Math.min(1, hitOffset));
+            const angle = clampedOffset * (Math.PI / 3);
+            ball.speed = Math.min(15.0, ball.speed + 0.35);
+            ball.vx = -ball.speed * Math.cos(angle);
+            ball.vy = ball.speed * Math.sin(angle);
+
+            s.rally++;
+            setRallyCount(s.rally);
+            playTone(520 + Math.min(s.rally * 30, 400), 'triangle', 0.08);
+            spawnSparks(ball.x, ball.y, '#f43f5e', 14);
+
+            // Báo ngay sang Host để đồng bộ
+            multiplayer.sendAction('pong_p2_hit', {
+              y: Math.round(p2.y),
+              ballY: Math.round(ball.y),
+              hitOffset: Math.round(clampedOffset * 100) / 100,
+              speed: Math.round(ball.speed * 10) / 10
+            });
+          }
+
+          // Giới hạn an toàn trên máy khách
+          ball.x = Math.max(-30, Math.min(cw + 30, ball.x));
         }
 
         // Thêm điểm vệt sáng đuôi bóng
@@ -925,47 +1010,45 @@ export const GamePong: React.FC = () => {
         </div>
 
         {/* VÙNG 1: TỶ SỐ TRỰC TIẾP / TRẠNG THÁI CHỜ - CĂN CHÍNH GIỮA TUYỆT ĐỐI 100% THEO TÂM SÂN ĐẤU */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-3 sm:gap-6 z-0 pointer-events-none">
-          {isWaitingForFriend ? (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)] whitespace-nowrap">
-              <Timer className="w-4 h-4 text-amber-400 animate-spin" />
-              <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
+        {isWaitingForFriend ? (
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.25)] whitespace-nowrap z-0 pointer-events-none">
+            <Timer className="w-4 h-4 text-amber-400 animate-spin" />
+            <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
+          </div>
+        ) : (
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[340px] sm:w-[420px] h-full flex items-center justify-center z-0 pointer-events-none select-none">
+            {/* Dấu hai chấm neo tuyệt đối tại chính giữa 50% trục sân đấu */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+              <span className="text-gray-400 font-black text-base sm:text-lg select-none">:</span>
             </div>
-          ) : (
-            <>
-              {/* Bên Trái: Xanh Cyan (Host / P1) */}
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#06b6d4]" />
-                <span className="text-xs sm:text-sm font-black text-cyan-400 tracking-wide">
-                  {isOnlineMode ? (playerRole === 'host' ? 'BẠN' : opponentName.toUpperCase()) : 'BẠN'}
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-white font-mono">{p1Score}</span>
-              </div>
 
-              {/* Dấu hai chấm phân cách - Căn đúng trục giữa sân */}
-              <span className="text-gray-500 font-black text-base sm:text-lg select-none">:</span>
+            {/* Bên Trái: Xanh Cyan (Host / P1) - Neo từ 50% mở rộng sang trái */}
+            <div className="absolute right-[calc(50%+12px)] top-1/2 -translate-y-1/2 flex items-center justify-end gap-2 whitespace-nowrap">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4] shrink-0" />
+              <span className="text-xs sm:text-sm font-black text-cyan-400 tracking-wide max-w-[85px] sm:max-w-[130px] truncate text-right">
+                {isOnlineMode ? (playerRole === 'host' ? 'BẠN' : opponentName.toUpperCase()) : 'BẠN'}
+              </span>
+              <span className="text-xl sm:text-2xl font-black text-white font-mono w-7 text-right">{p1Score}</span>
+            </div>
 
-              {/* Bên Phải: Đỏ Rose (Guest / P2 / Máy) */}
-              <div className="flex items-center gap-2">
-                <span className="text-xl sm:text-2xl font-black text-white font-mono">{p2Score}</span>
-                <span className="text-xs sm:text-sm font-black text-rose-400 tracking-wide">
-                  {isOnlineMode ? (playerRole === 'guest' ? 'BẠN' : opponentName.toUpperCase()) : 'MÁY'}
-                </span>
-                <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
-              </div>
-
-              {rallyCount > 2 && (
-                <div className="hidden lg:flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-[11px] font-bold text-cyan-300 animate-pulse">
-                  <span>Đường bóng:</span>
-                  <span className="font-mono">{rallyCount}</span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {/* Bên Phải: Đỏ Rose (Guest / P2 / Máy) - Neo từ 50% mở rộng sang phải */}
+            <div className="absolute left-[calc(50%+12px)] top-1/2 -translate-y-1/2 flex items-center justify-start gap-2 whitespace-nowrap">
+              <span className="text-xl sm:text-2xl font-black text-white font-mono w-7 text-left">{p2Score}</span>
+              <span className="text-xs sm:text-sm font-black text-rose-400 tracking-wide max-w-[85px] sm:max-w-[130px] truncate text-left">
+                {isOnlineMode ? (playerRole === 'guest' ? 'BẠN' : opponentName.toUpperCase()) : 'MÁY'}
+              </span>
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] shrink-0" />
+            </div>
+          </div>
+        )}
 
         {/* Khối Phải: Điểm thắng, Tạm dừng, Ván mới */}
         <div className="flex items-center gap-2 z-10">
+          {rallyCount > 2 && (
+            <span className="hidden xl:inline-flex items-center px-2.5 py-1 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 font-mono text-xs font-bold shadow-sm">
+              Đường bóng: {rallyCount}
+            </span>
+          )}
           {!isOnlineMode && (
             <div className="hidden sm:flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
               {[5, 7, 11].map((pts) => (
