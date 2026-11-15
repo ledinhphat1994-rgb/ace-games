@@ -248,14 +248,11 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ - DROPDOWN OVERLAY TINH TẾ, KHÔNG CUỘN DỌC, KHÔNG CẮT CHỮ */}
+                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ */}
                 <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2 relative" ref={musicDropdownRef}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Sảnh:</span>
-                    <span className="text-[10px] text-cyan-400 font-mono font-semibold">
-                      {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
-                    </span>
-                  </div>
+                  <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                    Chọn Nhạc Sảnh:
+                  </span>
 
                   {/* Dropdown Trigger Button */}
                   <button

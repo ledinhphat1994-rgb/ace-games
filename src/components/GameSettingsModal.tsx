@@ -58,19 +58,15 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     if (triggerRef.current && modalRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const modalRect = modalRef.current.getBoundingClientRect();
-      const footerSpace = 75;
-      const headerSpace = 65;
-      const spaceBelow = modalRect.bottom - rect.bottom - footerSpace;
-      const spaceAbove = rect.top - modalRect.top - headerSpace;
-      const openUp = spaceBelow < 210 && spaceAbove > spaceBelow;
-      const maxAllowedHeight = openUp ? Math.max(160, spaceAbove) : Math.max(180, spaceBelow);
+      // Luôn mở xuống dưới đè lên các card bên dưới, tận dụng tối đa chiều cao cao ráo của modal
+      const spaceBelow = modalRect.bottom - rect.bottom - 20;
 
       setDropdownPos({
-        top: openUp ? (rect.top - modalRect.top - 6) : (rect.bottom - modalRect.top + 6),
+        top: rect.bottom - modalRect.top + 8,
         left: rect.left - modalRect.left,
         width: rect.width,
-        maxHeight: maxAllowedHeight,
-        openUp,
+        maxHeight: Math.max(280, spaceBelow),
+        openUp: false,
       });
     }
   };
@@ -236,10 +232,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Kích thước bảng cài đặt rộng rãi, thoáng đãng, to rõ chuẩn màn hình lớn */}
+      {/* Kích thước bảng cài đặt rộng rãi, chiều cao cao ráo để không cần dùng thanh trượt */}
       <div
         ref={modalRef}
-        className="relative w-[94vw] max-w-[560px] sm:max-w-[580px] h-[640px] max-h-[88vh] bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_80px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none"
+        className="relative w-[94vw] max-w-[560px] sm:max-w-[580px] h-[740px] max-h-[94vh] bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_80px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar - To rõ, bề thế */}
@@ -379,14 +375,9 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
             {/* Danh sách bản nhạc BGM cho game */}
             <div className="space-y-2 pt-2 border-t border-white/5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-bold text-gray-300 uppercase tracking-wider font-['Orbitron']">
-                  Chọn Nhạc Nền:
-                </span>
-                <span className="text-xs sm:text-sm text-cyan-400 font-mono font-bold">
-                  {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
-                </span>
-              </div>
+              <span className="text-xs sm:text-sm font-bold text-gray-300 uppercase tracking-wider font-['Orbitron'] block">
+                Chọn Nhạc Nền:
+              </span>
 
               {/* Dropdown Trigger Button - To, rõ, tinh tế */}
               <button
@@ -1040,10 +1031,9 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               top: dropdownPos.top,
               left: dropdownPos.left,
               width: dropdownPos.width,
-              maxHeight: dropdownPos.maxHeight || 250,
-              transform: dropdownPos.openUp ? 'translateY(-100%)' : 'none',
+              maxHeight: dropdownPos.maxHeight || 340,
             }}
-            className="bg-slate-950/98 backdrop-blur-2xl border-2 border-cyan-400/80 rounded-2xl p-2 shadow-[0_20px_60px_rgba(0,0,0,0.98)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1.5 overflow-y-auto custom-scrollbar"
+            className="bg-slate-950/98 backdrop-blur-2xl border-2 border-cyan-400/90 rounded-2xl p-2 shadow-[0_25px_70px_rgba(0,0,0,0.98)] z-[70] animate-in fade-in zoom-in-95 duration-150 space-y-1.5 overflow-y-auto custom-scrollbar"
           >
             {BGM_TRACKS.map((t) => {
               const isActive = currentTrack === t.id;
