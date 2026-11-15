@@ -154,14 +154,15 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      {/* Khung Sảnh Màu Sắc Đồng Bộ Sang Trọng (Theme Cyber-Cyan & Deep Navy) */}
       <div
-        className="relative w-[92vw] max-w-[460px] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
+        className="relative w-[92vw] max-w-[460px] bg-[#090e1a] border border-cyan-500/30 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.2)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
-        <div className="h-14 px-5 border-b border-white/10 bg-slate-950/70 flex items-center justify-between flex-shrink-0">
+        <div className="h-14 px-5 border-b border-white/5 bg-[#0d1527]/90 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
               <Globe className="w-4 h-4 text-cyan-400" />
             </div>
             <div>
@@ -176,19 +177,19 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
 
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
             title="Đóng"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 2 Nút Hành Động Chính (Cân đối, To rõ) */}
-        <div className="grid grid-cols-2 gap-2.5 px-5 pt-4">
+        {/* 2 Nút Hành Động Chính (Phối màu Cyan - Electric Blue đồng bộ, không rối mắt) */}
+        <div className="grid grid-cols-2 gap-3 px-5 pt-4">
           <button
             onClick={handleCreateRoom}
             disabled={isSearching}
-            className="h-12 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+            className="h-12 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Tạo Bàn Mới</span>
@@ -197,12 +198,12 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
           <button
             onClick={handleQuickMatch}
             disabled={isSearching}
-            className="h-12 rounded-2xl bg-slate-850 hover:bg-slate-800 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/10 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+            className="h-12 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 hover:text-white font-black text-xs uppercase tracking-wider shadow-md shadow-cyan-500/10 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
           >
             {isSearching ? (
-              <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+              <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
             ) : (
-              <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+              <Zap className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
             )}
             <span>Ghép Nhanh</span>
           </button>
@@ -211,10 +212,10 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
         {/* Khu Vực Trọng Tâm: DANH SÁCH BÀN ĐANG ĐỢI */}
         <div className="px-5 py-3.5 flex-1 flex flex-col min-h-[160px]">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               BÀN ĐANG ĐỢI NGƯỜI CHƠI ({otherRooms.length})
             </span>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Trực tuyến" />
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]" title="Trực tuyến" />
           </div>
 
           {otherRooms.length > 0 ? (
@@ -222,24 +223,25 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
               {otherRooms.map((r) => (
                 <div
                   key={r.roomId}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-500/40 transition group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-cyan-500/40 transition group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 font-mono font-bold text-xs">
+                  <div className="flex items-center gap-3">
+                    {/* Badge số phòng: Rộng rãi, min-w 62px, tuyệt đối không bị tràn viền */}
+                    <div className="px-3 py-1 min-w-[62px] h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-300 font-mono font-bold text-xs tracking-wider shadow-inner flex-shrink-0">
                       #{r.roomId}
                     </div>
                     <div className="text-left">
-                      <p className="text-xs font-black text-white group-hover:text-cyan-300 transition">
+                      <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition">
                         {r.hostName}
                       </p>
-                      <p className="text-[10px] text-gray-400">Đang đợi đối thủ...</p>
+                      <p className="text-[10px] text-slate-400">Đang đợi đối thủ...</p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleJoinWithCode(r.roomId)}
                     disabled={isSearching}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                    className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs shadow-md shadow-cyan-500/25 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
                   >
                     <span>Vào Chơi</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -248,15 +250,15 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
               ))}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-gray-400 border border-dashed border-white/10 rounded-2xl bg-slate-950/30">
-              <Users className="w-7 h-7 text-gray-500 mb-1.5 opacity-60" />
-              <p className="text-xs font-medium text-gray-300">Chưa có ai mở bàn</p>
+            <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-slate-400 border border-dashed border-slate-800/80 rounded-2xl bg-slate-900/30">
+              <Users className="w-7 h-7 text-slate-500 mb-1.5 opacity-60" />
+              <p className="text-xs font-medium text-slate-300">Chưa có ai mở bàn</p>
             </div>
           )}
         </div>
 
-        {/* Chân Trang: Vùng 3 (Tên Bạn) & Vùng 2 (Mã Phòng) Cùng 1 Hàng */}
-        <div className="px-5 py-3 border-t border-white/10 bg-slate-950/70 flex items-center justify-between gap-3 flex-shrink-0">
+        {/* Chân Trang: Vùng 3 (Tên Bạn) & Vùng 2 (Mã Phòng) - Tông màu trầm, hài hòa */}
+        <div className="px-5 py-3 border-t border-white/5 bg-[#0d1527]/90 flex items-center justify-between gap-3 flex-shrink-0">
           {/* Vùng 3: Tên người chơi */}
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
@@ -266,12 +268,12 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
               onChange={(e) => handleNameChange(e.target.value)}
               maxLength={14}
               placeholder="Tên bạn..."
-              className="w-28 px-2 py-1 bg-slate-900 text-cyan-300 text-xs font-bold border border-cyan-500/30 rounded-lg outline-none text-center focus:border-cyan-400"
+              className="w-28 px-2.5 py-1.5 bg-slate-950 text-cyan-300 text-xs font-bold border border-slate-800 focus:border-cyan-500/60 rounded-xl outline-none text-center"
             />
             <button
               onClick={handleRandomizeName}
               title="Đổi tên ngẫu nhiên"
-              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-cyan-300 transition cursor-pointer flex-shrink-0"
+              className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex-shrink-0"
             >
               <Dices className="w-3.5 h-3.5" />
             </button>
@@ -285,12 +287,12 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
               value={customRoomCode}
               onChange={(e) => setCustomRoomCode(e.target.value)}
               maxLength={10}
-              className="w-24 px-2 py-1 bg-slate-900 text-cyan-300 text-xs font-mono font-bold outline-none placeholder:text-gray-500 rounded-lg border border-white/10 text-center focus:border-cyan-400"
+              className="w-24 px-2.5 py-1.5 bg-slate-950 text-cyan-300 text-xs font-mono font-bold outline-none placeholder:text-slate-600 rounded-xl border border-slate-800 focus:border-cyan-500/60 text-center"
             />
             <button
               onClick={() => handleJoinWithCode(customRoomCode)}
               disabled={!customRoomCode.trim() || isSearching}
-              className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition disabled:opacity-40 cursor-pointer flex-shrink-0"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 text-xs font-bold border border-slate-700 hover:border-cyan-400 transition disabled:opacity-40 cursor-pointer flex-shrink-0"
             >
               Vào
             </button>
