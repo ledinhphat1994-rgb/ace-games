@@ -653,7 +653,7 @@ export const GameXiangqi: React.FC = () => {
                 const piece = pos.board[sq];
                 const isSelected = selectedSq === sq;
                 const isLast = lastMove?.from === sq || lastMove?.to === sq;
-                const isKingInCheck = piece && typeOf(piece) === GENERAL && sideOf(piece) === pos.turn && pos.inCheck();
+                const isKingInCheck = Boolean(piece && typeOf(piece) === GENERAL && sideOf(piece) === pos.turn && pos.inCheck());
 
                 return (
                   <div
@@ -662,9 +662,9 @@ export const GameXiangqi: React.FC = () => {
                     className="relative flex items-center justify-center cursor-pointer select-none"
                   >
                     {/* Vòng cảnh báo nguy hiểm đỏ rực khi Tướng bị chiếu */}
-                    {isKingInCheck && (
+                    {isKingInCheck ? (
                       <div className="absolute inset-0.5 rounded-full ring-4 ring-rose-500 bg-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.95)] z-20 animate-pulse pointer-events-none" />
-                    )}
+                    ) : null}
 
                     {/* Quân Cờ Gỗ 3D Đích Thực - Tinh Xảo, Khắc Chìm & Dịu Mắt */}
                     {piece ? (

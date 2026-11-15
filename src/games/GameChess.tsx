@@ -572,7 +572,7 @@ export const GameChess: React.FC = () => {
               const isTarget = validMoves.some(m => m.to === sq);
               const isLastFrom = lastMove?.from === sq;
               const isLastTo = lastMove?.to === sq;
-              const isKingInCheck = piece && typeOf(piece) === KING && colorOf(piece) === pos.turn && pos.inCheck();
+              const isKingInCheck = Boolean(piece && typeOf(piece) === KING && colorOf(piece) === pos.turn && pos.inCheck());
 
               let bgColor = isLight ? '#f0d9b5' : '#b58863';
               if (isKingInCheck) bgColor = '#f43f5e';
@@ -592,13 +592,13 @@ export const GameChess: React.FC = () => {
                   )}
 
                   {/* Massive Chess piece icon */}
-                  {piece && (
+                  {piece ? (
                     <span
                       className={`text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'} ${isKingInCheck ? 'drop-shadow-[0_0_15px_#fff]' : ''}`}
                     >
                       {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
