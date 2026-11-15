@@ -778,7 +778,7 @@ export const GameCaro: React.FC = () => {
                 </select>
               )}
 
-              {/* 2 Người Cùng Máy */}
+              {/* 2 Người Chung Màn Hình */}
               <button
                 onClick={() => {
                   setIsAiMode(false);
@@ -789,20 +789,20 @@ export const GameCaro: React.FC = () => {
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
                     : 'text-gray-400 hover:text-white'
                 }`}
-                title="Hai người chơi cùng trên một máy tính / màn hình"
+                title="Hai người ngồi cạnh nhau chơi chung trên màn hình này (Không cần mạng)"
               >
                 <Users className={`w-3.5 h-3.5 ${!isAiMode ? 'text-emerald-400' : 'text-gray-400'}`} />
-                <span>Cùng Máy</span>
+                <span>Chung Màn Hình</span>
               </button>
 
-              {/* PVP Online Qua Mạng */}
+              {/* Đấu Online Qua Mạng */}
               <button
                 onClick={() => setIsLobbyOpen(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 transition cursor-pointer active:scale-95"
-                title="Tạo link mời bạn bè hoặc chơi online qua mạng"
+                title="Tạo link mời bạn bè hoặc chơi qua mạng giữa 2 máy"
               >
                 <Globe className="w-3.5 h-3.5 text-amber-400" />
-                <span>PVP Online</span>
+                <span>Đấu Online</span>
               </button>
             </div>
           )}
