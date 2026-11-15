@@ -449,10 +449,10 @@ export const GameOnet: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 bg-slate-950/70 select-none overflow-hidden">
+    <div className="game-arena-wrapper flex flex-col items-center justify-center select-none w-full h-full max-w-[min(98vw,1440px)] mx-auto p-1 sm:p-2">
       
       {/* Top Bar: Điểm số, Combo, Thời gian, Nút điều khiển */}
-      <div className="w-full max-w-5xl flex items-center justify-between px-3 py-2 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-lg backdrop-blur-md mb-2 flex-shrink-0">
+      <div className="game-top-hud w-full max-w-[min(98vw,1440px)] flex items-center justify-between px-3 sm:px-5 py-2 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-lg backdrop-blur-md mb-2 flex-shrink-0">
         <div className="flex items-center gap-3 sm:gap-6">
           {/* Điểm số */}
           <div className="flex items-center gap-1.5">
@@ -551,94 +551,102 @@ export const GameOnet: React.FC = () => {
         </div>
       )}
 
-      {/* Board Game Container */}
-      <div 
-        ref={boardContainerRef}
-        className="relative flex-1 w-full max-w-5xl flex items-center justify-center p-1 sm:p-2 overflow-hidden"
-      >
-        {/* SVG Laser Path Overlay để vẽ đường nối gấp khúc khi ăn được 2 ô */}
-        {laserPath && laserPath.length >= 2 && (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
-            <defs>
-              <linearGradient id="laserGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#06b6d4" />
-                <stop offset="50%" stopColor="#38bdf8" />
-                <stop offset="100%" stopColor="#f59e0b" />
-              </linearGradient>
-              <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <polyline
-              points={laserPath.map(p => {
-                // Tính tọa độ pixel thực tế của tâm từng ô
-                const colWidth = 100 / totalCols;
-                const rowHeight = 100 / totalRows;
-                const x = (p.c + 0.5) * colWidth;
-                const y = (p.r + 0.5) * rowHeight;
-                return `${x}%,${y}%`;
-              }).join(' ')}
-              fill="none"
-              stroke="url(#laserGrad)"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#neonGlow)"
-              className="animate-in fade-in duration-100"
-            />
-          </svg>
-        )}
-
-        {/* Lưới các ô Onet (Bao gồm cả 1 viền đệm bên ngoài để đường nối có thể đi vòng ra ngoài rìa) */}
+      {/* Massive Widescreen Theater Arena Box: To rõ bự, lấp đầy toàn bộ khung */}
+      <div className="game-arena-box relative w-full h-full max-w-[min(98vw,1440px)] bg-gradient-to-br from-[#0c1427] via-[#080d1a] to-[#04060d] rounded-3xl border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] overflow-hidden flex items-center justify-center p-1.5 sm:p-3 flex-1 min-h-0">
+        
+        {/* Board Game Inner Container: Tự động co giãn theo tỷ lệ số cột / số hàng, to chiếm trọn diện tích */}
         <div 
-          className="w-full h-full max-h-[78vh] grid gap-1 sm:gap-1.5 p-1 bg-slate-900/40 border border-white/5 rounded-2xl shadow-2xl"
+          ref={boardContainerRef}
+          className="game-board-inner relative w-full h-full flex items-center justify-center p-1 sm:p-2"
           style={{
-            gridTemplateRows: `repeat(${totalRows}, minmax(0, 1fr))`,
-            gridTemplateColumns: `repeat(${totalCols}, minmax(0, 1fr))`,
+            aspectRatio: `${totalCols} / ${totalRows}`,
+            maxWidth: '100%',
+            maxHeight: '100%',
           }}
         >
-          {board.map((rowArr, r) =>
-            rowArr.map((tile, c) => {
-              const isSelected = selected?.r === r && selected?.c === c;
-              const isHinted = hintPair && (
-                (hintPair[0].r === r && hintPair[0].c === c) ||
-                (hintPair[1].r === r && hintPair[1].c === c)
-              );
-              const isEdge = r === 0 || r === totalRows - 1 || c === 0 || c === totalCols - 1;
-
-              // Ô viền đệm bên ngoài (khoảng trống để vẽ đường nối vòng qua ngoài biên)
-              if (isEdge || !tile) {
-                return (
-                  <div 
-                    key={`empty_${r}_${c}`} 
-                    className="w-full h-full rounded-lg pointer-events-none" 
-                  />
-                );
-              }
-
-              return (
-                <button
-                  key={tile.id}
-                  onClick={() => handleTileClick(r, c)}
-                  className={`relative w-full h-full rounded-xl flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shadow-md ${
-                    isSelected
-                      ? 'bg-gradient-to-b from-cyan-500/40 to-blue-600/40 border-2 border-cyan-400 ring-2 ring-cyan-400/50 scale-105 z-10 shadow-cyan-500/40'
-                      : isHinted
-                      ? 'bg-gradient-to-b from-amber-500/40 to-orange-600/40 border-2 border-amber-400 animate-pulse scale-105 z-10'
-                      : 'bg-slate-900/90 hover:bg-slate-800/90 border border-white/10 hover:border-cyan-500/50 hover:shadow-cyan-500/20'
-                  }`}
-                >
-                  <span className="text-xl sm:text-2xl md:text-3xl filter drop-shadow-md transition-transform duration-150 hover:scale-115">
-                    {tile.icon}
-                  </span>
-                </button>
-              );
-            })
+          {/* SVG Laser Path Overlay để vẽ đường nối gấp khúc khi ăn được 2 ô */}
+          {laserPath && laserPath.length >= 2 && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
+              <defs>
+                <linearGradient id="laserGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#06b6d4" />
+                  <stop offset="50%" stopColor="#38bdf8" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+                <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <polyline
+                points={laserPath.map(p => {
+                  const colWidth = 100 / totalCols;
+                  const rowHeight = 100 / totalRows;
+                  const x = (p.c + 0.5) * colWidth;
+                  const y = (p.r + 0.5) * rowHeight;
+                  return `${x}%,${y}%`;
+                }).join(' ')}
+                fill="none"
+                stroke="url(#laserGrad)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#neonGlow)"
+                className="animate-in fade-in duration-100"
+              />
+            </svg>
           )}
+
+          {/* Lưới các ô Onet: Chiếm trọn 100% diện tích, ô to bự, icon to rõ */}
+          <div 
+            className="w-full h-full grid gap-1 sm:gap-1.5 md:gap-2 p-1.5 sm:p-2 bg-slate-900/60 border border-cyan-500/20 rounded-2xl sm:rounded-3xl shadow-2xl"
+            style={{
+              gridTemplateRows: `repeat(${totalRows}, minmax(0, 1fr))`,
+              gridTemplateColumns: `repeat(${totalCols}, minmax(0, 1fr))`,
+            }}
+          >
+            {board.map((rowArr, r) =>
+              rowArr.map((tile, c) => {
+                const isSelected = selected?.r === r && selected?.c === c;
+                const isHinted = hintPair && (
+                  (hintPair[0].r === r && hintPair[0].c === c) ||
+                  (hintPair[1].r === r && hintPair[1].c === c)
+                );
+                const isEdge = r === 0 || r === totalRows - 1 || c === 0 || c === totalCols - 1;
+
+                // Ô viền đệm bên ngoài (khoảng trống để vẽ đường nối vòng qua ngoài biên)
+                if (isEdge || !tile) {
+                  return (
+                    <div 
+                      key={`empty_${r}_${c}`} 
+                      className="w-full h-full rounded-lg pointer-events-none" 
+                    />
+                  );
+                }
+
+                return (
+                  <button
+                    key={tile.id}
+                    onClick={() => handleTileClick(r, c)}
+                    className={`relative w-full h-full rounded-lg sm:rounded-xl md:rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shadow-md ${
+                      isSelected
+                        ? 'bg-gradient-to-b from-cyan-500/50 to-blue-600/50 border-2 sm:border-3 border-cyan-400 ring-2 ring-cyan-400/60 scale-105 z-10 shadow-lg shadow-cyan-500/50'
+                        : isHinted
+                        ? 'bg-gradient-to-b from-amber-500/50 to-orange-600/50 border-2 sm:border-3 border-amber-400 animate-pulse scale-105 z-10 shadow-lg shadow-amber-500/50'
+                        : 'bg-slate-900/95 hover:bg-slate-800 border border-white/10 hover:border-cyan-400/60 hover:shadow-cyan-500/30'
+                    }`}
+                  >
+                    <span className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl drop-shadow-md transition-transform duration-150 hover:scale-115 leading-none select-none">
+                      {tile.icon}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
 
         {/* Modal Tạm Dừng */}
