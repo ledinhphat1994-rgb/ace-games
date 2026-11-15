@@ -559,7 +559,7 @@ export const GameOnet: React.FC = () => {
           ref={boardContainerRef}
           className="game-board-inner relative w-full h-full flex items-center justify-center p-1 sm:p-2"
           style={{
-            aspectRatio: `${totalCols} / ${totalRows}`,
+            aspectRatio: `${(totalCols * 1.15).toFixed(2)} / ${totalRows}`,
             maxWidth: '100%',
             maxHeight: '100%',
           }}
@@ -600,9 +600,9 @@ export const GameOnet: React.FC = () => {
             </svg>
           )}
 
-          {/* Lưới các ô Onet: Chiếm trọn 100% diện tích, ô to bự, icon to rõ */}
+          {/* Lưới các ô Onet: Chiếm trọn không gian, các ô tách bạch rõ ràng, viền neon đẹp mắt */}
           <div 
-            className="w-full h-full grid gap-1 sm:gap-1.5 md:gap-2 p-1.5 sm:p-2 bg-slate-900/60 border border-cyan-500/20 rounded-2xl sm:rounded-3xl shadow-2xl"
+            className="w-full h-full grid gap-1.5 sm:gap-2 md:gap-2.5 p-2 sm:p-2.5 bg-slate-950/80 border-2 border-cyan-500/30 rounded-2xl sm:rounded-3xl shadow-2xl"
             style={{
               gridTemplateRows: `repeat(${totalRows}, minmax(0, 1fr))`,
               gridTemplateColumns: `repeat(${totalCols}, minmax(0, 1fr))`,
@@ -631,15 +631,15 @@ export const GameOnet: React.FC = () => {
                   <button
                     key={tile.id}
                     onClick={() => handleTileClick(r, c)}
-                    className={`relative w-full h-full rounded-lg sm:rounded-xl md:rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shadow-md ${
+                    className={`relative w-full h-full rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none active:scale-95 shadow-md ${
                       isSelected
-                        ? 'bg-gradient-to-b from-cyan-500/50 to-blue-600/50 border-2 sm:border-3 border-cyan-400 ring-2 ring-cyan-400/60 scale-105 z-10 shadow-lg shadow-cyan-500/50'
+                        ? 'bg-gradient-to-b from-cyan-500/40 via-cyan-600/30 to-blue-700/40 border-2 sm:border-3 border-cyan-300 ring-2 ring-cyan-400/80 shadow-[0_0_20px_rgba(6,182,212,0.6)] scale-105 z-20 animate-pulse'
                         : isHinted
-                        ? 'bg-gradient-to-b from-amber-500/50 to-orange-600/50 border-2 sm:border-3 border-amber-400 animate-pulse scale-105 z-10 shadow-lg shadow-amber-500/50'
-                        : 'bg-slate-900/95 hover:bg-slate-800 border border-white/10 hover:border-cyan-400/60 hover:shadow-cyan-500/30'
+                        ? 'bg-gradient-to-b from-amber-500/40 via-amber-600/30 to-orange-700/40 border-2 sm:border-3 border-amber-300 ring-2 ring-amber-400/80 shadow-[0_0_20px_rgba(245,158,11,0.6)] scale-105 z-20 animate-bounce'
+                        : 'bg-slate-900/90 hover:bg-slate-800/90 border-2 border-cyan-500/30 hover:border-cyan-400/70 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-105 hover:z-10'
                     }`}
                   >
-                    <span className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl drop-shadow-md transition-transform duration-150 hover:scale-115 leading-none select-none">
+                    <span className="text-xl sm:text-2xl md:text-3xl lg:text-3xl xl:text-4xl filter drop-shadow-md transition-transform duration-200 select-none leading-none">
                       {tile.icon}
                     </span>
                   </button>
