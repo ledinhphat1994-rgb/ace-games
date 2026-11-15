@@ -35,7 +35,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-lg bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_70px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none"
+        className="relative w-full max-w-[min(94vw,660px)] max-h-[min(90dvh,820px)] bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_80px_rgba(6,182,212,0.4)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar - To rõ, đậm chất game */}
@@ -62,35 +62,35 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body - Giao diện tinh gọn, thoáng đãng, dễ hiểu */}
-        <div className="p-5 sm:p-6 space-y-4 text-left">
-          {/* Khối Điều Khiển - Gọn gàng 2 cột */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Modal Body - Giao diện tinh gọn, thoáng đãng, dễ hiểu, cuộn an toàn */}
+        <div className="p-5 sm:p-6 space-y-4 text-left overflow-y-auto max-h-[calc(90dvh-140px)] custom-scrollbar flex-1">
+          {/* Khối Điều Khiển - Gọn gàng 2 cột rộng rãi, không bị cắt chữ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Cột Máy Tính */}
-            <div className="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-md">
+            <div className="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 shadow-md">
               <div className="w-11 h-11 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center flex-shrink-0 text-cyan-400 shadow-sm">
                 <Monitor className="w-6 h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="text-xs font-black text-cyan-400 block uppercase tracking-wider mb-0.5">
+                <span className="text-xs font-black text-cyan-400 block uppercase tracking-wider mb-1">
                   MÁY TÍNH
                 </span>
-                <span className="text-base sm:text-lg font-bold text-white block truncate leading-snug">
+                <span className="text-sm sm:text-base font-bold text-white block leading-snug break-words">
                   {game.controls.desktop}
                 </span>
               </div>
             </div>
 
             {/* Cột Điện Thoại */}
-            <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-md">
+            <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 shadow-md">
               <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center flex-shrink-0 text-emerald-400 shadow-sm">
                 <Smartphone className="w-6 h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="text-xs font-black text-emerald-400 block uppercase tracking-wider mb-0.5">
+                <span className="text-xs font-black text-emerald-400 block uppercase tracking-wider mb-1">
                   ĐIỆN THOẠI
                 </span>
-                <span className="text-base sm:text-lg font-bold text-white block truncate leading-snug">
+                <span className="text-sm sm:text-base font-bold text-white block leading-snug break-words">
                   {game.controls.mobile}
                 </span>
               </div>
@@ -104,11 +104,11 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
             </span>
             <div className="space-y-3">
               {game.instructions.map((step, idx) => (
-                <div key={idx} className="flex items-center gap-3.5">
-                  <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-500/20 text-cyan-300 font-black text-sm sm:text-base flex items-center justify-center flex-shrink-0 border border-cyan-400/50 shadow-sm">
+                <div key={idx} className="flex items-start gap-3.5">
+                  <span className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-300 font-black text-sm flex items-center justify-center flex-shrink-0 border border-cyan-400/50 shadow-sm mt-0.5">
                     {idx + 1}
                   </span>
-                  <span className="text-base sm:text-lg font-bold text-white leading-relaxed flex-1">
+                  <span className="text-sm sm:text-base font-bold text-white leading-relaxed flex-1">
                     {step}
                   </span>
                 </div>
@@ -121,9 +121,9 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
         <div className="px-5 sm:px-6 py-4 border-t border-white/10 bg-slate-900/95 flex items-center justify-center flex-shrink-0">
           <button
             onClick={handleClose}
-            className="w-full sm:w-auto min-w-[200px] px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base sm:text-lg shadow-[0_0_35px_rgba(6,182,212,0.5)] transition cursor-pointer active:scale-95 flex items-center justify-center gap-2.5 tracking-wider uppercase"
+            className="w-full sm:w-auto min-w-[220px] px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base shadow-[0_0_35px_rgba(6,182,212,0.5)] transition cursor-pointer active:scale-95 flex items-center justify-center gap-2.5 tracking-wider uppercase"
           >
-            <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3]" />
+            <X className="w-5 h-5 stroke-[3]" />
             <span>ĐÓNG LẠI</span>
           </button>
         </div>

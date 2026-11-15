@@ -224,7 +224,7 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Không để bóng rơi xuống đáy.'
     ],
     controls: {
-      desktop: 'Kéo chuột / Mũi tên di chuyển',
+      desktop: 'Kéo chuột hoặc Mũi tên',
       mobile: 'Kéo ngón tay di chuyển'
     },
     thumbnailIcon: '🏓',
@@ -248,7 +248,7 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Vượt qua các đợt để đạt điểm kỷ lục.'
     ],
     controls: {
-      desktop: 'A/D / Mũi tên lái, Space bắn',
+      desktop: 'Mũi tên hoặc A/D lái, Space bắn',
       mobile: 'Kéo ngón tay di chuyển'
     },
     thumbnailIcon: '🚀',
@@ -297,7 +297,7 @@ export const GAMES_CATALOG: GameInfo[] = [
     ],
     controls: {
       desktop: 'Nhấp chuột và phím 1-9',
-      mobile: 'Chạm chọn ô và bàn phím ảo'
+      mobile: 'Chạm ô và bàn phím ảo'
     },
     thumbnailIcon: '🔢',
     accentColor: 'from-cyan-500 to-indigo-600',
@@ -320,7 +320,7 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Đạt mốc điểm quy định trước để chiến thắng.'
     ],
     controls: {
-      desktop: 'Chuột hoặc phím W/S và phím Mũi tên',
+      desktop: 'Chuột hoặc phím W/S, Mũi tên',
       mobile: 'Chạm kéo thanh đỡ trên màn hình'
     },
     thumbnailIcon: '🏓',
