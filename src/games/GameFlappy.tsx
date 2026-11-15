@@ -208,7 +208,7 @@ export const GameFlappy: React.FC = () => {
             p.passed = true;
             scoreRef.current += 1;
             setScore(scoreRef.current);
-            soundManager.playFavorite();
+            soundManager.playFlappyScore();
 
             setBestScore(prev => {
               if (scoreRef.current > prev) {

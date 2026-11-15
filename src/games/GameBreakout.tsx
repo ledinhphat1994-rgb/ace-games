@@ -208,7 +208,7 @@ export const GameBreakout: React.FC = () => {
           ball.vx = speed * Math.sin(angle);
           ball.vy = -speed * Math.cos(angle);
           ball.y = paddle.y - ball.radius - 1;
-          soundManager.playChessMove();
+          soundManager.playBreakoutPaddle();
         }
 
         // Brick collision
@@ -245,7 +245,7 @@ export const GameBreakout: React.FC = () => {
               });
             }
 
-            soundManager.playXiangqiCapture();
+            soundManager.playBreakoutBrick();
 
             // Determine bounce direction
             const prevX = ball.x - ball.vx;

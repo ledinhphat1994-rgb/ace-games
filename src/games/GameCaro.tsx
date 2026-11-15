@@ -244,11 +244,11 @@ export const GameCaro: React.FC = () => {
           } else {
             const threatResult = boardSize === 10 ? checkWinner(updated, boardSize, 4) : null;
             if (threatResult && threatResult.winner) {
-              soundManager.playCheck();
+              soundManager.playCaroCheck();
               const myPiece: Player = playerRole === 'host' ? 'X' : 'O';
               triggerCheckBanner(threatResult.winner === myPiece ? 'BẠN ĐANG CHIẾU CỜ!' : 'BỊ CHIẾU CỜ (CHUỖI 4)!');
             } else {
-              soundManager.playChessMove();
+              soundManager.playCaroStone();
             }
           }
           return updated;
@@ -638,11 +638,11 @@ export const GameCaro: React.FC = () => {
     // Check if 4 in a row threat (Chiếu cờ)
     const threatResult = boardSize === 10 ? checkWinner(newBoard, boardSize, 4) : null;
     if (threatResult && threatResult.winner) {
-      soundManager.playCheck();
+      soundManager.playCaroCheck();
       const isMeThreat = threatResult.winner === myPiece;
       triggerCheckBanner(isMeThreat ? 'BẠN ĐANG CHIẾU CỜ!' : 'BỊ CHIẾU CỜ (CHUỖI 4)!');
     } else {
-      soundManager.playChessMove();
+      soundManager.playCaroStone();
     }
 
     setIsXNext(!isXNext);
@@ -669,10 +669,10 @@ export const GameCaro: React.FC = () => {
           } else {
             const threatResult = boardSize === 10 ? checkWinner(newBoard, boardSize, 4) : null;
             if (threatResult && threatResult.winner) {
-              soundManager.playCheck();
+              soundManager.playCaroCheck();
               triggerCheckBanner(threatResult.winner === 'X' ? 'BẠN ĐANG CHIẾU CỜ!' : 'MÁY ĐANG CHIẾU CỜ!');
             } else {
-              soundManager.playChessMove();
+              soundManager.playCaroStone();
             }
             setIsXNext(true);
           }

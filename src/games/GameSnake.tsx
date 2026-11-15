@@ -191,7 +191,7 @@ export const GameSnake: React.FC = () => {
 
         // Eat food
         if (head.x === food.x && head.y === food.y) {
-          soundManager.playXiangqiCapture();
+          soundManager.playSnakeEat();
           setScore(s => {
             const nextScore = s + 1;
             if (nextScore > bestScore) {

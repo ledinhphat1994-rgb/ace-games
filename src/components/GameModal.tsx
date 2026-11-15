@@ -62,17 +62,13 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Set appropriate BGM context (Strategy vs Arcade) based on active game
+  // Set active game in soundManager so all in-game sound & music are isolated to this game!
   useEffect(() => {
     if (game) {
-      if (game.category === 'strategy') {
-        soundManager.setBgmContext('strategy');
-      } else {
-        soundManager.setBgmContext('arcade');
-      }
+      soundManager.setActiveGame(game.id);
     }
     return () => {
-      soundManager.setBgmContext('arcade');
+      soundManager.setActiveGame(null);
     };
   }, [game]);
 
@@ -282,9 +278,9 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
                   <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
                     <div className="flex items-center gap-1.5 text-cyan-400">
                       <Volume2 className="w-3.5 h-3.5" />
-                      <span>ÂM THANH TRẬN ĐẤU</span>
+                      <span>ÂM THANH: {game.title.toUpperCase()}</span>
                     </div>
-                    <span className="text-[10px] text-cyan-400/80 font-mono tracking-widest bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/20">AUDIO</span>
+                    <span className="text-[10px] text-cyan-400/80 font-mono tracking-widest bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/20">GAME AUDIO</span>
                   </div>
 
                   {/* SFX Section */}

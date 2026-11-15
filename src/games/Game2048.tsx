@@ -133,9 +133,9 @@ export const Game2048: React.FC = () => {
 
     if (hasMoved) {
       if (addedScore > 0) {
-        soundManager.playXiangqiCapture();
+        soundManager.play2048Merge(addedScore);
       } else {
-        soundManager.playChessMove();
+        soundManager.play2048Slide();
       }
 
       setHistory({ board: prevBoard, score: prevScore });

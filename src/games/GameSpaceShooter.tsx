@@ -41,45 +41,17 @@ export const GameSpaceShooter: React.FC = () => {
   const [wave, setWave] = useState(1);
   const [lives, setLives] = useState(3);
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
   const playSound = useCallback((type: 'laser' | 'hit' | 'boom' | 'gameover') => {
     if (!soundManager.isSoundOn()) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      if (type === 'laser') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.09);
-      } else if (type === 'hit') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, now);
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      } else if (type === 'boom') {
-        soundManager.playExplosion();
-      } else if (type === 'gameover') {
-        soundManager.playDefeat();
-      }
-    } catch {}
+    if (type === 'laser') {
+      soundManager.playLaser();
+    } else if (type === 'hit') {
+      soundManager.playLaser();
+    } else if (type === 'boom') {
+      soundManager.playExplosion();
+    } else if (type === 'gameover') {
+      soundManager.playDefeat();
+    }
   }, []);
 
   const stateRef = useRef({

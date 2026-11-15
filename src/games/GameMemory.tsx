@@ -86,7 +86,7 @@ export const GameMemory: React.FC = () => {
       const [idx1, idx2] = newSelected;
       if (cards[idx1].icon === cards[idx2].icon) {
         // Matched!
-        soundManager.playFavorite();
+        soundManager.playCardMatch();
         clearGameTimeout();
         timeoutRef.current = setTimeout(() => {
           timeoutRef.current = null;

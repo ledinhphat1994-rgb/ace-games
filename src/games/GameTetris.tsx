@@ -161,7 +161,7 @@ export const GameTetris: React.FC = () => {
       return;
     }
 
-    soundManager.playChessMove();
+    soundManager.playTetrisDrop();
 
     // Check cleared lines
     let clearedCount = 0;
@@ -211,7 +211,7 @@ export const GameTetris: React.FC = () => {
     const moved = { ...currentPiece, x: currentPiece.x + dx, y: currentPiece.y + dy };
     if (!checkCollision(moved, board)) {
       setCurrentPiece(moved);
-      if (dx !== 0) soundManager.playCardHover();
+      if (dx !== 0) soundManager.playTetrisMove();
       return true;
     }
     if (dy > 0) {
@@ -231,7 +231,7 @@ export const GameTetris: React.FC = () => {
       const kicked = { ...candidate, x: candidate.x + offset };
       if (!checkCollision(kicked, board)) {
         setCurrentPiece(kicked);
-        soundManager.playButtonClick();
+        soundManager.playTetrisRotate();
         return;
       }
     }
@@ -243,7 +243,7 @@ export const GameTetris: React.FC = () => {
     while (!checkCollision({ ...curr, y: curr.y + 1 }, board)) {
       curr = { ...curr, y: curr.y + 1 };
     }
-    soundManager.playXiangqiMove();
+    soundManager.playTetrisDrop();
     lockPiece(curr, board);
   }, [board, checkCollision, currentPiece, gameOver, isPaused, lockPiece]);
 

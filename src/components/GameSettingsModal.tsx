@@ -16,7 +16,7 @@ import {
   Timer
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
-import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
+import { soundManager, BGM_TRACKS, DEFAULT_GAME_TRACKS, type BgmTrack } from '../utils/sound';
 
 interface GameSettingsModalProps {
   isOpen: boolean;
@@ -41,11 +41,11 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     }
   });
 
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => soundManager.isSoundOn());
-  const [musicEnabled, setMusicEnabled] = useState<boolean>(() => soundManager.isMusicOn());
-  const [sfxVolume, setSfxVolume] = useState<number>(() => soundManager.getSoundVolume());
-  const [musicVolume, setMusicVolume] = useState<number>(() => soundManager.getMusicVolume());
-  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getMusicTrack());
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => soundManager.getGameAudioSettings(game.id).soundEnabled);
+  const [musicEnabled, setMusicEnabled] = useState<boolean>(() => soundManager.getGameAudioSettings(game.id).musicEnabled);
+  const [sfxVolume, setSfxVolume] = useState<number>(() => soundManager.getGameAudioSettings(game.id).sfxVolume);
+  const [musicVolume, setMusicVolume] = useState<number>(() => soundManager.getGameAudioSettings(game.id).musicVolume);
+  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getGameAudioSettings(game.id).bgmTrack);
 
   // Sync state when opening
   useEffect(() => {
@@ -56,24 +56,26 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
       } catch {
         setSettings({});
       }
-      setSoundEnabled(soundManager.isSoundOn());
-      setMusicEnabled(soundManager.isMusicOn());
-      setSfxVolume(soundManager.getSoundVolume());
-      setMusicVolume(soundManager.getMusicVolume());
-      setCurrentTrack(soundManager.getMusicTrack());
+      const cfg = soundManager.getGameAudioSettings(game.id);
+      setSoundEnabled(cfg.soundEnabled);
+      setMusicEnabled(cfg.musicEnabled);
+      setSfxVolume(cfg.sfxVolume);
+      setMusicVolume(cfg.musicVolume);
+      setCurrentTrack(cfg.bgmTrack);
     }
-  }, [isOpen, storageKey]);
+  }, [isOpen, storageKey, game.id]);
 
   useEffect(() => {
     const unsub = soundManager.subscribe(() => {
-      setSoundEnabled(soundManager.isSoundOn());
-      setMusicEnabled(soundManager.isMusicOn());
-      setSfxVolume(soundManager.getSoundVolume());
-      setMusicVolume(soundManager.getMusicVolume());
-      setCurrentTrack(soundManager.getMusicTrack());
+      const cfg = soundManager.getGameAudioSettings(game.id);
+      setSoundEnabled(cfg.soundEnabled);
+      setMusicEnabled(cfg.musicEnabled);
+      setSfxVolume(cfg.sfxVolume);
+      setMusicVolume(cfg.musicVolume);
+      setCurrentTrack(cfg.bgmTrack);
     });
     return unsub;
-  }, []);
+  }, [game.id]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -105,10 +107,35 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     }
   };
 
-  const toggleSound = () => {
-    const newState = soundManager.toggleSound();
-    setSoundEnabled(newState);
-    updateSetting('sound', newState);
+  const handleToggleSound = () => {
+    soundManager.playButtonClick();
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    soundManager.saveGameAudioSettings(game.id, { soundEnabled: next });
+  };
+
+  const handleToggleMusic = () => {
+    soundManager.playButtonClick();
+    const next = !musicEnabled;
+    setMusicEnabled(next);
+    soundManager.saveGameAudioSettings(game.id, { musicEnabled: next });
+  };
+
+  const handleSfxVolumeChange = (vol: number) => {
+    setSfxVolume(vol);
+    soundManager.saveGameAudioSettings(game.id, { sfxVolume: vol });
+  };
+
+  const handleMusicVolumeChange = (vol: number) => {
+    setMusicVolume(vol);
+    soundManager.saveGameAudioSettings(game.id, { musicVolume: vol });
+  };
+
+  const handleSelectTrack = (track: BgmTrack) => {
+    soundManager.playButtonClick();
+    setCurrentTrack(track);
+    soundManager.saveGameAudioSettings(game.id, { bgmTrack: track, musicEnabled: true });
+    setMusicEnabled(true);
   };
 
   const handleRestart = () => {
@@ -121,6 +148,14 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     soundManager.playButtonClick();
     localStorage.removeItem(storageKey);
     setSettings({});
+    const defaultTrack = DEFAULT_GAME_TRACKS[game.id] || 'arcade';
+    soundManager.saveGameAudioSettings(game.id, {
+      soundEnabled: true,
+      sfxVolume: 85,
+      musicEnabled: true,
+      musicVolume: 40,
+      bgmTrack: defaultTrack,
+    });
     window.dispatchEvent(
       new CustomEvent('ace-game-setting-changed', {
         detail: { gameId: game.id, key: 'RESET', value: null, allSettings: {} },
@@ -170,19 +205,21 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
         {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
         <div className="flex-1 p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar text-left">
           
-          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Toàn Diện */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/20 space-y-3">
+          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-3 shadow-lg shadow-cyan-950/20">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
-                  Âm Thanh & Nhạc Nền
+                  Âm Thanh Game: {game.title}
                 </span>
               </div>
-              <span className="text-[10px] text-gray-400 font-mono">Real-time Audio</span>
+              <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/25">
+                Âm Thanh Riêng Của Game
+              </span>
             </div>
 
-            {/* Hiệu ứng âm thanh (SFX) */}
+            {/* Hiệu ứng âm thanh (SFX) của game */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -191,7 +228,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                 </div>
                 <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                   <button
-                    onClick={() => { if (!soundEnabled) toggleSound(); }}
+                    onClick={handleToggleSound}
                     className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       soundEnabled
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
@@ -201,7 +238,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                     Bật
                   </button>
                   <button
-                    onClick={() => { if (soundEnabled) toggleSound(); }}
+                    onClick={handleToggleSound}
                     className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       !soundEnabled
                         ? 'bg-slate-800 text-gray-300 border border-slate-700'
@@ -220,7 +257,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   max="100"
                   value={sfxVolume}
                   disabled={!soundEnabled}
-                  onChange={(e) => soundManager.setSoundVolume(Number(e.target.value))}
+                  onChange={(e) => handleSfxVolumeChange(Number(e.target.value))}
                   className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-950 ${
                     !soundEnabled ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
@@ -228,21 +265,16 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Nhạc nền (BGM) */}
+            {/* Nhạc nền (BGM) của game */}
             <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Music className={`w-4 h-4 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                  <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
+                  <span className="text-xs font-bold text-gray-200">Nhạc Nền Game (BGM)</span>
                 </div>
                 <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                   <button
-                    onClick={() => {
-                      if (!musicEnabled) {
-                        const next = soundManager.toggleMusic();
-                        setMusicEnabled(next);
-                      }
-                    }}
+                    onClick={handleToggleMusic}
                     className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       musicEnabled
                         ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
@@ -252,12 +284,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                     Bật
                   </button>
                   <button
-                    onClick={() => {
-                      if (musicEnabled) {
-                        const next = soundManager.toggleMusic();
-                        setMusicEnabled(next);
-                      }
-                    }}
+                    onClick={handleToggleMusic}
                     className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       !musicEnabled
                         ? 'bg-slate-800 text-gray-300 border border-slate-700'
@@ -276,7 +303,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   max="100"
                   value={musicVolume}
                   disabled={!musicEnabled}
-                  onChange={(e) => soundManager.setMusicVolume(Number(e.target.value))}
+                  onChange={(e) => handleMusicVolumeChange(Number(e.target.value))}
                   className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-950 ${
                     !musicEnabled ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
@@ -284,10 +311,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Chọn bản nhạc BGM */}
+            {/* Chọn bản nhạc BGM cho game */}
             <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Giai Điệu Game:</span>
                 <span className="text-[10px] text-cyan-400 font-mono">
                   {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                 </span>
@@ -298,13 +325,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   return (
                     <button
                       key={t.id}
-                      onClick={() => {
-                        soundManager.playButtonClick();
-                        soundManager.setMusicTrack(t.id);
-                        if (!musicEnabled) {
-                          soundManager.toggleMusic();
-                        }
-                      }}
+                      onClick={() => handleSelectTrack(t.id)}
                       className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
                         isActive
                           ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-md shadow-cyan-500/20'

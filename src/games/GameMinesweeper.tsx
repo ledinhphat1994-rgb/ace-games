@@ -134,7 +134,7 @@ export const GameMinesweeper: React.FC = () => {
       const target = newGrid[r][c];
       if (!target.isOpen) {
         target.isFlagged = !target.isFlagged;
-        soundManager.playCardHover();
+        soundManager.playMinesweeperFlag();
         setGrid(newGrid);
       }
       return;
@@ -168,7 +168,7 @@ export const GameMinesweeper: React.FC = () => {
 
     // Safe cell
     target.isOpen = true;
-    soundManager.playChessMove();
+    soundManager.playMinesweeperClick();
     if (target.neighborMines === 0) {
       revealEmpty(newGrid, r, c);
     }
@@ -197,7 +197,7 @@ export const GameMinesweeper: React.FC = () => {
     const target = newGrid[r][c];
     if (!target.isOpen) {
       target.isFlagged = !target.isFlagged;
-      soundManager.playCardHover();
+      soundManager.playMinesweeperFlag();
       setGrid(newGrid);
     }
   };
