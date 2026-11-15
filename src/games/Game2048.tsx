@@ -222,7 +222,6 @@ export const Game2048: React.FC = () => {
   };
 
   const maxTile = board.flat().reduce((max, val) => Math.max(max, val), 0);
-  const emptyCount = board.flat().filter(v => v === 0).length;
 
   return (
     <div 
@@ -252,6 +251,17 @@ export const Game2048: React.FC = () => {
             </span>
             <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
               {bestScore}
+            </span>
+          </div>
+
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              Ô Lớn Nhất
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
+              {maxTile || 2}
             </span>
           </div>
         </div>
@@ -284,28 +294,12 @@ export const Game2048: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c130b] via-[#100a05] to-[#050302] rounded-3xl border-4 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c130b] via-[#100a05] to-[#050302] rounded-3xl border-4 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Goal & Progression Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-amber-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-white font-black text-2xl font-mono shadow-[0_0_25px_rgba(245,158,11,0.6)] mb-3 border border-yellow-300/40">
-            2048
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">MỤC TIÊU</h4>
-          <span className="text-amber-400 font-mono text-xs font-bold mb-3">HỢP NHẤT TỚI 2048</span>
-          <div className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 mb-4">
-            Mũi Tên hoặc Vuốt
-          </div>
-          <div className="pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Tiến độ ô:</span>
-            <strong className="text-amber-300 font-mono text-sm">{maxTile || 2} / 2048</strong>
-          </div>
-        </div>
-
-        {/* Center: Massive 4x4 Grid Board filling vertical height */}
-        <div className="relative bg-[#8f7a66] p-3 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-amber-600/50 shadow-2xl flex items-center justify-center">
-          <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
+        {/* Center: Massive 4x4 Grid Board taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#8f7a66] p-3 sm:p-5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-amber-600/50 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-4 w-full h-full">
             {board.map((row, r) =>
               row.map((cell, c) => (
                 <div
@@ -356,35 +350,6 @@ export const Game2048: React.FC = () => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Right Side: Stats & Helper Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-amber-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-800 border-2 border-amber-400/40 flex items-center justify-center text-3xl mb-3 shadow-inner">
-            ⚡
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">THỐNG KÊ</h4>
-          <span className="text-amber-400 font-mono text-xs font-bold mb-3">TRẠNG THÁI BÀN</span>
-          
-          <div className="w-full space-y-2 text-xs">
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">Ô Lớn Nhất:</span>
-              <strong className="text-yellow-400 font-mono font-black text-sm">{maxTile || 2}</strong>
-            </div>
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">Ô Trống:</span>
-              <strong className="text-emerald-400 font-mono font-black text-sm">{emptyCount} / 16</strong>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-white/10 w-full">
-            <button
-              onClick={initGame}
-              className="w-full py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-bold rounded-xl text-xs transition active:scale-95"
-            >
-              Làm Mới Ván Đấu
-            </button>
-          </div>
         </div>
       </div>
     </div>

@@ -142,8 +142,6 @@ export const GameChess: React.FC = () => {
     }
   };
 
-  const isWhiteTurn = pos.turn === WHITE;
-
   return (
     <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
@@ -198,35 +196,11 @@ export const GameChess: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c1208] via-[#0f0904] to-[#050301] rounded-3xl border-4 border-amber-600/50 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c1208] via-[#0f0904] to-[#050301] rounded-3xl border-4 border-amber-600/50 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Battle Card Player White */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-amber-400/30 backdrop-blur-md shadow-2xl text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-3 border-2 transition-all duration-300 ${
-            isWhiteTurn
-              ? 'border-yellow-400 bg-amber-500/20 shadow-[0_0_25px_rgba(245,158,11,0.6)] scale-105'
-              : 'border-slate-700 bg-slate-800 text-gray-400'
-          }`}>
-            ♔
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">NGƯỜI CHƠI</h4>
-          <span className="text-yellow-400 font-mono text-2xl font-black mb-3">QUÂN TRẮNG</span>
-          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
-            isWhiteTurn
-              ? 'bg-amber-500/20 text-yellow-300 border border-yellow-400 animate-pulse'
-              : 'bg-slate-800/80 text-gray-500'
-          }`}>
-            {isWhiteTurn ? 'ĐANG ĐẾN LƯỢT' : 'ĐỢI LƯỢT'}
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Vai trò:</span>
-            <strong className="text-yellow-300 font-mono text-sm">Đi Trước</strong>
-          </div>
-        </div>
-
-        {/* Center: Massive 8x8 Chessboard filling vertical height */}
-        <div className="relative bg-[#0c0804] p-2.5 sm:p-3.5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-amber-600/60 shadow-2xl flex items-center justify-center">
+        {/* Center: Massive 8x8 Chessboard taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#0c0804] p-2.5 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-amber-600/60 shadow-2xl flex items-center justify-center">
           <div className="grid grid-cols-8 grid-rows-8 rounded-2xl overflow-hidden border-2 border-slate-950 shadow-inner w-full h-full">
             {Array.from({ length: 64 }).map((_, idx) => {
               const row = Math.floor(idx / 8);
@@ -258,7 +232,7 @@ export const GameChess: React.FC = () => {
                   {/* Massive Chess piece icon */}
                   {piece && (
                     <span
-                      className={`text-3xl sm:text-5xl md:text-6xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
+                      className={`text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
                     >
                       {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                     </span>
@@ -266,32 +240,6 @@ export const GameChess: React.FC = () => {
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* Right Side: Battle Card Player Black / AI */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-slate-700/60 backdrop-blur-md shadow-2xl text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-3 border-2 transition-all duration-300 ${
-            !isWhiteTurn
-              ? 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_25px_rgba(6,182,212,0.6)] scale-105'
-              : 'border-slate-700 bg-slate-800 text-gray-400'
-          }`}>
-            {mode === 'ai' ? '🤖' : '♚'}
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">
-            {mode === 'ai' ? 'AI BOT' : 'NGƯỜI 2'}
-          </h4>
-          <span className="text-cyan-400 font-mono text-2xl font-black mb-3">QUÂN ĐEN</span>
-          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
-            !isWhiteTurn
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 animate-pulse'
-              : 'bg-slate-800/80 text-gray-500'
-          }`}>
-            {!isWhiteTurn ? (isThinking ? 'ĐANG TÍNH...' : 'ĐANG ĐẾN LƯỢT') : 'ĐỢI LƯỢT'}
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Cấp độ:</span>
-            <strong className="text-amber-400 font-mono text-sm">{mode === 'ai' ? `Cấp ${aiLevel}` : 'PvP'}</strong>
           </div>
         </div>
       </div>

@@ -168,42 +168,18 @@ export const GameMemory: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c0822] via-[#100414] to-[#050107] rounded-3xl border-4 border-pink-500/40 shadow-[0_0_50px_rgba(236,72,153,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c0822] via-[#100414] to-[#050107] rounded-3xl border-4 border-pink-500/40 shadow-[0_0_50px_rgba(236,72,153,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Rating & Target Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-pink-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-pink-500/20 border-2 border-pink-400 flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(236,72,153,0.4)]">
-            💎
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">TRÍ NHỚ</h4>
-          <span className="text-pink-400 font-mono text-xs font-bold mb-3">8 CẶP BIỂU TƯỢNG</span>
-          
-          <div className="w-full space-y-2 text-xs">
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">⭐⭐⭐ 3 Sao:</span>
-              <strong className="text-amber-400 font-mono">≤ 14 Lượt</strong>
-            </div>
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">⭐⭐ 2 Sao:</span>
-              <strong className="text-yellow-200 font-mono">≤ 20 Lượt</strong>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Đang đạt:</span>
-            <strong className="text-amber-300 font-bold">{getStars()} Sao</strong>
-          </div>
-        </div>
-
-        {/* Center: Massive 4x4 Grid of Cards filling vertical height */}
-        <div className="relative bg-[#09030d] p-2.5 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-pink-500/50 shadow-2xl flex items-center justify-center">
-          <div className="grid grid-cols-4 grid-rows-4 gap-2 sm:gap-3 w-full h-full">
+        {/* Center: Massive 4x4 Grid of Cards taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#09030d] p-2.5 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-pink-500/50 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
             {cards.map((card, idx) => (
               <button
                 key={card.id}
                 onClick={() => handleCardClick(idx)}
                 disabled={card.isFlipped || card.isMatched || isChecking}
-                className={`rounded-2xl text-3xl sm:text-5xl md:text-6xl flex items-center justify-center transition-all duration-300 transform select-none cursor-pointer ${
+                className={`rounded-2xl text-3xl sm:text-5xl md:text-6xl lg:text-7xl flex items-center justify-center transition-all duration-300 transform select-none cursor-pointer ${
                   card.isMatched
                     ? 'bg-emerald-500/25 border-3 border-emerald-400/90 scale-95 shadow-[0_0_20px_rgba(52,211,153,0.4)]'
                     : card.isFlipped
@@ -242,34 +218,6 @@ export const GameMemory: React.FC = () => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Right Side: Paired Cards Progress Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-pink-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-800 border-2 border-pink-400/40 flex items-center justify-center text-3xl mb-3 shadow-inner">
-            🎯
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">TIẾN ĐỘ</h4>
-          <span className="text-pink-400 font-mono text-2xl font-black mb-3">{matchedCount} / 8</span>
-          
-          <div className="w-full space-y-2">
-            <div className="p-3 bg-slate-800/80 rounded-xl border border-white/5 flex items-center justify-center gap-1.5 flex-wrap min-h-[50px]">
-              {cards
-                .filter((c, idx, arr) => c.isMatched && arr.findIndex(x => x.icon === c.icon) === idx)
-                .map((c, i) => (
-                  <span key={i} className="text-xl animate-fade-in">{c.icon}</span>
-                ))}
-              {matchedCount === 0 && (
-                <span className="text-xs text-gray-500 italic">Chưa tìm thấy cặp nào</span>
-              )}
-            </div>
-            <button
-              onClick={initGame}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 font-bold text-xs transition cursor-pointer"
-            >
-              Làm Mới Trò Chơi
-            </button>
-          </div>
         </div>
       </div>
     </div>

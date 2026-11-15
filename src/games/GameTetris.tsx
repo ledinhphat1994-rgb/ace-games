@@ -386,6 +386,34 @@ export const GameTetris: React.FC = () => {
               {highScore}
             </span>
           </div>
+
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              Tiếp Theo
+            </span>
+            <div className="mt-1 h-6 flex items-center justify-center">
+              <div
+                className="grid gap-[1px] p-1 bg-slate-950 rounded border border-white/10"
+                style={{
+                  gridTemplateColumns: `repeat(${SHAPES[nextPieceType][0].length}, 7px)`
+                }}
+              >
+                {SHAPES[nextPieceType].map((row, r) =>
+                  row.map((cell, c) => (
+                    <div
+                      key={`next-top-${r}-${c}`}
+                      className="w-[7px] h-[7px] rounded-[1px]"
+                      style={{
+                        backgroundColor: cell ? COLORS[nextPieceType] : 'transparent'
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -409,36 +437,11 @@ export const GameTetris: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#071120] via-[#040813] to-[#02040a] rounded-3xl border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] overflow-hidden flex items-center justify-center sm:justify-between p-2 sm:p-5 md:p-6 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#071120] via-[#040813] to-[#02040a] rounded-3xl border-4 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.35)] overflow-hidden flex items-center justify-center p-2 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Stats & Instructions Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-cyan-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border-2 border-cyan-400 flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
-            🧱
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">TETRIS MATRIX</h4>
-          <span className="text-cyan-400 font-mono text-xs font-bold mb-3">CẤP ĐỘ {level}</span>
-          <div className="w-full space-y-2 text-xs">
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">Đã Phá:</span>
-              <strong className="text-cyan-400 font-mono font-black text-sm">{lines} hàng</strong>
-            </div>
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">Tốc Độ:</span>
-              <strong className="text-amber-400 font-mono font-black text-sm">{(1000 - (level - 1) * 70)}ms</strong>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-[11px] text-gray-400 space-y-1 text-left">
-            <div>• <strong className="text-gray-300">← →</strong>: Trái / Phải</div>
-            <div>• <strong className="text-gray-300">↑</strong>: Xoay khối</div>
-            <div>• <strong className="text-gray-300">↓</strong>: Hạ nhanh</div>
-            <div>• <strong className="text-gray-300">Space</strong>: Thả rơi</div>
-          </div>
-        </div>
-
-        {/* Center: Massive Tetris Matrix filling vertical height */}
-        <div className="relative bg-[#030712] p-2 sm:p-2.5 rounded-3xl h-full aspect-[1/2] max-h-[calc(100dvh-275px)] border-4 border-cyan-500/50 shadow-2xl flex items-center justify-center">
+        {/* Center: Massive Tetris Matrix taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#030712] p-2 sm:p-2.5 rounded-3xl h-full aspect-[1/2] max-h-[calc(100dvh-260px)] border-4 border-cyan-500/50 shadow-2xl flex items-center justify-center">
           <div 
             className="grid gap-[2px] bg-slate-950/90 border border-slate-800/80 rounded-2xl overflow-hidden p-1 w-full h-full"
             style={{
@@ -486,41 +489,6 @@ export const GameTetris: React.FC = () => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Right Side: Next Piece & Controls Preview */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-cyan-500/30 backdrop-blur-md shadow-2xl text-center">
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-2">TIẾP THEO</h4>
-          <div className="w-24 h-24 flex items-center justify-center bg-slate-950 rounded-2xl border-2 border-cyan-500/30 shadow-inner mb-4">
-            <div
-              className="grid gap-[2px]"
-              style={{
-                gridTemplateColumns: `repeat(${SHAPES[nextPieceType][0].length}, 16px)`
-              }}
-            >
-              {SHAPES[nextPieceType].map((row, r) =>
-                row.map((cell, c) => (
-                  <div
-                    key={`next-${r}-${c}`}
-                    className="w-4 h-4 rounded-[2px]"
-                    style={{
-                      backgroundColor: cell ? COLORS[nextPieceType] : 'transparent',
-                      boxShadow: cell ? `inset 0 0 4px rgba(255,255,255,0.5)` : 'none'
-                    }}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="w-full pt-3 border-t border-white/10">
-            <button
-              onClick={hardDrop}
-              className="w-full py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black rounded-xl text-xs shadow-lg shadow-rose-600/30 transition active:scale-95 cursor-pointer"
-            >
-              HARD DROP (SPACE)
-            </button>
-          </div>
         </div>
       </div>
 

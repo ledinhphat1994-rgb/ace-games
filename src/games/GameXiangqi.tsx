@@ -144,8 +144,6 @@ export const GameXiangqi: React.FC = () => {
     }
   };
 
-  const isRedTurn = pos.turn === RED;
-
   return (
     <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
@@ -200,35 +198,11 @@ export const GameXiangqi: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1a0c06] via-[#0f0603] to-[#050201] rounded-3xl border-4 border-rose-700/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1a0c06] via-[#0f0603] to-[#050201] rounded-3xl border-4 border-rose-700/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Battle Card Player Red */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-serif font-black mb-3 border-2 transition-all duration-300 ${
-            isRedTurn
-              ? 'border-rose-500 bg-rose-500/20 text-rose-300 shadow-[0_0_25px_rgba(244,63,94,0.6)] scale-105'
-              : 'border-slate-700 bg-slate-800 text-gray-400'
-          }`}>
-            帥
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">NGƯỜI CHƠI</h4>
-          <span className="text-rose-400 font-mono text-2xl font-black mb-3">TƯỚNG ĐỎ</span>
-          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
-            isRedTurn
-              ? 'bg-rose-500/20 text-rose-300 border border-rose-500 animate-pulse'
-              : 'bg-slate-800/80 text-gray-500'
-          }`}>
-            {isRedTurn ? 'ĐANG ĐẾN LƯỢT' : 'ĐỢI LƯỢT'}
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Vai trò:</span>
-            <strong className="text-rose-400 font-mono text-sm">Đi Trước</strong>
-          </div>
-        </div>
-
-        {/* Center: Massive Xiangqi Board filling vertical height */}
-        <div className="relative bg-[#0c0502] p-2 sm:p-3 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-275px)] border-4 border-amber-800/60 shadow-2xl flex items-center justify-center">
+        {/* Center: Massive Xiangqi Board taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#0c0502] p-2.5 sm:p-4 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-260px)] border-4 border-amber-800/60 shadow-2xl flex items-center justify-center">
           <div className="relative bg-[#deb887] border-2 sm:border-3 border-[#78350f] rounded-2xl shadow-inner overflow-hidden w-full h-full">
             {/* River Divider */}
             <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-sm sm:text-base tracking-[0.4em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">
@@ -261,7 +235,7 @@ export const GameXiangqi: React.FC = () => {
                     {/* Responsive Piece token (Scales with cell size, never overflows) */}
                     {piece ? (
                       <div
-                        className={`relative z-10 w-[88%] h-[88%] max-w-[56px] max-h-[56px] rounded-full flex items-center justify-center font-serif font-black text-sm sm:text-xl md:text-2xl shadow-lg transition-transform duration-100 ${
+                        className={`relative z-10 w-[88%] h-[88%] max-w-[60px] max-h-[60px] rounded-full flex items-center justify-center font-serif font-black text-sm sm:text-xl md:text-2xl shadow-lg transition-transform duration-100 ${
                           isSelected ? 'scale-115 ring-3 ring-yellow-400' : isLast ? 'ring-2 ring-amber-500' : ''
                         } ${
                           sideOf(piece) === RED
@@ -276,32 +250,6 @@ export const GameXiangqi: React.FC = () => {
                 );
               })}
             </div>
-          </div>
-        </div>
-
-        {/* Right Side: Battle Card Player Black / AI */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-slate-700/60 backdrop-blur-md shadow-2xl text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-serif font-black mb-3 border-2 transition-all duration-300 ${
-            !isRedTurn
-              ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_25px_rgba(6,182,212,0.6)] scale-105'
-              : 'border-slate-700 bg-slate-800 text-gray-400'
-          }`}>
-            {mode === 'ai' ? '🤖' : '將'}
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">
-            {mode === 'ai' ? 'AI BOT' : 'NGƯỜI 2'}
-          </h4>
-          <span className="text-cyan-400 font-mono text-2xl font-black mb-3">TƯỚNG ĐEN</span>
-          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
-            !isRedTurn
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 animate-pulse'
-              : 'bg-slate-800/80 text-gray-500'
-          }`}>
-            {!isRedTurn ? (isThinking ? 'ĐANG TÍNH...' : 'ĐANG ĐẾN LƯỢT') : 'ĐỢI LƯỢT'}
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Cấp độ:</span>
-            <strong className="text-amber-400 font-mono text-sm">{mode === 'ai' ? `Cấp ${aiLevel}` : 'PvP'}</strong>
           </div>
         </div>
       </div>

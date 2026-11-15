@@ -250,36 +250,12 @@ export const GameMinesweeper: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#18080c] via-[#0e0407] to-[#040102] rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#18080c] via-[#0e0407] to-[#040102] rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.3)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Radar Dashboard Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(244,63,94,0.4)]">
-            💣
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">RADAR QUÂN SỰ</h4>
-          <span className="text-rose-400 font-mono text-xs font-bold mb-3">8x8 • 10 QUẢ MÌN</span>
-          
-          <div className="w-full space-y-2 text-xs">
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">Mìn Còn:</span>
-              <strong className="text-rose-400 font-mono font-black text-sm">{Math.max(0, minesCount - flagsUsed)}</strong>
-            </div>
-            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
-              <span className="text-gray-400">Cờ Đã Cắm:</span>
-              <strong className="text-amber-400 font-mono font-black text-sm">{flagsUsed} / 10</strong>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-[11px] text-gray-400 space-y-1 text-left">
-            <div>• <strong className="text-gray-300">Chuột Trái</strong>: Mở ô</div>
-            <div>• <strong className="text-gray-300">Chuột Phải</strong>: Cắm cờ 🚩</div>
-          </div>
-        </div>
-
-        {/* Center: Massive 8x8 Grid Board filling vertical height */}
-        <div className="relative bg-[#070204] p-2.5 sm:p-3.5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-rose-600/50 shadow-2xl flex items-center justify-center">
-          <div className="grid grid-cols-8 grid-rows-8 gap-1.5 sm:gap-2 w-full h-full">
+        {/* Center: Massive 8x8 Grid Board taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#070204] p-2.5 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-rose-600/50 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-8 grid-rows-8 gap-1.5 sm:gap-2.5 w-full h-full">
             {grid.map((row, r) =>
               row.map((cell, c) => (
                 <button
@@ -341,35 +317,6 @@ export const GameMinesweeper: React.FC = () => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Right Side: Mission Actions Card */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-800 border-2 border-amber-400/40 flex items-center justify-center text-3xl mb-3 shadow-inner">
-            ⏱
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">ĐỒNG HỒ</h4>
-          <span className="text-amber-400 font-mono text-2xl font-black mb-3">{timer}s</span>
-          
-          <div className="w-full space-y-2">
-            <button
-              onClick={() => setFlagMode(!flagMode)}
-              className={`w-full py-2.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                flagMode
-                  ? 'bg-rose-600 border-rose-400 text-white shadow-lg'
-                  : 'bg-slate-800 hover:bg-slate-700 border-white/10 text-gray-300'
-              }`}
-            >
-              <Flag className="w-4 h-4" />
-              <span>{flagMode ? 'Cắm Cờ: BẬT' : 'Cắm Cờ: TẮT'}</span>
-            </button>
-            <button
-              onClick={initBoard}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 font-bold text-xs transition cursor-pointer"
-            >
-              Làm Mới Bãi Mìn
-            </button>
-          </div>
         </div>
       </div>
     </div>

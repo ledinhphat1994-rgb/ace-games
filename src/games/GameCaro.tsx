@@ -262,36 +262,12 @@ export const GameCaro: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#0c1022] via-[#080b18] to-[#04060d] rounded-3xl border-4 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.35)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+      {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#0c1022] via-[#080b18] to-[#04060d] rounded-3xl border-4 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.35)] overflow-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 flex-shrink min-h-0">
         
-        {/* Left Side: Battle Card Player X */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-cyan-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-3 border-2 transition-all duration-300 ${
-            isXNext && !winnerInfo
-              ? 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_25px_rgba(6,182,212,0.6)] scale-105'
-              : 'border-slate-700 bg-slate-800 text-gray-400'
-          }`}>
-            🧑‍🚀
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">NGƯỜI CHƠI</h4>
-          <span className="text-cyan-400 font-mono text-2xl font-black mb-3">QUÂN X</span>
-          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
-            isXNext && !winnerInfo
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 animate-pulse'
-              : 'bg-slate-800/80 text-gray-500'
-          }`}>
-            {isXNext && !winnerInfo ? 'ĐANG ĐẾN LƯỢT' : 'ĐỢI LƯỢT'}
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Thắng:</span>
-            <strong className="text-emerald-400 font-mono text-sm">{stats.win}</strong>
-          </div>
-        </div>
-
-        {/* Center: Massive 3x3 Caro Board filling vertical height */}
-        <div className="relative bg-[#070b16] p-3 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-indigo-500/50 shadow-2xl flex items-center justify-center">
-          <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-3.5 w-full h-full">
+        {/* Center: Massive 3x3 Caro Board taking full vertical height to rõ ở Vùng 1 */}
+        <div className="relative bg-[#070b16] p-3 sm:p-5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-260px)] border-4 border-indigo-500/50 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-3 grid-rows-3 gap-2.5 sm:gap-4 w-full h-full">
             {board.map((cell, idx) => {
               const isWinningCell = winnerInfo?.line?.includes(idx);
               return (
@@ -299,7 +275,7 @@ export const GameCaro: React.FC = () => {
                   key={idx}
                   onClick={() => handleClick(idx)}
                   disabled={cell !== null || (isAiMode && !isXNext) || winnerInfo !== null}
-                  className={`flex items-center justify-center font-['Orbitron'] font-black rounded-2xl text-6xl sm:text-7xl md:text-8xl transition-all duration-150 select-none ${
+                  className={`flex items-center justify-center font-['Orbitron'] font-black rounded-2xl text-6xl sm:text-7xl md:text-8xl lg:text-9xl transition-all duration-150 select-none ${
                     cell === null
                       ? 'bg-slate-900/90 hover:bg-slate-800/90 border border-white/10 active:scale-95 cursor-pointer shadow-inner'
                       : isWinningCell
@@ -307,35 +283,11 @@ export const GameCaro: React.FC = () => {
                       : 'bg-slate-900 border border-white/10'
                   }`}
                 >
-                  {cell === 'X' && <span className="text-cyan-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.9)]">X</span>}
-                  {cell === 'O' && <span className="text-rose-400 drop-shadow-[0_0_20px_rgba(244,63,94,0.9)]">O</span>}
+                  {cell === 'X' && <span className="text-cyan-400 drop-shadow-[0_0_25px_rgba(6,182,212,0.95)]">X</span>}
+                  {cell === 'O' && <span className="text-rose-400 drop-shadow-[0_0_25px_rgba(244,63,94,0.95)]">O</span>}
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Right Side: Battle Card Player O / AI */}
-        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-3 border-2 transition-all duration-300 ${
-            !isXNext && !winnerInfo
-              ? 'border-rose-400 bg-rose-500/20 shadow-[0_0_25px_rgba(244,63,94,0.6)] scale-105'
-              : 'border-slate-700 bg-slate-800 text-gray-400'
-          }`}>
-            {isAiMode ? '🤖' : '👥'}
-          </div>
-          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">{isAiMode ? 'AI BOT' : 'NGƯỜI 2'}</h4>
-          <span className="text-rose-400 font-mono text-2xl font-black mb-3">QUÂN O</span>
-          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
-            !isXNext && !winnerInfo
-              ? 'bg-rose-500/20 text-rose-300 border border-rose-400 animate-pulse'
-              : 'bg-slate-800/80 text-gray-500'
-          }`}>
-            {!isXNext && !winnerInfo ? (isAiMode ? 'ĐANG TÍNH...' : 'ĐANG ĐẾN LƯỢT') : 'ĐỢI LƯỢT'}
-          </div>
-          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
-            <span>Độ khó:</span>
-            <strong className="text-amber-400 font-mono text-sm">{isAiMode ? difficulty : 'PvP'}</strong>
           </div>
         </div>
       </div>
