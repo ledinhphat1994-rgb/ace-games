@@ -22,6 +22,7 @@ class SoundManager {
 
   // Audio Buffers Cache for 0ms Low Latency Game Audio
   private audioBuffers: Map<string, AudioBuffer> = new Map();
+  private rawBuffers: Map<string, ArrayBuffer> = new Map();
   private loadingAudios: Map<string, Promise<AudioBuffer | null>> = new Map();
 
   constructor() {
@@ -35,8 +36,11 @@ class SoundManager {
       this.musicEnabled = false;
     }
 
-    // Auto-unlock on first user interaction anywhere in the window
+    // Eagerly prefetch audio files over network immediately so they are hot in memory
     if (typeof window !== 'undefined') {
+      this.eagerlyPrefetch();
+
+      // Auto-unlock on first user interaction anywhere in the window
       const unlock = () => {
         this.unlockContext();
         window.removeEventListener('pointerdown', unlock);
@@ -47,6 +51,36 @@ class SoundManager {
       window.addEventListener('keydown', unlock);
       window.addEventListener('touchstart', unlock);
     }
+  }
+
+  private eagerlyPrefetch() {
+    const urls = [
+      '/sounds/xiangqi_move.wav',
+      '/sounds/xiangqi_capture.wav',
+      '/sounds/xiangqi_check.wav',
+      '/sounds/chess_move.mp3',
+      '/sounds/chess_capture.mp3',
+      '/sounds/check.mp3',
+      '/sounds/victory.mp3',
+      '/sounds/defeat.mp3',
+      '/sounds/draw.mp3',
+      '/sounds/low_time.mp3',
+      '/sounds/explosion.mp3',
+      '/sounds/notify.mp3',
+    ];
+    urls.forEach(async (url) => {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const ab = await res.arrayBuffer();
+          this.rawBuffers.set(url, ab);
+          if (this.ctx) {
+            const buf = await this.ctx.decodeAudioData(ab.slice(0));
+            this.audioBuffers.set(url, buf);
+          }
+        }
+      } catch {}
+    });
   }
 
   public subscribe(fn: () => void): () => void {
@@ -317,9 +351,15 @@ class SoundManager {
       try {
         const ctx = this.unlockContext();
         if (!ctx) return null;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const arrayBuffer = await res.arrayBuffer();
+        let arrayBuffer: ArrayBuffer;
+        if (this.rawBuffers.has(url)) {
+          arrayBuffer = this.rawBuffers.get(url)!.slice(0);
+        } else {
+          const res = await fetch(url);
+          if (!res.ok) return null;
+          arrayBuffer = await res.arrayBuffer();
+          this.rawBuffers.set(url, arrayBuffer.slice(0));
+        }
         const buffer = await ctx.decodeAudioData(arrayBuffer);
         this.audioBuffers.set(url, buffer);
         return buffer;
@@ -459,57 +499,164 @@ class SoundManager {
     });
   }
 
-  // Synthesized Fallbacks
-  private synthWoodClick(freq: number, dur: number) {
+  // Studio-Grade Synthesized Fallbacks (Epic, Sharp, Heroic Acoustics)
+  private synthWoodClick(freq: number = 430, dur: number = 0.09) {
     if (!this.soundEnabled || !this.ctx) return;
     try {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + dur);
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + dur + 0.01);
+      const now = this.ctx.currentTime;
+      
+      // 1. Hardwood surface strike click (sharp chirp 3200Hz -> 400Hz)
+      const oscClick = this.ctx.createOscillator();
+      const gainClick = this.ctx.createGain();
+      oscClick.type = 'triangle';
+      oscClick.frequency.setValueAtTime(3200, now);
+      oscClick.frequency.exponentialRampToValueAtTime(380, now + 0.03);
+      gainClick.gain.setValueAtTime(0.22, now);
+      gainClick.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      oscClick.connect(gainClick);
+      gainClick.connect(this.ctx.destination);
+      oscClick.start(now);
+      oscClick.stop(now + dur);
+
+      // 2. Resonant hardwood body (430Hz)
+      const oscBody = this.ctx.createOscillator();
+      const gainBody = this.ctx.createGain();
+      oscBody.type = 'sine';
+      oscBody.frequency.setValueAtTime(freq, now);
+      gainBody.gain.setValueAtTime(0.25, now);
+      gainBody.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.2);
+      oscBody.connect(gainBody);
+      gainBody.connect(this.ctx.destination);
+      oscBody.start(now);
+      oscBody.stop(now + dur * 1.25);
+
+      // 3. Board thump (100Hz)
+      const oscThump = this.ctx.createOscillator();
+      const gainThump = this.ctx.createGain();
+      oscThump.type = 'sine';
+      oscThump.frequency.setValueAtTime(110, now);
+      oscThump.frequency.exponentialRampToValueAtTime(80, now + dur);
+      gainThump.gain.setValueAtTime(0.18, now);
+      gainThump.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      oscThump.connect(gainThump);
+      gainThump.connect(this.ctx.destination);
+      oscThump.start(now);
+      oscThump.stop(now + dur + 0.01);
     } catch {}
   }
 
-  private synthWoodCrack(freq: number, dur: number) {
+  private synthWoodCrack(freq: number = 320, dur: number = 0.15) {
     if (!this.soundEnabled || !this.ctx) return;
     try {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + dur);
-      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + dur + 0.01);
+      const now = this.ctx.currentTime;
+      
+      // Piercing hardwood collision snap
+      const oscSnap = this.ctx.createOscillator();
+      const gainSnap = this.ctx.createGain();
+      oscSnap.type = 'sawtooth';
+      oscSnap.frequency.setValueAtTime(3800, now);
+      oscSnap.frequency.exponentialRampToValueAtTime(260, now + 0.05);
+      gainSnap.gain.setValueAtTime(0.3, now);
+      gainSnap.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      oscSnap.connect(gainSnap);
+      gainSnap.connect(this.ctx.destination);
+      oscSnap.start(now);
+      oscSnap.stop(now + dur);
+
+      // Heavy body impact (320Hz & 540Hz)
+      [freq, freq * 1.68].forEach(f => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.3);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now);
+        osc.stop(now + dur * 1.35);
+      });
+
+      // Sub-bass heavy wood thump (75Hz)
+      const oscSub = this.ctx.createOscillator();
+      const gainSub = this.ctx.createGain();
+      oscSub.type = 'sine';
+      oscSub.frequency.setValueAtTime(85, now);
+      oscSub.frequency.exponentialRampToValueAtTime(60, now + dur * 1.4);
+      gainSub.gain.setValueAtTime(0.28, now);
+      gainSub.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.4);
+      oscSub.connect(gainSub);
+      gainSub.connect(this.ctx.destination);
+      oscSub.start(now);
+      oscSub.stop(now + dur * 1.45);
     } catch {}
   }
 
+  // Epic Chiếu Tướng (Heroic Sword Slash + Ancient Bronze Gong)
   private synthCheckAlert() {
     if (!this.soundEnabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      [880, 1174.66, 1760].forEach((freq, idx) => {
+      
+      // 1. Razor-sharp sword slash gleam (SHING! - FM metallic harmonics)
+      const carrier = this.ctx.createOscillator();
+      const modulator = this.ctx.createOscillator();
+      const modGain = this.ctx.createGain();
+      const swordGain = this.ctx.createGain();
+
+      carrier.type = 'sine';
+      carrier.frequency.setValueAtTime(2800, now);
+      carrier.frequency.exponentialRampToValueAtTime(3600, now + 0.12);
+
+      modulator.type = 'sine';
+      modulator.frequency.setValueAtTime(1400, now);
+      modGain.gain.setValueAtTime(1200, now);
+      modGain.gain.exponentialRampToValueAtTime(10, now + 0.35);
+
+      modulator.connect(modGain);
+      modGain.connect(carrier.frequency);
+
+      swordGain.gain.setValueAtTime(0.28, now);
+      swordGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+      carrier.connect(swordGain);
+      swordGain.connect(this.ctx.destination);
+
+      modulator.start(now);
+      carrier.start(now);
+      modulator.stop(now + 0.46);
+      carrier.stop(now + 0.46);
+
+      // High blade shimmer (4400Hz, 6600Hz)
+      [4400, 6600].forEach(f => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
-        gain.gain.setValueAtTime(0.12, now + idx * 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.25);
+        osc.frequency.setValueAtTime(f, now);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc.connect(gain);
         gain.connect(this.ctx!.destination);
-        osc.start(now + idx * 0.04);
-        osc.stop(now + idx * 0.04 + 0.26);
+        osc.start(now);
+        osc.stop(now + 0.32);
       });
+
+      // 2. Resonant ancient bronze war gong chord (164Hz, 328Hz, 492Hz)
+      [164, 328, 492, 720].forEach((f, idx) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now);
+        gain.gain.setValueAtTime(0.18 / (idx + 1), now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now);
+        osc.stop(now + 0.9);
+      });
+
+      // 3. Piece strike anchor at 0ms
+      this.synthWoodCrack(340, 0.1);
     } catch {}
   }
 
@@ -517,17 +664,30 @@ class SoundManager {
     if (!this.soundEnabled || !this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      [392.00, 369.99, 349.23, 311.13].forEach((freq, idx) => {
+      // Deep cinematic boom + mournful brass descent
+      const oscBoom = this.ctx.createOscillator();
+      const gainBoom = this.ctx.createGain();
+      oscBoom.type = 'sine';
+      oscBoom.frequency.setValueAtTime(75, now);
+      oscBoom.frequency.exponentialRampToValueAtTime(45, now + 0.8);
+      gainBoom.gain.setValueAtTime(0.25, now);
+      gainBoom.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+      oscBoom.connect(gainBoom);
+      gainBoom.connect(this.ctx.destination);
+      oscBoom.start(now);
+      oscBoom.stop(now + 0.82);
+
+      [261.63, 246.94, 220.00, 196.00].forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
-        gain.gain.setValueAtTime(0.08, now + idx * 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.2);
+        osc.frequency.setValueAtTime(freq, now + idx * 0.16);
+        gain.gain.setValueAtTime(0.1, now + idx * 0.16);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.16 + 0.35);
         osc.connect(gain);
         gain.connect(this.ctx!.destination);
-        osc.start(now + idx * 0.12);
-        osc.stop(now + idx * 0.12 + 0.21);
+        osc.start(now + idx * 0.16);
+        osc.stop(now + idx * 0.16 + 0.36);
       });
     } catch {}
   }
