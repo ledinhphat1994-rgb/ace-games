@@ -4,6 +4,7 @@ import { findBestChessMove } from './chess/chess-ai';
 import { RotateCcw, Bot, Timer, Globe, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
+import { OpponentLeftModal } from '../components/OpponentLeftModal';
 import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 
 const PIECE_SYMBOLS: Record<number, Record<number, string>> = {
@@ -64,6 +65,7 @@ export const GameChess: React.FC = () => {
   const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
   const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
+  const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
 
   // Quản lý timeout AI để hủy ngay lập tức khi đổi phòng, chơi lại hoặc rời bàn cờ
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -360,7 +362,9 @@ export const GameChess: React.FC = () => {
         soundManager.playGameLaunch();
       } else if (status === 'disconnected') {
         clearAiTimeout();
-        alert('Đối thủ đã rời ván cờ!');
+        const opp = multiplayer.getOpponent();
+        if (opp?.name) setOpponentName(opp.name);
+        setIsOpponentLeftModalOpen(true);
         setIsOnlineMode(false);
         setIsWaitingForFriend(false);
         setOnlineRoom(null);
@@ -653,6 +657,14 @@ export const GameChess: React.FC = () => {
           updateStatus(newPos);
           setTimeLeft(timeLimit);
         }}
+      />
+
+      {/* Thông báo đối thủ rời phòng */}
+      <OpponentLeftModal
+        isOpen={isOpponentLeftModalOpen}
+        opponentName={opponentName}
+        onClose={() => setIsOpponentLeftModalOpen(false)}
+        onFindNewMatch={() => setIsLobbyOpen(true)}
       />
     </div>
   );

@@ -386,6 +386,9 @@ class MultiplayerService {
         }
       } else if (data.type === 'player_left') {
         if (data.senderId !== this.localPlayerId) {
+          if (data.senderName && (!this.opponent || !this.opponent.name || this.opponent.name === 'ĐỐI THỦ')) {
+            this.opponent = { id: data.senderId, name: data.senderName };
+          }
           this.notifyStatus('disconnected');
         }
       }

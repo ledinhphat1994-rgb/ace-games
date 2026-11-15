@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { RotateCcw, Bot, Grid3X3, Grid, Timer, Globe, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
+import { OpponentLeftModal } from '../components/OpponentLeftModal';
 import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 
 type Player = 'X' | 'O' | null;
@@ -148,6 +149,7 @@ export const GameCaro: React.FC = () => {
   const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
   const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
+  const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
 
   const handleCopyInvite = () => {
     if (!onlineRoom) return;
@@ -241,7 +243,9 @@ export const GameCaro: React.FC = () => {
         resetGame(false);
         soundManager.playGameLaunch();
       } else if (status === 'disconnected') {
-        alert('Đối thủ đã rời bàn đấu!');
+        const opp = multiplayer.getOpponent();
+        if (opp?.name) setOpponentName(opp.name);
+        setIsOpponentLeftModalOpen(true);
         setIsOnlineMode(false);
         setIsWaitingForFriend(false);
         setOnlineRoom(null);
@@ -899,6 +903,14 @@ export const GameCaro: React.FC = () => {
           setWinnerInfo(null);
           setTimeLeft(timeLimit);
         }}
+      />
+
+      {/* Thông báo đối thủ rời phòng */}
+      <OpponentLeftModal
+        isOpen={isOpponentLeftModalOpen}
+        opponentName={opponentName}
+        onClose={() => setIsOpponentLeftModalOpen(false)}
+        onFindNewMatch={() => setIsLobbyOpen(true)}
       />
     </div>
   );
