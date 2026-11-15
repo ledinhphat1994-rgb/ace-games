@@ -155,13 +155,26 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       <div className={`flex items-center justify-between px-3 sm:px-6 py-2 border-b border-white/10 flex-shrink-0 z-20 ${
         viewMode === 'vung2' ? 'bg-slate-950/90 backdrop-blur-md' : 'bg-slate-950/80 backdrop-blur-md'
       }`}>
-        {/* Game Title - VÙNG 3 ĐÃ BỊ XÓA (Xóa badge loại game) */}
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl sm:text-2xl drop-shadow-md">{game.thumbnailIcon}</span>
-          <div>
-            <h2 className="text-sm sm:text-lg font-black text-white leading-tight font-['Orbitron']">
-              {game.title}
-            </h2>
+        {/* Game Title: Animated, Sinh động, Thẩm mỹ cao */}
+        <div 
+          className="flex items-center gap-2.5 group cursor-default"
+          title={`${game.title}: ${game.subtitle || game.description}`}
+        >
+          <span className="text-xl sm:text-2xl drop-shadow-md transform transition-transform duration-300 group-hover:scale-125 group-hover:rotate-6">
+            {game.thumbnailIcon}
+          </span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm sm:text-lg font-black tracking-wider font-['Orbitron'] bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(6,182,212,0.5)]">
+                {game.title}
+              </h2>
+              {game.subtitle && (
+                <span className="hidden md:inline-block text-[11px] font-bold text-gray-400/90 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/5">
+                  {game.subtitle}
+                </span>
+              )}
+            </div>
+            <div className="w-12 group-hover:w-full h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-400 transition-all duration-500 rounded-full mt-0.5 opacity-80" />
           </div>
         </div>
 

@@ -98,16 +98,40 @@ export const GameCard: React.FC<GameCardProps> = ({
         </div>
       </div>
 
-      {/* Bottom Title Scrim (Clean & Focused on Game Visuals) */}
-      <div className="absolute inset-x-0 bottom-0 z-10 pt-10 pb-2.5 px-3 sm:px-3.5 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent flex items-center justify-between">
-        <div className="min-w-0 pr-1">
-          <h3 className="text-xs sm:text-sm font-black text-white group-hover:text-cyan-300 transition-colors truncate drop-shadow-md">
-            {game.title}
+      {/* Animated Long-Hover Tooltip with Chú Thích Chi Tiết (Rê vào đủ lâu 500ms hiển thị) */}
+      <div className="absolute inset-x-2 bottom-12 z-40 opacity-0 translate-y-3 scale-95 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 transition-all duration-300 delay-500 ease-out bg-slate-950/95 backdrop-blur-xl border border-cyan-500/50 rounded-2xl p-3 shadow-[0_12px_35px_rgba(0,0,0,0.9)] text-left">
+        <div className="flex items-center gap-2 mb-1.5 pb-1.5 border-b border-white/10">
+          <span className="text-xl flex-shrink-0">{game.thumbnailIcon}</span>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-xs font-black text-cyan-300 font-['Orbitron'] truncate">
+              {game.title}
+            </h4>
+            <span className="text-[10px] text-amber-300 font-bold truncate block">
+              {game.subtitle || game.categoryLabel}
+            </span>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-300 leading-snug line-clamp-2">
+          {game.description}
+        </p>
+        <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px] text-gray-400">
+          <span className="text-cyan-400 font-bold">{game.categoryLabel}</span>
+          <span className="font-mono text-emerald-400 font-bold">{(game.plays / 1000).toFixed(0)}k lượt chơi</span>
+        </div>
+      </div>
+
+      {/* Bottom Title Scrim (Clean, Animated, High Aesthetic) */}
+      <div className="absolute inset-x-0 bottom-0 z-10 pt-10 pb-2.5 px-3 sm:px-3.5 bg-gradient-to-t from-slate-950 via-slate-950/85 to-transparent flex items-center justify-between">
+        <div className="min-w-0 pr-1 flex flex-col justify-center">
+          <h3 className="text-xs sm:text-sm font-black text-white group-hover:text-cyan-300 transition-all duration-300 truncate drop-shadow-md tracking-wide group-hover:drop-shadow-[0_0_12px_rgba(6,182,212,0.8)] flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 opacity-60 group-hover:opacity-100 group-hover:animate-ping flex-shrink-0" />
+            <span className="truncate">{game.title}</span>
           </h3>
+          <div className="w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-400 transition-all duration-500 rounded-full mt-0.5" />
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] font-black text-amber-400 flex-shrink-0 bg-black/40 px-1.5 py-0.5 rounded-md border border-white/5">
-          <Star className="w-3 h-3 fill-amber-400" />
+        <div className="flex items-center gap-1 text-[11px] font-black text-amber-400 flex-shrink-0 bg-black/50 px-2 py-0.5 rounded-lg border border-amber-500/20 shadow-sm">
+          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
           <span>{game.rating}</span>
         </div>
       </div>

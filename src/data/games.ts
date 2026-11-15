@@ -3,7 +3,8 @@ import type { GameInfo } from '../types/game';
 export const GAMES_CATALOG: GameInfo[] = [
   {
     id: '2048',
-    title: '2048 Cổ Điển',
+    title: '2048',
+    subtitle: '2048 Cổ Điển - Trượt ghép số đỉnh cao',
     category: 'puzzle',
     categoryLabel: 'Trí Tuệ & Số Học',
     description: 'Trượt các ô số giống nhau để hợp nhất và chạm mốc 2048 kỳ diệu! Game giải đố gây nghiện hàng đầu thế giới.',
@@ -25,7 +26,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'snake',
-    title: 'Rắn Săn Mồi Retro',
+    title: 'Rắn Săn Mồi',
+    subtitle: 'Rắn Săn Mồi Retro - Huyền thoại tuổi thơ Nokia',
     category: 'arcade',
     categoryLabel: 'Phản Xạ Cổ Điển',
     description: 'Huyền thoại game rắn săn mồi Nokia với đồ họa arcade neon hiện đại, ăn táo để dài ra và lập kỷ lục điểm số!',
@@ -47,7 +49,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'flappy',
-    title: 'Flappy Bird HTML5',
+    title: 'Flappy Bird',
+    subtitle: 'Flappy Bird Arcade - Thử thách phản xạ cực đỉnh',
     category: 'arcade',
     categoryLabel: 'Thử Thách Phản Xạ',
     description: 'Điều khiển chú chim vượt qua mê cung những ống nước xanh. Cực kỳ thử thách lòng kiên nhẫn!',
@@ -69,7 +72,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'caro',
-    title: 'Cờ Caro / Tic-Tac-Toe AI',
+    title: 'Cờ Caro',
+    subtitle: 'Cờ Caro 3x3 - Đấu trí cùng AI Minimax hoặc bạn bè',
     category: 'strategy',
     categoryLabel: 'Chiến Thuật & Trí Tuệ',
     description: 'Trò chơi cờ caro quen thuộc thời đi học! Thách đấu với AI thuật toán Minimax hoặc chơi cùng bạn bè trên cùng máy.',
@@ -91,7 +95,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'minesweeper',
-    title: 'Dò Mìn Cổ Điển',
+    title: 'Dò Mìn',
+    subtitle: 'Dò Mìn Cổ Điển - Rà phá bom mìn logic đỉnh cao',
     category: 'classic',
     categoryLabel: 'Kinh Điển Văn Phòng',
     description: 'Game dò mìn huyền thoại Windows! Suy luận logic từ các con số để cắm cờ toàn bộ bãi mìn mà không bị nổ.',
@@ -113,7 +118,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'memory',
-    title: 'Lật Hình Tìm Cặp (Memory Match)',
+    title: 'Lật Hình',
+    subtitle: 'Lật Hình Tìm Cặp - Rèn luyện trí nhớ siêu phàm 3 sao',
     category: 'puzzle',
     categoryLabel: 'Rèn Luyện Trí Nhớ',
     description: 'Lật tìm các cặp thẻ bài giống nhau trong thời gian ngắn nhất. Thích hợp cho cả trẻ em và người lớn xả stress!',
@@ -135,7 +141,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'tetris',
-    title: 'Tetris Xếp Gạch Cổ Điển',
+    title: 'Xếp Gạch',
+    subtitle: 'Tetris Xếp Gạch - Huyền thoại giải đố kinh điển',
     category: 'classic',
     categoryLabel: 'Kinh Điển Mọi Thời Đại',
     description: 'Huyền thoại xếp gạch mọi thời đại! Xếp các khối gạch tetrominoes kín hàng để ghi điểm combo và chạm kỷ lục thế giới.',
@@ -158,7 +165,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'chess',
-    title: 'Cờ Vua Quốc Tế (Chess AI)',
+    title: 'Cờ Vua',
+    subtitle: 'Cờ Vua Quốc Tế - Đấu trí chiến thuật đỉnh cao cùng AI',
     category: 'strategy',
     categoryLabel: 'Chiến Thuật Quốc Tế',
     description: 'Bàn cờ 8×8 tiêu chuẩn quốc tế! Đấu trí chiến thuật đỉnh cao cùng AI nhiều cấp độ hoặc so tài 2 người chơi trên cùng thiết bị.',
@@ -181,7 +189,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'xiangqi',
-    title: 'Cờ Tướng Đông Phương (Xiangqi AI)',
+    title: 'Cờ Tướng',
+    subtitle: 'Cờ Tướng Đông Phương - Kỳ nghệ sông Sở Hà Hán Giới',
     category: 'strategy',
     categoryLabel: 'Kỳ Nghệ Á Đông',
     description: 'Bàn cờ 9×10 kinh điển sông Sở Hà Hán Giới! Tấn công Cửu Cung, phối hợp Xe Pháo Mã cùng AI hoặc bạn bè.',
@@ -204,7 +213,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'breakout',
-    title: 'Bắn Bóng Phá Gạch (Breakout)',
+    title: 'Phá Gạch',
+    subtitle: 'Bắn Bóng Phá Gạch - Tốc độ nảy cực gắt nhịp nhàng',
     category: 'arcade',
     categoryLabel: 'Arcade Thử Thách',
     description: 'Bắn bóng đập tan toàn bộ các hàng gạch màu rực rỡ! Di chuyển thanh trượt nhịp nhàng và bắt kịp tốc độ bóng nảy cực gắt.',
@@ -227,7 +237,8 @@ export const GAMES_CATALOG: GameInfo[] = [
   },
   {
     id: 'space-shooter',
-    title: 'Chiến Cơ Không Gian (Space Arcade)',
+    title: 'Chiến Cơ',
+    subtitle: 'Chiến Cơ Không Gian - Tiêu diệt hạm đội bảo vệ ngân hà',
     category: 'arcade',
     categoryLabel: 'Bắn Súng Không Gian',
     description: 'Điều khiển phi thuyền không gian né làn mưa đạn la-de, tiêu diệt hạm đội quái vật ngoài hành tinh để bảo vệ vũ trụ.',

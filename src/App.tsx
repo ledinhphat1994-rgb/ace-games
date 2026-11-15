@@ -55,6 +55,7 @@ export function App() {
       const q = searchQuery.toLowerCase();
       return (
         game.title.toLowerCase().includes(q) ||
+        (game.subtitle && game.subtitle.toLowerCase().includes(q)) ||
         game.tags.some(t => t.toLowerCase().includes(q))
       );
     });

@@ -3,6 +3,7 @@ export type GameCategory = 'all' | 'puzzle' | 'arcade' | 'strategy' | 'classic' 
 export interface GameInfo {
   id: string;
   title: string;
+  subtitle?: string;
   category: GameCategory;
   categoryLabel: string;
   description: string;
