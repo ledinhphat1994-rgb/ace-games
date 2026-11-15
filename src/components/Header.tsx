@@ -245,8 +245,8 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ - DẠNG DROPDOWN TINH TẾ, TO RÕ, ĐẸP */}
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2 relative" ref={musicDropdownRef}>
+                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ - DROPDOWN MỞ RỘNG INLINE, KHÔNG CUỘN DỌC, KHÔNG CẮT CHỮ */}
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2" ref={musicDropdownRef}>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Sảnh:</span>
                     <span className="text-[10px] text-cyan-400 font-mono font-semibold">
@@ -258,14 +258,14 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsMusicDropdownOpen(prev => !prev)}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer shadow-md ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all cursor-pointer shadow-md ${
                       isMusicDropdownOpen
                         ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/20 ring-1 ring-cyan-500/30'
                         : 'bg-slate-950/80 hover:bg-slate-900 border-cyan-500/30 hover:border-cyan-500/60 text-gray-200'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-xl p-1.5 rounded-lg bg-cyan-950/70 border border-cyan-500/30 flex-shrink-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-lg p-1 rounded-lg bg-cyan-950/70 border border-cyan-500/30 flex-shrink-0">
                         {BGM_TRACKS.find(t => t.id === currentTrack)?.icon || '🎵'}
                       </span>
                       <div className="flex flex-col text-left min-w-0">
@@ -285,9 +285,9 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </button>
 
-                  {/* Dropdown Menu List */}
+                  {/* Dropdown Menu List - Inline, hiển thị toàn bộ 5 bài, không cắt chữ, không thanh cuộn dọc */}
                   {isMusicDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-2xl shadow-cyan-950/80 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1 max-h-56 overflow-y-auto custom-scrollbar">
+                    <div className="mt-2 bg-slate-950/95 border border-cyan-500/40 rounded-2xl p-1.5 shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
                       {BGM_TRACKS.map((t) => {
                         const isActive = currentTrack === t.id;
                         return (
@@ -302,16 +302,16 @@ export const Header: React.FC<HeaderProps> = ({
                               }
                               setIsMusicDropdownOpen(false);
                             }}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left border transition-all cursor-pointer ${
                               isActive
                                 ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
                                 : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'
                             }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="text-lg flex-shrink-0">{t.icon}</span>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="text-base flex-shrink-0">{t.icon}</span>
                               <div className="flex flex-col min-w-0">
-                                <span className={`text-xs sm:text-sm font-bold truncate ${isActive ? 'text-cyan-200' : 'text-gray-200'}`}>
+                                <span className={`text-xs font-bold truncate ${isActive ? 'text-cyan-200' : 'text-gray-200'}`}>
                                   {t.title}
                                 </span>
                                 <span className="text-[10px] text-gray-400 truncate">
@@ -320,7 +320,7 @@ export const Header: React.FC<HeaderProps> = ({
                               </div>
                             </div>
                             {isActive && (
-                              <div className="flex items-center gap-1 text-[11px] font-mono text-cyan-300 font-bold bg-cyan-950/90 border border-cyan-500/40 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
+                              <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/90 border border-cyan-500/40 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
                                 <Check className="w-3 h-3 text-cyan-400" />
                                 <span>Phát</span>
                               </div>

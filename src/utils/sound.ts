@@ -11,11 +11,11 @@ export interface BgmTrackInfo {
 }
 
 export const BGM_TRACKS: BgmTrackInfo[] = [
-  { id: 'heroic', title: 'Chiến Khí Hào Hùng', desc: 'Trống trận dồn dập, hào khí', icon: '⚔️', file: '/sounds/bgm_heroic.wav' },
-  { id: 'lofi', title: 'Lo-Fi Thư Giãn', desc: 'Êm dịu nhẹ nhàng, tập trung', icon: '🎧', file: '/sounds/bgm_lofi.wav' },
-  { id: 'arcade', title: 'Retro Synthwave', desc: 'Sôi động 8-bit arcade', icon: '🕹️', file: '/sounds/bgm_arcade.wav' },
-  { id: 'cyberpunk', title: 'Cyberpunk Neon', desc: 'Điện tử tương lai dồn dập', icon: '⚡', file: '/sounds/bgm_cyberpunk.wav' },
-  { id: 'zen', title: 'Thiền Cổ Phong', desc: 'Đàn tranh thanh tịnh, cổ trang', icon: '🎋', file: '/sounds/bgm_zen.wav' },
+  { id: 'heroic', title: 'Chiến Khí Hào Hùng', desc: 'Hào sảng, dồn dập', icon: '⚔️', file: '/sounds/bgm_heroic.wav' },
+  { id: 'lofi', title: 'Lo-Fi Thư Giãn', desc: 'Êm dịu, nhẹ nhàng', icon: '🎧', file: '/sounds/bgm_lofi.wav' },
+  { id: 'arcade', title: 'Retro Synthwave', desc: '8-bit sôi động', icon: '🕹️', file: '/sounds/bgm_arcade.wav' },
+  { id: 'cyberpunk', title: 'Cyberpunk Neon', desc: 'Điện tử tương lai', icon: '⚡', file: '/sounds/bgm_cyberpunk.wav' },
+  { id: 'zen', title: 'Thiền Cổ Phong', desc: 'Đàn tranh thanh tịnh', icon: '🎋', file: '/sounds/bgm_zen.wav' },
 ];
 
 export interface GameAudioConfig {
