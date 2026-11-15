@@ -56,6 +56,9 @@ export const Header: React.FC<HeaderProps> = ({
       if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
         setSettingsOpen(false);
       }
+      if (musicDropdownRef.current && !musicDropdownRef.current.contains(e.target as Node)) {
+        setIsMusicDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -245,8 +248,8 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ - DROPDOWN MỞ RỘNG INLINE, KHÔNG CUỘN DỌC, KHÔNG CẮT CHỮ */}
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2" ref={musicDropdownRef}>
+                {/* Section 3: Chọn Bản Nhạc Sảnh Chờ - DROPDOWN OVERLAY TINH TẾ, KHÔNG CUỘN DỌC, KHÔNG CẮT CHỮ */}
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2 relative" ref={musicDropdownRef}>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Sảnh:</span>
                     <span className="text-[10px] text-cyan-400 font-mono font-semibold">
@@ -258,7 +261,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsMusicDropdownOpen(prev => !prev)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all cursor-pointer shadow-md ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer shadow-md ${
                       isMusicDropdownOpen
                         ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/20 ring-1 ring-cyan-500/30'
                         : 'bg-slate-950/80 hover:bg-slate-900 border-cyan-500/30 hover:border-cyan-500/60 text-gray-200'
@@ -285,9 +288,9 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </button>
 
-                  {/* Dropdown Menu List - Inline, hiển thị toàn bộ 5 bài, không cắt chữ, không thanh cuộn dọc */}
+                  {/* Dropdown Menu List - Overlay nổi, không làm nhảy khung, không cắt chữ, không thanh cuộn dọc */}
                   {isMusicDropdownOpen && (
-                    <div className="mt-2 bg-slate-950/95 border border-cyan-500/40 rounded-2xl p-1.5 shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
                       {BGM_TRACKS.map((t) => {
                         const isActive = currentTrack === t.id;
                         return (
@@ -302,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({
                               }
                               setIsMusicDropdownOpen(false);
                             }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left border transition-all cursor-pointer ${
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left border transition-all cursor-pointer ${
                               isActive
                                 ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
                                 : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'

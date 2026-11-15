@@ -189,9 +189,9 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Kích thước bảng cài đặt rộng rãi, thoáng đẹp, tự nhiên, không thanh cuộn cứng */}
+      {/* Kích thước bảng cài đặt cố định chuẩn xác, tuyệt đối không nhảy kích thước hay đè thanh điều hướng */}
       <div
-        className="relative w-[94vw] max-w-[500px] max-h-[94vh] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col select-none transition-all duration-200"
+        className="relative w-[92vw] max-w-[460px] h-[520px] max-h-[85vh] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar - Cố định độ cao h-14 */}
@@ -329,8 +329,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Danh sách bản nhạc BGM cho game - DROPDOWN MỞ RỘNG INLINE, KHÔNG CUỘN DỌC, KHÔNG CẮT CHỮ */}
-            <div className="space-y-1.5 pt-1 border-t border-white/5" ref={musicDropdownRef}>
+            {/* Danh sách bản nhạc BGM cho game - DROPDOWN OVERLAY TINH TẾ, KHÔNG BIẾN DẠNG MODAL */}
+            <div className="space-y-1.5 pt-1 border-t border-white/5 relative" ref={musicDropdownRef}>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Nền:</span>
                 <span className="text-[10px] text-cyan-400 font-mono font-semibold">
@@ -342,7 +342,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsMusicDropdownOpen(prev => !prev)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all cursor-pointer shadow-md ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer shadow-md ${
                   isMusicDropdownOpen
                     ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/20 ring-1 ring-cyan-500/30'
                     : 'bg-slate-950/80 hover:bg-slate-900 border-cyan-500/30 hover:border-cyan-500/60 text-gray-200'
@@ -369,9 +369,9 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                 </div>
               </button>
 
-              {/* Dropdown Menu List - Mở rộng tự nhiên, không che phím dưới, không cuộn dọc, trọn vẹn 5 bài */}
+              {/* Dropdown Menu List - Overlay nổi, không đẩy lệch header modal, không cắt chữ, không thanh cuộn dọc */}
               {isMusicDropdownOpen && (
-                <div className="mt-2 bg-slate-950/95 border border-cyan-500/40 rounded-2xl p-1.5 shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
                   {BGM_TRACKS.map((t) => {
                     const isActive = currentTrack === t.id;
                     return (
@@ -382,7 +382,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                           handleSelectTrack(t.id);
                           setIsMusicDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left border transition-all cursor-pointer ${
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left border transition-all cursor-pointer ${
                           isActive
                             ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
                             : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'
