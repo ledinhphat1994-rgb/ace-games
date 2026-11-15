@@ -11,9 +11,7 @@ import {
   Grid3X3, 
   Layers, 
   Eye, 
-  Sparkles,
   Zap,
-  Check,
   Timer
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
@@ -32,7 +30,6 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   game,
   onRestartGame,
 }) => {
-  // Load saved settings for this specific game
   const storageKey = `ace_game_settings_${game.id}`;
   const [settings, setSettings] = useState<Record<string, any>>(() => {
     try {
@@ -47,9 +44,9 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     return soundManager.isSoundOn();
   });
 
-  const [justSaved, setJustSaved] = useState(false);
+  const [savedStatus, setSavedStatus] = useState(false);
 
-  // Sync when game changes or modal opens
+  // Sync state when opening
   useEffect(() => {
     if (isOpen) {
       try {
@@ -75,6 +72,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Cập nhật cài đặt mà KHÔNG làm reset ván game nền ngay lập tức (cố định bảng chính)
   const updateSetting = (key: string, value: any) => {
     soundManager.playButtonClick();
     const updated = { ...settings, [key]: value };
@@ -90,8 +88,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
       console.error(e);
     }
 
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1500);
+    setSavedStatus(true);
+    setTimeout(() => setSavedStatus(false), 1200);
   };
 
   const toggleSound = () => {
@@ -116,8 +114,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
       })
     );
     onRestartGame();
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1500);
+    setSavedStatus(true);
+    setTimeout(() => setSavedStatus(false), 1200);
   };
 
   const handleClose = () => {
@@ -126,699 +124,727 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      {/* Cố định kích thước bảng cài đặt chính (Fixed Width & Height, không xô lệch giật nhảy) */}
       <div
-        className="relative w-full max-w-lg bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-[480px] h-[480px] sm:h-[500px] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 bg-slate-900/90 flex-shrink-0">
+        {/* Header Bar - Cố định độ cao */}
+        <div className="h-14 px-5 border-b border-white/10 bg-slate-900/90 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Settings className="w-5 h-5 text-cyan-400 rotate-45 transition-transform" />
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-md shadow-cyan-500/20">
+              <Settings className="w-4 h-4 text-cyan-400 rotate-45" />
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-black text-white font-['Orbitron'] flex items-center gap-2">
-                <span>THIẾT LẬP GAME</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 font-sans">
-                  <span>{game.thumbnailIcon}</span>
-                  <span>{game.title}</span>
-                </span>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm sm:text-base font-black text-white font-['Orbitron'] tracking-wider">
+                CÀI ĐẶT
               </h3>
-              <p className="text-[11px] text-gray-400 font-mono">
-                Tùy chỉnh chế độ, luật chơi & giao diện riêng
-              </p>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                <span>{game.thumbnailIcon}</span>
+                <span className="font-semibold">{game.title}</span>
+              </span>
             </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-            title="Đóng (Esc)"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Modal Body - Scrollable */}
-        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-left">
-          
-          {/* Âm thanh riêng của game */}
-          <div className="bg-slate-900/80 border border-cyan-500/20 rounded-2xl p-4 flex items-center justify-between shadow-inner">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-slate-800 text-cyan-400 border border-white/5">
-                {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-gray-500" />}
-              </div>
-              <div>
-                <h4 className="text-xs font-black uppercase text-gray-200 tracking-wider">
-                  Hiệu Ứng Âm Thanh Game
-                </h4>
-                <p className="text-[11px] text-gray-400">
-                  {soundEnabled ? 'Đang bật âm thanh nước đi & va chạm' : 'Đã tắt tiếng trong trò chơi'}
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            {savedStatus && (
+              <span className="text-[11px] font-bold text-emerald-400 animate-in fade-in">
+                ✓ Đã lưu
+              </span>
+            )}
             <button
-              onClick={toggleSound}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition cursor-pointer shadow-sm ${
-                soundEnabled
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-emerald-500/20'
-                  : 'bg-slate-800 text-gray-500 border border-slate-700'
-              }`}
+              onClick={handleClose}
+              className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              title="Đóng (Esc)"
             >
-              {soundEnabled ? 'BẬT' : 'TẮT'}
+              <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
 
-          {/* Cài đặt chuyên sâu theo từng Game */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 font-['Orbitron']">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Tùy Chọn Chuyên Sâu ({game.title})</span>
-            </h4>
-
-            {/* CỜ TƯỚNG (Xiangqi) */}
-            {game.id === 'xiangqi' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                    <span>Chế Độ Chơi</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    <button
-                      onClick={() => updateSetting('mode', 'ai')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        (settings.mode || 'ai') === 'ai'
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      Đấu Máy
-                    </button>
-                    <button
-                      onClick={() => updateSetting('mode', 'pvp')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        settings.mode === 'pvp'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      2 Người
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Bot className="w-4 h-4 text-amber-400" />
-                    <span>Cấp Độ Máy (AI)</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { level: 1, label: 'Dễ' },
-                      { level: 2, label: 'Vừa' },
-                      { level: 3, label: 'Khó' },
-                    ].map(({ level, label }) => (
-                      <button
-                        key={level}
-                        onClick={() => updateSetting('aiLevel', level)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.aiLevel || 2) === level
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Eye className="w-4 h-4 text-emerald-400" />
-                    <span>Gợi Ý Nước Đi Hợp Lệ</span>
-                  </div>
-                  <button
-                    onClick={() => updateSetting('showHints', settings.showHints !== false ? false : true)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition ${
-                      settings.showHints !== false
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-slate-800 text-gray-400'
-                    }`}
-                  >
-                    {settings.showHints !== false ? 'Hiện' : 'Ẩn'}
-                  </button>
-                </div>
-
-                {/* Thời gian chờ suy nghĩ cho mỗi lượt */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-white/5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Timer className="w-4 h-4 text-purple-400" />
-                    <span>Thời Gian Chờ Suy Nghĩ</span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 flex-wrap">
-                    {[
-                      { val: 0, label: 'Vô Hạn' },
-                      { val: 30, label: '30s' },
-                      { val: 60, label: '60s' },
-                      { val: 90, label: '90s' },
-                      { val: 120, label: '120s' },
-                    ].map(({ val, label }) => (
-                      <button
-                        key={val}
-                        onClick={() => updateSetting('timeLimit', val)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          (settings.timeLimit !== undefined ? settings.timeLimit : 60) === val
-                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-sm shadow-purple-500/20'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+        {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
+        <div className="flex-1 p-4 sm:p-5 space-y-2.5 overflow-y-auto custom-scrollbar text-left">
+          
+          {/* Hàng 1: Âm thanh chung của game */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
               </div>
-            )}
-
-            {/* CỜ VUA (Chess) */}
-            {game.id === 'chess' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                    <span>Chế Độ Chơi</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    <button
-                      onClick={() => updateSetting('mode', 'ai')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        (settings.mode || 'ai') === 'ai'
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      Đấu Máy
-                    </button>
-                    <button
-                      onClick={() => updateSetting('mode', 'pvp')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        settings.mode === 'pvp'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      2 Người
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Bot className="w-4 h-4 text-amber-400" />
-                    <span>Độ Khó AI</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { level: 1, label: 'Dễ' },
-                      { level: 2, label: 'Vừa' },
-                      { level: 3, label: 'Khó' },
-                    ].map(({ level, label }) => (
-                      <button
-                        key={level}
-                        onClick={() => updateSetting('aiLevel', level)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.aiLevel || 2) === level
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Thời gian chờ suy nghĩ cho mỗi lượt */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-white/5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Timer className="w-4 h-4 text-purple-400" />
-                    <span>Thời Gian Chờ Suy Nghĩ</span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 flex-wrap">
-                    {[
-                      { val: 0, label: 'Vô Hạn' },
-                      { val: 30, label: '30s' },
-                      { val: 60, label: '60s' },
-                      { val: 90, label: '90s' },
-                      { val: 120, label: '120s' },
-                    ].map(({ val, label }) => (
-                      <button
-                        key={val}
-                        onClick={() => updateSetting('timeLimit', val)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          (settings.timeLimit !== undefined ? settings.timeLimit : 60) === val
-                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-sm shadow-purple-500/20'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* CỜ CARO */}
-            {game.id === 'caro' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Grid3X3 className="w-4 h-4 text-cyan-400" />
-                    <span>Kích Thước Bàn Cờ</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    <button
-                      onClick={() => {
-                        updateSetting('boardSize', 3);
-                        onRestartGame();
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        settings.boardSize === 3
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      3x3 (Cổ Điển)
-                    </button>
-                    <button
-                      onClick={() => {
-                        updateSetting('boardSize', 10);
-                        onRestartGame();
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        (settings.boardSize || 10) === 10
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      10x10 (Chuẩn 5 Ô)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Users className="w-4 h-4 text-emerald-400" />
-                    <span>Chế Độ Chơi</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    <button
-                      onClick={() => updateSetting('mode', 'ai')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        (settings.mode || 'ai') === 'ai'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      Đấu Máy
-                    </button>
-                    <button
-                      onClick={() => updateSetting('mode', 'pvp')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        settings.mode === 'pvp'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      2 Người
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Bot className="w-4 h-4 text-amber-400" />
-                    <span>Trình Độ AI</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    <button
-                      onClick={() => updateSetting('difficulty', 'EASY')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        settings.difficulty === 'EASY'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      Dễ
-                    </button>
-                    <button
-                      onClick={() => updateSetting('difficulty', 'UNBEATABLE')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                        (settings.difficulty || 'UNBEATABLE') === 'UNBEATABLE'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      Khó (AI Bất Khả)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Thời gian chờ suy nghĩ cho mỗi lượt */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-white/5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Timer className="w-4 h-4 text-purple-400" />
-                    <span>Thời Gian Chờ Suy Nghĩ</span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 flex-wrap">
-                    {[
-                      { val: 0, label: 'Vô Hạn' },
-                      { val: 30, label: '30s' },
-                      { val: 60, label: '60s' },
-                      { val: 90, label: '90s' },
-                      { val: 120, label: '120s' },
-                    ].map(({ val, label }) => (
-                      <button
-                        key={val}
-                        onClick={() => updateSetting('timeLimit', val)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          (settings.timeLimit !== undefined ? settings.timeLimit : 60) === val
-                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-sm shadow-purple-500/20'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* XẾP GẠCH (Tetris) */}
-            {game.id === 'tetris' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>Cấp Độ Khởi Đầu</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[1, 5, 10].map((lvl) => (
-                      <button
-                        key={lvl}
-                        onClick={() => updateSetting('startLevel', lvl)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.startLevel || 1) === lvl
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        Lv.{lvl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Eye className="w-4 h-4 text-emerald-400" />
-                    <span>Chiếu Bóng Vị Trí Rơi (Ghost)</span>
-                  </div>
-                  <button
-                    onClick={() => updateSetting('ghostPiece', settings.ghostPiece !== false ? false : true)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition ${
-                      settings.ghostPiece !== false
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-slate-800 text-gray-400'
-                    }`}
-                  >
-                    {settings.ghostPiece !== false ? 'Bật' : 'Tắt'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* RẮN SĂN MỒI (Snake) */}
-            {game.id === 'snake' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>Tốc Độ Rắn</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { key: 'slow', label: 'Chậm' },
-                      { key: 'normal', label: 'Vừa' },
-                      { key: 'fast', label: 'Nhanh' },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => updateSetting('speed', key)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.speed || 'normal') === key
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Zap className="w-4 h-4 text-amber-400" />
-                    <span>Đi Xuyên Tường</span>
-                  </div>
-                  <button
-                    onClick={() => updateSetting('wrapWalls', !settings.wrapWalls)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition ${
-                      settings.wrapWalls
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-slate-800 text-gray-400'
-                    }`}
-                  >
-                    {settings.wrapWalls ? 'Bật' : 'Tắt'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* DÒ MÌN (Minesweeper) */}
-            {game.id === 'minesweeper' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Layers className="w-4 h-4 text-cyan-400" />
-                    <span>Độ Khó Bãi Mìn</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { key: 'easy', label: 'Dễ (8x8)' },
-                      { key: 'medium', label: 'Vừa (12x12)' },
-                      { key: 'hard', label: 'Khó (16x16)' },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => {
-                          updateSetting('difficulty', key);
-                          onRestartGame();
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.difficulty || 'medium') === key
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PHÁ GẠCH (Breakout) */}
-            {game.id === 'breakout' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>Tốc Độ Bóng</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { key: 'normal', label: 'Tiêu Chuẩn' },
-                      { key: 'fast', label: 'Siêu Tốc' },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => updateSetting('ballSpeed', key)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.ballSpeed || 'normal') === key
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2048 */}
-            {game.id === '2048' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>Tốc Độ Lướt Gạch</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { key: 'normal', label: 'Mượt Mà' },
-                      { key: 'fast', label: 'Tức Thì' },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => updateSetting('slideSpeed', key)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.slideSpeed || 'normal') === key
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* CHIẾN CƠ KHÔNG GIAN (Space Shooter) */}
-            {game.id === 'space-shooter' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Zap className="w-4 h-4 text-cyan-400" />
-                    <span>Tự Động Xả Đạn (Auto-Fire)</span>
-                  </div>
-                  <button
-                    onClick={() => updateSetting('autoFire', settings.autoFire !== false ? false : true)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold transition ${
-                      settings.autoFire !== false
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'bg-slate-800 text-gray-400'
-                    }`}
-                  >
-                    {settings.autoFire !== false ? 'Bật' : 'Tắt'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* LẬT HÌNH (Memory) */}
-            {game.id === 'memory' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Grid3X3 className="w-4 h-4 text-cyan-400" />
-                    <span>Số Lượng Thẻ Bài</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { count: 16, label: '16 Ô (8 Cặp)' },
-                      { count: 36, label: '36 Ô (18 Cặp)' },
-                    ].map(({ count, label }) => (
-                      <button
-                        key={count}
-                        onClick={() => {
-                          updateSetting('cardCount', count);
-                          onRestartGame();
-                        }}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.cardCount || 16) === count
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* FLAPPY BIRD */}
-            {game.id === 'flappy' && (
-              <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-300">
-                    <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>Độ Thử Thách Ống Bay</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-white/10">
-                    {[
-                      { key: 'normal', label: 'Chuẩn' },
-                      { key: 'hard', label: 'Cực Hạn' },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => updateSetting('difficulty', key)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                          (settings.difficulty || 'normal') === key
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
+              <span className="text-xs sm:text-sm font-bold text-gray-200">Âm Thanh</span>
+            </div>
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+              <button
+                onClick={() => { if (!soundEnabled) toggleSound(); }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  soundEnabled
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Bật
+              </button>
+              <button
+                onClick={() => { if (soundEnabled) toggleSound(); }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  !soundEnabled
+                    ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Tắt
+              </button>
+            </div>
           </div>
 
-          {/* Toast thông báo đã lưu */}
-          {justSaved && (
-            <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 rounded-xl py-2 animate-in fade-in">
-              <Check className="w-4 h-4" />
-              <span>Đã lưu cài đặt cho {game.title}!</span>
+          {/* CỜ TƯỚNG (Xiangqi) */}
+          {game.id === 'xiangqi' && (
+            <>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Users className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('mode', 'ai')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.mode || 'ai') === 'ai'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Đấu Máy
+                  </button>
+                  <button
+                    onClick={() => updateSetting('mode', 'pvp')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.mode === 'pvp'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    2 Người
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Bot className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Độ Khó AI</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { level: 1, label: 'Dễ' },
+                    { level: 2, label: 'Vừa' },
+                    { level: 3, label: 'Khó' },
+                  ].map(({ level, label }) => (
+                    <button
+                      key={level}
+                      onClick={() => updateSetting('aiLevel', level)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.aiLevel || 2) === level
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-purple-400">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Thời Gian Lượt</span>
+                </div>
+                <select
+                  value={settings.timeLimit !== undefined ? settings.timeLimit : 60}
+                  onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
+                  className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
+                >
+                  <option value={0}>Vô Hạn (Tự do)</option>
+                  <option value={30}>30 Giây (Nhanh)</option>
+                  <option value={60}>60 Giây (Chuẩn)</option>
+                  <option value={90}>90 Giây (Chiến thuật)</option>
+                  <option value={120}>120 Giây (Thong thả)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-emerald-400">
+                    <Eye className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Gợi Ý Nước Đi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('showHints', true)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.showHints !== false
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Bật
+                  </button>
+                  <button
+                    onClick={() => updateSetting('showHints', false)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.showHints === false
+                        ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Tắt
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* CỜ VUA (Chess) */}
+          {game.id === 'chess' && (
+            <>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Users className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('mode', 'ai')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.mode || 'ai') === 'ai'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Đấu Máy
+                  </button>
+                  <button
+                    onClick={() => updateSetting('mode', 'pvp')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.mode === 'pvp'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    2 Người
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Bot className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Độ Khó AI</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { level: 1, label: 'Dễ' },
+                    { level: 2, label: 'Vừa' },
+                    { level: 3, label: 'Khó' },
+                  ].map(({ level, label }) => (
+                    <button
+                      key={level}
+                      onClick={() => updateSetting('aiLevel', level)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.aiLevel || 2) === level
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-purple-400">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Thời Gian Lượt</span>
+                </div>
+                <select
+                  value={settings.timeLimit !== undefined ? settings.timeLimit : 60}
+                  onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
+                  className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
+                >
+                  <option value={0}>Vô Hạn (Tự do)</option>
+                  <option value={30}>30 Giây (Nhanh)</option>
+                  <option value={60}>60 Giây (Chuẩn)</option>
+                  <option value={90}>90 Giây (Chiến thuật)</option>
+                  <option value={120}>120 Giây (Thong thả)</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* CỜ CARO */}
+          {game.id === 'caro' && (
+            <>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Grid3X3 className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Kích Thước Bàn</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('boardSize', 3)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.boardSize === 3
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    3x3 (Nhanh)
+                  </button>
+                  <button
+                    onClick={() => updateSetting('boardSize', 10)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.boardSize || 10) === 10
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    10x10 (Chuẩn)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-emerald-400">
+                    <Users className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('mode', 'ai')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.mode || 'ai') === 'ai'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Đấu Máy
+                  </button>
+                  <button
+                    onClick={() => updateSetting('mode', 'pvp')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.mode === 'pvp'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    2 Người
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Bot className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Độ Khó AI</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('difficulty', 'EASY')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.difficulty === 'EASY'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Dễ
+                  </button>
+                  <button
+                    onClick={() => updateSetting('difficulty', 'UNBEATABLE')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.difficulty || 'UNBEATABLE') === 'UNBEATABLE'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Khó
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-purple-400">
+                    <Timer className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Thời Gian Lượt</span>
+                </div>
+                <select
+                  value={settings.timeLimit !== undefined ? settings.timeLimit : 60}
+                  onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
+                  className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
+                >
+                  <option value={0}>Vô Hạn (Tự do)</option>
+                  <option value={30}>30 Giây (Nhanh)</option>
+                  <option value={60}>60 Giây (Chuẩn)</option>
+                  <option value={90}>90 Giây (Chiến thuật)</option>
+                  <option value={120}>120 Giây (Thong thả)</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* XẾP GẠCH (Tetris) */}
+          {game.id === 'tetris' && (
+            <>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Gauge className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Cấp Độ Bắt Đầu</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[1, 5, 10].map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => updateSetting('startLevel', lvl)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.startLevel || 1) === lvl
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Lv.{lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-emerald-400">
+                    <Eye className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chiếu Bóng Rơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('ghostPiece', true)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.ghostPiece !== false
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Bật
+                  </button>
+                  <button
+                    onClick={() => updateSetting('ghostPiece', false)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.ghostPiece === false
+                        ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Tắt
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* RẮN SĂN MỒI (Snake) */}
+          {game.id === 'snake' && (
+            <>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Gauge className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Tốc Độ Rắn</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'slow', label: 'Chậm' },
+                    { key: 'normal', label: 'Vừa' },
+                    { key: 'fast', label: 'Nhanh' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('speed', key)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.speed || 'normal') === key
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Đi Xuyên Tường</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => updateSetting('wrapWalls', true)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      settings.wrapWalls
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Bật
+                  </button>
+                  <button
+                    onClick={() => updateSetting('wrapWalls', false)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      !settings.wrapWalls
+                        ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Tắt
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* DÒ MÌN (Minesweeper) */}
+          {game.id === 'minesweeper' && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                  <Layers className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-gray-200">Cấp Độ Bãi Mìn</span>
+              </div>
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                {[
+                  { key: 'easy', label: '8x8' },
+                  { key: 'medium', label: '12x12' },
+                  { key: 'hard', label: '16x16' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => updateSetting('difficulty', key)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.difficulty || 'medium') === key
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Nút Hành Động Lớn */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
-            <button
-              onClick={handleRestart}
-              className="w-full flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition cursor-pointer active:scale-95"
-            >
-              <RotateCcw className="w-4 h-4 text-slate-950" />
-              <span>Khởi Động Lại Ván Game</span>
-            </button>
+          {/* PHÁ GẠCH (Breakout) */}
+          {game.id === 'breakout' && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                  <Gauge className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-gray-200">Tốc Độ Bóng</span>
+              </div>
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                {[
+                  { key: 'normal', label: 'Chuẩn' },
+                  { key: 'fast', label: 'Nhanh' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => updateSetting('ballSpeed', key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.ballSpeed || 'normal') === key
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-            <button
-              onClick={handleResetDefaults}
-              className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-gray-400 hover:text-white border border-white/10 text-xs font-bold transition cursor-pointer active:scale-95"
-              title="Khôi phục mọi thiết lập về mặc định ban đầu"
-            >
-              Mặc Định
-            </button>
-          </div>
+          {/* 2048 */}
+          {game.id === '2048' && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                  <Gauge className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-gray-200">Tốc Độ Lướt Ô</span>
+              </div>
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                {[
+                  { key: 'normal', label: 'Mượt' },
+                  { key: 'fast', label: 'Nhanh' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => updateSetting('slideSpeed', key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.slideSpeed || 'normal') === key
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CHIẾN CƠ KHÔNG GIAN (Space Shooter) */}
+          {game.id === 'space-shooter' && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                  <Zap className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-gray-200">Tự Động Bắn</span>
+              </div>
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                <button
+                  onClick={() => updateSetting('autoFire', true)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    settings.autoFire !== false
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Bật
+                </button>
+                <button
+                  onClick={() => updateSetting('autoFire', false)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    settings.autoFire === false
+                      ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Tắt
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* LẬT HÌNH (Memory) */}
+          {game.id === 'memory' && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                  <Grid3X3 className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-gray-200">Số Lượng Thẻ</span>
+              </div>
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                {[
+                  { count: 16, label: '16 Ô' },
+                  { count: 36, label: '36 Ô' },
+                ].map(({ count, label }) => (
+                  <button
+                    key={count}
+                    onClick={() => updateSetting('cardCount', count)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.cardCount || 16) === count
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FLAPPY BIRD */}
+          {game.id === 'flappy' && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                  <Gauge className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-gray-200">Độ Khó Ống</span>
+              </div>
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                {[
+                  { key: 'normal', label: 'Chuẩn' },
+                  { key: 'hard', label: 'Khó' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => updateSetting('difficulty', key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      (settings.difficulty || 'normal') === key
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
+
+        {/* Footer Bar - Cố định độ cao và vị trí ở đáy, không bao giờ dịch chuyển */}
+        <div className="h-16 px-5 border-t border-white/10 bg-slate-900/90 flex items-center gap-3 flex-shrink-0">
+          <button
+            onClick={handleRestart}
+            className="flex-1 flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md shadow-cyan-500/20 transition cursor-pointer active:scale-95"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Khởi Động Lại Ván Game</span>
+          </button>
+
+          <button
+            onClick={handleResetDefaults}
+            className="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-white border border-white/10 text-xs font-bold transition cursor-pointer active:scale-95"
+            title="Khôi phục mặc định"
+          >
+            Mặc Định
+          </button>
+        </div>
+
       </div>
     </div>
   );
