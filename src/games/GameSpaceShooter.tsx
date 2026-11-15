@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Play, RotateCcw, Heart, Trophy, Sparkles } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 

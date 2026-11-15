@@ -7,9 +7,13 @@ import {
   Pause, 
   Sparkles,
   Bot,
-  Users
+  Globe,
+  LogOut
 } from 'lucide-react';
 import { soundManager } from '../utils/sound';
+import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
+import { OpponentLeftModal } from '../components/OpponentLeftModal';
+import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 
 interface Particle {
   x: number;
@@ -27,7 +31,6 @@ interface TrailPoint {
   y: number;
 }
 
-type PongMode = '1p' | '2p';
 type PongDifficulty = 'easy' | 'medium' | 'hard';
 
 export const GamePong: React.FC = () => {
@@ -37,17 +40,7 @@ export const GamePong: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [winner, setWinner] = useState<'p1' | 'p2' | null>(null);
 
-  // Settings from localStorage or defaults
-  const [mode, setMode] = useState<PongMode>(() => {
-    try {
-      const saved = localStorage.getItem('ace_game_settings_pong');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.mode === '1p' || parsed.mode === '2p') return parsed.mode;
-      }
-    } catch {}
-    return '1p';
-  });
+  // Cấu hình chơi offline (Đấu Máy)
   const [difficulty, setDifficulty] = useState<PongDifficulty>(() => {
     try {
       const saved = localStorage.getItem('ace_game_settings_pong');
@@ -58,6 +51,7 @@ export const GamePong: React.FC = () => {
     } catch {}
     return 'medium';
   });
+
   const [targetScore, setTargetScore] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('ace_game_settings_pong');
@@ -69,17 +63,20 @@ export const GamePong: React.FC = () => {
     return 5;
   });
 
-  // Persist settings
-  useEffect(() => {
-    try {
-      localStorage.setItem('ace_game_settings_pong', JSON.stringify({ mode, difficulty, targetScore }));
-    } catch {}
-  }, [mode, difficulty, targetScore]);
-
-  // Scores
+  // Điểm số trận đấu
   const [p1Score, setP1Score] = useState(0);
   const [p2Score, setP2Score] = useState(0);
   const [rallyCount, setRallyCount] = useState(0);
+
+  // Trạng thái chơi Online nhiều người qua mạng (Đồng bộ với Cờ Tướng / Cờ Caro)
+  const [isOnlineMode, setIsOnlineMode] = useState<boolean>(false);
+  const [isWaitingForFriend, setIsWaitingForFriend] = useState<boolean>(false);
+  const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
+  const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
+  const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
+  const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
+  const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
+  const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
 
   // Audio synthesizer ref
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -105,12 +102,19 @@ export const GamePong: React.FC = () => {
     } catch {}
   }, []);
 
-  // Game state ref for 60fps canvas loop
+  // Lưu cài đặt vào localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ace_game_settings_pong', JSON.stringify({ difficulty, targetScore }));
+    } catch {}
+  }, [difficulty, targetScore]);
+
+  // Game state ref dùng cho vòng lặp 60 FPS
   const stateRef = useRef({
     cw: 960,
     ch: 540,
     p1: { x: 30, y: 225, w: 14, h: 90, speed: 9, targetY: 225 },
-    p2: { x: 916, y: 225, w: 14, h: 90, speed: 6.5, targetY: 225 },
+    p2: { x: 916, y: 225, w: 14, h: 90, speed: 6.8, targetY: 225 },
     ball: { 
       x: 480, 
       y: 270, 
@@ -132,34 +136,42 @@ export const GamePong: React.FC = () => {
     p2Score: 0,
     rally: 0,
     targetScore: 5,
-    mode: '1p' as PongMode,
     difficulty: 'medium' as PongDifficulty,
     isPlaying: false,
     isPaused: false,
+    isOnlineMode: false,
+    playerRole: 'host' as 'host' | 'guest',
+    isWaitingForFriend: false
   });
 
-  // Sync state refs with React state
-  useEffect(() => {
-    stateRef.current.mode = mode;
-    stateRef.current.difficulty = difficulty;
-    stateRef.current.targetScore = targetScore;
-    stateRef.current.isPaused = isPaused;
-    stateRef.current.isPlaying = isPlaying;
-    
-    // Set AI speed based on difficulty
-    if (difficulty === 'easy') stateRef.current.p2.speed = 4.8;
-    else if (difficulty === 'medium') stateRef.current.p2.speed = 6.8;
-    else stateRef.current.p2.speed = 8.6;
-  }, [mode, difficulty, targetScore, isPaused, isPlaying]);
+  const lastSyncTimeRef = useRef<number>(0);
+  const lastPaddleSendTimeRef = useRef<number>(0);
 
-  // Reset ball to center
+  // Đồng bộ props & state vào stateRef
+  useEffect(() => {
+    const s = stateRef.current;
+    s.difficulty = difficulty;
+    s.targetScore = targetScore;
+    s.isPaused = isPaused;
+    s.isPlaying = isPlaying;
+    s.isOnlineMode = isOnlineMode;
+    s.playerRole = playerRole;
+    s.isWaitingForFriend = isWaitingForFriend;
+    
+    // Tốc độ AI theo cấp độ
+    if (difficulty === 'easy') s.p2.speed = 4.8;
+    else if (difficulty === 'medium') s.p2.speed = 6.8;
+    else s.p2.speed = 8.6;
+  }, [difficulty, targetScore, isPaused, isPlaying, isOnlineMode, playerRole, isWaitingForFriend]);
+
+  // Đặt lại bóng về tâm sân
   const resetBall = useCallback((towardsP1: boolean) => {
     const s = stateRef.current;
     s.ball.x = s.cw / 2;
     s.ball.y = s.ch / 2;
     s.ball.speed = 7.0;
     s.ball.trail = [];
-    const angle = (Math.random() * 0.6 - 0.3); // slight initial angle
+    const angle = (Math.random() * 0.6 - 0.3);
     const dir = towardsP1 ? -1 : 1;
     s.ball.vx = dir * s.ball.speed * Math.cos(angle);
     s.ball.vy = s.ball.speed * Math.sin(angle);
@@ -167,8 +179,8 @@ export const GamePong: React.FC = () => {
     setRallyCount(0);
   }, []);
 
-  // Spawn spark particles
-  const spawnSparks = (x: number, y: number, color: string, count: number = 10) => {
+  // Tạo hiệu ứng tia lửa va chạm
+  const spawnSparks = useCallback((x: number, y: number, color: string, count: number = 10) => {
     const particles = stateRef.current.particles;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -184,10 +196,10 @@ export const GamePong: React.FC = () => {
         maxLife: Math.random() * 20 + 15,
       });
     }
-  };
+  }, []);
 
-  // Start / Restart Game
-  const resetGame = useCallback(() => {
+  // Bắt đầu hoặc làm mới ván đấu
+  const resetGame = useCallback((notifyRemote: boolean = true) => {
     soundManager.playButtonClick();
     const s = stateRef.current;
     s.p1.y = s.ch / 2 - s.p1.h / 2;
@@ -203,9 +215,158 @@ export const GamePong: React.FC = () => {
     setIsPaused(false);
     setIsPlaying(true);
     resetBall(Math.random() < 0.5);
-  }, [resetBall]);
 
-  // Keyboard handlers
+    if (notifyRemote && isOnlineMode && !isWaitingForFriend) {
+      multiplayer.sendAction('game_restart');
+    }
+  }, [resetBall, isOnlineMode, isWaitingForFriend]);
+
+  // Sao chép link mời phòng online
+  const handleCopyInvite = useCallback(() => {
+    if (!onlineRoom) return;
+    soundManager.playButtonClick();
+    const cleanId = multiplayer.normalizeRoomId(onlineRoom.roomId);
+    const url = `${window.location.origin}${window.location.pathname}?game=pong&room=${cleanId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedInvite(true);
+      setTimeout(() => setCopiedInvite(false), 2000);
+    });
+  }, [onlineRoom]);
+
+  // Rời phòng online quay về đấu máy
+  const handleLeaveRoom = useCallback(() => {
+    soundManager.playButtonClick();
+    multiplayer.leaveRoom();
+    setIsOnlineMode(false);
+    setIsWaitingForFriend(false);
+    setOnlineRoom(null);
+    setPlayerRole('host');
+    setOpponentName('ĐỐI THỦ');
+    resetGame(false);
+  }, [resetGame]);
+
+  // Tự động vào phòng khi mở qua Link URL ?game=pong&room=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    const gameParam = params.get('game');
+    if (roomParam && (!gameParam || gameParam === 'pong')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('room');
+      window.history.replaceState({}, '', url.toString());
+
+      multiplayer.joinRoom('pong', roomParam).then((ok) => {
+        if (ok) {
+          const room = multiplayer.getCurrentRoom();
+          if (room) {
+            setIsOnlineMode(true);
+            setIsWaitingForFriend(false);
+            setOnlineRoom(room);
+            setPlayerRole('guest');
+            const opp = multiplayer.getOpponent();
+            if (opp?.name) setOpponentName(opp.name);
+            else if (room.hostName) setOpponentName(room.hostName);
+            resetGame(false);
+          }
+        }
+      });
+    }
+  }, [resetGame]);
+
+  // Lắng nghe dữ liệu mạng từ đối thủ qua MQTT
+  useEffect(() => {
+    if (!isOnlineMode && !isWaitingForFriend) return;
+
+    const handleMessage = (data: any) => {
+      if (data.senderName) setOpponentName(data.senderName);
+
+      if (data.type === 'pong_paddle') {
+        const s = stateRef.current;
+        if (playerRole === 'host') {
+          s.p2.y = data.payload.y;
+          s.p2.targetY = data.payload.y;
+        } else {
+          s.p1.y = data.payload.y;
+          s.p1.targetY = data.payload.y;
+        }
+      } else if (data.type === 'pong_state') {
+        if (playerRole === 'guest') {
+          const s = stateRef.current;
+          s.ball.x = data.payload.bx;
+          s.ball.y = data.payload.by;
+          s.ball.vx = data.payload.bvx;
+          s.ball.vy = data.payload.bvy;
+          s.ball.speed = data.payload.speed || s.ball.speed;
+          s.p1.y = data.payload.p1y;
+          s.p1Score = data.payload.s1;
+          s.p2Score = data.payload.s2;
+          s.rally = data.payload.rally;
+          setP1Score(data.payload.s1);
+          setP2Score(data.payload.s2);
+          setRallyCount(data.payload.rally);
+          if (data.payload.sound === 'hit') {
+            playTone(580, 'triangle', 0.08);
+            spawnSparks(s.p1.x + s.p1.w, s.ball.y, '#22d3ee', 10);
+          } else if (data.payload.sound === 'bounce') {
+            playTone(420, 'sine', 0.05);
+            spawnSparks(s.ball.x, s.ball.y, '#38bdf8', 6);
+          }
+        }
+      } else if (data.type === 'pong_goal') {
+        const s = stateRef.current;
+        s.p1Score = data.payload.s1;
+        s.p2Score = data.payload.s2;
+        setP1Score(data.payload.s1);
+        setP2Score(data.payload.s2);
+        s.shake = 12;
+        if (data.payload.scorer === 'p1') {
+          playTone(680, 'sawtooth', 0.25);
+          spawnSparks(s.cw - 10, s.ch / 2, '#22d3ee', 30);
+        } else {
+          playTone(180, 'sawtooth', 0.25);
+          spawnSparks(10, s.ch / 2, '#f43f5e', 30);
+        }
+      } else if (data.type === 'pong_game_over') {
+        setIsPlaying(false);
+        setWinner(data.payload.winner);
+        setIsGameOver(true);
+        const amIWinner = (playerRole === 'host' && data.payload.winner === 'p1') || (playerRole === 'guest' && data.payload.winner === 'p2');
+        if (amIWinner) {
+          soundManager.playVictory();
+          confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        } else {
+          soundManager.playDefeat();
+        }
+      } else if (data.type === 'game_restart') {
+        resetGame(false);
+      }
+    };
+
+    const handleStatus = (status: string) => {
+      if (status === 'connected') {
+        const opp = multiplayer.getOpponent();
+        if (opp?.name) setOpponentName(opp.name);
+        setIsWaitingForFriend(false);
+        setIsOnlineMode(true);
+        resetGame(false);
+        soundManager.playGameLaunch();
+      } else if (status === 'disconnected') {
+        if (isOnlineMode && !isWaitingForFriend) {
+          setIsOpponentLeftModalOpen(true);
+        }
+      }
+    };
+
+    multiplayer.onMove(handleMessage);
+    multiplayer.onStatusChange(handleStatus);
+
+    return () => {
+      multiplayer.offMove(handleMessage);
+      multiplayer.offStatusChange(handleStatus);
+    };
+  }, [isOnlineMode, isWaitingForFriend, playerRole, resetGame, playTone, spawnSparks]);
+
+  // Xử lý phím bấm
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = stateRef.current.keys;
@@ -219,7 +380,7 @@ export const GamePong: React.FC = () => {
         e.preventDefault();
         k.down = true;
       }
-      if (e.key === ' ' && !stateRef.current.isPlaying) {
+      if (e.key === ' ' && !stateRef.current.isPlaying && !isWaitingForFriend) {
         e.preventDefault();
         resetGame();
       }
@@ -239,36 +400,41 @@ export const GamePong: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [resetGame]);
+  }, [resetGame, isWaitingForFriend]);
 
-  // Pointer controls on canvas (Mouse & Touch)
+  // Điều khiển chuột & chạm trên bàn đấu
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isWaitingForFriend) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const scaleY = stateRef.current.ch / rect.height;
-    const scaleX = stateRef.current.cw / rect.width;
     const pointerY = (e.clientY - rect.top) * scaleY;
-    const pointerX = (e.clientX - rect.left) * scaleX;
 
     const s = stateRef.current;
-    if (s.mode === '1p') {
-      // 1P: Pointer controls Left Paddle (P1)
+    if (!isOnlineMode) {
+      // Đấu máy: Chuột điều khiển thanh đỡ P1 (bên trái)
       s.p1.targetY = Math.max(0, Math.min(s.ch - s.p1.h, pointerY - s.p1.h / 2));
       s.p1.y = s.p1.targetY;
     } else {
-      // 2P: Left half controls P1, Right half controls P2
-      if (pointerX < s.cw / 2) {
+      // Đấu Online: Chủ phòng điều khiển P1, Khách điều khiển P2
+      if (playerRole === 'host') {
         s.p1.targetY = Math.max(0, Math.min(s.ch - s.p1.h, pointerY - s.p1.h / 2));
         s.p1.y = s.p1.targetY;
       } else {
         s.p2.targetY = Math.max(0, Math.min(s.ch - s.p2.h, pointerY - s.p2.h / 2));
         s.p2.y = s.p2.targetY;
+        // Gửi ngay tọa độ thanh đỡ sang host
+        const now = performance.now();
+        if (now - lastPaddleSendTimeRef.current >= 28) {
+          lastPaddleSendTimeRef.current = now;
+          multiplayer.sendAction('pong_paddle', { y: Math.round(s.p2.y) });
+        }
       }
     }
   };
 
-  // Main 60 FPS Game Loop
+  // Vòng lặp chính 60 FPS
   useEffect(() => {
     let animId: number;
 
@@ -281,133 +447,193 @@ export const GamePong: React.FC = () => {
       const s = stateRef.current;
       const { cw, ch, p1, p2, ball } = s;
 
-      // Update positions if playing and not paused
-      if (s.isPlaying && !s.isPaused) {
-        // --- 1. Paddle 1 (Keyboard support) ---
-        if (s.keys.w) p1.y = Math.max(0, p1.y - p1.speed);
-        if (s.keys.s) p1.y = Math.min(ch - p1.h, p1.y + p1.speed);
+      // Cập nhật vị trí thanh đỡ & bóng nếu đang chơi và không tạm dừng
+      if (s.isPlaying && !s.isPaused && !s.isWaitingForFriend) {
+        // --- 1. Cập nhật thanh đỡ P1 ---
+        if (!s.isOnlineMode || s.playerRole === 'host') {
+          if (s.keys.w || s.keys.up) p1.y = Math.max(0, p1.y - p1.speed);
+          if (s.keys.s || s.keys.down) p1.y = Math.min(ch - p1.h, p1.y + p1.speed);
+        }
 
-        // --- 2. Paddle 2 (AI or 2P Keyboard) ---
-        if (s.mode === '2p') {
-          if (s.keys.up) p2.y = Math.max(0, p2.y - p1.speed);
-          if (s.keys.down) p2.y = Math.min(ch - p2.h, p2.y + p1.speed);
-        } else {
-          // AI Logic with difficulty-adjusted reaction and slight human-like delay
+        // --- 2. Cập nhật thanh đỡ P2 (Máy hoặc Khách Online) ---
+        if (!s.isOnlineMode) {
+          // Trí tuệ nhân tạo (AI) bám bóng
           const targetY = ball.y - p2.h / 2;
           const diffY = targetY - p2.y;
-          // Only track if ball is moving towards AI or nearby
           if (ball.vx > 0 || ball.x > cw * 0.45) {
             if (Math.abs(diffY) > 8) {
               p2.y += Math.sign(diffY) * Math.min(Math.abs(diffY), p2.speed);
             }
           }
           p2.y = Math.max(0, Math.min(ch - p2.h, p2.y));
+        } else if (s.playerRole === 'guest') {
+          // Khách điều khiển P2 bằng phím W/S hoặc Mũi tên
+          if (s.keys.w || s.keys.up) p2.y = Math.max(0, p2.y - p1.speed);
+          if (s.keys.s || s.keys.down) p2.y = Math.min(ch - p2.h, p2.y + p1.speed);
+
+          // Gửi cập nhật vị trí thanh đỡ P2 sang Host
+          const now = performance.now();
+          if (now - lastPaddleSendTimeRef.current >= 30) {
+            lastPaddleSendTimeRef.current = now;
+            multiplayer.sendAction('pong_paddle', { y: Math.round(p2.y) });
+          }
         }
 
-        // --- 3. Ball Motion & Trail ---
-        ball.x += ball.vx;
-        ball.y += ball.vy;
+        // --- 3. Vật lý bóng (Chỉ Host hoặc Offline tính toán chính thức) ---
+        const isPhysicsMaster = !s.isOnlineMode || s.playerRole === 'host';
 
-        // Add trail point
+        if (isPhysicsMaster) {
+          ball.x += ball.vx;
+          ball.y += ball.vy;
+
+          // Bật tường trên & dưới
+          let bounced = false;
+          if (ball.y - ball.radius <= 0) {
+            ball.y = ball.radius;
+            ball.vy = Math.abs(ball.vy);
+            bounced = true;
+          } else if (ball.y + ball.radius >= ch) {
+            ball.y = ch - ball.radius;
+            ball.vy = -Math.abs(ball.vy);
+            bounced = true;
+          }
+
+          if (bounced) {
+            playTone(420, 'sine', 0.05);
+            spawnSparks(ball.x, ball.y, '#38bdf8', 6);
+          }
+
+          // Va chạm thanh đỡ 1 (Bên Trái - Xanh Cyan)
+          let hit = false;
+          if (
+            ball.vx < 0 &&
+            ball.x - ball.radius <= p1.x + p1.w &&
+            ball.x + ball.radius >= p1.x &&
+            ball.y >= p1.y - 6 &&
+            ball.y <= p1.y + p1.h + 6
+          ) {
+            ball.x = p1.x + p1.w + ball.radius;
+            const hitOffset = (ball.y - (p1.y + p1.h / 2)) / (p1.h / 2);
+            const angle = hitOffset * (Math.PI / 3);
+            ball.speed = Math.min(15.0, ball.speed + 0.35);
+            ball.vx = ball.speed * Math.cos(angle);
+            ball.vy = ball.speed * Math.sin(angle);
+
+            s.rally++;
+            setRallyCount(s.rally);
+            playTone(580 + Math.min(s.rally * 30, 400), 'triangle', 0.08);
+            spawnSparks(ball.x, ball.y, '#22d3ee', 12);
+            hit = true;
+          }
+
+          // Va chạm thanh đỡ 2 (Bên Phải - Đỏ Rose)
+          if (
+            ball.vx > 0 &&
+            ball.x + ball.radius >= p2.x &&
+            ball.x - ball.radius <= p2.x + p2.w &&
+            ball.y >= p2.y - 6 &&
+            ball.y <= p2.y + p2.h + 6
+          ) {
+            ball.x = p2.x - ball.radius;
+            const hitOffset = (ball.y - (p2.y + p2.h / 2)) / (p2.h / 2);
+            const angle = hitOffset * (Math.PI / 3);
+            ball.speed = Math.min(15.0, ball.speed + 0.35);
+            ball.vx = -ball.speed * Math.cos(angle);
+            ball.vy = ball.speed * Math.sin(angle);
+
+            s.rally++;
+            setRallyCount(s.rally);
+            playTone(520 + Math.min(s.rally * 30, 400), 'triangle', 0.08);
+            spawnSparks(ball.x, ball.y, '#f43f5e', 12);
+            hit = true;
+          }
+
+          // Ghi bàn (Bóng lọt qua khung thành)
+          if (ball.x + ball.radius < 0) {
+            // P2 ghi bàn!
+            s.p2Score++;
+            setP2Score(s.p2Score);
+            s.shake = 12;
+            playTone(180, 'sawtooth', 0.25);
+            spawnSparks(ball.x, ball.y, '#f43f5e', 30);
+
+            if (s.isOnlineMode) {
+              multiplayer.sendAction('pong_goal', { s1: s.p1Score, s2: s.p2Score, scorer: 'p2' });
+            }
+
+            if (s.p2Score >= s.targetScore) {
+              s.isPlaying = false;
+              setIsPlaying(false);
+              setWinner('p2');
+              setIsGameOver(true);
+              if (s.isOnlineMode) {
+                multiplayer.sendAction('pong_game_over', { winner: 'p2' });
+                soundManager.playDefeat();
+              } else {
+                soundManager.playDefeat();
+              }
+            } else {
+              resetBall(true);
+            }
+          } else if (ball.x - ball.radius > cw) {
+            // P1 ghi bàn!
+            s.p1Score++;
+            setP1Score(s.p1Score);
+            s.shake = 12;
+            playTone(680, 'sawtooth', 0.25);
+            spawnSparks(ball.x, ball.y, '#22d3ee', 30);
+
+            if (s.isOnlineMode) {
+              multiplayer.sendAction('pong_goal', { s1: s.p1Score, s2: s.p2Score, scorer: 'p1' });
+            }
+
+            if (s.p1Score >= s.targetScore) {
+              s.isPlaying = false;
+              setIsPlaying(false);
+              setWinner('p1');
+              setIsGameOver(true);
+              if (s.isOnlineMode) {
+                multiplayer.sendAction('pong_game_over', { winner: 'p1' });
+              }
+              soundManager.playVictory();
+              confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            } else {
+              resetBall(false);
+            }
+          }
+
+          // Đồng bộ trạng thái bóng sang khách qua mạng (30 FPS hoặc ngay khi va chạm)
+          if (s.isOnlineMode && !s.isWaitingForFriend) {
+            const now = performance.now();
+            if (hit || bounced || now - lastSyncTimeRef.current >= 33) {
+              lastSyncTimeRef.current = now;
+              multiplayer.sendAction('pong_state', {
+                bx: Math.round(ball.x * 10) / 10,
+                by: Math.round(ball.y * 10) / 10,
+                bvx: Math.round(ball.vx * 100) / 100,
+                bvy: Math.round(ball.vy * 100) / 100,
+                speed: ball.speed,
+                p1y: Math.round(p1.y),
+                s1: s.p1Score,
+                s2: s.p2Score,
+                rally: s.rally,
+                sound: hit ? 'hit' : bounced ? 'bounce' : undefined
+              });
+            }
+          }
+        } else {
+          // Phía khách: Dự đoán di chuyển mượt mà giữa các gói tin mạng
+          ball.x += ball.vx;
+          ball.y += ball.vy;
+          if (ball.y - ball.radius <= 0) ball.vy = Math.abs(ball.vy);
+          else if (ball.y + ball.radius >= ch) ball.vy = -Math.abs(ball.vy);
+        }
+
+        // Thêm điểm vệt sáng đuôi bóng
         ball.trail.push({ x: ball.x, y: ball.y });
         if (ball.trail.length > 8) ball.trail.shift();
 
-        // Top & Bottom Wall Bounce
-        if (ball.y - ball.radius <= 0) {
-          ball.y = ball.radius;
-          ball.vy = Math.abs(ball.vy);
-          playTone(420, 'sine', 0.05);
-          spawnSparks(ball.x, ball.y, '#38bdf8', 6);
-        } else if (ball.y + ball.radius >= ch) {
-          ball.y = ch - ball.radius;
-          ball.vy = -Math.abs(ball.vy);
-          playTone(420, 'sine', 0.05);
-          spawnSparks(ball.x, ball.y, '#38bdf8', 6);
-        }
-
-        // --- 4. Paddle 1 Collision (Left - Cyan) ---
-        if (
-          ball.vx < 0 &&
-          ball.x - ball.radius <= p1.x + p1.w &&
-          ball.x + ball.radius >= p1.x &&
-          ball.y >= p1.y - 6 &&
-          ball.y <= p1.y + p1.h + 6
-        ) {
-          ball.x = p1.x + p1.w + ball.radius;
-          // Calculate angle based on where ball hits paddle (-1 to 1)
-          const hitOffset = (ball.y - (p1.y + p1.h / 2)) / (p1.h / 2);
-          const angle = hitOffset * (Math.PI / 3); // Max 60 deg
-          ball.speed = Math.min(15.0, ball.speed + 0.35); // Gradually speed up rally!
-          ball.vx = ball.speed * Math.cos(angle);
-          ball.vy = ball.speed * Math.sin(angle);
-
-          s.rally++;
-          setRallyCount(s.rally);
-          playTone(580 + Math.min(s.rally * 30, 400), 'triangle', 0.08);
-          spawnSparks(ball.x, ball.y, '#22d3ee', 12);
-        }
-
-        // --- 5. Paddle 2 Collision (Right - Rose/Red) ---
-        if (
-          ball.vx > 0 &&
-          ball.x + ball.radius >= p2.x &&
-          ball.x - ball.radius <= p2.x + p2.w &&
-          ball.y >= p2.y - 6 &&
-          ball.y <= p2.y + p2.h + 6
-        ) {
-          ball.x = p2.x - ball.radius;
-          const hitOffset = (ball.y - (p2.y + p2.h / 2)) / (p2.h / 2);
-          const angle = hitOffset * (Math.PI / 3);
-          ball.speed = Math.min(15.0, ball.speed + 0.35);
-          ball.vx = -ball.speed * Math.cos(angle);
-          ball.vy = ball.speed * Math.sin(angle);
-
-          s.rally++;
-          setRallyCount(s.rally);
-          playTone(520 + Math.min(s.rally * 30, 400), 'triangle', 0.08);
-          spawnSparks(ball.x, ball.y, '#f43f5e', 12);
-        }
-
-        // --- 6. Goal Scored (Left / Right boundary) ---
-        if (ball.x + ball.radius < 0) {
-          // Player 2 Scores!
-          s.p2Score++;
-          setP2Score(s.p2Score);
-          s.shake = 12;
-          playTone(180, 'sawtooth', 0.25);
-          spawnSparks(ball.x, ball.y, '#f43f5e', 30);
-
-          if (s.p2Score >= s.targetScore) {
-            s.isPlaying = false;
-            setIsPlaying(false);
-            setWinner('p2');
-            setIsGameOver(true);
-            if (s.mode === '1p') soundManager.playDefeat();
-            else soundManager.playVictory();
-          } else {
-            resetBall(true);
-          }
-        } else if (ball.x - ball.radius > cw) {
-          // Player 1 Scores!
-          s.p1Score++;
-          setP1Score(s.p1Score);
-          s.shake = 12;
-          playTone(680, 'sawtooth', 0.25);
-          spawnSparks(ball.x, ball.y, '#22d3ee', 30);
-
-          if (s.p1Score >= s.targetScore) {
-            s.isPlaying = false;
-            setIsPlaying(false);
-            setWinner('p1');
-            setIsGameOver(true);
-            soundManager.playVictory();
-            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-          } else {
-            resetBall(false);
-          }
-        }
-
-        // Update particles
+        // Cập nhật hạt bụi tia lửa
         for (let i = s.particles.length - 1; i >= 0; i--) {
           const p = s.particles[i];
           p.x += p.vx;
@@ -421,21 +647,21 @@ export const GamePong: React.FC = () => {
         if (s.shake > 0) s.shake--;
       }
 
-      // --- RENDERING CANVAS ---
+      // --- VẼ GIAO DIỆN SÂN ĐẤU CANVAS ---
       ctx.save();
 
-      // Screen Shake
+      // Rung màn hình khi ghi bàn
       if (s.shake > 0) {
         const dx = (Math.random() - 0.5) * s.shake;
         const dy = (Math.random() - 0.5) * s.shake;
         ctx.translate(dx, dy);
       }
 
-      // Background
+      // Nền đen vũ trụ
       ctx.fillStyle = '#050811';
       ctx.fillRect(0, 0, cw, ch);
 
-      // Cyberpunk Grid lines
+      // Lưới Cyberpunk chìm
       ctx.strokeStyle = 'rgba(6, 182, 212, 0.08)';
       ctx.lineWidth = 1;
       const gridSize = 40;
@@ -452,7 +678,7 @@ export const GamePong: React.FC = () => {
         ctx.stroke();
       }
 
-      // Center Divider Neon Line
+      // Vạch kẻ sân trung tâm dạng nét đứt Neon
       ctx.setLineDash([12, 14]);
       ctx.strokeStyle = 'rgba(6, 182, 212, 0.35)';
       ctx.lineWidth = 3;
@@ -460,22 +686,22 @@ export const GamePong: React.FC = () => {
       ctx.moveTo(cw / 2, 0);
       ctx.lineTo(cw / 2, ch);
       ctx.stroke();
-      ctx.setLineDash([]); // Reset dash
+      ctx.setLineDash([]);
 
-      // Giant Neon Scores in the background
+      // Điểm số Neon khổng lồ in chìm dưới nền
       ctx.font = '900 110px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // P1 Score (Left - Cyan)
+      // Điểm P1 (Bên Trái - Xanh Cyan)
       ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
       ctx.fillText(s.p1Score.toString(), cw / 4, ch / 2);
       
-      // P2 Score (Right - Rose)
+      // Điểm P2 (Bên Phải - Đỏ Rose)
       ctx.fillStyle = 'rgba(244, 63, 94, 0.15)';
       ctx.fillText(s.p2Score.toString(), (3 * cw) / 4, ch / 2);
 
-      // Draw Ball Trail
+      // Vẽ vệt sáng đuôi bóng
       if (s.isPlaying) {
         for (let i = 0; i < ball.trail.length; i++) {
           const pt = ball.trail[i];
@@ -487,7 +713,7 @@ export const GamePong: React.FC = () => {
         }
       }
 
-      // Draw Ball with Outer Glow
+      // Vẽ quả bóng tỏa sáng
       ctx.save();
       ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 18;
@@ -497,7 +723,7 @@ export const GamePong: React.FC = () => {
       ctx.fill();
       ctx.restore();
 
-      // Draw Paddle 1 (Left - Cyan Neon)
+      // Vẽ thanh đỡ P1 (Trái - Xanh Cyan)
       ctx.save();
       ctx.shadowColor = '#06b6d4';
       ctx.shadowBlur = 16;
@@ -505,14 +731,13 @@ export const GamePong: React.FC = () => {
       ctx.beginPath();
       ctx.roundRect(p1.x, p1.y, p1.w, p1.h, 6);
       ctx.fill();
-      // Inner highlight
       ctx.fillStyle = '#a5f3fc';
       ctx.beginPath();
       ctx.roundRect(p1.x + 2, p1.y + 4, p1.w - 4, p1.h - 8, 3);
       ctx.fill();
       ctx.restore();
 
-      // Draw Paddle 2 (Right - Rose Neon)
+      // Vẽ thanh đỡ P2 (Phải - Đỏ Rose)
       ctx.save();
       ctx.shadowColor = '#f43f5e';
       ctx.shadowBlur = 16;
@@ -520,14 +745,13 @@ export const GamePong: React.FC = () => {
       ctx.beginPath();
       ctx.roundRect(p2.x, p2.y, p2.w, p2.h, 6);
       ctx.fill();
-      // Inner highlight
       ctx.fillStyle = '#fecdd3';
       ctx.beginPath();
       ctx.roundRect(p2.x + 2, p2.y + 4, p2.w - 4, p2.h - 8, 3);
       ctx.fill();
       ctx.restore();
 
-      // Draw Particles
+      // Vẽ các hạt tia lửa
       for (const p of s.particles) {
         const alpha = 1 - p.life / p.maxLife;
         ctx.fillStyle = p.color;
@@ -545,78 +769,86 @@ export const GamePong: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [playTone, resetBall]);
+  }, [playTone, spawnSparks, resetBall]);
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#070b14]">
-      {/* Top HUD: Mode, Difficulty, Target Score, Pause, Restart */}
+      {/* Top HUD: Đồng bộ hoàn toàn phong cách Cờ Tướng / Cờ Caro */}
       <div className="game-top-hud flex items-center justify-between w-full max-w-[min(98vw,1440px)] px-3 sm:px-6 py-2 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg flex-shrink-0 mb-2">
-        {/* Left: Mode & Difficulty */}
+        {/* Khối Trái: Đấu Máy / Chơi Online */}
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Mode Switcher */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-            <button
-              onClick={() => {
-                if (mode !== '1p') {
-                  setMode('1p');
-                  resetGame();
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                mode === '1p'
-                  ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-sm'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <Bot className="w-3.5 h-3.5" />
-              <span>Đấu Máy</span>
-            </button>
-            <button
-              onClick={() => {
-                if (mode !== '2p') {
-                  setMode('2p');
-                  resetGame();
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                mode === '2p'
-                  ? 'bg-amber-500/25 text-amber-300 border border-amber-400/50 shadow-sm'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>2 Người</span>
-            </button>
-          </div>
+          {isOnlineMode || isWaitingForFriend ? (
+            /* Khi đang trong trận Online: Bấm vào tên phòng là copy ngay link mời */
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyInvite}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-mono font-black text-xs transition cursor-pointer active:scale-95 shadow-sm"
+                title="Bấm để sao chép link mời"
+              >
+                {isOnlineMode && !isWaitingForFriend ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-amber-400/40" />
+                )}
+                <span>{copiedInvite ? '✓ ĐÃ COPY!' : `PHÒNG: ${onlineRoom?.roomId || ''}`}</span>
+              </button>
 
-          {/* Difficulty selector (Only in 1P mode) */}
-          {mode === '1p' && (
-            <div className="hidden sm:flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-              {(['easy', 'medium', 'hard'] as PongDifficulty[]).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    setDifficulty(d);
-                    resetGame();
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
-                    difficulty === d
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
-                </button>
-              ))}
+              <button
+                onClick={handleLeaveRoom}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold text-xs border border-rose-500/30 shadow-sm transition cursor-pointer active:scale-95"
+                title="Rời khỏi phòng đấu"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Rời Bàn</span>
+              </button>
+            </div>
+          ) : (
+            /* Khi chơi bình thường (Đấu Máy) */
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Cấp độ máy AI */}
+              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 text-cyan-300 font-bold text-xs">
+                  <Bot className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Đấu Máy:</span>
+                </div>
+                {(['easy', 'medium', 'hard'] as PongDifficulty[]).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      setDifficulty(d);
+                      resetGame();
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                      difficulty === d
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Nút Chơi Online dùng chung như Cờ Tướng */}
+              <button
+                onClick={() => setIsLobbyOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 transition cursor-pointer active:scale-95 shadow-sm"
+                title="Tạo phòng mời bạn bè hoặc chơi online qua mạng"
+              >
+                <Globe className="w-4 h-4 text-amber-400" />
+                <span>Chơi Online</span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Center: Live Match Score Header */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        {/* Khối Giữa: Tỷ số trực tiếp */}
+        <div className="flex items-center gap-3 sm:gap-6">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#06b6d4]" />
-            <span className="text-xs sm:text-sm font-black text-cyan-400">P1</span>
+            <span className="text-xs sm:text-sm font-black text-cyan-400">
+              {isOnlineMode ? (playerRole === 'host' ? 'BẠN' : opponentName.toUpperCase()) : 'BẠN'}
+            </span>
             <span className="text-xl sm:text-2xl font-black text-white font-mono">{p1Score}</span>
           </div>
 
@@ -624,7 +856,9 @@ export const GamePong: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <span className="text-xl sm:text-2xl font-black text-white font-mono">{p2Score}</span>
-            <span className="text-xs sm:text-sm font-black text-rose-400">{mode === '1p' ? 'AI' : 'P2'}</span>
+            <span className="text-xs sm:text-sm font-black text-rose-400">
+              {isOnlineMode ? (playerRole === 'guest' ? 'BẠN' : opponentName.toUpperCase()) : 'MÁY'}
+            </span>
             <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
           </div>
 
@@ -636,39 +870,42 @@ export const GamePong: React.FC = () => {
           )}
         </div>
 
-        {/* Right: Target score, Pause, Restart */}
+        {/* Khối Phải: Điểm thắng, Tạm dừng, Ván mới */}
         <div className="flex items-center gap-2">
-          {/* Target Score Selector */}
-          <div className="hidden sm:flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-            {[5, 7, 11].map((pts) => (
-              <button
-                key={pts}
-                onClick={() => {
-                  setTargetScore(pts);
-                  resetGame();
-                }}
-                className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
-                  targetScore === pts
-                    ? 'bg-amber-500/25 text-amber-300 border border-amber-400/50'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                title={`Chạm ${pts} điểm để thắng`}
-              >
-                {pts}đ
-              </button>
-            ))}
-          </div>
+          {!isOnlineMode && (
+            <div className="hidden sm:flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+              {[5, 7, 11].map((pts) => (
+                <button
+                  key={pts}
+                  onClick={() => {
+                    setTargetScore(pts);
+                    resetGame();
+                  }}
+                  className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
+                    targetScore === pts
+                      ? 'bg-amber-500/25 text-amber-300 border border-amber-400/50'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                  title={`Chạm ${pts} điểm để thắng`}
+                >
+                  {pts}đ
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isOnlineMode && (
+            <button
+              onClick={() => setIsPaused(prev => !prev)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+              title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+            >
+              {isPaused ? <Play className="w-4 h-4 text-emerald-400" /> : <Pause className="w-4 h-4" />}
+            </button>
+          )}
 
           <button
-            onClick={() => setIsPaused(prev => !prev)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
-            title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
-          >
-            {isPaused ? <Play className="w-4 h-4 text-emerald-400" /> : <Pause className="w-4 h-4" />}
-          </button>
-
-          <button
-            onClick={resetGame}
+            onClick={() => resetGame()}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
             title="Ván Mới"
           >
@@ -677,7 +914,7 @@ export const GamePong: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 16:9 Widescreen Theater Arena Box */}
+      {/* Sân đấu rạp phim 16:9 khổng lồ */}
       <div className="game-arena-box relative w-full aspect-[16/9] max-w-[min(98vw,1440px)] max-h-[calc(100dvh-130px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-cyan-500/50 shadow-[0_0_60px_rgba(6,182,212,0.35)] touch-none flex-1 min-h-0 flex items-center justify-center">
         <canvas
           ref={canvasRef}
@@ -687,18 +924,45 @@ export const GamePong: React.FC = () => {
           className="w-full h-full block cursor-pointer"
         />
 
-        {/* Start Game Overlay */}
-        {!isPlaying && !isGameOver && (
+        {/* Khung Chờ Bạn Vào Bàn (Online Host) */}
+        {isWaitingForFriend && (
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40 animate-in fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/30 animate-pulse">
+              <Globe className="w-8 h-8 text-amber-400" />
+            </div>
+            <h3 className="text-2xl font-black text-white tracking-wider mb-2">ĐANG CHỜ BẠN VÀO BÀN</h3>
+            <p className="text-sm text-amber-300 font-semibold mb-6 max-w-sm">
+              Chia sẻ link mời hoặc mã phòng để bắt đầu trận đấu trực tuyến.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCopyInvite}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/40 transition cursor-pointer active:scale-95 flex items-center gap-2 uppercase tracking-wider"
+              >
+                <span>{copiedInvite ? '✓ ĐÃ COPY LINK' : `COPY LINK PHÒNG: ${onlineRoom?.roomId || ''}`}</span>
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-300 font-bold text-sm border border-white/10 transition cursor-pointer active:scale-95"
+              >
+                HỦY
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Màn hình bắt đầu ván (Offline) */}
+        {!isPlaying && !isGameOver && !isWaitingForFriend && (
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-in fade-in">
             <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30">
               <Sparkles className="w-8 h-8 text-cyan-400" />
             </div>
             <h3 className="text-3xl font-black text-white tracking-wider mb-2">BÓNG BÀN ARCADE</h3>
             <p className="text-sm text-cyan-300 font-semibold mb-6 max-w-sm">
-              {mode === '1p' ? 'Di chuyển chuột để đón bóng đấu với AI.' : 'P1 dùng W/S, P2 dùng phím Mũi tên.'}
+              Di chuyển chuột hoặc phím W/S để đón bóng và ghi điểm.
             </p>
             <button
-              onClick={resetGame}
+              onClick={() => resetGame()}
               className="px-10 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-lg shadow-[0_0_35px_rgba(6,182,212,0.6)] transition cursor-pointer active:scale-95 flex items-center gap-2.5 tracking-wider uppercase"
             >
               <Play className="w-5 h-5 fill-current" />
@@ -707,7 +971,7 @@ export const GamePong: React.FC = () => {
           </div>
         )}
 
-        {/* Paused Overlay */}
+        {/* Màn hình tạm dừng (Offline) */}
         {isPaused && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-30">
             <Pause className="w-14 h-14 text-cyan-400 animate-pulse" />
@@ -721,7 +985,7 @@ export const GamePong: React.FC = () => {
           </div>
         )}
 
-        {/* Match Finished Overlay */}
+        {/* Màn hình kết thúc trận đấu */}
         {isGameOver && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-40 animate-in fade-in">
             <div className="w-full max-w-sm bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl p-6 text-center shadow-[0_0_60px_rgba(6,182,212,0.35)] space-y-4">
@@ -731,10 +995,13 @@ export const GamePong: React.FC = () => {
 
               <div>
                 <h3 className="text-2xl sm:text-3xl font-black text-white tracking-wider">
-                  {mode === '1p' 
-                    ? (winner === 'p1' ? 'BẠN CHIẾN THẮNG!' : 'MÁY CHIẾN THẮNG!')
-                    : (winner === 'p1' ? 'NGƯỜI CHƠI 1 THẮNG!' : 'NGƯỜI CHƠI 2 THẮNG!')
-                  }
+                  {isOnlineMode ? (
+                    ((playerRole === 'host' && winner === 'p1') || (playerRole === 'guest' && winner === 'p2'))
+                      ? 'BẠN CHIẾN THẮNG!'
+                      : 'ĐỐI THỦ CHIẾN THẮNG!'
+                  ) : (
+                    winner === 'p1' ? 'BẠN CHIẾN THẮNG!' : 'MÁY CHIẾN THẮNG!'
+                  )}
                 </h3>
                 <p className="text-sm text-gray-300 font-semibold mt-1">
                   Tỷ số chung cuộc: <strong className="text-cyan-400 font-mono text-base">{p1Score}</strong> - <strong className="text-rose-400 font-mono text-base">{p2Score}</strong>
@@ -742,7 +1009,7 @@ export const GamePong: React.FC = () => {
               </div>
 
               <button
-                onClick={resetGame}
+                onClick={() => resetGame()}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-base shadow-lg shadow-cyan-500/40 transition cursor-pointer active:scale-95 uppercase tracking-wider"
               >
                 Chơi Ván Mới
@@ -751,6 +1018,46 @@ export const GamePong: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal Sảnh Chơi Online (Dùng chung chuẩn hệ thống) */}
+      <OnlineLobbyModal
+        isOpen={isLobbyOpen}
+        onClose={() => setIsLobbyOpen(false)}
+        gameId="pong"
+        gameTitle="Bóng Bàn"
+        onJoinedMatch={(room, role) => {
+          setIsOnlineMode(true);
+          setOnlineRoom(room);
+          setPlayerRole(role);
+          const opp = multiplayer.getOpponent();
+          if (opp?.name) setOpponentName(opp.name);
+          else if (role === 'guest' && room.hostName) setOpponentName(room.hostName);
+          setIsWaitingForFriend(false);
+          resetGame(false);
+        }}
+        onWaitingInBackground={(room) => {
+          setOnlineRoom(room);
+          setPlayerRole('host');
+          setIsOnlineMode(true);
+          setIsWaitingForFriend(true);
+          setIsLobbyOpen(false);
+        }}
+      />
+
+      {/* Modal Thông Báo Đối Thủ Đã Rời Bàn */}
+      <OpponentLeftModal
+        isOpen={isOpponentLeftModalOpen}
+        opponentName={opponentName}
+        onClose={() => {
+          setIsOpponentLeftModalOpen(false);
+          handleLeaveRoom();
+        }}
+        onFindNewMatch={() => {
+          setIsOpponentLeftModalOpen(false);
+          handleLeaveRoom();
+          setIsLobbyOpen(true);
+        }}
+      />
     </div>
   );
 };

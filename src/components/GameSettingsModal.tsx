@@ -1107,34 +1107,6 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
           {/* BÓNG BÀN (Pong) */}
           {game.id === 'pong' && (
             <>
-              {/* CHẾ ĐỘ ĐẤU */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
-                    <Bot className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Đấu</span>
-                </div>
-                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-                  {[
-                    { key: '1p', label: 'Đấu Máy' },
-                    { key: '2p', label: '2 Người' },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => updateSetting('mode', key)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                        (settings.mode || '1p') === key
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* ĐỘ KHÓ AI */}
               <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
                 <div className="flex items-center gap-2.5">
@@ -1154,7 +1126,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                       onClick={() => updateSetting('difficulty', key)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                         (settings.difficulty || 'medium') === key
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40'
                           : 'text-gray-400 hover:text-white'
                       }`}
                     >
