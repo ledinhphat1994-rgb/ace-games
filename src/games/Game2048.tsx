@@ -221,14 +221,17 @@ export const Game2048: React.FC = () => {
     }
   };
 
+  const maxTile = board.flat().reduce((max, val) => Math.max(max, val), 0);
+  const emptyCount = board.flat().filter(v => v === 0).length;
+
   return (
     <div 
-      className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-80px),960px)] select-none p-1 sm:p-2"
+      className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Score Header - VÙNG 4 CÂN BẰNG LẠI & BỔ SUNG BẢNG XẾP HẠNG */}
-      <div className="flex items-center justify-between w-full mb-3 px-3 sm:px-4 bg-slate-900/85 border border-white/10 rounded-2xl py-2 shadow-inner">
+      {/* Top HUD - Chuẩn chiều rộng 1320px như Flappy Bird & Màn hình mặc định */}
+      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
         {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex flex-col items-center text-center">
@@ -253,11 +256,12 @@ export const Game2048: React.FC = () => {
           </div>
         </div>
 
+        {/* Right: Quick actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={handleUndo}
             disabled={!history || gameOver}
-            className={`p-2 rounded-xl border transition ${
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border font-bold text-xs transition ${
               history && !gameOver
                 ? 'bg-slate-800 hover:bg-slate-700 border-white/10 text-cyan-400 cursor-pointer shadow-sm active:scale-95'
                 : 'opacity-40 border-transparent text-gray-600 cursor-not-allowed'
@@ -265,13 +269,14 @@ export const Game2048: React.FC = () => {
             title="Đi lại 1 bước (Undo)"
           >
             <Undo2 className="w-4 h-4 text-cyan-400" />
+            <span className="hidden sm:inline">Đi Lại</span>
           </button>
 
           {!gameOver && (
             <button
               onClick={initGame}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-amber-400 hover:text-amber-300 transition shadow-sm cursor-pointer active:scale-95"
-              title="Ván mới (Chơi lại)"
+              title="Ván mới"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -279,59 +284,108 @@ export const Game2048: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive 4x4 Grid Board - Scaled to never exceed container */}
-      <div className="relative bg-[#948171] p-2.5 sm:p-4 rounded-3xl w-full aspect-square max-w-[min(92vw,calc(100dvh-220px),580px)] max-h-[min(92vw,calc(100dvh-220px),580px)] shadow-2xl border-3 sm:border-4 border-[#7a6859] flex-shrink min-h-0">
-        <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
-          {board.map((row, r) =>
-            row.map((cell, c) => (
-              <div
-                key={`${r}-${c}`}
-                className={`flex items-center justify-center font-black rounded-2xl transition-all duration-100 select-none ${
-                  getTileColor(cell)
-                }`}
-              >
-                {cell > 0 ? cell : ''}
+      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c130b] via-[#100a05] to-[#050302] rounded-3xl border-4 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+        
+        {/* Left Side: Goal & Progression Card */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-amber-500/30 backdrop-blur-md shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-white font-black text-2xl font-mono shadow-[0_0_25px_rgba(245,158,11,0.6)] mb-3 border border-yellow-300/40">
+            2048
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">MỤC TIÊU</h4>
+          <span className="text-amber-400 font-mono text-xs font-bold mb-3">HỢP NHẤT TỚI 2048</span>
+          <div className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 mb-4">
+            Mũi Tên hoặc Vuốt
+          </div>
+          <div className="pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
+            <span>Tiến độ ô:</span>
+            <strong className="text-amber-300 font-mono text-sm">{maxTile || 2} / 2048</strong>
+          </div>
+        </div>
+
+        {/* Center: Massive 4x4 Grid Board filling vertical height */}
+        <div className="relative bg-[#8f7a66] p-3 sm:p-4 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-amber-600/50 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-4 grid-rows-4 gap-2.5 sm:gap-3.5 w-full h-full">
+            {board.map((row, r) =>
+              row.map((cell, c) => (
+                <div
+                  key={`${r}-${c}`}
+                  className={`flex items-center justify-center font-black rounded-2xl transition-all duration-100 select-none ${
+                    getTileColor(cell)
+                  }`}
+                >
+                  {cell > 0 ? cell : ''}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Win Overlay */}
+          {won && (
+            <div className="absolute inset-0 bg-amber-500/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
+              <Award className="w-14 h-14 text-yellow-200 mb-2 animate-bounce" />
+              <h3 className="text-2xl font-black mb-1">BẠN ĐÃ ĐẠT 2048!</h3>
+              <p className="text-sm text-yellow-100 mb-4 text-center">Chúc mừng bạn đã chinh phục cột mốc huyền thoại!</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setWon(false)}
+                  className="px-4 py-2 bg-white text-amber-700 font-bold rounded-xl shadow hover:bg-gray-100 transition text-sm cursor-pointer"
+                >
+                  Tiếp Tục Chơi
+                </button>
+                <button
+                  onClick={initGame}
+                  className="px-4 py-2 bg-amber-800 text-white font-bold rounded-xl shadow hover:bg-amber-900 transition text-sm cursor-pointer"
+                >
+                  Ván Mới
+                </button>
               </div>
-            ))
+            </div>
+          )}
+
+          {/* Game Over Overlay */}
+          {gameOver && (
+            <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
+              <h3 className="text-2xl font-black text-rose-500 mb-1">HẾT NƯỚC ĐI!</h3>
+              <p className="text-sm text-gray-300 mb-4 text-center">Không còn ô trống nào có thể kết hợp được.</p>
+              <button
+                onClick={initGame}
+                className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold rounded-xl shadow-lg transition text-sm cursor-pointer"
+              >
+                Thử Lại Ngay
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Win Overlay */}
-        {won && (
-          <div className="absolute inset-0 bg-amber-500/85 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
-            <Award className="w-14 h-14 text-yellow-200 mb-2 animate-bounce" />
-            <h3 className="text-2xl font-black mb-1">BẠN ĐÃ ĐẠT 2048!</h3>
-            <p className="text-sm text-yellow-100 mb-4 text-center">Chúc mừng bạn đã chinh phục cột mốc huyền thoại!</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setWon(false)}
-                className="px-4 py-2 bg-white text-amber-700 font-bold rounded-xl shadow hover:bg-gray-100 transition text-sm"
-              >
-                Tiếp Tục Chơi
-              </button>
-              <button
-                onClick={initGame}
-                className="px-4 py-2 bg-amber-800 text-white font-bold rounded-xl shadow hover:bg-amber-900 transition text-sm"
-              >
-                Ván Mới
-              </button>
+        {/* Right Side: Stats & Helper Card */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-amber-500/30 backdrop-blur-md shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-800 border-2 border-amber-400/40 flex items-center justify-center text-3xl mb-3 shadow-inner">
+            ⚡
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">THỐNG KÊ</h4>
+          <span className="text-amber-400 font-mono text-xs font-bold mb-3">TRẠNG THÁI BÀN</span>
+          
+          <div className="w-full space-y-2 text-xs">
+            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
+              <span className="text-gray-400">Ô Lớn Nhất:</span>
+              <strong className="text-yellow-400 font-mono font-black text-sm">{maxTile || 2}</strong>
+            </div>
+            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
+              <span className="text-gray-400">Ô Trống:</span>
+              <strong className="text-emerald-400 font-mono font-black text-sm">{emptyCount} / 16</strong>
             </div>
           </div>
-        )}
 
-        {/* Game Over Overlay */}
-        {gameOver && (
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
-            <h3 className="text-2xl font-black text-rose-500 mb-1">HẾT NƯỚC ĐI!</h3>
-            <p className="text-sm text-gray-300 mb-4 text-center">Không còn ô trống nào có thể kết hợp được.</p>
+          <div className="mt-4 pt-3 border-t border-white/10 w-full">
             <button
               onClick={initGame}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition text-sm"
+              className="w-full py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-bold rounded-xl text-xs transition active:scale-95"
             >
-              Thử Lại Ngay
+              Làm Mới Ván Đấu
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

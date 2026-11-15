@@ -142,98 +142,157 @@ export const GameChess: React.FC = () => {
     }
   };
 
+  const isWhiteTurn = pos.turn === WHITE;
+
   return (
     <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
-      {/* Control bar */}
-      <div className="w-full max-w-[min(96vw,560px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-3 py-1.5 mb-1.5 shadow-inner text-xs sm:text-sm flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="font-black text-amber-400 font-mono text-xs sm:text-sm">{statusMessage}</span>
-          {isThinking && (
-            <span className="text-[11px] text-cyan-400 animate-pulse font-bold">
-              (AI đang tính...)
+      {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
+      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              TRẠNG THÁI
             </span>
-          )}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="font-black text-amber-400 font-mono text-xs sm:text-sm leading-none">{statusMessage}</span>
+              {isThinking && (
+                <span className="text-[11px] text-cyan-400 animate-pulse font-bold leading-none">
+                  (AI đang tính...)
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
               resetGame();
             }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition cursor-pointer"
           >
-            {mode === 'ai' ? <Bot size={14} className="text-cyan-400" /> : <Users size={14} className="text-emerald-400" />}
-            <span>{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
+            {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
+            <span className="hidden sm:inline">{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
           </button>
+          
           {mode === 'ai' && (
             <select
               value={aiLevel}
               onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2 py-1 outline-none cursor-pointer"
+              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
             >
               <option value={1}>Dễ</option>
               <option value={2}>Vừa</option>
               <option value={3}>Khó</option>
             </select>
           )}
+
           <button
             onClick={resetGame}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer"
             title="Ván mới"
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={16} />
           </button>
         </div>
       </div>
 
-      {/* Massive Chessboard (8x8) - Fits 100% inside container */}
-      <div className="relative p-1.5 sm:p-2.5 bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 border-3 sm:border-4 border-amber-600/50 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.25)] flex-shrink min-h-0">
-        <div 
-          className="grid grid-cols-8 grid-rows-8 rounded-xl overflow-hidden border-2 border-slate-950 shadow-inner"
-          style={{
-            width: 'min(calc(100dvh - 215px), 580px, 86vw)',
-            height: 'min(calc(100dvh - 215px), 580px, 86vw)'
-          }}
-        >
-          {Array.from({ length: 64 }).map((_, idx) => {
-            const row = Math.floor(idx / 8);
-            const col = idx % 8;
-            const sq = (7 - row) * 8 + col;
-            const piece = pos.board[sq];
-            const isLight = (row + col) % 2 === 0;
-            const isSelected = selectedSq === sq;
-            const isTarget = validMoves.some(m => m.to === sq);
-            const isLastFrom = lastMove?.from === sq;
-            const isLastTo = lastMove?.to === sq;
+      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c1208] via-[#0f0904] to-[#050301] rounded-3xl border-4 border-amber-600/50 shadow-[0_0_50px_rgba(245,158,11,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+        
+        {/* Left Side: Battle Card Player White */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-amber-400/30 backdrop-blur-md shadow-2xl text-center">
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-3 border-2 transition-all duration-300 ${
+            isWhiteTurn
+              ? 'border-yellow-400 bg-amber-500/20 shadow-[0_0_25px_rgba(245,158,11,0.6)] scale-105'
+              : 'border-slate-700 bg-slate-800 text-gray-400'
+          }`}>
+            ♔
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">NGƯỜI CHƠI</h4>
+          <span className="text-yellow-400 font-mono text-2xl font-black mb-3">QUÂN TRẮNG</span>
+          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
+            isWhiteTurn
+              ? 'bg-amber-500/20 text-yellow-300 border border-yellow-400 animate-pulse'
+              : 'bg-slate-800/80 text-gray-500'
+          }`}>
+            {isWhiteTurn ? 'ĐANG ĐẾN LƯỢT' : 'ĐỢI LƯỢT'}
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
+            <span>Vai trò:</span>
+            <strong className="text-yellow-300 font-mono text-sm">Đi Trước</strong>
+          </div>
+        </div>
 
-            let bgColor = isLight ? '#f0d9b5' : '#b58863';
-            if (isSelected) bgColor = '#facc15';
-            else if (isLastFrom || isLastTo) bgColor = isLight ? '#ced887' : '#aaa23a';
+        {/* Center: Massive 8x8 Chessboard filling vertical height */}
+        <div className="relative bg-[#0c0804] p-2.5 sm:p-3.5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-amber-600/60 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-8 grid-rows-8 rounded-2xl overflow-hidden border-2 border-slate-950 shadow-inner w-full h-full">
+            {Array.from({ length: 64 }).map((_, idx) => {
+              const row = Math.floor(idx / 8);
+              const col = idx % 8;
+              const sq = (7 - row) * 8 + col;
+              const piece = pos.board[sq];
+              const isLight = (row + col) % 2 === 0;
+              const isSelected = selectedSq === sq;
+              const isTarget = validMoves.some(m => m.to === sq);
+              const isLastFrom = lastMove?.from === sq;
+              const isLastTo = lastMove?.to === sq;
 
-            return (
-              <div
-                key={sq}
-                onClick={() => handleSquareClick(sq)}
-                className="relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150"
-                style={{ backgroundColor: bgColor }}
-              >
-                {/* Target move dot indicator */}
-                {isTarget && (
-                  <div className={`absolute z-10 rounded-full ${piece ? 'w-full h-full border-3 border-emerald-500/90 bg-emerald-500/25' : 'w-3 h-3 sm:w-5 sm:h-5 bg-emerald-600/80 shadow-md'}`} />
-                )}
+              let bgColor = isLight ? '#f0d9b5' : '#b58863';
+              if (isSelected) bgColor = '#facc15';
+              else if (isLastFrom || isLastTo) bgColor = isLight ? '#ced887' : '#aaa23a';
 
-                {/* Massive Chess piece icon */}
-                {piece && (
-                  <span
-                    className={`text-3xl sm:text-5xl md:text-6xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
-                  >
-                    {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={sq}
+                  onClick={() => handleSquareClick(sq)}
+                  className="relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150"
+                  style={{ backgroundColor: bgColor }}
+                >
+                  {/* Target move dot indicator */}
+                  {isTarget && (
+                    <div className={`absolute z-10 rounded-full ${piece ? 'w-full h-full border-3 border-emerald-500/90 bg-emerald-500/25' : 'w-3 h-3 sm:w-5 sm:h-5 bg-emerald-600/80 shadow-md'}`} />
+                  )}
+
+                  {/* Massive Chess piece icon */}
+                  {piece && (
+                    <span
+                      className={`text-3xl sm:text-5xl md:text-6xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'}`}
+                    >
+                      {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Side: Battle Card Player Black / AI */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-slate-700/60 backdrop-blur-md shadow-2xl text-center">
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-3 border-2 transition-all duration-300 ${
+            !isWhiteTurn
+              ? 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_25px_rgba(6,182,212,0.6)] scale-105'
+              : 'border-slate-700 bg-slate-800 text-gray-400'
+          }`}>
+            {mode === 'ai' ? '🤖' : '♚'}
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">
+            {mode === 'ai' ? 'AI BOT' : 'NGƯỜI 2'}
+          </h4>
+          <span className="text-cyan-400 font-mono text-2xl font-black mb-3">QUÂN ĐEN</span>
+          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
+            !isWhiteTurn
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 animate-pulse'
+              : 'bg-slate-800/80 text-gray-500'
+          }`}>
+            {!isWhiteTurn ? (isThinking ? 'ĐANG TÍNH...' : 'ĐANG ĐẾN LƯỢT') : 'ĐỢI LƯỢT'}
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
+            <span>Cấp độ:</span>
+            <strong className="text-amber-400 font-mono text-sm">{mode === 'ai' ? `Cấp ${aiLevel}` : 'PvP'}</strong>
+          </div>
         </div>
       </div>
     </div>

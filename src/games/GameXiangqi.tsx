@@ -144,105 +144,164 @@ export const GameXiangqi: React.FC = () => {
     }
   };
 
+  const isRedTurn = pos.turn === RED;
+
   return (
     <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
-      {/* Control bar */}
-      <div className="w-full max-w-[min(96vw,560px)] flex items-center justify-between bg-slate-900/90 border border-white/10 rounded-2xl px-3 py-1.5 mb-1.5 shadow-inner text-xs sm:text-sm flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="font-black text-rose-400 font-mono text-xs sm:text-sm">{statusMessage}</span>
-          {isThinking && (
-            <span className="text-[11px] text-cyan-400 animate-pulse font-bold">
-              (AI đang tính...)
+      {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
+      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              TRẠNG THÁI
             </span>
-          )}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="font-black text-rose-400 font-mono text-xs sm:text-sm leading-none">{statusMessage}</span>
+              {isThinking && (
+                <span className="text-[11px] text-cyan-400 animate-pulse font-bold leading-none">
+                  (AI đang tính...)
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setMode(prev => (prev === 'ai' ? 'pvp' : 'ai'));
               resetGame();
             }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold text-xs border border-white/5 transition cursor-pointer"
           >
-            {mode === 'ai' ? <Bot size={14} className="text-cyan-400" /> : <Users size={14} className="text-emerald-400" />}
-            <span>{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
+            {mode === 'ai' ? <Bot size={15} className="text-cyan-400" /> : <Users size={15} className="text-emerald-400" />}
+            <span className="hidden sm:inline">{mode === 'ai' ? 'Đấu Máy' : '2 Người'}</span>
           </button>
+          
           {mode === 'ai' && (
             <select
               value={aiLevel}
               onChange={e => setAiLevel(Number(e.target.value) as 1 | 2 | 3)}
-              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2 py-1 outline-none cursor-pointer"
+              className="bg-slate-800 border border-slate-700 text-gray-200 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
             >
               <option value={1}>Dễ</option>
               <option value={2}>Vừa</option>
               <option value={3}>Khó</option>
             </select>
           )}
+
           <button
             onClick={resetGame}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer"
             title="Ván mới"
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={16} />
           </button>
         </div>
       </div>
 
-      {/* Massive Xiangqi Board - Scaled to NEVER exceed viewport height */}
-      <div className="relative p-1.5 sm:p-2.5 bg-gradient-to-br from-amber-950 via-neutral-900 to-rose-950 border-3 sm:border-4 border-rose-700/50 rounded-2xl shadow-[0_0_40px_rgba(225,29,72,0.25)] flex items-center justify-center flex-shrink min-h-0">
-        <div
-          className="relative bg-[#dec196] border-2 sm:border-3 border-[#78350f] rounded-xl shadow-inner overflow-hidden"
-          style={{
-            height: 'min(calc(100dvh - 215px), 580px, 86vw * 1.11)',
-            width: 'calc(min(calc(100dvh - 215px), 580px, 86vw * 1.11) * 0.9)'
-          }}
-        >
-          {/* River Divider */}
-          <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-xs sm:text-sm tracking-[0.35em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">
-            <span>楚 河</span>
-            <span>漢 界</span>
+      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1a0c06] via-[#0f0603] to-[#050201] rounded-3xl border-4 border-rose-700/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+        
+        {/* Left Side: Battle Card Player Red */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-serif font-black mb-3 border-2 transition-all duration-300 ${
+            isRedTurn
+              ? 'border-rose-500 bg-rose-500/20 text-rose-300 shadow-[0_0_25px_rgba(244,63,94,0.6)] scale-105'
+              : 'border-slate-700 bg-slate-800 text-gray-400'
+          }`}>
+            帥
           </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">NGƯỜI CHƠI</h4>
+          <span className="text-rose-400 font-mono text-2xl font-black mb-3">TƯỚNG ĐỎ</span>
+          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
+            isRedTurn
+              ? 'bg-rose-500/20 text-rose-300 border border-rose-500 animate-pulse'
+              : 'bg-slate-800/80 text-gray-500'
+          }`}>
+            {isRedTurn ? 'ĐANG ĐẾN LƯỢT' : 'ĐỢI LƯỢT'}
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
+            <span>Vai trò:</span>
+            <strong className="text-rose-400 font-mono text-sm">Đi Trước</strong>
+          </div>
+        </div>
 
-          {/* 90 intersections */}
-          <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10 p-1 sm:p-2">
-            {Array.from({ length: 90 }).map((_, idx) => {
-              const r = 9 - Math.floor(idx / 9);
-              const f = idx % 9;
-              const sq = r * 9 + f;
-              const piece = pos.board[sq];
-              const isSelected = selectedSq === sq;
-              const isTarget = validMoves.some(m => m.to === sq);
-              const isLast = lastMove?.from === sq || lastMove?.to === sq;
+        {/* Center: Massive Xiangqi Board filling vertical height */}
+        <div className="relative bg-[#0c0502] p-2 sm:p-3 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-275px)] border-4 border-amber-800/60 shadow-2xl flex items-center justify-center">
+          <div className="relative bg-[#deb887] border-2 sm:border-3 border-[#78350f] rounded-2xl shadow-inner overflow-hidden w-full h-full">
+            {/* River Divider */}
+            <div className="absolute top-[44%] left-0 right-0 h-[12%] flex items-center justify-around text-rose-950 font-serif font-black text-sm sm:text-base tracking-[0.4em] border-y-2 border-amber-900/40 bg-amber-700/15 pointer-events-none">
+              <span>楚 河</span>
+              <span>漢 界</span>
+            </div>
 
-              return (
-                <div
-                  key={sq}
-                  onClick={() => handleSquareClick(sq)}
-                  className="relative flex items-center justify-center cursor-pointer select-none"
-                >
-                  {/* Target move indicator */}
-                  {isTarget && (
-                    <div className={`absolute z-20 rounded-full ${piece ? 'w-full h-full border-3 border-emerald-500 bg-emerald-500/30' : 'w-3 h-3 sm:w-4 sm:h-4 bg-emerald-600 shadow-md'}`} />
-                  )}
+            {/* 90 intersections */}
+            <div className="relative z-10 w-full h-full grid grid-cols-9 grid-rows-10 p-1">
+              {Array.from({ length: 90 }).map((_, idx) => {
+                const r = 9 - Math.floor(idx / 9);
+                const f = idx % 9;
+                const sq = r * 9 + f;
+                const piece = pos.board[sq];
+                const isSelected = selectedSq === sq;
+                const isTarget = validMoves.some(m => m.to === sq);
+                const isLast = lastMove?.from === sq || lastMove?.to === sq;
 
-                  {/* Responsive Piece token (Scales with cell size, never overflows) */}
-                  {piece ? (
-                    <div
-                      className={`relative z-10 w-[86%] h-[86%] max-w-[50px] max-h-[50px] rounded-full flex items-center justify-center font-serif font-black text-sm sm:text-xl md:text-2xl shadow-lg transition-transform duration-100 ${
-                        isSelected ? 'scale-115 ring-3 ring-yellow-400' : isLast ? 'ring-2 ring-amber-500' : ''
-                      } ${
-                        sideOf(piece) === RED
-                          ? 'bg-[#fff5f5] text-rose-700 border-2 sm:border-3 border-rose-600 shadow-rose-950/40'
-                          : 'bg-[#f8fafc] text-slate-950 border-2 sm:border-3 border-slate-900 shadow-black/50'
-                      }`}
-                    >
-                      {XIANGQI_PIECES[sideOf(piece)]?.[typeOf(piece)] || ''}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+                return (
+                  <div
+                    key={sq}
+                    onClick={() => handleSquareClick(sq)}
+                    className="relative flex items-center justify-center cursor-pointer select-none"
+                  >
+                    {/* Target move indicator */}
+                    {isTarget && (
+                      <div className={`absolute z-20 rounded-full ${piece ? 'w-full h-full border-3 border-emerald-500 bg-emerald-500/30' : 'w-3 h-3 sm:w-4 sm:h-4 bg-emerald-600 shadow-md'}`} />
+                    )}
+
+                    {/* Responsive Piece token (Scales with cell size, never overflows) */}
+                    {piece ? (
+                      <div
+                        className={`relative z-10 w-[88%] h-[88%] max-w-[56px] max-h-[56px] rounded-full flex items-center justify-center font-serif font-black text-sm sm:text-xl md:text-2xl shadow-lg transition-transform duration-100 ${
+                          isSelected ? 'scale-115 ring-3 ring-yellow-400' : isLast ? 'ring-2 ring-amber-500' : ''
+                        } ${
+                          sideOf(piece) === RED
+                            ? 'bg-[#fff5f5] text-rose-700 border-2 sm:border-3 border-rose-600 shadow-rose-950/40'
+                            : 'bg-[#f8fafc] text-slate-950 border-2 sm:border-3 border-slate-900 shadow-black/50'
+                        }`}
+                      >
+                        {XIANGQI_PIECES[sideOf(piece)]?.[typeOf(piece)] || ''}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Battle Card Player Black / AI */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-slate-700/60 backdrop-blur-md shadow-2xl text-center">
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-serif font-black mb-3 border-2 transition-all duration-300 ${
+            !isRedTurn
+              ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_25px_rgba(6,182,212,0.6)] scale-105'
+              : 'border-slate-700 bg-slate-800 text-gray-400'
+          }`}>
+            {mode === 'ai' ? '🤖' : '將'}
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">
+            {mode === 'ai' ? 'AI BOT' : 'NGƯỜI 2'}
+          </h4>
+          <span className="text-cyan-400 font-mono text-2xl font-black mb-3">TƯỚNG ĐEN</span>
+          <div className={`px-3 py-1 rounded-full text-xs font-black tracking-wider transition ${
+            !isRedTurn
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400 animate-pulse'
+              : 'bg-slate-800/80 text-gray-500'
+          }`}>
+            {!isRedTurn ? (isThinking ? 'ĐANG TÍNH...' : 'ĐANG ĐẾN LƯỢT') : 'ĐỢI LƯỢT'}
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 w-full text-xs text-gray-400 flex justify-between">
+            <span>Cấp độ:</span>
+            <strong className="text-amber-400 font-mono text-sm">{mode === 'ai' ? `Cấp ${aiLevel}` : 'PvP'}</strong>
           </div>
         </div>
       </div>

@@ -196,18 +196,30 @@ export const GameMinesweeper: React.FC = () => {
   const flagsUsed = grid.reduce((acc, row) => acc + row.filter(c => c.isFlagged).length, 0);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full max-w-[min(96vw,calc(100vh-140px),920px)] mx-auto select-none p-1 sm:p-2">
-      {/* Header */}
-      <div className="flex items-center justify-between w-full mb-2 px-3 py-2 bg-slate-900/90 border border-white/10 rounded-2xl">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-rose-400 font-mono font-bold text-base">
-            <span className="text-xl">💣</span>
-            <span>{minesCount - flagsUsed}</span>
+    <div className="flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
+      {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
+      <div className="flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+              MÌN CÒN LẠI
+            </span>
+            <div className="flex items-center gap-1.5 text-rose-400 font-mono font-black text-xl sm:text-2xl mt-1 leading-none">
+              <span>💣</span>
+              <span>{Math.max(0, minesCount - flagsUsed)}</span>
+            </div>
           </div>
-          <div className="h-6 w-px bg-white/10" />
-          <div className="flex items-center gap-1.5 text-amber-300 font-mono font-bold text-base">
-            <Clock className="w-4 h-4 text-amber-400" />
-            <span>{timer}s</span>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>THỜI GIAN</span>
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
+              {timer}s
+            </span>
           </div>
         </div>
 
@@ -215,20 +227,21 @@ export const GameMinesweeper: React.FC = () => {
           <button
             onClick={() => setFlagMode(!flagMode)}
             disabled={gameOver || gameWon}
-            className={`p-2 rounded-xl border transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-xs transition cursor-pointer ${
               flagMode
-                ? 'bg-rose-500 text-white border-rose-400 shadow-md'
+                ? 'bg-rose-500 text-white border-rose-400 shadow-md animate-pulse'
                 : 'bg-slate-800 border-white/10 text-gray-300 hover:text-white'
             }`}
-            title={flagMode ? 'Chế độ cắm cờ (BẬT)' : 'Chế độ cắm cờ (TẮT)'}
+            title={flagMode ? 'Chế độ cắm cờ (Đang BẬT)' : 'Chế độ cắm cờ (TẮT)'}
           >
-            <Flag className="w-4 h-4" />
+            <Flag className="w-4 h-4 text-rose-400" />
+            <span className="hidden sm:inline">{flagMode ? 'Cắm Cờ: BẬT' : 'Cắm Cờ: TẮT'}</span>
           </button>
 
           {!gameOver && !gameWon && (
             <button
               onClick={initBoard}
-              className="p-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition"
+              className="p-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 transition cursor-pointer"
               title="Ván mới"
             >
               <RotateCcw className="w-4 h-4" />
@@ -237,75 +250,127 @@ export const GameMinesweeper: React.FC = () => {
         </div>
       </div>
 
-      {/* Massive Grid Board - Scaled to never exceed container */}
-      <div className="relative bg-[#0b1120] p-2 sm:p-3 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-rose-500/40 shadow-[0_0_40px_rgba(244,63,94,0.25)] flex-shrink min-h-0">
-        <div 
-          className="grid gap-1 sm:gap-1.5"
-          style={{
-            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          }}
-        >
-          {grid.map((row, r) =>
-            row.map((cell, c) => (
-              <button
-                key={`${r}-${c}`}
-                onClick={() => handleCellClick(r, c)}
-                onContextMenu={e => handleContextMenu(e, r, c)}
-                className={`w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl font-black text-base sm:text-2xl md:text-3xl flex items-center justify-center transition-all select-none ${
-                  cell.isOpen
-                    ? cell.isMine
-                      ? 'bg-rose-600 text-white animate-bounce shadow-lg'
-                      : 'bg-slate-900/90 text-gray-100 border border-white/5'
-                    : 'bg-slate-800 hover:bg-slate-700 active:scale-95 border-2 border-slate-700/80 shadow-md cursor-pointer'
-                }`}
-              >
-                {cell.isOpen ? (
-                  cell.isMine ? (
-                    '💣'
-                  ) : cell.neighborMines > 0 ? (
-                    <span className={getNumberColor(cell.neighborMines)}>{cell.neighborMines}</span>
+      {/* Massive 16:9 Widescreen Theater Arena - To rộng hoàn toàn như Flappy Bird & Màn hình mặc định */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#18080c] via-[#0e0407] to-[#040102] rounded-3xl border-4 border-rose-500/40 shadow-[0_0_50px_rgba(244,63,94,0.3)] overflow-hidden flex items-center justify-center sm:justify-between p-3 sm:p-6 md:p-8 flex-shrink min-h-0">
+        
+        {/* Left Side: Radar Dashboard Card */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-3xl mb-3 shadow-[0_0_20px_rgba(244,63,94,0.4)]">
+            💣
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">RADAR QUÂN SỰ</h4>
+          <span className="text-rose-400 font-mono text-xs font-bold mb-3">8x8 • 10 QUẢ MÌN</span>
+          
+          <div className="w-full space-y-2 text-xs">
+            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
+              <span className="text-gray-400">Mìn Còn:</span>
+              <strong className="text-rose-400 font-mono font-black text-sm">{Math.max(0, minesCount - flagsUsed)}</strong>
+            </div>
+            <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-slate-800/80 border border-white/5">
+              <span className="text-gray-400">Cờ Đã Cắm:</span>
+              <strong className="text-amber-400 font-mono font-black text-sm">{flagsUsed} / 10</strong>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 w-full text-[11px] text-gray-400 space-y-1 text-left">
+            <div>• <strong className="text-gray-300">Chuột Trái</strong>: Mở ô</div>
+            <div>• <strong className="text-gray-300">Chuột Phải</strong>: Cắm cờ 🚩</div>
+          </div>
+        </div>
+
+        {/* Center: Massive 8x8 Grid Board filling vertical height */}
+        <div className="relative bg-[#070204] p-2.5 sm:p-3.5 rounded-3xl h-full aspect-square max-h-[calc(100dvh-280px)] border-4 border-rose-600/50 shadow-2xl flex items-center justify-center">
+          <div className="grid grid-cols-8 grid-rows-8 gap-1.5 sm:gap-2 w-full h-full">
+            {grid.map((row, r) =>
+              row.map((cell, c) => (
+                <button
+                  key={`${r}-${c}`}
+                  onClick={() => handleCellClick(r, c)}
+                  onContextMenu={e => handleContextMenu(e, r, c)}
+                  className={`w-full h-full rounded-xl sm:rounded-2xl font-black text-base sm:text-2xl md:text-3xl flex items-center justify-center transition-all select-none ${
+                    cell.isOpen
+                      ? cell.isMine
+                        ? 'bg-rose-600 text-white animate-bounce shadow-lg'
+                        : 'bg-slate-900/90 text-gray-100 border border-white/5 shadow-inner'
+                      : 'bg-slate-800 hover:bg-slate-700 active:scale-95 border-2 border-slate-700/80 shadow-md cursor-pointer'
+                  }`}
+                >
+                  {cell.isOpen ? (
+                    cell.isMine ? (
+                      '💣'
+                    ) : cell.neighborMines > 0 ? (
+                      <span className={getNumberColor(cell.neighborMines)}>{cell.neighborMines}</span>
+                    ) : (
+                      ''
+                    )
+                  ) : cell.isFlagged ? (
+                    '🚩'
                   ) : (
                     ''
-                  )
-                ) : cell.isFlagged ? (
-                  '🚩'
-                ) : (
-                  ''
-                )}
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Win Overlay */}
+          {gameWon && (
+            <div className="absolute inset-0 bg-emerald-950/92 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
+              <span className="text-5xl mb-2 animate-bounce">🏆</span>
+              <h3 className="text-3xl font-black text-emerald-400 mb-1 font-['Orbitron']">CHIẾN THẮNG!</h3>
+              <p className="text-sm text-emerald-200 mb-4">Rà phá an toàn toàn bộ 10 quả mìn trong {timer} giây!</p>
+              <button
+                onClick={initBoard}
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition cursor-pointer shadow-lg"
+              >
+                Chơi Ván Mới
               </button>
-            ))
+            </div>
+          )}
+
+          {/* Game Over Overlay */}
+          {gameOver && (
+            <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
+              <span className="text-5xl mb-2">💥</span>
+              <h3 className="text-3xl font-black text-rose-500 mb-1 font-['Orbitron']">NỔ MÌN!</h3>
+              <p className="text-sm text-gray-300 mb-4">Bạn đã kích nổ quả mìn ẩn!</p>
+              <button
+                onClick={initBoard}
+                className="px-6 py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 font-bold rounded-xl text-sm transition cursor-pointer shadow-lg"
+              >
+                Thử Lại Ngay
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Win Overlay */}
-        {gameWon && (
-          <div className="absolute inset-0 bg-emerald-950/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
-            <span className="text-4xl mb-2 animate-bounce">🏆</span>
-            <h3 className="text-2xl font-black text-emerald-400 mb-1">CHIẾN THẮNG!</h3>
-            <p className="text-xs text-emerald-200 mb-3">Bạn đã rà phá toàn bộ 10 quả mìn trong {timer} giây!</p>
+        {/* Right Side: Mission Actions Card */}
+        <div className="hidden lg:flex flex-col items-center justify-center w-52 xl:w-60 p-5 rounded-2xl bg-slate-900/60 border border-rose-500/30 backdrop-blur-md shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-800 border-2 border-amber-400/40 flex items-center justify-center text-3xl mb-3 shadow-inner">
+            ⏱
+          </div>
+          <h4 className="font-extrabold text-white text-base font-['Orbitron'] mb-1">ĐỒNG HỒ</h4>
+          <span className="text-amber-400 font-mono text-2xl font-black mb-3">{timer}s</span>
+          
+          <div className="w-full space-y-2">
+            <button
+              onClick={() => setFlagMode(!flagMode)}
+              className={`w-full py-2.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                flagMode
+                  ? 'bg-rose-600 border-rose-400 text-white shadow-lg'
+                  : 'bg-slate-800 hover:bg-slate-700 border-white/10 text-gray-300'
+              }`}
+            >
+              <Flag className="w-4 h-4" />
+              <span>{flagMode ? 'Cắm Cờ: BẬT' : 'Cắm Cờ: TẮT'}</span>
+            </button>
             <button
               onClick={initBoard}
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-xs transition"
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-xl text-gray-200 font-bold text-xs transition cursor-pointer"
             >
-              Chơi Ván Khác
+              Làm Mới Bãi Mìn
             </button>
           </div>
-        )}
-
-        {/* Game Over Overlay */}
-        {gameOver && (
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-white p-4 animate-fade-in z-20">
-            <span className="text-4xl mb-2">💥</span>
-            <h3 className="text-2xl font-black text-rose-500 mb-1">NỔ MÌN!</h3>
-            <p className="text-xs text-gray-300 mb-3">Rất tiếc, bạn đã đạp trúng một quả mìn!</p>
-            <button
-              onClick={initBoard}
-              className="px-5 py-2 bg-rose-600 hover:bg-rose-500 font-bold rounded-xl text-xs transition"
-            >
-              Thử Lại Ngay
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
