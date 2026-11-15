@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Bot, Grid3X3, Grid, Timer, Globe, Copy, Check, LogOut } from 'lucide-react';
+import { RotateCcw, Bot, Grid3X3, Grid, Timer, Globe, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { OnlineLobbyModal } from '../components/OnlineLobbyModal';
 import { multiplayer, type RoomInfo } from '../utils/multiplayer';
@@ -690,23 +690,23 @@ export const GameCaro: React.FC = () => {
           )}
 
           {isOnlineMode || isWaitingForFriend ? (
-            /* Khi đang trong trận Online */
+            /* Khi đang trong trận Online: Bấm vào tên phòng là copy ngay, không rườm rà */
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopyInvite}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-xs border border-cyan-500/40 shadow-sm transition cursor-pointer active:scale-95"
-                title="Sao chép link mời bạn bè vào chơi"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-mono font-black text-xs transition cursor-pointer active:scale-95 shadow-sm"
+                title="Bấm để sao chép link mời"
               >
-                {copiedInvite ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
-                <span>{copiedInvite ? 'Đã Sao Chép Link' : 'Sao Chép Link Mời'}</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
+                <span>{copiedInvite ? '✓ ĐÃ COPY!' : `PHÒNG: ${onlineRoom?.roomId || ''}`}</span>
               </button>
 
               <button
                 onClick={handleLeaveRoom}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs border border-rose-500/40 shadow-sm transition cursor-pointer active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold text-xs border border-rose-500/30 shadow-sm transition cursor-pointer active:scale-95"
                 title="Rời khỏi phòng đấu"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
                 <span>Rời Bàn</span>
               </button>
             </div>

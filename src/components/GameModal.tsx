@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle, Settings, Copy, Check } from 'lucide-react';
+import { X, Maximize2, Volume2, VolumeX, Trophy, HelpCircle, Settings } from 'lucide-react';
 import type { GameInfo } from '../types/game';
-import { multiplayer, type RoomInfo } from '../utils/multiplayer';
 import { Game2048 } from '../games/Game2048';
 import { GameSnake } from '../games/GameSnake';
 import { GameFlappy } from '../games/GameFlappy';
@@ -32,38 +31,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isGameSettingsOpen, setIsGameSettingsOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
-  const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(() => multiplayer.getCurrentRoom());
-  const [copiedRoomLink, setCopiedRoomLink] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // Lắng nghe cập nhật phòng Online để hiển thị to rõ ở VÙNG 1
-  useEffect(() => {
-    const handleRoomChange = (e: any) => {
-      setOnlineRoom(e.detail || null);
-    };
-    window.addEventListener('acegames:room_changed', handleRoomChange);
-    const timer = setInterval(() => {
-      const current = multiplayer.getCurrentRoom();
-      if (current?.roomId !== onlineRoom?.roomId) {
-        setOnlineRoom(current);
-      }
-    }, 1000);
-    return () => {
-      window.removeEventListener('acegames:room_changed', handleRoomChange);
-      clearInterval(timer);
-    };
-  }, [onlineRoom?.roomId]);
-
-  const handleCopyRoomLink = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onlineRoom) return;
-    soundManager.playButtonClick();
-    const url = `${window.location.origin}${window.location.pathname}?game=${game?.id || ''}&room=${onlineRoom.roomId}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedRoomLink(true);
-      setTimeout(() => setCopiedRoomLink(false), 2000);
-    });
-  };
 
   // Sync sound state across components
   useEffect(() => {
@@ -218,27 +186,6 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
               <div className="w-12 group-hover:w-full h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-400 transition-all duration-500 rounded-full mt-0.5 opacity-80" />
             </div>
           </div>
-
-          {/* VÙNG 1: HIỂN THỊ SỐ PHÒNG TO RÕ, ĐẸP MẮT, DỄ NHÌN (THEO YÊU CẦU) */}
-          {onlineRoom && (
-            <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-1 sm:py-1.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.25)] animate-in fade-in zoom-in-95 duration-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-              <span className="text-[11px] sm:text-xs font-bold text-amber-200/90 uppercase tracking-widest hidden sm:inline">
-                PHÒNG:
-              </span>
-              <span className="text-sm sm:text-base font-black text-amber-300 font-mono tracking-widest drop-shadow-[0_0_8px_rgba(252,211,77,0.5)]">
-                {onlineRoom.roomId}
-              </span>
-              <button
-                onClick={handleCopyRoomLink}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 hover:text-white border border-amber-500/40 text-[11px] font-bold transition cursor-pointer active:scale-95 ml-1"
-                title="Sao chép link mời bạn bè"
-              >
-                {copiedRoomLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 text-amber-300" />}
-                <span className="hidden md:inline">{copiedRoomLink ? 'Đã sao chép' : 'Copy'}</span>
-              </button>
-            </div>
-          )}
 
           {/* VÙNG 6: Cụm Icon Điều Khiển (VÙNG 1 THIẾT LẬP GAME + HƯỚNG DẪN + BẢNG XẾP HẠNG + ÂM THANH + FULLSCREEN + ĐÓNG) */}
           <div className="flex items-center gap-1.5 sm:gap-2">
