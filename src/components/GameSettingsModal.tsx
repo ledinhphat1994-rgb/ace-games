@@ -49,30 +49,48 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   const [musicVolume, setMusicVolume] = useState<number>(() => soundManager.getGameAudioSettings(game.id).musicVolume);
   const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getGameAudioSettings(game.id).bgmTrack);
   const [isMusicDropdownOpen, setIsMusicDropdownOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, openUp: false });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 250, openUp: false });
   const modalRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const musicDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const toggleMusicDropdown = () => {
-    if (!isMusicDropdownOpen && triggerRef.current && modalRef.current) {
+  const updateDropdownPos = () => {
+    if (triggerRef.current && modalRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const modalRect = modalRef.current.getBoundingClientRect();
-      const spaceBelow = modalRect.bottom - rect.bottom;
-      const spaceAbove = rect.top - modalRect.top;
-      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+      const footerSpace = 75;
+      const headerSpace = 65;
+      const spaceBelow = modalRect.bottom - rect.bottom - footerSpace;
+      const spaceAbove = rect.top - modalRect.top - headerSpace;
+      const openUp = spaceBelow < 210 && spaceAbove > spaceBelow;
+      const maxAllowedHeight = openUp ? Math.max(160, spaceAbove) : Math.max(180, spaceBelow);
 
       setDropdownPos({
         top: openUp ? (rect.top - modalRect.top - 6) : (rect.bottom - modalRect.top + 6),
         left: rect.left - modalRect.left,
         width: rect.width,
+        maxHeight: maxAllowedHeight,
         openUp,
       });
+    }
+  };
+
+  const toggleMusicDropdown = () => {
+    if (!isMusicDropdownOpen) {
+      updateDropdownPos();
       setIsMusicDropdownOpen(true);
     } else {
       setIsMusicDropdownOpen(false);
     }
   };
+
+  // Recalculate dropdown position on window resize when open
+  useEffect(() => {
+    if (!isMusicDropdownOpen) return;
+    const handleRecalc = () => updateDropdownPos();
+    window.addEventListener('resize', handleRecalc);
+    return () => window.removeEventListener('resize', handleRecalc);
+  }, [isMusicDropdownOpen]);
 
   // Sync state when opening
   useEffect(() => {
@@ -217,69 +235,69 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Kích thước bảng cài đặt cố định chuẩn xác, tuyệt đối không nhảy kích thước hay đè thanh điều hướng */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+      {/* Kích thước bảng cài đặt rộng rãi, thoáng đãng, to rõ chuẩn màn hình lớn */}
       <div
         ref={modalRef}
-        className="relative w-[92vw] max-w-[460px] h-[540px] max-h-[88vh] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col select-none"
+        className="relative w-[94vw] max-w-[560px] sm:max-w-[580px] h-[640px] max-h-[88vh] bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-[#070b14] border-2 border-cyan-500/50 rounded-3xl shadow-[0_0_80px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Bar - Cố định độ cao h-14 */}
-        <div className="h-14 px-5 border-b border-white/10 bg-slate-900/90 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-md shadow-cyan-500/20">
-              <Settings className="w-4 h-4 text-cyan-400 rotate-45" />
+        {/* Header Bar - To rõ, bề thế */}
+        <div className="h-16 px-5 sm:px-6 border-b border-white/10 bg-slate-900/95 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+              <Settings className="w-5 h-5 text-cyan-400 rotate-45" />
             </div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-black text-white font-['Orbitron'] tracking-wider">
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+              <h3 className="text-base sm:text-xl font-black text-white font-['Orbitron'] tracking-wider">
                 CÀI ĐẶT
               </h3>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+              <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 shadow-sm flex items-center gap-1.5">
                 <span>{game.thumbnailIcon}</span>
-                <span className="font-semibold">{game.title}</span>
+                <span>{game.title}</span>
               </span>
             </div>
           </div>
 
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            className="p-2 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90"
             title="Đóng (Esc)"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
-        <div className="flex-1 p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar text-left">
+        {/* Modal Body - Thoáng đãng, font to bự, cuộn mượt mà */}
+        <div className="flex-1 p-5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar text-left">
           
-          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game - VÙNG 1 */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-3 shadow-lg shadow-cyan-950/20">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
+          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 space-y-3.5 shadow-lg shadow-cyan-950/20">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <SlidersHorizontal className="w-5 h-5 text-cyan-400" />
+                <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
                   Âm Thanh Trận Đấu
                 </span>
               </div>
-              <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/25">
+              <span className="text-[11px] text-cyan-300 font-mono font-bold bg-cyan-950/80 px-2.5 py-0.5 rounded-full border border-cyan-500/40">
                 GAME
               </span>
             </div>
 
             {/* Hiệu ứng âm thanh (SFX) của game */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                  <span className="text-xs font-bold text-gray-200">Hiệu Ứng (SFX)</span>
+                <div className="flex items-center gap-2.5">
+                  {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-gray-500" />}
+                  <span className="text-sm sm:text-base font-bold text-white">Hiệu Ứng (SFX)</span>
                 </div>
-                <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
                   <button
                     onClick={handleToggleSound}
-                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-4 py-1 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                       soundEnabled
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                        ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 shadow-sm'
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -287,7 +305,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   </button>
                   <button
                     onClick={handleToggleSound}
-                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-4 py-1 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                       !soundEnabled
                         ? 'bg-slate-800 text-gray-300 border border-slate-700'
                         : 'text-gray-400 hover:text-white'
@@ -297,8 +315,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2.5 pt-0.5">
-                <span className="text-[10px] text-gray-400 font-mono w-7">{sfxVolume}%</span>
+              <div className="flex items-center gap-3 pt-0.5">
+                <span className="text-xs sm:text-sm text-cyan-400 font-mono font-bold w-10">{sfxVolume}%</span>
                 <input
                   type="range"
                   min="0"
@@ -306,7 +324,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   value={sfxVolume}
                   disabled={!soundEnabled}
                   onChange={(e) => handleSfxVolumeChange(Number(e.target.value))}
-                  className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-950 ${
+                  className={`flex-1 h-2 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-950 ${
                     !soundEnabled ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
                 />
@@ -314,18 +332,18 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </div>
 
             {/* Nhạc nền (BGM) của game */}
-            <div className="space-y-1.5 pt-1 border-t border-white/5">
+            <div className="space-y-2 pt-2 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Music className={`w-4 h-4 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                  <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
+                <div className="flex items-center gap-2.5">
+                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
+                  <span className="text-sm sm:text-base font-bold text-white">Nhạc Nền (BGM)</span>
                 </div>
-                <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
                   <button
                     onClick={handleToggleMusic}
-                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-4 py-1 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                       musicEnabled
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                        ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 shadow-sm'
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -333,7 +351,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   </button>
                   <button
                     onClick={handleToggleMusic}
-                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-4 py-1 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                       !musicEnabled
                         ? 'bg-slate-800 text-gray-300 border border-slate-700'
                         : 'text-gray-400 hover:text-white'
@@ -343,8 +361,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2.5 pt-0.5">
-                <span className="text-[10px] text-gray-400 font-mono w-7">{musicVolume}%</span>
+              <div className="flex items-center gap-3 pt-0.5">
+                <span className="text-xs sm:text-sm text-cyan-400 font-mono font-bold w-10">{musicVolume}%</span>
                 <input
                   type="range"
                   min="0"
@@ -352,7 +370,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   value={musicVolume}
                   disabled={!musicEnabled}
                   onChange={(e) => handleMusicVolumeChange(Number(e.target.value))}
-                  className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-950 ${
+                  className={`flex-1 h-2 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-950 ${
                     !musicEnabled ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
                 />
@@ -360,10 +378,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </div>
 
             {/* Danh sách bản nhạc BGM cho game */}
-            <div className="space-y-1.5 pt-1 border-t border-white/5">
+            <div className="space-y-2 pt-2 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Nền:</span>
-                <span className="text-[10px] text-cyan-400 font-mono font-semibold">
+                <span className="text-xs sm:text-sm font-bold text-gray-300 uppercase tracking-wider font-['Orbitron']">
+                  Chọn Nhạc Nền:
+                </span>
+                <span className="text-xs sm:text-sm text-cyan-400 font-mono font-bold">
                   {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                 </span>
               </div>
@@ -373,30 +393,30 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                 ref={triggerRef}
                 type="button"
                 onClick={toggleMusicDropdown}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer shadow-md ${
+                className={`w-full flex items-center justify-between p-3 rounded-2xl border-2 transition-all cursor-pointer shadow-md ${
                   isMusicDropdownOpen
-                    ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/20 ring-1 ring-cyan-500/30'
-                    : 'bg-slate-950/80 hover:bg-slate-900 border-cyan-500/30 hover:border-cyan-500/60 text-gray-200'
+                    ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/25 ring-1 ring-cyan-500/40'
+                    : 'bg-slate-950/80 hover:bg-slate-900 border-cyan-500/35 hover:border-cyan-400 text-gray-200'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-lg p-1 rounded-lg bg-cyan-950/70 border border-cyan-500/30 flex-shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl p-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex-shrink-0">
                     {BGM_TRACKS.find(t => t.id === currentTrack)?.icon || '🎵'}
                   </span>
                   <div className="flex flex-col text-left min-w-0">
-                    <span className="text-xs sm:text-sm font-bold text-white tracking-wide truncate">
+                    <span className="text-sm sm:text-base font-bold text-white tracking-wide truncate">
                       {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                     </span>
-                    <span className="text-[10px] text-gray-400 truncate">
+                    <span className="text-xs text-gray-300 truncate">
                       {BGM_TRACKS.find(t => t.id === currentTrack)?.desc}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <span className="text-[10px] font-mono font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-500/40 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                <div className="flex items-center gap-2.5 flex-shrink-0 ml-2">
+                  <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-950/90 border border-cyan-500/40 px-2.5 py-1 rounded-full hidden sm:inline-block">
                     Đang chọn
                   </span>
-                  <ChevronDown className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${isMusicDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-5 h-5 text-cyan-400 transition-transform duration-300 ${isMusicDropdownOpen ? 'rotate-180' : ''}`} />
                 </div>
               </button>
             </div>
@@ -992,26 +1012,26 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
         </div>
 
-        {/* Footer Bar - Cố định độ cao và vị trí ở đáy, không bao giờ dịch chuyển */}
-        <div className="h-16 px-5 border-t border-white/10 bg-slate-900/90 flex items-center gap-3 flex-shrink-0">
+        {/* Footer Bar - To rõ, bề thế */}
+        <div className="h-16 px-5 sm:px-6 border-t border-white/10 bg-slate-900/95 flex items-center justify-between gap-3 flex-shrink-0">
           <button
             onClick={handleRestart}
-            className="flex-1 flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md shadow-cyan-500/20 transition cursor-pointer active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(6,182,212,0.4)] transition cursor-pointer active:scale-95 font-['Orbitron'] tracking-wider"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span>Khởi Động Lại Ván Game</span>
+            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+            <span>KHỞI ĐỘNG LẠI VÁN GAME</span>
           </button>
 
           <button
             onClick={handleResetDefaults}
-            className="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-white border border-white/10 text-xs font-bold transition cursor-pointer active:scale-95"
+            className="h-12 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95"
             title="Khôi phục mặc định"
           >
             Mặc Định
           </button>
         </div>
 
-        {/* SMART DROPDOWN OVERLAY: Nằm ở cấp Modal Card, tự do đè lên Body và Footer mà không bị cắt/che khuất */}
+        {/* SMART DROPDOWN OVERLAY: Nằm ở cấp Modal Card, tự động khống chế maxHeight để KHÔNG BAO GIỜ bị cắt viền */}
         {isMusicDropdownOpen && (
           <div
             ref={musicDropdownRef}
@@ -1020,9 +1040,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               top: dropdownPos.top,
               left: dropdownPos.left,
               width: dropdownPos.width,
+              maxHeight: dropdownPos.maxHeight || 250,
               transform: dropdownPos.openUp ? 'translateY(-100%)' : 'none',
             }}
-            className="bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_15px_50px_rgba(0,0,0,0.95)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1 max-h-[260px] overflow-y-auto custom-scrollbar"
+            className="bg-slate-950/98 backdrop-blur-2xl border-2 border-cyan-400/80 rounded-2xl p-2 shadow-[0_20px_60px_rgba(0,0,0,0.98)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1.5 overflow-y-auto custom-scrollbar"
           >
             {BGM_TRACKS.map((t) => {
               const isActive = currentTrack === t.id;
@@ -1034,26 +1055,26 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                     handleSelectTrack(t.id);
                     setIsMusicDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left border transition-all cursor-pointer ${
+                  className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl text-left border transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
-                      : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'
+                      ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-md shadow-cyan-500/20'
+                      : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-200 hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-base flex-shrink-0">{t.icon}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xl flex-shrink-0">{t.icon}</span>
                     <div className="flex flex-col min-w-0">
-                      <span className={`text-xs font-bold truncate ${isActive ? 'text-cyan-200' : 'text-gray-200'}`}>
+                      <span className={`text-sm sm:text-base font-bold truncate ${isActive ? 'text-cyan-200' : 'text-white'}`}>
                         {t.title}
                       </span>
-                      <span className="text-[10px] text-gray-400 truncate">
+                      <span className="text-xs text-gray-300 truncate">
                         {t.desc}
                       </span>
                     </div>
                   </div>
                   {isActive && (
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/90 border border-cyan-500/40 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
-                      <Check className="w-3 h-3 text-cyan-400" />
+                    <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-300 font-black bg-cyan-950/90 border border-cyan-400/60 px-3 py-1 rounded-full flex-shrink-0 ml-2 shadow-sm">
+                      <Check className="w-3.5 h-3.5 text-cyan-400 stroke-[3]" />
                       <span>Phát</span>
                     </div>
                   )}
