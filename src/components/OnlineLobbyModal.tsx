@@ -4,8 +4,6 @@ import {
   X, 
   Zap, 
   Dices, 
-  Copy, 
-  Check, 
   ArrowRight, 
   Plus, 
   Loader2, 
@@ -35,22 +33,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
   const [playerName, setPlayerName] = useState(() => multiplayer.getPlayerName());
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [waitingRoom, setWaitingRoom] = useState<RoomInfo | null>(() => {
-    const current = multiplayer.getCurrentRoom();
-    return (current && current.status === 'waiting' && multiplayer.getRole() === 'host') ? current : null;
-  });
   const [customRoomCode, setCustomRoomCode] = useState('');
-  const [copiedLink, setCopiedLink] = useState(false);
-
-  // Khôi phục phòng đang đợi khi mở lại modal
-  useEffect(() => {
-    if (isOpen) {
-      const current = multiplayer.getCurrentRoom();
-      if (current && current.status === 'waiting' && multiplayer.getRole() === 'host') {
-        setWaitingRoom(current);
-      }
-    }
-  }, [isOpen]);
 
   // Lắng nghe sảnh phòng từ MQTT Broker thời gian thực
   useEffect(() => {
@@ -66,12 +49,9 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
         const role = multiplayer.getRole();
         if (room && role) {
           setIsSearching(false);
-          setWaitingRoom(null);
           onJoinedMatch(room, role);
           onClose();
         }
-      } else if (status === 'waiting_opponent') {
-        setWaitingRoom(multiplayer.getCurrentRoom());
       }
     };
 
@@ -107,23 +87,25 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     setPlayerName(generated);
   };
 
-  // 1. TẠO BÀN MỚI
+  const copyRoomLink = (roomId: string) => {
+    const cleanId = multiplayer.normalizeRoomId(roomId);
+    const url = `${window.location.origin}${window.location.pathname}?game=${gameId}&room=${cleanId}`;
+    try {
+      navigator.clipboard.writeText(url);
+    } catch {}
+  };
+
+  // 1. TẠO BÀN MỚI (Tạo bàn & đi thẳng vào bàn đấu luôn)
   const handleCreateRoom = async () => {
     soundManager.playButtonClick();
     setIsSearching(true);
     const room = await multiplayer.createRoom(gameId);
     setIsSearching(false);
-    setWaitingRoom(room);
     copyRoomLink(room.roomId);
-  };
-
-  const copyRoomLink = (roomId: string) => {
-    const cleanId = multiplayer.normalizeRoomId(roomId);
-    const url = `${window.location.origin}${window.location.pathname}?game=${gameId}&room=${cleanId}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2500);
-    });
+    if (onWaitingInBackground) {
+      onWaitingInBackground(room);
+    }
+    onClose();
   };
 
   // 2. VÀO BẰNG MÃ PHÒNG
@@ -143,7 +125,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     }
   };
 
-  // 3. GHÉP NHANH (Tự động vào bàn đang chờ hoặc tạo mới)
+  // 3. GHÉP NHANH (Vào bàn đang chờ hoặc tự tạo bàn rồi vào thẳng bàn đấu)
   const handleQuickMatch = async () => {
     soundManager.playButtonClick();
     setIsSearching(true);
@@ -151,32 +133,17 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
     setIsSearching(false);
     if (result.action === 'joined') {
       onJoinedMatch(result.room, 'guest');
-      onClose();
     } else {
-      setWaitingRoom(result.room);
-    }
-  };
-
-  const handlePlayWhileWaiting = () => {
-    soundManager.playButtonClick();
-    if (waitingRoom && onWaitingInBackground) {
-      onWaitingInBackground(waitingRoom);
+      copyRoomLink(result.room.roomId);
+      if (onWaitingInBackground) {
+        onWaitingInBackground(result.room);
+      }
     }
     onClose();
   };
 
-  const handleCancelWaiting = () => {
-    soundManager.playButtonClick();
-    multiplayer.leaveRoom();
-    setWaitingRoom(null);
-  };
-
   const handleClose = () => {
     soundManager.playButtonClick();
-    if (waitingRoom) {
-      multiplayer.leaveRoom();
-      setWaitingRoom(null);
-    }
     onClose();
   };
 
@@ -216,174 +183,119 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
           </button>
         </div>
 
-        {/* TRƯỜNG HỢP 1: BÀN CỦA BẠN ĐANG MỞ (ĐANG CHỜ ĐỐI THỦ) */}
-        {waitingRoom ? (
-          <div className="p-6 flex flex-col items-center justify-center text-center space-y-4">
-            {/* Radar xung nhịp */}
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-cyan-500/15 border-2 border-cyan-400/50 flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(6,182,212,0.35)]">
-                <Globe className="w-8 h-8 text-cyan-400" />
-              </div>
-              <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-30" />
-            </div>
+        {/* 2 Nút Hành Động Chính (Cân đối, To rõ) */}
+        <div className="grid grid-cols-2 gap-2.5 px-5 pt-4">
+          <button
+            onClick={handleCreateRoom}
+            disabled={isSearching}
+            className="h-12 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Tạo Bàn Mới</span>
+          </button>
 
-            <div>
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                BÀN ĐẤU CỦA BẠN ĐÃ MỞ
-              </h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Mã số bàn đấu:</p>
-              <h2 className="text-4xl font-black text-amber-300 font-mono tracking-widest mt-1 drop-shadow-[0_0_20px_rgba(252,211,77,0.5)]">
-                #{waitingRoom.roomId}
-              </h2>
-            </div>
+          <button
+            onClick={handleQuickMatch}
+            disabled={isSearching}
+            className="h-12 rounded-2xl bg-slate-850 hover:bg-slate-800 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/10 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+          >
+            {isSearching ? (
+              <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+            ) : (
+              <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+            )}
+            <span>Ghép Nhanh</span>
+          </button>
+        </div>
 
-            {/* Nút Sao Chép Link (Nổi Bật Nhất, đã xóa dòng hướng dẫn phụ thừa) */}
-            <div className="w-full">
-              <button
-                onClick={() => copyRoomLink(waitingRoom.roomId)}
-                className="w-full h-12 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/30 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-              >
-                {copiedLink ? <Check className="w-4 h-4 text-emerald-950" /> : <Copy className="w-4 h-4 text-slate-950" />}
-                <span>{copiedLink ? 'ĐÃ SAO CHÉP LINK MỜI!' : 'SAO CHÉP LINK GỬI BẠN'}</span>
-              </button>
-            </div>
-
-            {/* VÙNG 1: 2 card cân bằng nhau (50% - 50% bằng grid-cols-2) */}
-            <div className="w-full grid grid-cols-2 gap-3 pt-1">
-              <button
-                onClick={handlePlayWhileWaiting}
-                className="h-11 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-cyan-500/30 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
-              >
-                <ArrowRight className="w-4 h-4" />
-                <span>Vào Bàn Ngồi Đợi</span>
-              </button>
-
-              <button
-                onClick={handleCancelWaiting}
-                className="h-11 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold text-xs border border-rose-500/30 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
-              >
-                <span>✕ Hủy Bàn</span>
-              </button>
-            </div>
+        {/* Khu Vực Trọng Tâm: DANH SÁCH BÀN ĐANG ĐỢI */}
+        <div className="px-5 py-3.5 flex-1 flex flex-col min-h-[160px]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              BÀN ĐANG ĐỢI NGƯỜI CHƠI ({otherRooms.length})
+            </span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Trực tuyến" />
           </div>
-        ) : (
-          /* TRƯỜNG HỢP 2: SẢNH CHỜ CHUẨN MỰC (LOBBY VIEW) */
-          <>
-            {/* 2 Nút Hành Động Chính (Cân đối, To rõ) */}
-            <div className="grid grid-cols-2 gap-2.5 px-5 pt-4">
-              <button
-                onClick={handleCreateRoom}
-                disabled={isSearching}
-                className="h-12 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Tạo Bàn Mới</span>
-              </button>
 
-              <button
-                onClick={handleQuickMatch}
-                disabled={isSearching}
-                className="h-12 rounded-2xl bg-slate-850 hover:bg-slate-800 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/10 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-              >
-                {isSearching ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                ) : (
-                  <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
-                )}
-                <span>Ghép Nhanh</span>
-              </button>
-            </div>
-
-            {/* Khu Vực Trọng Tâm: DANH SÁCH BÀN ĐANG ĐỢI */}
-            <div className="px-5 py-3.5 flex-1 flex flex-col min-h-[160px]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  BÀN ĐANG ĐỢI NGƯỜI CHƠI ({otherRooms.length})
-                </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Trực tuyến" />
-              </div>
-
-              {otherRooms.length > 0 ? (
-                <div className="max-h-44 overflow-y-auto custom-scrollbar space-y-2 pr-1">
-                  {otherRooms.map((r) => (
-                    <div
-                      key={r.roomId}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-500/40 transition group"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 font-mono font-bold text-xs">
-                          #{r.roomId}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-black text-white group-hover:text-cyan-300 transition">
-                            {r.hostName}
-                          </p>
-                          <p className="text-[10px] text-gray-400">Đang đợi đối thủ...</p>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleJoinWithCode(r.roomId)}
-                        disabled={isSearching}
-                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                      >
-                        <span>Vào Chơi</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+          {otherRooms.length > 0 ? (
+            <div className="max-h-44 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+              {otherRooms.map((r) => (
+                <div
+                  key={r.roomId}
+                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-500/40 transition group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 font-mono font-bold text-xs">
+                      #{r.roomId}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-gray-400 border border-dashed border-white/10 rounded-2xl bg-slate-950/30">
-                  <Users className="w-7 h-7 text-gray-500 mb-1.5 opacity-60" />
-                  <p className="text-xs font-medium text-gray-300">Chưa có ai mở bàn</p>
-                </div>
-              )}
-            </div>
+                    <div className="text-left">
+                      <p className="text-xs font-black text-white group-hover:text-cyan-300 transition">
+                        {r.hostName}
+                      </p>
+                      <p className="text-[10px] text-gray-400">Đang đợi đối thủ...</p>
+                    </div>
+                  </div>
 
-            {/* ĐƯA VÙNG 2 VÀ VÙNG 3 CÙNG 1 HÀNG (Đã xóa chữ 'Tên bạn:' và 'Có mã phòng?') */}
-            <div className="px-5 py-3 border-t border-white/10 bg-slate-950/70 flex items-center justify-between gap-3 flex-shrink-0">
-              {/* Vùng 3: Tên người chơi */}
-              <div className="flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-                <input
-                  type="text"
-                  value={playerName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  maxLength={14}
-                  placeholder="Tên bạn..."
-                  className="w-28 px-2 py-1 bg-slate-900 text-cyan-300 text-xs font-bold border border-cyan-500/30 rounded-lg outline-none text-center focus:border-cyan-400"
-                />
-                <button
-                  onClick={handleRandomizeName}
-                  title="Đổi tên ngẫu nhiên"
-                  className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-cyan-300 transition cursor-pointer flex-shrink-0"
-                >
-                  <Dices className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Vùng 2: Nhập mã phòng */}
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  placeholder="Mã 4 số..."
-                  value={customRoomCode}
-                  onChange={(e) => setCustomRoomCode(e.target.value)}
-                  maxLength={10}
-                  className="w-24 px-2 py-1 bg-slate-900 text-cyan-300 text-xs font-mono font-bold outline-none placeholder:text-gray-500 rounded-lg border border-white/10 text-center focus:border-cyan-400"
-                />
-                <button
-                  onClick={() => handleJoinWithCode(customRoomCode)}
-                  disabled={!customRoomCode.trim() || isSearching}
-                  className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition disabled:opacity-40 cursor-pointer flex-shrink-0"
-                >
-                  Vào
-                </button>
-              </div>
+                  <button
+                    onClick={() => handleJoinWithCode(r.roomId)}
+                    disabled={isSearching}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                  >
+                    <span>Vào Chơi</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
-          </>
-        )}
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center py-6 text-center text-gray-400 border border-dashed border-white/10 rounded-2xl bg-slate-950/30">
+              <Users className="w-7 h-7 text-gray-500 mb-1.5 opacity-60" />
+              <p className="text-xs font-medium text-gray-300">Chưa có ai mở bàn</p>
+            </div>
+          )}
+        </div>
+
+        {/* Chân Trang: Vùng 3 (Tên Bạn) & Vùng 2 (Mã Phòng) Cùng 1 Hàng */}
+        <div className="px-5 py-3 border-t border-white/10 bg-slate-950/70 flex items-center justify-between gap-3 flex-shrink-0">
+          {/* Vùng 3: Tên người chơi */}
+          <div className="flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              maxLength={14}
+              placeholder="Tên bạn..."
+              className="w-28 px-2 py-1 bg-slate-900 text-cyan-300 text-xs font-bold border border-cyan-500/30 rounded-lg outline-none text-center focus:border-cyan-400"
+            />
+            <button
+              onClick={handleRandomizeName}
+              title="Đổi tên ngẫu nhiên"
+              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-cyan-300 transition cursor-pointer flex-shrink-0"
+            >
+              <Dices className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Vùng 2: Nhập mã phòng */}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              placeholder="Mã 4 số..."
+              value={customRoomCode}
+              onChange={(e) => setCustomRoomCode(e.target.value)}
+              maxLength={10}
+              className="w-24 px-2 py-1 bg-slate-900 text-cyan-300 text-xs font-mono font-bold outline-none placeholder:text-gray-500 rounded-lg border border-white/10 text-center focus:border-cyan-400"
+            />
+            <button
+              onClick={() => handleJoinWithCode(customRoomCode)}
+              disabled={!customRoomCode.trim() || isSearching}
+              className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/40 transition disabled:opacity-40 cursor-pointer flex-shrink-0"
+            >
+              Vào
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
