@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Award, Star } from 'lucide-react';
 
@@ -18,8 +18,18 @@ export const GameMemory: React.FC = () => {
   const [isWon, setIsWon] = useState<boolean>(false);
   const [isChecking, setIsChecking] = useState<boolean>(false);
 
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearGameTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
   // Initialize and shuffle deck
   const initGame = useCallback(() => {
+    clearGameTimeout();
     const deck: Card[] = [];
     const pairs = [...EMOJI_PAIRS, ...EMOJI_PAIRS];
     // Fisher-Yates shuffle
@@ -42,11 +52,17 @@ export const GameMemory: React.FC = () => {
     setMoves(0);
     setIsWon(false);
     setIsChecking(false);
-  }, []);
+  }, [clearGameTimeout]);
 
   useEffect(() => {
     initGame();
   }, [initGame]);
+
+  useEffect(() => {
+    return () => {
+      clearGameTimeout();
+    };
+  }, [clearGameTimeout]);
 
   const handleCardClick = (index: number) => {
     if (isChecking) return;
@@ -67,7 +83,9 @@ export const GameMemory: React.FC = () => {
       const [idx1, idx2] = newSelected;
       if (cards[idx1].icon === cards[idx2].icon) {
         // Matched!
-        setTimeout(() => {
+        clearGameTimeout();
+        timeoutRef.current = setTimeout(() => {
+          timeoutRef.current = null;
           setCards(prev => {
             const updated = [...prev];
             updated[idx1].isMatched = true;
@@ -91,7 +109,9 @@ export const GameMemory: React.FC = () => {
         }, 400);
       } else {
         // Not matched, flip back
-        setTimeout(() => {
+        clearGameTimeout();
+        timeoutRef.current = setTimeout(() => {
+          timeoutRef.current = null;
           setCards(prev => {
             const updated = [...prev];
             updated[idx1].isFlipped = false;

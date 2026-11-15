@@ -233,7 +233,7 @@ export const GameCaro: React.FC = () => {
         if (opp?.name) setOpponentName(opp.name);
         setIsWaitingForFriend(false);
         setIsOnlineMode(true);
-        resetGame();
+        resetGame(false);
         soundManager.playGameLaunch();
       } else if (status === 'disconnected') {
         alert('Đối thủ đã rời bàn đấu!');
@@ -312,12 +312,13 @@ export const GameCaro: React.FC = () => {
     return saved ? JSON.parse(saved) : { win: 0, loss: 0, draw: 0 };
   });
 
-  const resetGame = useCallback(() => {
+  const resetGame = useCallback((notifyRemote: boolean | React.MouseEvent = true) => {
+    const shouldNotify = typeof notifyRemote === 'boolean' ? notifyRemote : true;
     setBoard(Array(boardSize * boardSize).fill(null));
     setIsXNext(true);
     setWinnerInfo(null);
     setTimeLeft(timeLimit);
-    if (isOnlineMode && !isWaitingForFriend) {
+    if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
       multiplayer.sendAction('game_restart');
     }
   }, [boardSize, timeLimit, isOnlineMode, isWaitingForFriend]);
@@ -870,6 +871,10 @@ export const GameCaro: React.FC = () => {
           setIsOnlineMode(true);
           setOnlineRoom(room);
           setPlayerRole('host');
+          setBoard(Array(boardSize * boardSize).fill(null));
+          setIsXNext(true);
+          setWinnerInfo(null);
+          setTimeLeft(timeLimit);
         }}
       />
     </div>

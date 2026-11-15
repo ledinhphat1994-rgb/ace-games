@@ -64,6 +64,26 @@ export const GameChess: React.FC = () => {
   const [opponentName, setOpponentName] = useState<string>('Đối thủ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
 
+  // Quản lý timeout AI để hủy ngay lập tức khi đổi phòng, chơi lại hoặc rời bàn cờ
+  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAiTimeout = useCallback(() => {
+    if (aiTimeoutRef.current) {
+      clearTimeout(aiTimeoutRef.current);
+      aiTimeoutRef.current = null;
+    }
+    setIsThinking(false);
+  }, []);
+
+  // Hủy timeout khi unmount
+  useEffect(() => {
+    return () => {
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Khi chơi Online với vai trò Đen (guest), xoay bàn cờ để quân Đen nằm ở dưới cho dễ thao tác
   const isFlipped = isOnlineMode && playerRole === 'guest';
 
@@ -80,6 +100,7 @@ export const GameChess: React.FC = () => {
 
   const handleLeaveRoom = () => {
     soundManager.playButtonClick();
+    clearAiTimeout();
     multiplayer.leaveRoom();
     setIsOnlineMode(false);
     setIsWaitingForFriend(false);
@@ -90,7 +111,6 @@ export const GameChess: React.FC = () => {
     setSelectedSq(null);
     setValidMoves([]);
     setLastMove(null);
-    setIsThinking(false);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
   };
@@ -167,19 +187,20 @@ export const GameChess: React.FC = () => {
     }
   }, []);
 
-  const resetGame = () => {
+  const resetGame = useCallback((notifyRemote: boolean | React.MouseEvent = true) => {
+    clearAiTimeout();
+    const shouldNotify = typeof notifyRemote === 'boolean' ? notifyRemote : true;
     const newPos = ChessPosition.fromFen();
     setPos(newPos);
     setSelectedSq(null);
     setValidMoves([]);
     setLastMove(null);
-    setIsThinking(false);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
-    if (isOnlineMode && !isWaitingForFriend) {
+    if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
       multiplayer.sendAction('game_restart');
     }
-  };
+  }, [clearAiTimeout, timeLimit, isOnlineMode, isWaitingForFriend, updateStatus]);
 
   const handleSquareClick = (sq: number) => {
     if (isThinking) return;
@@ -242,8 +263,14 @@ export const GameChess: React.FC = () => {
     const isBotTurn = !isOnlineMode && nextPos.turn === BLACK;
 
     if (isBotTurn && !nextPos.outcome().over) {
+      clearAiTimeout();
       setIsThinking(true);
-      setTimeout(() => {
+      aiTimeoutRef.current = setTimeout(() => {
+        aiTimeoutRef.current = null;
+        if (isOnlineMode || isWaitingForFriend) {
+          setIsThinking(false);
+          return;
+        }
         const levelStr = aiLevel === 1 ? 'easy' : aiLevel === 3 ? 'hard' : 'medium';
         const aiMove = findBestChessMove(nextPos, levelStr);
         if (aiMove) {
@@ -294,12 +321,12 @@ export const GameChess: React.FC = () => {
       if (data.type === 'game_move' && data.payload) {
         executeMove(data.payload as ChessMove, true);
       } else if (data.type === 'game_restart') {
+        clearAiTimeout();
         const newPos = ChessPosition.fromFen();
         setPos(newPos);
         setSelectedSq(null);
         setValidMoves([]);
         setLastMove(null);
-        setIsThinking(false);
         updateStatus(newPos);
         setTimeLeft(timeLimit);
       }
@@ -311,9 +338,10 @@ export const GameChess: React.FC = () => {
         if (opp?.name) setOpponentName(opp.name);
         setIsWaitingForFriend(false);
         setIsOnlineMode(true);
-        resetGame();
+        resetGame(false);
         soundManager.playGameLaunch();
       } else if (status === 'disconnected') {
+        clearAiTimeout();
         alert('Đối thủ đã rời ván cờ!');
         setIsOnlineMode(false);
         setIsWaitingForFriend(false);
@@ -536,6 +564,7 @@ export const GameChess: React.FC = () => {
         gameId="chess"
         gameTitle="Cờ Vua"
         onJoinedMatch={(room, role) => {
+          clearAiTimeout();
           setIsOnlineMode(true);
           setIsWaitingForFriend(false);
           setOnlineRoom(room);
@@ -552,10 +581,19 @@ export const GameChess: React.FC = () => {
           setTimeLeft(timeLimit);
         }}
         onWaitingInBackground={(room) => {
+          clearAiTimeout();
           setIsWaitingForFriend(true);
           setIsOnlineMode(true);
           setOnlineRoom(room);
           setPlayerRole('host');
+          const newPos = ChessPosition.fromFen();
+          setPos(newPos);
+          setSelectedSq(null);
+          setValidMoves([]);
+          setLastMove(null);
+          setIsThinking(false);
+          updateStatus(newPos);
+          setTimeLeft(timeLimit);
         }}
       />
     </div>
