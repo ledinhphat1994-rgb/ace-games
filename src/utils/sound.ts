@@ -31,6 +31,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   chess: 'heroic',
   caro: 'zen',
   breakout: 'arcade',
+  'space-shooter': 'cyberpunk',
   spaceshooter: 'cyberpunk',
   snake: 'arcade',
   tetris: 'arcade',

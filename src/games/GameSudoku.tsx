@@ -29,19 +29,63 @@ interface HistoryStep {
 }
 
 export const GameSudoku: React.FC = () => {
-  const [difficulty, setDifficulty] = useState<SudokuDifficulty>('easy');
+  const [difficulty, setDifficulty] = useState<SudokuDifficulty>(() => {
+    try {
+      const saved = localStorage.getItem('ace_game_settings_sudoku');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (['easy', 'medium', 'hard'].includes(parsed.difficulty)) return parsed.difficulty;
+      }
+    } catch {}
+    return 'easy';
+  });
   const [board, setBoard] = useState<SudokuCell[][]>([]);
   const [selected, setSelected] = useState<[number, number] | null>(null);
   const [activeNumber, setActiveNumber] = useState<number | null>(null);
   const [isPencilMode, setIsPencilMode] = useState<boolean>(false);
   const [mistakes, setMistakes] = useState<number>(0);
-  const [maxMistakes] = useState<number>(3);
+  const [maxMistakes, setMaxMistakes] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('ace_game_settings_sudoku');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.maxMistakes !== undefined) return parsed.maxMistakes;
+      }
+    } catch {}
+    return 3;
+  });
   const [hintsLeft, setHintsLeft] = useState<number>(3);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isWon, setIsWon] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [history, setHistory] = useState<HistoryStep[]>([]);
+
+  // Lưu cài đặt khi độ khó thay đổi
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ace_game_settings_sudoku');
+      const existing = saved ? JSON.parse(saved) : {};
+      localStorage.setItem('ace_game_settings_sudoku', JSON.stringify({ ...existing, difficulty }));
+    } catch {}
+  }, [difficulty]);
+
+  // Lắng nghe thay đổi cài đặt từ GameSettingsModal
+  useEffect(() => {
+    const handleSettingChange = (e: CustomEvent) => {
+      if (e.detail?.gameId === 'sudoku' && e.detail?.allSettings) {
+        const s = e.detail.allSettings;
+        if (s.difficulty && ['easy', 'medium', 'hard'].includes(s.difficulty)) {
+          setDifficulty(s.difficulty);
+        }
+        if (s.maxMistakes !== undefined) {
+          setMaxMistakes(s.maxMistakes);
+        }
+      }
+    };
+    window.addEventListener('ace-game-setting-changed' as any, handleSettingChange);
+    return () => window.removeEventListener('ace-game-setting-changed' as any, handleSettingChange);
+  }, []);
 
   // Clone board deep
   const cloneBoard = (b: SudokuCell[][]): SudokuCell[][] => {
@@ -168,6 +212,13 @@ export const GameSudoku: React.FC = () => {
           spread: 80,
           origin: { y: 0.6 }
         });
+        try {
+          const finalScore = Math.max(1000, 15000 - elapsedTime * 12 - mistakes * 1000);
+          const currentBest = parseInt(localStorage.getItem('acegames_sudoku_best') || '0', 10);
+          if (finalScore > currentBest) {
+            localStorage.setItem('acegames_sudoku_best', finalScore.toString());
+          }
+        } catch {}
       }
     } else {
       // Wrong move
@@ -177,7 +228,7 @@ export const GameSudoku: React.FC = () => {
       setMistakes(nextMistakes);
       setBoard(newBoard);
 
-      if (nextMistakes >= maxMistakes) {
+      if (maxMistakes > 0 && nextMistakes >= maxMistakes) {
         setIsGameOver(true);
       }
     }
@@ -290,6 +341,13 @@ export const GameSudoku: React.FC = () => {
       setIsWon(true);
       soundManager.playVictory();
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      try {
+        const finalScore = Math.max(1000, 15000 - elapsedTime * 12 - mistakes * 1000);
+        const currentBest = parseInt(localStorage.getItem('acegames_sudoku_best') || '0', 10);
+        if (finalScore > currentBest) {
+          localStorage.setItem('acegames_sudoku_best', finalScore.toString());
+        }
+      } catch {}
     }
   };
 
@@ -501,7 +559,7 @@ export const GameSudoku: React.FC = () => {
               <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black">
                 <span className="text-gray-400 uppercase tracking-wider">Lỗi:</span>
                 <span className={`font-mono text-base ${mistakes > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  {mistakes}/{maxMistakes}
+                  {mistakes}/{maxMistakes > 0 ? maxMistakes : '∞'}
                 </span>
               </div>
 

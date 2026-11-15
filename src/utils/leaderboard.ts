@@ -120,6 +120,20 @@ const SEED_DATA: Record<string, { name: string; score: number; date: string }[]>
     { name: 'Siêu Cấp Kết Nối', score: 3890, date: '11/11/2026' },
     { name: 'OnetPro99', score: 2450, date: '08/11/2026' },
   ],
+  sudoku: [
+    { name: 'Kỳ Thủ Số Học', score: 14200, date: '15/11/2026' },
+    { name: 'Vua Sudoku', score: 11800, date: '14/11/2026' },
+    { name: 'LogicMaster', score: 9500, date: '12/11/2026' },
+    { name: 'Khối 9 Ô Vàng', score: 7200, date: '10/11/2026' },
+    { name: 'SudokuPro99', score: 4800, date: '08/11/2026' },
+  ],
+  pong: [
+    { name: 'CyberPaddle', score: 45, date: '15/11/2026' },
+    { name: 'Bóng Bàn Siêu Đẳng', score: 36, date: '14/11/2026' },
+    { name: 'Phản Xạ Vàng', score: 28, date: '13/11/2026' },
+    { name: 'Vợt Lửa Neon', score: 20, date: '11/11/2026' },
+    { name: 'PongMaster', score: 14, date: '08/11/2026' },
+  ],
 };
 
 // Retrieve user's local best score for a specific game
@@ -131,13 +145,15 @@ const getUserScore = (gameId: string): number => {
       case '2048': return parseInt(localStorage.getItem('acegames_2048_best') || '0', 10);
       case 'breakout': return parseInt(localStorage.getItem('acegames_breakout_best') || '0', 10);
       case 'space-shooter': return parseInt(localStorage.getItem('acegames_space_best') || '0', 10);
-      case 'tetris': return parseInt(localStorage.getItem('acegames_tetris_best') || '0', 10);
+      case 'tetris': return parseInt(localStorage.getItem('acegames_tetris_best') || localStorage.getItem('acegames_tetris_highscore') || '0', 10);
       case 'caro': return parseInt(localStorage.getItem('acegames_caro_wins') || '0', 10);
       case 'chess': return parseInt(localStorage.getItem('acegames_chess_wins') || '0', 10);
       case 'xiangqi': return parseInt(localStorage.getItem('acegames_xiangqi_wins') || '0', 10);
       case 'minesweeper': return parseInt(localStorage.getItem('acegames_minesweeper_best') || '0', 10);
       case 'memory': return parseInt(localStorage.getItem('acegames_memory_best') || '0', 10);
       case 'onet': return parseInt(localStorage.getItem('acegames_onet_best') || '0', 10);
+      case 'sudoku': return parseInt(localStorage.getItem('acegames_sudoku_best') || '0', 10);
+      case 'pong': return parseInt(localStorage.getItem('acegames_pong_wins') || '0', 10);
       default: return 0;
     }
   } catch {

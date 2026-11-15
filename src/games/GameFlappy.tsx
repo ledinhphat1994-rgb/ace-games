@@ -304,8 +304,8 @@ export const GameFlappy: React.FC = () => {
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
-      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
-        <div className="flex items-center gap-4 sm:gap-6">
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
+        <div className="flex items-center gap-4 sm:gap-6 z-10">
           {/* Cột Điểm Số: Căn giữa hoàn toàn theo trục dọc */}
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
@@ -328,6 +328,21 @@ export const GameFlappy: React.FC = () => {
               {bestScore}
             </span>
           </div>
+        </div>
+
+        {/* Nút Chơi Lại bên phải */}
+        <div className="flex items-center gap-2 z-10">
+          <button
+            onClick={() => {
+              soundManager.playButtonClick();
+              resetGame();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
+            title="Chơi Lại"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Chơi Lại</span>
+          </button>
         </div>
       </div>
 

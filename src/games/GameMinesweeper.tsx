@@ -185,8 +185,15 @@ export const GameMinesweeper: React.FC = () => {
 
     if (openCount === rows * cols - minesCount) {
       setGameWon(true);
+      setTimerActive(false);
       soundManager.playVictory();
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      try {
+        const curBest = parseInt(localStorage.getItem('acegames_minesweeper_best') || '0', 10);
+        if (curBest === 0 || timer < curBest) {
+          localStorage.setItem('acegames_minesweeper_best', Math.max(1, timer).toString());
+        }
+      } catch {}
     }
   };
 

@@ -465,6 +465,10 @@ export const GamePong: React.FC = () => {
         if (amIWinner) {
           soundManager.playVictory();
           confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+          try {
+            const wins = parseInt(localStorage.getItem('acegames_pong_wins') || '0', 10);
+            localStorage.setItem('acegames_pong_wins', (wins + 1).toString());
+          } catch {}
         } else {
           soundManager.playDefeat();
         }
@@ -495,6 +499,9 @@ export const GamePong: React.FC = () => {
     return () => {
       multiplayer.offMove(handleMessage);
       multiplayer.offStatusChange(handleStatus);
+      if (isOnlineMode) {
+        multiplayer.leaveRoom();
+      }
     };
   }, [isOnlineMode, isWaitingForFriend, playerRole, resetGame, playTone, spawnSparks]);
 
@@ -722,6 +729,10 @@ export const GamePong: React.FC = () => {
                 }
                 soundManager.playVictory();
                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                try {
+                  const wins = parseInt(localStorage.getItem('acegames_pong_wins') || '0', 10);
+                  localStorage.setItem('acegames_pong_wins', (wins + 1).toString());
+                } catch {}
               } else {
                 launchServe(false);
               }

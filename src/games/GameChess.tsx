@@ -179,6 +179,10 @@ export const GameChess: React.FC = () => {
             soundManager.playDefeat();
           } else {
             soundManager.playVictory();
+            try {
+              const wins = parseInt(localStorage.getItem('acegames_chess_wins') || '0', 10);
+              localStorage.setItem('acegames_chess_wins', (wins + 1).toString());
+            } catch {}
           }
 
           if (isOnlineMode && !isWaitingForFriend) {
@@ -273,7 +277,13 @@ export const GameChess: React.FC = () => {
     if (outcome.over) {
       const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === WHITE) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === WHITE);
       const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === WHITE))) || (!isOnlineMode && outcome.winner === BLACK);
-      if (isWinner) soundManager.playVictory();
+      if (isWinner) {
+        soundManager.playVictory();
+        try {
+          const wins = parseInt(localStorage.getItem('acegames_chess_wins') || '0', 10);
+          localStorage.setItem('acegames_chess_wins', (wins + 1).toString());
+        } catch {}
+      }
       else if (isLoser) soundManager.playDefeat();
       else soundManager.playDraw();
     } else if (inCheck) {
@@ -364,7 +374,8 @@ export const GameChess: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
-    if (roomParam) {
+    const gameParam = params.get('game');
+    if (roomParam && (!gameParam || gameParam === 'chess')) {
       // Xóa room khỏi URL ngay lập tức để không bị tự động re-join khi tạo phòng mới
       const url = new URL(window.location.href);
       url.searchParams.delete('room');

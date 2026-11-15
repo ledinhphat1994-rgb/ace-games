@@ -179,6 +179,10 @@ export const GameXiangqi: React.FC = () => {
             soundManager.playDefeat();
           } else {
             soundManager.playVictory();
+            try {
+              const wins = parseInt(localStorage.getItem('acegames_xiangqi_wins') || '0', 10);
+              localStorage.setItem('acegames_xiangqi_wins', (wins + 1).toString());
+            } catch {}
           }
 
           if (isOnlineMode && !isWaitingForFriend) {
@@ -272,7 +276,13 @@ export const GameXiangqi: React.FC = () => {
     if (outcome.over) {
       const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === RED) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === RED);
       const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === RED))) || (!isOnlineMode && outcome.winner === BLACK);
-      if (isWinner) soundManager.playVictory();
+      if (isWinner) {
+        soundManager.playVictory();
+        try {
+          const wins = parseInt(localStorage.getItem('acegames_xiangqi_wins') || '0', 10);
+          localStorage.setItem('acegames_xiangqi_wins', (wins + 1).toString());
+        } catch {}
+      }
       else if (isLoser) soundManager.playDefeat();
       else soundManager.playDraw();
     } else if (inCheck) {
@@ -358,7 +368,8 @@ export const GameXiangqi: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
-    if (roomParam) {
+    const gameParam = params.get('game');
+    if (roomParam && (!gameParam || gameParam === 'xiangqi')) {
       // Xóa room khỏi URL ngay lập tức để không bị tự động re-join khi tạo phòng mới
       const url = new URL(window.location.href);
       url.searchParams.delete('room');

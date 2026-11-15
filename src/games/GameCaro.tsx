@@ -201,7 +201,8 @@ export const GameCaro: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
-    if (roomParam) {
+    const gameParam = params.get('game');
+    if (roomParam && (!gameParam || gameParam === 'caro')) {
       // Xóa room khỏi URL ngay lập tức để không bị tự động re-join khi tạo phòng mới
       const url = new URL(window.location.href);
       url.searchParams.delete('room');

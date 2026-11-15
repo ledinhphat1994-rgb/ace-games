@@ -71,7 +71,7 @@ export const GameTetris: React.FC = () => {
   const [lines, setLines] = useState<number>(0);
   const [level, setLevel] = useState<number>(1);
   const [highScore, setHighScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem('acegames_tetris_highscore') || '0', 10);
+    return parseInt(localStorage.getItem('acegames_tetris_best') || localStorage.getItem('acegames_tetris_highscore') || '0', 10);
   });
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -182,6 +182,7 @@ export const GameTetris: React.FC = () => {
         const nextScore = prev + points * level;
         if (nextScore > highScore) {
           setHighScore(nextScore);
+          localStorage.setItem('acegames_tetris_best', nextScore.toString());
           localStorage.setItem('acegames_tetris_highscore', nextScore.toString());
         }
         return nextScore;
@@ -317,7 +318,7 @@ export const GameTetris: React.FC = () => {
   return (
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
-      <div className="game-top-hud flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 shadow-inner flex-shrink-0">
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
         <div className="flex items-center gap-3 sm:gap-6">
           <div className="flex flex-col items-center text-center">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
