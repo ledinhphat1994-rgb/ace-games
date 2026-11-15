@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ChessPosition, type ChessMove, type Color, WHITE, BLACK, colorOf, typeOf, ROOK, KNIGHT, BISHOP, QUEEN, KING, PAWN } from './chess/chess-engine';
 import { findBestChessMove } from './chess/chess-ai';
 import { RotateCcw, Bot, Timer, Globe, LogOut } from 'lucide-react';

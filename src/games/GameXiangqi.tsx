@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { XiangqiPosition, type XiangqiMove, type Side, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
 import { RotateCcw, Bot, Timer, Globe, LogOut } from 'lucide-react';

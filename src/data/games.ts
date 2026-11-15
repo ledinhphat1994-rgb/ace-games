@@ -9,7 +9,7 @@ export const GAMES_CATALOG: GameInfo[] = [
     categoryLabel: 'Trí Tuệ & Số',
     description: 'Ghép các ô cùng số chạm mốc 2048.',
     instructions: [
-      'Dùng phím mũi tên hoặc vuốt để trượt ô.',
+      'Trượt các ô số theo 4 hướng.',
       'Hai ô cùng số chạm nhau sẽ cộng đôi.',
       'Tạo ô 2048 để chiến thắng.'
     ],
@@ -55,9 +55,9 @@ export const GAMES_CATALOG: GameInfo[] = [
     categoryLabel: 'Thử Thách Phản Xạ',
     description: 'Vượt chướng ngại vật lập kỷ lục điểm.',
     instructions: [
-      'Nhấp chuột hoặc chạm để bay lên.',
-      'Thả tay để chim rơi xuống.',
-      'Lách qua khe ống để ghi điểm.'
+      'Bay lách qua khe các ống nước.',
+      'Mỗi ống vượt qua được cộng 1 điểm.',
+      'Tránh va chạm ống và rơi xuống đất.'
     ],
     controls: {
       desktop: 'Phím Space / Chuột',
@@ -83,8 +83,8 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Chặn đối thủ tạo hàng liên tiếp.'
     ],
     controls: {
-      desktop: 'Nhấp chuột vào ô',
-      mobile: 'Chạm vào ô'
+      desktop: 'Nhấp chuột',
+      mobile: 'Chạm màn hình'
     },
     thumbnailIcon: '⭕',
     accentColor: 'from-indigo-500 to-purple-600',
@@ -126,11 +126,11 @@ export const GAMES_CATALOG: GameInfo[] = [
     instructions: [
       'Lật mở 2 lá bài mỗi lượt.',
       'Ghi nhớ vị trí các cặp giống nhau.',
-      'Triệt tiêu toàn bộ thẻ để đạt 3 sao.'
+      'Triệt tiêu toàn bộ thẻ để chiến thắng.'
     ],
     controls: {
-      desktop: 'Nhấp chuột chọn thẻ',
-      mobile: 'Chạm chọn thẻ'
+      desktop: 'Nhấp chuột',
+      mobile: 'Chạm màn hình'
     },
     thumbnailIcon: '🃏',
     accentColor: 'from-pink-500 to-rose-600',
@@ -176,8 +176,8 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Hỗ trợ đấu AI và 2 người chơi.'
     ],
     controls: {
-      desktop: 'Nhấp chọn quân và ô đi',
-      mobile: 'Chạm chọn quân và ô đi'
+      desktop: 'Nhấp chuột',
+      mobile: 'Chạm màn hình'
     },
     thumbnailIcon: '♟️',
     accentColor: 'from-amber-600 to-yellow-700',
@@ -200,8 +200,8 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Chiếu bí Tướng đối thủ để thắng.'
     ],
     controls: {
-      desktop: 'Nhấp chọn quân và ô đi',
-      mobile: 'Chạm chọn quân và ô đi'
+      desktop: 'Nhấp chuột',
+      mobile: 'Chạm màn hình'
     },
     thumbnailIcon: '🏮',
     accentColor: 'from-rose-600 to-red-700',
@@ -219,12 +219,12 @@ export const GAMES_CATALOG: GameInfo[] = [
     categoryLabel: 'Arcade Thử Thách',
     description: 'Đón bóng nảy và phá hủy toàn bộ gạch.',
     instructions: [
-      'Di chuyển thanh đỡ đón bóng nảy.',
+      'Đón bóng nảy phá vỡ các khối gạch.',
       'Đập vỡ hết gạch để qua màn.',
       'Không để bóng rơi xuống đáy.'
     ],
     controls: {
-      desktop: 'Kéo chuột / ← →, Space bắn bóng',
+      desktop: 'Kéo chuột / Mũi tên di chuyển',
       mobile: 'Kéo ngón tay di chuyển'
     },
     thumbnailIcon: '🏓',
@@ -248,8 +248,8 @@ export const GAMES_CATALOG: GameInfo[] = [
       'Vượt qua các đợt để đạt điểm kỷ lục.'
     ],
     controls: {
-      desktop: 'A/D / Mũi tên, Space bắn đạn',
-      mobile: 'Kéo ngón tay để lái & bắn'
+      desktop: 'A/D / Mũi tên lái, Space bắn',
+      mobile: 'Kéo ngón tay di chuyển'
     },
     thumbnailIcon: '🚀',
     accentColor: 'from-violet-600 to-indigo-700',
@@ -267,13 +267,13 @@ export const GAMES_CATALOG: GameInfo[] = [
     categoryLabel: 'Giải Đố & Phản Xạ',
     description: 'Nối 2 hình giống nhau không quá 3 đoạn gấp khúc.',
     instructions: [
-      'Chọn 2 ô hình giống nhau để nối.',
+      'Chọn 2 hình giống nhau để nối.',
       'Đường nối tối đa 3 đoạn gấp khúc.',
       'Xóa sạch bàn cờ để chiến thắng.'
     ],
     controls: {
-      desktop: 'Nhấp chọn 2 ô giống nhau',
-      mobile: 'Chạm chọn 2 ô giống nhau'
+      desktop: 'Nhấp chuột',
+      mobile: 'Chạm màn hình'
     },
     thumbnailIcon: '🧩',
     accentColor: 'from-emerald-500 to-cyan-600',
