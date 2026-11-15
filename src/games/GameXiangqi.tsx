@@ -713,23 +713,14 @@ export const GameXiangqi: React.FC = () => {
                       <div className="absolute inset-0.5 rounded-full ring-4 ring-rose-500 bg-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.95)] z-20 animate-pulse pointer-events-none" />
                     ) : null}
 
-                    {/* Vùng hào quang tỏa sáng xung quanh quân cờ được chọn - Tinh tế, mềm mại, hoàn toàn không vẽ khung */}
+                    {/* Vùng hào quang tròn ôm sát quân cờ khi chọn - Nhỏ gọn, đều đặn 360 độ, nhấp nháy động */}
                     {isSelected && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        {/* Hào quang tỏa rộng mềm mại */}
                         <div
-                          className="absolute w-[160%] h-[160%] rounded-full animate-pulse opacity-90"
+                          className="w-[92%] h-[92%] max-w-[66px] max-h-[66px] rounded-full animate-pulse"
                           style={{
-                            background: 'radial-gradient(circle, rgba(6, 182, 212, 0.65) 0%, rgba(14, 165, 233, 0.35) 45%, rgba(56, 189, 248, 0.12) 65%, transparent 75%)',
-                            filter: 'blur(6px)',
-                          }}
-                        />
-                        {/* Lớp sáng trung tâm huyền ảo */}
-                        <div
-                          className="absolute w-[130%] h-[130%] rounded-full opacity-90"
-                          style={{
-                            background: 'radial-gradient(circle, rgba(34, 211, 238, 0.5) 0%, rgba(6, 182, 212, 0.25) 55%, transparent 70%)',
-                            filter: 'blur(3px)',
+                            boxShadow: '0 0 10px 3px rgba(6, 182, 212, 0.85)',
+                            background: 'radial-gradient(circle, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0) 70%)',
                           }}
                         />
                       </div>
@@ -740,7 +731,7 @@ export const GameXiangqi: React.FC = () => {
                       <div
                         className={`relative z-20 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
                           isSelected
-                            ? 'scale-115 -translate-y-2 ring-2 ring-cyan-300 shadow-[0_0_28px_6px_rgba(6,182,212,0.85),0_12px_24px_rgba(0,0,0,0.55)] z-30'
+                            ? 'scale-106 ring-2 ring-cyan-400 shadow-[0_0_12px_2px_rgba(6,182,212,0.8)] z-30 animate-pulse'
                             : isKingInCheck
                             ? 'scale-110 ring-4 ring-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.9)] z-25 animate-pulse'
                             : isLast
@@ -749,9 +740,9 @@ export const GameXiangqi: React.FC = () => {
                         }`}
                         style={{
                           background: 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
-                          border: isSelected ? '2.5px solid #22d3ee' : '2px solid #a67c48',
+                          border: isSelected ? '2px solid #22d3ee' : '2px solid #a67c48',
                           boxShadow: isSelected
-                            ? '0 0 28px 6px rgba(6,182,212,0.85), 0 12px 24px rgba(0,0,0,0.55), inset 0 2px 4px rgba(255,255,255,0.95), inset 0 -3px 4px rgba(110,60,20,0.35)'
+                            ? '0 0 12px 2px rgba(6, 182, 212, 0.75), 0 3px 6px rgba(0,0,0,0.3), inset 0 2px 2px rgba(255,255,255,0.85), inset 0 -3px 4px rgba(110,60,20,0.35)'
                             : '0 5px 12px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.25), inset 0 2px 2px rgba(255,255,255,0.8), inset 0 -3px 4px rgba(110,60,20,0.35)'
                         }}
                       >
