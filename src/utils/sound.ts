@@ -1,6 +1,6 @@
 // Web Audio API Synthesizer with AudioContext Auto-Unlock & Studio Quality BGM / SFX
 
-export type BgmTrack = 'heroic' | 'lofi' | 'arcade';
+export type BgmTrack = 'heroic' | 'lofi' | 'arcade' | 'cyberpunk' | 'zen';
 
 export interface BgmTrackInfo {
   id: BgmTrack;
@@ -11,9 +11,11 @@ export interface BgmTrackInfo {
 }
 
 export const BGM_TRACKS: BgmTrackInfo[] = [
-  { id: 'heroic', title: 'Chiến Khí Hào Hùng', desc: 'Trống trận hùng dũng, dồn dập', icon: '⚔️', file: '/sounds/bgm_heroic.wav' },
-  { id: 'lofi', title: 'Lo-Fi Thư Giãn', desc: 'Êm dịu, hiện đại, giúp tập trung', icon: '🎧', file: '/sounds/bgm_lofi.wav' },
-  { id: 'arcade', title: 'Retro Synthwave', desc: 'Sôi động, phong cách 8-bit', icon: '🕹️', file: '/sounds/bgm_arcade.wav' },
+  { id: 'heroic', title: 'Chiến Khí Hào Hùng', desc: 'Trống trận dồn dập, hào khí', icon: '⚔️', file: '/sounds/bgm_heroic.wav' },
+  { id: 'lofi', title: 'Lo-Fi Thư Giãn', desc: 'Êm dịu nhẹ nhàng, tập trung', icon: '🎧', file: '/sounds/bgm_lofi.wav' },
+  { id: 'arcade', title: 'Retro Synthwave', desc: 'Sôi động 8-bit arcade', icon: '🕹️', file: '/sounds/bgm_arcade.wav' },
+  { id: 'cyberpunk', title: 'Cyberpunk Neon', desc: 'Điện tử tương lai dồn dập', icon: '⚡', file: '/sounds/bgm_cyberpunk.wav' },
+  { id: 'zen', title: 'Thiền Cổ Phong', desc: 'Đàn tranh thanh tịnh, cổ trang', icon: '🎋', file: '/sounds/bgm_zen.wav' },
 ];
 
 export interface GameAudioConfig {
@@ -27,14 +29,14 @@ export interface GameAudioConfig {
 export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   xiangqi: 'heroic',
   chess: 'heroic',
-  caro: 'heroic',
+  caro: 'zen',
   breakout: 'arcade',
-  spaceshooter: 'arcade',
+  spaceshooter: 'cyberpunk',
   snake: 'arcade',
   tetris: 'arcade',
   flappy: 'arcade',
   2048: 'lofi',
-  memory: 'lofi',
+  memory: 'zen',
   minesweeper: 'lofi',
 };
 
@@ -50,14 +52,13 @@ class SoundManager {
   private systemMusicEnabled: boolean = false;
   private systemMusicVolume: number = 35; // 0 - 100
   private systemMusicTrack: BgmTrack = 'lofi';
+  private systemBgmAudio: HTMLAudioElement | null = null;
 
   // VÙNG 2: Âm Thanh Trận Đấu / Ván Chơi Game (In-Game Audio)
   // Độc lập hoàn toàn, tùy biến và lưu theo từng game riêng biệt
   private activeGameId: string | null = null;
   private activeGameConfig: GameAudioConfig | null = null;
-
-  // Dedicated HTML5 Loop Player for Background Music (BGM)
-  private bgmAudio: HTMLAudioElement | null = null;
+  private gameBgmAudio: HTMLAudioElement | null = null;
 
   // Audio Buffers Cache for 0ms Low Latency Game Audio
   private audioBuffers: Map<string, AudioBuffer> = new Map();
@@ -79,7 +80,7 @@ class SoundManager {
       if (savedSysMusicVol !== null) this.systemMusicVolume = Math.max(0, Math.min(100, parseFloat(savedSysMusicVol)));
 
       const savedSysTrack = (localStorage.getItem('acegames_sys_music_track') ?? localStorage.getItem('acegames_bgm_track')) as BgmTrack;
-      if (savedSysTrack && ['heroic', 'lofi', 'arcade'].includes(savedSysTrack)) {
+      if (savedSysTrack && ['heroic', 'lofi', 'arcade', 'cyberpunk', 'zen'].includes(savedSysTrack)) {
         this.systemMusicTrack = savedSysTrack;
       }
     } catch {
@@ -97,8 +98,11 @@ class SoundManager {
       // Auto-unlock on first user interaction anywhere in the window
       const unlock = () => {
         this.unlockContext();
-        if (this.systemMusicEnabled && !this.activeGameId) {
-          this.startBGM(this.systemMusicTrack, this.systemMusicVolume / 100);
+        if (this.systemMusicEnabled) {
+          this.startSystemBGM(this.systemMusicTrack);
+        }
+        if (this.activeGameId && this.activeGameConfig?.musicEnabled) {
+          this.startGameBGM(this.activeGameId);
         }
         window.removeEventListener('pointerdown', unlock);
         window.removeEventListener('keydown', unlock);
@@ -222,14 +226,10 @@ class SoundManager {
     this.notify();
     this.unlockContext();
     if (enabled) {
-      if (!this.activeGameId) {
-        this.startBGM(this.systemMusicTrack, this.systemMusicVolume / 100);
-      }
+      this.startSystemBGM(this.systemMusicTrack);
       this.playButtonClick();
     } else {
-      if (!this.activeGameId) {
-        this.stopBGM();
-      }
+      this.stopSystemBGM();
     }
   }
 
@@ -245,8 +245,8 @@ class SoundManager {
   public setSystemMusicVolume(percent: number) {
     this.systemMusicVolume = Math.max(0, Math.min(100, Math.round(percent)));
     try { localStorage.setItem('acegames_sys_music_vol', String(this.systemMusicVolume)); } catch {}
-    if (this.bgmAudio && !this.activeGameId) {
-      this.bgmAudio.volume = this.systemMusicVolume / 100;
+    if (this.systemBgmAudio) {
+      this.systemBgmAudio.volume = this.systemMusicVolume / 100;
     }
     this.notify();
   }
@@ -258,8 +258,8 @@ class SoundManager {
   public setSystemMusicTrack(track: BgmTrack) {
     this.systemMusicTrack = track;
     try { localStorage.setItem('acegames_sys_music_track', track); } catch {}
-    if (this.systemMusicEnabled && !this.activeGameId) {
-      this.startBGM(track, this.systemMusicVolume / 100);
+    if (this.systemMusicEnabled) {
+      this.startSystemBGM(track);
     }
     this.notify();
   }
@@ -279,16 +279,15 @@ class SoundManager {
     if (gameId) {
       this.activeGameConfig = this.getGameAudioSettings(gameId);
       if (this.activeGameConfig.musicEnabled) {
-        this.startBGM(this.activeGameConfig.bgmTrack, this.activeGameConfig.musicVolume / 100);
+        this.startGameBGM(gameId, this.activeGameConfig.bgmTrack);
       } else {
-        this.stopBGM();
+        this.stopGameBGM();
       }
     } else {
       this.activeGameConfig = null;
+      this.stopGameBGM();
       if (this.systemMusicEnabled) {
-        this.startBGM(this.systemMusicTrack, this.systemMusicVolume / 100);
-      } else {
-        this.stopBGM();
+        this.startSystemBGM();
       }
     }
     this.notify();
@@ -310,7 +309,7 @@ class SoundManager {
           sfxVolume: parsed.sfxVolume !== undefined ? Number(parsed.sfxVolume) : 85,
           musicEnabled: parsed.music !== undefined ? Boolean(parsed.music) : true,
           musicVolume: parsed.musicVolume !== undefined ? Number(parsed.musicVolume) : 40,
-          bgmTrack: parsed.bgmTrack && ['heroic', 'lofi', 'arcade'].includes(parsed.bgmTrack) ? parsed.bgmTrack : defaultTrack,
+          bgmTrack: parsed.bgmTrack && ['heroic', 'lofi', 'arcade', 'cyberpunk', 'zen'].includes(parsed.bgmTrack) ? parsed.bgmTrack : defaultTrack,
         };
       }
     } catch {}
@@ -346,9 +345,9 @@ class SoundManager {
     if (this.activeGameId === gameId) {
       this.activeGameConfig = updated;
       if (updated.musicEnabled) {
-        this.startBGM(updated.bgmTrack, updated.musicVolume / 100);
+        this.startGameBGM(gameId, updated.bgmTrack);
       } else {
-        this.stopBGM();
+        this.stopGameBGM();
       }
     }
 
@@ -451,60 +450,129 @@ class SoundManager {
     return this.toggleSystemMusic();
   }
 
-  // --- STUDIO BACKGROUND MUSIC (BGM) SYSTEM ---
-  public startBGM(track?: BgmTrack, customVolume?: number) {
+  // =========================================================================
+  // VÙNG 1: NHẠC NỀN CHUNG / SẢNH CHỜ (SYSTEM BGM)
+  // Luôn hoạt động độc lập và ổn định khi bật
+  // =========================================================================
+  public startSystemBGM(track?: BgmTrack) {
     if (track) {
-      if (this.activeGameId && this.activeGameConfig) {
-        this.activeGameConfig.bgmTrack = track;
-      } else {
-        this.systemMusicTrack = track;
-      }
+      this.systemMusicTrack = track;
     }
-    const isPlaying = this.activeGameConfig ? this.activeGameConfig.musicEnabled : this.systemMusicEnabled;
-    if (!isPlaying) return;
+    if (!this.systemMusicEnabled) return;
     if (typeof window === 'undefined') return;
 
-    const currentActiveTrack = this.activeGameConfig ? this.activeGameConfig.bgmTrack : this.systemMusicTrack;
-    const trackInfo = BGM_TRACKS.find(t => t.id === currentActiveTrack) || BGM_TRACKS[0];
+    const trackInfo = BGM_TRACKS.find(t => t.id === this.systemMusicTrack) || BGM_TRACKS[1];
     const targetSrc = trackInfo.file;
-
-    const targetVolume = customVolume !== undefined 
-      ? Math.max(0, Math.min(1, customVolume))
-      : (this.activeGameConfig ? this.activeGameConfig.musicVolume / 100 : this.systemMusicVolume / 100);
+    const targetVolume = Math.max(0, Math.min(1, this.systemMusicVolume / 100));
 
     try {
-      if (!this.bgmAudio) {
-        this.bgmAudio = new Audio(targetSrc);
-        this.bgmAudio.loop = true;
-        this.bgmAudio.volume = targetVolume;
-      } else if (!this.bgmAudio.src.endsWith(targetSrc)) {
-        this.bgmAudio.src = targetSrc;
-        this.bgmAudio.loop = true;
-        this.bgmAudio.volume = targetVolume;
-      } else {
-        this.bgmAudio.volume = targetVolume;
+      if (!this.systemBgmAudio) {
+        this.systemBgmAudio = new Audio(targetSrc);
+        this.systemBgmAudio.loop = true;
+      } else if (!this.systemBgmAudio.src.endsWith(targetSrc)) {
+        this.systemBgmAudio.src = targetSrc;
+        this.systemBgmAudio.loop = true;
       }
+      this.systemBgmAudio.volume = targetVolume;
 
-      this.bgmAudio.play().catch(() => {
-        const resumeOnInteraction = () => {
-          if (this.bgmAudio) {
-            this.bgmAudio.play().catch(() => {});
-          }
-          window.removeEventListener('pointerdown', resumeOnInteraction);
-          window.removeEventListener('keydown', resumeOnInteraction);
-        };
-        window.addEventListener('pointerdown', resumeOnInteraction);
-        window.addEventListener('keydown', resumeOnInteraction);
-      });
-    } catch {}
+      const p = this.systemBgmAudio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          const resume = () => {
+            if (this.systemBgmAudio && this.systemMusicEnabled) {
+              this.systemBgmAudio.play().catch(() => {});
+            }
+            window.removeEventListener('pointerdown', resume);
+            window.removeEventListener('keydown', resume);
+          };
+          window.addEventListener('pointerdown', resume, { once: true });
+          window.addEventListener('keydown', resume, { once: true });
+        });
+      }
+    } catch (e) {
+      console.warn('System BGM play error:', e);
+    }
+  }
+
+  public stopSystemBGM() {
+    if (this.systemBgmAudio) {
+      try {
+        this.systemBgmAudio.pause();
+      } catch {}
+    }
+  }
+
+  // =========================================================================
+  // VÙNG 2: NHẠC NỀN TRẬN ĐẤU (GAME BGM)
+  // Riêng biệt cho từng trận game
+  // =========================================================================
+  public startGameBGM(gameId?: string, track?: BgmTrack) {
+    const targetId = gameId || this.activeGameId;
+    if (!targetId) return;
+
+    const cfg = this.getGameAudioSettings(targetId);
+    if (track) {
+      cfg.bgmTrack = track;
+    }
+    if (!cfg.musicEnabled) {
+      this.stopGameBGM();
+      return;
+    }
+    if (typeof window === 'undefined') return;
+
+    const trackInfo = BGM_TRACKS.find(t => t.id === cfg.bgmTrack) || BGM_TRACKS[0];
+    const targetSrc = trackInfo.file;
+    const targetVolume = Math.max(0, Math.min(1, cfg.musicVolume / 100));
+
+    try {
+      if (!this.gameBgmAudio) {
+        this.gameBgmAudio = new Audio(targetSrc);
+        this.gameBgmAudio.loop = true;
+      } else if (!this.gameBgmAudio.src.endsWith(targetSrc)) {
+        this.gameBgmAudio.src = targetSrc;
+        this.gameBgmAudio.loop = true;
+      }
+      this.gameBgmAudio.volume = targetVolume;
+
+      const p = this.gameBgmAudio.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          const resume = () => {
+            if (this.gameBgmAudio && this.activeGameConfig?.musicEnabled) {
+              this.gameBgmAudio.play().catch(() => {});
+            }
+            window.removeEventListener('pointerdown', resume);
+            window.removeEventListener('keydown', resume);
+          };
+          window.addEventListener('pointerdown', resume, { once: true });
+          window.addEventListener('keydown', resume, { once: true });
+        });
+      }
+    } catch (e) {
+      console.warn('Game BGM play error:', e);
+    }
+  }
+
+  public stopGameBGM() {
+    if (this.gameBgmAudio) {
+      try {
+        this.gameBgmAudio.pause();
+      } catch {}
+    }
+  }
+
+  // Backward compatibility routers
+  public startBGM(track?: BgmTrack, _customVolume?: number) {
+    if (this.activeGameId) {
+      this.startGameBGM(this.activeGameId, track);
+    } else {
+      this.startSystemBGM(track);
+    }
   }
 
   public stopBGM() {
-    if (this.bgmAudio) {
-      try {
-        this.bgmAudio.pause();
-      } catch {}
-    }
+    this.stopSystemBGM();
+    this.stopGameBGM();
   }
 
   public setBgmContext(category: 'arcade' | 'strategy') {
@@ -513,7 +581,7 @@ class SoundManager {
       const defaultTrack: BgmTrack = category === 'strategy' ? 'heroic' : 'arcade';
       if (this.systemMusicTrack !== defaultTrack) {
         this.systemMusicTrack = defaultTrack;
-        if (this.systemMusicEnabled && !this.activeGameId) this.startBGM(defaultTrack);
+        if (this.systemMusicEnabled) this.startSystemBGM(defaultTrack);
         this.notify();
       }
     }

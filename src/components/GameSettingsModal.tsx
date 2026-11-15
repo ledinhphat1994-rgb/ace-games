@@ -311,34 +311,43 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Chọn bản nhạc BGM cho game */}
+            {/* Danh sách bản nhạc BGM cho game (Dạng List cuộn gọn gàng, sẵn sàng cho nhiều bài) */}
             <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
-                <span className="text-[10px] text-cyan-400 font-mono">
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Danh Sách Nhạc:</span>
+                <span className="text-[10px] text-cyan-400 font-mono font-semibold">
                   {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                 {BGM_TRACKS.map((t) => {
                   const isActive = currentTrack === t.id;
-                  const shortName = t.id === 'heroic' ? 'Hào Hùng' : t.id === 'lofi' ? 'Lo-Fi' : 'Retro';
                   return (
                     <button
                       key={t.id}
                       onClick={() => handleSelectTrack(t.id)}
-                      className={`py-2 px-1 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left border transition cursor-pointer ${
                         isActive
-                          ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-md shadow-cyan-500/20'
-                          : 'bg-slate-950/80 border-slate-800 text-gray-400 hover:text-white hover:border-slate-700'
+                          ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
+                          : 'bg-slate-950/70 border-white/5 text-gray-300 hover:bg-slate-900 hover:border-slate-700 hover:text-white'
                       }`}
-                      title={t.desc}
                     >
-                      {isActive && (
-                        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-base flex-shrink-0">{t.icon}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold truncate">{t.title}</span>
+                          <span className="text-[10px] text-gray-400 truncate">{t.desc}</span>
+                        </div>
+                      </div>
+                      {isActive ? (
+                        <span className="text-[10px] font-mono text-cyan-300 font-bold px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-500/40 flex-shrink-0">
+                          ♫ Đang phát
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-gray-500 hover:text-gray-300 flex-shrink-0 font-medium">
+                          Chọn
+                        </span>
                       )}
-                      <span className="text-base">{t.icon}</span>
-                      <span className="text-[11px] font-bold">{shortName}</span>
                     </button>
                   );
                 })}
