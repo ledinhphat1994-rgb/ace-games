@@ -476,11 +476,11 @@ export const GameChess: React.FC = () => {
           ) : timeoutOutcome !== null ? (
             timeoutOutcome.loser === (isOnlineMode ? (playerRole === 'host' ? WHITE : BLACK) : WHITE) ? (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                <span>⏱️ BẠN ĐÃ THUA (HẾT GIỜ)</span>
+                <span>⏱️ HẾT GIỜ - BẠN THUA</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-                <span>🏆 BẠN ĐÃ THẮNG (ĐỐI THỦ HẾT GIỜ)</span>
+                <span>🏆 ĐỐI THỦ HẾT GIỜ - BẠN THẮNG</span>
               </div>
             )
           ) : pos.outcome().over ? (

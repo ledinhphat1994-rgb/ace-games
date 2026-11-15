@@ -56,7 +56,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
           <button
             onClick={handleClose}
             className="p-2 sm:p-2.5 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90"
-            title="Đóng (Esc)"
+            title="Đóng"
           >
             <X className="w-6 h-6 sm:w-7 sm:h-7" />
           </button>
@@ -73,7 +73,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <span className="text-xs sm:text-sm font-black text-cyan-400 block uppercase tracking-wider mb-0.5">
-                  MÁY TÍNH (PC)
+                  MÁY TÍNH
                 </span>
                 <span className="text-base sm:text-lg font-bold text-white block leading-snug">
                   {game.controls.desktop}
@@ -88,7 +88,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <span className="text-xs sm:text-sm font-black text-emerald-400 block uppercase tracking-wider mb-0.5">
-                  ĐIỆN THOẠI (CẢM ỨNG)
+                  ĐIỆN THOẠI
                 </span>
                 <span className="text-base sm:text-lg font-bold text-white block leading-snug">
                   {game.controls.mobile}
@@ -100,7 +100,7 @@ export const GameGuideModal: React.FC<GameGuideModalProps> = ({
           {/* Quy tắc chơi - Chữ to, bự, rõ từng gạch đầu dòng */}
           <div className="space-y-3">
             <span className="text-xs sm:text-sm font-black text-cyan-300 uppercase tracking-widest block">
-              CÁCH CHƠI & QUY LUẬT:
+              CÁCH CHƠI:
             </span>
             <div className="space-y-2.5">
               {game.instructions.map((step, idx) => (

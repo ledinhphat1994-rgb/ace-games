@@ -252,7 +252,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
                   ? 'text-emerald-400 border-emerald-500/40 shadow-emerald-500/10'
                   : 'text-gray-500 border-slate-700/80 hover:text-gray-300'
               }`}
-              title={soundOn || musicOn ? 'Tắt âm thanh nhanh (Mute)' : 'Bật âm thanh (Unmute)'}
+              title={soundOn || musicOn ? 'Tắt âm thanh' : 'Bật âm thanh'}
             >
               {soundOn || musicOn ? (
                 <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />

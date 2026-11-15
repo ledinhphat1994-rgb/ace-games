@@ -79,7 +79,7 @@ export const GAMES_CATALOG: GameInfo[] = [
     description: 'Đấu cờ caro 5 ô hoặc 3 ô với AI.',
     instructions: [
       'Đánh dấu X hoặc O vào ô trống.',
-      'Tạo đủ hàng 5 ô (hoặc 3 ô) để thắng.',
+      'Tạo đủ hàng 5 ô để thắng.',
       'Chặn đối thủ tạo hàng liên tiếp.'
     ],
     controls: {
@@ -268,7 +268,7 @@ export const GAMES_CATALOG: GameInfo[] = [
     description: 'Nối 2 hình giống nhau không quá 3 đoạn gấp khúc.',
     instructions: [
       'Chọn 2 ô hình giống nhau để nối.',
-      'Đường nối tối đa 3 đoạn gấp khúc (2 góc).',
+      'Đường nối tối đa 3 đoạn gấp khúc.',
       'Xóa sạch bàn cờ để chiến thắng.'
     ],
     controls: {

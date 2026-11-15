@@ -284,7 +284,7 @@ export const Game2048: React.FC = () => {
                 ? 'bg-slate-800 hover:bg-slate-700 border-white/10 text-cyan-400 cursor-pointer shadow-sm active:scale-95'
                 : 'opacity-40 border-transparent text-gray-600 cursor-not-allowed'
             }`}
-            title="Đi lại 1 bước (Undo)"
+            title="Đi lại 1 bước"
           >
             <Undo2 className="w-4 h-4 text-cyan-400" />
             <span className="hidden sm:inline">Đi Lại</span>

@@ -373,7 +373,7 @@ export const GameFlappy: React.FC = () => {
               }}
               className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-2xl shadow-xl transition text-base flex items-center gap-2 transform active:scale-95"
             >
-              <RotateCcw className="w-5 h-5" /> Chơi Lại (Phím Space)
+              <RotateCcw className="w-5 h-5" /> Chơi Lại
             </button>
           </div>
         )}

@@ -331,7 +331,7 @@ export const GameSnake: React.FC = () => {
               onClick={resetGame}
               className="px-8 py-3.5 bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(16,185,129,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <RotateCcw className="w-5 h-5" /> Chơi Lại (Phím Space)
+              <RotateCcw className="w-5 h-5" /> Chơi Lại
             </button>
           </div>
         )}

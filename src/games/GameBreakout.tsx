@@ -461,7 +461,7 @@ export const GameBreakout: React.FC = () => {
               className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white font-black text-base shadow-xl shadow-red-500/30 transition-transform hover:scale-105 active:scale-95"
             >
               <RotateCcw className="w-5 h-5" />
-              Chơi Lại (Phím Space)
+              Chơi Lại
             </button>
           </div>
         )}

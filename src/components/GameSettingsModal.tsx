@@ -299,7 +299,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
           <button
             onClick={handleCancel}
             className="p-2 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90"
-            title="Đóng (Esc)"
+            title="Đóng"
           >
             <X className="w-6 h-6" />
           </button>
@@ -322,12 +322,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </span>
             </div>
 
-            {/* Hiệu ứng âm thanh (SFX) của game */}
+            {/* Hiệu ứng âm thanh của game */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   {soundEnabled ? <Volume2 className="w-5 h-5 text-emerald-400" /> : <VolumeX className="w-5 h-5 text-gray-500" />}
-                  <span className="text-sm sm:text-base font-bold text-white">Hiệu Ứng (SFX)</span>
+                  <span className="text-sm sm:text-base font-bold text-white">Hiệu Ứng</span>
                 </div>
                 <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
                   <button
@@ -368,12 +368,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Nhạc nền (BGM) của game */}
+            {/* Nhạc nền của game */}
             <div className="space-y-2 pt-2 border-t border-white/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <Music className={`w-5 h-5 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                  <span className="text-sm sm:text-base font-bold text-white">Nhạc Nền (BGM)</span>
+                  <span className="text-sm sm:text-base font-bold text-white">Nhạc Nền</span>
                 </div>
                 <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
                   <button
@@ -498,11 +498,11 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
                   className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
                 >
-                  <option value={0}>Vô Hạn (Tự do)</option>
-                  <option value={30}>30 Giây (Nhanh)</option>
-                  <option value={60}>60 Giây (Chuẩn)</option>
-                  <option value={90}>90 Giây (Chiến thuật)</option>
-                  <option value={120}>120 Giây (Thong thả)</option>
+                  <option value={0}>Vô Hạn</option>
+                  <option value={30}>30 Giây</option>
+                  <option value={60}>60 Giây</option>
+                  <option value={90}>90 Giây</option>
+                  <option value={120}>120 Giây</option>
                 </select>
               </div>
 
@@ -583,11 +583,11 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
                   className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
                 >
-                  <option value={0}>Vô Hạn (Tự do)</option>
-                  <option value={30}>30 Giây (Nhanh)</option>
-                  <option value={60}>60 Giây (Chuẩn)</option>
-                  <option value={90}>90 Giây (Chiến thuật)</option>
-                  <option value={120}>120 Giây (Thong thả)</option>
+                  <option value={0}>Vô Hạn</option>
+                  <option value={30}>30 Giây</option>
+                  <option value={60}>60 Giây</option>
+                  <option value={90}>90 Giây</option>
+                  <option value={120}>120 Giây</option>
                 </select>
               </div>
             </>
@@ -612,7 +612,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    3x3 (Nhanh)
+                    3x3
                   </button>
                   <button
                     onClick={() => updateSetting('boardSize', 10)}
@@ -622,7 +622,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    10x10 (Chuẩn)
+                    10x10
                   </button>
                 </div>
               </div>
@@ -671,11 +671,11 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
                   className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
                 >
-                  <option value={0}>Vô Hạn (Tự do)</option>
-                  <option value={30}>30 Giây (Nhanh)</option>
-                  <option value={60}>60 Giây (Chuẩn)</option>
-                  <option value={90}>90 Giây (Chiến thuật)</option>
-                  <option value={120}>120 Giây (Thong thả)</option>
+                  <option value={0}>Vô Hạn</option>
+                  <option value={30}>30 Giây</option>
+                  <option value={60}>60 Giây</option>
+                  <option value={90}>90 Giây</option>
+                  <option value={120}>120 Giây</option>
                 </select>
               </div>
             </>
@@ -1033,10 +1033,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   onChange={(e) => updateSetting('timeLimit', Number(e.target.value))}
                   className="bg-slate-950 text-purple-300 font-bold text-xs border border-purple-500/30 rounded-xl px-3 py-1.5 outline-none cursor-pointer hover:border-purple-500/60 transition shadow-inner font-mono"
                 >
-                  <option value={0}>Vô Hạn (Tự do)</option>
-                  <option value={180}>3 Phút (Nhanh)</option>
-                  <option value={300}>5 Phút (Chuẩn)</option>
-                  <option value={480}>8 Phút (Thong thả)</option>
+                  <option value={0}>Vô Hạn</option>
+                  <option value={180}>3 Phút</option>
+                  <option value={300}>5 Phút</option>
+                  <option value={480}>8 Phút</option>
                 </select>
               </div>
             </>

@@ -713,11 +713,11 @@ export const GameCaro: React.FC = () => {
           {timeoutOutcome ? (
             ((isOnlineMode && ((playerRole === 'host' && timeoutOutcome.loser === 'X') || (playerRole === 'guest' && timeoutOutcome.loser === 'O'))) || (!isOnlineMode && timeoutOutcome.loser === 'X')) ? (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                <span>⏱️ BẠN ĐÃ THUA (HẾT GIỜ)</span>
+                <span>⏱️ HẾT GIỜ - BẠN THUA</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(16,185,129,0.5)]">
-                <span>🏆 ĐỐI THỦ HẾT GIỜ (BẠN THẮNG)</span>
+                <span>🏆 ĐỐI THỦ HẾT GIỜ - BẠN THẮNG</span>
               </div>
             )
           ) : winnerInfo ? (
@@ -737,11 +737,11 @@ export const GameCaro: React.FC = () => {
             threatResult && threatResult.winner ? (
               threatResult.winner === (playerRole === 'host' ? 'X' : 'O') ? (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-                  <span>⚔️ BẠN ĐANG CHIẾU CỜ (CHUỖI 4)!</span>
+                  <span>⚔️ BẠN ĐANG CHIẾU CỜ!</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                  <span>⚠️ ĐANG BỊ CHIẾU CỜ (CHUỖI 4)!</span>
+                  <span>⚠️ ĐANG BỊ CHIẾU CỜ!</span>
                 </div>
               )
             ) : ((playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext)) ? (
@@ -762,11 +762,11 @@ export const GameCaro: React.FC = () => {
             ) : threatResult && threatResult.winner ? (
               threatResult.winner === 'X' ? (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/25 border border-amber-500/70 text-amber-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-                  <span>⚔️ BẠN ĐANG CHIẾU CỜ (CHUỖI 4)!</span>
+                  <span>⚔️ BẠN ĐANG CHIẾU CỜ!</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-bounce shadow-[0_0_25px_rgba(244,63,94,0.5)]">
-                  <span>⚠️ ĐANG BỊ CHIẾU CỜ (CHUỖI 4)!</span>
+                  <span>⚠️ ĐANG BỊ CHIẾU CỜ!</span>
                 </div>
               )
             ) : isXNext ? (
@@ -856,7 +856,7 @@ export const GameCaro: React.FC = () => {
                 >
                   <option value="EASY">Dễ</option>
                   <option value="MEDIUM">Vừa</option>
-                  <option value="UNBEATABLE">Khó (AI)</option>
+                  <option value="UNBEATABLE">Khó</option>
                 </select>
               </div>
 
@@ -947,19 +947,19 @@ export const GameCaro: React.FC = () => {
 
             const isTimeout = Boolean(timeoutOutcome?.isTimeout);
             const title = isWinner
-              ? (isTimeout ? 'THẮNG (HẾT GIỜ)!' : 'CHIẾN THẮNG!')
+              ? (isTimeout ? 'THẮNG CUỘC!' : 'CHIẾN THẮNG!')
               : isLoser
-              ? (isTimeout ? 'THUA (HẾT GIỜ)!' : 'THẤT BẠI!')
+              ? (isTimeout ? 'HẾT GIỜ!' : 'THẤT BẠI!')
               : 'VÁN CỜ HÒA!';
 
             const desc = isTimeout
               ? (isWinner
-                  ? (isOnlineMode ? `${opponentName.toUpperCase()} đã hết thời gian suy nghĩ. Bạn giành chiến thắng!` : 'Máy (AI) đã hết thời gian suy nghĩ. Bạn giành chiến thắng!')
-                  : 'Bạn đã hết thời gian suy nghĩ trong lượt đi của mình.')
+                  ? (isOnlineMode ? `${opponentName.toUpperCase()} đã hết thời gian. Bạn giành chiến thắng!` : 'Máy đã hết thời gian. Bạn giành chiến thắng!')
+                  : 'Bạn đã hết thời gian suy nghĩ.')
               : isWinner
-              ? (isOnlineMode ? `Xuất sắc! Bạn đã vượt qua ${opponentName.toUpperCase()} để giành chiến thắng.` : `Xuất sắc! Bạn đã tạo thành công chuỗi ${winStreak} ô thẳng hàng.`)
+              ? (isOnlineMode ? `Xuất sắc! Bạn đã thắng ${opponentName.toUpperCase()}.` : `Xuất sắc! Bạn đã tạo chuỗi ${winStreak} ô thắng.`)
               : isLoser
-              ? (isOnlineMode ? `${opponentName.toUpperCase()} đã tạo thành công chuỗi ${winStreak} ô trước.` : `Máy (AI) đã tạo thành công chuỗi ${winStreak} ô trước.`)
+              ? (isOnlineMode ? `${opponentName.toUpperCase()} đã tạo chuỗi ${winStreak} ô trước.` : `Máy đã tạo chuỗi ${winStreak} ô trước.`)
               : 'Đã đánh kín bàn cờ mà không bên nào tạo đủ hàng thắng.';
 
             const titleColor = isWinner

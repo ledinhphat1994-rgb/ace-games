@@ -133,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-slate-900 border-cyan-500/50 text-cyan-300 shadow-cyan-500/20'
                   : 'bg-slate-900 border-slate-800 text-gray-400 hover:text-white'
               }`}
-              title="Bộ điều khiển âm thanh hệ thống (Audio Hub)"
+              title="Cài đặt âm thanh"
             >
               <SlidersHorizontal className={`w-5 h-5 transition-transform duration-300 ${settingsOpen ? 'scale-110 text-cyan-400' : ''}`} />
             </button>
@@ -157,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                      <span className="text-xs font-bold text-gray-200">Âm Giao Diện (UI)</span>
+                      <span className="text-xs font-bold text-gray-200">Âm Giao Diện</span>
                     </div>
                     <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                       <button
