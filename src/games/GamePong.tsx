@@ -641,25 +641,18 @@ export const GamePong: React.FC = () => {
     }
   };
 
-  // Vòng lặp chính 60 FPS
-  useEffect(() => {
-    let animId: number;
+  // Cập nhật vật lý & trạng thái trò chơi (chạy liên tục 60 FPS cả khi tab ở nền)
+  const updateGamePhysics = useCallback((dt: number) => {
+    const s = stateRef.current;
+    const { cw, ch, p1, p2, ball } = s;
 
-    const loop = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+    // Cập nhật vị trí thanh đỡ & bóng nếu đang chơi và không tạm dừng
+    if (!s.isPlaying || s.isPaused || s.isWaitingForFriend) return;
 
-      const s = stateRef.current;
-      const { cw, ch, p1, p2, ball } = s;
-
-      // Cập nhật vị trí thanh đỡ & bóng nếu đang chơi và không tạm dừng
-      if (s.isPlaying && !s.isPaused && !s.isWaitingForFriend) {
-        // --- 1. Cập nhật thanh đỡ P1 ---
-        if (!s.isOnlineMode || s.playerRole === 'host') {
-          if (s.keys.w || s.keys.up) p1.y = Math.max(0, p1.y - p1.speed);
-          if (s.keys.s || s.keys.down) p1.y = Math.min(ch - p1.h, p1.y + p1.speed);
+    // --- 1. Cập nhật thanh đỡ P1 ---
+    if (!s.isOnlineMode || s.playerRole === 'host') {
+      if (s.keys.w || s.keys.up) p1.y = Math.max(0, p1.y - p1.speed * dt);
+      if (s.keys.s || s.keys.down) p1.y = Math.min(ch - p1.h, p1.y + p1.speed * dt);
           if (s.isOnlineMode && !s.isWaitingForFriend && (s.keys.w || s.keys.s || s.keys.up || s.keys.down)) {
             const now = performance.now();
             if (now - lastPaddleSendTimeRef.current >= 20) {
@@ -669,7 +662,7 @@ export const GamePong: React.FC = () => {
           }
         } else {
           // Khách: thanh P1 thuộc Host, lướt mượt mà tới vị trí nhận từ mạng
-          p1.y += (p1.targetY - p1.y) * 0.55;
+          p1.y += (p1.targetY - p1.y) * Math.min(1.0, 0.55 * dt);
         }
 
         // --- 2. Cập nhật thanh đỡ P2 (Máy hoặc Khách Online) ---
@@ -679,14 +672,14 @@ export const GamePong: React.FC = () => {
           const diffY = targetY - p2.y;
           if (ball.vx > 0 || ball.x > cw * 0.45) {
             if (Math.abs(diffY) > 8) {
-              p2.y += Math.sign(diffY) * Math.min(Math.abs(diffY), p2.speed);
+              p2.y += Math.sign(diffY) * Math.min(Math.abs(diffY), p2.speed * dt);
             }
           }
           p2.y = Math.max(0, Math.min(ch - p2.h, p2.y));
         } else if (s.playerRole === 'guest') {
           // Khách điều khiển P2 bằng phím W/S hoặc Mũi tên
-          if (s.keys.w || s.keys.up) p2.y = Math.max(0, p2.y - p2.speed);
-          if (s.keys.s || s.keys.down) p2.y = Math.min(ch - p2.h, p2.y + p2.speed);
+          if (s.keys.w || s.keys.up) p2.y = Math.max(0, p2.y - p2.speed * dt);
+          if (s.keys.s || s.keys.down) p2.y = Math.min(ch - p2.h, p2.y + p2.speed * dt);
 
           // Gửi cập nhật vị trí thanh đỡ P2 sang Host
           const now = performance.now();
@@ -696,7 +689,7 @@ export const GamePong: React.FC = () => {
           }
         } else {
           // Host: thanh P2 thuộc Khách, lướt mượt mà tới vị trí nhận từ mạng
-          p2.y += (p2.targetY - p2.y) * 0.55;
+          p2.y += (p2.targetY - p2.y) * Math.min(1.0, 0.55 * dt);
         }
 
         // --- 3. Vật lý bóng (Chỉ Host hoặc Offline tính toán chính thức) ---
@@ -704,8 +697,8 @@ export const GamePong: React.FC = () => {
 
         if (isPhysicsMaster) {
           if (!s.isServing) {
-            ball.x += ball.vx;
-            ball.y += ball.vy;
+            ball.x += ball.vx * dt;
+            ball.y += ball.vy * dt;
 
             // Bật tường trên & dưới
             let bounced = false;
@@ -847,8 +840,8 @@ export const GamePong: React.FC = () => {
           }
         } else {
           // Phía khách: Dự đoán di chuyển mượt mà & phản hồi va chạm cục bộ tức thì!
-          ball.x += ball.vx;
-          ball.y += ball.vy;
+          ball.x += ball.vx * dt;
+          ball.y += ball.vy * dt;
           if (ball.y - ball.radius <= 0) {
             ball.y = ball.radius;
             ball.vy = Math.abs(ball.vy);
@@ -886,7 +879,9 @@ export const GamePong: React.FC = () => {
               y: Math.round(p2.y),
               ballY: Math.round(ball.y),
               hitOffset: Math.round(clampedOffset * 100) / 100,
-              speed: Math.round(ball.speed * 10) / 10
+              speed: Math.round(ball.speed * 10) / 10,
+              bvx: Math.round(ball.vx * 100) / 100,
+              bvy: Math.round(ball.vy * 100) / 100
             });
           }
 
@@ -899,18 +894,23 @@ export const GamePong: React.FC = () => {
         if (ball.trail.length > 8) ball.trail.shift();
 
         // Cập nhật hạt bụi tia lửa
-        for (let i = s.particles.length - 1; i >= 0; i--) {
-          const p = s.particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.life++;
-          if (p.life >= p.maxLife) {
-            s.particles.splice(i, 1);
-          }
+      for (let i = s.particles.length - 1; i >= 0; i--) {
+        const p = s.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life += dt;
+        if (p.life >= p.maxLife) {
+          s.particles.splice(i, 1);
         }
-
-        if (s.shake > 0) s.shake--;
       }
+
+      if (s.shake > 0) s.shake = Math.max(0, s.shake - dt);
+  }, [playTone, spawnSparks, launchServe]);
+
+  // Vẽ đồ họa bàn bóng bàn lên Canvas
+  const renderCanvas = useCallback((ctx: CanvasRenderingContext2D) => {
+      const s = stateRef.current;
+      const { cw, ch, p1, p2, ball } = s;
 
       // --- VẼ GIAO DIỆN SÂN ĐẤU CANVAS ---
       ctx.save();
@@ -1027,14 +1027,90 @@ export const GamePong: React.FC = () => {
       }
       ctx.globalAlpha = 1.0;
 
-      ctx.restore();
+    ctx.restore();
+  }, []);
 
-      animId = requestAnimationFrame(loop);
+  // Vòng lặp chính 60 FPS tích hợp Web Worker ticker (Chống trình duyệt đóng băng ở background)
+  useEffect(() => {
+    const workerScript = `
+      let intervalId = null;
+      self.onmessage = function(e) {
+        if (e.data === 'start') {
+          if (!intervalId) {
+            intervalId = setInterval(function() {
+              self.postMessage('tick');
+            }, 16.666);
+          }
+        } else if (e.data === 'stop') {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      };
+    `;
+    const blob = new Blob([workerScript], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    let worker: Worker | null = null;
+    try {
+      worker = new Worker(workerUrl);
+    } catch {
+      worker = null;
+    }
+
+    let lastPhysicsTime = performance.now();
+    let animId: number;
+
+    // Worker tick xử lý vật lý & mạng 60 FPS liên tục không bao giờ bị dừng
+    if (worker) {
+      worker.onmessage = () => {
+        const now = performance.now();
+        const rawDt = (now - lastPhysicsTime) / 16.666;
+        lastPhysicsTime = now;
+        const dt = Math.max(0.1, Math.min(rawDt, 3.0));
+        updateGamePhysics(dt);
+
+        // Vẽ luôn canvas nếu tab đang bị nền (khi requestAnimationFrame bị trình duyệt tạm dừng)
+        if (document.hidden) {
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) renderCanvas(ctx);
+          }
+        }
+      };
+      worker.postMessage('start');
+    }
+
+    // Vòng lặp render V-Sync khi tab hiển thị
+    const renderLoop = () => {
+      const now = performance.now();
+      if (!worker) {
+        const rawDt = (now - lastPhysicsTime) / 16.666;
+        lastPhysicsTime = now;
+        const dt = Math.max(0.1, Math.min(rawDt, 3.0));
+        updateGamePhysics(dt);
+      }
+
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) renderCanvas(ctx);
+      }
+      animId = requestAnimationFrame(renderLoop);
     };
 
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [playTone, spawnSparks, launchServe]);
+    animId = requestAnimationFrame(renderLoop);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      if (worker) {
+        worker.postMessage('stop');
+        worker.terminate();
+      }
+      URL.revokeObjectURL(workerUrl);
+    };
+  }, [updateGamePhysics, renderCanvas]);
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#070b14]">
