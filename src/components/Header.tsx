@@ -288,9 +288,9 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </button>
 
-                  {/* Dropdown Menu List - Overlay nổi, không làm nhảy khung, không cắt chữ, không thanh cuộn dọc */}
+                  {/* Dropdown Menu List - Overlay nổi thông minh, không làm nhảy khung, không cắt chữ, tự cuộn mượt khi danh sách dài */}
                   {isMusicDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_15px_50px_rgba(0,0,0,0.95)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1 max-h-[260px] overflow-y-auto custom-scrollbar">
                       {BGM_TRACKS.map((t) => {
                         const isActive = currentTrack === t.id;
                         return (

@@ -49,7 +49,30 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   const [musicVolume, setMusicVolume] = useState<number>(() => soundManager.getGameAudioSettings(game.id).musicVolume);
   const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getGameAudioSettings(game.id).bgmTrack);
   const [isMusicDropdownOpen, setIsMusicDropdownOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, openUp: false });
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const musicDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleMusicDropdown = () => {
+    if (!isMusicDropdownOpen && triggerRef.current && modalRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const modalRect = modalRef.current.getBoundingClientRect();
+      const spaceBelow = modalRect.bottom - rect.bottom;
+      const spaceAbove = rect.top - modalRect.top;
+      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+
+      setDropdownPos({
+        top: openUp ? (rect.top - modalRect.top - 6) : (rect.bottom - modalRect.top + 6),
+        left: rect.left - modalRect.left,
+        width: rect.width,
+        openUp,
+      });
+      setIsMusicDropdownOpen(true);
+    } else {
+      setIsMusicDropdownOpen(false);
+    }
+  };
 
   // Sync state when opening
   useEffect(() => {
@@ -73,7 +96,13 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   // Click outside music dropdown to close it
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (musicDropdownRef.current && !musicDropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        musicDropdownRef.current &&
+        !musicDropdownRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
         setIsMusicDropdownOpen(false);
       }
     };
@@ -191,7 +220,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
       {/* Kích thước bảng cài đặt cố định chuẩn xác, tuyệt đối không nhảy kích thước hay đè thanh điều hướng */}
       <div
-        className="relative w-[92vw] max-w-[460px] h-[520px] max-h-[85vh] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col select-none"
+        ref={modalRef}
+        className="relative w-[92vw] max-w-[460px] h-[540px] max-h-[88vh] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar - Cố định độ cao h-14 */}
@@ -329,8 +359,8 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Danh sách bản nhạc BGM cho game - DROPDOWN OVERLAY TINH TẾ, KHÔNG BIẾN DẠNG MODAL */}
-            <div className="space-y-1.5 pt-1 border-t border-white/5 relative" ref={musicDropdownRef}>
+            {/* Danh sách bản nhạc BGM cho game */}
+            <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Nhạc Nền:</span>
                 <span className="text-[10px] text-cyan-400 font-mono font-semibold">
@@ -340,8 +370,9 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
               {/* Dropdown Trigger Button - To, rõ, tinh tế */}
               <button
+                ref={triggerRef}
                 type="button"
-                onClick={() => setIsMusicDropdownOpen(prev => !prev)}
+                onClick={toggleMusicDropdown}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer shadow-md ${
                   isMusicDropdownOpen
                     ? 'bg-slate-900 border-cyan-400 text-white shadow-cyan-500/20 ring-1 ring-cyan-500/30'
@@ -368,48 +399,6 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   <ChevronDown className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${isMusicDropdownOpen ? 'rotate-180' : ''}`} />
                 </div>
               </button>
-
-              {/* Dropdown Menu List - Overlay nổi, không đẩy lệch header modal, không cắt chữ, không thanh cuộn dọc */}
-              {isMusicDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
-                  {BGM_TRACKS.map((t) => {
-                    const isActive = currentTrack === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          handleSelectTrack(t.id);
-                          setIsMusicDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left border transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
-                            : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-base flex-shrink-0">{t.icon}</span>
-                          <div className="flex flex-col min-w-0">
-                            <span className={`text-xs font-bold truncate ${isActive ? 'text-cyan-200' : 'text-gray-200'}`}>
-                              {t.title}
-                            </span>
-                            <span className="text-[10px] text-gray-400 truncate">
-                              {t.desc}
-                            </span>
-                          </div>
-                        </div>
-                        {isActive && (
-                          <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/90 border border-cyan-500/40 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
-                            <Check className="w-3 h-3 text-cyan-400" />
-                            <span>Phát</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
 
@@ -969,6 +958,58 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             Mặc Định
           </button>
         </div>
+
+        {/* SMART DROPDOWN OVERLAY: Nằm ở cấp Modal Card, tự do đè lên Body và Footer mà không bị cắt/che khuất */}
+        {isMusicDropdownOpen && (
+          <div
+            ref={musicDropdownRef}
+            style={{
+              position: 'absolute',
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              transform: dropdownPos.openUp ? 'translateY(-100%)' : 'none',
+            }}
+            className="bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/50 rounded-2xl p-1.5 shadow-[0_15px_50px_rgba(0,0,0,0.95)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1 max-h-[260px] overflow-y-auto custom-scrollbar"
+          >
+            {BGM_TRACKS.map((t) => {
+              const isActive = currentTrack === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    handleSelectTrack(t.id);
+                    setIsMusicDropdownOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left border transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-sm shadow-cyan-500/20'
+                      : 'bg-transparent border-transparent hover:bg-slate-900/90 text-gray-300 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-base flex-shrink-0">{t.icon}</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`text-xs font-bold truncate ${isActive ? 'text-cyan-200' : 'text-gray-200'}`}>
+                        {t.title}
+                      </span>
+                      <span className="text-[10px] text-gray-400 truncate">
+                        {t.desc}
+                      </span>
+                    </div>
+                  </div>
+                  {isActive && (
+                    <div className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/90 border border-cyan-500/40 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
+                      <Check className="w-3 h-3 text-cyan-400" />
+                      <span>Phát</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
       </div>
     </div>
