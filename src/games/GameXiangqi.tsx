@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { XiangqiPosition, type XiangqiMove, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
+import { XiangqiPosition, type XiangqiMove, type Side, RED, BLACK, GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER, typeOf, sideOf } from './xiangqi/xiangqi-engine';
 import { findBestXiangqiMove } from './xiangqi/xiangqi-ai';
 import { RotateCcw, Bot, Timer, Globe, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -69,6 +69,11 @@ export const GameXiangqi: React.FC = () => {
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
   const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
   const [checkBanner, setCheckBanner] = useState<string | null>(null);
+  const [timeoutOutcome, setTimeoutOutcome] = useState<{
+    loser: Side;
+    winner: Side;
+    isTimeout: boolean;
+  } | null>(null);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerCheckBanner = useCallback((text: string) => {
@@ -129,6 +134,7 @@ export const GameXiangqi: React.FC = () => {
     setValidMoves([]);
     setLastMove(null);
     setIsThinking(false);
+    setTimeoutOutcome(null);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
   };
@@ -153,13 +159,33 @@ export const GameXiangqi: React.FC = () => {
   useEffect(() => {
     if (timeLimit <= 0 || isWaitingForFriend) return;
     const outcome = pos.outcome();
-    if (outcome.over) return;
+    if (outcome.over || timeoutOutcome !== null) return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          const turnName = pos.turn === RED ? 'Đỏ' : 'Đen';
+          const currentTurn = pos.turn;
+          const loserSide = currentTurn;
+          const winnerSide = currentTurn === RED ? BLACK : RED;
+          setTimeoutOutcome({
+            loser: loserSide,
+            winner: winnerSide,
+            isTimeout: true,
+          });
+
+          const isMeLoser = (isOnlineMode && ((playerRole === 'host' && loserSide === RED) || (playerRole === 'guest' && loserSide === BLACK))) || (!isOnlineMode && loserSide === RED);
+          if (isMeLoser) {
+            soundManager.playDefeat();
+          } else {
+            soundManager.playVictory();
+          }
+
+          if (isOnlineMode && !isWaitingForFriend) {
+            multiplayer.sendAction('timeout', { loser: loserSide, winner: winnerSide });
+          }
+
+          const turnName = currentTurn === RED ? 'Đỏ' : 'Đen';
           setStatusMessage(`⏱️ Hết giờ suy nghĩ! Bên ${turnName} bị xử thua.`);
           return 0;
         }
@@ -168,7 +194,7 @@ export const GameXiangqi: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLimit, pos, pos.turn]);
+  }, [timeLimit, pos, pos.turn, timeoutOutcome, isOnlineMode, playerRole, isWaitingForFriend]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -215,6 +241,7 @@ export const GameXiangqi: React.FC = () => {
     setValidMoves([]);
     setLastMove(null);
     setIsThinking(false);
+    setTimeoutOutcome(null);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
     if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
@@ -288,7 +315,7 @@ export const GameXiangqi: React.FC = () => {
     if (isThinking) return;
     const currentPos = posRef.current;
     const outcome = currentPos.outcome();
-    if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
+    if (outcome.over || (timeLimit > 0 && timeLeft === 0) || timeoutOutcome !== null) return;
 
     // Khi đang chờ bạn vào bàn, không cho phép bấm đi quân
     if (isWaitingForFriend) return;
@@ -375,8 +402,18 @@ export const GameXiangqi: React.FC = () => {
         setSelectedSq(null);
         setValidMoves([]);
         setLastMove(null);
+        setTimeoutOutcome(null);
         updateStatus(newPos);
         setTimeLeft(timeLimit);
+      } else if (data.type === 'timeout' && data.payload) {
+        setTimeoutOutcome({
+          loser: data.payload.loser,
+          winner: data.payload.winner,
+          isTimeout: true,
+        });
+        const isMeLoser = (playerRole === 'host' && data.payload.loser === RED) || (playerRole === 'guest' && data.payload.loser === BLACK);
+        if (isMeLoser) soundManager.playDefeat();
+        else soundManager.playVictory();
       }
     };
 
@@ -427,6 +464,16 @@ export const GameXiangqi: React.FC = () => {
               <Timer className="w-4 h-4 text-amber-400 animate-spin" />
               <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
+          ) : timeoutOutcome !== null ? (
+            timeoutOutcome.loser === (isOnlineMode ? (playerRole === 'host' ? RED : BLACK) : RED) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                <span>⏱️ BẠN ĐÃ THUA (HẾT GIỜ)</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                <span>🏆 BẠN ĐÃ THẮNG (ĐỐI THỦ HẾT GIỜ)</span>
+              </div>
+            )
           ) : pos.outcome().over ? (
             <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
               {statusMessage}
@@ -666,12 +713,22 @@ export const GameXiangqi: React.FC = () => {
                       <div className="absolute inset-0.5 rounded-full ring-4 ring-rose-500 bg-rose-500/30 shadow-[0_0_30px_rgba(244,63,94,0.95)] z-20 animate-pulse pointer-events-none" />
                     ) : null}
 
+                    {/* Vùng chỉ định chọn quân: Vành hào quang Cyan rực rỡ nổi bật tuyệt đối trên nền bàn cờ gỗ */}
+                    {isSelected && (
+                      <div className="absolute inset-[-4px] rounded-2xl border-2 border-cyan-400 bg-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.85),inset_0_0_15px_rgba(6,182,212,0.4)] z-20 animate-pulse pointer-events-none flex items-center justify-center">
+                        <div className="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-cyan-300" />
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-cyan-300" />
+                        <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-cyan-300" />
+                        <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-300" />
+                      </div>
+                    )}
+
                     {/* Quân Cờ Gỗ 3D Đích Thực - Tinh Xảo, Khắc Chìm & Dịu Mắt */}
                     {piece ? (
                       <div
                         className={`relative z-10 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
                           isSelected
-                            ? 'scale-115 -translate-y-1.5 ring-4 ring-amber-400/95 shadow-[0_12px_25px_rgba(251,191,36,0.6)] z-30'
+                            ? 'scale-120 -translate-y-2 ring-4 ring-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.95),0_12px_28px_rgba(0,0,0,0.65)] z-30'
                             : isKingInCheck
                             ? 'scale-110 ring-4 ring-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.9)] z-25 animate-pulse'
                             : isLast
@@ -679,10 +736,12 @@ export const GameXiangqi: React.FC = () => {
                             : 'hover:scale-105 active:scale-95'
                         }`}
                         style={{
-                          background: 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
-                          border: '2px solid #a67c48',
+                          background: isSelected
+                            ? 'radial-gradient(circle at 35% 35%, #ffffff 0%, #f0fdfa 42%, #ccfbf1 82%, #99f6e4 100%)'
+                            : 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
+                          border: isSelected ? '2.5px solid #22d3ee' : '2px solid #a67c48',
                           boxShadow: isSelected
-                            ? '0 12px 25px rgba(251,191,36,0.55), inset 0 2px 3px rgba(255,255,255,0.9), inset 0 -3px 4px rgba(110,60,20,0.4)'
+                            ? '0 0 30px rgba(6,182,212,0.9), 0 12px 25px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.95), inset 0 0 10px rgba(6,182,212,0.4)'
                             : '0 5px 12px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.25), inset 0 2px 2px rgba(255,255,255,0.8), inset 0 -3px 4px rgba(110,60,20,0.35)'
                         }}
                       >
@@ -729,10 +788,13 @@ export const GameXiangqi: React.FC = () => {
             )}
 
             {/* Game Over / Result Overlay */}
-            {pos.outcome().over && (() => {
+            {(pos.outcome().over || timeoutOutcome !== null) && (() => {
               const outcome = pos.outcome();
-              const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === RED) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === RED);
-              const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === RED))) || (!isOnlineMode && outcome.winner === BLACK);
+              const isTimeout = timeoutOutcome !== null;
+              const winner = isTimeout ? timeoutOutcome.winner : outcome.winner;
+
+              const isWinner = (isOnlineMode && ((playerRole === 'host' && winner === RED) || (playerRole === 'guest' && winner === BLACK))) || (!isOnlineMode && winner === RED);
+              const isLoser = (isOnlineMode && ((playerRole === 'host' && winner === BLACK) || (playerRole === 'guest' && winner === RED))) || (!isOnlineMode && winner === BLACK);
 
               const title = isWinner
                 ? 'CHIẾN THẮNG!'
@@ -740,7 +802,11 @@ export const GameXiangqi: React.FC = () => {
                 ? 'THẤT BẠI!'
                 : 'VÁN CỜ HÒA!';
 
-              const desc = isWinner
+              const desc = isTimeout
+                ? (isLoser 
+                    ? 'Bạn đã hết thời gian suy nghĩ và bị xử thua.' 
+                    : `${isOnlineMode ? (opponentName || 'Đối thủ') : 'Máy'} đã hết thời gian suy nghĩ và bị xử thua.`)
+                : isWinner
                 ? 'Chúc mừng! Bạn đã chiếu bí đối thủ xuất sắc.'
                 : isLoser
                 ? 'Bạn đã bị đối thủ chiếu bí.'
@@ -756,7 +822,7 @@ export const GameXiangqi: React.FC = () => {
                 ? 'text-rose-500'
                 : 'text-amber-400';
 
-              const icon = isWinner ? '🏆' : isLoser ? '⚔️' : '🤝';
+              const icon = isWinner ? '🏆' : isLoser ? (isTimeout ? '⏱️' : '⚔️') : '🤝';
 
               const btnGradient = isWinner
                 ? 'from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-emerald-950/50'

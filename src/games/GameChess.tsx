@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ChessPosition, type ChessMove, WHITE, BLACK, colorOf, typeOf, ROOK, KNIGHT, BISHOP, QUEEN, KING, PAWN } from './chess/chess-engine';
+import { ChessPosition, type ChessMove, type Color, WHITE, BLACK, colorOf, typeOf, ROOK, KNIGHT, BISHOP, QUEEN, KING, PAWN } from './chess/chess-engine';
 import { findBestChessMove } from './chess/chess-ai';
 import { RotateCcw, Bot, Timer, Globe, LogOut } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -67,6 +67,11 @@ export const GameChess: React.FC = () => {
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
   const [isOpponentLeftModalOpen, setIsOpponentLeftModalOpen] = useState<boolean>(false);
   const [checkBanner, setCheckBanner] = useState<string | null>(null);
+  const [timeoutOutcome, setTimeoutOutcome] = useState<{
+    loser: Color;
+    winner: Color;
+    isTimeout: boolean;
+  } | null>(null);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerCheckBanner = useCallback((text: string) => {
@@ -127,6 +132,7 @@ export const GameChess: React.FC = () => {
     setValidMoves([]);
     setLastMove(null);
     setIsThinking(false);
+    setTimeoutOutcome(null);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
   };
@@ -151,13 +157,33 @@ export const GameChess: React.FC = () => {
   useEffect(() => {
     if (timeLimit <= 0 || isWaitingForFriend) return;
     const outcome = pos.outcome();
-    if (outcome.over) return;
+    if (outcome.over || timeoutOutcome !== null) return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          const turnName = pos.turn === WHITE ? 'Trắng' : 'Đen';
+          const currentTurn = pos.turn;
+          const loserColor = currentTurn;
+          const winnerColor = currentTurn === WHITE ? BLACK : WHITE;
+          setTimeoutOutcome({
+            loser: loserColor,
+            winner: winnerColor,
+            isTimeout: true,
+          });
+
+          const isMeLoser = (isOnlineMode && ((playerRole === 'host' && loserColor === WHITE) || (playerRole === 'guest' && loserColor === BLACK))) || (!isOnlineMode && loserColor === WHITE);
+          if (isMeLoser) {
+            soundManager.playDefeat();
+          } else {
+            soundManager.playVictory();
+          }
+
+          if (isOnlineMode && !isWaitingForFriend) {
+            multiplayer.sendAction('timeout', { loser: loserColor, winner: winnerColor });
+          }
+
+          const turnName = currentTurn === WHITE ? 'Trắng' : 'Đen';
           setStatusMessage(`⏱️ Hết giờ suy nghĩ! Bên ${turnName} bị xử thua.`);
           return 0;
         }
@@ -166,7 +192,7 @@ export const GameChess: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLimit, pos, pos.turn]);
+  }, [timeLimit, pos, pos.turn, timeoutOutcome, isOnlineMode, playerRole, isWaitingForFriend]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -213,6 +239,7 @@ export const GameChess: React.FC = () => {
     setValidMoves([]);
     setLastMove(null);
     setIsThinking(false);
+    setTimeoutOutcome(null);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
     if (shouldNotify && isOnlineMode && !isWaitingForFriend) {
@@ -286,7 +313,7 @@ export const GameChess: React.FC = () => {
     if (isThinking) return;
     const currentPos = posRef.current;
     const outcome = currentPos.outcome();
-    if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
+    if (outcome.over || (timeLimit > 0 && timeLeft === 0) || timeoutOutcome !== null) return;
 
     // Khi đang chờ bạn vào bàn, không cho phép bấm đi quân
     if (isWaitingForFriend) return;
@@ -373,8 +400,18 @@ export const GameChess: React.FC = () => {
         setSelectedSq(null);
         setValidMoves([]);
         setLastMove(null);
+        setTimeoutOutcome(null);
         updateStatus(newPos);
         setTimeLeft(timeLimit);
+      } else if (data.type === 'timeout' && data.payload) {
+        setTimeoutOutcome({
+          loser: data.payload.loser,
+          winner: data.payload.winner,
+          isTimeout: true,
+        });
+        const isMeLoser = (playerRole === 'host' && data.payload.loser === WHITE) || (playerRole === 'guest' && data.payload.loser === BLACK);
+        if (isMeLoser) soundManager.playDefeat();
+        else soundManager.playVictory();
       }
     };
 
@@ -425,6 +462,16 @@ export const GameChess: React.FC = () => {
               <Timer className="w-4 h-4 text-amber-400 animate-spin" />
               <span className="tracking-wide">CHỜ ĐỐI THỦ...</span>
             </div>
+          ) : timeoutOutcome !== null ? (
+            timeoutOutcome.loser === (isOnlineMode ? (playerRole === 'host' ? WHITE : BLACK) : WHITE) ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-500/25 border border-rose-500/70 text-rose-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_25px_rgba(244,63,94,0.5)]">
+                <span>⏱️ BẠN ĐÃ THUA (HẾT GIỜ)</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 border border-emerald-500/70 text-emerald-300 font-black text-xs sm:text-sm animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                <span>🏆 BẠN ĐÃ THẮNG (ĐỐI THỦ HẾT GIỜ)</span>
+              </div>
+            )
           ) : pos.outcome().over ? (
             <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs sm:text-sm">
               {statusMessage}
@@ -576,14 +623,14 @@ export const GameChess: React.FC = () => {
 
               let bgColor = isLight ? '#f0d9b5' : '#b58863';
               if (isKingInCheck) bgColor = '#f43f5e';
-              else if (isSelected) bgColor = '#facc15';
+              else if (isSelected) bgColor = '#06b6d4';
               else if (isLastFrom || isLastTo) bgColor = isLight ? '#ced887' : '#aaa23a';
 
               return (
                 <div
                   key={sq}
                   onClick={() => handleSquareClick(sq)}
-                  className={`relative flex items-center justify-center cursor-pointer select-none transition-colors duration-150 ${isKingInCheck ? 'animate-pulse ring-4 ring-rose-400 z-20 shadow-[0_0_30px_#f43f5e]' : ''}`}
+                  className={`relative flex items-center justify-center cursor-pointer select-none transition-all duration-150 ${isSelected ? 'ring-4 ring-cyan-400 z-20 shadow-[0_0_25px_#06b6d4]' : isKingInCheck ? 'animate-pulse ring-4 ring-rose-400 z-20 shadow-[0_0_30px_#f43f5e]' : ''}`}
                   style={{ backgroundColor: bgColor }}
                 >
                   {/* Target move dot indicator */}
@@ -594,7 +641,7 @@ export const GameChess: React.FC = () => {
                   {/* Massive Chess piece icon */}
                   {piece ? (
                     <span
-                      className={`text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'} ${isKingInCheck ? 'drop-shadow-[0_0_15px_#fff]' : ''}`}
+                      className={`text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-none transition-transform active:scale-90 ${colorOf(piece) === WHITE ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]' : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.4)]'} ${isKingInCheck ? 'drop-shadow-[0_0_15px_#fff]' : ''} ${isSelected ? 'scale-115 -translate-y-1.5 drop-shadow-[0_0_18px_#22d3ee]' : ''}`}
                     >
                       {PIECE_SYMBOLS[colorOf(piece)]?.[typeOf(piece)] || ''}
                     </span>
@@ -616,10 +663,13 @@ export const GameChess: React.FC = () => {
           )}
 
           {/* Game Over / Result Overlay */}
-          {pos.outcome().over && (() => {
+          {(pos.outcome().over || timeoutOutcome !== null) && (() => {
             const outcome = pos.outcome();
-            const isWinner = (isOnlineMode && ((playerRole === 'host' && outcome.winner === WHITE) || (playerRole === 'guest' && outcome.winner === BLACK))) || (!isOnlineMode && outcome.winner === WHITE);
-            const isLoser = (isOnlineMode && ((playerRole === 'host' && outcome.winner === BLACK) || (playerRole === 'guest' && outcome.winner === WHITE))) || (!isOnlineMode && outcome.winner === BLACK);
+            const isTimeout = timeoutOutcome !== null;
+            const winner = isTimeout ? timeoutOutcome.winner : outcome.winner;
+
+            const isWinner = (isOnlineMode && ((playerRole === 'host' && winner === WHITE) || (playerRole === 'guest' && winner === BLACK))) || (!isOnlineMode && winner === WHITE);
+            const isLoser = (isOnlineMode && ((playerRole === 'host' && winner === BLACK) || (playerRole === 'guest' && winner === WHITE))) || (!isOnlineMode && winner === BLACK);
 
             const title = isWinner
               ? 'CHIẾN THẮNG!'
@@ -627,7 +677,11 @@ export const GameChess: React.FC = () => {
               ? 'THẤT BẠI!'
               : 'VÁN CỜ HÒA!';
 
-            const desc = isWinner
+            const desc = isTimeout
+              ? (isLoser 
+                  ? 'Bạn đã hết thời gian suy nghĩ và bị xử thua.' 
+                  : `${isOnlineMode ? (opponentName || 'Đối thủ') : 'Máy'} đã hết thời gian suy nghĩ và bị xử thua.`)
+              : isWinner
               ? 'Chúc mừng! Bạn đã chiếu bí đối thủ xuất sắc.'
               : isLoser
               ? 'Bạn đã bị đối thủ chiếu bí.'
@@ -643,7 +697,7 @@ export const GameChess: React.FC = () => {
               ? 'text-rose-500'
               : 'text-amber-400';
 
-            const icon = isWinner ? '🏆' : isLoser ? '⚔️' : '🤝';
+            const icon = isWinner ? '🏆' : isLoser ? (isTimeout ? '⏱️' : '⚔️') : '🤝';
 
             const btnGradient = isWinner
               ? 'from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-emerald-950/50'
