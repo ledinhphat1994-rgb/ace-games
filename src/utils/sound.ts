@@ -1,15 +1,33 @@
 // Web Audio API Synthesizer with AudioContext Auto-Unlock & Studio Quality BGM / SFX
 
+export type BgmTrack = 'heroic' | 'lofi' | 'arcade';
+
+export interface BgmTrackInfo {
+  id: BgmTrack;
+  title: string;
+  desc: string;
+  icon: string;
+  file: string;
+}
+
+export const BGM_TRACKS: BgmTrackInfo[] = [
+  { id: 'heroic', title: 'Chiến Khí Hào Hùng', desc: 'Trống trận hùng dũng, dồn dập', icon: '⚔️', file: '/sounds/bgm_heroic.wav' },
+  { id: 'lofi', title: 'Lo-Fi Thư Giãn', desc: 'Êm dịu, hiện đại, giúp tập trung', icon: '🎧', file: '/sounds/bgm_lofi.wav' },
+  { id: 'arcade', title: 'Retro Synthwave', desc: 'Sôi động, phong cách 8-bit', icon: '🕹️', file: '/sounds/bgm_arcade.wav' },
+];
+
 class SoundManager {
   private ctx: AudioContext | null = null;
   private soundEnabled: boolean = true;
   private musicEnabled: boolean = false;
+  private sfxVolume: number = 0.85; // 0.0 - 1.0
+  private musicVolume: number = 0.35; // 0.0 - 1.0
+  private currentTrack: BgmTrack = 'heroic';
   private lastHoverTime: number = 0;
   private listeners: Array<() => void> = [];
 
   // Dedicated HTML5 Loop Player for Studio Background Music (BGM)
   private bgmAudio: HTMLAudioElement | null = null;
-  private currentBgmType: 'arcade' | 'strategy' = 'arcade';
 
   // Audio Buffers Cache for 0ms Low Latency Game Audio
   private audioBuffers: Map<string, AudioBuffer> = new Map();
@@ -23,9 +41,20 @@ class SoundManager {
       this.soundEnabled = savedSound !== null ? savedSound === 'true' : true;
       const savedMusic = localStorage.getItem('acegames_music');
       this.musicEnabled = savedMusic !== null ? savedMusic === 'true' : false;
+      const savedSfxVol = localStorage.getItem('acegames_sfx_volume');
+      if (savedSfxVol !== null) this.sfxVolume = Math.max(0, Math.min(1, parseFloat(savedSfxVol)));
+      const savedMusicVol = localStorage.getItem('acegames_music_volume');
+      if (savedMusicVol !== null) this.musicVolume = Math.max(0, Math.min(1, parseFloat(savedMusicVol)));
+      const savedTrack = localStorage.getItem('acegames_bgm_track') as BgmTrack;
+      if (savedTrack && ['heroic', 'lofi', 'arcade'].includes(savedTrack)) {
+        this.currentTrack = savedTrack;
+      }
     } catch {
       this.soundEnabled = true;
       this.musicEnabled = false;
+      this.sfxVolume = 0.85;
+      this.musicVolume = 0.35;
+      this.currentTrack = 'heroic';
     }
 
     // Eagerly prefetch audio files over network immediately so they are hot in memory
@@ -125,6 +154,50 @@ class SoundManager {
     return this.musicEnabled;
   }
 
+  public getMusicTrack(): BgmTrack {
+    return this.currentTrack;
+  }
+
+  public setMusicTrack(track: BgmTrack) {
+    this.currentTrack = track;
+    try {
+      localStorage.setItem('acegames_bgm_track', track);
+    } catch {}
+    if (this.musicEnabled) {
+      this.startBGM(track);
+    }
+    this.notify();
+  }
+
+  public getMusicVolume(): number {
+    return Math.round(this.musicVolume * 100);
+  }
+
+  public setMusicVolume(percent: number) {
+    const clamped = Math.max(0, Math.min(100, percent));
+    this.musicVolume = clamped / 100;
+    try {
+      localStorage.setItem('acegames_music_volume', String(this.musicVolume));
+    } catch {}
+    if (this.bgmAudio) {
+      this.bgmAudio.volume = this.musicVolume;
+    }
+    this.notify();
+  }
+
+  public getSoundVolume(): number {
+    return Math.round(this.sfxVolume * 100);
+  }
+
+  public setSoundVolume(percent: number) {
+    const clamped = Math.max(0, Math.min(100, percent));
+    this.sfxVolume = clamped / 100;
+    try {
+      localStorage.setItem('acegames_sfx_volume', String(this.sfxVolume));
+    } catch {}
+    this.notify();
+  }
+
   public toggleSound(): boolean {
     this.soundEnabled = !this.soundEnabled;
     try {
@@ -156,24 +229,25 @@ class SoundManager {
   }
 
   // --- STUDIO BACKGROUND MUSIC (BGM) SYSTEM ---
-  public startBGM(type?: 'arcade' | 'strategy') {
-    if (type) this.currentBgmType = type;
+  public startBGM(track?: BgmTrack) {
+    if (track) this.currentTrack = track;
     if (!this.musicEnabled) return;
     if (typeof window === 'undefined') return;
 
-    const targetSrc = this.currentBgmType === 'strategy' 
-      ? '/sounds/bgm_strategy.wav' 
-      : '/sounds/bgm_arcade.wav';
+    const trackInfo = BGM_TRACKS.find(t => t.id === this.currentTrack) || BGM_TRACKS[0];
+    const targetSrc = trackInfo.file;
 
     try {
       if (!this.bgmAudio) {
         this.bgmAudio = new Audio(targetSrc);
         this.bgmAudio.loop = true;
-        this.bgmAudio.volume = 0.32;
+        this.bgmAudio.volume = this.musicVolume;
       } else if (!this.bgmAudio.src.endsWith(targetSrc)) {
         this.bgmAudio.src = targetSrc;
         this.bgmAudio.loop = true;
-        this.bgmAudio.volume = 0.32;
+        this.bgmAudio.volume = this.musicVolume;
+      } else {
+        this.bgmAudio.volume = this.musicVolume;
       }
 
       this.bgmAudio.play().catch(() => {
@@ -199,11 +273,15 @@ class SoundManager {
     }
   }
 
-  public setBgmContext(type: 'arcade' | 'strategy') {
-    if (this.currentBgmType === type && this.bgmAudio && !this.bgmAudio.paused) return;
-    this.currentBgmType = type;
-    if (this.musicEnabled) {
-      this.startBGM(type);
+  public setBgmContext(category: 'arcade' | 'strategy') {
+    const saved = localStorage.getItem('acegames_bgm_track');
+    if (!saved) {
+      const defaultTrack: BgmTrack = category === 'strategy' ? 'heroic' : 'arcade';
+      if (this.currentTrack !== defaultTrack) {
+        this.currentTrack = defaultTrack;
+        if (this.musicEnabled) this.startBGM(defaultTrack);
+        this.notify();
+      }
     }
   }
 
@@ -390,13 +468,16 @@ class SoundManager {
     const ctx = this.unlockContext();
     if (!ctx) return;
 
+    const effectiveVolume = Math.max(0, Math.min(1, volume * this.sfxVolume));
+    if (effectiveVolume <= 0.001) return;
+
     const buffer = this.audioBuffers.get(url);
     if (buffer) {
       try {
         const source = ctx.createBufferSource();
         const gainNode = ctx.createGain();
         source.buffer = buffer;
-        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+        gainNode.gain.setValueAtTime(effectiveVolume, ctx.currentTime);
         source.connect(gainNode);
         gainNode.connect(ctx.destination);
         source.start();
@@ -409,7 +490,7 @@ class SoundManager {
             const source = this.ctx.createBufferSource();
             const gainNode = this.ctx.createGain();
             source.buffer = buf;
-            gainNode.gain.setValueAtTime(volume, this.ctx.currentTime);
+            gainNode.gain.setValueAtTime(effectiveVolume, this.ctx.currentTime);
             source.connect(gainNode);
             gainNode.connect(this.ctx.destination);
             source.start();
@@ -536,7 +617,7 @@ class SoundManager {
       oscClick.type = 'triangle';
       oscClick.frequency.setValueAtTime(3200, now);
       oscClick.frequency.exponentialRampToValueAtTime(380, now + 0.03);
-      gainClick.gain.setValueAtTime(0.22, now);
+      gainClick.gain.setValueAtTime(0.22 * this.sfxVolume, now);
       gainClick.gain.exponentialRampToValueAtTime(0.001, now + dur);
       oscClick.connect(gainClick);
       gainClick.connect(this.ctx.destination);
@@ -548,7 +629,7 @@ class SoundManager {
       const gainBody = this.ctx.createGain();
       oscBody.type = 'sine';
       oscBody.frequency.setValueAtTime(freq, now);
-      gainBody.gain.setValueAtTime(0.25, now);
+      gainBody.gain.setValueAtTime(0.25 * this.sfxVolume, now);
       gainBody.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.2);
       oscBody.connect(gainBody);
       gainBody.connect(this.ctx.destination);
@@ -561,7 +642,7 @@ class SoundManager {
       oscThump.type = 'sine';
       oscThump.frequency.setValueAtTime(110, now);
       oscThump.frequency.exponentialRampToValueAtTime(80, now + dur);
-      gainThump.gain.setValueAtTime(0.18, now);
+      gainThump.gain.setValueAtTime(0.18 * this.sfxVolume, now);
       gainThump.gain.exponentialRampToValueAtTime(0.001, now + dur);
       oscThump.connect(gainThump);
       gainThump.connect(this.ctx.destination);
@@ -581,7 +662,7 @@ class SoundManager {
       oscSnap.type = 'sawtooth';
       oscSnap.frequency.setValueAtTime(3800, now);
       oscSnap.frequency.exponentialRampToValueAtTime(260, now + 0.05);
-      gainSnap.gain.setValueAtTime(0.3, now);
+      gainSnap.gain.setValueAtTime(0.3 * this.sfxVolume, now);
       gainSnap.gain.exponentialRampToValueAtTime(0.001, now + dur);
       oscSnap.connect(gainSnap);
       gainSnap.connect(this.ctx.destination);
@@ -594,7 +675,7 @@ class SoundManager {
         const gain = this.ctx!.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(f, now);
-        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.setValueAtTime(0.24 * this.sfxVolume, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.3);
         osc.connect(gain);
         gain.connect(this.ctx!.destination);
@@ -608,7 +689,7 @@ class SoundManager {
       oscSub.type = 'sine';
       oscSub.frequency.setValueAtTime(85, now);
       oscSub.frequency.exponentialRampToValueAtTime(60, now + dur * 1.4);
-      gainSub.gain.setValueAtTime(0.28, now);
+      gainSub.gain.setValueAtTime(0.28 * this.sfxVolume, now);
       gainSub.gain.exponentialRampToValueAtTime(0.001, now + dur * 1.4);
       oscSub.connect(gainSub);
       gainSub.connect(this.ctx.destination);

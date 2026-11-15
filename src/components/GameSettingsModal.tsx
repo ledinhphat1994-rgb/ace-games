@@ -5,6 +5,8 @@ import {
   RotateCcw, 
   Volume2, 
   VolumeX, 
+  Music,
+  SlidersHorizontal,
   Bot, 
   Gauge, 
   Grid3X3, 
@@ -14,7 +16,7 @@ import {
   Timer
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
-import { soundManager } from '../utils/sound';
+import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
 
 interface GameSettingsModalProps {
   isOpen: boolean;
@@ -39,9 +41,11 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
     }
   });
 
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    return soundManager.isSoundOn();
-  });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => soundManager.isSoundOn());
+  const [musicEnabled, setMusicEnabled] = useState<boolean>(() => soundManager.isMusicOn());
+  const [sfxVolume, setSfxVolume] = useState<number>(() => soundManager.getSoundVolume());
+  const [musicVolume, setMusicVolume] = useState<number>(() => soundManager.getMusicVolume());
+  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getMusicTrack());
 
   // Sync state when opening
   useEffect(() => {
@@ -53,8 +57,23 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
         setSettings({});
       }
       setSoundEnabled(soundManager.isSoundOn());
+      setMusicEnabled(soundManager.isMusicOn());
+      setSfxVolume(soundManager.getSoundVolume());
+      setMusicVolume(soundManager.getMusicVolume());
+      setCurrentTrack(soundManager.getMusicTrack());
     }
   }, [isOpen, storageKey]);
+
+  useEffect(() => {
+    const unsub = soundManager.subscribe(() => {
+      setSoundEnabled(soundManager.isSoundOn());
+      setMusicEnabled(soundManager.isMusicOn());
+      setSfxVolume(soundManager.getSoundVolume());
+      setMusicVolume(soundManager.getMusicVolume());
+      setCurrentTrack(soundManager.getMusicTrack());
+    });
+    return unsub;
+  }, []);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -117,12 +136,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      {/* Cố định 100% kích thước bảng cài đặt (Tuyệt đối không co giãn, không nhảy giật) */}
+      {/* Cố định kích thước bảng cài đặt (khoa học, đẹp mắt, có cuộn mượt mà) */}
       <div
-        className="relative w-[92vw] max-w-[480px] h-[490px] min-h-[490px] max-h-[490px] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
+        className="relative w-[92vw] max-w-[500px] h-[550px] min-h-[500px] max-h-[92vh] bg-gradient-to-b from-[#0f172a] to-[#070b14] border border-cyan-500/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col select-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Bar - Cố định độ cao h-14, không có thông báo nhảy đẩy vị trí */}
+        {/* Header Bar - Cố định độ cao h-14 */}
         <div className="h-14 px-5 border-b border-white/10 bg-slate-900/90 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-md shadow-cyan-500/20">
@@ -149,37 +168,159 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
         </div>
 
         {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
-        <div className="flex-1 p-4 sm:p-5 space-y-2.5 overflow-y-auto custom-scrollbar text-left">
+        <div className="flex-1 p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar text-left">
           
-          {/* Hàng 1: Âm thanh chung của game */}
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
-                {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Toàn Diện */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/20 space-y-3">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
+                  Âm Thanh & Nhạc Nền
+                </span>
               </div>
-              <span className="text-xs sm:text-sm font-bold text-gray-200">Âm Thanh</span>
+              <span className="text-[10px] text-gray-400 font-mono">Real-time Audio</span>
             </div>
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-              <button
-                onClick={() => { if (!soundEnabled) toggleSound(); }}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  soundEnabled
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Bật
-              </button>
-              <button
-                onClick={() => { if (soundEnabled) toggleSound(); }}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  !soundEnabled
-                    ? 'bg-slate-800 text-gray-300 border border-slate-700'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Tắt
-              </button>
+
+            {/* Hiệu ứng âm thanh (SFX) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+                  <span className="text-xs font-bold text-gray-200">Hiệu Ứng Game (SFX)</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => { if (!soundEnabled) toggleSound(); }}
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      soundEnabled
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Bật
+                  </button>
+                  <button
+                    onClick={() => { if (soundEnabled) toggleSound(); }}
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      !soundEnabled
+                        ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Tắt
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 pt-0.5">
+                <span className="text-[10px] text-gray-400 font-mono w-7">{sfxVolume}%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={sfxVolume}
+                  disabled={!soundEnabled}
+                  onChange={(e) => soundManager.setSoundVolume(Number(e.target.value))}
+                  className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-950 ${
+                    !soundEnabled ? 'opacity-40 cursor-not-allowed' : ''
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Nhạc nền (BGM) */}
+            <div className="space-y-1.5 pt-1 border-t border-white/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Music className={`w-4 h-4 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
+                  <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => {
+                      if (!musicEnabled) {
+                        const next = soundManager.toggleMusic();
+                        setMusicEnabled(next);
+                      }
+                    }}
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      musicEnabled
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Bật
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (musicEnabled) {
+                        const next = soundManager.toggleMusic();
+                        setMusicEnabled(next);
+                      }
+                    }}
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      !musicEnabled
+                        ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Tắt
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 pt-0.5">
+                <span className="text-[10px] text-gray-400 font-mono w-7">{musicVolume}%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={musicVolume}
+                  disabled={!musicEnabled}
+                  onChange={(e) => soundManager.setMusicVolume(Number(e.target.value))}
+                  className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-950 ${
+                    !musicEnabled ? 'opacity-40 cursor-not-allowed' : ''
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Chọn bản nhạc BGM */}
+            <div className="space-y-1.5 pt-1 border-t border-white/5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
+                <span className="text-[10px] text-cyan-400 font-mono">
+                  {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {BGM_TRACKS.map((t) => {
+                  const isActive = currentTrack === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        soundManager.playButtonClick();
+                        soundManager.setMusicTrack(t.id);
+                        if (!musicEnabled) {
+                          soundManager.toggleMusic();
+                        }
+                      }}
+                      className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
+                        isActive
+                          ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-md shadow-cyan-500/20'
+                          : 'bg-slate-950/80 border-slate-800 text-gray-400 hover:text-white hover:border-slate-700'
+                      }`}
+                      title={t.desc}
+                    >
+                      {isActive && (
+                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                      )}
+                      <span className="text-base">{t.icon}</span>
+                      <span className="text-[10px] font-bold leading-tight">{t.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

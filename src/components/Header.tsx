@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Gamepad2, Search, Volume2, VolumeX, Music, Dices, SlidersHorizontal } from 'lucide-react';
 import type { GameCategory } from '../types/game';
-import { soundManager } from '../utils/sound';
+import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
 
 interface HeaderProps {
   searchQuery: string;
@@ -20,6 +20,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [soundOn, setSoundOn] = useState(() => soundManager.isSoundOn());
   const [musicOn, setMusicOn] = useState(() => soundManager.isMusicOn());
+  const [sfxVolume, setSfxVolume] = useState(() => soundManager.getSoundVolume());
+  const [musicVolume, setMusicVolume] = useState(() => soundManager.getMusicVolume());
+  const [currentTrack, setCurrentTrack] = useState<BgmTrack>(() => soundManager.getMusicTrack());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
 
@@ -28,6 +31,9 @@ export const Header: React.FC<HeaderProps> = ({
     const unsubscribe = soundManager.subscribe(() => {
       setSoundOn(soundManager.isSoundOn());
       setMusicOn(soundManager.isMusicOn());
+      setSfxVolume(soundManager.getSoundVolume());
+      setMusicVolume(soundManager.getMusicVolume());
+      setCurrentTrack(soundManager.getMusicTrack());
     });
     return unsubscribe;
   }, []);
@@ -129,46 +135,125 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Cyberpunk Settings Popover Menu */}
             {settingsOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl p-3 shadow-2xl shadow-cyan-500/10 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
-                  <span>Cài Đặt Âm Thanh</span>
-                  <span className="text-[10px] text-cyan-400 font-mono">Audio Hub</span>
+              <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-3.5 shadow-2xl shadow-cyan-500/20 z-50 animate-in fade-in zoom-in-95 duration-150 text-left">
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5 text-cyan-400">
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>CÀI ĐẶT ÂM THANH</span>
+                  </div>
+                  <span className="text-[10px] text-cyan-400/80 font-mono tracking-widest bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/20">AUDIO HUB</span>
                 </div>
 
-                {/* Sound FX Toggle */}
-                <div className="flex items-center justify-between py-2 px-1">
-                  <div className="flex items-center gap-2">
-                    {soundOn ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                    <span className="text-xs font-semibold text-gray-200">Hiệu Ứng Game</span>
+                {/* Section 1: Hiệu Ứng Game (SFX) */}
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 mb-2.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+                      <span className="text-xs font-bold text-gray-200">Hiệu Ứng Game (SFX)</span>
+                    </div>
+                    <button
+                      onClick={toggleSound}
+                      className={`px-3 py-1 rounded-full text-[11px] font-black transition cursor-pointer ${
+                        soundOn
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
+                          : 'bg-slate-800 text-gray-500 border border-slate-700'
+                      }`}
+                    >
+                      {soundOn ? 'BẬT' : 'TẮT'}
+                    </button>
                   </div>
-                  <button
-                    onClick={toggleSound}
-                    className={`px-3 py-1 rounded-full text-[11px] font-black transition ${
-                      soundOn
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
-                        : 'bg-slate-800 text-gray-500 border border-slate-700'
-                    }`}
-                  >
-                    {soundOn ? 'BẬT' : 'TẮT'}
-                  </button>
+                  
+                  {/* Slider âm lượng SFX */}
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <span className="text-[10px] text-gray-400 font-mono w-7">{sfxVolume}%</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={sfxVolume}
+                      disabled={!soundOn}
+                      onChange={(e) => soundManager.setSoundVolume(Number(e.target.value))}
+                      className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-800 ${
+                        !soundOn ? 'opacity-40 cursor-not-allowed' : ''
+                      }`}
+                    />
+                  </div>
                 </div>
 
-                {/* Music Toggle */}
-                <div className="flex items-center justify-between py-2 px-1">
-                  <div className="flex items-center gap-2">
-                    <Music className={`w-4 h-4 ${musicOn ? 'text-fuchsia-400 animate-bounce' : 'text-gray-500'}`} />
-                    <span className="text-xs font-semibold text-gray-200">Nhạc Nền Arcade</span>
+                {/* Section 2: Nhạc Nền (BGM) */}
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 mb-2.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Music className={`w-4 h-4 ${musicOn ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
+                      <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
+                    </div>
+                    <button
+                      onClick={toggleMusic}
+                      className={`px-3 py-1 rounded-full text-[11px] font-black transition cursor-pointer ${
+                        musicOn
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
+                          : 'bg-slate-800 text-gray-500 border border-slate-700'
+                      }`}
+                    >
+                      {musicOn ? 'BẬT' : 'TẮT'}
+                    </button>
                   </div>
-                  <button
-                    onClick={toggleMusic}
-                    className={`px-3 py-1 rounded-full text-[11px] font-black transition ${
-                      musicOn
-                        ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 shadow-sm shadow-fuchsia-500/20'
-                        : 'bg-slate-800 text-gray-500 border border-slate-700'
-                    }`}
-                  >
-                    {musicOn ? 'BẬT' : 'TẮT'}
-                  </button>
+
+                  {/* Slider âm lượng BGM */}
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <span className="text-[10px] text-gray-400 font-mono w-7">{musicVolume}%</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={musicVolume}
+                      disabled={!musicOn}
+                      onChange={(e) => soundManager.setMusicVolume(Number(e.target.value))}
+                      className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-800 ${
+                        !musicOn ? 'opacity-40 cursor-not-allowed' : ''
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Section 3: Chọn Bản Nhạc (Track Selection) */}
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
+                    <span className="text-[10px] text-cyan-400 font-mono">
+                      {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {BGM_TRACKS.map((t) => {
+                      const isActive = currentTrack === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            soundManager.playButtonClick();
+                            soundManager.setMusicTrack(t.id);
+                            if (!musicOn) {
+                              soundManager.toggleMusic();
+                            }
+                          }}
+                          className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
+                            isActive
+                              ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-md shadow-cyan-500/20'
+                              : 'bg-slate-950/80 border-slate-800 text-gray-400 hover:text-white hover:border-slate-700'
+                          }`}
+                          title={t.desc}
+                        >
+                          {isActive && (
+                            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                          )}
+                          <span className="text-base">{t.icon}</span>
+                          <span className="text-[10px] font-bold leading-tight">{t.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
