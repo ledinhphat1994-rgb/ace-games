@@ -205,23 +205,18 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
         {/* Modal Body - Cố định cấu trúc, cuộn mượt mà nếu cần */}
         <div className="flex-1 p-4 sm:p-5 space-y-3 overflow-y-auto custom-scrollbar text-left">
           
-          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game - VÙNG 2 */}
+          {/* Cụm Cài Đặt Âm Thanh & Nhạc Nền Riêng Biệt Cho Từng Game - VÙNG 1 */}
           <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-3 shadow-lg shadow-cyan-950/20">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-black uppercase tracking-wider text-cyan-300 font-['Orbitron']">
-                  Âm Thanh Ván Đấu: {game.title}
+                  Âm Thanh Trận Đấu
                 </span>
               </div>
               <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/25">
-                Âm Thanh Riêng Của Game
+                GAME
               </span>
-            </div>
-
-            {/* Subtitle mô tả tính độc lập */}
-            <div className="text-[11px] text-gray-400 leading-relaxed bg-slate-950/60 p-2 rounded-xl border border-white/5">
-              Cài đặt cho riêng trò chơi <span className="text-cyan-300 font-semibold">{game.title}</span>, tách biệt hoàn toàn với âm thanh hệ thống web.
             </div>
 
             {/* Hiệu ứng âm thanh (SFX) của game */}
@@ -229,15 +224,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                  <div>
-                    <span className="text-xs font-bold text-gray-200 block">Hiệu Ứng Ván Đấu ({game.title})</span>
-                    <span className="text-[10px] text-gray-400">Âm thanh di chuyển, va chạm, ghi điểm...</span>
-                  </div>
+                  <span className="text-xs font-bold text-gray-200">Hiệu Ứng (SFX)</span>
                 </div>
                 <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                   <button
                     onClick={handleToggleSound}
-                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       soundEnabled
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
                         : 'text-gray-400 hover:text-white'
@@ -247,7 +239,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   </button>
                   <button
                     onClick={handleToggleSound}
-                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       !soundEnabled
                         ? 'bg-slate-800 text-gray-300 border border-slate-700'
                         : 'text-gray-400 hover:text-white'
@@ -278,15 +270,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Music className={`w-4 h-4 ${musicEnabled ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                  <div>
-                    <span className="text-xs font-bold text-gray-200 block">Nhạc Nền Ván Đấu (Game BGM)</span>
-                    <span className="text-[10px] text-gray-400">Giai điệu khi đang chơi {game.title}</span>
-                  </div>
+                  <span className="text-xs font-bold text-gray-200">Nhạc Nền (BGM)</span>
                 </div>
                 <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
                   <button
                     onClick={handleToggleMusic}
-                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       musicEnabled
                         ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                         : 'text-gray-400 hover:text-white'
@@ -296,7 +285,7 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   </button>
                   <button
                     onClick={handleToggleMusic}
-                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                       !musicEnabled
                         ? 'bg-slate-800 text-gray-300 border border-slate-700'
                         : 'text-gray-400 hover:text-white'
@@ -325,19 +314,20 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             {/* Chọn bản nhạc BGM cho game */}
             <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Giai Điệu Ván Đấu ({game.title}):</span>
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
                 <span className="text-[10px] text-cyan-400 font-mono">
                   {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-3 gap-2">
                 {BGM_TRACKS.map((t) => {
                   const isActive = currentTrack === t.id;
+                  const shortName = t.id === 'heroic' ? 'Hào Hùng' : t.id === 'lofi' ? 'Lo-Fi' : 'Retro';
                   return (
                     <button
                       key={t.id}
                       onClick={() => handleSelectTrack(t.id)}
-                      className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
+                      className={`py-2 px-1 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
                         isActive
                           ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-md shadow-cyan-500/20'
                           : 'bg-slate-950/80 border-slate-800 text-gray-400 hover:text-white hover:border-slate-700'
@@ -345,10 +335,10 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                       title={t.desc}
                     >
                       {isActive && (
-                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
                       )}
                       <span className="text-base">{t.icon}</span>
-                      <span className="text-[10px] font-bold leading-tight">{t.title}</span>
+                      <span className="text-[11px] font-bold">{shortName}</span>
                     </button>
                   );
                 })}

@@ -133,49 +133,53 @@ export const Header: React.FC<HeaderProps> = ({
               <SlidersHorizontal className={`w-5 h-5 transition-transform duration-300 ${settingsOpen ? 'scale-110 text-cyan-400' : ''}`} />
             </button>
 
-            {/* Cyberpunk Settings Popover Menu - VÙNG 1: ÂM THANH HỆ THỐNG & GIAO DIỆN (CHUNG TOÀN WEB) */}
+            {/* Cyberpunk Settings Popover Menu - VÙNG 2: ÂM THANH HỆ THỐNG (CHUNG) */}
             {settingsOpen && (
-              <div className="absolute right-0 mt-2 w-84 max-w-[90vw] bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-3.5 shadow-2xl shadow-cyan-500/20 z-50 animate-in fade-in zoom-in-95 duration-150 text-left">
-                {/* Header VÙNG 1 */}
-                <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
-                  <div className="flex items-center gap-1.5 text-cyan-400">
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
+              <div className="absolute right-0 mt-3 w-96 max-w-[95vw] sm:w-[400px] bg-slate-950/98 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-4 shadow-2xl shadow-cyan-500/20 z-50 animate-in fade-in zoom-in-95 duration-150 text-left space-y-3">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-cyan-400">
+                    <SlidersHorizontal className="w-4 h-4" />
                     <span>ÂM THANH HỆ THỐNG</span>
                   </div>
                   <span className="text-[10px] text-cyan-400/90 font-mono tracking-widest bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
-                    WEB & GIAO DIỆN (CHUNG)
+                    CHUNG
                   </span>
                 </div>
 
-                {/* Subtitle mô tả rõ ràng sự tách biệt */}
-                <div className="text-[11px] text-gray-400 mb-3 leading-relaxed bg-slate-900/70 p-2 rounded-xl border border-white/5">
-                  Âm thanh chung website & sảnh chờ, <span className="text-cyan-300 font-semibold">không liên quan tới ván đấu</span> (mỗi game có cài đặt riêng trong trận).
-                </div>
-
-                {/* Section 1: Âm Giao Diện (UI SFX) */}
-                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 mb-2.5">
-                  <div className="flex items-center justify-between mb-2">
+                {/* Section 1: Âm Giao Diện */}
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
-                      <div>
-                        <span className="text-xs font-bold text-gray-200 block">Âm Giao Diện (UI SFX)</span>
-                        <span className="text-[10px] text-gray-400">Click nút, hover thẻ, chuyển danh mục...</span>
-                      </div>
+                      <span className="text-xs font-bold text-gray-200">Âm Giao Diện (UI)</span>
                     </div>
-                    <button
-                      onClick={toggleSound}
-                      className={`px-3 py-1 rounded-full text-[11px] font-black transition cursor-pointer ${
-                        soundOn
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
-                          : 'bg-slate-800 text-gray-500 border border-slate-700'
-                      }`}
-                    >
-                      {soundOn ? 'BẬT' : 'TẮT'}
-                    </button>
+                    <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
+                      <button
+                        onClick={() => !soundOn && toggleSound()}
+                        className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          soundOn
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Bật
+                      </button>
+                      <button
+                        onClick={() => soundOn && toggleSound()}
+                        className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          !soundOn
+                            ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Tắt
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Slider âm lượng UI SFX */}
-                  <div className="flex items-center gap-2.5 pt-1">
+                  <div className="flex items-center gap-2.5 pt-0.5">
                     <span className="text-[10px] text-gray-400 font-mono w-7">{sfxVolume}%</span>
                     <input
                       type="range"
@@ -184,37 +188,46 @@ export const Header: React.FC<HeaderProps> = ({
                       value={sfxVolume}
                       disabled={!soundOn}
                       onChange={(e) => soundManager.setSystemSoundVolume(Number(e.target.value))}
-                      className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-800 ${
+                      className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-400 bg-slate-950 ${
                         !soundOn ? 'opacity-40 cursor-not-allowed' : ''
                       }`}
                     />
                   </div>
                 </div>
 
-                {/* Section 2: Nhạc Nền Sảnh Chờ (Lounge BGM) */}
-                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5 mb-2.5">
-                  <div className="flex items-center justify-between mb-2">
+                {/* Section 2: Nhạc Nền Sảnh Chờ */}
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Music className={`w-4 h-4 ${musicOn ? 'text-cyan-400 animate-pulse' : 'text-gray-500'}`} />
-                      <div>
-                        <span className="text-xs font-bold text-gray-200 block">Nhạc Nền Sảnh Chờ</span>
-                        <span className="text-[10px] text-gray-400">Giai điệu thư giãn ngoài trang web</span>
-                      </div>
+                      <span className="text-xs font-bold text-gray-200">Nhạc Sảnh Chờ</span>
                     </div>
-                    <button
-                      onClick={toggleMusic}
-                      className={`px-3 py-1 rounded-full text-[11px] font-black transition cursor-pointer ${
-                        musicOn
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/20'
-                          : 'bg-slate-800 text-gray-500 border border-slate-700'
-                      }`}
-                    >
-                      {musicOn ? 'BẬT' : 'TẮT'}
-                    </button>
+                    <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-white/10">
+                      <button
+                        onClick={() => !musicOn && toggleMusic()}
+                        className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          musicOn
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Bật
+                      </button>
+                      <button
+                        onClick={() => musicOn && toggleMusic()}
+                        className={`px-3 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          !musicOn
+                            ? 'bg-slate-800 text-gray-300 border border-slate-700'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Tắt
+                      </button>
+                    </div>
                   </div>
 
                   {/* Slider âm lượng Lounge BGM */}
-                  <div className="flex items-center gap-2.5 pt-1">
+                  <div className="flex items-center gap-2.5 pt-0.5">
                     <span className="text-[10px] text-gray-400 font-mono w-7">{musicVolume}%</span>
                     <input
                       type="range"
@@ -223,7 +236,7 @@ export const Header: React.FC<HeaderProps> = ({
                       value={musicVolume}
                       disabled={!musicOn}
                       onChange={(e) => soundManager.setSystemMusicVolume(Number(e.target.value))}
-                      className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-800 ${
+                      className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-400 bg-slate-950 ${
                         !musicOn ? 'opacity-40 cursor-not-allowed' : ''
                       }`}
                     />
@@ -231,17 +244,18 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 {/* Section 3: Chọn Bản Nhạc Sảnh Chờ */}
-                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Giai Điệu Sảnh Chờ:</span>
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">Chọn Giai Điệu:</span>
                     <span className="text-[10px] text-cyan-400 font-mono">
                       {BGM_TRACKS.find(t => t.id === currentTrack)?.title}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-3 gap-2">
                     {BGM_TRACKS.map((t) => {
                       const isActive = currentTrack === t.id;
+                      const shortName = t.id === 'heroic' ? 'Hào Hùng' : t.id === 'lofi' ? 'Lo-Fi' : 'Retro';
                       return (
                         <button
                           key={t.id}
@@ -252,7 +266,7 @@ export const Header: React.FC<HeaderProps> = ({
                               soundManager.toggleSystemMusic();
                             }
                           }}
-                          className={`p-2 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
+                          className={`py-2 px-1 rounded-xl text-center border transition cursor-pointer flex flex-col items-center justify-center gap-1 relative ${
                             isActive
                               ? 'bg-cyan-500/20 border-cyan-500/80 text-cyan-200 shadow-md shadow-cyan-500/20'
                               : 'bg-slate-950/80 border-slate-800 text-gray-400 hover:text-white hover:border-slate-700'
@@ -260,10 +274,10 @@ export const Header: React.FC<HeaderProps> = ({
                           title={t.desc}
                         >
                           {isActive && (
-                            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
                           )}
                           <span className="text-base">{t.icon}</span>
-                          <span className="text-[10px] font-bold leading-tight">{t.title}</span>
+                          <span className="text-[11px] font-bold">{shortName}</span>
                         </button>
                       );
                     })}
