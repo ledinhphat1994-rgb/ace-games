@@ -64,6 +64,7 @@ export const GameXiangqi: React.FC = () => {
   const [isLobbyOpen, setIsLobbyOpen] = useState<boolean>(false);
   const [onlineRoom, setOnlineRoom] = useState<RoomInfo | null>(null);
   const [playerRole, setPlayerRole] = useState<'host' | 'guest'>('host');
+  const [opponentName, setOpponentName] = useState<string>('ĐỐI THỦ');
   const [copiedInvite, setCopiedInvite] = useState<boolean>(false);
 
   // Quản lý timeout AI để hủy ngay lập tức khi đổi phòng, chơi lại hoặc rời bàn cờ
@@ -108,6 +109,7 @@ export const GameXiangqi: React.FC = () => {
     setIsWaitingForFriend(false);
     setOnlineRoom(null);
     setPlayerRole('host');
+    setOpponentName('ĐỐI THỦ');
     const newPos = XiangqiPosition.fromFen();
     posRef.current = newPos;
     setPos(newPos);
@@ -312,6 +314,9 @@ export const GameXiangqi: React.FC = () => {
             setIsWaitingForFriend(false);
             setOnlineRoom(room);
             setPlayerRole('guest');
+            const opp = multiplayer.getOpponent();
+            if (opp?.name) setOpponentName(opp.name);
+            else if (room.hostName) setOpponentName(room.hostName);
             const newPos = XiangqiPosition.fromFen();
             setPos(newPos);
             setSelectedSq(null);
@@ -332,6 +337,7 @@ export const GameXiangqi: React.FC = () => {
 
     const handleOpponentMove = (data: any) => {
       if (data.type === 'game_move' && data.payload) {
+        if (data.senderName) setOpponentName(data.senderName);
         executeMove(data.payload as XiangqiMove, true);
       } else if (data.type === 'game_restart') {
         clearAiTimeout();
@@ -348,6 +354,8 @@ export const GameXiangqi: React.FC = () => {
 
     const handleStatus = (status: string) => {
       if (status === 'connected') {
+        const opp = multiplayer.getOpponent();
+        if (opp?.name) setOpponentName(opp.name);
         setIsWaitingForFriend(false);
         setIsOnlineMode(true);
         resetGame(false);
@@ -396,7 +404,7 @@ export const GameXiangqi: React.FC = () => {
               </div>
             ) : (
               <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-cyan-500/30 text-cyan-300 font-black text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                <span>LƯỢT ĐỐI THỦ</span>
+                <span>LƯỢT CỦA {opponentName.toUpperCase()}</span>
               </div>
             )
           ) : (
@@ -441,7 +449,11 @@ export const GameXiangqi: React.FC = () => {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-mono font-black text-xs transition cursor-pointer active:scale-95 shadow-sm"
                 title="Bấm để sao chép link mời"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
+                {isOnlineMode && !isWaitingForFriend ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-amber-400/40" />
+                )}
                 <span>{copiedInvite ? '✓ ĐÃ COPY!' : `PHÒNG: ${onlineRoom?.roomId || ''}`}</span>
               </button>
 
@@ -731,6 +743,7 @@ export const GameXiangqi: React.FC = () => {
           setIsWaitingForFriend(false);
           setOnlineRoom(room);
           setPlayerRole(role);
+          setOpponentName(role === 'guest' ? (room.hostName || 'ĐỐI THỦ') : 'ĐỐI THỦ');
           const newPos = XiangqiPosition.fromFen();
           posRef.current = newPos;
           setPos(newPos);
@@ -747,6 +760,7 @@ export const GameXiangqi: React.FC = () => {
           setIsOnlineMode(true);
           setOnlineRoom(room);
           setPlayerRole('host');
+          setOpponentName('ĐỐI THỦ');
           const newPos = XiangqiPosition.fromFen();
           posRef.current = newPos;
           setPos(newPos);

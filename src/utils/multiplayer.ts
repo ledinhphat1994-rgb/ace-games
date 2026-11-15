@@ -379,6 +379,9 @@ class MultiplayerService {
         }
       } else if (data.type === 'game_move' || data.type === 'game_restart') {
         if (data.senderId !== this.localPlayerId) {
+          if (data.senderName && (!this.opponent || !this.opponent.name || this.opponent.name === 'ĐỐI THỦ')) {
+            this.opponent = { id: data.senderId, name: data.senderName };
+          }
           this.moveListeners.forEach(cb => cb(data));
         }
       } else if (data.type === 'player_left') {
