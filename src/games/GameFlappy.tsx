@@ -51,7 +51,7 @@ export const GameFlappy: React.FC = () => {
       gain.connect(audioCtx.destination);
       osc.start();
       osc.stop(audioCtx.currentTime + duration);
-    } catch {}
+    } catch { }
   }, []);
 
   const jump = useCallback(() => {
@@ -380,7 +380,7 @@ export const GameFlappy: React.FC = () => {
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 animate-fade-in">
             <span className="text-5xl mb-2">💥</span>
             <h3 className="text-3xl sm:text-4xl font-black text-rose-500 mb-6 ">GAME OVER</h3>
-            
+
             <button
               onClick={e => {
                 e.stopPropagation();

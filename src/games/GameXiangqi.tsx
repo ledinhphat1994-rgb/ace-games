@@ -42,7 +42,7 @@ export const GameXiangqi: React.FC = () => {
         const parsed = JSON.parse(s);
         if (parsed.aiLevel) return Number(parsed.aiLevel) as 1 | 2 | 3;
       }
-    } catch {}
+    } catch { }
     return 2;
   });
   const [timeLimit, setTimeLimit] = useState<number>(() => {
@@ -52,7 +52,7 @@ export const GameXiangqi: React.FC = () => {
         const parsed = JSON.parse(s);
         if (parsed.timeLimit !== undefined) return Number(parsed.timeLimit);
       }
-    } catch {}
+    } catch { }
     return 60; // 60 giây mặc định
   });
   const [timeLeft, setTimeLeft] = useState<number>(60);
@@ -182,7 +182,7 @@ export const GameXiangqi: React.FC = () => {
             try {
               const wins = parseInt(localStorage.getItem('acegames_xiangqi_wins') || '0', 10);
               localStorage.setItem('acegames_xiangqi_wins', (wins + 1).toString());
-            } catch {}
+            } catch { }
           }
 
           if (isOnlineMode && !isWaitingForFriend) {
@@ -222,7 +222,7 @@ export const GameXiangqi: React.FC = () => {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + duration);
-    } catch {}
+    } catch { }
   }, []);
 
   const updateStatus = useCallback((currentPos: XiangqiPosition) => {
@@ -261,7 +261,7 @@ export const GameXiangqi: React.FC = () => {
     const isCapture = Boolean(currentPos.board[move.to]);
     const nextPos = currentPos.clone();
     nextPos.makeMove(move);
-    
+
     posRef.current = nextPos;
     setPos(nextPos);
     setLastMove(move);
@@ -281,7 +281,7 @@ export const GameXiangqi: React.FC = () => {
         try {
           const wins = parseInt(localStorage.getItem('acegames_xiangqi_wins') || '0', 10);
           localStorage.setItem('acegames_xiangqi_wins', (wins + 1).toString());
-        } catch {}
+        } catch { }
       }
       else if (isLoser) soundManager.playDefeat();
       else soundManager.playDraw();
@@ -469,7 +469,7 @@ export const GameXiangqi: React.FC = () => {
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
-        
+
         {/* KHỐI TRÁI: Chế độ chơi / Thông tin phòng Online */}
         <div className="flex items-center gap-2 z-10">
           {isOnlineMode || isWaitingForFriend ? (
@@ -623,11 +623,11 @@ export const GameXiangqi: React.FC = () => {
 
       {/* Massive 16:9 Widescreen Theater Arena - Vùng 1 CHỈ hiển thị game to rõ, không để thẻ người và máy */}
       <div className="game-arena-box relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] max-h-[calc(100dvh-235px)] bg-gradient-to-br from-[#1c0f06] via-[#120904] to-[#070301] rounded-3xl border-4 border-amber-900/60 shadow-[0_0_60px_rgba(180,83,9,0.25)] overflow-hidden flex items-center justify-center p-2.5 sm:p-4 md:p-5 flex-shrink min-h-0">
-        
+
         {/* Center: Massive Xiangqi Board taking full vertical height to rõ ở Vùng 1 */}
         <div className="game-board-inner relative bg-[#2a1306] p-2.5 sm:p-4 rounded-3xl h-full aspect-[9/10] max-h-[calc(100dvh-260px)] border-4 border-[#5a2a0c] shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex items-center justify-center">
           {/* Bàn Cờ Gỗ Cổ Điển Tự Nhiên - Tinh Tế & Dịu Mắt */}
-          <div 
+          <div
             className="relative rounded-2xl shadow-inner overflow-hidden w-full h-full border-2 sm:border-3 border-[#421d06]"
             style={{
               background: 'radial-gradient(ellipse at center, #f5dfba 0%, #edd1a4 45%, #deb883 80%, #caa068 100%)',
@@ -747,15 +747,14 @@ export const GameXiangqi: React.FC = () => {
                     {/* Quân Cờ Gỗ 3D Đích Thực - Tinh Xảo, Khắc Chìm & Dịu Mắt */}
                     {piece ? (
                       <div
-                        className={`relative z-20 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${
-                          isSelected
+                        className={`relative z-20 w-[86%] h-[86%] max-w-[62px] max-h-[62px] rounded-full flex items-center justify-center font-serif font-black select-none transition-all duration-150 ${isSelected
                             ? 'scale-106 ring-2 ring-cyan-400 shadow-[0_0_12px_2px_rgba(6,182,212,0.8)] z-30 animate-pulse'
                             : isKingInCheck
-                            ? 'scale-110 ring-4 ring-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.9)] z-25 animate-pulse'
-                            : isLast
-                            ? 'ring-3 ring-amber-500/80 shadow-[0_6px_16px_rgba(245,158,11,0.4)]'
-                            : 'hover:scale-105 active:scale-95'
-                        }`}
+                              ? 'scale-110 ring-4 ring-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.9)] z-25 animate-pulse'
+                              : isLast
+                                ? 'ring-3 ring-amber-500/80 shadow-[0_6px_16px_rgba(245,158,11,0.4)]'
+                                : 'hover:scale-105 active:scale-95'
+                          }`}
                         style={{
                           background: 'radial-gradient(circle at 35% 35%, #fffdf8 0%, #f7ebd4 42%, #e5c79e 82%, #cb9e68 100%)',
                           border: isSelected ? '2px solid #22d3ee' : '2px solid #a67c48',
@@ -766,19 +765,17 @@ export const GameXiangqi: React.FC = () => {
                       >
                         {/* Vòng Chỉ Tròn Khắc Chìm Trên Mặt Gỗ */}
                         <div
-                          className={`w-[84%] h-[84%] rounded-full border flex items-center justify-center transition-colors ${
-                            sideOf(piece) === RED
+                          className={`w-[84%] h-[84%] rounded-full border flex items-center justify-center transition-colors ${sideOf(piece) === RED
                               ? 'border-rose-600/40'
                               : 'border-slate-800/35'
-                          }`}
+                            }`}
                         >
                           {/* Chữ Hán Thư Pháp Khắc Khảm Sơn Mài */}
                           <span
-                            className={`text-lg sm:text-2xl md:text-3xl leading-none font-black ${
-                              sideOf(piece) === RED
+                            className={`text-lg sm:text-2xl md:text-3xl leading-none font-black ${sideOf(piece) === RED
                                 ? 'text-rose-700'
                                 : 'text-slate-900'
-                            }`}
+                              }`}
                             style={{
                               textShadow: sideOf(piece) === RED
                                 ? '0 1px 1px rgba(255,255,255,0.7), 0 -1px 1px rgba(136,19,19,0.45)'
@@ -818,36 +815,36 @@ export const GameXiangqi: React.FC = () => {
               const title = isWinner
                 ? 'CHIẾN THẮNG!'
                 : isLoser
-                ? 'THẤT BẠI!'
-                : 'VÁN CỜ HÒA!';
+                  ? 'THẤT BẠI!'
+                  : 'VÁN CỜ HÒA!';
 
               const desc = isTimeout
-                ? (isLoser 
-                    ? 'Bạn đã hết thời gian suy nghĩ và bị xử thua.' 
-                    : `${isOnlineMode ? (opponentName || 'Đối thủ') : 'Máy'} đã hết thời gian suy nghĩ và bị xử thua.`)
+                ? (isLoser
+                  ? 'Bạn đã hết thời gian suy nghĩ và bị xử thua.'
+                  : `${isOnlineMode ? (opponentName || 'Đối thủ') : 'Máy'} đã hết thời gian suy nghĩ và bị xử thua.`)
                 : isWinner
-                ? 'Chúc mừng! Bạn đã chiếu bí đối thủ xuất sắc.'
-                : isLoser
-                ? 'Bạn đã bị đối thủ chiếu bí.'
-                : outcome.reason === 'repetition'
-                ? 'Thế cờ lặp lại 3 lần liên tiếp.'
-                : outcome.reason === 'no_capture'
-                ? 'Đã qua 60 nước đi không bên nào ăn quân.'
-                : 'Ván cờ kết thúc bất phân thắng bại.';
+                  ? 'Chúc mừng! Bạn đã chiếu bí đối thủ xuất sắc.'
+                  : isLoser
+                    ? 'Bạn đã bị đối thủ chiếu bí.'
+                    : outcome.reason === 'repetition'
+                      ? 'Thế cờ lặp lại 3 lần liên tiếp.'
+                      : outcome.reason === 'no_capture'
+                        ? 'Đã qua 60 nước đi không bên nào ăn quân.'
+                        : 'Ván cờ kết thúc bất phân thắng bại.';
 
               const titleColor = isWinner
                 ? 'text-emerald-400'
                 : isLoser
-                ? 'text-rose-500'
-                : 'text-amber-400';
+                  ? 'text-rose-500'
+                  : 'text-amber-400';
 
               const icon = isWinner ? '🏆' : isLoser ? (isTimeout ? '⏱️' : '⚔️') : '🤝';
 
               const btnGradient = isWinner
                 ? 'from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-emerald-950/50'
                 : isLoser
-                ? 'from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white shadow-rose-950/50'
-                : 'from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 shadow-amber-950/50 font-black';
+                  ? 'from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white shadow-rose-950/50'
+                  : 'from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 shadow-amber-950/50 font-black';
 
               return (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center p-4 z-20 animate-in fade-in duration-200">

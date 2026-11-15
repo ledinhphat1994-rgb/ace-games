@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Flag, Clock } from 'lucide-react';
 import { soundManager } from '../utils/sound';

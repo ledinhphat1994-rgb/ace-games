@@ -229,6 +229,19 @@ export const GamePong: React.FC = () => {
           s2: s.p2Score,
           rally: 0
         });
+
+        // Gửi ngay 1 gói pong_state để đảm bảo khách đồng bộ tuyệt đối
+        multiplayer.sendAction('pong_state', {
+          bx: Math.round(s.ball.x * 10) / 10,
+          by: Math.round(s.ball.y * 10) / 10,
+          bvx: Math.round(s.ball.vx * 100) / 100,
+          bvy: Math.round(s.ball.vy * 100) / 100,
+          speed: s.ball.speed,
+          p1y: Math.round(s.p1.y),
+          s1: s.p1Score,
+          s2: s.p2Score,
+          rally: 0
+        });
       }
     }, 850);
   }, [playTone]);
@@ -241,12 +254,20 @@ export const GamePong: React.FC = () => {
     const s = stateRef.current;
     s.p1.y = s.ch / 2 - s.p1.h / 2;
     s.p2.y = s.ch / 2 - s.p2.h / 2;
+    s.ball.x = s.cw / 2;
+    s.ball.y = s.ch / 2;
+    s.ball.vx = 0;
+    s.ball.vy = 0;
+    s.ball.speed = 7.0;
+    s.ball.trail = [];
     s.p1Score = 0;
     s.p2Score = 0;
+    s.rally = 0;
     s.particles = [];
     s.shake = 0;
     setP1Score(0);
     setP2Score(0);
+    setRallyCount(0);
     setWinner(null);
     setIsGameOver(false);
     setIsPaused(false);
@@ -258,13 +279,14 @@ export const GamePong: React.FC = () => {
     if (isMaster) {
       launchServe(Math.random() < 0.5);
     } else {
+      s.isServing = true;
       setServeNotice('CHUẨN BỊ...');
     }
 
-    if (notifyRemote && isOnlineMode && !isWaitingForFriend) {
+    if (notifyRemote && s.isOnlineMode && !s.isWaitingForFriend) {
       multiplayer.sendAction('game_restart');
     }
-  }, [launchServe, isOnlineMode, isWaitingForFriend]);
+  }, [launchServe]);
 
   // Sao chép link mời phòng online
   const handleCopyInvite = useCallback(() => {
@@ -283,6 +305,10 @@ export const GamePong: React.FC = () => {
     soundManager.playButtonClick();
     if (serveTimerRef.current) clearTimeout(serveTimerRef.current);
     multiplayer.leaveRoom();
+    const s = stateRef.current;
+    s.isOnlineMode = false;
+    s.isWaitingForFriend = false;
+    s.playerRole = 'host';
     setIsOnlineMode(false);
     setIsWaitingForFriend(false);
     setOnlineRoom(null);
@@ -306,6 +332,10 @@ export const GamePong: React.FC = () => {
         if (ok) {
           const room = multiplayer.getCurrentRoom();
           if (room) {
+            const s = stateRef.current;
+            s.isOnlineMode = true;
+            s.isWaitingForFriend = false;
+            s.playerRole = 'guest';
             setIsOnlineMode(true);
             setIsWaitingForFriend(false);
             setOnlineRoom(room);
@@ -418,6 +448,14 @@ export const GamePong: React.FC = () => {
           const now = performance.now();
           const justHit = (now - lastGuestHitTimeRef.current < 260);
 
+          // Tự động khôi phục và xóa thông báo chuẩn bị nếu bóng đã được host phát đi
+          s.isPlaying = true;
+          setIsPlaying(true);
+          if (data.payload.bvx !== 0 || data.payload.bvy !== 0) {
+            s.isServing = false;
+            setServeNotice(null);
+          }
+
           // Nếu khách vừa đỡ bóng thành công trong vòng 260ms nhưng gói tin từ host mang hướng cũ (bvx > 0)
           // thì bỏ qua tọa độ bóng từ gói cũ để tránh bóng bị giật ngược
           if (!justHit || data.payload.bvx < 0) {
@@ -482,12 +520,23 @@ export const GamePong: React.FC = () => {
       if (status === 'connected') {
         const opp = multiplayer.getOpponent();
         if (opp?.name) setOpponentName(opp.name);
+        const s = stateRef.current;
+        s.isWaitingForFriend = false;
+        s.isOnlineMode = true;
         setIsWaitingForFriend(false);
         setIsOnlineMode(true);
-        resetGame(false);
         soundManager.playGameLaunch();
+
+        // Nếu là Host: đợi 350ms để đảm bảo MQTT kết nối 2 chiều ổn định rồi phát bóng
+        if (s.playerRole === 'host') {
+          setTimeout(() => {
+            resetGame(false);
+          }, 350);
+        } else {
+          resetGame(false);
+        }
       } else if (status === 'disconnected') {
-        if (isOnlineMode && !isWaitingForFriend) {
+        if (stateRef.current.isOnlineMode && !stateRef.current.isWaitingForFriend) {
           setIsOpponentLeftModalOpen(true);
         }
       }
@@ -499,11 +548,20 @@ export const GamePong: React.FC = () => {
     return () => {
       multiplayer.offMove(handleMessage);
       multiplayer.offStatusChange(handleStatus);
-      if (isOnlineMode) {
+    };
+  }, [isOnlineMode, isWaitingForFriend, playerRole, resetGame, playTone, spawnSparks]);
+
+  // Rời phòng an toàn CHỈ KHI component unmount thực sự
+  const isOnlineModeRef = useRef(isOnlineMode);
+  isOnlineModeRef.current = isOnlineMode;
+
+  useEffect(() => {
+    return () => {
+      if (isOnlineModeRef.current) {
         multiplayer.leaveRoom();
       }
     };
-  }, [isOnlineMode, isWaitingForFriend, playerRole, resetGame, playTone, spawnSparks]);
+  }, []);
 
   // Xử lý phím bấm điều khiển
   useEffect(() => {
@@ -1176,6 +1234,10 @@ export const GamePong: React.FC = () => {
         gameId="pong"
         gameTitle="Bóng Bàn"
         onJoinedMatch={(room, role) => {
+          const s = stateRef.current;
+          s.isOnlineMode = true;
+          s.playerRole = role;
+          s.isWaitingForFriend = false;
           setIsOnlineMode(true);
           setOnlineRoom(room);
           setPlayerRole(role);
