@@ -30,16 +30,7 @@ export const GameChess: React.FC = () => {
   const [selectedSq, setSelectedSq] = useState<number | null>(null);
   const [validMoves, setValidMoves] = useState<ChessMove[]>([]);
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
-  const [mode, setMode] = useState<'ai' | 'pvp'>(() => {
-    try {
-      const s = localStorage.getItem('ace_game_settings_chess');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.mode) return parsed.mode;
-      }
-    } catch {}
-    return 'ai';
-  });
+  const mode = 'ai'; // Chế độ chơi offline luôn là Đấu Máy (AI)
   const [aiLevel, setAiLevel] = useState<1 | 2 | 3>(() => {
     try {
       const s = localStorage.getItem('ace_game_settings_chess');
@@ -93,14 +84,21 @@ export const GameChess: React.FC = () => {
     setIsOnlineMode(false);
     setIsWaitingForFriend(false);
     setOnlineRoom(null);
-    resetGame();
+    setPlayerRole('host');
+    const newPos = ChessPosition.fromFen();
+    setPos(newPos);
+    setSelectedSq(null);
+    setValidMoves([]);
+    setLastMove(null);
+    setIsThinking(false);
+    updateStatus(newPos);
+    setTimeLeft(timeLimit);
   };
 
   // Đồng bộ cài đặt thời gian thực với GameSettingsModal
   useEffect(() => {
     const handleSetting = (e: any) => {
       if (e.detail?.gameId === 'chess') {
-        if (e.detail.key === 'mode') setMode(e.detail.value);
         if (e.detail.key === 'aiLevel') setAiLevel(Number(e.detail.value) as 1 | 2 | 3);
         if (e.detail.key === 'timeLimit') {
           const newLimit = Number(e.detail.value);
@@ -178,7 +176,7 @@ export const GameChess: React.FC = () => {
     setIsThinking(false);
     updateStatus(newPos);
     setTimeLeft(timeLimit);
-    if (isOnlineMode) {
+    if (isOnlineMode && !isWaitingForFriend) {
       multiplayer.sendAction('game_restart');
     }
   };
@@ -188,7 +186,11 @@ export const GameChess: React.FC = () => {
     const outcome = pos.outcome();
     if (outcome.over || (timeLimit > 0 && timeLeft === 0)) return;
 
-    if (!isOnlineMode && mode === 'ai' && pos.turn === BLACK) return;
+    // Khi đang chờ bạn vào bàn, không cho phép bấm đi quân
+    if (isWaitingForFriend) return;
+
+    // Chơi với máy: Lượt quân Đen là của máy
+    if (!isOnlineMode && pos.turn === BLACK) return;
 
     if (isOnlineMode) {
       const isMyTurn = (playerRole === 'host' && pos.turn === WHITE) || (playerRole === 'guest' && pos.turn === BLACK);
@@ -236,8 +238,8 @@ export const GameChess: React.FC = () => {
       multiplayer.sendMove(move);
     }
 
-    // AI / Online Bot Turn trigger
-    const isBotTurn = (isOnlineMode && multiplayer.isBotMatch() && ((playerRole === 'host' && nextPos.turn === BLACK) || (playerRole === 'guest' && nextPos.turn === WHITE))) || (!isOnlineMode && mode === 'ai' && nextPos.turn === BLACK);
+    // AI Turn trigger (khi chơi với máy)
+    const isBotTurn = !isOnlineMode && nextPos.turn === BLACK;
 
     if (isBotTurn && !nextPos.outcome().over) {
       setIsThinking(true);
@@ -248,15 +250,20 @@ export const GameChess: React.FC = () => {
           executeMove(aiMove, true);
         }
         setIsThinking(false);
-      }, Math.floor(900 + Math.random() * 800));
+      }, Math.floor(700 + Math.random() * 600));
     }
   };
 
-  // Tự động vào phòng nếu có tham số URL ?game=chess&room=...
+  // Tự động vào phòng nếu có tham số URL ?game=chess&room=... (Chạy 1 lần duy nhất khi mở trang)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
     if (roomParam) {
+      // Xóa room khỏi URL ngay lập tức để không bị tự động re-join khi tạo phòng mới
+      const url = new URL(window.location.href);
+      url.searchParams.delete('room');
+      window.history.replaceState({}, '', url.toString());
+
       multiplayer.joinRoom('chess', roomParam).then((ok) => {
         if (ok) {
           const room = multiplayer.getCurrentRoom();
@@ -277,7 +284,7 @@ export const GameChess: React.FC = () => {
         }
       });
     }
-  }, [timeLimit, updateStatus]);
+  }, []);
 
   // Nhận nước đi và hành động từ đối thủ online
   useEffect(() => {

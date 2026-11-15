@@ -116,16 +116,7 @@ export const GameCaro: React.FC = () => {
 
   const [board, setBoard] = useState<Player[]>(() => Array(boardSize === 10 ? 100 : 9).fill(null));
   const [isXNext, setIsXNext] = useState<boolean>(true);
-  const [isAiMode, setIsAiMode] = useState<boolean>(() => {
-    try {
-      const s = localStorage.getItem('ace_game_settings_caro');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.mode) return parsed.mode === 'ai';
-      }
-    } catch {}
-    return true;
-  });
+  const isAiMode = true; // Chế độ chơi offline luôn là Đấu Máy (AI)
   const [difficulty, setDifficulty] = useState<Difficulty>(() => {
     try {
       const s = localStorage.getItem('ace_game_settings_caro');
@@ -175,14 +166,23 @@ export const GameCaro: React.FC = () => {
     setIsOnlineMode(false);
     setIsWaitingForFriend(false);
     setOnlineRoom(null);
-    resetGame();
+    setPlayerRole('host');
+    setBoard(Array(boardSize * boardSize).fill(null));
+    setIsXNext(true);
+    setWinnerInfo(null);
+    setTimeLeft(timeLimit);
   };
 
-  // Tự động vào phòng nếu có tham số URL ?game=caro&room=...
+  // Tự động vào phòng nếu có tham số URL ?game=caro&room=... (Chạy 1 lần duy nhất khi mở trang)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
     if (roomParam) {
+      // Xóa room khỏi URL ngay lập tức để không bị tự động re-join khi tạo phòng mới
+      const url = new URL(window.location.href);
+      url.searchParams.delete('room');
+      window.history.replaceState({}, '', url.toString());
+
       multiplayer.joinRoom('caro', roomParam).then((ok) => {
         if (ok) {
           const room = multiplayer.getCurrentRoom();
@@ -265,7 +265,6 @@ export const GameCaro: React.FC = () => {
   useEffect(() => {
     const handleSetting = (e: any) => {
       if (e.detail?.gameId === 'caro') {
-        if (e.detail.key === 'mode') setIsAiMode(e.detail.value === 'ai');
         if (e.detail.key === 'difficulty') setDifficulty(e.detail.value as Difficulty);
         if (e.detail.key === 'boardSize') {
           const newSize = Number(e.detail.value) as 10 | 3;
@@ -318,10 +317,10 @@ export const GameCaro: React.FC = () => {
     setIsXNext(true);
     setWinnerInfo(null);
     setTimeLeft(timeLimit);
-    if (isOnlineMode) {
+    if (isOnlineMode && !isWaitingForFriend) {
       multiplayer.sendAction('game_restart');
     }
-  }, [boardSize, timeLimit, isOnlineMode]);
+  }, [boardSize, timeLimit, isOnlineMode, isWaitingForFriend]);
 
   // Handle board size switch
   const handleSizeChange = (newSize: 10 | 3) => {
@@ -536,9 +535,10 @@ export const GameCaro: React.FC = () => {
   const handleClick = (index: number) => {
     if (board[index] || winnerInfo || (timeLimit > 0 && timeLeft === 0)) return;
 
-    if (!isOnlineMode && isAiMode && !isXNext) return;
+    if (isWaitingForFriend) return;
+
+    if (!isOnlineMode && !isXNext) return;
     if (isOnlineMode) {
-      if (isWaitingForFriend) return;
       const isMyTurn = (playerRole === 'host' && isXNext) || (playerRole === 'guest' && !isXNext);
       if (!isMyTurn) return;
     }
@@ -568,16 +568,16 @@ export const GameCaro: React.FC = () => {
     setIsXNext(!isXNext);
   };
 
-  // AI / Online Bot Turn effect
+  // AI Turn effect (khi chơi với máy)
   useEffect(() => {
-    const isBotTurn = (isOnlineMode && multiplayer.isBotMatch() && ((playerRole === 'host' && !isXNext) || (playerRole === 'guest' && isXNext))) || (!isOnlineMode && isAiMode && !isXNext);
+    const isBotTurn = !isOnlineMode && !isXNext;
 
     if (isBotTurn && !winnerInfo) {
       const timer = setTimeout(() => {
         const aiMove = findBestMove(board);
         if (aiMove !== -1) {
           soundManager.playButtonClick();
-          const botPiece: Player = isOnlineMode ? (playerRole === 'host' ? 'O' : 'X') : 'O';
+          const botPiece: Player = 'O';
           const newBoard = [...board];
           newBoard[aiMove] = botPiece;
           setBoard(newBoard);
@@ -588,14 +588,14 @@ export const GameCaro: React.FC = () => {
             setWinnerInfo(result);
             updateStats(result.winner);
           } else {
-            setIsXNext(botPiece === 'X' ? false : true);
+            setIsXNext(true);
           }
         }
-      }, Math.floor(700 + Math.random() * 800));
+      }, Math.floor(600 + Math.random() * 600));
 
       return () => clearTimeout(timer);
     }
-  }, [isOnlineMode, isAiMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, timeLimit, playerRole]);
+  }, [isOnlineMode, isXNext, winnerInfo, board, findBestMove, boardSize, winStreak, timeLimit]);
 
   const updateStats = (winner: Player | 'DRAW') => {
     setStats(prev => {

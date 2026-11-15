@@ -176,6 +176,13 @@ class MultiplayerService {
     this.currentGameId = gameId;
     await this.ensureConnected();
 
+    // Hủy đăng ký phòng cũ nếu có
+    if (this.currentRoom && this.client) {
+      try {
+        this.client.unsubscribe(`acegames/v2/room/${this.currentRoom.roomId}`);
+      } catch {}
+    }
+
     // 4-digit clean room code (vd: 5829)
     const roomId = Math.floor(1000 + Math.random() * 9000).toString();
     const room: RoomInfo = {
@@ -222,6 +229,13 @@ class MultiplayerService {
     if (!roomId) return false;
 
     await this.ensureConnected();
+
+    // Hủy đăng ký phòng cũ nếu có
+    if (this.currentRoom && this.client) {
+      try {
+        this.client.unsubscribe(`acegames/v2/room/${this.currentRoom.roomId}`);
+      } catch {}
+    }
 
     this.currentRole = 'guest';
     this.currentRoom = {
@@ -337,8 +351,8 @@ class MultiplayerService {
       return;
     }
 
-    // Room Topic Messages
-    if (this.currentRoom && topic.endsWith(this.currentRoom.roomId)) {
+    // Room Topic Messages (Khớp chính xác topic của phòng hiện tại)
+    if (this.currentRoom && topic === `acegames/v2/room/${this.currentRoom.roomId}`) {
       if (data.type === 'guest_joined') {
         if (this.currentRole === 'host') {
           this.opponent = { id: data.guestId, name: data.guestName };
@@ -401,6 +415,11 @@ class MultiplayerService {
 
   public leaveRoom() {
     if (this.currentRoom) {
+      if (this.client) {
+        try {
+          this.client.unsubscribe(`acegames/v2/room/${this.currentRoom.roomId}`);
+        } catch {}
+      }
       this.activeRooms.delete(this.currentRoom.roomId);
       this.sendAction('player_left');
       if (this.currentRole === 'host') {
