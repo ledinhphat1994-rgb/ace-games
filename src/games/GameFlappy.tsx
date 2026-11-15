@@ -347,8 +347,7 @@ export const GameFlappy: React.FC = () => {
         {gameState === 'IDLE' && (
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4">
             <span className="text-6xl mb-3 animate-bounce">🐥</span>
-            <h3 className="text-3xl sm:text-4xl font-black text-amber-400 mb-2 font-['Orbitron']">FLAPPY BIRD 16:9</h3>
-            <p className="text-sm text-yellow-100/90 mb-5 text-center">Bấm chuột, chạm màn hình hoặc bấm phím Space để chim bay lên!</p>
+            <h3 className="text-3xl sm:text-4xl font-black text-amber-400 mb-6 font-['Orbitron']">FLAPPY BIRD</h3>
             <button
               onClick={e => {
                 e.stopPropagation();

@@ -433,25 +433,13 @@ export const GameBreakout: React.FC = () => {
           className="w-full h-full cursor-pointer block"
         />
 
-        {/* Start / Stuck prompt */}
-        {isPlaying && stateRef.current.ball.stuck && !isGameOver && !isWon && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 pointer-events-none animate-bounce">
-            <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-bold shadow-lg">
-              Chạm hoặc bấm Phím Cách để bắn bóng! 🚀
-            </span>
-          </div>
-        )}
-
         {/* Start screen overlay */}
         {!isPlaying && !isGameOver && !isWon && (
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Phá Gạch Classic</h3>
-            <p className="text-xs text-gray-400 max-w-xs mb-6">
-              Điều khiển thanh đỡ phá tan toàn bộ các hàng gạch màu! Căn góc chuẩn xác để giữ bóng không rơi.
-            </p>
+            <h3 className="text-2xl font-black text-white mb-6 tracking-tight">Phá Gạch Classic</h3>
             <button
               onClick={resetGame}
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-xl shadow-cyan-500/25 transition-transform hover:scale-105 active:scale-95"

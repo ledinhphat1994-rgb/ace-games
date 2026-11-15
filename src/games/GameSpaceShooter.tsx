@@ -535,10 +535,7 @@ export const GameSpaceShooter: React.FC = () => {
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Chiến Cơ Không Gian</h3>
-            <p className="text-xs text-gray-400 max-w-xs mb-6">
-              Bắn hạ các hạm đội ngoài hành tinh! Né đạn la-de và sống sót qua các đợt tấn công dồn dập.
-            </p>
+            <h3 className="text-2xl font-black text-white mb-6 tracking-tight">Chiến Cơ Không Gian</h3>
             <button
               onClick={resetGame}
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-xl shadow-cyan-500/25 transition-transform hover:scale-105 active:scale-95"
