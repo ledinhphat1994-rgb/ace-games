@@ -7,8 +7,7 @@ import {
   Pause, 
   Crosshair,
   ArrowRightLeft,
-  Flame,
-  AlertTriangle
+  Flame
 } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -69,7 +68,7 @@ const BUBBLE_DIAMETER = BUBBLE_RADIUS * 2; // 48px
 const ROW_HEIGHT = 42; // Math.round(24 * sqrt(3)) ~ 41.57 -> 42px
 const CANNON_X = CANVAS_WIDTH / 2; // 480px
 const CANNON_Y = CANVAS_HEIGHT - 45; // 495px
-const DANGER_LINE_Y = 430; // Vạch cảnh báo nguy hiểm
+const GAME_OVER_LIMIT_Y = 445; // Ngưỡng trứng chạm đáy tính thua
 
 const BUBBLE_PALETTE = [
   { name: 'Ruby', fill: '#ef4444', light: '#fca5a5', dark: '#991b1b', shadow: 'rgba(239,68,68,0.7)', spot: '#f87171' },
@@ -80,7 +79,6 @@ const BUBBLE_PALETTE = [
 ];
 
 export const GameBubbleShooter: React.FC = () => {
-  // Lưới trứng trên bàn cờ (Row x Col)
   const [grid, setGrid] = useState<(Bubble | null)[][]>([]);
   const [, setCeilingRows] = useState(0);
   const [level, setLevel] = useState(1);
@@ -105,7 +103,7 @@ export const GameBubbleShooter: React.FC = () => {
   });
 
   const [aimGuideEnabled, setAimGuideEnabled] = useState(true);
-  const [foulCount, setFoulCount] = useState(0); // Đếm số lần bắn trượt (5 lần hạ trần)
+  const [foulCount, setFoulCount] = useState(0); // 5 lần bắn trượt hạ trần
   const [comboStreak, setComboStreak] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -115,7 +113,7 @@ export const GameBubbleShooter: React.FC = () => {
   // Quả trứng hiện tại và quả tiếp theo
   const [currentBubble, setCurrentBubble] = useState<number>(0);
   const [nextBubble, setNextBubble] = useState<number>(1);
-  const [aimAngle, setAimAngle] = useState<number>(-Math.PI / 2); // Hướng thẳng đứng lên (-90 deg)
+  const [aimAngle, setAimAngle] = useState<number>(-Math.PI / 2);
 
   // Hiệu ứng hạt & chữ bay
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -152,22 +150,22 @@ export const GameBubbleShooter: React.FC = () => {
   }, []);
 
   const playShootSound = useCallback(() => {
-    playTone(480, 'triangle', 0.08, 0.09);
-    setTimeout(() => playTone(360, 'sine', 0.08, 0.05), 30);
+    playTone(500, 'triangle', 0.08, 0.09);
+    setTimeout(() => playTone(380, 'sine', 0.08, 0.05), 30);
   }, [playTone]);
 
   const playBounceSound = useCallback(() => {
-    playTone(550, 'sine', 0.04, 0.04);
+    playTone(580, 'sine', 0.04, 0.04);
   }, [playTone]);
 
   const playPopSound = useCallback((combo: number) => {
-    const baseFreq = 520 + Math.min(combo * 80, 600);
+    const baseFreq = 540 + Math.min(combo * 80, 600);
     playTone(baseFreq, 'triangle', 0.12, 0.1);
     setTimeout(() => playTone(baseFreq * 1.25, 'sine', 0.15, 0.08), 50);
   }, [playTone]);
 
   const playDropSound = useCallback(() => {
-    playTone(280, 'sawtooth', 0.18, 0.06);
+    playTone(290, 'sawtooth', 0.18, 0.06);
   }, [playTone]);
 
   const playWarningRumble = useCallback(() => {
@@ -225,7 +223,7 @@ export const GameBubbleShooter: React.FC = () => {
     initBoard(5);
   }, [initBoard]);
 
-  // Lấy tọa độ tâm pixel (x, y) của ô (r, c) trên lưới 960x540
+  // Lấy tọa độ tâm pixel (x, y) của ô (r, c)
   const getBubbleCenter = useCallback((r: number, c: number) => {
     const isEven = r % 2 === 0;
     const x = isEven
@@ -269,11 +267,11 @@ export const GameBubbleShooter: React.FC = () => {
     return neighbors;
   }, []);
 
-  // Đổi quả trứng chuẩn bị bắn
+  // Hoán đổi quả trứng chuẩn bị bắn
   const handleSwapBubbles = useCallback(() => {
     if (projectileRef.current || isPaused || isGameOver || isVictory) return;
     soundManager.playButtonClick();
-    playTone(600, 'triangle', 0.05, 0.05);
+    playTone(620, 'triangle', 0.05, 0.05);
     setCurrentBubble(prev => {
       const next = nextBubble;
       setNextBubble(prev);
@@ -341,7 +339,7 @@ export const GameBubbleShooter: React.FC = () => {
         }
       ]);
 
-      // Xóa các quả nổ và tạo hạt nổ
+      // Xóa các quả nổ và tạo hạt nổ siêu nét
       const newParticles: Particle[] = [];
       for (const tile of matchedCluster) {
         updatedGrid[tile.r][tile.c] = null;
@@ -356,7 +354,7 @@ export const GameBubbleShooter: React.FC = () => {
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             color: BUBBLE_PALETTE[snappedColor].fill,
-            size: 4 + Math.random() * 4,
+            size: 3.5 + Math.random() * 3.5,
             alpha: 1,
           });
         }
@@ -481,13 +479,13 @@ export const GameBubbleShooter: React.FC = () => {
       });
     }
 
-    // Kiểm tra thua cuộc: Trứng chạm vạch nguy hiểm DANGER_LINE_Y
+    // Kiểm tra thua cuộc: Trứng chạm đáy nguy hiểm
     for (let r = 0; r < MAX_ROWS; r++) {
       const cols = r % 2 === 0 ? COLS_EVEN : COLS_ODD;
       for (let c = 0; c < cols; c++) {
         if (updatedGrid[r][c] !== null) {
           const pos = getBubbleCenter(r, c);
-          if (pos.y + BUBBLE_RADIUS >= DANGER_LINE_Y) {
+          if (pos.y + BUBBLE_RADIUS >= GAME_OVER_LIMIT_Y) {
             setIsGameOver(true);
             playTone(180, 'sawtooth', 0.5, 0.15);
             break;
@@ -550,6 +548,7 @@ export const GameBubbleShooter: React.FC = () => {
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Nếu nhấp chuột phải: đổi trứng
     if (e.button === 2) {
       handleSwapBubbles();
       return;
@@ -557,7 +556,71 @@ export const GameBubbleShooter: React.FC = () => {
     handleShoot();
   };
 
-  // Vòng lặp vẽ đồ họa Canvas 60 FPS Widescreen
+  // Hàm vẽ quả trứng 3D siêu sắc nét (Multi-stop High-DPI Radial Gradient & Glass Specular)
+  const drawSharpBubble = useCallback((
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    colorIndex: number,
+    radius: number = BUBBLE_RADIUS,
+    shadowBlur: number = 8
+  ) => {
+    const pal = BUBBLE_PALETTE[colorIndex];
+    ctx.save();
+
+    // 1. Ánh sáng dạ quang
+    ctx.shadowColor = pal.shadow;
+    ctx.shadowBlur = shadowBlur;
+
+    // 2. Thân trứng khối cầu 3D với 5 điểm chuyển màu sắc sảo
+    const grad = ctx.createRadialGradient(
+      x - radius * 0.35,
+      y - radius * 0.35,
+      radius * 0.08,
+      x,
+      y,
+      radius
+    );
+    grad.addColorStop(0, '#ffffff'); // Điểm cực sáng trung tâm
+    grad.addColorStop(0.18, pal.light);
+    grad.addColorStop(0.65, pal.fill);
+    grad.addColorStop(0.92, pal.dark);
+    grad.addColorStop(1, '#050814'); // Vòng viền tối ambient occlusion
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Viền phản chiếu pha lê sắc nét
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 4. Các đốm trứng khủng long chân thực
+    ctx.fillStyle = pal.spot;
+    ctx.beginPath();
+    ctx.arc(x + radius * 0.35, y - radius * 0.25, radius * 0.16, 0, Math.PI * 2);
+    ctx.arc(x - radius * 0.38, y + radius * 0.28, radius * 0.14, 0, Math.PI * 2);
+    ctx.arc(x + radius * 0.15, y + radius * 0.42, radius * 0.11, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 5. Vết bóng sáng chính bóng bẩy (Primary Specular Highlight)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(x - radius * 0.35, y - radius * 0.38, radius * 0.35, radius * 0.2, -Math.PI / 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Điểm phản xạ hắt sáng thứ hai ở góc đối diện (Secondary ambient rim bounce)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x + radius * 0.35, y + radius * 0.38, radius * 0.22, radius * 0.12, -Math.PI / 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }, []);
+
+  // Vòng lặp vẽ đồ họa Canvas 60 FPS Retina High-DPI Widescreen
   useEffect(() => {
     let animId: number;
 
@@ -567,98 +630,47 @@ export const GameBubbleShooter: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      // Hỗ trợ High-DPI Retina (2x buffer) giúp hình ảnh cực kỳ sắc nét
+      const dpr = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
+      const targetWidth = CANVAS_WIDTH * dpr;
+      const targetHeight = CANVAS_HEIGHT * dpr;
 
-      // 1. Vẽ nền đấu trường Cyberpunk / Jurassic
-      ctx.fillStyle = '#050814';
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+      }
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      // 1. Nền tối sâu sạch sẽ, không rối mắt
+      ctx.fillStyle = '#060a17';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Lưới chấm mờ
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';
+      // Lưới sao vi điểm tinh tế
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.06)';
       for (let gx = 16; gx < CANVAS_WIDTH; gx += 32) {
         for (let gy = 16; gy < CANVAS_HEIGHT; gy += 32) {
           ctx.beginPath();
-          ctx.arc(gx, gy, 1.2, 0, Math.PI * 2);
+          ctx.arc(gx, gy, 1, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      // 2. Vạch nguy hiểm (Danger line)
-      ctx.save();
-      ctx.strokeStyle = 'rgba(244, 63, 94, 0.55)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath();
-      ctx.moveTo(10, DANGER_LINE_Y);
-      ctx.lineTo(CANVAS_WIDTH - 10, DANGER_LINE_Y);
-      ctx.stroke();
-
-      ctx.fillStyle = 'rgba(244, 63, 94, 0.7)';
-      ctx.font = 'bold 10px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('⚠ VẠCH NGUY HIỂM ⚠', CANVAS_WIDTH / 2, DANGER_LINE_Y - 5);
-      ctx.restore();
-
-      // 3. Vẽ tất cả các quả trứng tĩnh trên lưới
+      // 2. Vẽ tất cả các quả trứng tĩnh trên lưới (siêu sắc nét)
       for (let r = 0; r < MAX_ROWS; r++) {
         const cols = r % 2 === 0 ? COLS_EVEN : COLS_ODD;
         for (let c = 0; c < cols; c++) {
           const cell = grid[r] ? grid[r][c] : null;
           if (!cell) continue;
           const pos = getBubbleCenter(r, c);
-          const pal = BUBBLE_PALETTE[cell.color];
-
-          ctx.save();
-          // Đổ bóng phát sáng
-          ctx.shadowColor = pal.shadow;
-          ctx.shadowBlur = 10;
-
-          // Thân quả trứng 3D Gradient cầu
-          const grad = ctx.createRadialGradient(
-            pos.x - BUBBLE_RADIUS * 0.35,
-            pos.y - BUBBLE_RADIUS * 0.35,
-            BUBBLE_RADIUS * 0.1,
-            pos.x,
-            pos.y,
-            BUBBLE_RADIUS
-          );
-          grad.addColorStop(0, pal.light);
-          grad.addColorStop(0.65, pal.fill);
-          grad.addColorStop(1, pal.dark);
-
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, BUBBLE_RADIUS, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Viền trứng
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // Đốm vỏ trứng
-          ctx.fillStyle = pal.spot;
-          ctx.beginPath();
-          ctx.arc(pos.x + 7, pos.y - 6, 3.5, 0, Math.PI * 2);
-          ctx.arc(pos.x - 8, pos.y + 6, 3, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Vết bóng sáng phản chiếu
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-          ctx.beginPath();
-          ctx.arc(pos.x - 7, pos.y - 8, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.restore();
+          drawSharpBubble(ctx, pos.x, pos.y, cell.color, BUBBLE_RADIUS, 10);
         }
       }
 
-      // 4. Tia ngắm laser dội tường
+      // 3. Tia ngắm laser dội tường (Tia mảnh siêu nét, không bị răng cưa)
       if (aimGuideEnabled && !projectileRef.current && !isGameOver && !isVictory) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.55)';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([8, 8]);
 
         let startX = CANNON_X;
         let startY = CANNON_Y;
@@ -666,30 +678,38 @@ export const GameBubbleShooter: React.FC = () => {
         let dirY = Math.sin(aimAngle);
         let maxSegments = 3;
 
+        // Quầng sáng laser ngoài
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.35)';
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([8, 8]);
         ctx.beginPath();
         ctx.moveTo(startX, startY);
 
-        for (let seg = 0; seg < maxSegments; seg++) {
-          let targetX = startX + dirX * 1200;
-          let targetY = startY + dirY * 1200;
+        let tempSX = startX;
+        let tempSY = startY;
+        let tempDX = dirX;
+        let tempDY = dirY;
 
-          // Kiểm tra va chạm thành tường trái / phải
-          if (dirX < 0 && targetX < BUBBLE_RADIUS) {
-            const d = (BUBBLE_RADIUS - startX) / dirX;
+        for (let seg = 0; seg < maxSegments; seg++) {
+          let targetX = tempSX + tempDX * 1200;
+          let targetY = tempSY + tempDY * 1200;
+
+          if (tempDX < 0 && targetX < BUBBLE_RADIUS) {
+            const d = (BUBBLE_RADIUS - tempSX) / tempDX;
             targetX = BUBBLE_RADIUS;
-            targetY = startY + dirY * d;
+            targetY = tempSY + tempDY * d;
             ctx.lineTo(targetX, targetY);
-            startX = targetX;
-            startY = targetY;
-            dirX = -dirX;
-          } else if (dirX > 0 && targetX > CANVAS_WIDTH - BUBBLE_RADIUS) {
-            const d = (CANVAS_WIDTH - BUBBLE_RADIUS - startX) / dirX;
+            tempSX = targetX;
+            tempSY = targetY;
+            tempDX = -tempDX;
+          } else if (tempDX > 0 && targetX > CANVAS_WIDTH - BUBBLE_RADIUS) {
+            const d = (CANVAS_WIDTH - BUBBLE_RADIUS - tempSX) / tempDX;
             targetX = CANVAS_WIDTH - BUBBLE_RADIUS;
-            targetY = startY + dirY * d;
+            targetY = tempSY + tempDY * d;
             ctx.lineTo(targetX, targetY);
-            startX = targetX;
-            startY = targetY;
-            dirX = -dirX;
+            tempSX = targetX;
+            tempSY = targetY;
+            tempDX = -tempDX;
           } else {
             ctx.lineTo(targetX, targetY);
             break;
@@ -697,18 +717,24 @@ export const GameBubbleShooter: React.FC = () => {
         }
         ctx.stroke();
 
-        // Chấm tròn ngắm laser ở đầu nòng pháo
+        // Lõi laser trắng sáng bên trong
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([8, 8]);
+        ctx.stroke();
+
+        // Điểm phản xạ laser ở đầu nòng pháo
         ctx.fillStyle = '#22d3ee';
         ctx.shadowColor = '#22d3ee';
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.arc(CANNON_X + Math.cos(aimAngle) * 55, CANNON_Y + Math.sin(aimAngle) * 55, 4.5, 0, Math.PI * 2);
+        ctx.arc(CANNON_X + Math.cos(aimAngle) * 55, CANNON_Y + Math.sin(aimAngle) * 55, 4, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
       }
 
-      // 5. Cập nhật và vẽ đạn đang bay
+      // 4. Cập nhật và vẽ đạn đang bay
       const proj = projectileRef.current;
       if (proj) {
         proj.x += proj.vx;
@@ -788,70 +814,20 @@ export const GameBubbleShooter: React.FC = () => {
         if (hasCollided) {
           handleBubbleSnapped(snapR, snapC, proj.color, grid);
         } else {
-          // Vẽ quả trứng đang bay
-          ctx.save();
-          const pal = BUBBLE_PALETTE[proj.color];
-          ctx.shadowColor = pal.shadow;
-          ctx.shadowBlur = 18;
-
-          const grad = ctx.createRadialGradient(
-            proj.x - BUBBLE_RADIUS * 0.35,
-            proj.y - BUBBLE_RADIUS * 0.35,
-            BUBBLE_RADIUS * 0.1,
-            proj.x,
-            proj.y,
-            BUBBLE_RADIUS
-          );
-          grad.addColorStop(0, pal.light);
-          grad.addColorStop(0.65, pal.fill);
-          grad.addColorStop(1, pal.dark);
-
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(proj.x, proj.y, BUBBLE_RADIUS, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = pal.spot;
-          ctx.beginPath();
-          ctx.arc(proj.x + 7, proj.y - 6, 3.5, 0, Math.PI * 2);
-          ctx.arc(proj.x - 8, proj.y + 6, 3, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.beginPath();
-          ctx.arc(proj.x - 7, proj.y - 8, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
+          drawSharpBubble(ctx, proj.x, proj.y, proj.color, BUBBLE_RADIUS, 18);
         }
       }
 
-      // 6. Vẽ các quả bóng đang rụng tự do
+      // 5. Vẽ các quả bóng đang rụng tự do
       for (const fb of fallingBubbles) {
         ctx.save();
-        const pal = BUBBLE_PALETTE[fb.color];
         ctx.translate(fb.x, fb.y);
         ctx.rotate(fb.rotation);
-
-        const grad = ctx.createRadialGradient(
-          -BUBBLE_RADIUS * 0.35,
-          -BUBBLE_RADIUS * 0.35,
-          BUBBLE_RADIUS * 0.1,
-          0,
-          0,
-          BUBBLE_RADIUS
-        );
-        grad.addColorStop(0, pal.light);
-        grad.addColorStop(0.65, pal.fill);
-        grad.addColorStop(1, pal.dark);
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(0, 0, BUBBLE_RADIUS, 0, Math.PI * 2);
-        ctx.fill();
+        drawSharpBubble(ctx, 0, 0, fb.color, BUBBLE_RADIUS, 6);
         ctx.restore();
       }
 
-      // 7. Vẽ các hạt nổ
+      // 6. Vẽ các hạt nổ
       for (const p of particles) {
         ctx.save();
         ctx.fillStyle = p.color;
@@ -864,28 +840,38 @@ export const GameBubbleShooter: React.FC = () => {
         ctx.restore();
       }
 
-      // 8. Vẽ chữ bay điểm số
+      // 7. Vẽ chữ bay điểm số (Font to đậm nét)
       for (const f of floatingTexts) {
         ctx.save();
         ctx.fillStyle = f.color;
-        ctx.font = '900 16px monospace';
+        ctx.font = '900 17px monospace';
         ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(0,0,0,0.9)';
-        ctx.shadowBlur = 6;
+        ctx.shadowColor = 'rgba(0,0,0,0.95)';
+        ctx.shadowBlur = 8;
         ctx.fillText(f.text, f.x, f.y);
         ctx.restore();
       }
 
-      // 9. Vẽ khẩu pháo bắn trứng ở đáy (Rotating Turret)
+      // 8. Vẽ khẩu pháo bắn trứng ở đáy (Turret bằng đồng sắc nét)
       ctx.save();
       ctx.translate(CANNON_X, CANNON_Y);
 
-      // Nòng pháo xoay theo góc aimAngle
+      // Quả trứng tiếp theo đặt ở bệ đỡ bên cạnh khẩu pháo (Tích hợp tự nhiên, không cần khung nổi)
+      ctx.save();
+      ctx.translate(-58, 6);
+      drawSharpBubble(ctx, 0, 0, nextBubble, BUBBLE_RADIUS * 0.75, 8);
+      // Nút hoán đổi nhỏ bên cạnh
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⇄', 0, 20);
+      ctx.restore();
+
+      // Nòng pháo xoay
       ctx.save();
       ctx.rotate(aimAngle + Math.PI / 2);
 
-      // Thân nòng kim loại bằng đồng
-      const cannonGrad = ctx.createLinearGradient(-16, 0, 16, 0);
+      const cannonGrad = ctx.createLinearGradient(-15, 0, 15, 0);
       cannonGrad.addColorStop(0, '#78350f');
       cannonGrad.addColorStop(0.5, '#f59e0b');
       cannonGrad.addColorStop(1, '#92400e');
@@ -894,52 +880,55 @@ export const GameBubbleShooter: React.FC = () => {
       ctx.strokeStyle = '#fde68a';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(-16, -58, 32, 54, [8, 8, 4, 4]);
+      ctx.roundRect(-15, -58, 30, 54, [8, 8, 4, 4]);
       ctx.fill();
       ctx.stroke();
 
-      // Vòng đai nòng pháo
       ctx.fillStyle = '#fde047';
-      ctx.fillRect(-18, -48, 36, 6);
-      ctx.fillRect(-18, -24, 36, 6);
+      ctx.fillRect(-17, -48, 34, 5);
+      ctx.fillRect(-17, -24, 34, 5);
       ctx.restore();
 
-      // Quả trứng hiện tại đặt ở ổ nạp
-      const curPal = BUBBLE_PALETTE[currentBubble];
-      const curGrad = ctx.createRadialGradient(-7, -7, 2, 0, 0, BUBBLE_RADIUS);
-      curGrad.addColorStop(0, curPal.light);
-      curGrad.addColorStop(0.65, curPal.fill);
-      curGrad.addColorStop(1, curPal.dark);
+      // Quả trứng nạp sẵn trong pháo (siêu sắc nét)
+      drawSharpBubble(ctx, 0, 0, currentBubble, BUBBLE_RADIUS, 18);
 
-      ctx.save();
-      ctx.shadowColor = curPal.shadow;
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = curGrad;
-      ctx.beginPath();
-      ctx.arc(0, 0, BUBBLE_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
-
-      // Bệ đỡ pháo bằng đồng chạm khắc
+      // Bệ đỡ pháo đồng chạm khắc
       ctx.fillStyle = '#451a03';
       ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(0, 20, 36, Math.PI, 0);
       ctx.fill();
       ctx.stroke();
 
+      // 5 Đèn báo sập trần tích hợp tinh tế trên bệ pháo
+      for (let i = 0; i < 5; i++) {
+        const angle = Math.PI - 0.45 - (i * (Math.PI - 0.9)) / 4;
+        const lx = Math.cos(angle) * 26;
+        const ly = 20 - Math.sin(angle) * 26;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+        if (i < foulCount) {
+          ctx.fillStyle = '#ef4444';
+          ctx.shadowColor = '#ef4444';
+          ctx.shadowBlur = 8;
+        } else {
+          ctx.fillStyle = '#334155';
+          ctx.shadowBlur = 0;
+        }
+        ctx.fill();
+      }
+
       ctx.restore();
+
+      ctx.restore(); // Kết thúc dpr scale
 
       animId = requestAnimationFrame(renderLoop);
     };
 
     animId = requestAnimationFrame(renderLoop);
     return () => cancelAnimationFrame(animId);
-  }, [aimAngle, aimGuideEnabled, currentBubble, fallingBubbles, floatingTexts, getBubbleCenter, grid, handleBubbleSnapped, isGameOver, isVictory, particles, playBounceSound]);
+  }, [aimAngle, aimGuideEnabled, currentBubble, drawSharpBubble, fallingBubbles, floatingTexts, foulCount, getBubbleCenter, grid, handleBubbleSnapped, isGameOver, isVictory, nextBubble, particles, playBounceSound]);
 
   // Vòng lặp vật lý hạt & bóng rơi
   useEffect(() => {
@@ -1001,7 +990,7 @@ export const GameBubbleShooter: React.FC = () => {
     <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#050914]">
       {/* Top HUD: Chuẩn hóa 3 Cột, Căn giữa tuyệt đối 50% */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] px-3 sm:px-6 py-2 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg flex-shrink-0 mb-2 min-h-[52px]">
-        {/* Khối Trái: Chế độ chơi & Nút bật tắt tia ngắm */}
+        {/* Khối Trái: Chế độ chơi, Nút đổi trứng & Nút bật tắt tia ngắm */}
         <div className="flex items-center gap-2 sm:gap-3 z-10">
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
             {(['classic', 'timed', 'endless'] as GameMode[]).map(m => (
@@ -1021,6 +1010,16 @@ export const GameBubbleShooter: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Nút Đổi Trứng Gọn Gàng Trên Top HUD */}
+          <button
+            onClick={handleSwapBubbles}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm text-xs font-bold"
+            title="Đổi quả trứng đang chuẩn bị bắn (hoặc nhấp chuột phải)"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Đổi Trứng</span>
+          </button>
 
           <button
             onClick={() => setAimGuideEnabled(v => !v)}
@@ -1080,7 +1079,7 @@ export const GameBubbleShooter: React.FC = () => {
         </div>
       </div>
 
-      {/* Sân đấu Widescreen 16:9 Arcade Canvas Container - Phóng to trọn vẹn màn hình mặc định */}
+      {/* Sân đấu Widescreen 16:9 Arcade Canvas Container - Sạch sẽ & Sắc nét chuẩn Retina */}
       <div 
         className={`game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] touch-none flex-shrink min-h-0 transition-transform duration-100 ${
           screenShake ? 'scale-[0.99] translate-y-1 animate-pulse' : ''
@@ -1088,8 +1087,6 @@ export const GameBubbleShooter: React.FC = () => {
       >
         <canvas
           ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
           onPointerMove={handlePointerMove}
           onPointerDown={handlePointerDown}
           onContextMenu={(e) => {
@@ -1099,54 +1096,7 @@ export const GameBubbleShooter: React.FC = () => {
           className="w-full h-full cursor-crosshair block"
         />
 
-        {/* Floating In-Game HUD: Góc Dưới Trái (Trứng tiếp theo & Đổi trứng) */}
-        <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-lg">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-gray-400 hidden sm:inline">TIẾP THEO:</span>
-            <div 
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-white/50 shadow-md flex items-center justify-center"
-              style={{
-                backgroundColor: BUBBLE_PALETTE[nextBubble].fill,
-                boxShadow: `0 0 10px ${BUBBLE_PALETTE[nextBubble].shadow}`
-              }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
-            </div>
-          </div>
-
-          <button
-            onClick={handleSwapBubbles}
-            className="flex items-center gap-1 py-1 px-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 transition cursor-pointer active:scale-95 shadow-sm"
-            title="Đổi quả trứng đang bắn (hoặc nhấp chuột phải)"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Đổi</span>
-          </button>
-        </div>
-
-        {/* Floating In-Game HUD: Góc Dưới Phải (Cảnh báo sập trần) */}
-        <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 flex items-center gap-2.5 bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/10 shadow-lg">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-300">
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-            <span className="hidden sm:inline">CẢNH BÁO TRẦN:</span>
-            <span className="text-rose-400 font-mono">{5 - foulCount}</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            {[0, 1, 2, 3, 4].map(idx => (
-              <div
-                key={idx}
-                className={`w-2 h-3 rounded-full transition-all duration-300 ${
-                  idx < foulCount
-                    ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]'
-                    : 'bg-slate-700'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Floating Combo Badge */}
+        {/* Floating Combo Badge (Chỉ hiện khi nổ chuỗi liên hoàn) */}
         {comboStreak > 1 && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-rose-500/30 to-amber-500/30 border border-amber-500/50 backdrop-blur-md shadow-lg animate-bounce pointer-events-none">
             <Flame className="w-4 h-4 text-amber-400" />
@@ -1161,7 +1111,7 @@ export const GameBubbleShooter: React.FC = () => {
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40">
             <span className="text-5xl mb-2 animate-bounce">💥</span>
             <h3 className="text-2xl sm:text-3xl font-black text-rose-400 mb-1 tracking-wider uppercase">TỔ TRỨNG BỊ ĐÈ!</h3>
-            <p className="text-xs sm:text-sm text-gray-400 mb-4">Trứng đã chạm vạch nguy hiểm. Hãy thử lại!</p>
+            <p className="text-xs sm:text-sm text-gray-400 mb-4">Trứng đã chạm đáy an toàn. Hãy thử lại!</p>
             <div className="p-3 rounded-xl bg-slate-900 border border-white/10 mb-6 w-full max-w-[220px]">
               <span className="text-xs text-gray-400 block mb-1">ĐIỂM ĐẠT ĐƯỢC</span>
               <span className="text-2xl font-black text-amber-400 font-mono">{score.toLocaleString()}</span>
