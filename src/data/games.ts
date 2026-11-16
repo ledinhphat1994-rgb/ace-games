@@ -403,5 +403,31 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Bắn trứng', 'Dynomite', 'Bubble Shooter', 'Khủng long', 'Kinh điển', 'Arcade'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'gold-miner',
+    title: 'Đào Vàng',
+    subtitle: 'Thả móc câu kéo vàng khối & kim cương',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Thả móc câu xoay góc để gắp các thỏi vàng quý giá, kim cương và túi bí ẩn để đạt chỉ tiêu từng màn.',
+    instructions: [
+      'Chờ móc câu đung đưa đến góc thích hợp rồi bấm chuột hoặc phím Space / Mũi tên xuống để thả móc.',
+      'Gắp vàng to và kim cương để thu về số tiền lớn nhất.',
+      'Tránh gắp phải đá tảng nặng nề làm mất nhiều thời gian.',
+      'Nhấp nút Thuốc Nổ hoặc phím W / Mũi tên lên để phá hủy vật nặng đang kéo.',
+      'Mua sắm vật phẩm trợ giúp giữa các màn chơi.'
+    ],
+    controls: {
+      desktop: 'Chuột / Phím Space / Mũi tên xuống (Thả móc) • Phím W / Mũi tên lên (Ném thuốc nổ)',
+      mobile: 'Chạm màn hình hoặc nút THẢ'
+    },
+    thumbnailIcon: '⛏️',
+    accentColor: 'from-amber-400 to-yellow-600',
+    rating: 4.99,
+    plays: 345000,
+    tags: ['Đào vàng', 'Gold Miner', 'Thợ mỏ', 'Khai khoáng', 'Kinh điển', 'Arcade'],
+    isHot: true,
+    isNew: true
   }
 ];

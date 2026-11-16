@@ -949,6 +949,124 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'gold-miner':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-amber-950 via-[#1a0f05] to-[#0c0602] ${className}`}>
+          {/* Earth Grid Pattern */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="gold-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="diamond-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
+              <radialGradient id="nugget-grad" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#fffbeb" />
+                <stop offset="35%" stopColor="#fde047" />
+                <stop offset="75%" stopColor="#eab308" />
+                <stop offset="100%" stopColor="#854d0e" />
+              </radialGradient>
+              <linearGradient id="diamond-grad-miner" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="50%" stopColor="#38bdf8" />
+                <stop offset="100%" stopColor="#0284c7" />
+              </linearGradient>
+            </defs>
+
+            {/* Surface Grass Line */}
+            <rect x="0" y="24" width="200" height="3" fill="#10b981" />
+
+            {/* Underground Earth Strata */}
+            <line x1="0" y1="55" x2="200" y2="55" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="6 8" opacity="0.2" />
+            <line x1="0" y1="95" x2="200" y2="95" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="8 10" opacity="0.2" />
+
+            {/* Miner and Cart on Top Surface */}
+            <g transform="translate(100, 16)">
+              {/* Mine Cart */}
+              <rect x="-16" y="0" width="32" height="14" rx="3" fill="#78350f" stroke="#d97706" strokeWidth="1" />
+              <circle cx="-10" cy="14" r="3.5" fill="#334155" />
+              <circle cx="10" cy="14" r="3.5" fill="#334155" />
+              {/* Miner Head */}
+              <circle cx="0" cy="-4" r="6" fill="#fed7aa" />
+              {/* White Beard */}
+              <path d="M -5 -2 Q 0 5 5 -2 Z" fill="#ffffff" />
+              {/* Miner Helmet */}
+              <path d="M -7 -4 Q 0 -13 7 -4 Z" fill="#f59e0b" />
+              {/* Headlamp */}
+              <circle cx="0" cy="-6" r="2.5" fill="#fef08a" filter="url(#gold-glow)" />
+            </g>
+
+            {/* Steel Winch Cable */}
+            <line x1="100" y1="28" x2="68" y2="78" stroke="#cbd5e1" strokeWidth="1.8" />
+            <line x1="100" y1="28" x2="68" y2="78" stroke="#38bdf8" strokeWidth="0.8" opacity="0.7" />
+
+            {/* Steel Hook Grabbing Giant Gold Nugget */}
+            <g transform="translate(68, 78) rotate(32)">
+              {/* Steel Claws */}
+              <path d="M -2 0 Q -10 6 -7 12 L -4 8 Q -5 5 0 1 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1" />
+              <path d="M 2 0 Q 10 6 7 12 L 4 8 Q 5 5 0 1 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1" />
+            </g>
+
+            {/* Giant Gold Nugget being reeled in */}
+            <g transform="translate(62, 94)" filter="url(#gold-glow)">
+              <polygon
+                points="-18,-8 -8,-20 12,-18 22,-4 18,16 -2,22 -18,12"
+                fill="url(#nugget-grad)"
+                stroke="#fef08a"
+                strokeWidth="1.5"
+              />
+              <circle cx="-5" cy="-6" r="4" fill="#ffffff" opacity="0.8" />
+              {/* Shiny facets */}
+              <line x1="-8" y1="-20" x2="0" y2="0" stroke="#fef08a" strokeWidth="1" opacity="0.6" />
+              <line x1="12" y1="-18" x2="0" y2="0" stroke="#fef08a" strokeWidth="1" opacity="0.6" />
+              <line x1="-2" y1="22" x2="0" y2="0" stroke="#854d0e" strokeWidth="1" opacity="0.6" />
+            </g>
+
+            {/* Sparkling Cyan Diamond on the Right */}
+            <g transform="translate(145, 68)" filter="url(#diamond-glow)">
+              <polygon points="0,-12 12,0 0,12 -12,0" fill="url(#diamond-grad-miner)" stroke="#ffffff" strokeWidth="1.2" />
+              <polygon points="0,-6 6,0 0,6 -6,0" fill="#ffffff" opacity="0.7" />
+              {/* Sparkle star */}
+              <path d="M 0 -16 L 2 -4 L 14 0 L 2 4 L 0 16 L -2 4 L -14 0 L -2 -4 Z" fill="#ffffff" opacity="0.9" />
+            </g>
+
+            {/* Mystery Grab Bag on Lower Right */}
+            <g transform="translate(155, 110)">
+              <circle cx="0" cy="2" r="14" fill="#b45309" stroke="#fde68a" strokeWidth="1.2" />
+              <rect x="-4" y="-14" width="8" height="5" rx="1.5" fill="#78350f" />
+              <text x="0" y="7" fill="#fef08a" fontSize="13" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">?</text>
+            </g>
+
+            {/* Dynamite Sticks on Lower Left */}
+            <g transform="translate(26, 112)">
+              {/* Dynamite 1 */}
+              <rect x="0" y="-12" width="6" height="24" rx="2" fill="#ef4444" stroke="#fca5a5" strokeWidth="0.8" />
+              {/* Dynamite 2 */}
+              <rect x="7" y="-12" width="6" height="24" rx="2" fill="#dc2626" stroke="#fca5a5" strokeWidth="0.8" />
+              {/* Dynamite 3 */}
+              <rect x="14" y="-12" width="6" height="24" rx="2" fill="#ef4444" stroke="#fca5a5" strokeWidth="0.8" />
+              {/* Fuse with burning spark */}
+              <path d="M 10 -12 Q 12 -20 18 -18" stroke="#f59e0b" strokeWidth="1.2" fill="none" />
+              <circle cx="18" cy="-18" r="2.5" fill="#fde047" filter="url(#gold-glow)" />
+            </g>
+
+            {/* Floating Cash Win Popup */}
+            <text x="64" y="66" fill="#fde047" fontSize="13" fontWeight="900" fontFamily="monospace" textAnchor="middle" filter="url(#gold-glow)">+$500</text>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

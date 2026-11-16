@@ -1344,6 +1344,65 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {/* ĐÀO VÀNG (Gold Miner) */}
+          {game.id === 'gold-miner' && (
+            <>
+              {/* CHẾ ĐỘ CHƠI */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Layers className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'classic', label: 'Cổ Điển' },
+                    { key: 'timed', label: 'Tính Giờ' },
+                    { key: 'endless', label: 'Vô Tận' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('gameMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.gameMode || 'classic') === key
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* THỜI GIAN MỖI MÀN */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-rose-400">
+                    <Timer className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Thời Gian Màn</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[45, 60, 90].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => updateSetting('timeLimit', t)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.timeLimit || 60) === t
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {t}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}
