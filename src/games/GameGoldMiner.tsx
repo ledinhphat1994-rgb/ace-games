@@ -516,13 +516,17 @@ function drawMinerAndWinch(
   ctx.save();
   ctx.translate(winchX, 42);
 
+  const isRetracting = hookState === 'RETRACTING';
+  const isPullingHeavy = isRetracting && grabbedItem && grabbedItem.weight > 2.0;
+  const isExcited = isRetracting && grabbedItem && (grabbedItem.type === 'diamond' || grabbedItem.type === 'pig_diamond' || grabbedItem.type === 'gold_large');
+
   // 1. Bóng đổ của xe goòng trên đường ray
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
   ctx.beginPath();
-  ctx.ellipse(0, 32, 38, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 32, 42, 5.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Hai bánh xe sắt mỏ than (X = -24 và X = +24)
+  // 2. Hai bánh xe sắt mỏ than (X = -25 và X = +25)
   const drawWheel = (wx: number) => {
     ctx.save();
     ctx.translate(wx, 30);
@@ -553,11 +557,11 @@ function drawMinerAndWinch(
     ctx.fill();
     ctx.restore();
   };
-  drawWheel(-24);
-  drawWheel(24);
+  drawWheel(-25);
+  drawWheel(25);
 
   // 3. Thùng xe goòng gỗ sồi nẹp sắt chắc chắn
-  const cartGrad = ctx.createLinearGradient(-33, 0, 33, 0);
+  const cartGrad = ctx.createLinearGradient(-34, 0, 34, 0);
   cartGrad.addColorStop(0, '#451a03');
   cartGrad.addColorStop(0.5, '#78350f');
   cartGrad.addColorStop(1, '#451a03');
@@ -566,19 +570,19 @@ function drawMinerAndWinch(
   ctx.strokeStyle = '#b45309';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.roundRect(-33, 14, 66, 20, [4, 4, 8, 8]);
+  ctx.roundRect(-34, 14, 68, 20, [4, 4, 8, 8]);
   ctx.fill();
   ctx.stroke();
 
   // Nẹp sắt và đinh tán góc xe
   ctx.fillStyle = '#334155';
-  ctx.fillRect(-33, 14, 6, 20);
-  ctx.fillRect(27, 14, 6, 20);
-  ctx.fillRect(-33, 30, 66, 4);
+  ctx.fillRect(-34, 14, 6, 20);
+  ctx.fillRect(28, 14, 6, 20);
+  ctx.fillRect(-34, 30, 68, 4);
 
   // Đinh tán kim loại
   ctx.fillStyle = '#cbd5e1';
-  [-30, 30].forEach(rx => {
+  [-31, 31].forEach(rx => {
     [17, 24, 31].forEach(ry => {
       ctx.beginPath();
       ctx.arc(rx, ry, 1.2, 0, Math.PI * 2);
@@ -586,181 +590,198 @@ function drawMinerAndWinch(
     });
   });
 
-  // 4. Máy tời cáp cơ khí bằng đồng & tang cuộn dây
-  ctx.fillStyle = '#78350f';
-  ctx.strokeStyle = '#d97706';
+  // 4. BỘ RÒNG RỌC CƠ KHÍ & MÁY TỜI (Mechanical Winch & Pulley Wheel)
+  // Khung A đỡ trục ròng rọc
+  ctx.fillStyle = '#334155';
+  ctx.strokeStyle = '#64748b';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(-16, 22);
-  ctx.lineTo(0, 10);
-  ctx.lineTo(16, 22);
+  ctx.moveTo(0, 26);
+  ctx.lineTo(8, 10);
+  ctx.lineTo(16, 26);
   ctx.closePath();
+  ctx.fill();
   ctx.stroke();
 
-  // Cuộn dây cáp tang tời (Spool)
-  const spoolGrad = ctx.createLinearGradient(-10, 0, 10, 0);
-  spoolGrad.addColorStop(0, '#475569');
-  spoolGrad.addColorStop(0.5, '#94a3b8');
-  spoolGrad.addColorStop(1, '#475569');
-  ctx.fillStyle = spoolGrad;
-  ctx.fillRect(-10, 15, 20, 8);
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.strokeRect(-10, 15, 20, 8);
+  // Bánh Ròng Rọc / Bánh Đà Lớn (Winch Pulley Wheel) tại tâm (X = 8, Y = 16), bán kính 13px
+  const pulleyX = 8;
+  const pulleyY = 16;
+  const pulleyR = 13;
 
-  // Bánh răng tời (Bronze Cogwheel) ở bên phải (X = 14, Y = 18)
-  const gearX = 14;
-  const gearY = 18;
   ctx.save();
-  ctx.translate(gearX, gearY);
-  ctx.rotate(crankAngle);
-  ctx.fillStyle = '#d97706';
+  ctx.translate(pulleyX, pulleyY);
+
+  // Vành ngoài kim loại có rãnh quấn cáp
+  const rimGrad = ctx.createRadialGradient(0, 0, pulleyR * 0.5, 0, 0, pulleyR);
+  rimGrad.addColorStop(0, '#78350f');
+  rimGrad.addColorStop(0.6, '#d97706');
+  rimGrad.addColorStop(1, '#f59e0b');
+  ctx.fillStyle = rimGrad;
+  ctx.strokeStyle = '#451a03';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, pulleyR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Rãnh cáp lõm giữa bánh
   ctx.strokeStyle = '#fef08a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  const teeth = 8;
-  for (let t = 0; t < teeth; t++) {
-    const a = (Math.PI * 2 * t) / teeth;
-    const rOuter = 8.5;
-    const rInner = 6.5;
-    const p1x = Math.cos(a - 0.15) * rOuter;
-    const p1y = Math.sin(a - 0.15) * rOuter;
-    const p2x = Math.cos(a + 0.15) * rOuter;
-    const p2y = Math.sin(a + 0.15) * rOuter;
-    const p3x = Math.cos(a + 0.35) * rInner;
-    const p3y = Math.sin(a + 0.35) * rInner;
-    if (t === 0) ctx.moveTo(p1x, p1y);
-    else ctx.lineTo(p1x, p1y);
-    ctx.lineTo(p2x, p2y);
-    ctx.lineTo(p3x, p3y);
+  ctx.arc(0, 0, pulleyR - 2.5, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 6 Nan hoa ròng rọc quay tròn theo crankAngle
+  ctx.save();
+  ctx.rotate(crankAngle);
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 1.5;
+  for (let sp = 0; sp < 6; sp++) {
+    const spA = (Math.PI / 3) * sp;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(spA) * (pulleyR - 2), Math.sin(spA) * (pulleyR - 2));
+    ctx.stroke();
   }
-  ctx.closePath();
+  ctx.restore();
+
+  // Trục trung tâm bằng đồng thau
+  ctx.fillStyle = '#fbbf24';
+  ctx.strokeStyle = '#92400e';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Tâm trục bánh răng
-  ctx.fillStyle = '#78350f';
-  ctx.beginPath();
-  ctx.arc(0, 0, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  ctx.restore(); // Kết thúc vẽ Bánh ròng rọc
 
-  // Tay quay tời (Crank arm) xoay 360 độ
-  const crankLen = 10;
-  const handleX = gearX + Math.cos(crankAngle) * crankLen;
-  const handleY = gearY + Math.sin(crankAngle) * crankLen;
+  // Tọa độ tay cầm tay quay ròng rọc (Crank Handle)
+  const crankRadius = 14;
+  const handleX = pulleyX + Math.cos(crankAngle) * crankRadius;
+  const handleY = pulleyY + Math.sin(crankAngle) * crankRadius;
 
-  ctx.strokeStyle = '#78350f';
-  ctx.lineWidth = 2.5;
+  // Thanh đòn tay quay bằng thép cứng
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(gearX, gearY);
+  ctx.moveTo(pulleyX, pulleyY);
   ctx.lineTo(handleX, handleY);
   ctx.stroke();
 
-  // Núm tay cầm gỗ
-  ctx.fillStyle = '#f59e0b';
+  ctx.strokeStyle = '#d97706';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.arc(handleX, handleY, 3, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(pulleyX, pulleyY);
+  ctx.lineTo(handleX, handleY);
+  ctx.stroke();
 
-  // Cần gạt nhả móc ở bên trái (X = -15, Y = 16)
-  const leverAngle = hookState === 'SHOOTING' ? -0.4 : 0.2;
+  // Núm gỗ tay cầm ròng rọc xoay tự do
+  ctx.fillStyle = '#78350f';
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(handleX, handleY, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Cần gạt nhả móc ở bên trái (X = -20, Y = 16)
+  const leverAngle = hookState === 'SHOOTING' ? -0.45 : 0.2;
   ctx.save();
-  ctx.translate(-15, 20);
+  ctx.translate(-20, 20);
   ctx.rotate(leverAngle);
   ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.lineTo(0, -12);
+  ctx.lineTo(0, -13);
   ctx.stroke();
   ctx.fillStyle = '#ef4444';
   ctx.beginPath();
-  ctx.arc(0, -12, 3.5, 0, Math.PI * 2);
+  ctx.arc(0, -13, 3.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // 5. Nhân vật Ông Lão Đào Vàng (The Legendary Gold Miner)
-  const isPullingHeavy = hookState === 'RETRACTING' && grabbedItem && grabbedItem.weight > 2.2;
-  const isExcited = hookState === 'RETRACTING' && grabbedItem && (grabbedItem.type === 'diamond' || grabbedItem.type === 'pig_diamond' || grabbedItem.type === 'gold_large');
-  const minerBobY = isPullingHeavy ? Math.sin(crankAngle * 2) * 2 : 0;
+  // 5. ĐỘNG HỌC THÂN THỂ THỢ MỎ QUAY RÒNG RỌC (Natural Cranking Kinematics)
+  let bodyLeanX = 0;
+  let bodyLeanY = 0;
+  let bodyTilt = 0;
+
+  if (isRetracting) {
+    const crankCos = Math.cos(crankAngle);
+    const crankSin = Math.sin(crankAngle);
+
+    if (isPullingHeavy) {
+      // Khi kéo vật nặng: Dồn sức ngả người về sau, nhấp nhô theo chu kỳ quay
+      bodyLeanX = -crankCos * 4.5 - 3;
+      bodyLeanY = crankSin * 3;
+      bodyTilt = -0.12 - crankCos * 0.08;
+    } else {
+      // Khi kéo dây bình thường: Chuyển động nhịp nhàng theo tay quay
+      bodyLeanX = crankCos * 2.5;
+      bodyLeanY = crankSin * 1.8;
+      bodyTilt = crankCos * 0.05;
+    }
+  } else if (hookState === 'SHOOTING') {
+    // Đang đẩy cần gạt thả móc
+    bodyLeanX = 3;
+    bodyLeanY = 1.5;
+    bodyTilt = 0.08;
+  } else {
+    // Đang đung đưa: Thư thả quan sát
+    bodyTilt = hookAngle * 0.05;
+  }
+
+  // Tọa độ trọng tâm thân thợ mỏ
+  const minerX = -12 + bodyLeanX;
+  const minerY = 4 + bodyLeanY;
 
   ctx.save();
-  ctx.translate(0, minerBobY);
+  ctx.translate(minerX, minerY);
+  ctx.rotate(bodyTilt);
 
-  // Áo đỏ flannel
+  // Thân áo đỏ flannel
   ctx.fillStyle = '#dc2626';
   ctx.beginPath();
-  ctx.roundRect(-15, -2, 28, 18, 5);
+  ctx.roundRect(-14, -2, 28, 18, 5);
   ctx.fill();
 
   // Quần yếm denim xanh
   ctx.fillStyle = '#1d4ed8';
   ctx.beginPath();
-  ctx.roundRect(-13, 4, 24, 14, 3);
+  ctx.roundRect(-12, 4, 24, 14, 3);
   ctx.fill();
 
   // Dây đeo quần yếm có khuy đồng
   ctx.strokeStyle = '#1e40af';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(-9, -2); ctx.lineTo(-9, 10);
-  ctx.moveTo(7, -2); ctx.lineTo(7, 10);
+  ctx.moveTo(-8, -2); ctx.lineTo(-8, 10);
+  ctx.moveTo(8, -2); ctx.lineTo(8, 10);
   ctx.stroke();
 
-  // Khuy đồng vàng sáng
   ctx.fillStyle = '#fbbf24';
   ctx.beginPath();
-  ctx.arc(-9, 6, 1.6, 0, Math.PI * 2);
-  ctx.arc(7, 6, 1.6, 0, Math.PI * 2);
+  ctx.arc(-8, 6, 1.6, 0, Math.PI * 2);
+  ctx.arc(8, 6, 1.6, 0, Math.PI * 2);
   ctx.fill();
-
-  // Cánh tay thợ mỏ linh hoạt theo hành động
-  ctx.strokeStyle = '#fed7aa';
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
-
-  if (hookState === 'RETRACTING') {
-    ctx.beginPath();
-    ctx.moveTo(2, 3);
-    ctx.lineTo(handleX, handleY);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(-4, 3);
-    ctx.lineTo(handleX - 2, handleY);
-    ctx.stroke();
-  } else if (hookState === 'SHOOTING') {
-    ctx.beginPath();
-    ctx.moveTo(-6, 3);
-    ctx.lineTo(-15, 8);
-    ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(-6, 3);
-    ctx.lineTo(-14, 10);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(8, 3);
-    ctx.lineTo(16, 8);
-    ctx.stroke();
-  }
 
   // Đầu thợ mỏ
-  const headY = -14;
+  const headY = -15;
   ctx.fillStyle = '#fed7aa';
   ctx.beginPath();
-  ctx.arc(0, headY, 11, 0, Math.PI * 2);
+  ctx.arc(0, headY, 11.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Má hồng dễ thương
+  // Má hồng
   ctx.fillStyle = 'rgba(248, 113, 113, 0.45)';
   ctx.beginPath();
   ctx.arc(-6, headY + 3, 3.5, 0, Math.PI * 2);
   ctx.arc(6, headY + 3, 3.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Chiếc mũi to tròn ngộ nghĩnh
+  // Mũi to tròn ngộ nghĩnh
   ctx.fillStyle = '#fb923c';
   ctx.beginPath();
   ctx.arc(0, headY + 1, 4, 0, Math.PI * 2);
@@ -779,7 +800,7 @@ function drawMinerAndWinch(
   ctx.fill();
   ctx.stroke();
 
-  // Ria mép cong vút dưới mũi
+  // Ria mép cong vút
   ctx.beginPath();
   ctx.moveTo(-8, headY + 3);
   ctx.quadraticCurveTo(-4, headY - 1, 0, headY + 3);
@@ -790,6 +811,7 @@ function drawMinerAndWinch(
 
   // Đôi mắt và biểu cảm sinh động
   if (isPullingHeavy) {
+    // Nhắm tít mắt gồng sức (> <)
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
@@ -798,11 +820,13 @@ function drawMinerAndWinch(
     ctx.stroke();
 
     // Giọt mồ hôi bắn ra
+    const sweatPhase = (time * 0.006) % 1;
     ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(-14, headY - 5, 2.5, 0, Math.PI * 2);
+    ctx.arc(-14 - sweatPhase * 8, headY - 4 - sweatPhase * 5, 2.5 * (1 - sweatPhase * 0.5), 0, Math.PI * 2);
     ctx.fill();
   } else if (isExcited) {
+    // Cười híp mắt vui sướng (^ ^)
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -810,6 +834,7 @@ function drawMinerAndWinch(
     ctx.arc(5, headY - 1, 3, Math.PI, 0);
     ctx.stroke();
   } else {
+    // Mắt mở to nhìn theo hướng móc câu
     ctx.fillStyle = '#0f172a';
     const lookX = Math.sin(hookAngle) * 2;
     ctx.beginPath();
@@ -831,7 +856,7 @@ function drawMinerAndWinch(
     ctx.stroke();
   }
 
-  // Mũ bảo hộ vàng công trình cứng cáp
+  // Mũ bảo hộ vàng công trình
   const helmetGrad = ctx.createLinearGradient(0, headY - 22, 0, headY - 8);
   helmetGrad.addColorStop(0, '#fef08a');
   helmetGrad.addColorStop(0.35, '#eab308');
@@ -847,46 +872,197 @@ function drawMinerAndWinch(
   ctx.fill();
   ctx.stroke();
 
-  // Vành mũ bảo hộ che nắng
+  // Vành mũ
   ctx.beginPath();
   ctx.ellipse(0, headY - 10, 15, 3.5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Đèn pin gắn trên mũ mỏ vàng
+  // Đèn pin gắn trên mũ (chỉ hiển thị thấu kính phát sáng nhỏ, không rọi chùm sáng xuống đất)
   const lampY = headY - 18;
   ctx.fillStyle = '#475569';
   ctx.fillRect(-3, lampY - 2, 6, 4);
 
-  // Thấu kính đèn sáng rực với ánh sáng lập lòe nhẹ
   ctx.fillStyle = '#ffffff';
   ctx.shadowColor = '#fef08a';
-  ctx.shadowBlur = 12 + Math.sin(time * 0.006) * 3;
+  ctx.shadowBlur = 8;
   ctx.beginPath();
-  ctx.arc(0, lampY, 4, 0, Math.PI * 2);
+  ctx.arc(0, lampY, 3.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.restore(); // minerBobY
+  ctx.restore(); // Kết thúc transform minerX, minerY
 
-  // 6. Luồng ánh sáng chiếu rọi từ đèn pin xuống lòng mỏ (Cinematic Light Beam)
-  const beamAngle = hookAngle * 0.4;
-  ctx.save();
-  ctx.translate(0, headY - 18 + minerBobY);
-  ctx.rotate(beamAngle);
+  // 6. CÁNH TAY CÓ KHỚP KHUỶU QUAY TAY CẦM RÒNG RỌC (Articulated Arm Kinematics)
+  const shoulderRx = minerX + 8;
+  const shoulderRy = minerY - 3;
+  const shoulderLx = minerX - 8;
+  const shoulderLy = minerY - 3;
 
-  const beamGrad = ctx.createLinearGradient(0, 0, 0, 320);
-  beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.28)');
-  beamGrad.addColorStop(0.4, 'rgba(254, 240, 138, 0.12)');
-  beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+  ctx.lineCap = 'round';
 
-  ctx.fillStyle = beamGrad;
-  ctx.beginPath();
-  ctx.moveTo(0, 4);
-  ctx.lineTo(-45, 320);
-  ctx.lineTo(45, 320);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
+  if (isRetracting) {
+    // --- CÁNH TAY PHẢI: QUAY TAY CẦM RÒNG RỌC ---
+    const dx = handleX - shoulderRx;
+    const dy = handleY - shoulderRy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const midX = (shoulderRx + handleX) / 2;
+    const midY = (shoulderRy + handleY) / 2;
+    const bend = Math.max(3, Math.sqrt(Math.max(0, 144 - (dist * dist) / 4)));
+    const elbowRx = midX - (dy / dist) * bend * 0.45;
+    const elbowRy = midY + (dx / dist) * bend * 0.45 + 2;
+
+    // Bắp tay áo đỏ (vai -> khuỷu)
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.moveTo(shoulderRx, shoulderRy);
+    ctx.lineTo(elbowRx, elbowRy);
+    ctx.stroke();
+
+    // Cẳng tay màu da (khuỷu -> bàn tay)
+    ctx.strokeStyle = '#fed7aa';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(elbowRx, elbowRy);
+    ctx.lineTo(handleX, handleY);
+    ctx.stroke();
+
+    // Bàn tay phải nắm chặt tay cầm
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(handleX, handleY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // --- CÁNH TAY TRÁI ---
+    if (isPullingHeavy) {
+      const targetLx = handleX - 3;
+      const targetLy = handleY - 2;
+      const dlx = targetLx - shoulderLx;
+      const dly = targetLy - shoulderLy;
+      const distL = Math.hypot(dlx, dly) || 1;
+      const midLx = (shoulderLx + targetLx) / 2;
+      const midLy = (shoulderLy + targetLy) / 2;
+      const bendL = Math.max(2, Math.sqrt(Math.max(0, 144 - (distL * distL) / 4)));
+      const elbowLx = midLx - (dly / distL) * bendL * 0.4;
+      const elbowLy = midLy + (dlx / distL) * bendL * 0.4 + 2;
+
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 5.5;
+      ctx.beginPath();
+      ctx.moveTo(shoulderLx, shoulderLy);
+      ctx.lineTo(elbowLx, elbowLy);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(elbowLx, elbowLy);
+      ctx.lineTo(targetLx, targetLy);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(targetLx, targetLy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const braceX = -2;
+      const braceY = 16;
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 5.5;
+      ctx.beginPath();
+      ctx.moveTo(shoulderLx, shoulderLy);
+      ctx.lineTo(shoulderLx + 3, shoulderLy + 10);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(shoulderLx + 3, shoulderLy + 10);
+      ctx.lineTo(braceX, braceY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(braceX, braceY, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (hookState === 'SHOOTING') {
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.moveTo(shoulderLx, shoulderLy);
+    ctx.lineTo(shoulderLx - 4, shoulderLy + 6);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fed7aa';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(shoulderLx - 4, shoulderLy + 6);
+    ctx.lineTo(-20, 8);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(-20, 8, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.moveTo(shoulderRx, shoulderRy);
+    ctx.lineTo(shoulderRx + 6, shoulderRy + 4);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fed7aa';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(shoulderRx + 6, shoulderRy + 4);
+    ctx.lineTo(shoulderRx + 12, shoulderRy);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(shoulderRx + 12, shoulderRy, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.moveTo(shoulderLx, shoulderLy);
+    ctx.lineTo(shoulderLx - 4, shoulderRy + 6);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fed7aa';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(shoulderLx - 4, shoulderRy + 6);
+    ctx.lineTo(-20, 9);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(-20, 9, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.moveTo(shoulderRx, shoulderRy);
+    ctx.lineTo(shoulderRx + 5, shoulderRy + 7);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fed7aa';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(shoulderRx + 5, shoulderRy + 7);
+    ctx.lineTo(minerX + 13, minerY + 6);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(minerX + 13, minerY + 6, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.restore(); // WINCH_X
 }
