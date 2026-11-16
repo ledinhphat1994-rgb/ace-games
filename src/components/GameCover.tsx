@@ -484,6 +484,345 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'onet':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-teal-950 via-slate-900 to-emerald-950 ${className}`}>
+          {/* Subtle Grid Dot Matrix */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#2dd4bf_1px,transparent_1px)] bg-[size:14px_14px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="onet-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="onet-tile-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="onet-card-bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#134e4a" />
+                <stop offset="100%" stopColor="#042f2e" />
+              </linearGradient>
+            </defs>
+
+            {/* Inactive background tiles */}
+            <g opacity="0.35">
+              <rect x="25" y="20" width="32" height="32" rx="8" fill="#0f172a" stroke="#14b8a6" strokeWidth="1" />
+              <text x="41" y="42" fill="#5eead4" fontSize="16" textAnchor="middle">🦊</text>
+
+              <rect x="145" y="20" width="32" height="32" rx="8" fill="#0f172a" stroke="#14b8a6" strokeWidth="1" />
+              <text x="161" y="42" fill="#5eead4" fontSize="16" textAnchor="middle">🐸</text>
+
+              <rect x="25" y="88" width="32" height="32" rx="8" fill="#0f172a" stroke="#14b8a6" strokeWidth="1" />
+              <text x="41" y="110" fill="#5eead4" fontSize="16" textAnchor="middle">🐯</text>
+
+              <rect x="145" y="88" width="32" height="32" rx="8" fill="#0f172a" stroke="#14b8a6" strokeWidth="1" />
+              <text x="161" y="110" fill="#5eead4" fontSize="16" textAnchor="middle">🐰</text>
+            </g>
+
+            {/* Neon Connection Line (3 segments with 2 corner turns) */}
+            <g filter="url(#onet-glow)">
+              <path
+                d="M 52 48 L 52 70 L 148 70 L 148 48"
+                stroke="#14b8a6"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.5"
+              />
+              <path
+                d="M 52 48 L 52 70 L 148 70 L 148 48"
+                stroke="#5eead4"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="52" cy="70" r="4.5" fill="#facc15" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="148" cy="70" r="4.5" fill="#facc15" stroke="#ffffff" strokeWidth="1.5" />
+            </g>
+
+            {/* Electric pulses & sparkles along line */}
+            <circle cx="100" cy="70" r="3" fill="#ffffff" filter="url(#onet-glow)" />
+            <circle cx="85" cy="70" r="1.5" fill="#fde047" />
+            <circle cx="115" cy="70" r="1.5" fill="#fde047" />
+
+            {/* Matching Pair Tile 1 (Left Panda) */}
+            <g transform="translate(34, 16)" filter="url(#onet-tile-glow)">
+              <rect width="36" height="36" rx="9" fill="url(#onet-card-bg)" stroke="#2dd4bf" strokeWidth="2" />
+              <rect x="2.5" y="2.5" width="31" height="31" rx="7" fill="none" stroke="#5eead4" strokeWidth="0.8" opacity="0.6" />
+              <text x="18" y="25" fontSize="20" textAnchor="middle" className="select-none">🐼</text>
+            </g>
+
+            {/* Matching Pair Tile 2 (Right Panda) */}
+            <g transform="translate(130, 16)" filter="url(#onet-tile-glow)">
+              <rect width="36" height="36" rx="9" fill="url(#onet-card-bg)" stroke="#2dd4bf" strokeWidth="2" />
+              <rect x="2.5" y="2.5" width="31" height="31" rx="7" fill="none" stroke="#5eead4" strokeWidth="0.8" opacity="0.6" />
+              <text x="18" y="25" fontSize="20" textAnchor="middle" className="select-none">🐼</text>
+            </g>
+
+            {/* Floating Sparkles & Connection Badge */}
+            <circle cx="82" cy="30" r="2" fill="#5eead4" opacity="0.8" />
+            <circle cx="118" cy="30" r="1.5" fill="#facc15" opacity="0.8" />
+            <circle cx="100" cy="98" r="2" fill="#2dd4bf" opacity="0.6" />
+
+            <g transform="translate(76, 102)">
+              <rect width="48" height="18" rx="9" fill="#0f766e" stroke="#2dd4bf" strokeWidth="1" opacity="0.9" />
+              <text x="24" y="13" fill="#ccfbf1" fontSize="9" fontWeight="900" fontFamily="sans-serif" textAnchor="middle" letterSpacing="0.5">MATCH!</text>
+            </g>
+          </svg>
+        </div>
+      );
+
+    case 'pacman':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 ${className}`}>
+          {/* Retro Arcade Grid Pattern */}
+          <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#1d4ed8_1px,transparent_1px),linear-gradient(to_bottom,#1d4ed8_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="pac-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="ghost-glow-red" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="pellet-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {/* Neon Blue Maze Borders */}
+            <rect x="14" y="14" width="172" height="112" rx="10" fill="none" stroke="#1d4ed8" strokeWidth="2.5" opacity="0.7" />
+            <rect x="16" y="16" width="168" height="108" rx="8" fill="none" stroke="#3b82f6" strokeWidth="1" opacity="0.5" />
+
+            {/* Top & Bottom Obstacle Blocks */}
+            <rect x="36" y="30" width="34" height="16" rx="4" fill="#090d16" stroke="#2563eb" strokeWidth="1.5" />
+            <rect x="130" y="30" width="34" height="16" rx="4" fill="#090d16" stroke="#2563eb" strokeWidth="1.5" />
+            <rect x="85" y="14" width="30" height="20" rx="3" fill="#090d16" stroke="#2563eb" strokeWidth="1.5" />
+
+            <rect x="36" y="94" width="34" height="16" rx="4" fill="#090d16" stroke="#2563eb" strokeWidth="1.5" />
+            <rect x="130" y="94" width="34" height="16" rx="4" fill="#090d16" stroke="#2563eb" strokeWidth="1.5" />
+
+            {/* Chasing Ghost (Blinky - Red) */}
+            <g transform="translate(24, 56)" filter="url(#ghost-glow-red)">
+              <path
+                d="M 2 24 L 2 12 A 11 11 0 0 1 24 12 L 24 24 L 20.5 21 L 17 24 L 13.5 21 L 10 24 L 6.5 21 L 2 24 Z"
+                fill="#ef4444"
+              />
+              <circle cx="8" cy="11" r="3.5" fill="#ffffff" />
+              <circle cx="10" cy="11" r="1.8" fill="#1d4ed8" />
+              <circle cx="17" cy="11" r="3.5" fill="#ffffff" />
+              <circle cx="19" cy="11" r="1.8" fill="#1d4ed8" />
+            </g>
+
+            {/* Pac-Man (Yellow Chomper) */}
+            <g transform="translate(68, 53)" filter="url(#pac-glow)">
+              <path
+                d="M 17 17 L 31 6 A 17 17 0 1 0 31 28 Z"
+                fill="#facc15"
+                stroke="#fef08a"
+                strokeWidth="1"
+              />
+              <circle cx="17" cy="8" r="2" fill="#090d16" />
+            </g>
+
+            {/* Dots Pac-Man is eating */}
+            <circle cx="118" cy="70" r="3" fill="#fef08a" />
+            <circle cx="134" cy="70" r="3" fill="#fef08a" />
+            <circle cx="150" cy="70" r="3" fill="#fef08a" />
+
+            {/* Big Glowing Power Pellet */}
+            <g filter="url(#pellet-glow)">
+              <circle cx="168" cy="70" r="6" fill="#fde047" stroke="#ffffff" strokeWidth="1" />
+            </g>
+
+            {/* Retro Cherry Fruit Bonus at Bottom */}
+            <g transform="translate(94, 96)">
+              <path d="M 6 12 Q 10 3 17 3 Q 12 3 13 12" stroke="#22c55e" strokeWidth="1.5" fill="none" />
+              <circle cx="7" cy="14" r="4.5" fill="#e11d48" />
+              <circle cx="5.5" cy="12.5" r="1.2" fill="#fda4af" />
+              <circle cx="14" cy="14" r="4.5" fill="#e11d48" />
+              <circle cx="12.5" cy="12.5" r="1.2" fill="#fda4af" />
+            </g>
+          </svg>
+        </div>
+      );
+
+    case 'jewels':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-fuchsia-950 via-slate-950 to-purple-950 ${className}`}>
+          {/* Diamond Lattice Pattern */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#d946ef_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="jewel-glow-beam" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="gem-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
+              <linearGradient id="ruby-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#fca5a5" />
+                <stop offset="50%" stopColor="#f43f5e" />
+                <stop offset="100%" stopColor="#881337" />
+              </linearGradient>
+
+              <linearGradient id="diamond-cyan-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#cffafe" />
+                <stop offset="50%" stopColor="#06b6d4" />
+                <stop offset="100%" stopColor="#164e63" />
+              </linearGradient>
+
+              <linearGradient id="sapphire-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#bfdbfe" />
+                <stop offset="50%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#1e3a8a" />
+              </linearGradient>
+
+              <linearGradient id="emerald-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#a7f3d0" />
+                <stop offset="50%" stopColor="#10b981" />
+                <stop offset="100%" stopColor="#064e3b" />
+              </linearGradient>
+
+              <linearGradient id="citrine-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#fef08a" />
+                <stop offset="50%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#78350f" />
+              </linearGradient>
+
+              <linearGradient id="amethyst-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#f5d0fe" />
+                <stop offset="50%" stopColor="#a855f7" />
+                <stop offset="100%" stopColor="#581c87" />
+              </linearGradient>
+            </defs>
+
+            {/* Background Grid Squares */}
+            <g opacity="0.25">
+              {[46, 82, 118, 154].map((x) =>
+                [18, 54, 90].map((y) => (
+                  <rect
+                    key={`${x}-${y}`}
+                    x={x - 16}
+                    y={y - 16}
+                    width="32"
+                    height="32"
+                    rx="6"
+                    fill="#1e1b4b"
+                    stroke="#a855f7"
+                    strokeWidth="0.8"
+                  />
+                ))
+              )}
+            </g>
+
+            {/* Surrounding Non-matching Gems */}
+            <g transform="translate(46, 18)" filter="url(#gem-glow)">
+              <polygon points="0,-11 11,0 0,11 -11,0" fill="url(#citrine-grad)" stroke="#fef08a" strokeWidth="1" />
+              <polygon points="0,-6 6,0 0,6 -6,0" fill="#fef08a" opacity="0.6" />
+            </g>
+
+            <g transform="translate(82, 18)" filter="url(#gem-glow)">
+              <polygon points="-8,-10 8,-10 12,0 8,10 -8,10 -12,0" fill="url(#emerald-grad)" stroke="#a7f3d0" strokeWidth="1" />
+            </g>
+
+            <g transform="translate(154, 18)" filter="url(#gem-glow)">
+              <polygon points="0,-12 10,2 7,11 -7,11 -10,2" fill="url(#amethyst-grad)" stroke="#f5d0fe" strokeWidth="1" />
+            </g>
+
+            <g transform="translate(46, 90)" filter="url(#gem-glow)">
+              <polygon points="-8,-10 8,-10 12,0 8,10 -8,10 -12,0" fill="url(#emerald-grad)" stroke="#a7f3d0" strokeWidth="1" />
+            </g>
+
+            <g transform="translate(118, 90)" filter="url(#gem-glow)">
+              <polygon points="0,-11 11,0 0,11 -11,0" fill="url(#citrine-grad)" stroke="#fef08a" strokeWidth="1" />
+            </g>
+
+            <g transform="translate(154, 90)" filter="url(#gem-glow)">
+              <polygon points="-9,-9 9,-9 12,0 9,9 -9,9 -12,0" fill="url(#sapphire-grad)" stroke="#bfdbfe" strokeWidth="1" />
+            </g>
+
+            {/* MATCH-3 ROW: Three Glowing Rubies aligned horizontally at y=54 */}
+            <g filter="url(#jewel-glow-beam)">
+              <line x1="28" y1="54" x2="172" y2="54" stroke="#f43f5e" strokeWidth="8" opacity="0.4" strokeLinecap="round" />
+              <line x1="38" y1="54" x2="162" y2="54" stroke="#fb7185" strokeWidth="3.5" strokeLinecap="round" />
+              <line x1="48" y1="54" x2="152" y2="54" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+
+            {/* Gem 1 (Ruby) */}
+            <g transform="translate(46, 54)" filter="url(#gem-glow)">
+              <circle cx="0" cy="0" r="14" fill="#fda4af" opacity="0.3" filter="url(#jewel-glow-beam)" />
+              <polygon points="-8,-12 8,-12 13,-4 13,4 8,12 -8,12 -13,4 -13,-4" fill="url(#ruby-grad)" stroke="#ffffff" strokeWidth="1.2" />
+              <polygon points="-4,-6 4,-6 7,-2 7,2 4,6 -4,6 -7,2 -7,-2" fill="#fda4af" opacity="0.6" />
+              <circle cx="-3" cy="-4" r="1.5" fill="#ffffff" />
+            </g>
+
+            {/* Gem 2 (Ruby - Center Explosion) */}
+            <g transform="translate(82, 54)" filter="url(#jewel-glow-beam)">
+              <circle cx="0" cy="0" r="17" fill="#fb7185" opacity="0.4" />
+              <polygon points="-9,-14 9,-14 15,-5 15,5 9,14 -9,14 -15,5 -15,-5" fill="url(#ruby-grad)" stroke="#ffffff" strokeWidth="1.5" />
+              <polygon points="-5,-7 5,-7 8,-2 8,2 5,7 -5,7 -8,2 -8,-2" fill="#fff1f2" opacity="0.8" />
+              <circle cx="-4" cy="-5" r="2" fill="#ffffff" />
+            </g>
+
+            {/* Gem 3 (Ruby) */}
+            <g transform="translate(118, 54)" filter="url(#gem-glow)">
+              <circle cx="0" cy="0" r="14" fill="#fda4af" opacity="0.3" filter="url(#jewel-glow-beam)" />
+              <polygon points="-8,-12 8,-12 13,-4 13,4 8,12 -8,12 -13,4 -13,-4" fill="url(#ruby-grad)" stroke="#ffffff" strokeWidth="1.2" />
+              <polygon points="-4,-6 4,-6 7,-2 7,2 4,6 -4,6 -7,2 -7,-2" fill="#fda4af" opacity="0.6" />
+              <circle cx="-3" cy="-4" r="1.5" fill="#ffffff" />
+            </g>
+
+            {/* Falling Diamond Cyan at (82, 90) */}
+            <g transform="translate(82, 90)" filter="url(#gem-glow)">
+              <polygon points="0,-13 12,0 0,13 -12,0" fill="url(#diamond-cyan-grad)" stroke="#cffafe" strokeWidth="1.2" />
+              <polygon points="0,-6 6,0 0,6 -6,0" fill="#ffffff" opacity="0.6" />
+            </g>
+
+            {/* Sparkle Stars & Combo Burst */}
+            <g filter="url(#jewel-glow-beam)">
+              <path d="M 82 44 L 84 52 L 92 54 L 84 56 L 82 64 L 80 56 L 72 54 L 80 52 Z" fill="#ffffff" />
+              <path d="M 142 42 L 143 46 L 147 47 L 143 48 L 142 52 L 141 48 L 137 47 L 141 46 Z" fill="#fde047" />
+              <path d="M 28 42 L 29 46 L 33 47 L 29 48 L 28 52 L 27 48 L 23 47 L 27 46 Z" fill="#fde047" />
+            </g>
+
+            {/* Glowing Combo Tag */}
+            <g transform="translate(62, 114)">
+              <rect width="76" height="18" rx="9" fill="#701a75" stroke="#f472b6" strokeWidth="1" opacity="0.9" />
+              <text x="38" y="13" fill="#fdf4ff" fontSize="9" fontWeight="900" fontFamily="sans-serif" textAnchor="middle" letterSpacing="0.8">COMBO x3!</text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>
