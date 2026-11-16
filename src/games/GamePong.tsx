@@ -148,8 +148,20 @@ export const GamePong: React.FC = () => {
 
   const lastSyncTimeRef = useRef<number>(0);
   const lastPaddleSendTimeRef = useRef<number>(0);
+  const lastSentPaddleYRef = useRef<number>(-999);
   const lastGuestHitTimeRef = useRef<number>(0);
   const serveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Throttled paddle sender: Chỉ gửi khi di chuyển >= 1.5px và sau >= 25ms để tiết kiệm băng thông và giảm tải MQTT
+  const sendPaddleThrottled = useCallback((y: number) => {
+    const rounded = Math.round(y);
+    const now = performance.now();
+    if (Math.abs(rounded - lastSentPaddleYRef.current) >= 1.5 && now - lastPaddleSendTimeRef.current >= 25) {
+      lastPaddleSendTimeRef.current = now;
+      lastSentPaddleYRef.current = rounded;
+      multiplayer.sendAction('pong_paddle', { y: rounded });
+    }
+  }, []);
 
   // Đồng bộ props & state vào stateRef
   useEffect(() => {
@@ -360,7 +372,23 @@ export const GamePong: React.FC = () => {
     const handleMessage = (data: any) => {
       if (data.senderName) setOpponentName(data.senderName);
 
-      if (data.type === 'pong_paddle') {
+      if (data.type === 'ping_sync') {
+        // Đối thủ vừa phục hồi kết nối: Nếu là Host thì gửi ngay pong_state hiện tại để đồng bộ tức thì
+        const s = stateRef.current;
+        if (playerRole === 'host' && s.isPlaying) {
+          multiplayer.sendAction('pong_state', {
+            bx: Math.round(s.ball.x * 10) / 10,
+            by: Math.round(s.ball.y * 10) / 10,
+            bvx: Math.round(s.ball.vx * 100) / 100,
+            bvy: Math.round(s.ball.vy * 100) / 100,
+            speed: s.ball.speed,
+            p1y: Math.round(s.p1.y),
+            s1: s.p1Score,
+            s2: s.p2Score,
+            rally: s.rally
+          });
+        }
+      } else if (data.type === 'pong_paddle') {
         const s = stateRef.current;
         if (playerRole === 'host') {
           s.p2.targetY = data.payload.y;
@@ -623,21 +651,13 @@ export const GamePong: React.FC = () => {
       s.p1.targetY = Math.max(0, Math.min(s.ch - s.p1.h, pointerY - s.p1.h / 2));
       s.p1.y = s.p1.targetY;
       if (isOnlineMode && !isWaitingForFriend) {
-        const now = performance.now();
-        if (now - lastPaddleSendTimeRef.current >= 20) {
-          lastPaddleSendTimeRef.current = now;
-          multiplayer.sendAction('pong_paddle', { y: Math.round(s.p1.y) });
-        }
+        sendPaddleThrottled(s.p1.y);
       }
     } else {
       // Khách Online: điều khiển P2 (bên phải)
       s.p2.targetY = Math.max(0, Math.min(s.ch - s.p2.h, pointerY - s.p2.h / 2));
       s.p2.y = s.p2.targetY;
-      const now = performance.now();
-      if (now - lastPaddleSendTimeRef.current >= 20) {
-        lastPaddleSendTimeRef.current = now;
-        multiplayer.sendAction('pong_paddle', { y: Math.round(s.p2.y) });
-      }
+      sendPaddleThrottled(s.p2.y);
     }
   };
 
@@ -653,44 +673,36 @@ export const GamePong: React.FC = () => {
     if (!s.isOnlineMode || s.playerRole === 'host') {
       if (s.keys.w || s.keys.up) p1.y = Math.max(0, p1.y - p1.speed * dt);
       if (s.keys.s || s.keys.down) p1.y = Math.min(ch - p1.h, p1.y + p1.speed * dt);
-          if (s.isOnlineMode && !s.isWaitingForFriend && (s.keys.w || s.keys.s || s.keys.up || s.keys.down)) {
-            const now = performance.now();
-            if (now - lastPaddleSendTimeRef.current >= 20) {
-              lastPaddleSendTimeRef.current = now;
-              multiplayer.sendAction('pong_paddle', { y: Math.round(p1.y) });
-            }
-          }
-        } else {
-          // Khách: thanh P1 thuộc Host, lướt mượt mà tới vị trí nhận từ mạng
-          p1.y += (p1.targetY - p1.y) * Math.min(1.0, 0.55 * dt);
-        }
+      if (s.isOnlineMode && !s.isWaitingForFriend && (s.keys.w || s.keys.s || s.keys.up || s.keys.down)) {
+        sendPaddleThrottled(p1.y);
+      }
+    } else {
+      // Khách: thanh P1 thuộc Host, lướt mượt mà tới vị trí nhận từ mạng
+      p1.y += (p1.targetY - p1.y) * Math.min(1.0, 0.55 * dt);
+    }
 
-        // --- 2. Cập nhật thanh đỡ P2 (Máy hoặc Khách Online) ---
-        if (!s.isOnlineMode) {
-          // Trí tuệ nhân tạo (AI) bám bóng
-          const targetY = ball.y - p2.h / 2;
-          const diffY = targetY - p2.y;
-          if (ball.vx > 0 || ball.x > cw * 0.45) {
-            if (Math.abs(diffY) > 8) {
-              p2.y += Math.sign(diffY) * Math.min(Math.abs(diffY), p2.speed * dt);
-            }
-          }
-          p2.y = Math.max(0, Math.min(ch - p2.h, p2.y));
-        } else if (s.playerRole === 'guest') {
-          // Khách điều khiển P2 bằng phím W/S hoặc Mũi tên
-          if (s.keys.w || s.keys.up) p2.y = Math.max(0, p2.y - p2.speed * dt);
-          if (s.keys.s || s.keys.down) p2.y = Math.min(ch - p2.h, p2.y + p2.speed * dt);
-
-          // Gửi cập nhật vị trí thanh đỡ P2 sang Host
-          const now = performance.now();
-          if (now - lastPaddleSendTimeRef.current >= 20) {
-            lastPaddleSendTimeRef.current = now;
-            multiplayer.sendAction('pong_paddle', { y: Math.round(p2.y) });
-          }
-        } else {
-          // Host: thanh P2 thuộc Khách, lướt mượt mà tới vị trí nhận từ mạng
-          p2.y += (p2.targetY - p2.y) * Math.min(1.0, 0.55 * dt);
+    // --- 2. Cập nhật thanh đỡ P2 (Máy hoặc Khách Online) ---
+    if (!s.isOnlineMode) {
+      // Trí tuệ nhân tạo (AI) bám bóng
+      const targetY = ball.y - p2.h / 2;
+      const diffY = targetY - p2.y;
+      if (ball.vx > 0 || ball.x > cw * 0.45) {
+        if (Math.abs(diffY) > 8) {
+          p2.y += Math.sign(diffY) * Math.min(Math.abs(diffY), p2.speed * dt);
         }
+      }
+      p2.y = Math.max(0, Math.min(ch - p2.h, p2.y));
+    } else if (s.playerRole === 'guest') {
+      // Khách điều khiển P2 bằng phím W/S hoặc Mũi tên
+      if (s.keys.w || s.keys.up) p2.y = Math.max(0, p2.y - p2.speed * dt);
+      if (s.keys.s || s.keys.down) p2.y = Math.min(ch - p2.h, p2.y + p2.speed * dt);
+
+      // Gửi cập nhật vị trí thanh đỡ P2 sang Host (có throttle)
+      sendPaddleThrottled(p2.y);
+    } else {
+      // Host: thanh P2 thuộc Khách, lướt mượt mà tới vị trí nhận từ mạng
+      p2.y += (p2.targetY - p2.y) * Math.min(1.0, 0.55 * dt);
+    }
 
         // --- 3. Vật lý bóng (Chỉ Host hoặc Offline tính toán chính thức) ---
         const isPhysicsMaster = !s.isOnlineMode || s.playerRole === 'host';
@@ -818,10 +830,10 @@ export const GamePong: React.FC = () => {
               }
             }
 
-            // Đồng bộ trạng thái bóng sang khách qua mạng (50 FPS hoặc ngay khi va chạm)
+            // Đồng bộ trạng thái bóng sang khách qua mạng (30 Hz ~33.3ms khi bóng tự do, 0ms tức thì khi va chạm)
             if (s.isOnlineMode && !s.isWaitingForFriend) {
               const now = performance.now();
-              if (hit || bounced || now - lastSyncTimeRef.current >= 20) {
+              if (hit || bounced || now - lastSyncTimeRef.current >= 33.3) {
                 lastSyncTimeRef.current = now;
                 multiplayer.sendAction('pong_state', {
                   bx: Math.round(ball.x * 10) / 10,
@@ -905,7 +917,7 @@ export const GamePong: React.FC = () => {
       }
 
       if (s.shake > 0) s.shake = Math.max(0, s.shake - dt);
-  }, [playTone, spawnSparks, launchServe]);
+  }, [playTone, spawnSparks, launchServe, sendPaddleThrottled]);
 
   // Vẽ đồ họa bàn bóng bàn lên Canvas
   const renderCanvas = useCallback((ctx: CanvasRenderingContext2D) => {

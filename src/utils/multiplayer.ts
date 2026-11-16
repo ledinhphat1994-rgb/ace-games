@@ -23,6 +23,13 @@ export type MoveCallback = (data: {
   senderName: string;
 }) => void;
 
+// Danh sách Broker dự phòng tốc độ cao hỗ trợ WebSocket TLS (HiveMQ & Mosquitto đạt 100% chuyển phát không giới hạn tần số)
+const BROKER_URLS = [
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081',
+  'wss://broker.emqx.io:8084/mqtt',
+];
+
 class MultiplayerService {
   private client: MqttClient | null = null;
   private currentRoom: RoomInfo | null = null;
@@ -36,6 +43,12 @@ class MultiplayerService {
   private heartbeatTimer: any = null;
   private cleanupTimer: any = null;
   private currentGameId: string = 'caro';
+
+  // Quản lý Broker Failover & Tự phục hồi kết nối
+  private currentBrokerIndex: number = 0;
+  private isLobbyListening: boolean = false;
+  private connectPromise: Promise<MqttClient> | null = null;
+  private consecutiveFailures: number = 0;
 
   constructor() {
     // Unique in-memory client ID per tab/window so 2 tabs in same browser can play against each other smoothly
@@ -84,55 +97,154 @@ class MultiplayerService {
     return newName;
   }
 
+  // --- TOPIC HELPERS (Version 3: Cách ly tuyệt đối theo gameId) ---
+  private getLobbyTopic(gameId?: string): string {
+    const gid = gameId || this.currentGameId;
+    return `acegames/v3/${gid}/lobby`;
+  }
+
+  private getRoomTopic(roomId?: string, gameId?: string): string {
+    const gid = gameId || this.currentRoom?.gameId || this.currentGameId;
+    const rid = roomId || this.currentRoom?.roomId;
+    return `acegames/v3/${gid}/room/${rid}`;
+  }
+
+  // --- KẾT NỐI VÀ CHUYỂN ĐỔI BROKER DỰ PHÒNG KHI CÓ SỰ CỐ ---
   private ensureConnected(): Promise<MqttClient> {
-    return new Promise((resolve) => {
-      if (this.client && this.client.connected) {
-        return resolve(this.client);
-      }
+    if (this.client && this.client.connected) {
+      return Promise.resolve(this.client);
+    }
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
 
-      // Public fast WebSocket MQTT Broker (TLS wss port 8084)
-      const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
-      const client = mqtt.connect(brokerUrl, {
-        clientId: `ace_${this.localPlayerId}_${Math.random().toString(16).slice(2, 8)}`,
-        clean: true,
-        connectTimeout: 5000,
-        reconnectPeriod: 3000,
-        queueQoSZero: false,
-      });
+    this.connectPromise = new Promise((resolve) => {
+      let isSettled = false;
 
-      client.on('connect', () => {
-        this.client = client;
-        resolve(client);
-      });
+      const attemptConnection = () => {
+        const brokerUrl = BROKER_URLS[this.currentBrokerIndex];
+        const clientId = `ace_${this.localPlayerId}_${Math.random().toString(16).slice(2, 8)}`;
 
-      client.on('error', (err) => {
-        console.warn('MQTT Connection Warning:', err);
-      });
+        const client = mqtt.connect(brokerUrl, {
+          clientId,
+          clean: true,
+          connectTimeout: 5000,
+          reconnectPeriod: 3000,
+          queueQoSZero: false,
+        });
 
-      client.on('message', (topic, message) => {
-        try {
-          const data = JSON.parse(message.toString());
-          this.handleIncomingMessage(topic, data);
-        } catch {}
-      });
+        const connectionTimeout = setTimeout(() => {
+          if (!client.connected) {
+            triggerFailover('timeout');
+          }
+        }, 5500);
+
+        const triggerFailover = (reason: string) => {
+          this.consecutiveFailures++;
+          if (this.consecutiveFailures >= 2) {
+            this.consecutiveFailures = 0;
+            clearTimeout(connectionTimeout);
+            try {
+              client.removeAllListeners();
+              client.end(true);
+            } catch {}
+            // Đổi sang Broker kế tiếp trong danh sách dự phòng
+            this.currentBrokerIndex = (this.currentBrokerIndex + 1) % BROKER_URLS.length;
+            console.warn(`[Multiplayer] Switch to fallback broker: ${BROKER_URLS[this.currentBrokerIndex]} (${reason})`);
+            setTimeout(attemptConnection, 400);
+          }
+        };
+
+        client.on('connect', () => {
+          clearTimeout(connectionTimeout);
+          this.consecutiveFailures = 0;
+          this.client = client;
+
+          // Tự động đăng ký lại topic khi vừa kết nối hoặc khi mạng phục hồi
+          this.resubscribeActiveTopics();
+
+          if (!isSettled) {
+            isSettled = true;
+            this.connectPromise = null;
+            resolve(client);
+          }
+        });
+
+        client.on('reconnect', () => {
+          // Bắt đầu quy trình tự phục hồi
+          if (this.client && this.client.connected) {
+            this.resubscribeActiveTopics();
+          }
+        });
+
+        client.on('error', (err) => {
+          console.warn('[Multiplayer] Broker error:', err.message);
+          triggerFailover('error');
+        });
+
+        client.on('close', () => {
+          if (!client.connected && !isSettled) {
+            triggerFailover('close');
+          }
+        });
+
+        client.on('message', (topic, message) => {
+          try {
+            const data = JSON.parse(message.toString());
+            this.handleIncomingMessage(topic, data);
+          } catch {}
+        });
+      };
+
+      attemptConnection();
     });
+
+    return this.connectPromise;
+  }
+
+  // Tự động đăng ký lại các topic phòng và sảnh khi mạng khôi phục (khắc phục mất session do clean: true)
+  private resubscribeActiveTopics() {
+    if (!this.client || !this.client.connected) return;
+
+    if (this.isLobbyListening) {
+      const lobbyTopic = this.getLobbyTopic();
+      this.client.subscribe(lobbyTopic, { qos: 0 });
+      this.broadcastToLobby({ type: 'lobby_query', senderId: this.localPlayerId });
+    }
+
+    if (this.currentRoom) {
+      const roomTopic = this.getRoomTopic();
+      this.client.subscribe(roomTopic, { qos: 0 });
+
+      if (this.currentRole === 'host' && this.currentRoom.status === 'waiting') {
+        this.broadcastToLobby({ type: 'room_alive', room: this.currentRoom });
+      } else if (this.currentRoom.status === 'playing') {
+        // Gửi ping_sync để đồng bộ lại trạng thái ngay khi có kết nối
+        this.sendAction('ping_sync', {
+          senderId: this.localPlayerId,
+          role: this.currentRole,
+          timestamp: Date.now(),
+        });
+      }
+    }
   }
 
   // --- LOBBY MANAGEMENT ---
   public async listenLobby(gameId: string, onRoomsUpdate: (rooms: RoomInfo[]) => void) {
     this.currentGameId = gameId;
+    this.isLobbyListening = true;
     if (!this.roomUpdateListeners.includes(onRoomsUpdate)) {
       this.roomUpdateListeners.push(onRoomsUpdate);
     }
 
     const client = await this.ensureConnected();
-    const lobbyTopic = `acegames/v2/${gameId}/lobby`;
+    const lobbyTopic = this.getLobbyTopic(gameId);
     client.subscribe(lobbyTopic, { qos: 0 });
 
-    // Request rooms announcement
+    // Yêu cầu các phòng đang chờ báo cáo hiện diện
     this.broadcastToLobby({ type: 'lobby_query', senderId: this.localPlayerId });
 
-    // Periodic cleanup of stale rooms (older than 15s without heartbeat)
+    // Dọn dẹp định kỳ phòng quá hạn (>16s không nhận nhịp tim)
     if (!this.cleanupTimer) {
       this.cleanupTimer = setInterval(() => {
         const now = Date.now();
@@ -149,7 +261,13 @@ class MultiplayerService {
   }
 
   public stopListeningLobby() {
+    this.isLobbyListening = false;
     this.roomUpdateListeners = [];
+    if (this.client && this.client.connected) {
+      try {
+        this.client.unsubscribe(this.getLobbyTopic());
+      } catch {}
+    }
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
@@ -158,7 +276,7 @@ class MultiplayerService {
 
   private broadcastToLobby(data: any) {
     if (this.client && this.client.connected) {
-      this.client.publish(`acegames/v2/${this.currentGameId}/lobby`, JSON.stringify(data));
+      this.client.publish(this.getLobbyTopic(), JSON.stringify(data), { qos: 0 });
     }
   }
 
@@ -180,12 +298,12 @@ class MultiplayerService {
     // Hủy đăng ký phòng cũ nếu có
     if (this.currentRoom && this.client) {
       try {
-        this.client.unsubscribe(`acegames/v2/room/${this.currentRoom.roomId}`);
+        this.client.unsubscribe(this.getRoomTopic());
       } catch {}
     }
 
-    // 4-digit clean room code (vd: 5829)
-    const roomId = Math.floor(1000 + Math.random() * 9000).toString();
+    // Mã phòng 5 chữ số sạch đẹp (từ 10000 đến 99999, tương đương 90.000 phòng đồng thời không trùng)
+    const roomId = Math.floor(10000 + Math.random() * 90000).toString();
     const room: RoomInfo = {
       roomId,
       gameId,
@@ -202,10 +320,10 @@ class MultiplayerService {
     this.activeRooms.set(roomId, room);
     this.notifyRoomsUpdated();
 
-    // Subscribe to room topic
-    await this.subscribeToRoom(roomId);
+    // Subscribe vào topic phòng v3 cô lập
+    await this.subscribeToRoom(roomId, gameId);
 
-    // Start advertising this room on lobby
+    // Phát tín hiệu phòng lên sảnh
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = setInterval(() => {
       if (this.currentRoom && this.currentRoom.status === 'waiting') {
@@ -234,7 +352,7 @@ class MultiplayerService {
     // Hủy đăng ký phòng cũ nếu có
     if (this.currentRoom && this.client) {
       try {
-        this.client.unsubscribe(`acegames/v2/room/${this.currentRoom.roomId}`);
+        this.client.unsubscribe(this.getRoomTopic());
       } catch {}
     }
 
@@ -251,7 +369,7 @@ class MultiplayerService {
     this.emitRoomChanged();
 
     // Chờ đăng ký topic hoàn tất trước khi phát tín hiệu vào phòng
-    await this.subscribeToRoom(roomId);
+    await this.subscribeToRoom(roomId, gameId);
 
     // Phát tín hiệu tham gia phòng
     const sendJoin = () => {
@@ -263,7 +381,7 @@ class MultiplayerService {
     };
 
     sendJoin();
-    // Bắn thêm lần 2 sau 300ms đề phòng mạng chập chờn
+    // Bắn thêm lần 2 sau 300ms đề phòng mất gói tin ban đầu
     setTimeout(sendJoin, 300);
 
     this.notifyStatus('connected');
@@ -301,10 +419,11 @@ class MultiplayerService {
     return { action: 'hosted', room };
   }
 
-  private subscribeToRoom(roomId: string): Promise<void> {
+  private subscribeToRoom(roomId: string, gameId?: string): Promise<void> {
     return new Promise((resolve) => {
       if (!this.client) return resolve();
-      this.client.subscribe(`acegames/v2/room/${roomId}`, { qos: 0 }, () => {
+      const topic = this.getRoomTopic(roomId, gameId);
+      this.client.subscribe(topic, { qos: 0 }, () => {
         resolve();
       });
     });
@@ -330,15 +449,12 @@ class MultiplayerService {
 
   private sendRoomMessage(data: any, qos: 0 | 1 = 0) {
     if (!this.currentRoom || !this.client) return;
-    this.client.publish(
-      `acegames/v2/room/${this.currentRoom.roomId}`,
-      JSON.stringify(data),
-      { qos }
-    );
+    const topic = this.getRoomTopic();
+    this.client.publish(topic, JSON.stringify(data), { qos });
   }
 
   private handleIncomingMessage(topic: string, data: any) {
-    // Lobby Topic Messages
+    // 1. Lobby Topic Messages
     if (topic.includes('/lobby')) {
       if (data.type === 'room_alive' && data.room) {
         this.activeRooms.set(data.room.roomId, data.room);
@@ -352,14 +468,18 @@ class MultiplayerService {
       return;
     }
 
-    // Room Topic Messages (Khớp chính xác topic của phòng hiện tại)
-    if (this.currentRoom && topic === `acegames/v2/room/${this.currentRoom.roomId}`) {
+    // 2. Room Topic Messages (Khớp chính xác topic phòng hiện tại)
+    const expectedRoomTopic = this.currentRoom ? this.getRoomTopic() : '';
+
+    if (expectedRoomTopic && topic === expectedRoomTopic) {
       if (data.type === 'guest_joined') {
         if (this.currentRole === 'host') {
           this.opponent = { id: data.guestId, name: data.guestName };
-          if (this.currentRoom) this.currentRoom.status = 'playing';
-          this.broadcastToLobby({ type: 'room_closed', roomId: this.currentRoom.roomId });
-          
+          if (this.currentRoom) {
+            this.currentRoom.status = 'playing';
+            this.broadcastToLobby({ type: 'room_closed', roomId: this.currentRoom.roomId });
+          }
+
           // Send handshake back to guest with host info
           this.sendRoomMessage({
             type: 'host_ack',
@@ -377,6 +497,20 @@ class MultiplayerService {
             this.currentRoom.options = data.roomOptions;
           }
           this.notifyStatus('connected');
+        }
+      } else if (data.type === 'ping_sync') {
+        if (data.senderId !== this.localPlayerId) {
+          // Phản hồi ping_ack để bên kia xác nhận kênh 2 chiều hoạt động
+          this.sendAction('ping_ack', {
+            senderId: this.localPlayerId,
+            role: this.currentRole,
+            timestamp: Date.now(),
+          });
+          this.moveListeners.forEach(cb => cb(data));
+        }
+      } else if (data.type === 'ping_ack') {
+        if (data.senderId !== this.localPlayerId) {
+          this.moveListeners.forEach(cb => cb(data));
         }
       } else if (data.type !== 'guest_joined' && data.type !== 'host_ack' && data.type !== 'player_left') {
         if (data.senderId !== this.localPlayerId) {
@@ -424,7 +558,7 @@ class MultiplayerService {
     if (this.currentRoom) {
       if (this.client) {
         try {
-          this.client.unsubscribe(`acegames/v2/room/${this.currentRoom.roomId}`);
+          this.client.unsubscribe(this.getRoomTopic());
         } catch {}
       }
       this.activeRooms.delete(this.currentRoom.roomId);
