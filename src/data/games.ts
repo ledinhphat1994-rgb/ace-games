@@ -354,5 +354,29 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Pacman', 'Arcade', 'Retro', 'Mê cung', 'Kinh điển', 'Ăn đậu'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'jewels',
+    title: 'Xếp Kim Cương',
+    subtitle: 'Hoán đổi ngọc nổ combo rực rỡ',
+    category: 'puzzle',
+    categoryLabel: 'Giải Đố & Trí Tuệ',
+    description: 'Ghép hàng từ 3 viên kim cương cùng màu để kích hoạt chuỗi nổ combo.',
+    instructions: [
+      'Nhấp chọn 2 viên ngọc kề nhau để hoán đổi vị trí.',
+      'Tạo hàng ngang hoặc dọc từ 3 viên cùng màu trở lên.',
+      'Tạo các chuỗi nổ dây chuyền (combo) để nhân điểm thưởng.'
+    ],
+    controls: {
+      desktop: 'Nhấp chuột hoán đổi',
+      mobile: 'Chạm chọn 2 viên ngọc'
+    },
+    thumbnailIcon: '💎',
+    accentColor: 'from-fuchsia-500 to-indigo-600',
+    rating: 4.98,
+    plays: 245000,
+    tags: ['Kim cương', 'Jewels', 'Match-3', 'Bejeweled', 'Giải đố', 'Xếp hình'],
+    isHot: true,
+    isNew: true
   }
 ];

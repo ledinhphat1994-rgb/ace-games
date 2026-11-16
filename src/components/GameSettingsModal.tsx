@@ -1222,6 +1222,65 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {/* XẾP KIM CƯƠNG (Jewels) */}
+          {game.id === 'jewels' && (
+            <>
+              {/* CHẾ ĐỘ CHƠI */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-fuchsia-400">
+                    <Layers className="w-4 h-4 text-fuchsia-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'classic', label: 'Cổ Điển' },
+                    { key: 'timed', label: 'Tính Giờ' },
+                    { key: 'zen', label: 'Thư Giãn' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('gameMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.gameMode || 'classic') === key
+                          ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SỐ LƯỢT ĐI */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Timer className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Giới Hạn Lượt</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[20, 30, 50].map((cnt) => (
+                    <button
+                      key={cnt}
+                      onClick={() => updateSetting('movesLimit', cnt)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.movesLimit || 30) === cnt
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {cnt} Lượt
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}
