@@ -22,7 +22,8 @@ type ItemType =
   | 'rock_small' 
   | 'rock_large' 
   | 'mystery_bag' 
-  | 'tnt';
+  | 'tnt'
+  | 'pig_diamond';
 
 interface MineItem {
   id: number;
@@ -34,6 +35,7 @@ interface MineItem {
   weight: number; // 0.5 (rất nhẹ) đến 5.5 (rất nặng)
   isAlive: boolean;
   rotation: number;
+  vx?: number;
 }
 
 interface Particle {
@@ -59,8 +61,8 @@ interface FloatingText {
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 540;
 const WINCH_X = CANVAS_WIDTH / 2; // 480px
-const WINCH_Y = 65; // Đỉnh tời kéo thợ mỏ
-const BASE_HOOK_LEN = 42;
+const WINCH_Y = 60; // Điểm xuất phát của cáp tời trên xe thợ mỏ
+const BASE_HOOK_LEN = 38;
 const MAX_SWING_ANGLE = 1.25; // ~72 độ
 
 // Mục tiêu vàng theo từng cấp độ
@@ -76,6 +78,818 @@ const LEVEL_TARGETS = [
   12000, // Màn 9
   15000, // Màn 10
 ];
+
+// --- CÁC HÀM VẼ ĐỒ HỌA CAO CẤP TRÊN CANVAS ---
+
+// 1. Vẽ quặng vàng giác cạnh 3D lấp lánh
+function drawGoldNugget(
+  ctx: CanvasRenderingContext2D,
+  radius: number,
+  type: 'gold_small' | 'gold_med' | 'gold_large',
+  time: number,
+  seed: number
+) {
+  ctx.save();
+  // Hiệu ứng ánh hào quang vàng kim
+  ctx.shadowColor = 'rgba(245, 158, 11, 0.55)';
+  ctx.shadowBlur = radius * 0.7;
+
+  // Gradient khối vàng đa lớp sáng bóng
+  const goldGrad = ctx.createRadialGradient(-radius * 0.35, -radius * 0.35, 1, 0, 0, radius * 1.05);
+  goldGrad.addColorStop(0, '#ffffff');
+  goldGrad.addColorStop(0.2, '#fef08a');
+  goldGrad.addColorStop(0.55, '#f59e0b');
+  goldGrad.addColorStop(0.85, '#d97706');
+  goldGrad.addColorStop(1, '#78350f');
+
+  ctx.fillStyle = goldGrad;
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 1.5;
+
+  // Tạo đa giác giác cạnh tự nhiên (8 cạnh cho vàng lớn, 7 cạnh cho vàng vừa, 6 cạnh cho vàng nhỏ)
+  const sides = type === 'gold_large' ? 8 : type === 'gold_med' ? 7 : 6;
+  const vertices: { x: number; y: number }[] = [];
+  for (let s = 0; s < sides; s++) {
+    const a = (Math.PI * 2 * s) / sides;
+    const rVar = 0.82 + Math.sin(s * 2.3 + seed) * 0.18;
+    const r = radius * rVar;
+    vertices.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+  }
+
+  ctx.beginPath();
+  vertices.forEach((v, idx) => {
+    if (idx === 0) ctx.moveTo(v.x, v.y);
+    else ctx.lineTo(v.x, v.y);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Vẽ các đường giác cắt 3D bên trong
+  ctx.strokeStyle = 'rgba(254, 240, 138, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  vertices.forEach((v) => {
+    ctx.moveTo(v.x, v.y);
+    ctx.lineTo(-radius * 0.15, -radius * 0.15);
+  });
+  ctx.stroke();
+
+  // Điểm lóa sáng kim loại Specular Shine
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.beginPath();
+  ctx.arc(-radius * 0.32, -radius * 0.32, radius * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ngôi sao lấp lánh (Twinkle Star) xoay nhẹ theo thời gian
+  const twinklePhase = Math.sin(time * 0.003 + seed * 5);
+  if (twinklePhase > 0.4) {
+    const starAlpha = (twinklePhase - 0.4) / 0.6;
+    ctx.save();
+    ctx.translate(radius * 0.35, -radius * 0.25);
+    ctx.rotate(time * 0.002);
+    ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha})`;
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 6;
+    const sLen = radius * 0.45 * starAlpha;
+    const sThick = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -sLen);
+    ctx.quadraticCurveTo(sThick, 0, sLen, 0);
+    ctx.quadraticCurveTo(sThick, sThick, 0, sLen);
+    ctx.quadraticCurveTo(-sThick, sThick, -sLen, 0);
+    ctx.quadraticCurveTo(-sThick, 0, 0, -sLen);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// 2. Vẽ kim cương tinh thể xanh pha lê phát quang
+function drawDiamond(ctx: CanvasRenderingContext2D, radius: number, time: number) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(6, 182, 212, 0.9)';
+  ctx.shadowBlur = 16;
+
+  // Thân kim cương đa giác cắt giác
+  const dGrad = ctx.createLinearGradient(-radius, -radius, radius, radius);
+  dGrad.addColorStop(0, '#ffffff');
+  dGrad.addColorStop(0.35, '#cffafe');
+  dGrad.addColorStop(0.7, '#38bdf8');
+  dGrad.addColorStop(1, '#0284c7');
+
+  ctx.fillStyle = dGrad;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.4;
+
+  // Hình cắt 8 góc kim cương
+  ctx.beginPath();
+  ctx.moveTo(0, -radius * 1.15);
+  ctx.lineTo(radius * 0.9, -radius * 0.3);
+  ctx.lineTo(radius * 0.8, radius * 0.6);
+  ctx.lineTo(0, radius * 1.15);
+  ctx.lineTo(-radius * 0.8, radius * 0.6);
+  ctx.lineTo(-radius * 0.9, -radius * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Mặt bàn và giác cắt phản quang bên trong
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.beginPath();
+  ctx.moveTo(0, -radius * 0.7);
+  ctx.lineTo(radius * 0.45, -radius * 0.15);
+  ctx.lineTo(0, radius * 0.4);
+  ctx.lineTo(-radius * 0.45, -radius * 0.15);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ngôi sao lấp lánh phát sáng mạnh
+  const sLen = 7 + Math.sin(time * 0.005) * 3;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(0, -radius * 0.6 - sLen);
+  ctx.lineTo(1.5, -radius * 0.6);
+  ctx.lineTo(sLen, -radius * 0.6);
+  ctx.lineTo(1.5, -radius * 0.6 + 1.5);
+  ctx.lineTo(0, -radius * 0.6 + sLen);
+  ctx.lineTo(-1.5, -radius * 0.6 + 1.5);
+  ctx.lineTo(-sLen, -radius * 0.6);
+  ctx.lineTo(-1.5, -radius * 0.6);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// 3. Vẽ đá cuội / đá tảng hoa cương gồ ghề
+function drawRock(ctx: CanvasRenderingContext2D, radius: number, seed: number) {
+  ctx.save();
+  const rockGrad = ctx.createRadialGradient(-radius * 0.3, -radius * 0.35, 1, 0, 0, radius * 1.1);
+  rockGrad.addColorStop(0, '#cbd5e1');
+  rockGrad.addColorStop(0.3, '#94a3b8');
+  rockGrad.addColorStop(0.7, '#475569');
+  rockGrad.addColorStop(1, '#1e293b');
+
+  ctx.fillStyle = rockGrad;
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1.8;
+
+  const sides = 7;
+  const vertices: { x: number; y: number }[] = [];
+  for (let s = 0; s < sides; s++) {
+    const a = (Math.PI * 2 * s) / sides;
+    const r = radius * (0.8 + Math.sin(s * 3.1 + seed) * 0.2);
+    vertices.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+  }
+
+  ctx.beginPath();
+  vertices.forEach((v, idx) => {
+    if (idx === 0) ctx.moveTo(v.x, v.y);
+    else ctx.lineTo(v.x, v.y);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Vết rạn nứt trên đá
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.3, -radius * 0.2);
+  ctx.lineTo(-radius * 0.05, 0);
+  ctx.lineTo(radius * 0.25, -radius * 0.1);
+  ctx.lineTo(radius * 0.4, radius * 0.25);
+  ctx.stroke();
+
+  // Rêu xanh bám trên đỉnh đá
+  ctx.fillStyle = 'rgba(101, 163, 13, 0.4)';
+  ctx.beginPath();
+  ctx.arc(-radius * 0.2, -radius * 0.4, radius * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// 4. Vẽ thùng thuốc nổ TNT thùng gỗ sọc nguy hiểm
+function drawTNT(ctx: CanvasRenderingContext2D, radius: number, time: number) {
+  ctx.save();
+  const w = radius * 1.6;
+  const h = radius * 1.7;
+
+  // Gradient thùng gỗ đỏ
+  const tntGrad = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  tntGrad.addColorStop(0, '#991b1b');
+  tntGrad.addColorStop(0.2, '#dc2626');
+  tntGrad.addColorStop(0.5, '#ef4444');
+  tntGrad.addColorStop(0.8, '#dc2626');
+  tntGrad.addColorStop(1, '#991b1b');
+
+  ctx.fillStyle = tntGrad;
+  ctx.strokeStyle = '#7f1d1d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(-w / 2, -h / 2, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // Vành đai thép đen có đinh tán
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(-w / 2, -h / 2 + 3, w, 4);
+  ctx.fillRect(-w / 2, h / 2 - 7, w, 4);
+
+  // Dải băng sọc vàng đen cảnh báo nguy hiểm ở giữa
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(-w / 2, -h * 0.22, w, h * 0.44);
+  ctx.clip();
+  ctx.fillStyle = '#facc15';
+  ctx.fillRect(-w / 2, -h * 0.22, w, h * 0.44);
+
+  // Sọc đen chéo
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 4;
+  for (let sx = -w; sx < w * 2; sx += 8) {
+    ctx.beginPath();
+    ctx.moveTo(sx, -h * 0.25);
+    ctx.lineTo(sx + 10, h * 0.25);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Biển chữ TNT nổi bật
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.9)';
+  ctx.shadowBlur = 4;
+  ctx.fillText('TNT', 0, 0);
+
+  // Dây ngòi nổ cong ở phía trên với tàn lửa cháy đỏ
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -h / 2);
+  ctx.quadraticCurveTo(6, -h / 2 - 8, 3, -h / 2 - 12);
+  ctx.stroke();
+
+  // Tàn lửa ngòi nổ cháy lập lòe
+  const sparkY = -h / 2 - 12;
+  const sparkX = 3;
+  const sparkSize = 3 + Math.sin(time * 0.02) * 1.5;
+  ctx.fillStyle = '#fef08a';
+  ctx.shadowColor = '#f97316';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// 5. Vẽ túi bí ẩn bao bố có quai buộc
+function drawMysteryBag(ctx: CanvasRenderingContext2D, radius: number, time: number) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(245, 158, 11, 0.4)';
+  ctx.shadowBlur = 10;
+
+  // Thân túi tròn căng
+  const bagGrad = ctx.createRadialGradient(-radius * 0.2, -radius * 0.2, 2, 0, 2, radius * 1.1);
+  bagGrad.addColorStop(0, '#d97706');
+  bagGrad.addColorStop(0.5, '#b45309');
+  bagGrad.addColorStop(1, '#78350f');
+
+  ctx.fillStyle = bagGrad;
+  ctx.strokeStyle = '#fde68a';
+  ctx.lineWidth = 1.5;
+
+  ctx.beginPath();
+  ctx.arc(0, 4, radius * 0.88, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Miệng túi buộc dây thừng
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(-7, -radius * 0.85, 14, 6);
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(-8, -radius * 0.75, 16, 2.5);
+
+  // Dấu hỏi chấm vàng phát sáng
+  const pulseScale = 1 + Math.sin(time * 0.005) * 0.08;
+  ctx.save();
+  ctx.scale(pulseScale, pulseScale);
+  ctx.fillStyle = '#fef08a';
+  ctx.font = '900 17px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#f59e0b';
+  ctx.shadowBlur = 8;
+  ctx.fillText('?', 0, 4);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// 6. Vẽ chú heo con ngậm kim cương chạy lon ton
+function drawPiglet(ctx: CanvasRenderingContext2D, radius: number, vx: number, time: number) {
+  ctx.save();
+  const facingRight = vx >= 0;
+  if (!facingRight) {
+    ctx.scale(-1, 1);
+  }
+
+  // Thân heo mập mạp màu hồng
+  ctx.fillStyle = '#f472b6';
+  ctx.strokeStyle = '#db2777';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, radius * 1.1, radius * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Mõm heo
+  ctx.fillStyle = '#f9a8d4';
+  ctx.beginPath();
+  ctx.ellipse(radius * 0.9, 2, 6, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Lỗ mũi
+  ctx.fillStyle = '#be185d';
+  ctx.beginPath();
+  ctx.arc(radius * 0.95, 1, 1, 0, Math.PI * 2);
+  ctx.arc(radius * 0.95, 3.5, 1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tai heo vểnh
+  ctx.fillStyle = '#ec4899';
+  ctx.beginPath();
+  ctx.moveTo(radius * 0.2, -radius * 0.7);
+  ctx.lineTo(radius * 0.45, -radius * 1.1);
+  ctx.lineTo(radius * 0.6, -radius * 0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Mắt đen láy tròn xoe
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(radius * 0.5, -radius * 0.2, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(radius * 0.55, -radius * 0.25, 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bốn chân lon ton bước đi
+  const legWalk = Math.sin(time * 0.015) * 4;
+  ctx.strokeStyle = '#db2777';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.6, radius * 0.6);
+  ctx.lineTo(-radius * 0.6 + legWalk, radius * 1.15);
+  ctx.moveTo(radius * 0.5, radius * 0.6);
+  ctx.lineTo(radius * 0.5 - legWalk, radius * 1.15);
+  ctx.stroke();
+
+  // Kim cương ngậm trong miệng phát sáng
+  ctx.save();
+  ctx.translate(radius * 1.25, 5);
+  drawDiamond(ctx, 7, time);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// 7. Hàm dispatch vẽ bất kỳ vật phẩm quặng mỏ nào
+function drawSingleItem(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  item: MineItem,
+  time: number
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(item.rotation);
+
+  switch (item.type) {
+    case 'gold_small':
+    case 'gold_med':
+    case 'gold_large':
+      drawGoldNugget(ctx, item.radius, item.type, time, item.id);
+      break;
+    case 'diamond':
+      drawDiamond(ctx, item.radius, time);
+      break;
+    case 'rock_small':
+    case 'rock_large':
+      drawRock(ctx, item.radius, item.id);
+      break;
+    case 'tnt':
+      drawTNT(ctx, item.radius, time);
+      break;
+    case 'mystery_bag':
+      drawMysteryBag(ctx, item.radius, time);
+      break;
+    case 'pig_diamond':
+      drawPiglet(ctx, item.radius, item.vx || 0.8, time);
+      break;
+  }
+
+  ctx.restore();
+}
+
+// 8. Vẽ Thợ Mỏ và Cỗ Xe Kéo Vàng ở mặt đất (Winch & Miner Assembly)
+function drawMinerAndWinch(
+  ctx: CanvasRenderingContext2D,
+  winchX: number,
+  hookState: 'SWINGING' | 'SHOOTING' | 'RETRACTING',
+  hookAngle: number,
+  grabbedItem: MineItem | null,
+  crankAngle: number,
+  time: number
+) {
+  ctx.save();
+  ctx.translate(winchX, 42);
+
+  // 1. Bóng đổ của xe goòng trên đường ray
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.beginPath();
+  ctx.ellipse(0, 32, 38, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Hai bánh xe sắt mỏ than (X = -24 và X = +24)
+  const drawWheel = (wx: number) => {
+    ctx.save();
+    ctx.translate(wx, 30);
+    const wheelGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 8);
+    wheelGrad.addColorStop(0, '#64748b');
+    wheelGrad.addColorStop(0.7, '#334155');
+    wheelGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = wheelGrad;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Nan hoa sắt
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
+    ctx.moveTo(0, -6); ctx.lineTo(0, 6);
+    ctx.stroke();
+
+    // Ốc trục trung tâm
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+  drawWheel(-24);
+  drawWheel(24);
+
+  // 3. Thùng xe goòng gỗ sồi nẹp sắt chắc chắn
+  const cartGrad = ctx.createLinearGradient(-33, 0, 33, 0);
+  cartGrad.addColorStop(0, '#451a03');
+  cartGrad.addColorStop(0.5, '#78350f');
+  cartGrad.addColorStop(1, '#451a03');
+
+  ctx.fillStyle = cartGrad;
+  ctx.strokeStyle = '#b45309';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(-33, 14, 66, 20, [4, 4, 8, 8]);
+  ctx.fill();
+  ctx.stroke();
+
+  // Nẹp sắt và đinh tán góc xe
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(-33, 14, 6, 20);
+  ctx.fillRect(27, 14, 6, 20);
+  ctx.fillRect(-33, 30, 66, 4);
+
+  // Đinh tán kim loại
+  ctx.fillStyle = '#cbd5e1';
+  [-30, 30].forEach(rx => {
+    [17, 24, 31].forEach(ry => {
+      ctx.beginPath();
+      ctx.arc(rx, ry, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+
+  // 4. Máy tời cáp cơ khí bằng đồng & tang cuộn dây
+  ctx.fillStyle = '#78350f';
+  ctx.strokeStyle = '#d97706';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-16, 22);
+  ctx.lineTo(0, 10);
+  ctx.lineTo(16, 22);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Cuộn dây cáp tang tời (Spool)
+  const spoolGrad = ctx.createLinearGradient(-10, 0, 10, 0);
+  spoolGrad.addColorStop(0, '#475569');
+  spoolGrad.addColorStop(0.5, '#94a3b8');
+  spoolGrad.addColorStop(1, '#475569');
+  ctx.fillStyle = spoolGrad;
+  ctx.fillRect(-10, 15, 20, 8);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.strokeRect(-10, 15, 20, 8);
+
+  // Bánh răng tời (Bronze Cogwheel) ở bên phải (X = 14, Y = 18)
+  const gearX = 14;
+  const gearY = 18;
+  ctx.save();
+  ctx.translate(gearX, gearY);
+  ctx.rotate(crankAngle);
+  ctx.fillStyle = '#d97706';
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const teeth = 8;
+  for (let t = 0; t < teeth; t++) {
+    const a = (Math.PI * 2 * t) / teeth;
+    const rOuter = 8.5;
+    const rInner = 6.5;
+    const p1x = Math.cos(a - 0.15) * rOuter;
+    const p1y = Math.sin(a - 0.15) * rOuter;
+    const p2x = Math.cos(a + 0.15) * rOuter;
+    const p2y = Math.sin(a + 0.15) * rOuter;
+    const p3x = Math.cos(a + 0.35) * rInner;
+    const p3y = Math.sin(a + 0.35) * rInner;
+    if (t === 0) ctx.moveTo(p1x, p1y);
+    else ctx.lineTo(p1x, p1y);
+    ctx.lineTo(p2x, p2y);
+    ctx.lineTo(p3x, p3y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Tâm trục bánh răng
+  ctx.fillStyle = '#78350f';
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Tay quay tời (Crank arm) xoay 360 độ
+  const crankLen = 10;
+  const handleX = gearX + Math.cos(crankAngle) * crankLen;
+  const handleY = gearY + Math.sin(crankAngle) * crankLen;
+
+  ctx.strokeStyle = '#78350f';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(gearX, gearY);
+  ctx.lineTo(handleX, handleY);
+  ctx.stroke();
+
+  // Núm tay cầm gỗ
+  ctx.fillStyle = '#f59e0b';
+  ctx.beginPath();
+  ctx.arc(handleX, handleY, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cần gạt nhả móc ở bên trái (X = -15, Y = 16)
+  const leverAngle = hookState === 'SHOOTING' ? -0.4 : 0.2;
+  ctx.save();
+  ctx.translate(-15, 20);
+  ctx.rotate(leverAngle);
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -12);
+  ctx.stroke();
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(0, -12, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 5. Nhân vật Ông Lão Đào Vàng (The Legendary Gold Miner)
+  const isPullingHeavy = hookState === 'RETRACTING' && grabbedItem && grabbedItem.weight > 2.2;
+  const isExcited = hookState === 'RETRACTING' && grabbedItem && (grabbedItem.type === 'diamond' || grabbedItem.type === 'pig_diamond' || grabbedItem.type === 'gold_large');
+  const minerBobY = isPullingHeavy ? Math.sin(crankAngle * 2) * 2 : 0;
+
+  ctx.save();
+  ctx.translate(0, minerBobY);
+
+  // Áo đỏ flannel
+  ctx.fillStyle = '#dc2626';
+  ctx.beginPath();
+  ctx.roundRect(-15, -2, 28, 18, 5);
+  ctx.fill();
+
+  // Quần yếm denim xanh
+  ctx.fillStyle = '#1d4ed8';
+  ctx.beginPath();
+  ctx.roundRect(-13, 4, 24, 14, 3);
+  ctx.fill();
+
+  // Dây đeo quần yếm có khuy đồng
+  ctx.strokeStyle = '#1e40af';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-9, -2); ctx.lineTo(-9, 10);
+  ctx.moveTo(7, -2); ctx.lineTo(7, 10);
+  ctx.stroke();
+
+  // Khuy đồng vàng sáng
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath();
+  ctx.arc(-9, 6, 1.6, 0, Math.PI * 2);
+  ctx.arc(7, 6, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cánh tay thợ mỏ linh hoạt theo hành động
+  ctx.strokeStyle = '#fed7aa';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+
+  if (hookState === 'RETRACTING') {
+    ctx.beginPath();
+    ctx.moveTo(2, 3);
+    ctx.lineTo(handleX, handleY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-4, 3);
+    ctx.lineTo(handleX - 2, handleY);
+    ctx.stroke();
+  } else if (hookState === 'SHOOTING') {
+    ctx.beginPath();
+    ctx.moveTo(-6, 3);
+    ctx.lineTo(-15, 8);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-6, 3);
+    ctx.lineTo(-14, 10);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(8, 3);
+    ctx.lineTo(16, 8);
+    ctx.stroke();
+  }
+
+  // Đầu thợ mỏ
+  const headY = -14;
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.arc(0, headY, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Má hồng dễ thương
+  ctx.fillStyle = 'rgba(248, 113, 113, 0.45)';
+  ctx.beginPath();
+  ctx.arc(-6, headY + 3, 3.5, 0, Math.PI * 2);
+  ctx.arc(6, headY + 3, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Chiếc mũi to tròn ngộ nghĩnh
+  ctx.fillStyle = '#fb923c';
+  ctx.beginPath();
+  ctx.arc(0, headY + 1, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bộ râu trắng bồng bềnh nhiều tầng
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(-6, headY + 6, 5, 0, Math.PI * 2);
+  ctx.arc(0, headY + 9, 6.5, 0, Math.PI * 2);
+  ctx.arc(6, headY + 6, 5, 0, Math.PI * 2);
+  ctx.arc(-3, headY + 14, 5, 0, Math.PI * 2);
+  ctx.arc(3, headY + 14, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Ria mép cong vút dưới mũi
+  ctx.beginPath();
+  ctx.moveTo(-8, headY + 3);
+  ctx.quadraticCurveTo(-4, headY - 1, 0, headY + 3);
+  ctx.quadraticCurveTo(4, headY - 1, 8, headY + 3);
+  ctx.quadraticCurveTo(4, headY + 6, 0, headY + 4);
+  ctx.quadraticCurveTo(-4, headY + 6, -8, headY + 3);
+  ctx.fill();
+
+  // Đôi mắt và biểu cảm sinh động
+  if (isPullingHeavy) {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-7, headY - 3); ctx.lineTo(-4, headY - 1); ctx.lineTo(-7, headY + 1);
+    ctx.moveTo(7, headY - 3); ctx.lineTo(4, headY - 1); ctx.lineTo(7, headY + 1);
+    ctx.stroke();
+
+    // Giọt mồ hôi bắn ra
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(-14, headY - 5, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (isExcited) {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-5, headY - 1, 3, Math.PI, 0);
+    ctx.arc(5, headY - 1, 3, Math.PI, 0);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#0f172a';
+    const lookX = Math.sin(hookAngle) * 2;
+    ctx.beginPath();
+    ctx.arc(-5 + lookX, headY - 1, 2.2, 0, Math.PI * 2);
+    ctx.arc(5 + lookX, headY - 1, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-4 + lookX, headY - 2, 0.8, 0, Math.PI * 2);
+    ctx.arc(6 + lookX, headY - 2, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-8, headY - 5); ctx.lineTo(-2, headY - 4);
+    ctx.moveTo(8, headY - 5); ctx.lineTo(2, headY - 4);
+    ctx.stroke();
+  }
+
+  // Mũ bảo hộ vàng công trình cứng cáp
+  const helmetGrad = ctx.createLinearGradient(0, headY - 22, 0, headY - 8);
+  helmetGrad.addColorStop(0, '#fef08a');
+  helmetGrad.addColorStop(0.35, '#eab308');
+  helmetGrad.addColorStop(1, '#a16207');
+
+  ctx.fillStyle = helmetGrad;
+  ctx.strokeStyle = '#713f12';
+  ctx.lineWidth = 1.2;
+
+  // Vòm mũ
+  ctx.beginPath();
+  ctx.arc(0, headY - 11, 12, Math.PI, 0);
+  ctx.fill();
+  ctx.stroke();
+
+  // Vành mũ bảo hộ che nắng
+  ctx.beginPath();
+  ctx.ellipse(0, headY - 10, 15, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Đèn pin gắn trên mũ mỏ vàng
+  const lampY = headY - 18;
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(-3, lampY - 2, 6, 4);
+
+  // Thấu kính đèn sáng rực với ánh sáng lập lòe nhẹ
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#fef08a';
+  ctx.shadowBlur = 12 + Math.sin(time * 0.006) * 3;
+  ctx.beginPath();
+  ctx.arc(0, lampY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore(); // minerBobY
+
+  // 6. Luồng ánh sáng chiếu rọi từ đèn pin xuống lòng mỏ (Cinematic Light Beam)
+  const beamAngle = hookAngle * 0.4;
+  ctx.save();
+  ctx.translate(0, headY - 18 + minerBobY);
+  ctx.rotate(beamAngle);
+
+  const beamGrad = ctx.createLinearGradient(0, 0, 0, 320);
+  beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.28)');
+  beamGrad.addColorStop(0.4, 'rgba(254, 240, 138, 0.12)');
+  beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+
+  ctx.fillStyle = beamGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, 4);
+  ctx.lineTo(-45, 320);
+  ctx.lineTo(45, 320);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore(); // WINCH_X
+}
 
 export const GameGoldMiner: React.FC = () => {
   const [level, setLevel] = useState(1);
@@ -132,6 +946,7 @@ export const GameGoldMiner: React.FC = () => {
   const swingDirRef = useRef<number>(1);
   const hookLengthRef = useRef<number>(BASE_HOOK_LEN);
   const grabbedItemRef = useRef<MineItem | null>(null);
+  const crankAngleRef = useRef<number>(0);
 
   // Hiệu ứng hạt & chữ bay
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -240,6 +1055,11 @@ export const GameGoldMiner: React.FC = () => {
           value = 2;
           weight = 0.8;
           break;
+        case 'pig_diamond':
+          radius = 16;
+          value = (hasDiamondPolish ? 800 : 600) + 100;
+          weight = 0.6;
+          break;
       }
 
       list.push({
@@ -300,6 +1120,26 @@ export const GameGoldMiner: React.FC = () => {
       }
     }
 
+    // Từ màn 2 trở lên: Xuất hiện 1-2 chú heo ngậm kim cương chạy lon ton
+    if (lvl >= 2) {
+      const pigCount = Math.min(2, lvl - 1);
+      for (let p = 0; p < pigCount; p++) {
+        const pigY = 230 + p * 110 + Math.random() * 30;
+        list.push({
+          id: idCounter++,
+          type: 'pig_diamond',
+          x: 120 + Math.random() * (CANVAS_WIDTH - 240),
+          y: pigY,
+          radius: 16,
+          value: (hasDiamondPolish ? 800 : 600) + 100,
+          weight: 0.6,
+          isAlive: true,
+          rotation: 0,
+          vx: (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4),
+        });
+      }
+    }
+
     return list;
   }, [hasDiamondPolish]);
 
@@ -329,10 +1169,8 @@ export const GameGoldMiner: React.FC = () => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Hết giờ: Kiểm tra xem đã đạt mục tiêu vàng chưa
           const target = LEVEL_TARGETS[level - 1] || 15000;
           if (score >= target) {
-            // Đạt mục tiêu: Qua màn và mở cửa hàng
             confetti({
               particleCount: 120,
               spread: 70,
@@ -341,7 +1179,6 @@ export const GameGoldMiner: React.FC = () => {
             playCoinSound();
             setIsShopOpen(true);
           } else {
-            // Thất bại
             setIsGameOver(true);
             playTone(160, 'sawtooth', 0.5, 0.15);
           }
@@ -374,29 +1211,31 @@ export const GameGoldMiner: React.FC = () => {
     setScreenShake(true);
     setTimeout(() => setScreenShake(false), 350);
 
-    const item = grabbedItemRef.current;
     grabbedItemRef.current = null;
 
-    // Hiệu ứng nổ đá/quặng
+    // Hiệu ứng nổ tại vị trí đầu móc hiện tại
+    const hookX = WINCH_X + Math.sin(hookAngleRef.current) * hookLengthRef.current;
+    const hookY = WINCH_Y + Math.cos(hookAngleRef.current) * hookLengthRef.current;
+
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 22; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 5;
+      const speed = 2 + Math.random() * 6;
       newParticles.push({
         id: Date.now() + Math.random() + i,
-        x: item.x,
-        y: item.y,
+        x: hookX,
+        y: hookY,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        color: '#f97316',
+        color: i % 2 === 0 ? '#f97316' : '#ef4444',
         size: 3.5 + Math.random() * 4,
         alpha: 1,
       });
     }
     setParticles(prev => [...prev.slice(-40), ...newParticles]);
 
-    // Móc câu thu hồi về cực nhanh sau khi nổ
-    hookLengthRef.current = Math.max(BASE_HOOK_LEN, hookLengthRef.current - 15);
+    // Thu hồi dây nhanh về vị trí ban đầu
+    hookLengthRef.current = Math.max(BASE_HOOK_LEN, hookLengthRef.current - 20);
   }, [dynamiteCount, playExplosionSound]);
 
   // Bắt phím Space / Mũi tên xuống để thả móc, Mũi tên lên / Phím W để ném thuốc nổ
@@ -436,11 +1275,26 @@ export const GameGoldMiner: React.FC = () => {
       ctx.save();
       ctx.scale(dpr, dpr);
 
+      const time = Date.now();
+
       // CẬP NHẬT VẬT LÝ MÓC CÂU (PHYSICS UPDATE)
       if (!isPaused && !isGameOver && !isShopOpen) {
+        // Cập nhật vị trí di chuyển của heo con ngậm kim cương
+        for (const it of itemsRef.current) {
+          if (it.type === 'pig_diamond' && it.isAlive && it !== grabbedItemRef.current) {
+            const speed = it.vx || 0.8;
+            it.x += speed;
+            if (it.x > CANVAS_WIDTH - 60) {
+              it.vx = -Math.abs(speed);
+            } else if (it.x < 60) {
+              it.vx = Math.abs(speed);
+            }
+          }
+        }
+
         // 1. Nếu đang đung đưa tự do
         if (hookStateRef.current === 'SWINGING') {
-          const swingSpeed = 0.038;
+          const swingSpeed = 0.026; // Nhịp lắc con lắc mượt mà, dễ căn góc bắn chuẩn
           hookAngleRef.current += swingSpeed * swingDirRef.current;
 
           if (hookAngleRef.current > MAX_SWING_ANGLE) {
@@ -453,7 +1307,7 @@ export const GameGoldMiner: React.FC = () => {
         }
         // 2. Nếu đang phóng móc ra ngoài
         else if (hookStateRef.current === 'SHOOTING') {
-          const shootSpeed = 16;
+          const shootSpeed = 9.2; // Giảm tốc độ phóng móc để người chơi nhìn rõ đường lao xuống
           hookLengthRef.current += shootSpeed;
 
           const hookX = WINCH_X + Math.sin(hookAngleRef.current) * hookLengthRef.current;
@@ -467,10 +1321,9 @@ export const GameGoldMiner: React.FC = () => {
             for (const item of itemsRef.current) {
               if (item.isAlive) {
                 const dist = Math.hypot(hookX - item.x, hookY - item.y);
-                if (dist <= item.radius + 10) {
+                if (dist <= item.radius + 12) {
                   // Trúng quặng!
                   if (item.type === 'tnt') {
-                    // Trúng thùng thuốc nổ TNT: Nổ diện rộng!
                     item.isAlive = false;
                     playExplosionSound();
                     setScreenShake(true);
@@ -488,7 +1341,6 @@ export const GameGoldMiner: React.FC = () => {
 
                     hookStateRef.current = 'RETRACTING';
                   } else {
-                    // Cặp trúng quặng thường: Bắt đầu kéo về
                     item.isAlive = false;
                     grabbedItemRef.current = item;
                     hookStateRef.current = 'RETRACTING';
@@ -502,16 +1354,28 @@ export const GameGoldMiner: React.FC = () => {
         }
         // 3. Nếu đang thu hồi dây kéo về
         else if (hookStateRef.current === 'RETRACTING') {
-          let pullSpeed = 16;
           const grabbed = grabbedItemRef.current;
+          let pullSpeed = 11.0; // Dây kéo rỗng thu hồi êm ái
 
           if (grabbed) {
-            // Tốc độ kéo phụ thuộc vào khối lượng quặng và bùa tăng lực
-            const speedMod = hasStrengthPotion ? 2.0 : 1.0;
-            pullSpeed = Math.max(2.8, (14 / grabbed.weight) * speedMod);
+            // Tốc độ kéo phụ thuộc chính xác theo loại quặng (kéo dây chậm hơn mang lại cảm giác nặng đầm tay)
+            const baseItemSpeeds: Record<ItemType, number> = {
+              diamond: 8.5,       // Kim cương nhẹ nhất, thu cực nhanh
+              pig_diamond: 7.8,   // Heo ngậm kim cương thu nhanh
+              gold_small: 5.4,    // Vàng nhỏ
+              mystery_bag: 4.6,   // Túi bí ẩn vừa phải
+              gold_med: 3.4,      // Vàng vừa có cảm giác nặng
+              rock_small: 2.0,    // Đá nhỏ nặng, thu chậm
+              gold_large: 1.8,    // Vàng lớn rất nặng, giá trị $500 kéo chậm hào hứng
+              rock_large: 1.1,    // Đá tảng cực nặng, kéo siêu chậm, thúc đẩy ném thuốc nổ
+              tnt: 7.0,
+            };
+            const speedMod = hasStrengthPotion ? 2.2 : 1.0;
+            pullSpeed = (baseItemSpeeds[grabbed.type] || 3.0) * speedMod;
           }
 
           hookLengthRef.current -= pullSpeed;
+          crankAngleRef.current += pullSpeed * 0.22; // Bánh răng tời cơ khí quay đồng bộ theo tốc độ kéo
 
           // Khi dây đã thu hồi hoàn toàn về vị trí xuất phát
           if (hookLengthRef.current <= BASE_HOOK_LEN) {
@@ -554,7 +1418,7 @@ export const GameGoldMiner: React.FC = () => {
               }
 
               // Cộng điểm tiền vàng
-              if (grabbed.type === 'diamond') {
+              if (grabbed.type === 'diamond' || grabbed.type === 'pig_diamond') {
                 playDiamondSound();
               } else {
                 playCoinSound();
@@ -579,7 +1443,7 @@ export const GameGoldMiner: React.FC = () => {
                   x: WINCH_X,
                   y: WINCH_Y + 10,
                   text: `+$${earned}`,
-                  color: grabbed.type === 'diamond' ? '#38bdf8' : '#facc15',
+                  color: (grabbed.type === 'diamond' || grabbed.type === 'pig_diamond') ? '#38bdf8' : '#facc15',
                 }
               ]);
 
@@ -592,289 +1456,210 @@ export const GameGoldMiner: React.FC = () => {
       // VẼ TOÀN BỘ ĐỒ HỌA SÂN CHƠI (CANVAS RENDER)
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // 1. Nền lòng đất mỏ vàng (Địa tầng phân lớp rực rỡ)
-      // Tầng mặt đất phía trên
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(0, 0, CANVAS_WIDTH, 80);
+      // 1. Bầu trời đêm và Trại mỏ trên mặt đất (Y: 0 đến 76)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, 76);
+      skyGrad.addColorStop(0, '#090d16');
+      skyGrad.addColorStop(1, '#1e293b');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, 76);
 
-      // Thảm cỏ mặt đất
-      ctx.fillStyle = '#10b981';
-      ctx.fillRect(0, 76, CANVAS_WIDTH, 4);
+      // Ngôi sao lấp lánh trên bầu trời đêm
+      for (let s = 0; s < 12; s++) {
+        const sx = (s * 83 + 25) % (CANVAS_WIDTH - 40);
+        const sy = (s * 37 + 10) % 55;
+        const sTwinkle = 0.3 + Math.sin(time * 0.002 + s * 1.5) * 0.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, sTwinkle)})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
-      // Tầng lòng đất sâu
-      const dirtGrad = ctx.createLinearGradient(0, 80, 0, CANVAS_HEIGHT);
-      dirtGrad.addColorStop(0, '#1c1007');
-      dirtGrad.addColorStop(0.5, '#130a04');
-      dirtGrad.addColorStop(1, '#080402');
-      ctx.fillStyle = dirtGrad;
-      ctx.fillRect(0, 80, CANVAS_WIDTH, CANVAS_HEIGHT - 80);
+      // Khung giàn dầm gỗ chống hầm mỏ (Timber Scaffolding)
+      const drawTimberPost = (tx: number) => {
+        const postGrad = ctx.createLinearGradient(tx - 7, 0, tx + 7, 0);
+        postGrad.addColorStop(0, '#2e1509');
+        postGrad.addColorStop(0.5, '#451a03');
+        postGrad.addColorStop(1, '#2e1509');
+        ctx.fillStyle = postGrad;
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(tx - 7, 0, 14, 76);
+        ctx.strokeRect(tx - 7, 0, 14, 76);
 
-      // Vân đất vi hạt lấp lánh vàng
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.05)';
-      for (let gx = 20; gx < CANVAS_WIDTH; gx += 40) {
-        for (let gy = 100; gy < CANVAS_HEIGHT; gy += 40) {
-          ctx.beginPath();
-          ctx.arc(gx + ((gy % 80 === 0) ? 20 : 0), gy, 1.2, 0, Math.PI * 2);
-          ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(tx - 7, 15); ctx.lineTo(tx + (tx < 500 ? 25 : -25), 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(tx, 20, 1.5, 0, Math.PI * 2);
+        ctx.arc(tx, 50, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      drawTimberPost(60);
+      drawTimberPost(CANVAS_WIDTH - 60);
+
+      // Đèn bão (Lantern) treo trên cột gỗ bên trái
+      const flameFlicker = Math.sin(time * 0.008) * 2;
+      const lanternGlow = ctx.createRadialGradient(60, 38, 2, 60, 38, 70 + flameFlicker * 3);
+      lanternGlow.addColorStop(0, 'rgba(254, 240, 138, 0.4)');
+      lanternGlow.addColorStop(0.5, 'rgba(245, 158, 11, 0.12)');
+      lanternGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+      ctx.fillStyle = lanternGlow;
+      ctx.beginPath();
+      ctx.arc(60, 38, 80, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Thân đèn bão
+      ctx.fillStyle = '#d97706';
+      ctx.fillRect(56, 30, 8, 14);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(58, 33, 4, 8);
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(56, 30, 8, 14);
+
+      // Thùng thuốc nổ dự trữ bên cạnh (X = WINCH_X - 70, Y = 62)
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(WINCH_X - 76, 56, 16, 16);
+      ctx.strokeStyle = '#b45309';
+      ctx.strokeRect(WINCH_X - 76, 56, 16, 16);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(WINCH_X - 74, 52, 4, 10);
+      ctx.fillRect(WINCH_X - 68, 50, 4, 12);
+      ctx.fillRect(WINCH_X - 63, 53, 4, 9);
+
+      // Đống quặng vàng & cuốc mỏ bên cạnh (X = WINCH_X + 68, Y = 66)
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(WINCH_X + 66, 68, 5, 0, Math.PI * 2);
+      ctx.arc(WINCH_X + 74, 69, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Đường ray xe goòng & Tà vẹt gỗ (Y: 68 đến 80)
+      for (let rx = 15; rx < CANVAS_WIDTH; rx += 25) {
+        ctx.fillStyle = '#3e1804';
+        ctx.fillRect(rx, 68, 15, 6);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(rx + 2, 70, 1.5, 1.5);
+        ctx.fillRect(rx + 11, 70, 1.5, 1.5);
+      }
+
+      // Hai thanh ray thép chạy dài
+      const railGrad = ctx.createLinearGradient(0, 70, 0, 77);
+      railGrad.addColorStop(0, '#cbd5e1');
+      railGrad.addColorStop(0.5, '#64748b');
+      railGrad.addColorStop(1, '#334155');
+      ctx.fillStyle = railGrad;
+      ctx.fillRect(0, 70, CANVAS_WIDTH, 2.5);
+      ctx.fillRect(0, 75, CANVAS_WIDTH, 2.5);
+
+      // Dải cỏ xanh tự nhiên mép đất
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(0, 78, CANVAS_WIDTH, 3);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, 77, CANVAS_WIDTH, 1.5);
+
+      // 2. Nền Lòng Đất Mỏ Vàng Đa Tầng Địa Chất (Y: 80 đến CANVAS_HEIGHT = 540)
+      // Tầng 1: Đất mùn & sét đỏ (80 - 180)
+      const dirtGrad1 = ctx.createLinearGradient(0, 80, 0, 180);
+      dirtGrad1.addColorStop(0, '#261307');
+      dirtGrad1.addColorStop(1, '#3b1c0b');
+      ctx.fillStyle = dirtGrad1;
+      ctx.fillRect(0, 80, CANVAS_WIDTH, 100);
+
+      // Rễ cây đâm xuống từ mặt đất
+      ctx.strokeStyle = '#573012';
+      ctx.lineWidth = 1.5;
+      for (let rx = 40; rx < CANVAS_WIDTH; rx += 90) {
+        ctx.beginPath();
+        ctx.moveTo(rx, 80);
+        ctx.quadraticCurveTo(rx + 5, 95, rx + ((rx % 2 === 0) ? 12 : -8), 105);
+        ctx.stroke();
+      }
+
+      // Tầng 2: Sa thạch & Phiến sét vàng nâu (180 - 320)
+      const dirtGrad2 = ctx.createLinearGradient(0, 180, 0, 320);
+      dirtGrad2.addColorStop(0, '#3b1c0b');
+      dirtGrad2.addColorStop(1, '#2c1407');
+      ctx.fillStyle = dirtGrad2;
+      ctx.fillRect(0, 180, CANVAS_WIDTH, 140);
+
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.12)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 180);
+      ctx.bezierCurveTo(240, 172, 480, 188, CANVAS_WIDTH, 180);
+      ctx.stroke();
+
+      // Tầng 3: Tầng đá sô-cô-la chứa quặng sâu (320 - 430)
+      const dirtGrad3 = ctx.createLinearGradient(0, 320, 0, 430);
+      dirtGrad3.addColorStop(0, '#2c1407');
+      dirtGrad3.addColorStop(1, '#1b0b04');
+      ctx.fillStyle = dirtGrad3;
+      ctx.fillRect(0, 320, CANVAS_WIDTH, 110);
+
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.1)';
+      ctx.beginPath();
+      ctx.moveTo(0, 320);
+      ctx.bezierCurveTo(320, 330, 640, 312, CANVAS_WIDTH, 322);
+      ctx.stroke();
+
+      // Tầng 4: Tầng đá gốc bazan sâu thẳm (430 - 540)
+      const dirtGrad4 = ctx.createLinearGradient(0, 430, 0, CANVAS_HEIGHT);
+      dirtGrad4.addColorStop(0, '#1b0b04');
+      dirtGrad4.addColorStop(1, '#090402');
+      ctx.fillStyle = dirtGrad4;
+      ctx.fillRect(0, 430, CANVAS_WIDTH, CANVAS_HEIGHT - 430);
+
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(0, 430);
+      ctx.bezierCurveTo(200, 422, 600, 438, CANVAS_WIDTH, 428);
+      ctx.stroke();
+
+      // Vi hạt bụi vàng lấp lánh trong lòng đất
+      for (let gx = 30; gx < CANVAS_WIDTH; gx += 50) {
+        for (let gy = 100; gy < CANVAS_HEIGHT; gy += 45) {
+          const goldSpark = Math.sin(time * 0.003 + gx * 0.05 + gy * 0.08);
+          if (goldSpark > 0.3) {
+            ctx.fillStyle = `rgba(245, 158, 11, ${(goldSpark - 0.3) * 0.35})`;
+            ctx.beginPath();
+            ctx.arc(gx + ((gy % 90 === 0) ? 25 : 0), gy, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
-      // 2. Vẽ tất cả các quặng mỏ trong lòng đất
+      // 3. Vẽ tất cả các quặng mỏ trong lòng đất (chưa bị gắp)
       for (const item of items) {
         if (!item.isAlive) continue;
-
-        ctx.save();
-        ctx.translate(item.x, item.y);
-        ctx.rotate(item.rotation);
-
-        switch (item.type) {
-          case 'gold_small':
-          case 'gold_med':
-          case 'gold_large': {
-            // Vàng khối 3D giác cạnh lấp lánh
-            ctx.shadowColor = 'rgba(245, 158, 11, 0.6)';
-            ctx.shadowBlur = item.radius * 0.6;
-
-            const goldGrad = ctx.createRadialGradient(-item.radius * 0.35, -item.radius * 0.35, 2, 0, 0, item.radius);
-            goldGrad.addColorStop(0, '#fffbeb');
-            goldGrad.addColorStop(0.35, '#fde047');
-            goldGrad.addColorStop(0.75, '#eab308');
-            goldGrad.addColorStop(1, '#854d0e');
-
-            ctx.fillStyle = goldGrad;
-            ctx.strokeStyle = '#fef08a';
-            ctx.lineWidth = 1.5;
-
-            // Hình đa giác quặng vàng tự nhiên
-            ctx.beginPath();
-            const sides = item.type === 'gold_large' ? 8 : 6;
-            for (let s = 0; s < sides; s++) {
-              const a = (Math.PI * 2 * s) / sides;
-              const r = item.radius * (0.85 + ((s % 2 === 0) ? 0.15 : -0.1));
-              const px = Math.cos(a) * r;
-              const py = Math.sin(a) * r;
-              if (s === 0) ctx.moveTo(px, py);
-              else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Điểm lóa sáng kim loại
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.beginPath();
-            ctx.arc(-item.radius * 0.35, -item.radius * 0.35, item.radius * 0.2, 0, Math.PI * 2);
-            ctx.fill();
-            break;
-          }
-
-          case 'diamond': {
-            // Kim cương phát quang xanh pha lê
-            ctx.shadowColor = 'rgba(6, 182, 212, 0.85)';
-            ctx.shadowBlur = 14;
-
-            const diamGrad = ctx.createLinearGradient(-item.radius, -item.radius, item.radius, item.radius);
-            diamGrad.addColorStop(0, '#ffffff');
-            diamGrad.addColorStop(0.4, '#a5f3fc');
-            diamGrad.addColorStop(1, '#0284c7');
-
-            ctx.fillStyle = diamGrad;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.2;
-
-            ctx.beginPath();
-            ctx.moveTo(0, -item.radius);
-            ctx.lineTo(item.radius, 0);
-            ctx.lineTo(0, item.radius);
-            ctx.lineTo(-item.radius, 0);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Giác cắt phản chiếu
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.beginPath();
-            ctx.moveTo(0, -item.radius * 0.5);
-            ctx.lineTo(item.radius * 0.5, 0);
-            ctx.lineTo(0, item.radius * 0.5);
-            ctx.lineTo(-item.radius * 0.5, 0);
-            ctx.closePath();
-            ctx.fill();
-            break;
-          }
-
-          case 'rock_small':
-          case 'rock_large': {
-            // Đá cuội xám gồ ghề
-            const rockGrad = ctx.createRadialGradient(-item.radius * 0.3, -item.radius * 0.3, 2, 0, 0, item.radius);
-            rockGrad.addColorStop(0, '#94a3b8');
-            rockGrad.addColorStop(0.6, '#475569');
-            rockGrad.addColorStop(1, '#1e293b');
-
-            ctx.fillStyle = rockGrad;
-            ctx.strokeStyle = '#64748b';
-            ctx.lineWidth = 1.5;
-
-            ctx.beginPath();
-            const sides = 7;
-            for (let s = 0; s < sides; s++) {
-              const a = (Math.PI * 2 * s) / sides;
-              const r = item.radius * (0.85 + (s % 3 === 0 ? 0.15 : -0.08));
-              const px = Math.cos(a) * r;
-              const py = Math.sin(a) * r;
-              if (s === 0) ctx.moveTo(px, py);
-              else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            break;
-          }
-
-          case 'mystery_bag': {
-            // Túi vải bí ẩn màu da bò có dấu ?
-            ctx.fillStyle = '#b45309';
-            ctx.strokeStyle = '#fde68a';
-            ctx.lineWidth = 1.5;
-
-            ctx.beginPath();
-            ctx.arc(0, 3, item.radius * 0.85, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Túm thắt miệng bao
-            ctx.fillStyle = '#78350f';
-            ctx.fillRect(-6, -item.radius * 0.9, 12, 6);
-
-            // Dấu chấm hỏi màu vàng sáng
-            ctx.fillStyle = '#fef08a';
-            ctx.font = 'bold 16px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('?', 0, 4);
-            break;
-          }
-
-          case 'tnt': {
-            // Thùng thuốc nổ màu đỏ có chữ TNT
-            ctx.fillStyle = '#dc2626';
-            ctx.strokeStyle = '#fca5a5';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.roundRect(-item.radius * 0.8, -item.radius * 0.8, item.radius * 1.6, item.radius * 1.6, 4);
-            ctx.fill();
-            ctx.stroke();
-
-            // Chữ TNT
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'black 11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('TNT', 0, 0);
-
-            // Ngòi nổ phía trên
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, -item.radius * 0.8);
-            ctx.lineTo(4, -item.radius * 1.2);
-            ctx.stroke();
-            break;
-          }
-        }
-
-        ctx.restore();
+        drawSingleItem(ctx, item.x, item.y, item, time);
       }
 
-      // 3. Tính toán vị trí đầu móc câu hiện tại
+      // 4. Tính toán vị trí đầu móc câu hiện tại
       const hookX = WINCH_X + Math.sin(hookAngleRef.current) * hookLengthRef.current;
       const hookY = WINCH_Y + Math.cos(hookAngleRef.current) * hookLengthRef.current;
 
-      // 4. Vẽ quặng đang bị gắp kéo về (nếu có)
-      const grabbed = grabbedItemRef.current;
-      if (grabbed) {
-        ctx.save();
-        ctx.translate(hookX, hookY + grabbed.radius * 0.8);
-
-        switch (grabbed.type) {
-          case 'gold_small':
-          case 'gold_med':
-          case 'gold_large': {
-            const goldGrad = ctx.createRadialGradient(-grabbed.radius * 0.35, -grabbed.radius * 0.35, 2, 0, 0, grabbed.radius);
-            goldGrad.addColorStop(0, '#fffbeb');
-            goldGrad.addColorStop(0.35, '#fde047');
-            goldGrad.addColorStop(0.75, '#eab308');
-            goldGrad.addColorStop(1, '#854d0e');
-
-            ctx.fillStyle = goldGrad;
-            ctx.strokeStyle = '#fef08a';
-            ctx.lineWidth = 1.5;
-
-            ctx.beginPath();
-            ctx.arc(0, 0, grabbed.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            break;
-          }
-          case 'diamond': {
-            ctx.fillStyle = '#a5f3fc';
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(0, -grabbed.radius);
-            ctx.lineTo(grabbed.radius, 0);
-            ctx.lineTo(0, grabbed.radius);
-            ctx.lineTo(-grabbed.radius, 0);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            break;
-          }
-          case 'rock_small':
-          case 'rock_large': {
-            ctx.fillStyle = '#475569';
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(0, 0, grabbed.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            break;
-          }
-          case 'mystery_bag': {
-            ctx.fillStyle = '#b45309';
-            ctx.strokeStyle = '#fde68a';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(0, 0, grabbed.radius * 0.85, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            ctx.fillStyle = '#fef08a';
-            ctx.font = 'bold 14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('?', 0, 0);
-            break;
-          }
-          default:
-            break;
-        }
-
-        ctx.restore();
-      }
-
       // 5. Vẽ sợi dây cáp thép nối từ tời đến đầu móc câu
       ctx.save();
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.moveTo(WINCH_X, WINCH_Y);
       ctx.lineTo(hookX, hookY);
       ctx.stroke();
 
-      // Hiệu ứng tia dây sáng
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(WINCH_X, WINCH_Y);
+      ctx.lineTo(hookX, hookY);
+      ctx.stroke();
+
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 0.9;
+      ctx.setLineDash([6, 4]);
       ctx.stroke();
       ctx.restore();
 
@@ -883,87 +1668,96 @@ export const GameGoldMiner: React.FC = () => {
       ctx.translate(hookX, hookY);
       ctx.rotate(-hookAngleRef.current);
 
-      // Càng móc câu đôi bằng kim loại
-      ctx.fillStyle = '#cbd5e1';
-      ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 2;
+      const grabbed = grabbedItemRef.current;
+      let clawSpread = 0.38;
+      if (hookStateRef.current === 'RETRACTING') {
+        if (grabbed) {
+          clawSpread = Math.min(0.45, 0.12 + grabbed.radius * 0.009);
+        } else {
+          clawSpread = 0.08;
+        }
+      }
 
-      // Móc trái
+      // Khớp tời trên đầu móc
+      ctx.fillStyle = '#475569';
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(-5, -8, 10, 8, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Càng móc bên trái
+      ctx.save();
+      ctx.rotate(-clawSpread);
+      const clawGradL = ctx.createLinearGradient(-15, 0, 0, 24);
+      clawGradL.addColorStop(0, '#f1f5f9');
+      clawGradL.addColorStop(0.5, '#94a3b8');
+      clawGradL.addColorStop(1, '#334155');
+      ctx.fillStyle = clawGradL;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+
       ctx.beginPath();
       ctx.moveTo(-2, 0);
-      ctx.quadraticCurveTo(-14, 10, -10, 18);
-      ctx.lineTo(-6, 12);
-      ctx.quadraticCurveTo(-8, 8, 0, 2);
+      ctx.quadraticCurveTo(-16, 12, -11, 24);
+      ctx.lineTo(-7, 16);
+      ctx.quadraticCurveTo(-9, 10, 0, 2);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+      ctx.restore();
 
-      // Móc phải
+      // Càng móc bên phải
+      ctx.save();
+      ctx.rotate(clawSpread);
+      const clawGradR = ctx.createLinearGradient(0, 0, 15, 24);
+      clawGradR.addColorStop(0, '#f1f5f9');
+      clawGradR.addColorStop(0.5, '#94a3b8');
+      clawGradR.addColorStop(1, '#334155');
+      ctx.fillStyle = clawGradR;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+
       ctx.beginPath();
       ctx.moveTo(2, 0);
-      ctx.quadraticCurveTo(14, 10, 10, 18);
-      ctx.lineTo(6, 12);
-      ctx.quadraticCurveTo(8, 8, 0, 2);
+      ctx.quadraticCurveTo(16, 12, 11, 24);
+      ctx.lineTo(7, 16);
+      ctx.quadraticCurveTo(9, 10, 0, 2);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-
-      // Khuyên tròn nối cáp
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.restore();
 
-      // 7. Vẽ Thợ Mỏ và Cỗ Xe Kéo Vàng ở mặt đất (WINCH_X, 42)
-      ctx.save();
-      ctx.translate(WINCH_X, 42);
-
-      // Thùng xe bằng gỗ
-      ctx.fillStyle = '#78350f';
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 2;
+      // Bu-lông trục xoay đồng thau
+      ctx.fillStyle = '#fbbf24';
+      ctx.strokeStyle = '#92400e';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(-28, -14, 56, 26, 6);
+      ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Bánh xe sắt
-      ctx.fillStyle = '#334155';
-      ctx.beginPath();
-      ctx.arc(-18, 14, 7, 0, Math.PI * 2);
-      ctx.arc(18, 14, 7, 0, Math.PI * 2);
-      ctx.fill();
+      // Vẽ quặng đang bị gắp kẹp chặt giữa 2 càng móc
+      if (grabbed) {
+        ctx.save();
+        ctx.translate(0, 10 + grabbed.radius * 0.72);
+        drawSingleItem(ctx, 0, 0, grabbed, time);
+        ctx.restore();
+      }
 
-      // Thợ mỏ đội mũ bảo hộ vàng
-      // Đầu
-      ctx.fillStyle = '#fed7aa';
-      ctx.beginPath();
-      ctx.arc(0, -18, 10, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.restore(); // Hook transform
 
-      // Bộ râu trắng huyền thoại của ông lão đào vàng
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(0, -14, 8, 0, Math.PI);
-      ctx.fill();
-
-      // Mũ bảo hộ vàng có đèn pin
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.arc(0, -22, 11, Math.PI, 0);
-      ctx.fill();
-
-      // Đèn pin trên mũ sáng rực
-      ctx.fillStyle = '#fef08a';
-      ctx.shadowColor = '#fef08a';
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(0, -23, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
+      // 7. Vẽ Thợ Mỏ và Cỗ Xe Kéo Vàng ở mặt đất (Winch & Miner Assembly)
+      drawMinerAndWinch(
+        ctx,
+        WINCH_X,
+        hookStateRef.current,
+        hookAngleRef.current,
+        grabbedItemRef.current,
+        crankAngleRef.current,
+        time
+      );
 
       // 8. Vẽ các hạt vụn nổ
       for (const p of particles) {
@@ -1101,52 +1895,59 @@ export const GameGoldMiner: React.FC = () => {
             ))}
           </div>
 
-          {/* Nút Ném Thuốc Nổ */}
+          {/* Nút Thuốc Nổ Nhanh trên HUD */}
           <button
             onClick={handleUseDynamite}
             disabled={dynamiteCount <= 0 || hookStateRef.current !== 'RETRACTING' || !grabbedItemRef.current}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer active:scale-95 shadow-sm ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-black text-xs transition cursor-pointer active:scale-95 ${
               dynamiteCount > 0 && hookStateRef.current === 'RETRACTING' && grabbedItemRef.current
-                ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
-                : 'bg-slate-800 text-gray-400 border-white/10 opacity-70'
+                ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse'
+                : 'bg-slate-950/60 border-white/10 text-gray-400 opacity-60'
             }`}
-            title="Ném thuốc nổ phá quặng nặng đang kéo (Phím W hoặc Mũi tên lên)"
+            title="Ném Thuốc Nổ (Phím W hoặc Chuột Phải)"
           >
             <Bomb className="w-3.5 h-3.5 text-rose-400" />
             <span>NỔ ({dynamiteCount})</span>
           </button>
         </div>
 
-        {/* Khối Giữa: TIỀN VÀNG & MỤC TIÊU & THỜI GIAN - CĂN CHÍNH GIỮA 50% */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[380px] sm:w-[480px] h-full flex items-center justify-center z-0 pointer-events-none select-none">
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-            <span className="text-gray-500 font-black text-base sm:text-lg select-none">•</span>
-          </div>
-
-          <div className="absolute right-[calc(50%+12px)] top-1/2 -translate-y-1/2 flex items-center justify-end gap-2 whitespace-nowrap">
-            <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="text-xs sm:text-sm font-black text-amber-400 tracking-wide">VÀNG:</span>
-            <span className="text-xl sm:text-2xl font-black text-white font-mono min-w-[50px] text-right">
+        {/* Khối Giữa: Căn giữa tuyệt đối 50% */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4 pointer-events-none">
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span className="text-xs sm:text-sm font-bold text-gray-400">VÀNG:</span>
+            <span className="text-sm sm:text-lg font-black text-amber-400 font-mono tracking-tight">
               ${score.toLocaleString()}
             </span>
           </div>
 
-          <div className="absolute left-[calc(50%+12px)] top-1/2 -translate-y-1/2 flex items-center justify-start gap-2 whitespace-nowrap">
-            <span className="text-xs sm:text-sm font-bold text-gray-300 font-mono">
-              MỤC TIÊU: <span className="text-amber-400 font-black">${targetScore.toLocaleString()}</span>
-            </span>
-            <span className="text-xs sm:text-sm font-black text-rose-400 font-mono flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {timeLeft}s
-            </span>
-          </div>
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-600 hidden sm:block" />
+
+          {mode !== 'endless' && (
+            <div className="text-xs font-bold text-gray-300 hidden sm:flex items-center gap-1">
+              <span className="text-gray-400">MỤC TIÊU:</span>
+              <span className="text-amber-300 font-mono font-black">${targetScore.toLocaleString()}</span>
+            </div>
+          )}
+
+          {mode !== 'endless' && (
+            <>
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-600 hidden sm:block" />
+              <div className="flex items-center gap-1 font-mono text-xs sm:text-sm font-bold">
+                <Clock className="w-3.5 h-3.5 text-rose-400" />
+                <span className={timeLeft <= 10 ? 'text-rose-400 animate-pulse font-black' : 'text-gray-300'}>
+                  {timeLeft}s
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Khối Phải: Màn chơi & Tạm Dừng & Ván Mới */}
+        {/* Khối Phải: Cấp độ, Tạm dừng & Chơi lại */}
         <div className="flex items-center gap-2 z-10">
-          <span className="hidden sm:inline-block px-2.5 py-1 rounded-xl bg-slate-950 border border-white/10 text-xs font-black text-cyan-300 font-mono">
+          <div className="px-2.5 py-1 rounded-xl bg-slate-950 border border-white/10 text-xs font-black text-cyan-400 font-mono">
             MÀN {level}
-          </span>
+          </div>
 
           <button
             onClick={() => setIsPaused(p => !p)}
@@ -1182,7 +1983,7 @@ export const GameGoldMiner: React.FC = () => {
           className="w-full h-full cursor-pointer block"
         />
 
-        {/* Nút bấm to ảo trên điện thoại để thả móc */}
+        {/* Nút bấm ảo trên điện thoại để thả móc */}
         <div className="sm:hidden absolute bottom-4 right-4 z-20">
           <button
             onClick={handleLaunchHook}
