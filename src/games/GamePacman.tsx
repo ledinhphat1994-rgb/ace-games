@@ -23,13 +23,14 @@ interface Ghost {
   x: number;
   y: number;
   dir: Direction;
-  nextDir: Direction;
   speed: number;
   homeX: number;
   homeY: number;
   isFrightened: boolean;
   isEaten: boolean;
-  respawnTimer: number;
+  state: 'HOUSE' | 'EXITING' | 'ROAMING';
+  exitDelay: number;
+  decidedTile: string;
 }
 
 interface Particle {
@@ -52,37 +53,45 @@ interface ScorePopup {
   alpha: number;
 }
 
-// 19 Cột x 21 Hàng - Mê cung Pac-Man Cyberpunk Neon cân đối
+// 31 Cột x 17 Hàng - Mê cung Widescreen 16:9 Arcades Đẳng Cấp
 // 0: Trống, 1: Tường, 2: Hạt Đậu (10đ), 3: Hạt Năng Lượng (50đ), 4: Cổng Nhà Ma, 5: Trong Nhà Ma, 6: Đường Hầm Xuyên Màn
-const INITIAL_MAZE = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 3, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 3, 1],
-  [1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1],
-  [1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 2, 1],
-  [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
-  [1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1],
-  [0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0],
-  [1, 1, 1, 1, 2, 1, 0, 1, 1, 4, 1, 1, 0, 1, 2, 1, 1, 1, 1],
-  [6, 0, 0, 0, 2, 0, 0, 1, 5, 5, 5, 1, 0, 0, 2, 0, 0, 0, 6],
-  [1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1],
-  [0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0],
-  [1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1],
-  [1, 3, 2, 1, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 1, 2, 3, 1],
-  [1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1],
-  [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
-  [1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+const HALF_MAZE = [
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Row 0
+  [1, 3, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1], // Row 1
+  [1, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1], // Row 2
+  [1, 2, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2, 2], // Row 3
+  [1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1], // Row 4
+  [1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1], // Row 5
+  [1, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2, 1, 0, 0, 0, 4], // Row 6 (Cổng nhà ma tại col 15)
+  [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 0, 5, 5, 5], // Row 7 (Nhà ma)
+  [6, 0, 0, 0, 2, 1, 0, 1, 2, 1, 2, 1, 0, 5, 5, 5], // Row 8 (Đường hầm col 0, Nhà ma)
+  [1, 2, 2, 2, 2, 1, 0, 1, 2, 1, 2, 1, 1, 1, 1, 1], // Row 9
+  [1, 2, 1, 1, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1], // Row 10
+  [1, 2, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1], // Row 11
+  [1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0], // Row 12 (Pac-Man xuất phát tại col 15)
+  [1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1], // Row 13
+  [1, 3, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1], // Row 14
+  [1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1], // Row 15
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Row 16
 ];
 
-const COLS = 19;
-const ROWS = 21;
-const TILE_SIZE = 26;
-const CANVAS_WIDTH = COLS * TILE_SIZE;  // 494
-const CANVAS_HEIGHT = ROWS * TILE_SIZE; // 546
+const COLS = 31;
+const ROWS = 17;
+const TILE_SIZE = 30;
+const CANVAS_WIDTH = COLS * TILE_SIZE;  // 930px
+const CANVAS_HEIGHT = ROWS * TILE_SIZE; // 510px (Tỷ lệ 16:9 chuẩn màn hình rạp phim)
+
+// Sinh ma trận đối xứng 31 cột
+const createWidescreenMaze = (): number[][] => {
+  const full: number[][] = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row: number[] = [];
+    for (let c = 0; c < 16; c++) row.push(HALF_MAZE[r][c]);
+    for (let c = 14; c >= 0; c--) row.push(HALF_MAZE[r][c]);
+    full.push(row);
+  }
+  return full;
+};
 
 export const GamePacman: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -125,13 +134,6 @@ export const GamePacman: React.FC = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isVictory, setIsVictory] = useState<boolean>(false);
 
-  // Lưu cài đặt vào localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('ace_game_settings_pacman', JSON.stringify({ speedMode, initialLives }));
-    } catch {}
-  }, [speedMode, initialLives]);
-
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -158,7 +160,7 @@ export const GamePacman: React.FC = () => {
 
   const playWakaTone = useCallback((step: number) => {
     const f = step % 2 === 0 ? 320 : 480;
-    playSynth(f, 'triangle', 0.06, 0.04);
+    playSynth(f, 'triangle', 0.05, 0.04);
   }, [playSynth]);
 
   const playEatGhostSound = useCallback(() => {
@@ -177,17 +179,17 @@ export const GamePacman: React.FC = () => {
 
   // Game Mutable State Ref for 60 FPS Canvas Loop
   const stateRef = useRef({
-    maze: INITIAL_MAZE.map(row => [...row]),
+    maze: createWidescreenMaze(),
     pacman: {
-      x: 9 * TILE_SIZE + TILE_SIZE / 2,
-      y: 16 * TILE_SIZE + TILE_SIZE / 2,
+      x: 15 * TILE_SIZE + TILE_SIZE / 2,
+      y: 12 * TILE_SIZE + TILE_SIZE / 2,
       dir: 'NONE' as Direction,
       nextDir: 'NONE' as Direction,
-      speed: 2.2,
+      speed: 2.5,
       mouthAngle: 0.25,
       mouthSpeed: 0.08,
       wakaStep: 0,
-      radius: 10,
+      radius: 11,
     },
     ghosts: [] as Ghost[],
     ghostEatMultiplier: 1,
@@ -201,75 +203,80 @@ export const GamePacman: React.FC = () => {
     speedMultiplier: 1.0,
     level: 1,
     score: 0,
-    lives: 3,
+    lives: initialLives,
     isPaused: false,
     isPlaying: false,
     isGameOver: false,
     shake: 0,
+    gameTime: 0,
   });
 
-  // Khởi tạo các bóng ma
+  // Khởi tạo 4 bóng ma với vị trí xuất phát & kế hoạch xuất kích
   const createGhosts = useCallback((): Ghost[] => {
     return [
       {
         id: 'blinky',
         name: 'Blinky',
         color: '#f43f5e', // Đỏ Rose
-        x: 9 * TILE_SIZE + TILE_SIZE / 2,
-        y: 8 * TILE_SIZE + TILE_SIZE / 2,
+        x: 15 * TILE_SIZE + TILE_SIZE / 2,
+        y: 5 * TILE_SIZE + TILE_SIZE / 2, // Đứng ngay bên ngoài cổng ma, đi săn ngay
         dir: 'LEFT',
-        nextDir: 'LEFT',
-        speed: 1.95,
-        homeX: 9,
-        homeY: 8,
+        speed: 2.15,
+        homeX: 15,
+        homeY: 5,
         isFrightened: false,
         isEaten: false,
-        respawnTimer: 0,
+        state: 'ROAMING',
+        exitDelay: 0,
+        decidedTile: '',
       },
       {
         id: 'pinky',
         name: 'Pinky',
         color: '#ec4899', // Hồng Pink
-        x: 9 * TILE_SIZE + TILE_SIZE / 2,
-        y: 10 * TILE_SIZE + TILE_SIZE / 2,
+        x: 15 * TILE_SIZE + TILE_SIZE / 2,
+        y: 8 * TILE_SIZE + TILE_SIZE / 2,
         dir: 'UP',
-        nextDir: 'UP',
-        speed: 1.85,
-        homeX: 9,
-        homeY: 10,
+        speed: 2.05,
+        homeX: 15,
+        homeY: 8,
         isFrightened: false,
         isEaten: false,
-        respawnTimer: 0,
+        state: 'HOUSE',
+        exitDelay: 60, // Ra sau 1 giây
+        decidedTile: '',
       },
       {
         id: 'inky',
         name: 'Inky',
         color: '#06b6d4', // Xanh Cyan
-        x: 8 * TILE_SIZE + TILE_SIZE / 2,
-        y: 10 * TILE_SIZE + TILE_SIZE / 2,
+        x: 14 * TILE_SIZE + TILE_SIZE / 2,
+        y: 8 * TILE_SIZE + TILE_SIZE / 2,
         dir: 'UP',
-        nextDir: 'UP',
-        speed: 1.8,
-        homeX: 8,
-        homeY: 10,
+        speed: 2.0,
+        homeX: 14,
+        homeY: 8,
         isFrightened: false,
         isEaten: false,
-        respawnTimer: 0,
+        state: 'HOUSE',
+        exitDelay: 180, // Ra sau 3 giây
+        decidedTile: '',
       },
       {
         id: 'clyde',
         name: 'Clyde',
         color: '#f97316', // Cam Orange
-        x: 10 * TILE_SIZE + TILE_SIZE / 2,
-        y: 10 * TILE_SIZE + TILE_SIZE / 2,
+        x: 16 * TILE_SIZE + TILE_SIZE / 2,
+        y: 8 * TILE_SIZE + TILE_SIZE / 2,
         dir: 'UP',
-        nextDir: 'UP',
-        speed: 1.75,
-        homeX: 10,
-        homeY: 10,
+        speed: 1.95,
+        homeX: 16,
+        homeY: 8,
         isFrightened: false,
         isEaten: false,
-        respawnTimer: 0,
+        state: 'HOUSE',
+        exitDelay: 320, // Ra sau 5.3 giây
+        decidedTile: '',
       },
     ];
   }, []);
@@ -290,7 +297,7 @@ export const GamePacman: React.FC = () => {
     soundManager.playButtonClick();
     const s = stateRef.current;
     const newLvl = nextLvl ? s.level + 1 : 1;
-    const freshMaze = INITIAL_MAZE.map(row => [...row]);
+    const freshMaze = createWidescreenMaze();
     const dotCount = countDots(freshMaze);
 
     s.maze = freshMaze;
@@ -308,13 +315,14 @@ export const GamePacman: React.FC = () => {
     s.isGameOver = false;
     s.isPlaying = true;
     s.shake = 0;
+    s.gameTime = 0;
 
-    // Reset vị trí Pac-Man
-    s.pacman.x = 9 * TILE_SIZE + TILE_SIZE / 2;
-    s.pacman.y = 16 * TILE_SIZE + TILE_SIZE / 2;
+    // Reset vị trí Pac-Man tại tâm ngang
+    s.pacman.x = 15 * TILE_SIZE + TILE_SIZE / 2;
+    s.pacman.y = 12 * TILE_SIZE + TILE_SIZE / 2;
     s.pacman.dir = 'NONE';
     s.pacman.nextDir = 'NONE';
-    s.pacman.speed = 2.2 + (newLvl - 1) * 0.15;
+    s.pacman.speed = 2.5 + (newLvl - 1) * 0.15;
 
     if (!nextLvl) {
       s.score = 0;
@@ -376,14 +384,14 @@ export const GamePacman: React.FC = () => {
 
   // Kiểm tra ô có đi qua được không
   const isWalkable = useCallback((tileX: number, tileY: number, isGhost: boolean = false): boolean => {
-    if (tileX < 0 || tileX >= COLS || tileY < 0 || tileY >= ROWS) {
-      // Đường hầm xuyên màn hình
-      if (tileY === 10) return true;
-      return false;
-    }
+    // Đường hầm xuyên màn hình (Row 8)
+    if (tileY === 8 && (tileX < 0 || tileX >= COLS)) return true;
+    if (tileX < 0 || tileX >= COLS || tileY < 0 || tileY >= ROWS) return false;
+
     const val = stateRef.current.maze[tileY][tileX];
-    if (val === 1) return false;
-    if (val === 4 && !isGhost) return false; // Chỉ Ghost mới đi qua cổng nhà ma
+    if (val === 1) return false; // Tường
+    if (val === 4 && !isGhost) return false; // Chỉ Ghost mới qua cổng ma
+    if (val === 5 && !isGhost) return false; // Nhà ma
     return true;
   }, []);
 
@@ -445,10 +453,11 @@ export const GamePacman: React.FC = () => {
     const s = stateRef.current;
     if (!s.isPlaying || s.isPaused || s.isGameOver) return;
 
+    s.gameTime++;
     const mult = s.speedMultiplier;
     const pac = s.pacman;
 
-    // --- 1. Pac-Man Di Chuyển & Căn Giữa Ô Lưới ---
+    // --- 1. Pac-Man Di Chuyển & Chuyển Hướng Mượt Mà ---
     const curTileX = Math.floor(pac.x / TILE_SIZE);
     const curTileY = Math.floor(pac.y / TILE_SIZE);
     const centerTileX = curTileX * TILE_SIZE + TILE_SIZE / 2;
@@ -457,7 +466,6 @@ export const GamePacman: React.FC = () => {
     // Kiểm tra đổi hướng dự định
     if (pac.nextDir !== pac.dir && pac.nextDir !== 'NONE') {
       const nextTarget = getNextTile(curTileX, curTileY, pac.nextDir);
-      // Đổi hướng ngược lại ngay lập tức mà không cần chờ tâm ô
       const isOpposite = 
         (pac.dir === 'LEFT' && pac.nextDir === 'RIGHT') ||
         (pac.dir === 'RIGHT' && pac.nextDir === 'LEFT') ||
@@ -467,9 +475,8 @@ export const GamePacman: React.FC = () => {
       if (isOpposite) {
         pac.dir = pac.nextDir;
       } else if (isWalkable(nextTarget.tx, nextTarget.ty)) {
-        // Căn chuyển hướng khi gần tâm ô trong bán kính 6px
         const distToCenter = Math.hypot(pac.x - centerTileX, pac.y - centerTileY);
-        if (distToCenter < 7) {
+        if (distToCenter < 8) {
           pac.x = centerTileX;
           pac.y = centerTileY;
           pac.dir = pac.nextDir;
@@ -488,8 +495,8 @@ export const GamePacman: React.FC = () => {
       if (pac.dir === 'LEFT') nextX -= spd;
       if (pac.dir === 'RIGHT') nextX += spd;
 
-      // Xử lý đường hầm xuyên màn hình (Row 10)
-      if (curTileY === 10) {
+      // Xuyên hầm màn hình (Row 8)
+      if (curTileY === 8) {
         if (nextX < -TILE_SIZE / 2) nextX = CANVAS_WIDTH + TILE_SIZE / 2;
         else if (nextX > CANVAS_WIDTH + TILE_SIZE / 2) nextX = -TILE_SIZE / 2;
       }
@@ -507,13 +514,12 @@ export const GamePacman: React.FC = () => {
           pac.mouthSpeed = -pac.mouthSpeed;
         }
       } else {
-        // Chặn lại ở tâm ô khi gặp tường
         if (pac.dir === 'LEFT' || pac.dir === 'RIGHT') pac.x = centerTileX;
         if (pac.dir === 'UP' || pac.dir === 'DOWN') pac.y = centerTileY;
       }
     }
 
-    // --- 2. Ăn Hạt Đậu (Pellet) & Hạt Năng Lượng (Power Pellet) ---
+    // --- 2. Ăn Hạt Đậu & Hạt Năng Lượng ---
     const pacTileX = Math.floor(pac.x / TILE_SIZE);
     const pacTileY = Math.floor(pac.y / TILE_SIZE);
 
@@ -521,7 +527,6 @@ export const GamePacman: React.FC = () => {
       const tileVal = s.maze[pacTileY][pacTileX];
 
       if (tileVal === 2) {
-        // Ăn hạt đậu nhỏ: 10 điểm
         s.maze[pacTileY][pacTileX] = 0;
         s.score += 10;
         s.dotsRemaining--;
@@ -531,12 +536,10 @@ export const GamePacman: React.FC = () => {
         playWakaTone(pac.wakaStep);
         spawnParticles(pac.x, pac.y, '#fef08a', 4);
 
-        // Xuất hiện quả thưởng khi ăn được 50% hoặc 80% hạt đậu
         if (s.dotsRemaining === Math.floor(s.totalDots * 0.5) || s.dotsRemaining === Math.floor(s.totalDots * 0.2)) {
-          s.fruit = { x: 9 * TILE_SIZE + TILE_SIZE / 2, y: 12 * TILE_SIZE + TILE_SIZE / 2, active: true, points: 200 * s.level, timer: 600 };
+          s.fruit = { x: 15 * TILE_SIZE + TILE_SIZE / 2, y: 10 * TILE_SIZE + TILE_SIZE / 2, active: true, points: 200 * s.level, timer: 600 };
         }
       } else if (tileVal === 3) {
-        // Ăn hạt năng lượng lớn: 50 điểm + Kích hoạt Frightened Mode
         s.maze[pacTileY][pacTileX] = 0;
         s.score += 50;
         s.dotsRemaining--;
@@ -545,11 +548,10 @@ export const GamePacman: React.FC = () => {
         playSynth(880, 'sawtooth', 0.2, 0.1);
         spawnParticles(pac.x, pac.y, '#38bdf8', 16);
 
-        // Bật trạng thái sợ hãi cho toàn bộ Ghost chưa bị ăn
         s.frightenedTimeRemaining = s.frightenedDuration;
         s.ghostEatMultiplier = 1;
         s.ghosts.forEach(g => {
-          if (!g.isEaten) {
+          if (!g.isEaten && g.state === 'ROAMING') {
             g.isFrightened = true;
           }
         });
@@ -565,7 +567,7 @@ export const GamePacman: React.FC = () => {
       }
     }
 
-    // --- 4. Cập nhật quả thưởng (Fruit) ---
+    // --- 4. Quả Thưởng ---
     if (s.fruit && s.fruit.active) {
       s.fruit.timer--;
       if (s.fruit.timer <= 0) {
@@ -583,121 +585,166 @@ export const GamePacman: React.FC = () => {
       }
     }
 
-    // --- 5. Cập nhật AI 4 Bóng Ma (Blinky, Pinky, Inky, Clyde) ---
+    // --- 5. Trí Tuệ Nhân Tạo & Điều Khiển 4 Bóng Ma Hoạt Động Liên Tục ---
     s.ghosts.forEach(ghost => {
-      // Hồi sinh nếu đã bị ăn và quay về nhà
-      if (ghost.isEaten) {
-        const distHome = Math.hypot(ghost.x - (ghost.homeX * TILE_SIZE + TILE_SIZE / 2), ghost.y - (ghost.homeY * TILE_SIZE + TILE_SIZE / 2));
-        if (distHome < 8) {
-          ghost.isEaten = false;
-          ghost.isFrightened = false;
-          ghost.dir = 'UP';
+      // 5.1 Quản lý trạng thái xuất phát khỏi nhà ma
+      if (ghost.state === 'HOUSE') {
+        if (s.gameTime >= ghost.exitDelay) {
+          ghost.state = 'EXITING';
+        } else {
+          // Nhún nhảy nhẹ nhàng trong nhà ma khi chờ lượt
+          ghost.y += Math.sin(s.gameTime * 0.1) * 0.4;
+          return;
         }
       }
 
+      if (ghost.state === 'EXITING') {
+        const doorCenterX = 15 * TILE_SIZE + TILE_SIZE / 2;
+        const targetOutsideY = 5 * TILE_SIZE + TILE_SIZE / 2;
+
+        // Đi về giữa cột 15
+        if (Math.abs(ghost.x - doorCenterX) > 1.5) {
+          ghost.x += Math.sign(doorCenterX - ghost.x) * 1.5;
+        } else {
+          ghost.x = doorCenterX;
+          // Đi thẳng lên qua cửa ma
+          ghost.y -= 1.8;
+          if (ghost.y <= targetOutsideY) {
+            ghost.y = targetOutsideY;
+            ghost.state = 'ROAMING';
+            ghost.dir = Math.random() < 0.5 ? 'LEFT' : 'RIGHT';
+            ghost.decidedTile = '';
+          }
+        }
+        return;
+      }
+
+      // 5.2 Xử lý Ghost bị ăn đang chạy về nhà ma
+      if (ghost.isEaten) {
+        const homeCenterX = ghost.homeX * TILE_SIZE + TILE_SIZE / 2;
+        const homeCenterY = 8 * TILE_SIZE + TILE_SIZE / 2;
+        const distHome = Math.hypot(ghost.x - homeCenterX, ghost.y - homeCenterY);
+        if (distHome < 12) {
+          ghost.isEaten = false;
+          ghost.isFrightened = false;
+          ghost.state = 'EXITING';
+          return;
+        }
+      }
+
+      // 5.3 Di chuyển & Rẽ hướng tại giao lộ (Không bao giờ bị kẹt lại tâm ô)
       const gTileX = Math.floor(ghost.x / TILE_SIZE);
       const gTileY = Math.floor(ghost.y / TILE_SIZE);
       const gCenterX = gTileX * TILE_SIZE + TILE_SIZE / 2;
       const gCenterY = gTileY * TILE_SIZE + TILE_SIZE / 2;
-      const distCenter = Math.hypot(ghost.x - gCenterX, ghost.y - gCenterY);
+      const tileKey = `${gTileX},${gTileY}`;
 
-      let targetX = pac.x;
-      let targetY = pac.y;
+      // Kiểm tra khi vừa chạm tới hoặc băng qua tâm ô
+      let reachedCenter = false;
+      if (ghost.dir === 'RIGHT' && ghost.x >= gCenterX) reachedCenter = true;
+      else if (ghost.dir === 'LEFT' && ghost.x <= gCenterX) reachedCenter = true;
+      else if (ghost.dir === 'DOWN' && ghost.y >= gCenterY) reachedCenter = true;
+      else if (ghost.dir === 'UP' && ghost.y <= gCenterY) reachedCenter = true;
+      else if (ghost.dir === 'NONE') reachedCenter = true;
 
-      if (ghost.isEaten) {
-        // Đã bị ăn: Chạy nhanh về nhà ma để hồi sinh
-        targetX = ghost.homeX * TILE_SIZE + TILE_SIZE / 2;
-        targetY = ghost.homeY * TILE_SIZE + TILE_SIZE / 2;
-      } else if (ghost.isFrightened) {
-        // Đang sợ hãi: Điểm đến ngẫu nhiên
-        targetX = (COLS - gTileX) * TILE_SIZE;
-        targetY = (ROWS - gTileY) * TILE_SIZE;
-      } else {
-        // Tính toán chiến thuật theo tính cách từng con
-        if (ghost.id === 'blinky') {
-          // Blinky: Truy đuổi trực diện Pac-Man
-          targetX = pac.x;
-          targetY = pac.y;
-        } else if (ghost.id === 'pinky') {
-          // Pinky: Phục kích trước đầu Pac-Man 4 ô
-          const ahead = getNextTile(pacTileX, pacTileY, pac.dir);
-          targetX = ahead.tx * TILE_SIZE;
-          targetY = ahead.ty * TILE_SIZE;
-        } else if (ghost.id === 'inky') {
-          // Inky: Đánh gọng kìm
-          targetX = pac.x + (Math.random() - 0.5) * 80;
-          targetY = pac.y + (Math.random() - 0.5) * 80;
-        } else if (ghost.id === 'clyde') {
-          // Clyde: Lại gần thì chạy ra góc, xa thì đuổi
-          const distToPac = Math.hypot(ghost.x - pac.x, ghost.y - pac.y);
-          if (distToPac < 120) {
-            targetX = 1 * TILE_SIZE;
-            targetY = (ROWS - 2) * TILE_SIZE;
+      if (reachedCenter && ghost.decidedTile !== tileKey) {
+        ghost.decidedTile = tileKey;
+        // Căn chỉnh trục vuông góc để rẽ cua sắc nét
+        if (ghost.dir === 'LEFT' || ghost.dir === 'RIGHT') ghost.y = gCenterY;
+        if (ghost.dir === 'UP' || ghost.dir === 'DOWN') ghost.x = gCenterX;
+
+        // Xác định mục tiêu bám đuổi (Target Tile)
+        let targetX = pac.x;
+        let targetY = pac.y;
+
+        if (ghost.isEaten) {
+          targetX = 15 * TILE_SIZE + TILE_SIZE / 2;
+          targetY = 8 * TILE_SIZE + TILE_SIZE / 2;
+        } else if (ghost.isFrightened) {
+          targetX = (COLS - 1 - gTileX) * TILE_SIZE;
+          targetY = (ROWS - 1 - gTileY) * TILE_SIZE;
+        } else {
+          if (ghost.id === 'blinky') {
+            targetX = pac.x;
+            targetY = pac.y;
+          } else if (ghost.id === 'pinky') {
+            const ahead = getNextTile(pacTileX, pacTileY, pac.dir);
+            targetX = ahead.tx * TILE_SIZE;
+            targetY = ahead.ty * TILE_SIZE;
+          } else if (ghost.id === 'inky') {
+            targetX = pac.x + (Math.random() - 0.5) * 120;
+            targetY = pac.y + (Math.random() - 0.5) * 120;
+          } else if (ghost.id === 'clyde') {
+            const distToPac = Math.hypot(ghost.x - pac.x, ghost.y - pac.y);
+            if (distToPac < 150) {
+              targetX = 1 * TILE_SIZE;
+              targetY = (ROWS - 2) * TILE_SIZE;
+            }
           }
         }
-      }
 
-      // Đổi hướng thông minh tại các ngã tư
-      if (distCenter < 3.5) {
-        ghost.x = gCenterX;
-        ghost.y = gCenterY;
+        // Lấy danh sách các hướng có thể đi được từ tâm ô
+        const oppositeMap: Record<Direction, Direction> = {
+          UP: 'DOWN',
+          DOWN: 'UP',
+          LEFT: 'RIGHT',
+          RIGHT: 'LEFT',
+          NONE: 'NONE',
+        };
 
-        const possibleDirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-        const validDirs = possibleDirs.filter(d => {
-          // Không đi lùi ngược lại hướng vừa đi trừ phi cùng đường
-          const isReverse = 
-            (ghost.dir === 'LEFT' && d === 'RIGHT') ||
-            (ghost.dir === 'RIGHT' && d === 'LEFT') ||
-            (ghost.dir === 'UP' && d === 'DOWN') ||
-            (ghost.dir === 'DOWN' && d === 'UP');
-          if (isReverse && !ghost.isEaten) return false;
-
+        const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+        const validDirs = dirs.filter(d => {
+          if (d === oppositeMap[ghost.dir] && !ghost.isEaten) return false;
           const nxt = getNextTile(gTileX, gTileY, d);
           return isWalkable(nxt.tx, nxt.ty, true);
         });
 
         if (validDirs.length > 0) {
-          // Chọn hướng đưa Ghost đến gần mục tiêu nhất
-          let bestDir = validDirs[0];
-          let bestDist = Infinity;
-
-          validDirs.forEach(d => {
-            const nxt = getNextTile(gTileX, gTileY, d);
-            const nxtPixelX = nxt.tx * TILE_SIZE + TILE_SIZE / 2;
-            const nxtPixelY = nxt.ty * TILE_SIZE + TILE_SIZE / 2;
-            const dist = Math.hypot(nxtPixelX - targetX, nxtPixelY - targetY);
-
-            // Nếu đang Frightened thì chọn ngẫu nhiên
-            if (ghost.isFrightened) {
-              if (Math.random() < 0.35) bestDir = d;
-            } else if (dist < bestDist) {
-              bestDist = dist;
-              bestDir = d;
-            }
-          });
-
-          ghost.dir = bestDir;
+          if (ghost.isFrightened) {
+            ghost.dir = validDirs[Math.floor(Math.random() * validDirs.length)];
+          } else {
+            // Chọn hướng tối ưu nhất tới mục tiêu
+            let bestDir = validDirs[0];
+            let bestDist = Infinity;
+            validDirs.forEach(d => {
+              const nxt = getNextTile(gTileX, gTileY, d);
+              const nxtPixelX = nxt.tx * TILE_SIZE + TILE_SIZE / 2;
+              const nxtPixelY = nxt.ty * TILE_SIZE + TILE_SIZE / 2;
+              const dist = Math.hypot(nxtPixelX - targetX, nxtPixelY - targetY);
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestDir = d;
+              }
+            });
+            ghost.dir = bestDir;
+          }
+        } else {
+          // Đường cụt: buộc quay đầu
+          const opp = oppositeMap[ghost.dir];
+          const nxt = getNextTile(gTileX, gTileY, opp);
+          if (isWalkable(nxt.tx, nxt.ty, true)) {
+            ghost.dir = opp;
+          }
         }
       }
 
-      // Di chuyển Ghost
-      const gSpeed = ghost.isEaten ? 4.0 : (ghost.isFrightened ? 1.2 : ghost.speed) * mult;
+      // 5.4 Tiến bước liên tục
+      const gSpeed = ghost.isEaten ? 4.5 : (ghost.isFrightened ? 1.3 : ghost.speed) * mult;
       if (ghost.dir === 'UP') ghost.y -= gSpeed;
       if (ghost.dir === 'DOWN') ghost.y += gSpeed;
       if (ghost.dir === 'LEFT') ghost.x -= gSpeed;
       if (ghost.dir === 'RIGHT') ghost.x += gSpeed;
 
-      // Xuyên hầm màn hình
-      if (gTileY === 10) {
+      // Xuyên hầm màn hình (Row 8)
+      if (gTileY === 8) {
         if (ghost.x < -TILE_SIZE / 2) ghost.x = CANVAS_WIDTH + TILE_SIZE / 2;
         else if (ghost.x > CANVAS_WIDTH + TILE_SIZE / 2) ghost.x = -TILE_SIZE / 2;
       }
 
-      // --- 6. Xử lý va chạm giữa Pac-Man và Ghost ---
+      // --- 6. Xử lý va chạm Pac-Man và Ghost ---
       const distToPac = Math.hypot(pac.x - ghost.x, pac.y - ghost.y);
-      if (distToPac < pac.radius + 8) {
+      if (distToPac < pac.radius + 10) {
         if (ghost.isFrightened && !ghost.isEaten) {
-          // Pac-Man ăn Ghost: cộng điểm theo chuỗi combo (200, 400, 800, 1600)
           ghost.isEaten = true;
           ghost.isFrightened = false;
           const pts = 200 * s.ghostEatMultiplier;
@@ -708,11 +755,10 @@ export const GamePacman: React.FC = () => {
           playEatGhostSound();
           spawnScorePopup(ghost.x, ghost.y, `+${pts}`, '#38bdf8');
           spawnParticles(ghost.x, ghost.y, ghost.color, 24);
-        } else if (!ghost.isEaten && !ghost.isFrightened) {
-          // Pac-Man bị Ghost bắt
+        } else if (!ghost.isEaten && !ghost.isFrightened && ghost.state === 'ROAMING') {
           s.lives--;
           setLives(s.lives);
-          s.shake = 15;
+          s.shake = 16;
           playDeathSound();
           spawnParticles(pac.x, pac.y, '#facc15', 30);
 
@@ -723,8 +769,8 @@ export const GamePacman: React.FC = () => {
             soundManager.playDefeat();
           } else {
             // Hồi sinh Pac-Man và Ghost về vị trí ban đầu
-            pac.x = 9 * TILE_SIZE + TILE_SIZE / 2;
-            pac.y = 16 * TILE_SIZE + TILE_SIZE / 2;
+            pac.x = 15 * TILE_SIZE + TILE_SIZE / 2;
+            pac.y = 12 * TILE_SIZE + TILE_SIZE / 2;
             pac.dir = 'NONE';
             pac.nextDir = 'NONE';
             s.ghosts = createGhosts();
@@ -775,7 +821,7 @@ export const GamePacman: React.FC = () => {
     resetGame,
   ]);
 
-  // Vẽ Canvas Cyberpunk Neon 60 FPS
+  // Vẽ Canvas Cyberpunk Neon Widescreen 60 FPS
   const renderCanvas = useCallback((ctx: CanvasRenderingContext2D) => {
     const s = stateRef.current;
 
@@ -793,7 +839,7 @@ export const GamePacman: React.FC = () => {
     ctx.fillStyle = '#060913';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 1. Vẽ Mê Cung (Neon Grid Walls)
+    // 1. Vẽ Mê Cung Widescreen (Neon Grid Walls)
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const val = s.maze[r][c];
@@ -801,10 +847,9 @@ export const GamePacman: React.FC = () => {
         const py = r * TILE_SIZE;
 
         if (val === 1) {
-          // Tường Neon Cyberpunk Xanh Lam phát sáng
           ctx.save();
           ctx.shadowColor = '#0284c7';
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = 8;
           ctx.fillStyle = '#082f49';
           ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
 
@@ -813,8 +858,10 @@ export const GamePacman: React.FC = () => {
           ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
           ctx.restore();
         } else if (val === 4) {
-          // Cổng nhà ma
-          ctx.fillStyle = 'rgba(236, 72, 153, 0.6)';
+          // Cổng nhà ma phát sáng màu hồng neon
+          ctx.fillStyle = 'rgba(236, 72, 153, 0.8)';
+          ctx.shadowColor = '#ec4899';
+          ctx.shadowBlur = 10;
           ctx.fillRect(px, py + TILE_SIZE / 2 - 2, TILE_SIZE, 4);
         } else if (val === 2) {
           // Hạt đậu nhỏ
@@ -827,11 +874,11 @@ export const GamePacman: React.FC = () => {
           ctx.fill();
           ctx.restore();
         } else if (val === 3) {
-          // Hạt năng lượng lớn (Power Pellet nhấp nháy tỏa sáng)
+          // Hạt năng lượng lớn
           const pulse = (Math.sin(Date.now() / 150) + 1) * 0.5;
           ctx.save();
           ctx.beginPath();
-          ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 6.5 + pulse * 2, 0, Math.PI * 2);
+          ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 7.0 + pulse * 2.5, 0, Math.PI * 2);
           ctx.fillStyle = '#38bdf8';
           ctx.shadowColor = '#0ea5e9';
           ctx.shadowBlur = 14 + pulse * 6;
@@ -844,7 +891,7 @@ export const GamePacman: React.FC = () => {
     // 2. Vẽ quả thưởng nếu có
     if (s.fruit && s.fruit.active) {
       ctx.save();
-      ctx.font = '20px sans-serif';
+      ctx.font = '22px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🍒', s.fruit.x, s.fruit.y);
@@ -874,7 +921,7 @@ export const GamePacman: React.FC = () => {
 
     // Mắt Pac-Man
     ctx.beginPath();
-    ctx.arc(pac.radius * 0.15, -pac.radius * 0.55, 1.8, 0, Math.PI * 2);
+    ctx.arc(pac.radius * 0.15, -pac.radius * 0.55, 2.0, 0, Math.PI * 2);
     ctx.fillStyle = '#0f172a';
     ctx.fill();
     ctx.restore();
@@ -885,7 +932,6 @@ export const GamePacman: React.FC = () => {
       ctx.translate(ghost.x, ghost.y);
 
       if (ghost.isEaten) {
-        // Chỉ vẽ cặp mắt khi bị ăn đang chạy về nhà
         ctx.beginPath();
         ctx.arc(-4, -2, 4, 0, Math.PI * 2);
         ctx.arc(4, -2, 4, 0, Math.PI * 2);
@@ -905,16 +951,15 @@ export const GamePacman: React.FC = () => {
 
         // Thân trên tròn
         ctx.beginPath();
-        ctx.arc(0, -2, 10, Math.PI, 0, false);
-        ctx.lineTo(10, 8);
-        // Chân váy dập dềnh
+        ctx.arc(0, -2, 11, Math.PI, 0, false);
+        ctx.lineTo(11, 8);
         const wave = Math.sin(Date.now() / 100) * 2;
-        ctx.lineTo(6, 6 + wave);
-        ctx.lineTo(2, 8);
+        ctx.lineTo(7, 6 + wave);
+        ctx.lineTo(2, 9);
         ctx.lineTo(-2, 6 - wave);
-        ctx.lineTo(-6, 8);
-        ctx.lineTo(-10, 6 + wave);
-        ctx.lineTo(-10, -2);
+        ctx.lineTo(-7, 9);
+        ctx.lineTo(-11, 6 + wave);
+        ctx.lineTo(-11, -2);
         ctx.closePath();
         ctx.fillStyle = ghostColor;
         ctx.fill();
@@ -923,29 +968,27 @@ export const GamePacman: React.FC = () => {
         if (!ghost.isFrightened) {
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
-          ctx.arc(-4, -3, 3.2, 0, Math.PI * 2);
-          ctx.arc(4, -3, 3.2, 0, Math.PI * 2);
+          ctx.arc(-4, -3, 3.5, 0, Math.PI * 2);
+          ctx.arc(4, -3, 3.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Con ngươi nhìn theo hướng
           let lookX = 0;
           let lookY = 0;
-          if (ghost.dir === 'LEFT') lookX = -1.5;
-          if (ghost.dir === 'RIGHT') lookX = 1.5;
-          if (ghost.dir === 'UP') lookY = -1.5;
-          if (ghost.dir === 'DOWN') lookY = 1.5;
+          if (ghost.dir === 'LEFT') lookX = -1.8;
+          if (ghost.dir === 'RIGHT') lookX = 1.8;
+          if (ghost.dir === 'UP') lookY = -1.8;
+          if (ghost.dir === 'DOWN') lookY = 1.8;
 
           ctx.fillStyle = '#1e1b4b';
           ctx.beginPath();
-          ctx.arc(-4 + lookX, -3 + lookY, 1.6, 0, Math.PI * 2);
-          ctx.arc(4 + lookX, -3 + lookY, 1.6, 0, Math.PI * 2);
+          ctx.arc(-4 + lookX, -3 + lookY, 1.8, 0, Math.PI * 2);
+          ctx.arc(4 + lookX, -3 + lookY, 1.8, 0, Math.PI * 2);
           ctx.fill();
         } else {
-          // Mắt sợ hãi
           ctx.fillStyle = isFlashing ? '#f43f5e' : '#fef08a';
           ctx.beginPath();
-          ctx.arc(-4, -3, 2, 0, Math.PI * 2);
-          ctx.arc(4, -3, 2, 0, Math.PI * 2);
+          ctx.arc(-4, -3, 2.2, 0, Math.PI * 2);
+          ctx.arc(4, -3, 2.2, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -968,7 +1011,7 @@ export const GamePacman: React.FC = () => {
     s.popups.forEach(pop => {
       ctx.save();
       ctx.globalAlpha = pop.alpha;
-      ctx.font = 'bold 14px monospace';
+      ctx.font = 'bold 15px monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = pop.color;
       ctx.shadowColor = pop.color;
@@ -999,12 +1042,12 @@ export const GamePacman: React.FC = () => {
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#070b14]">
-      {/* Top HUD: Chuẩn hóa 3 Cột, Căn giữa tuyệt đối 50% */}
-      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(98vw,1440px)] px-3 sm:px-6 py-2 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg flex-shrink-0 mb-2 min-h-[52px]">
+      {/* Top HUD: Chuẩn hóa 3 Cột, Căn giữa tuyệt đối 50% ngang bằng Arena */}
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(98vw,1280px)] px-3 sm:px-6 py-2 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg flex-shrink-0 mb-2 min-h-[52px]">
         {/* Khối Trái: Tốc độ & Màn chơi */}
         <div className="flex items-center gap-2 sm:gap-3 z-10">
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-            <span className="px-2 py-0.5 text-yellow-400 font-bold text-xs flex items-center gap-1">
+            <span className="px-2.5 py-0.5 text-yellow-400 font-bold text-xs flex items-center gap-1">
               <Zap className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Màn</span> {level}
             </span>
@@ -1029,7 +1072,6 @@ export const GamePacman: React.FC = () => {
 
         {/* Khối Giữa: ĐIỂM SỐ & KỶ LỤC - CĂN CHÍNH GIỮA TUYỆT ĐỐI 50% */}
         <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[340px] sm:w-[420px] h-full flex items-center justify-center z-0 pointer-events-none select-none">
-          {/* Dấu hai chấm neo tuyệt đối 50% */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
             <span className="text-gray-500 font-black text-base sm:text-lg select-none">•</span>
           </div>
@@ -1049,8 +1091,8 @@ export const GamePacman: React.FC = () => {
             <span className="text-base sm:text-lg font-black text-white font-mono">
               {highScore.toLocaleString()}
             </span>
-            <div className="flex items-center gap-1 ml-1">
-              {Array.from({ length: 3 }).map((_, i) => (
+            <div className="flex items-center gap-1 ml-1.5">
+              {Array.from({ length: initialLives }).map((_, i) => (
                 <span
                   key={i}
                   className={`text-sm transition-opacity ${i < lives ? 'opacity-100 scale-105' : 'opacity-20'}`}
@@ -1082,9 +1124,9 @@ export const GamePacman: React.FC = () => {
         </div>
       </div>
 
-      {/* Sân đấu Canvas Pac-Man Neon Cyberpunk */}
+      {/* Sân đấu Canvas Pac-Man Widescreen 16:9 - Chiếm trọn không gian ngang rạp phim */}
       <div 
-        className="game-arena-box relative bg-slate-950 p-2 rounded-3xl w-full max-w-[min(96vw,540px)] max-h-[calc(100dvh-170px)] border-4 border-yellow-500/40 shadow-[0_0_50px_rgba(234,179,8,0.25)] overflow-hidden flex items-center justify-center flex-1 min-h-0"
+        className="game-arena-box relative bg-slate-950 p-2 sm:p-3 rounded-3xl w-full max-w-[min(98vw,1280px)] max-h-[calc(100dvh-150px)] border-4 border-yellow-500/40 shadow-[0_0_60px_rgba(234,179,8,0.3)] overflow-hidden flex items-center justify-center flex-1 min-h-0"
         style={{ aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}
       >
         <canvas
@@ -1098,8 +1140,8 @@ export const GamePacman: React.FC = () => {
         {!isPlaying && !isGameOver && !isVictory && (
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
             <span className="text-6xl mb-3 animate-bounce">🟡</span>
-            <h3 className="text-3xl font-black text-yellow-400 mb-2 tracking-wider">PAC-MAN</h3>
-            <p className="text-sm text-gray-300 mb-6 font-semibold">Ăn hạt đậu, né 4 con ma & nuốt hạt năng lượng!</p>
+            <h3 className="text-3xl sm:text-4xl font-black text-yellow-400 mb-2 tracking-wider">PAC-MAN WIDESCREEN</h3>
+            <p className="text-sm sm:text-base text-gray-300 mb-6 font-semibold">Ăn sạch hạt đậu, né 4 con ma & nuốt hạt năng lượng phản đòn!</p>
             <button
               onClick={() => resetGame()}
               className="px-8 py-3.5 bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-500 text-slate-950 font-black rounded-2xl text-base shadow-[0_0_30px_rgba(234,179,8,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer uppercase tracking-wider"
@@ -1129,7 +1171,7 @@ export const GamePacman: React.FC = () => {
             <span className="text-6xl mb-2">👻</span>
             <h3 className="text-3xl font-black text-rose-500 mb-2 tracking-wider">GAME OVER!</h3>
             <p className="text-sm text-gray-300 font-semibold mb-6">
-              Điểm đạt được: <strong className="text-yellow-400 font-mono text-lg">{score.toLocaleString()}</strong>
+              Điểm đạt được: <strong className="text-yellow-400 font-mono text-xl">{score.toLocaleString()}</strong>
             </p>
             <button
               onClick={() => resetGame()}
