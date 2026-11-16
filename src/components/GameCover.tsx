@@ -823,6 +823,132 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'bubble-shooter':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-amber-950 via-slate-950 to-emerald-950 ${className}`}>
+          {/* Hexagonal Dot Matrix Pattern */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="egg-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="pop-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="4.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
+              <radialGradient id="egg-red" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#fca5a5" />
+                <stop offset="60%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </radialGradient>
+              <radialGradient id="egg-cyan" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#a5f3fc" />
+                <stop offset="60%" stopColor="#06b6d4" />
+                <stop offset="100%" stopColor="#0e7490" />
+              </radialGradient>
+              <radialGradient id="egg-green" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#a7f3d0" />
+                <stop offset="60%" stopColor="#10b981" />
+                <stop offset="100%" stopColor="#065f46" />
+              </radialGradient>
+              <radialGradient id="egg-yellow" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#fef08a" />
+                <stop offset="60%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#b45309" />
+              </radialGradient>
+              <radialGradient id="egg-purple" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#f5d0fe" />
+                <stop offset="60%" stopColor="#a855f7" />
+                <stop offset="100%" stopColor="#6b21a8" />
+              </radialGradient>
+            </defs>
+
+            {/* Ceiling Danger Frame */}
+            <line x1="20" y1="12" x2="180" y2="12" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+
+            {/* Top Cluster Row 1 */}
+            <circle cx="35" cy="24" r="11" fill="url(#egg-red)" stroke="#fca5a5" strokeWidth="0.8" />
+            <circle cx="57" cy="24" r="11" fill="url(#egg-red)" stroke="#fca5a5" strokeWidth="0.8" />
+            <circle cx="79" cy="24" r="11" fill="url(#egg-green)" stroke="#a7f3d0" strokeWidth="0.8" />
+            <circle cx="101" cy="24" r="11" fill="url(#egg-green)" stroke="#a7f3d0" strokeWidth="0.8" />
+            <circle cx="123" cy="24" r="11" fill="url(#egg-cyan)" stroke="#a5f3fc" strokeWidth="0.8" />
+            <circle cx="145" cy="24" r="11" fill="url(#egg-yellow)" stroke="#fef08a" strokeWidth="0.8" />
+            <circle cx="167" cy="24" r="11" fill="url(#egg-purple)" stroke="#f5d0fe" strokeWidth="0.8" />
+
+            {/* Top Cluster Row 2 (Staggered) */}
+            <circle cx="46" cy="42" r="11" fill="url(#egg-red)" stroke="#fca5a5" strokeWidth="1" filter="url(#egg-glow)" />
+            <circle cx="68" cy="42" r="11" fill="url(#egg-green)" stroke="#a7f3d0" strokeWidth="0.8" />
+            <circle cx="90" cy="42" r="11" fill="url(#egg-cyan)" stroke="#a5f3fc" strokeWidth="0.8" />
+            <circle cx="112" cy="42" r="11" fill="url(#egg-cyan)" stroke="#a5f3fc" strokeWidth="0.8" />
+            <circle cx="134" cy="42" r="11" fill="url(#egg-yellow)" stroke="#fef08a" strokeWidth="0.8" />
+            <circle cx="156" cy="42" r="11" fill="url(#egg-purple)" stroke="#f5d0fe" strokeWidth="0.8" />
+
+            {/* Matching Cluster 3: Glowing Red Hit Burst */}
+            <g filter="url(#pop-glow)" transform="translate(46, 42)">
+              <circle cx="0" cy="0" r="15" fill="#ef4444" opacity="0.3" />
+              <path d="M 0 -16 L 3 -4 L 15 0 L 3 4 L 0 16 L -3 4 L -15 0 L -3 -4 Z" fill="#ffffff" />
+            </g>
+
+            {/* Popping shards and sparks */}
+            <circle cx="36" cy="36" r="2" fill="#fca5a5" />
+            <circle cx="56" cy="48" r="2.5" fill="#ef4444" />
+            <circle cx="42" cy="54" r="1.5" fill="#fef08a" />
+            <circle cx="28" cy="46" r="2" fill="#ffffff" />
+
+            {/* Floating Pop Score */}
+            <text x="56" y="66" fill="#fef08a" fontSize="11" fontWeight="900" fontFamily="monospace" textAnchor="middle" filter="url(#egg-glow)">+120!</text>
+
+            {/* Aiming Laser Line (Bouncing off wall) */}
+            <path
+              d="M 100 120 L 40 76 L 46 44"
+              stroke="#06b6d4"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+              strokeLinecap="round"
+              opacity="0.6"
+            />
+            {/* Wall bounce reflection dot */}
+            <circle cx="40" cy="76" r="3.5" fill="#22d3ee" filter="url(#egg-glow)" />
+
+            {/* Flying Egg Projectile with Motion Trail */}
+            <circle cx="65" cy="94" r="7" fill="#ef4444" opacity="0.3" />
+            <circle cx="76" cy="102" r="9" fill="#ef4444" opacity="0.5" />
+            <g transform="translate(54, 86)" filter="url(#egg-glow)">
+              <circle cx="0" cy="0" r="11" fill="url(#egg-red)" stroke="#ffffff" strokeWidth="1.2" />
+              <circle cx="-3" cy="-4" r="2.5" fill="#ffffff" opacity="0.8" />
+            </g>
+
+            {/* Brass Cannon Base at Bottom */}
+            <g transform="translate(100, 126)">
+              {/* Rotating Barrel */}
+              <g transform="rotate(-38)">
+                <rect x="-6" y="-30" width="12" height="28" rx="4" fill="#d97706" stroke="#fde68a" strokeWidth="1.2" />
+                <circle cx="0" cy="-28" r="4" fill="#fbbf24" />
+              </g>
+              {/* Cannon Turret Mount */}
+              <circle cx="0" cy="0" r="16" fill="#78350f" stroke="#f59e0b" strokeWidth="2" />
+              <circle cx="0" cy="0" r="9" fill="#b45309" />
+              <circle cx="0" cy="0" r="4" fill="#fde68a" />
+            </g>
+
+            {/* Next Bubble Preview Indicator at Bottom Left */}
+            <g transform="translate(148, 124)">
+              <rect x="-14" y="-12" width="28" height="24" rx="8" fill="#090d16" stroke="#22d3ee" strokeWidth="1" opacity="0.8" />
+              <circle cx="0" cy="0" r="8" fill="url(#egg-cyan)" stroke="#a5f3fc" strokeWidth="0.8" />
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

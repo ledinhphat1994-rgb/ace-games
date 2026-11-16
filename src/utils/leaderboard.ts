@@ -148,6 +148,13 @@ const SEED_DATA: Record<string, { name: string; score: number; date: string }[]>
     { name: 'ComboWizard', score: 13200, date: '12/11/2026' },
     { name: 'RubyDiamond', score: 9800, date: '10/11/2026' },
   ],
+  'bubble-shooter': [
+    { name: 'DinoSniper', score: 48900, date: '16/11/2026' },
+    { name: 'Thần Bắn Trứng', score: 39500, date: '15/11/2026' },
+    { name: 'Khủng Long Chúa', score: 31200, date: '14/11/2026' },
+    { name: 'EggMaster99', score: 24600, date: '12/11/2026' },
+    { name: 'NeonShooter', score: 18400, date: '10/11/2026' },
+  ],
 };
 
 // Retrieve user's local best score for a specific game
@@ -170,6 +177,7 @@ const getUserScore = (gameId: string): number => {
       case 'pong': return parseInt(localStorage.getItem('acegames_pong_wins') || '0', 10);
       case 'pacman': return parseInt(localStorage.getItem('acegames_pacman_highscore') || '0', 10);
       case 'jewels': return parseInt(localStorage.getItem('acegames_jewels_highscore') || '0', 10);
+      case 'bubble-shooter': return parseInt(localStorage.getItem('acegames_bubble_shooter_highscore') || '0', 10);
       default: return 0;
     }
   } catch {

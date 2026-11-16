@@ -44,6 +44,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   pong: 'arcade',
   pacman: 'arcade',
   jewels: 'arcade',
+  'bubble-shooter': 'arcade',
 };
 
 class SoundManager {

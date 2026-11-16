@@ -378,5 +378,30 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Kim cương', 'Jewels', 'Match-3', 'Bejeweled', 'Giải đố', 'Xếp hình'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'bubble-shooter',
+    title: 'Bắn Trứng Khủng Long',
+    subtitle: 'Bắn trứng nổ chuỗi dội tường kinh điển',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Bắn các quả trứng cùng màu để tạo chuỗi từ 3 quả trở lên, dọn sạch tổ trứng trước khi trần sập.',
+    instructions: [
+      'Di chuyển chuột / vuốt ngón tay để ngắm hướng bắn.',
+      'Nhấp chuột trái hoặc chạm để phóng quả trứng.',
+      'Bắn trúng cụm từ 3 trứng cùng màu để nổ và làm rớt các chùm trứng lơ lửng.',
+      'Nhấp chuột phải hoặc nút Đổi để hoán đổi quả trứng đang chuẩn bị bắn.'
+    ],
+    controls: {
+      desktop: 'Chuột ngắm & Bắn / Phím Space / Chuột phải đổi trứng',
+      mobile: 'Chạm kéo ngắm & Thả tay để bắn'
+    },
+    thumbnailIcon: '🥚',
+    accentColor: 'from-amber-500 to-emerald-600',
+    rating: 4.99,
+    plays: 312000,
+    tags: ['Bắn trứng', 'Dynomite', 'Bubble Shooter', 'Khủng long', 'Kinh điển', 'Arcade'],
+    isHot: true,
+    isNew: true
   }
 ];
