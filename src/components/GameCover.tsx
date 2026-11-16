@@ -1441,6 +1441,135 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'road-fighter':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-b from-[#0a192f] via-[#111827] to-[#030712] ${className}`}>
+          {/* Speed Streaks Overlay */}
+          <div className="absolute inset-0 opacity-15 bg-[repeating-linear-gradient(0deg,transparent,transparent_10px,#ffffff_10px,#ffffff_12px)]" />
+
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="rf-road-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1e293b" />
+                <stop offset="100%" stopColor="#0f172a" />
+              </linearGradient>
+              <linearGradient id="rf-sky-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0284c7" />
+                <stop offset="100%" stopColor="#0f172a" />
+              </linearGradient>
+              <linearGradient id="rf-flame-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ef4444" />
+                <stop offset="60%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#38bdf8" />
+              </linearGradient>
+              <filter id="rf-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {/* Sky & Distant Mountains */}
+            <rect x="0" y="0" width="200" height="45" fill="url(#rf-sky-grad)" />
+            <polygon points="0,45 35,28 75,45 125,25 170,45 200,32 200,45" fill="#1e3a8a" opacity="0.6" />
+
+            {/* Roadside Ground (Left & Right Grass) */}
+            <rect x="0" y="45" width="200" height="95" fill="#14532d" />
+            <rect x="0" y="45" width="30" height="95" fill="#166534" />
+            <rect x="170" y="45" width="30" height="95" fill="#166534" />
+
+            {/* Highway Road with Perspective */}
+            <polygon points="65,45 135,45 170,140 30,140" fill="url(#rf-road-grad)" />
+
+            {/* Red & White Curbs (Rumble Strips) */}
+            <polygon points="61,45 65,45 30,140 24,140" fill="#ef4444" />
+            <polygon points="135,45 139,45 176,140 170,140" fill="#ef4444" />
+            {/* White curb dashes */}
+            <polygon points="56,60 59,60 50,78 47,78" fill="#ffffff" />
+            <polygon points="44,88 47,88 36,108 33,108" fill="#ffffff" />
+            <polygon points="30,120 33,120 25,138 22,138" fill="#ffffff" />
+            <polygon points="141,60 144,60 150,78 147,78" fill="#ffffff" />
+            <polygon points="153,88 156,88 164,108 161,108" fill="#ffffff" />
+            <polygon points="167,120 170,120 175,138 172,138" fill="#ffffff" />
+
+            {/* Road Center Dashed Line */}
+            <line x1="100" y1="46" x2="100" y2="56" stroke="#f8fafc" strokeWidth="1.5" />
+            <line x1="100" y1="64" x2="100" y2="78" stroke="#f8fafc" strokeWidth="2" />
+            <line x1="100" y1="88" x2="100" y2="108" stroke="#f8fafc" strokeWidth="2.5" />
+            <line x1="100" y1="120" x2="100" y2="140" stroke="#f8fafc" strokeWidth="3" />
+
+            {/* Left & Right Lane Guides */}
+            <line x1="82" y1="46" x2="65" y2="140" stroke="#facc15" strokeWidth="1" strokeDasharray="6 4" opacity="0.6" />
+            <line x1="118" y1="46" x2="135" y2="140" stroke="#facc15" strokeWidth="1" strokeDasharray="6 4" opacity="0.6" />
+
+            {/* Roadside Trees */}
+            <polygon points="15,42 8,58 22,58" fill="#15803d" />
+            <polygon points="18,65 7,85 29,85" fill="#16a34a" />
+            <polygon points="185,42 178,58 192,58" fill="#15803d" />
+            <polygon points="182,65 171,85 193,85" fill="#16a34a" />
+
+            {/* Ahead Traffic Cars */}
+            {/* Yellow Sedan in Far Distance */}
+            <g transform="translate(108, 54) scale(0.4)">
+              <rect x="-8" y="-14" width="16" height="28" rx="3" fill="#facc15" />
+              <rect x="-6" y="-6" width="12" height="12" fill="#0f172a" />
+              <rect x="-7" y="11" width="4" height="2" fill="#ef4444" />
+              <rect x="3" y="11" width="4" height="2" fill="#ef4444" />
+            </g>
+
+            {/* Blue Sedan in Mid Distance */}
+            <g transform="translate(76, 72) scale(0.65)">
+              <rect x="-10" y="-16" width="20" height="32" rx="4" fill="#38bdf8" />
+              <rect x="-8" y="-8" width="16" height="14" fill="#0f172a" />
+              <rect x="-9" y="13" width="5" height="3" fill="#ef4444" />
+              <rect x="4" y="13" width="5" height="3" fill="#ef4444" />
+              {/* Blinker */}
+              <circle cx="8" cy="14" r="2" fill="#f59e0b" />
+            </g>
+
+            {/* Pink Bonus Fuel Car on Right */}
+            <g transform="translate(132, 86) scale(0.75)" filter="url(#rf-glow)">
+              <rect x="-9" y="-15" width="18" height="30" rx="4" fill="#db2777" />
+              <rect x="-7" y="-7" width="14" height="12" fill="#831843" />
+              <circle cx="0" cy="-1" r="3" fill="#ffffff" />
+            </g>
+
+            {/* PLAYER'S RED RACING SPORTS CAR AT BOTTOM CENTER */}
+            <g transform="translate(100, 114)">
+              {/* Turbo Exhaust Flame */}
+              <g filter="url(#rf-glow)">
+                <polygon points="-7,16 -4,26 -1,16" fill="url(#rf-flame-grad)" />
+                <polygon points="1,16 4,26 7,16" fill="url(#rf-flame-grad)" />
+              </g>
+
+              {/* Shadow */}
+              <rect x="-15" y="-18" width="30" height="36" rx="6" fill="#000000" opacity="0.5" />
+
+              {/* Red Body */}
+              <rect x="-14" y="-20" width="28" height="36" rx="6" fill="#dc2626" />
+              {/* Highlighting */}
+              <rect x="-12" y="-18" width="5" height="32" rx="2" fill="#ef4444" />
+
+              {/* Rear Spoiler */}
+              <rect x="-14" y="12" width="28" height="4" rx="1" fill="#7f1d1d" />
+
+              {/* Windshields & Cockpit */}
+              <rect x="-10" y="-14" width="20" height="10" rx="2" fill="#0284c7" />
+              <rect x="-8" y="-4" width="16" height="8" rx="1" fill="#0f172a" />
+              <rect x="-9" y="4" width="18" height="6" rx="1" fill="#0369a1" />
+
+              {/* Headlights & Taillights */}
+              <rect x="-12" y="-20" width="5" height="2" fill="#fef08a" />
+              <rect x="7" y="-20" width="5" height="2" fill="#fef08a" />
+              <rect x="-12" y="14" width="6" height="2" fill="#fee2e2" />
+              <rect x="6" y="14" width="6" height="2" fill="#fee2e2" />
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

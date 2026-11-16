@@ -505,6 +505,32 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 820000,
     tags: ['Bắn ruồi', 'Galaga', 'Bắn súng', 'Vũ trụ', 'Namco', 'Chiến cơ', 'Kinh điển', 'Arcade'],
     isHot: true,
+    isNew: false
+  },
+  {
+    id: 'road-fighter',
+    title: 'Đua Xe Đường Phố',
+    subtitle: 'Huyền thoại Road Fighter NES, bứt tốc 400 km/h',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Huyền thoại Đua Xe Đường Phố Road Fighter Konami NES! Lái siêu xe thể thao đỏ lạng lách trên cao tốc với tốc độ xé gió 400 km/h, phản xạ đánh lái ngược chiều khi xe bị trượt đuôi, né tránh xe tải lớn & vũng dầu, nhặt xe thưởng nạp đầy nhiên liệu nitro về đích!',
+    instructions: [
+      'Sử dụng phím Mũi tên Trái / Phải (hoặc phím A / D) để điều khiển xe lạng lách qua các làn đường.',
+      'Giữ phím Mũi tên Lên (hoặc W) để chạy Số Thấp (Low Gear, tốc độ tối đa ~196 km/h).',
+      'Giữ phím Space (hoặc Shift / phím J) để kích hoạt Số Cao Siêu Tốc (Turbo Boost, xé gió tới 400 km/h).',
+      'Nếu xe bị quẹt hoặc cán vũng dầu khiến đuôi xe lạng sang trái/phải, hãy lập tức đánh lái ngược chiều để lấy lại thăng bằng trước khi đâm vào dải phân cách.',
+      'Chú ý tránh xe tải lớn và chạm vào các xe nạp xăng màu hồng (FUEL) để hồi phục bình nhiên liệu và tiếp tục chặng đua.'
+    ],
+    controls: {
+      desktop: 'A / D hoặc Mũi tên Trái / Phải (Lái) • W / Mũi tên Lên (Số thấp) • Phím Space / Shift (Turbo) • S / Mũi tên Xuống (Phanh)',
+      mobile: 'Nút mũi tên Trái / Phải ảo • Nút PHANH • Nút TURBO giữ tăng tốc'
+    },
+    thumbnailIcon: '🏎️',
+    accentColor: 'from-red-600 via-amber-500 to-rose-600',
+    rating: 4.99,
+    plays: 910000,
+    tags: ['Đua xe', 'Road Fighter', 'Konami', 'Tốc độ', 'NES', 'Siêu xe', 'Kinh điển', 'Arcade'],
+    isHot: true,
     isNew: true
   }
 ];

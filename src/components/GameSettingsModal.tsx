@@ -16,7 +16,8 @@ import {
   Crosshair,
   ChevronDown,
   Check,
-  Heart
+  Heart,
+  Fuel
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
@@ -1574,6 +1575,65 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                       }`}
                     >
                       {l} Mạng
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ĐUA XE ĐƯỜNG PHỐ (Road Fighter) */}
+          {game.id === 'road-fighter' && (
+            <>
+              {/* CHẾ ĐỘ ĐUA */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-red-400">
+                    <Layers className="w-4 h-4 text-red-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Đua</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'classic', label: 'Cổ Điển' },
+                    { key: 'speed', label: 'Tốc Độ' },
+                    { key: 'endless', label: 'Vô Tận' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('gameMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.gameMode || 'classic') === key
+                          ? 'bg-red-500/20 text-red-300 border border-red-400/40 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* BÌNH NHIÊN LIỆU BAN ĐẦU */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-emerald-400">
+                    <Fuel className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Nhiên Liệu</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[100, 150, 200].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => updateSetting('initialFuel', f)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialFuel || 100) === f
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {f}%
                     </button>
                   ))}
                 </div>
