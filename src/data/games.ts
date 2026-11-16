@@ -453,6 +453,32 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 512000,
     tags: ['Xe tăng', 'Battle City', 'Tank 1990', 'Bắn súng', 'NES', 'Kinh điển', 'Arcade'],
     isHot: true,
+    isNew: false
+  },
+  {
+    id: 'bomberman',
+    title: 'Đặt Bom Cổ Điển',
+    subtitle: 'Mê cung đặt bom phá gạch, tiêu diệt quái vật',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Huyền thoại Bomberman / Dyna Blaster! Điều khiển hiệp sĩ Bomberman đặt bom hẹn giờ nổ chữ thập, phá gạch nhặt vật phẩm tăng tầm lửa, đá bom và tiêu diệt quái vật để mở Cổng Qua Màn.',
+    instructions: [
+      'Sử dụng các phím WASD hoặc phím Mũi tên để di chuyển trong mê cung.',
+      'Bấm phím Space hoặc phím J để đặt quả bom hẹn giờ.',
+      'Nhanh chóng chạy ra xa khỏi tầm nổ chữ thập của quả bom để tránh bị nổ trúng.',
+      'Phá các khối gạch mềm để tìm Cổng Qua Màn và các vật phẩm tăng sức mạnh: Thêm Bom, Tăng Lửa, Giày Tốc Độ, Khiên Bất Tử, Đá Bom.',
+      'Tiêu diệt toàn bộ quái vật mê cung để kích hoạt mở Cổng Qua Màn và bước vào cổng để chiến thắng!'
+    ],
+    controls: {
+      desktop: 'WASD / Mũi tên (Di chuyển) • Phím Space / J (Đặt Bom)',
+      mobile: 'D-Pad điều hướng ảo • Nút ĐẶT BOM'
+    },
+    thumbnailIcon: '💣',
+    accentColor: 'from-amber-500 to-rose-600',
+    rating: 4.99,
+    plays: 685000,
+    tags: ['Đặt bom', 'Bomberman', 'Dyna Blaster', 'Hành động', 'Mê cung', 'NES', 'Kinh điển', 'Arcade'],
+    isHot: true,
     isNew: true
   }
 ];

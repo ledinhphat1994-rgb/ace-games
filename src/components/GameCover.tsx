@@ -1187,6 +1187,151 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'bomberman':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#0c0a1a] via-[#1a0f2e] to-[#080512] ${className}`}>
+          {/* Labyrinth Grid Pattern */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#a855f7_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="bomb-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="fire-blast-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="4.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <radialGradient id="bomb-body-grad" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#64748b" />
+                <stop offset="35%" stopColor="#334155" />
+                <stop offset="70%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#020617" />
+              </radialGradient>
+              <radialGradient id="flame-core-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="30%" stopColor="#fef08a" />
+                <stop offset="65%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#dc2626" />
+              </radialGradient>
+              <linearGradient id="pillar-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#475569" />
+                <stop offset="100%" stopColor="#1e293b" />
+              </linearGradient>
+              <linearGradient id="softbrick-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#d97706" />
+                <stop offset="100%" stopColor="#78350f" />
+              </linearGradient>
+            </defs>
+
+            {/* Background Labyrinth Blocks */}
+            <g opacity="0.6">
+              {/* Indestructible Steel Pillars */}
+              <rect x="15" y="15" width="22" height="22" rx="4" fill="url(#pillar-grad)" stroke="#94a3b8" strokeWidth="1" />
+              <rect x="65" y="15" width="22" height="22" rx="4" fill="url(#pillar-grad)" stroke="#94a3b8" strokeWidth="1" />
+              <rect x="165" y="15" width="22" height="22" rx="4" fill="url(#pillar-grad)" stroke="#94a3b8" strokeWidth="1" />
+              <rect x="15" y="105" width="22" height="22" rx="4" fill="url(#pillar-grad)" stroke="#94a3b8" strokeWidth="1" />
+              <rect x="165" y="105" width="22" height="22" rx="4" fill="url(#pillar-grad)" stroke="#94a3b8" strokeWidth="1" />
+
+              {/* Destructible Soft Bricks */}
+              <rect x="40" y="15" width="22" height="22" rx="3" fill="url(#softbrick-grad)" stroke="#92400e" strokeWidth="1" />
+              <rect x="140" y="15" width="22" height="22" rx="3" fill="url(#softbrick-grad)" stroke="#92400e" strokeWidth="1" />
+              <rect x="15" y="40" width="22" height="22" rx="3" fill="url(#softbrick-grad)" stroke="#92400e" strokeWidth="1" />
+              <rect x="15" y="65" width="22" height="22" rx="3" fill="url(#softbrick-grad)" stroke="#92400e" strokeWidth="1" />
+              <rect x="165" y="40" width="22" height="22" rx="3" fill="url(#softbrick-grad)" stroke="#92400e" strokeWidth="1" />
+            </g>
+
+            {/* Crossfire Blast Flames behind */}
+            <g filter="url(#fire-blast-glow)">
+              {/* Horizontal blast */}
+              <path d="M 60 76 Q 80 68 115 68 Q 150 68 170 76 Q 150 84 115 84 Q 80 84 60 76 Z" fill="url(#flame-core-grad)" />
+              {/* Vertical blast */}
+              <path d="M 115 25 Q 123 45 123 76 Q 123 105 115 125 Q 107 105 107 76 Q 107 45 115 25 Z" fill="url(#flame-core-grad)" />
+            </g>
+
+            {/* Giant Mega Bomb */}
+            <g transform="translate(115, 76)" filter="url(#bomb-glow)">
+              {/* Bomb Shadow */}
+              <ellipse cx="0" cy="22" rx="20" ry="7" fill="rgba(0,0,0,0.5)" />
+              {/* Bomb Spherical Body */}
+              <circle cx="0" cy="0" r="23" fill="url(#bomb-body-grad)" stroke="#f43f5e" strokeWidth="1.5" />
+              {/* Metallic Neck */}
+              <rect x="-6" y="-28" width="12" height="7" rx="2" fill="#f59e0b" stroke="#78350f" strokeWidth="1" />
+              {/* Sparking Fuse */}
+              <path d="M 0 -28 Q 8 -36 5 -42" stroke="#fef08a" strokeWidth="2.5" fill="none" />
+              {/* Fuse Spark */}
+              <circle cx="5" cy="-42" r="5" fill="#facc15" />
+              <polygon points="5,-47 8,-42 5,-37 2,-42" fill="#ef4444" />
+              {/* Bomb skull emblem */}
+              <circle cx="0" cy="-2" r="6" fill="#f43f5e" />
+              <rect x="-4" y="3" width="8" height="3" rx="1" fill="#f43f5e" />
+              <circle cx="-2" cy="-3" r="1.5" fill="#0f172a" />
+              <circle cx="2" cy="-3" r="1.5" fill="#0f172a" />
+            </g>
+
+            {/* Bomberman Hero on Left */}
+            <g transform="translate(56, 85)">
+              {/* Shadow */}
+              <ellipse cx="0" cy="28" rx="14" ry="5" fill="rgba(0,0,0,0.4)" />
+              {/* Pink Boots */}
+              <rect x="-10" y="20" width="7" height="8" rx="3" fill="#f43f5e" stroke="#881337" strokeWidth="1" />
+              <rect x="3" y="18" width="7" height="9" rx="3" fill="#f43f5e" stroke="#881337" strokeWidth="1" />
+              {/* Blue Suit Body */}
+              <rect x="-10" y="4" width="20" height="17" rx="5" fill="#2563eb" stroke="#1e3a8a" strokeWidth="1.5" />
+              {/* Belt */}
+              <rect x="-10" y="14" width="20" height="3.5" fill="#020617" />
+              <rect x="-3" y="13.5" width="6" height="4.5" rx="1" fill="#facc15" />
+              {/* White Hands */}
+              <circle cx="-13" cy="11" r="4.5" fill="#ffffff" stroke="#0f172a" strokeWidth="1" />
+              <circle cx="13" cy="9" r="4.5" fill="#ffffff" stroke="#0f172a" strokeWidth="1" />
+              {/* White Helmet Head */}
+              <circle cx="0" cy="-6" r="16" fill="#ffffff" stroke="#0f172a" strokeWidth="2" />
+              {/* Pink Visor Face */}
+              <rect x="-8" y="-9" width="16" height="9" rx="3" fill="#fbcfe8" stroke="#0f172a" strokeWidth="1.2" />
+              {/* Cute Eyes */}
+              <rect x="-5" y="-8" width="2.5" height="5" rx="1" fill="#0f172a" />
+              <rect x="2.5" y="-8" width="2.5" height="5" rx="1" fill="#0f172a" />
+              {/* Pink Pom-pom Antenna */}
+              <line x1="0" y1="-22" x2="0" y2="-27" stroke="#0f172a" strokeWidth="2" />
+              <circle cx="0" cy="-29" r="5" fill="#f43f5e" stroke="#0f172a" strokeWidth="1.2" />
+            </g>
+
+            {/* Valcom Red Monster on Right */}
+            <g transform="translate(165, 88)">
+              {/* Shadow */}
+              <ellipse cx="0" cy="16" rx="12" ry="4" fill="rgba(0,0,0,0.4)" />
+              {/* Round Red Jelly Body */}
+              <circle cx="0" cy="0" r="15" fill="#ef4444" stroke="#7f1d1d" strokeWidth="1.5" />
+              {/* Large White Eyes */}
+              <circle cx="-5" cy="-2" r="5" fill="#ffffff" stroke="#0f172a" strokeWidth="1" />
+              <circle cx="5" cy="-2" r="5" fill="#ffffff" stroke="#0f172a" strokeWidth="1" />
+              <circle cx="-7" cy="-2" r="2.5" fill="#0f172a" />
+              <circle cx="3" cy="-2" r="2.5" fill="#0f172a" />
+              {/* Funny Mouth */}
+              <ellipse cx="0" cy="7" rx="4" ry="2" fill="#7f1d1d" />
+            </g>
+
+            {/* Floating Power-Ups */}
+            {/* Fire Up Badge */}
+            <g transform="translate(30, 42)">
+              <rect x="-9" y="-9" width="18" height="18" rx="4" fill="#1e293b" stroke="#f97316" strokeWidth="1.5" />
+              <text x="0" y="4" textAnchor="middle" fontSize="12">🔥</text>
+            </g>
+            {/* Extra Bomb Badge */}
+            <g transform="translate(170, 42)">
+              <rect x="-9" y="-9" width="18" height="18" rx="4" fill="#1e293b" stroke="#facc15" strokeWidth="1.5" />
+              <text x="0" y="4" textAnchor="middle" fontSize="12">💣</text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>
