@@ -305,10 +305,18 @@ export const GameFlappy: React.FC = () => {
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
-        <div className="flex items-center gap-4 sm:gap-6 z-10">
-          {/* Cột Điểm Số: Căn giữa hoàn toàn theo trục dọc */}
+        {/* Khối Trái: Chế độ chơi game */}
+        <div className="flex items-center gap-2 z-10">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold text-xs shadow-sm">
+            <span>🐤</span>
+            <span>Vượt Chướng Ngại</span>
+          </div>
+        </div>
+
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Điểm số & Kỷ lục */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-4 sm:gap-6 z-0 pointer-events-none">
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
               Điểm Số
             </span>
             <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
@@ -318,9 +326,8 @@ export const GameFlappy: React.FC = () => {
 
           <div className="h-8 w-px bg-white/10" />
 
-          {/* Cột Kỷ Lục: Căn giữa hoàn toàn theo trục dọc, con số nằm chính giữa tiêu đề */}
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
+            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1 h-3 leading-none text-center">
               <Trophy className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
               <span>Kỷ Lục</span>
             </span>
@@ -330,7 +337,7 @@ export const GameFlappy: React.FC = () => {
           </div>
         </div>
 
-        {/* Nút Chơi Lại bên phải */}
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Chơi lại) */}
         <div className="flex items-center gap-2 z-10">
           <button
             onClick={() => {

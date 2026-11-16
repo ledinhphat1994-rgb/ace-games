@@ -319,68 +319,27 @@ export const GameTetris: React.FC = () => {
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
-        <div className="flex items-center gap-3 sm:gap-6">
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              Điểm Số
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
-              {score}
-            </span>
+        {/* Khối Trái: Chế độ chơi game & Khối tiếp theo */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold text-xs shadow-sm">
+            <span>🕹️</span>
+            <span>Xếp Gạch Cổ Điển</span>
           </div>
 
-          <div className="h-8 w-px bg-white/10" />
-
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              Hàng
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
-              {lines}
-            </span>
-          </div>
-
-          <div className="h-8 w-px bg-white/10" />
-
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              Cấp
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-emerald-300 font-mono leading-none mt-1 text-center">
-              {level}
-            </span>
-          </div>
-
-          <div className="h-8 w-px bg-white/10" />
-
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
-              <Trophy className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-              <span>Kỷ Lục</span>
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-purple-300 font-mono leading-none mt-1 text-center">
-              {highScore}
-            </span>
-          </div>
-
-          <div className="h-8 w-px bg-white/10 hidden sm:block" />
-
-          <div className="hidden sm:flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              Tiếp Theo
-            </span>
-            <div className="mt-1 h-6 flex items-center justify-center">
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 rounded-xl border border-white/10">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Tiếp:</span>
+            <div className="h-5 flex items-center justify-center">
               <div
-                className="grid gap-[1px] p-1 bg-slate-950 rounded border border-white/10"
+                className="grid gap-[1px] p-0.5 bg-slate-900 rounded"
                 style={{
-                  gridTemplateColumns: `repeat(${SHAPES[nextPieceType][0].length}, 7px)`
+                  gridTemplateColumns: `repeat(${SHAPES[nextPieceType][0].length}, 6px)`
                 }}
               >
                 {SHAPES[nextPieceType].map((row, r) =>
                   row.map((cell, c) => (
                     <div
                       key={`next-top-${r}-${c}`}
-                      className="w-[7px] h-[7px] rounded-[1px]"
+                      className="w-[6px] h-[6px] rounded-[1px]"
                       style={{
                         backgroundColor: cell ? COLORS[nextPieceType] : 'transparent'
                       }}
@@ -392,7 +351,54 @@ export const GameTetris: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Điểm số, Kỷ lục, Hàng & Cấp */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-4 sm:gap-6 z-0 pointer-events-none">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Điểm Số
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
+              {score}
+            </span>
+          </div>
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1 h-3 leading-none text-center">
+              <Trophy className="w-3 h-3 text-purple-400 flex-shrink-0" />
+              <span>Kỷ Lục</span>
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-purple-300 font-mono leading-none mt-1 text-center">
+              {highScore}
+            </span>
+          </div>
+
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Hàng
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
+              {lines}
+            </span>
+          </div>
+
+          <div className="h-8 w-px bg-white/10 hidden md:block" />
+
+          <div className="hidden md:flex flex-col items-center text-center">
+            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Cấp
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-300 font-mono leading-none mt-1 text-center">
+              {level}
+            </span>
+          </div>
+        </div>
+
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Tạm dừng & Chơi lại) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 z-10">
           <button
             onClick={() => setIsPaused(prev => !prev)}
             disabled={gameOver}

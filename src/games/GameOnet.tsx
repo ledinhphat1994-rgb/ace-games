@@ -453,47 +453,62 @@ export const GameOnet: React.FC = () => {
       
       {/* Top Bar: Điểm số, Combo, Thời gian, Nút điều khiển */}
       <div className="game-top-hud relative w-full max-w-[min(98vw,1440px)] flex items-center justify-between px-3 sm:px-5 py-2 bg-slate-900/90 border border-cyan-500/30 rounded-2xl shadow-lg backdrop-blur-md mb-2 min-h-[52px] flex-shrink-0">
-        <div className="flex items-center gap-3 sm:gap-6 z-10">
-          {/* Điểm số */}
-          <div className="flex items-center gap-1.5">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-gray-400 font-bold uppercase">Điểm:</span>
-            <span className="text-base sm:text-lg font-black font-mono text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]">
+        {/* Khối Trái: Chế độ chơi game & Combo */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold text-xs shadow-sm">
+            <span>🐾</span>
+            <span>Nối Thú Onet</span>
+          </div>
+
+          {combo > 1 && (
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-black animate-bounce shadow-md">
+              <Flame className="w-3.5 h-3.5 text-rose-400" />
+              <span>x{combo}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Điểm số, Thời gian & Còn lại */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-3 sm:gap-6 z-0 pointer-events-none">
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1 h-3 leading-none text-center">
+              <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
+              <span>Điểm Số</span>
+            </span>
+            <span className="text-lg sm:text-xl font-black font-mono text-amber-300 leading-none mt-1 text-center">
               {score}
             </span>
           </div>
 
-          {/* Combo */}
-          {combo > 1 && (
-            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-black animate-bounce shadow-md">
-              <Flame className="w-3.5 h-3.5 text-rose-400" />
-              <span>COMBO x{combo}</span>
-            </div>
+          {(settings.timeLimit || 300) > 0 && (
+            <>
+              <div className="h-8 w-px bg-white/10" />
+              <div className="flex flex-col items-center text-center">
+                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1 h-3 leading-none text-center">
+                  <Clock className="w-3 h-3 text-cyan-400" />
+                  <span>Thời Gian</span>
+                </span>
+                <span className={`text-lg sm:text-xl font-black font-mono leading-none mt-1 text-center ${timeLeft <= 30 ? 'text-rose-400 animate-pulse' : 'text-cyan-300'}`}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
+            </>
           )}
 
-          {/* Còn lại */}
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
-            <span>Còn:</span>
-            <span className="font-bold text-cyan-300 font-mono">{remainingTiles / 2} cặp</span>
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Còn Lại
+            </span>
+            <span className="text-lg sm:text-xl font-black font-mono text-emerald-300 leading-none mt-1 text-center">
+              {remainingTiles / 2} cặp
+            </span>
           </div>
         </div>
 
-        {/* Đồng hồ căn chính giữa tuyệt đối */}
-        {(settings.timeLimit || 300) > 0 && (
-          <div className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border font-mono font-bold text-xs sm:text-sm z-0 pointer-events-none shadow-sm ${
-            timeLeft <= 30
-              ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse'
-              : 'bg-slate-950 text-cyan-300 border-cyan-500/30'
-          }`}>
-            <Clock className={`w-3.5 h-3.5 ${timeLeft <= 30 ? 'text-rose-400 animate-spin' : 'text-cyan-400'}`} />
-            <span className={timeLeft <= 30 ? 'text-rose-400 animate-pulse font-black' : ''}>
-              {formatTime(timeLeft)}
-            </span>
-          </div>
-        )}
-
-        {/* Các nút bổ trợ */}
-        <div className="flex items-center gap-2 sm:gap-3 z-10">
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Gợi ý, Xáo bài, Tạm dừng & Chơi lại) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 z-10">
           {/* Gợi Ý */}
           <button
             onClick={handleUseHint}

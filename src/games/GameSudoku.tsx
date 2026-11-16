@@ -413,7 +413,74 @@ export const GameSudoku: React.FC = () => {
   const remainingCounts = board.length > 0 ? getRemainingCounts(board) : {};
 
   return (
-    <div className="relative w-full h-full flex flex-col justify-center items-center p-2 sm:p-4 md:p-6 select-none overflow-hidden bg-[#070b14]">
+    <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#070b14]">
+      {/* Top HUD - Chuẩn mẫu thống nhất: Trái = Chế độ, Giữa = Thời gian & Lỗi, Phải = Thiết lập */}
+      <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(98vw,1440px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
+        {/* Khối Trái: Chế độ chơi / Độ khó */}
+        <div className="flex items-center gap-2 z-10">
+          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+            <span className="text-xs text-cyan-300 font-bold px-2 hidden sm:inline">Độ Khó:</span>
+            {(['easy', 'medium', 'hard'] as SudokuDifficulty[]).map((d) => (
+              <button
+                key={d}
+                onClick={() => {
+                  if (difficulty !== d) {
+                    setDifficulty(d);
+                    startNewGame(d);
+                  }
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
+                  difficulty === d
+                    ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Bộ đếm thời gian & Lỗi */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-3 sm:gap-6 z-0 pointer-events-none">
+          {/* Lỗi */}
+          <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
+            <span className="text-gray-400 uppercase tracking-wider">Lỗi:</span>
+            <span className={`font-mono font-black text-sm sm:text-base ${mistakes > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {mistakes}/{maxMistakes > 0 ? maxMistakes : '∞'}
+            </span>
+          </div>
+
+          <div className="h-6 w-px bg-white/10" />
+
+          {/* Đồng hồ */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/80 border border-cyan-500/30 text-cyan-300 font-mono font-bold text-xs sm:text-sm shadow-inner">
+            <Timer className="w-4 h-4 text-cyan-400" />
+            <span>{formatTime(elapsedTime)}</span>
+          </div>
+        </div>
+
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Tạm dừng & Ván mới) */}
+        <div className="flex items-center gap-2 z-10">
+          <button
+            onClick={() => setIsPaused(prev => !prev)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
+            title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+          >
+            {isPaused ? <Play className="w-3.5 h-3.5 text-emerald-400" /> : <Pause className="w-3.5 h-3.5 text-amber-400" />}
+            <span className="hidden sm:inline">{isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}</span>
+          </button>
+          <button
+            onClick={() => startNewGame()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-white/10 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
+            title="Ván Mới"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ván Mới</span>
+          </button>
+        </div>
+      </div>
+
       {/* Container: Tự động chia 2 cột trên Desktop / Fullscreen, và xếp dọc trên Mobile */}
       <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-8 w-full h-full max-w-[min(98vw,1440px)] mx-auto flex-1 min-h-0">
         
@@ -512,65 +579,7 @@ export const GameSudoku: React.FC = () => {
         {/* CỘT PHẢI: Bảng Điều Khiển Hiện Đại & Bàn Phím Số Siêu Tiện Dụng */}
         <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col justify-center gap-3 sm:gap-4 flex-shrink-0">
           
-          {/* Card 1: Khối Thông Số Trận Đấu */}
-          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg space-y-3">
-            {/* Top row: Difficulty & Timer */}
-            <div className="flex items-center justify-between">
-              {/* Difficulty selector */}
-              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
-                {(['easy', 'medium', 'hard'] as SudokuDifficulty[]).map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => {
-                      if (difficulty !== d) setDifficulty(d);
-                    }}
-                    className={`px-3 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
-                      difficulty === d
-                        ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-sm'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {d === 'easy' ? 'Dễ' : d === 'medium' ? 'Vừa' : 'Khó'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Actions: Pause & New Game */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsPaused(prev => !prev)}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
-                  title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
-                >
-                  {isPaused ? <Play className="w-4 h-4 text-emerald-400" /> : <Pause className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => startNewGame()}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
-                  title="Ván Mới"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Bottom row: Mistakes & Timer Display */}
-            <div className="flex items-center justify-between pt-1 border-t border-white/5">
-              <div className="flex items-center gap-1.5 text-xs sm:text-sm font-black">
-                <span className="text-gray-400 uppercase tracking-wider">Lỗi:</span>
-                <span className={`font-mono text-base ${mistakes > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  {mistakes}/{maxMistakes > 0 ? maxMistakes : '∞'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950 text-cyan-300 font-mono font-bold text-sm sm:text-base border border-cyan-500/30">
-                <Timer className="w-4 h-4 text-cyan-400" />
-                <span>{formatTime(elapsedTime)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: 4 Nút Chức Năng (Đi Lại, Xóa, Ghi Chú, Gợi Ý) */}
+          {/* 4 Nút Chức Năng (Đi Lại, Xóa, Ghi Chú, Gợi Ý) */}
           <div className="grid grid-cols-4 lg:grid-cols-2 gap-2 sm:gap-2.5">
             <button
               onClick={handleUndo}

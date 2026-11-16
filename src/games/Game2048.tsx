@@ -239,10 +239,18 @@ export const Game2048: React.FC = () => {
     >
       {/* Top HUD - Chuẩn chiều rộng 1320px như Flappy Bird & Màn hình mặc định */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
-        {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
-        <div className="flex items-center gap-4 sm:gap-6 z-10">
+        {/* Khối Trái: Chế độ chơi game */}
+        <div className="flex items-center gap-2 z-10">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold text-xs shadow-sm">
+            <span>🔢</span>
+            <span>Bàn 4x4 Cổ Điển</span>
+          </div>
+        </div>
+
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Điểm số, Kỷ lục & Ô Lớn Nhất */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-4 sm:gap-6 z-0 pointer-events-none">
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
               Điểm Số
             </span>
             <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono leading-none mt-1 text-center">
@@ -253,27 +261,28 @@ export const Game2048: React.FC = () => {
           <div className="h-8 w-px bg-white/10" />
 
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
-              <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1 h-3 leading-none text-center">
+              <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
               <span>Kỷ Lục</span>
             </span>
             <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
               {bestScore}
             </span>
           </div>
+
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Ô Lớn Nhất
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
+              {maxTile || 2}
+            </span>
+          </div>
         </div>
 
-        {/* Center: Ô Lớn Nhất căn chính giữa tuyệt đối */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex flex-col items-center text-center z-0 pointer-events-none">
-          <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-            Ô Lớn Nhất
-          </span>
-          <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
-            {maxTile || 2}
-          </span>
-        </div>
-
-        {/* Right: Quick actions */}
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Đi lại & Ván mới) */}
         <div className="flex items-center gap-1.5 sm:gap-2 z-10">
           <button
             onClick={handleUndo}

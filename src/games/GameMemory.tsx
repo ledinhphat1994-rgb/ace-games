@@ -142,53 +142,56 @@ export const GameMemory: React.FC = () => {
     <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full max-h-full overflow-hidden select-none p-1 sm:p-2">
       {/* Top HUD - Khớp chuẩn độ rộng 1320px như màn hình mặc định */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
-        <div className="flex items-center gap-4 sm:gap-6 z-10">
+        {/* Khối Trái: Chế độ chơi game & Đánh giá sao */}
+        <div className="flex items-center gap-3 z-10">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/10 border border-pink-500/30 text-pink-300 font-bold text-xs shadow-sm">
+            <span>🧠</span>
+            <span>Thử Thách Trí Nhớ</span>
+          </div>
+
+          <div className="hidden sm:flex gap-1">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Star
+                key={i}
+                className={`w-3.5 h-3.5 ${i < getStars() ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Lượt mở & Cặp đã tìm */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-4 sm:gap-6 z-0 pointer-events-none">
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              LƯỢT MỞ
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Lượt Mở
             </span>
             <span className="text-xl sm:text-2xl font-black text-pink-400 font-mono leading-none mt-1 text-center">
               {moves}
             </span>
           </div>
 
-          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+          <div className="h-8 w-px bg-white/10" />
 
-          <div className="hidden sm:flex flex-col items-center text-center">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-              ĐÁNH GIÁ
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Cặp Đã Tìm
             </span>
-            <div className="flex gap-1 mt-1">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-4 h-4 ${i < getStars() ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}`}
-                />
-              ))}
-            </div>
+            <span className="text-xl sm:text-2xl font-black text-emerald-300 font-mono leading-none mt-1 text-center">
+              {matchedCount} / 8
+            </span>
           </div>
         </div>
 
-        {/* Căn chính giữa tuyệt đối: Cặp đã tìm */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex flex-col items-center text-center z-0 pointer-events-none">
-          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
-            CẶP ĐÃ TÌM
-          </span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-300 font-mono leading-none mt-1 text-center">
-            {matchedCount} / 8
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-2 z-10">
-          {!isWon && (
-            <button
-              onClick={initGame}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-pink-300 hover:text-white rounded-xl font-bold text-xs border border-white/10 transition cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Ván Mới</span>
-            </button>
-          )}
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Ván mới) */}
+        <div className="flex items-center gap-2 z-10">
+          <button
+            onClick={initGame}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-pink-300 hover:text-white rounded-xl font-bold text-xs border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+            title="Ván Mới"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ván Mới</span>
+          </button>
         </div>
       </div>
 

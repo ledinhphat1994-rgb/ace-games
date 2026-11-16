@@ -220,10 +220,18 @@ export const GameSnake: React.FC = () => {
     >
       {/* Top HUD - Khớp chuẩn độ rộng 1320px đồng bộ tất cả games */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] mb-2 px-3 sm:px-5 bg-slate-900/90 border border-white/10 rounded-2xl py-2 min-h-[52px] shadow-inner flex-shrink-0">
-        {/* Left: Điểm Số & Kỷ Lục - Căn giữa tiêu đề và số liệu */}
-        <div className="flex items-center gap-4 sm:gap-6 z-10">
+        {/* Khối Trái: Chế độ chơi game */}
+        <div className="flex items-center gap-2 z-10">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold text-xs shadow-sm">
+            <span>🐍</span>
+            <span>Rắn Cổ Điển</span>
+          </div>
+        </div>
+
+        {/* Khối Giữa: Căn chính giữa tuyệt đối - Điểm số, Kỷ lục & Độ dài */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-4 sm:gap-6 z-0 pointer-events-none">
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-4 leading-none text-center">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
               Điểm Số
             </span>
             <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono leading-none mt-1 text-center">
@@ -234,25 +242,28 @@ export const GameSnake: React.FC = () => {
           <div className="h-8 w-px bg-white/10" />
 
           <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 h-4 leading-none text-center">
-              <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1 h-3 leading-none text-center">
+              <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
               <span>Kỷ Lục</span>
             </span>
             <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono leading-none mt-1 text-center">
               {bestScore}
             </span>
           </div>
+
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+
+          <div className="hidden sm:flex flex-col items-center text-center">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider flex items-center justify-center h-3 leading-none text-center">
+              Chiều Dài
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-cyan-300 font-mono leading-none mt-1 text-center">
+              {snake.length}
+            </span>
+          </div>
         </div>
 
-        {/* Center: Chiều dài rắn căn chính giữa tuyệt đối */}
-        {hasStarted && !isGameOver && (
-          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs sm:text-sm font-bold z-0 pointer-events-none shadow-sm">
-            <span>Dài:</span>
-            <span className="font-black text-emerald-300">{snake.length}</span>
-          </div>
-        )}
-
-        {/* Right: Game Controls */}
+        {/* Khối Phải: Tùy chỉnh, thiết lập của game (Tạm dừng & Chơi lại) */}
         <div className="flex items-center gap-1.5 sm:gap-2 z-10">
           {/* Nút Tạm Dừng */}
           <button
@@ -264,14 +275,15 @@ export const GameSnake: React.FC = () => {
             {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-amber-400" />}
           </button>
 
-          {/* Show reset in HUD ONLY when game is actively playing */}
+          {/* Nút Chơi Lại */}
           {!isGameOver && hasStarted && (
             <button
               onClick={resetGame}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white transition cursor-pointer"
-              title="Chơi lại từ đầu"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white border border-white/10 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
+              title="Chơi Lại"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Chơi Lại</span>
             </button>
           )}
         </div>
