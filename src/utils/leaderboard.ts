@@ -176,6 +176,13 @@ const SEED_DATA: Record<string, { name: string; score: number; date: string }[]>
     { name: 'DynaMaster', score: 12400, date: '12/11/2026' },
     { name: 'Siêu Cấp Nổ', score: 8600, date: '10/11/2026' },
   ],
+  galaga: [
+    { name: 'Phi Đội Trưởng', score: 48500, date: '17/11/2026' },
+    { name: 'GalagaMaster', score: 38200, date: '16/11/2026' },
+    { name: 'Chiến Cơ Kép', score: 29400, date: '15/11/2026' },
+    { name: 'Xạ Thủ Vũ Trụ', score: 21800, date: '13/11/2026' },
+    { name: 'AcePilot99', score: 15600, date: '11/11/2026' },
+  ],
 };
 
 // Retrieve user's local best score for a specific game
@@ -202,6 +209,7 @@ const getUserScore = (gameId: string): number => {
       case 'gold-miner': return parseInt(localStorage.getItem('acegames_gold_miner_highscore') || '0', 10);
       case 'tank-1990': return parseInt(localStorage.getItem('acegames_tank_1990_highscore') || '0', 10);
       case 'bomberman': return parseInt(localStorage.getItem('acegames_bomberman_highscore') || '0', 10);
+      case 'galaga': return parseInt(localStorage.getItem('acegames_galaga_highscore') || '0', 10);
       default: return 0;
     }
   } catch {

@@ -1332,6 +1332,115 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'galaga':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#02040a] via-[#080d1a] to-[#04060d] ${className}`}>
+          {/* Deep Space Starfield */}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] bg-[size:14px_14px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="galaga-laser-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="tractor-beam-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="beam-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
+                <stop offset="60%" stopColor="#0284c7" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#0369a1" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            {/* Glowing Stars */}
+            <circle cx="25" cy="20" r="1.5" fill="#ffffff" opacity="0.8" />
+            <circle cx="45" cy="55" r="1" fill="#38bdf8" opacity="0.7" />
+            <circle cx="85" cy="15" r="1.5" fill="#facc15" opacity="0.9" />
+            <circle cx="175" cy="35" r="1.5" fill="#ef4444" opacity="0.8" />
+            <circle cx="150" cy="70" r="1" fill="#ffffff" opacity="0.6" />
+            <circle cx="30" cy="110" r="1.5" fill="#a855f7" opacity="0.7" />
+            <circle cx="180" cy="115" r="1" fill="#38bdf8" opacity="0.8" />
+
+            {/* Tractor Beam from Top Boss */}
+            <g filter="url(#tractor-beam-glow)">
+              <polygon points="100,28 85,95 115,95" fill="url(#beam-grad)" />
+              <ellipse cx="100" cy="50" rx="12" ry="4" stroke="#ffffff" strokeWidth="1" fill="none" opacity="0.6" />
+              <ellipse cx="100" cy="72" rx="18" ry="5" stroke="#ffffff" strokeWidth="1" fill="none" opacity="0.4" />
+            </g>
+
+            {/* Boss Galaga at Top Center */}
+            <g transform="translate(100, 20)">
+              {/* Blue Wings */}
+              <polygon points="-18,4 -5,-10 -5,8" fill="#0284c7" stroke="#38bdf8" strokeWidth="1" />
+              <polygon points="18,4 5,-10 5,8" fill="#0284c7" stroke="#38bdf8" strokeWidth="1" />
+              {/* Yellow Core Body */}
+              <ellipse cx="0" cy="0" rx="7" ry="9" fill="#facc15" />
+              {/* Mandibles */}
+              <polygon points="-6,-10 -9,-16 -4,-12" fill="#f59e0b" />
+              <polygon points="6,-10 9,-16 4,-12" fill="#f59e0b" />
+              <circle cx="0" cy="0" r="3" fill="#0369a1" />
+            </g>
+
+            {/* Red Butterfly Goei on Left */}
+            <g transform="translate(42, 38) rotate(20)">
+              <ellipse cx="-7" cy="0" rx="6" ry="10" fill="#ef4444" transform="rotate(25 -7 0)" />
+              <ellipse cx="7" cy="0" rx="6" ry="10" fill="#ef4444" transform="rotate(-25 7 0)" />
+              <rect x="-2" y="-7" width="4" height="14" fill="#ffffff" rx="1" />
+              <circle cx="0" cy="-8" r="3" fill="#facc15" />
+            </g>
+
+            {/* Yellow Bee Zako on Right */}
+            <g transform="translate(158, 42) rotate(-20)">
+              <polygon points="-12,-4 -2,-6 -4,6" fill="#eab308" />
+              <polygon points="12,-4 2,-6 4,6" fill="#eab308" />
+              <ellipse cx="0" cy="0" rx="5" ry="7" fill="#facc15" />
+              <rect x="-4" y="-1" width="8" height="2" fill="#0f172a" />
+              <rect x="-3" y="3" width="6" height="2" fill="#0f172a" />
+            </g>
+
+            {/* Dual Twin Lasers */}
+            <g filter="url(#galaga-laser-glow)">
+              <rect x="87" y="65" width="2" height="20" rx="1" fill="#fde047" />
+              <rect x="111" y="65" width="2" height="20" rx="1" fill="#fde047" />
+            </g>
+
+            {/* Iconic Dual Fighter at Bottom Center */}
+            <g transform="translate(100, 115)">
+              {/* Connecting Bar */}
+              <rect x="-12" y="2" width="24" height="4" rx="1" fill="#38bdf8" />
+
+              {/* Left Fighter Ship */}
+              <g transform="translate(-13, 0)">
+                <polygon points="0,-16 11,10 -11,10" fill="#ffffff" stroke="#94a3b8" strokeWidth="0.8" />
+                <rect x="-13" y="2" width="4" height="8" fill="#ef4444" />
+                <rect x="9" y="2" width="4" height="8" fill="#ef4444" />
+                <rect x="-2" y="-12" width="4" height="8" fill="#0284c7" />
+                {/* Thruster Flame */}
+                <polygon points="-3,10 0,16 3,10" fill="#f59e0b" />
+              </g>
+
+              {/* Right Fighter Ship */}
+              <g transform="translate(13, 0)">
+                <polygon points="0,-16 11,10 -11,10" fill="#ffffff" stroke="#94a3b8" strokeWidth="0.8" />
+                <rect x="-13" y="2" width="4" height="8" fill="#ef4444" />
+                <rect x="9" y="2" width="4" height="8" fill="#ef4444" />
+                <rect x="-2" y="-12" width="4" height="8" fill="#0284c7" />
+                {/* Thruster Flame */}
+                <polygon points="-3,10 0,16 3,10" fill="#f59e0b" />
+              </g>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

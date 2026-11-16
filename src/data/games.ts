@@ -479,6 +479,32 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 685000,
     tags: ['Đặt bom', 'Bomberman', 'Dyna Blaster', 'Hành động', 'Mê cung', 'NES', 'Kinh điển', 'Arcade'],
     isHot: true,
+    isNew: false
+  },
+  {
+    id: 'galaga',
+    title: 'Bắn Ruồi Không Gian',
+    subtitle: 'Huyền thoại Galaga, ghép đôi Chiến Cơ Kép',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Huyền thoại Bắn Ruồi Galaga Namco Arcade! Điều khiển chiến cơ không gian bắn hạ các đợt bầy ruồi ngoài hành tinh lượn nhào, giải cứu tàu bị bắt để kích hoạt Chiến Cơ Kép (Dual Fighter) nhân đôi hỏa lực!',
+    instructions: [
+      'Sử dụng phím A / D hoặc phím Mũi tên Trái / Phải để di chuyển tàu chiến ngang đáy màn hình.',
+      'Bấm phím Space hoặc phím J để bắn pháo laser tiêu diệt bầy ruồi ngoài hành tinh.',
+      'Cảnh giác chùm tia hút bắt giữ (Tractor Beam) màu xanh từ Boss Galaga trên cùng.',
+      'Nếu tàu bị bắt, hãy xuất kích tàu mới và bắn hạ con Boss đang giữ tàu để giải cứu, ghép thành Chiến Cơ Kép 2 nòng súng hỏa lực gấp đôi!',
+      'Cứ sau mỗi 3 màn chiến đấu sẽ có màn thử thách bắn thưởng (Challenging Stage) để rèn luyện độ chính xác và giành điểm thưởng tối đa.'
+    ],
+    controls: {
+      desktop: 'A / D hoặc Mũi tên Trái / Phải (Di chuyển) • Phím Space / J (Bắn)',
+      mobile: 'Nút mũi tên Trái / Phải ảo • Nút BẮN to tròn'
+    },
+    thumbnailIcon: '🚀',
+    accentColor: 'from-cyan-500 to-blue-700',
+    rating: 4.99,
+    plays: 820000,
+    tags: ['Bắn ruồi', 'Galaga', 'Bắn súng', 'Vũ trụ', 'Namco', 'Chiến cơ', 'Kinh điển', 'Arcade'],
+    isHot: true,
     isNew: true
   }
 ];

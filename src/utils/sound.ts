@@ -48,6 +48,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   'gold-miner': 'arcade',
   'tank-1990': 'arcade',
   bomberman: 'arcade',
+  galaga: 'arcade',
 };
 
 class SoundManager {

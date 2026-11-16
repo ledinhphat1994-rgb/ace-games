@@ -21,6 +21,7 @@ import { GameBubbleShooter } from '../games/GameBubbleShooter';
 import { GameGoldMiner } from '../games/GameGoldMiner';
 import { GameTank1990 } from '../games/GameTank1990';
 import { GameBomberman } from '../games/GameBomberman';
+import { GameGalaga } from '../games/GameGalaga';
 import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
@@ -187,6 +188,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'gold-miner': return <GameGoldMiner key={`${game.id}-${sessionKey}`} />;
       case 'tank-1990': return <GameTank1990 key={`${game.id}-${sessionKey}`} />;
       case 'bomberman': return <GameBomberman key={`${game.id}-${sessionKey}`} />;
+      case 'galaga': return <GameGalaga key={`${game.id}-${sessionKey}`} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

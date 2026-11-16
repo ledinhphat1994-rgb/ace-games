@@ -1522,6 +1522,65 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {/* BẮN RUỒI KHÔNG GIAN (Galaga) */}
+          {game.id === 'galaga' && (
+            <>
+              {/* CHẾ ĐỘ CHƠI */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+                    <Layers className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'classic', label: 'Cổ Điển' },
+                    { key: 'speed', label: 'Tốc Độ' },
+                    { key: 'endless', label: 'Vô Tận' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('gameMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.gameMode || 'classic') === key
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SỐ MẠNG BAN ĐẦU */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-rose-400">
+                    <Heart className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Số Mạng</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[3, 5, 9].map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => updateSetting('initialLives', l)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialLives || 3) === l
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {l} Mạng
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}
