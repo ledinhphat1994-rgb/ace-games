@@ -29,20 +29,23 @@ const TILE_ICE = 5;
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 540;
 
-// Chiến trường 26 cột x 16 hàng (mỗi ô 32x32px, tổng 832x512px)
-const GRID_COLS = 26;
-const GRID_ROWS = 16;
-const TILE_SIZE = 32;
-const ARENA_WIDTH = GRID_COLS * TILE_SIZE; // 832px
-const ARENA_HEIGHT = GRID_ROWS * TILE_SIZE; // 512px
-const OFFSET_X = (CANVAS_WIDTH - ARENA_WIDTH) / 2; // 64px
-const OFFSET_Y = (CANVAS_HEIGHT - ARENA_HEIGHT) / 2; // 14px
+// Chiến trường 24 cột x 15 hàng (mỗi ô 36x36px = 864x540px)
+// Vừa khít 100% chiều cao CANVAS_HEIGHT (15 * 36 = 540), KHÔNG CÓ KHE HỞ TRÊN / DƯỚI!
+const GRID_COLS = 24;
+const GRID_ROWS = 15;
+const TILE_SIZE = 36;
+const ARENA_WIDTH = GRID_COLS * TILE_SIZE; // 864px
+const ARENA_HEIGHT = GRID_ROWS * TILE_SIZE; // 540px
 
-// Kích thước xe tăng: 28x28px
-const TANK_SIZE = 28;
+// Sidebar quân sự bên phải (96px)
+const SIDEBAR_X = ARENA_WIDTH; // 864px
+const SIDEBAR_WIDTH = CANVAS_WIDTH - ARENA_WIDTH; // 96px
+
+// Kích thước xe tăng: 30x30px (lọt lòng hành lang 36px cực kỳ mượt mà)
+const TANK_SIZE = 30;
 
 type TankType = 'player' | 'basic' | 'fast' | 'power' | 'armor';
-type PowerUpType = 'star' | 'grenade' | 'helmet' | 'clock' | 'shovel' | 'tank';
+type PowerUpType = 'star' | 'grenade' | 'helmet' | 'clock' | 'shovel' | 'tank' | 'boat' | 'pistol';
 
 interface Bullet {
   id: number;
@@ -62,15 +65,14 @@ interface Tank {
   dir: Direction;
   speed: number;
   type: TankType;
-  level: number; // 1..4 cho xe tăng người chơi
+  level: number; // 1..4 cho người chơi
   hp: number;
   maxHp: number;
-  shieldTime: number; // thời gian khiên bảo vệ bất tử (ms)
-  shootCooldown: number; // thời gian giãn cách giữa các phát bắn (ms)
+  shieldTime: number; // ms
+  isBonus?: boolean; // Xe đỏ mang viện trợ
   isAlive: boolean;
-  isBonus?: boolean; // xe tăng đỏ nhấp nháy mang item
-  moveTimer?: number; // AI đổi hướng
-  shootTimer?: number;
+  shootCooldown: number;
+  hasBoat?: boolean; // Có thuyền vượt sông
 }
 
 interface PowerUp {
@@ -78,7 +80,16 @@ interface PowerUp {
   x: number;
   y: number;
   type: PowerUpType;
-  duration: number; // ms tồn tại trên map
+  blinkTimer: number;
+}
+
+interface SpawningEnemy {
+  id: number;
+  col: number;
+  row: number;
+  type: TankType;
+  isBonus: boolean;
+  timeLeft: number; // ms
 }
 
 interface Particle {
@@ -90,7 +101,7 @@ interface Particle {
   color: string;
   size: number;
   alpha: number;
-  life: number;
+  decay: number;
 }
 
 interface FloatingText {
@@ -102,210 +113,336 @@ interface FloatingText {
   alpha: number;
 }
 
-// Map mẫu cho từng màn chơi
-const LEVEL_MAPS: Record<number, number[][]> = {
-  1: [
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,2,2,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,2,2,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,2,2,2,2,1,1,0,0,1,1,0,0,1,1,0],
-    [0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,0,0,1,1,0,0,1,1,2,2,2,2,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,0,0,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,1,1,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
-  ],
-  2: [
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,0,3,3,0,1,1,0,4,4,0,0,4,4,0,1,1,0,3,3,0,1,1,0],
-    [0,1,1,0,3,3,0,1,1,0,4,4,0,0,4,4,0,1,1,0,3,3,0,1,1,0],
-    [0,2,2,0,1,1,0,2,2,0,4,4,0,0,4,4,0,2,2,0,1,1,0,2,2,0],
-    [0,2,2,0,1,1,0,2,2,0,0,0,2,2,0,0,0,2,2,0,1,1,0,2,2,0],
-    [0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0],
-    [1,1,1,1,0,0,4,4,4,4,0,0,0,0,0,0,4,4,4,4,0,0,1,1,1,1],
-    [1,1,1,1,0,0,4,4,4,4,0,0,0,0,0,0,4,4,4,4,0,0,1,1,1,1],
-    [0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,0,3,3,0,1,1,0,0,2,2,2,2,0,0,1,1,0,3,3,0,1,1,0],
-    [0,1,1,0,3,3,0,1,1,0,0,0,0,0,0,0,0,1,1,0,3,3,0,1,1,0],
-    [0,2,2,0,1,1,0,2,2,0,1,1,0,0,1,1,0,2,2,0,1,1,0,2,2,0],
-    [0,2,2,0,1,1,0,2,2,0,1,1,0,0,1,1,0,2,2,0,1,1,0,2,2,0],
-    [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
-  ],
-  3: [
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    [0,2,2,0,0,1,1,0,0,3,3,0,0,0,0,3,3,0,0,1,1,0,0,2,2,0],
-    [0,2,2,0,0,1,1,0,0,3,3,0,2,2,0,3,3,0,0,1,1,0,0,2,2,0],
-    [0,1,1,5,5,1,1,5,5,1,1,0,2,2,0,1,1,5,5,1,1,5,5,1,1,0],
-    [0,1,1,5,5,1,1,5,5,1,1,0,0,0,0,1,1,5,5,1,1,5,5,1,1,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-    [0,3,3,0,0,4,4,0,0,2,2,1,1,1,1,2,2,0,0,4,4,0,0,3,3,0],
-    [0,3,3,0,0,4,4,0,0,2,2,0,0,0,0,2,2,0,0,4,4,0,0,3,3,0],
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,0,0,2,2,0,0,1,1,2,2,2,2,1,1,0,0,2,2,0,0,1,1,0],
-    [0,1,1,0,0,2,2,0,0,1,1,2,2,2,2,1,1,0,0,2,2,0,0,1,1,0],
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,0,0,1,1,0,0,1,1,0,1,1,0,1,1,0,0,1,1,0,0,1,1,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
-  ]
-};
-
 export const GameTank1990: React.FC = () => {
-  const [stage, setStage] = useState(1);
-  const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [highScore, setHighScore] = useState(() => {
+  const [score, setScore] = useState<number>(0);
+  const [highScore, setHighScore] = useState<number>(() => {
     try {
       return parseInt(localStorage.getItem('acegames_tank_1990_highscore') || '0', 10);
     } catch {
       return 0;
     }
   });
+  const [stage, setStage] = useState<number>(1);
+  const [lives, setLives] = useState<number>(3);
+  const [enemiesRemaining, setEnemiesRemaining] = useState<number>(20);
+  const [isGameOver, setIsGameOver] = useState<boolean>(false);
+  const [isVictory, setIsVictory] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [mode, setMode] = useState<GameMode>('classic');
+  const [screenShake, setScreenShake] = useState<boolean>(false);
 
-  const [mode, setMode] = useState<GameMode>(() => {
-    try {
-      const saved = localStorage.getItem('ace_game_settings_tank_1990');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (['classic', 'speed', 'endless'].includes(parsed.gameMode)) return parsed.gameMode;
-      }
-    } catch {}
-    return 'classic';
-  });
+  // References
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
-  const [isPaused, setIsPaused] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [isVictory, setIsVictory] = useState(false);
-  const [enemiesRemaining, setEnemiesRemaining] = useState(20);
-  const [screenShake, setScreenShake] = useState(false);
-
-  // Trạng thái thế giới game
+  // Ma trận địa hình 15 hàng x 24 cột
   const mapGridRef = useRef<number[][]>([]);
+  // Mặt nạ 4 góc cho tường gạch (bit 0: TL, bit 1: TR, bit 2: BL, bit 3: BR, 15 = nguyên vẹn)
+  const brickMasksRef = useRef<number[][]>([]);
+
+  // Xe tăng người chơi
   const playerTankRef = useRef<Tank>({
     id: 1,
-    x: OFFSET_X + 9 * TILE_SIZE,
-    y: OFFSET_Y + 14 * TILE_SIZE,
+    x: 8 * TILE_SIZE + 3,
+    y: 13 * TILE_SIZE + 3,
     dir: 'UP',
     speed: 3.2,
     type: 'player',
     level: 1,
     hp: 1,
     maxHp: 1,
-    shieldTime: 3500, // khiên bảo vệ lúc xuất hiện
-    shootCooldown: 0,
+    shieldTime: 4000,
     isAlive: true,
+    shootCooldown: 0,
+    hasBoat: false
   });
 
   const enemiesRef = useRef<Tank[]>([]);
+  const spawningEnemiesRef = useRef<SpawningEnemy[]>([]);
   const bulletsRef = useRef<Bullet[]>([]);
   const powerUpsRef = useRef<PowerUp[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const floatingTextsRef = useRef<FloatingText[]>([]);
 
-  // Trạng thái căn cứ đại bàng
+  // Căn cứ đại bàng (tại ô cột 11-12, hàng 13-14)
   const isBaseDestroyedRef = useRef<boolean>(false);
-  const shovelTimerRef = useRef<number>(0); // thời gian tường thép quanh đại bàng
-  const freezeTimerRef = useRef<number>(0); // thời gian đóng băng địch
+  const shovelTimerRef = useRef<number>(0); // Tường thép bảo vệ
+  const freezeTimerRef = useRef<number>(0); // Đóng băng địch
 
   const keysPressedRef = useRef<Record<string, boolean>>({});
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const lastTimeRef = useRef<number>(0);
+  const enemySpawnTimerRef = useRef<number>(0);
+  const totalEnemiesToSpawnRef = useRef<number>(20);
 
   // Âm thanh Web Audio API
-  const playTone = useCallback((freq: number, type: OscillatorType = 'sine', duration: number = 0.1, gain: number = 0.08) => {
-    try {
-      if (!audioCtxRef.current) {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const getAudioContext = useCallback(() => {
+    if (!audioCtxRef.current) {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
         audioCtxRef.current = new AudioCtx();
       }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      g.gain.setValueAtTime(gain, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-      osc.connect(g);
-      g.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
-    } catch {}
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
   }, []);
 
   const playShootSound = useCallback(() => {
-    playTone(520, 'square', 0.08, 0.06);
-  }, [playTone]);
-
-  const playHitSteelSound = useCallback(() => {
-    playTone(850, 'triangle', 0.06, 0.08);
-  }, [playTone]);
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } catch {}
+  }, [getAudioContext]);
 
   const playBrickBreakSound = useCallback(() => {
-    playTone(220, 'sawtooth', 0.12, 0.09);
-  }, [playTone]);
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } catch {}
+  }, [getAudioContext]);
 
-  const playExplosionSound = useCallback(() => {
-    playTone(85, 'sawtooth', 0.35, 0.18);
-    setTimeout(() => playTone(60, 'triangle', 0.4, 0.14), 40);
-  }, [playTone]);
+  const playHitSteelSound = useCallback(() => {
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch {}
+  }, [getAudioContext]);
+
+  const playExplosionSound = useCallback((isBig: boolean = false) => {
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(isBig ? 90 : 150, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + (isBig ? 0.45 : 0.25));
+      gain.gain.setValueAtTime(isBig ? 0.4 : 0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (isBig ? 0.45 : 0.25));
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + (isBig ? 0.45 : 0.25));
+    } catch {}
+  }, [getAudioContext]);
 
   const playPowerUpSound = useCallback(() => {
-    playTone(587, 'triangle', 0.08, 0.1);
-    setTimeout(() => playTone(880, 'sine', 0.12, 0.1), 60);
-    setTimeout(() => playTone(1174, 'sine', 0.18, 0.1), 120);
-  }, [playTone]);
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const notes = [392, 523, 659, 784, 1046];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.06);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (idx + 1) * 0.06);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.06);
+        osc.stop(ctx.currentTime + (idx + 1) * 0.06);
+      });
+    } catch {}
+  }, [getAudioContext]);
 
-  // Khởi tạo bản đồ theo màn chơi
+  // Thiết lập lớp tường bảo vệ căn cứ đại bàng (cột 10..13, hàng 12..14)
+  const setBaseProtection = useCallback((tileType: number) => {
+    const baseCoords = [
+      { r: 12, c: 10 }, { r: 12, c: 11 }, { r: 12, c: 12 }, { r: 12, c: 13 },
+      { r: 13, c: 10 }, { r: 13, c: 13 },
+      { r: 14, c: 10 }, { r: 14, c: 13 },
+    ];
+    baseCoords.forEach(({ r, c }) => {
+      if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {
+        mapGridRef.current[r][c] = tileType;
+        if (tileType === TILE_BRICK) {
+          brickMasksRef.current[r][c] = 15; // 4 góc nguyên vẹn
+        }
+      }
+    });
+  }, []);
+
+  // Khởi tạo bản đồ 24 cột x 15 hàng cho từng Màn chơi
   const initMap = useCallback((stg: number) => {
-    const mapTemplate = LEVEL_MAPS[stg] || LEVEL_MAPS[1];
-    mapGridRef.current = mapTemplate.map(row => [...row]);
-    isBaseDestroyedRef.current = false;
-    shovelTimerRef.current = 0;
-    freezeTimerRef.current = 0;
+    const grid: number[][] = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(TILE_EMPTY));
+    const masks: number[][] = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(15));
+
+    // A. Căn cứ Đại Bàng tại đáy trung tâm (cột 11-12, hàng 13-14)
+    // Tường gạch bảo vệ bao quanh
+    const baseCoords = [
+      { r: 12, c: 10 }, { r: 12, c: 11 }, { r: 12, c: 12 }, { r: 12, c: 13 },
+      { r: 13, c: 10 }, { r: 13, c: 13 },
+      { r: 14, c: 10 }, { r: 14, c: 13 },
+    ];
+    baseCoords.forEach(({ r, c }) => {
+      grid[r][c] = TILE_BRICK;
+    });
+
+    // B. Địa hình đặc trưng theo màn chơi
+    const mapType = (stg - 1) % 5;
+
+    if (mapType === 0) {
+      // Màn 1: Cổ điển đối xứng cột gạch, hầm thép trung tâm và hồ nước
+      for (let r = 2; r <= 10; r++) {
+        if (r === 6) continue;
+        grid[r][2] = TILE_BRICK;
+        grid[r][3] = TILE_BRICK;
+        grid[r][5] = TILE_BRICK;
+        grid[r][6] = TILE_BRICK;
+        grid[r][17] = TILE_BRICK;
+        grid[r][18] = TILE_BRICK;
+        grid[r][20] = TILE_BRICK;
+        grid[r][21] = TILE_BRICK;
+      }
+      // Pháo đài thép trung tâm
+      grid[2][11] = TILE_STEEL;
+      grid[2][12] = TILE_STEEL;
+      grid[3][11] = TILE_STEEL;
+      grid[3][12] = TILE_STEEL;
+
+      // Hào nước ngang
+      grid[6][9] = TILE_WATER;
+      grid[6][10] = TILE_WATER;
+      grid[6][13] = TILE_WATER;
+      grid[6][14] = TILE_WATER;
+
+      // Rừng cây ẩn nấp
+      grid[7][11] = TILE_FOREST;
+      grid[7][12] = TILE_FOREST;
+      grid[8][11] = TILE_FOREST;
+      grid[8][12] = TILE_FOREST;
+    } else if (mapType === 1) {
+      // Màn 2: Rừng rậm Amazon & Sông lớn chia cắt
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (c !== 5 && c !== 11 && c !== 18) {
+          grid[7][c] = TILE_WATER;
+        }
+      }
+      for (let r = 1; r < 6; r++) {
+        grid[r][3] = TILE_FOREST;
+        grid[r][8] = TILE_FOREST;
+        grid[r][15] = TILE_FOREST;
+        grid[r][20] = TILE_FOREST;
+      }
+      for (let r = 9; r < 12; r++) {
+        grid[r][4] = TILE_BRICK;
+        grid[r][7] = TILE_BRICK;
+        grid[r][16] = TILE_BRICK;
+        grid[r][19] = TILE_BRICK;
+      }
+    } else if (mapType === 2) {
+      // Màn 3: Băng trơn Bắc Cực & Thép khối
+      for (let r = 2; r <= 10; r++) {
+        for (let c = 7; c <= 16; c++) {
+          if (r === 6 && (c === 11 || c === 12)) continue;
+          if ((r + c) % 3 === 0) grid[r][c] = TILE_ICE;
+        }
+      }
+      grid[4][4] = TILE_STEEL;
+      grid[4][5] = TILE_STEEL;
+      grid[4][18] = TILE_STEEL;
+      grid[4][19] = TILE_STEEL;
+      grid[8][4] = TILE_BRICK;
+      grid[8][5] = TILE_BRICK;
+      grid[8][18] = TILE_BRICK;
+      grid[8][19] = TILE_BRICK;
+    } else if (mapType === 3) {
+      // Màn 4: Mê cung gạch và pháo đài thép
+      for (let r = 1; r <= 11; r += 2) {
+        for (let c = 1; c < GRID_COLS - 1; c += 2) {
+          if (c >= 9 && c <= 14 && r >= 11) continue;
+          grid[r][c] = (r + c) % 4 === 0 ? TILE_STEEL : TILE_BRICK;
+        }
+      }
+    } else {
+      // Màn 5: Thử thách tổng hợp
+      for (let c = 2; c < GRID_COLS - 2; c += 3) {
+        grid[3][c] = TILE_STEEL;
+        grid[5][c] = TILE_WATER;
+        grid[7][c] = TILE_FOREST;
+        grid[9][c] = TILE_BRICK;
+      }
+    }
+
+    mapGridRef.current = grid;
+    brickMasksRef.current = masks;
   }, []);
 
   // Khởi động màn chơi
   const startStage = useCallback((stg: number) => {
     setStage(stg);
-    initMap(stg);
-    setEnemiesRemaining(20);
     setIsGameOver(false);
     setIsVictory(false);
+    isBaseDestroyedRef.current = false;
+    shovelTimerRef.current = 0;
+    freezeTimerRef.current = 0;
 
-    // Đặt lại vị trí xe tăng người chơi
+    initMap(stg);
+
+    // Cấu hình số lượng xe địch
+    const enemyCount = mode === 'endless' ? 30 + stg * 5 : 20;
+    totalEnemiesToSpawnRef.current = enemyCount;
+    setEnemiesRemaining(enemyCount);
+
+    // Đặt lại người chơi
     playerTankRef.current = {
       id: 1,
-      x: OFFSET_X + 9 * TILE_SIZE,
-      y: OFFSET_Y + 14 * TILE_SIZE,
+      x: 8 * TILE_SIZE + 3,
+      y: 13 * TILE_SIZE + 3,
       dir: 'UP',
-      speed: mode === 'speed' ? 4.0 : 3.2,
+      speed: mode === 'speed' ? 4.2 : 3.4,
       type: 'player',
       level: playerTankRef.current.level || 1,
       hp: 1,
       maxHp: 1,
       shieldTime: 4000,
-      shootCooldown: 0,
       isAlive: true,
+      shootCooldown: 0,
+      hasBoat: false
     };
 
     enemiesRef.current = [];
+    spawningEnemiesRef.current = [];
     bulletsRef.current = [];
     powerUpsRef.current = [];
     particlesRef.current = [];
     floatingTextsRef.current = [];
+    enemySpawnTimerRef.current = 800; // Địch xuất hiện nhanh sau khi bắt đầu
   }, [initMap, mode]);
 
   useEffect(() => {
@@ -313,70 +450,91 @@ export const GameTank1990: React.FC = () => {
   }, [startStage]);
 
   // Kiểm tra va chạm hộp (AABB)
-  const isColliding = (
-    x1: number, y1: number, w1: number, h1: number,
-    x2: number, y2: number, w2: number, h2: number
-  ) => {
+  const isColliding = (x1: number, y1: number, w1: number, h1: number, x2: number, y2: number, w2: number, h2: number) => {
     return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
   };
 
-  // Kiểm tra xe tăng có thể đi vào vị trí (x, y) không
-  const canMoveTo = (tankId: number, nextX: number, nextY: number, size: number) => {
-    // 1. Biên chiến trường
-    if (
-      nextX < OFFSET_X ||
-      nextX + size > OFFSET_X + ARENA_WIDTH ||
-      nextY < OFFSET_Y ||
-      nextY + size > OFFSET_Y + ARENA_HEIGHT
-    ) {
+  // Kiểm tra xe tăng di chuyển có hợp lệ không
+  const canMoveTo = (tank: Tank, nextX: number, nextY: number): boolean => {
+    const size = TANK_SIZE;
+
+    // 1. Biên sân đấu (0 đến ARENA_WIDTH = 864, 0 đến ARENA_HEIGHT = 540)
+    if (nextX < 0 || nextX + size > ARENA_WIDTH || nextY < 0 || nextY + size > ARENA_HEIGHT) {
       return false;
     }
 
-    // 2. Va chạm với căn cứ đại bàng (Cột 12-13, hàng 14-15)
-    const baseBox = {
-      x: OFFSET_X + 12 * TILE_SIZE,
-      y: OFFSET_Y + 14 * TILE_SIZE,
-      w: TILE_SIZE * 2,
-      h: TILE_SIZE * 2,
-    };
+    // 2. Va chạm với Căn cứ Đại Bàng (cột 11..12, hàng 13..14)
+    const baseBox = { x: 11 * TILE_SIZE, y: 13 * TILE_SIZE, w: TILE_SIZE * 2, h: TILE_SIZE * 2 };
     if (isColliding(nextX, nextY, size, size, baseBox.x, baseBox.y, baseBox.w, baseBox.h)) {
       return false;
     }
 
-    // 3. Va chạm với các ô địa hình (Gạch, Thép, Sông nước)
-    const startCol = Math.floor((nextX - OFFSET_X) / TILE_SIZE);
-    const endCol = Math.floor((nextX + size - 1 - OFFSET_X) / TILE_SIZE);
-    const startRow = Math.floor((nextY - OFFSET_Y) / TILE_SIZE);
-    const endRow = Math.floor((nextY + size - 1 - OFFSET_Y) / TILE_SIZE);
+    // 3. Va chạm với các ô địa hình
+    const startCol = Math.floor(nextX / TILE_SIZE);
+    const endCol = Math.floor((nextX + size - 1) / TILE_SIZE);
+    const startRow = Math.floor(nextY / TILE_SIZE);
+    const endRow = Math.floor((nextY + size - 1) / TILE_SIZE);
 
     for (let r = startRow; r <= endRow; r++) {
       for (let c = startCol; c <= endCol; c++) {
         if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {
           const tile = mapGridRef.current[r][c];
-          if (tile === TILE_BRICK || tile === TILE_STEEL || tile === TILE_WATER) {
+
+          // Nước cản đường nếu không có thuyền
+          if (tile === TILE_WATER) {
+            if (tank.type === 'player' && tank.hasBoat) {
+              // Đi trên nước
+              continue;
+            }
             return false;
+          }
+
+          // Thép cản đường
+          if (tile === TILE_STEEL) {
+            return false;
+          }
+
+          // Gạch cản đường theo từng góc (sub-mask)
+          if (tile === TILE_BRICK) {
+            const mask = brickMasksRef.current[r]?.[c] ?? 15;
+            if (mask === 0) continue; // Đã vỡ hết
+
+            const half = TILE_SIZE / 2;
+            const subBoxes = [
+              { x: c * TILE_SIZE, y: r * TILE_SIZE, bit: 1 },
+              { x: c * TILE_SIZE + half, y: r * TILE_SIZE, bit: 2 },
+              { x: c * TILE_SIZE, y: r * TILE_SIZE + half, bit: 4 },
+              { x: c * TILE_SIZE + half, y: r * TILE_SIZE + half, bit: 8 },
+            ];
+
+            for (const sb of subBoxes) {
+              if ((mask & sb.bit) !== 0) {
+                if (isColliding(nextX, nextY, size, size, sb.x, sb.y, half, half)) {
+                  return false;
+                }
+              }
+            }
           }
         }
       }
     }
 
-    // 4. Va chạm với xe tăng khác
-    // Người chơi với địch
-    if (tankId === 1) {
+    // 4. Va chạm với xe khác
+    if (tank.type === 'player') {
       for (const e of enemiesRef.current) {
         if (e.isAlive && isColliding(nextX, nextY, size, size, e.x, e.y, TANK_SIZE, TANK_SIZE)) {
           return false;
         }
       }
     } else {
-      // Địch với người chơi
+      // Địch va chạm người chơi
       const p = playerTankRef.current;
       if (p.isAlive && isColliding(nextX, nextY, size, size, p.x, p.y, TANK_SIZE, TANK_SIZE)) {
         return false;
       }
-      // Địch với địch khác
+      // Địch va chạm địch khác
       for (const other of enemiesRef.current) {
-        if (other.id !== tankId && other.isAlive && isColliding(nextX, nextY, size, size, other.x, other.y, TANK_SIZE, TANK_SIZE)) {
+        if (other.id !== tank.id && other.isAlive && isColliding(nextX, nextY, size, size, other.x, other.y, TANK_SIZE, TANK_SIZE)) {
           return false;
         }
       }
@@ -388,261 +546,128 @@ export const GameTank1990: React.FC = () => {
   // Người chơi bắn đạn
   const handlePlayerShoot = useCallback(() => {
     const p = playerTankRef.current;
-    if (!p.isAlive || isPaused || isGameOver || isVictory || p.shootCooldown > 0) return;
+    if (!p.isAlive || isPaused || isGameOver || isVictory) return;
 
-    // Giới hạn số lượng đạn cùng lúc: cấp 3-4 bắn 2 viên, cấp 1-2 bắn 1 viên
-    const maxPlayerBullets = p.level >= 3 ? 2 : 1;
-    const currentBullets = bulletsRef.current.filter(b => b.isAlive && b.isPlayer).length;
-    if (currentBullets >= maxPlayerBullets) return;
+    // Tối đa số đạn cùng lúc: cấp 3-4 bắn 2 viên, cấp 1-2 bắn 1 viên
+    const maxBullets = p.level >= 3 ? 2 : 1;
+    const activePlayerBullets = bulletsRef.current.filter(b => b.isAlive && b.isPlayer).length;
+    if (activePlayerBullets >= maxBullets) return;
 
-    let bulletX = p.x + TANK_SIZE / 2;
-    let bulletY = p.y + TANK_SIZE / 2;
-    const bulletSpeed = p.level >= 2 ? 9.5 : 7.2;
+    let bx = p.x + TANK_SIZE / 2;
+    let by = p.y + TANK_SIZE / 2;
+    const speed = p.level >= 2 ? 10.5 : 8.0;
 
     switch (p.dir) {
-      case 'UP': bulletY = p.y - 4; break;
-      case 'DOWN': bulletY = p.y + TANK_SIZE + 4; break;
-      case 'LEFT': bulletX = p.x - 4; break;
-      case 'RIGHT': bulletX = p.x + TANK_SIZE + 4; break;
+      case 'UP': by = p.y - 4; break;
+      case 'DOWN': by = p.y + TANK_SIZE + 4; break;
+      case 'LEFT': bx = p.x - 4; break;
+      case 'RIGHT': bx = p.x + TANK_SIZE + 4; break;
     }
 
     bulletsRef.current.push({
       id: Date.now() + Math.random(),
-      x: bulletX,
-      y: bulletY,
+      x: bx,
+      y: by,
       dir: p.dir,
-      speed: bulletSpeed,
+      speed,
       isPlayer: true,
       canBreakSteel: p.level >= 4,
-      isAlive: true,
+      isAlive: true
     });
 
-    p.shootCooldown = 220; // 220ms
     playShootSound();
   }, [isGameOver, isPaused, isVictory, playShootSound]);
 
   // Địch bắn đạn
-  const handleEnemyShoot = (enemy: Tank) => {
-    if (!enemy.isAlive) return;
-    let bulletX = enemy.x + TANK_SIZE / 2;
-    let bulletY = enemy.y + TANK_SIZE / 2;
-    const bulletSpeed = enemy.type === 'power' ? 9.0 : 6.0;
+  const enemyShoot = (enemy: Tank) => {
+    let bx = enemy.x + TANK_SIZE / 2;
+    let by = enemy.y + TANK_SIZE / 2;
+    const speed = enemy.type === 'power' ? 9.5 : 6.5;
 
     switch (enemy.dir) {
-      case 'UP': bulletY = enemy.y - 4; break;
-      case 'DOWN': bulletY = enemy.y + TANK_SIZE + 4; break;
-      case 'LEFT': bulletX = enemy.x - 4; break;
-      case 'RIGHT': bulletX = enemy.x + TANK_SIZE + 4; break;
+      case 'UP': by = enemy.y - 4; break;
+      case 'DOWN': by = enemy.y + TANK_SIZE + 4; break;
+      case 'LEFT': bx = enemy.x - 4; break;
+      case 'RIGHT': bx = enemy.x + TANK_SIZE + 4; break;
     }
 
     bulletsRef.current.push({
       id: Date.now() + Math.random(),
-      x: bulletX,
-      y: bulletY,
+      x: bx,
+      y: by,
       dir: enemy.dir,
-      speed: bulletSpeed,
+      speed,
       isPlayer: false,
       canBreakSteel: false,
-      isAlive: true,
+      isAlive: true
     });
   };
 
-  // Sinh xe tăng địch mới tại 1 trong 3 điểm spawn trên đỉnh bản đồ
+  // Tạo hiệu ứng ngôi sao xuất hiện trước khi địch xuất hiện
   const spawnEnemy = useCallback(() => {
-    if (enemiesRemaining <= 0 || enemiesRef.current.filter(e => e.isAlive).length >= 5) return;
+    if (totalEnemiesToSpawnRef.current <= 0) return;
+    if (enemiesRef.current.filter(e => e.isAlive).length >= 5) return; // Tối đa 5 xe cùng lúc trên màn
 
-    const spawnPoints = [
-      { col: 1, row: 1 },
-      { col: 12, row: 1 },
-      { col: 24, row: 1 },
+    // 3 vị trí xuất phát ở mép trên cùng (hàng 0: cột 0, cột 11, cột 22)
+    const spawnSlots = [
+      { col: 0, row: 0 },
+      { col: 11, row: 0 },
+      { col: 22, row: 0 }
     ];
-    const sp = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
-    const spawnX = OFFSET_X + sp.col * TILE_SIZE;
-    const spawnY = OFFSET_Y + sp.row * TILE_SIZE;
+    const availableSlots = spawnSlots.filter(slot => {
+      const sx = slot.col * TILE_SIZE;
+      const sy = slot.row * TILE_SIZE;
+      // Tránh trùng vị trí xe đang có hoặc đang spawn
+      return !enemiesRef.current.some(e => e.isAlive && isColliding(sx, sy, TANK_SIZE, TANK_SIZE, e.x, e.y, TANK_SIZE, TANK_SIZE)) &&
+             !spawningEnemiesRef.current.some(se => se.col === slot.col && se.row === slot.row);
+    });
 
-    // Kiểm tra điểm spawn có bị xe khác chặn không
-    for (const e of enemiesRef.current) {
-      if (e.isAlive && Math.hypot(e.x - spawnX, e.y - spawnY) < 32) return;
-    }
+    if (availableSlots.length === 0) return;
+    const sp = availableSlots[Math.floor(Math.random() * availableSlots.length)];
 
-    const rand = Math.random();
-    let type: TankType = 'basic';
-    let hp = 1;
-    let speed = 2.0;
+    // Xác định loại xe
+    const types: TankType[] = ['basic', 'basic', 'fast', 'power', 'armor'];
+    const chosenType = types[Math.floor(Math.random() * types.length)];
+    // Tỉ lệ 20% là xe mang viện trợ nhấp nháy đỏ
+    const isBonus = Math.random() < 0.22;
 
-    if (rand < 0.4) {
-      type = 'basic';
-      hp = 1;
-      speed = 2.2;
-    } else if (rand < 0.7) {
-      type = 'fast';
-      hp = 1;
-      speed = 3.6;
-    } else if (rand < 0.88) {
-      type = 'power';
-      hp = 1;
-      speed = 2.4;
-    } else {
-      type = 'armor';
-      hp = 4;
-      speed = 1.8;
-    }
-
-    // 25% cơ hội xe mang quà viện trợ (nhấp nháy đỏ)
-    const isBonus = Math.random() < 0.25;
-
-    enemiesRef.current.push({
+    spawningEnemiesRef.current.push({
       id: Date.now() + Math.random(),
-      x: spawnX,
-      y: spawnY,
-      dir: 'DOWN',
-      speed,
-      type,
-      level: 1,
-      hp,
-      maxHp: hp,
-      shieldTime: 0,
-      shootCooldown: 0,
-      isAlive: true,
+      col: sp.col,
+      row: sp.row,
+      type: chosenType,
       isBonus,
-      moveTimer: 0,
-      shootTimer: Math.random() * 80 + 30,
+      timeLeft: 1200 // 1.2s nhấp nháy sao cảnh báo
     });
 
-    setEnemiesRemaining(r => r - 1);
-  }, [enemiesRemaining]);
+    totalEnemiesToSpawnRef.current -= 1;
+    setEnemiesRemaining(totalEnemiesToSpawnRef.current);
+  }, []);
 
-  // Sinh vật phẩm viện trợ ngẫu nhiên
-  const dropPowerUp = (x: number, y: number) => {
-    const types: PowerUpType[] = ['star', 'grenade', 'helmet', 'clock', 'shovel', 'tank'];
-    const type = types[Math.floor(Math.random() * types.length)];
-    powerUpsRef.current.push({
-      id: Date.now() + Math.random(),
-      x,
-      y,
-      type,
-      duration: 15000, // 15 giây
-    });
-  };
+  // Bắt đầu game over
+  const triggerGameOver = useCallback((dueToBase: boolean) => {
+    setIsGameOver(true);
+    setScreenShake(true);
+    setTimeout(() => setScreenShake(false), 500);
+    playExplosionSound(true);
 
-  // Kích hoạt tác dụng của vật phẩm viện trợ
-  const applyPowerUp = (type: PowerUpType) => {
-    playPowerUpSound();
-    const p = playerTankRef.current;
-
-    switch (type) {
-      case 'star':
-        p.level = Math.min(4, p.level + 1);
-        floatingTextsRef.current.push({
-          id: Date.now(),
-          x: p.x,
-          y: p.y - 10,
-          text: `NÂNG CẤP CẤP ${p.level}! 🌟`,
-          color: '#facc15',
-          alpha: 1,
-        });
-        break;
-
-      case 'grenade':
-        // Tiêu diệt toàn bộ địch trên sân
-        enemiesRef.current.forEach(e => {
-          if (e.isAlive) {
-            e.isAlive = false;
-            setScore(s => s + 200);
-          }
-        });
-        setScreenShake(true);
-        setTimeout(() => setScreenShake(false), 300);
-        playExplosionSound();
-        floatingTextsRef.current.push({
-          id: Date.now(),
-          x: p.x,
-          y: p.y - 10,
-          text: 'BOM NỔ TOÀN BẢN ĐỒ! 💣',
-          color: '#ef4444',
-          alpha: 1,
-        });
-        break;
-
-      case 'helmet':
-        p.shieldTime = 12000; // 12 giây bất tử
-        floatingTextsRef.current.push({
-          id: Date.now(),
-          x: p.x,
-          y: p.y - 10,
-          text: 'KHIÊN BẤT TỬ! 🛡️',
-          color: '#38bdf8',
-          alpha: 1,
-        });
-        break;
-
-      case 'clock':
-        freezeTimerRef.current = 8000; // 8 giây đóng băng
-        floatingTextsRef.current.push({
-          id: Date.now(),
-          x: p.x,
-          y: p.y - 10,
-          text: 'ĐÓNG BĂNG ĐỊCH! ⏱️',
-          color: '#22d3ee',
-          alpha: 1,
-        });
-        break;
-
-      case 'shovel':
-        // Đổi tường gạch quanh đại bàng thành thép 15 giây
-        shovelTimerRef.current = 15000;
-        setBaseProtection(TILE_STEEL);
-        floatingTextsRef.current.push({
-          id: Date.now(),
-          x: p.x,
-          y: p.y - 10,
-          text: 'TƯỜNG THÉP BẢO VỆ! 🧱',
-          color: '#e2e8f0',
-          alpha: 1,
-        });
-        break;
-
-      case 'tank':
-        setLives(l => l + 1);
-        floatingTextsRef.current.push({
-          id: Date.now(),
-          x: p.x,
-          y: p.y - 10,
-          text: '+1 MẠNG! 💖',
-          color: '#f43f5e',
-          alpha: 1,
-        });
-        break;
+    if (dueToBase) {
+      isBaseDestroyedRef.current = true;
     }
-  };
+  }, [playExplosionSound]);
 
-  // Đổi vật liệu tường bảo vệ đại bàng (Gạch hoặc Thép)
-  const setBaseProtection = (tileType: number) => {
-    const grid = mapGridRef.current;
-    if (!grid || grid.length < 16) return;
-    const coords = [
-      [13, 11], [13, 12], [13, 13], [13, 14],
-      [14, 11], [14, 14],
-      [15, 11], [15, 14],
-    ];
-    coords.forEach(([r, c]) => {
-      if (grid[r] && grid[r][c] !== undefined) {
-        grid[r][c] = tileType;
-      }
-    });
-  };
-
-  // Bắt phím điều khiển từ bàn phím
+  // Xử lý bàn phím
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      keysPressedRef.current[e.code] = true;
-      if (e.code === 'Space' || e.code === 'KeyJ') {
+      keysPressedRef.current[e.key] = true;
+      if (['Space', ' ', 'j', 'J'].includes(e.key)) {
         e.preventDefault();
         handlePlayerShoot();
       }
     };
+
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressedRef.current[e.code] = false;
+      keysPressedRef.current[e.key] = false;
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -653,25 +678,26 @@ export const GameTank1990: React.FC = () => {
     };
   }, [handlePlayerShoot]);
 
-  // Vòng lặp chính của Game (60 FPS Physics & Render Loop)
+  // VÒNG LẶP CHÍNH (GAME LOOP 60 FPS)
   useEffect(() => {
     let animId: number;
-    let lastTime = performance.now();
-    let spawnTimer = 0;
 
-    const gameLoop = (currentTime: number) => {
-      const dt = Math.min(currentTime - lastTime, 40); // clamp delta time
-      lastTime = currentTime;
+    const gameLoop = (timestamp: number) => {
+      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      const dt = Math.min(timestamp - lastTimeRef.current, 50);
+      lastTimeRef.current = timestamp;
 
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        animId = requestAnimationFrame(gameLoop);
+        return;
+      }
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const dpr = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
+      const dpr = window.devicePixelRatio || 1;
       const targetWidth = CANVAS_WIDTH * dpr;
       const targetHeight = CANVAS_HEIGHT * dpr;
-
       if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
         canvas.width = targetWidth;
         canvas.height = targetHeight;
@@ -680,125 +706,145 @@ export const GameTank1990: React.FC = () => {
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      // --- 1. CẬP NHẬT VẬT LÝ & LOGIC ---
+      // --- 1. CẬP NHẬT LOGIC GAME ---
       if (!isPaused && !isGameOver && !isVictory) {
-        // Sinh xe tăng địch định kỳ
-        spawnTimer += dt;
-        if (spawnTimer >= 2200) {
-          spawnTimer = 0;
-          spawnEnemy();
-        }
-
-        // Đếm lùi xẻng công binh
+        // A. Cập nhật thời gian bảo vệ căn cứ và đóng băng địch
         if (shovelTimerRef.current > 0) {
           shovelTimerRef.current -= dt;
           if (shovelTimerRef.current <= 0) {
             setBaseProtection(TILE_BRICK);
           }
         }
-
-        // Đếm lùi đóng băng địch
         if (freezeTimerRef.current > 0) {
           freezeTimerRef.current -= dt;
         }
 
-        // Cập nhật người chơi (Player Tank)
+        // B. Cập nhật xe tăng đang chuẩn bị xuất hiện (Spawning Enemies)
+        for (const se of spawningEnemiesRef.current) {
+          se.timeLeft -= dt;
+          if (se.timeLeft <= 0) {
+            // Biến hình thành xe thật
+            const speedMap: Record<TankType, number> = {
+              player: 3.4,
+              basic: 2.1,
+              fast: 3.8,
+              power: 2.4,
+              armor: 1.8
+            };
+            const hpMap: Record<TankType, number> = {
+              player: 1,
+              basic: 1,
+              fast: 1,
+              power: 1,
+              armor: 4
+            };
+            enemiesRef.current.push({
+              id: se.id,
+              x: se.col * TILE_SIZE + 3,
+              y: se.row * TILE_SIZE + 3,
+              dir: 'DOWN',
+              speed: speedMap[se.type],
+              type: se.type,
+              level: 1,
+              hp: hpMap[se.type],
+              maxHp: hpMap[se.type],
+              shieldTime: 0,
+              isBonus: se.isBonus,
+              isAlive: true,
+              shootCooldown: 600 + Math.random() * 800
+            });
+          }
+        }
+        spawningEnemiesRef.current = spawningEnemiesRef.current.filter(se => se.timeLeft > 0);
+
+        // Sinh thêm địch nếu cần
+        enemySpawnTimerRef.current -= dt;
+        if (enemySpawnTimerRef.current <= 0) {
+          spawnEnemy();
+          enemySpawnTimerRef.current = 2400 + Math.random() * 1000;
+        }
+
+        // C. Điều khiển người chơi
         const p = playerTankRef.current;
         if (p.isAlive) {
           if (p.shieldTime > 0) p.shieldTime -= dt;
-          if (p.shootCooldown > 0) p.shootCooldown -= dt;
 
-          const keys = keysPressedRef.current;
-          let moveDir: Direction | null = null;
-          if (keys['KeyW'] || keys['ArrowUp']) moveDir = 'UP';
-          else if (keys['KeyS'] || keys['ArrowDown']) moveDir = 'DOWN';
-          else if (keys['KeyA'] || keys['ArrowLeft']) moveDir = 'LEFT';
-          else if (keys['KeyD'] || keys['ArrowRight']) moveDir = 'RIGHT';
+          let moveX = 0;
+          let moveY = 0;
+          let desiredDir: Direction | null = null;
 
-          if (moveDir) {
-            p.dir = moveDir;
-            let nx = p.x;
-            let ny = p.y;
-            switch (moveDir) {
-              case 'UP': ny -= p.speed; break;
-              case 'DOWN': ny += p.speed; break;
-              case 'LEFT': nx -= p.speed; break;
-              case 'RIGHT': nx += p.speed; break;
-            }
-
-            if (canMoveTo(1, nx, ny, TANK_SIZE)) {
-              p.x = nx;
-              p.y = ny;
-            } else {
-              // Căn chỉnh trục khi rẽ góc hẹp (Auto Align)
-              if (moveDir === 'UP' || moveDir === 'DOWN') {
-                const alignCol = Math.round((p.x - OFFSET_X) / (TILE_SIZE / 2)) * (TILE_SIZE / 2) + OFFSET_X;
-                if (Math.abs(p.x - alignCol) < 6) p.x = alignCol;
-              } else {
-                const alignRow = Math.round((p.y - OFFSET_Y) / (TILE_SIZE / 2)) * (TILE_SIZE / 2) + OFFSET_Y;
-                if (Math.abs(p.y - alignRow) < 6) p.y = alignRow;
-              }
-            }
+          if (keysPressedRef.current['ArrowUp'] || keysPressedRef.current['w'] || keysPressedRef.current['W']) {
+            desiredDir = 'UP';
+            moveY = -p.speed;
+          } else if (keysPressedRef.current['ArrowDown'] || keysPressedRef.current['s'] || keysPressedRef.current['S']) {
+            desiredDir = 'DOWN';
+            moveY = p.speed;
+          } else if (keysPressedRef.current['ArrowLeft'] || keysPressedRef.current['a'] || keysPressedRef.current['A']) {
+            desiredDir = 'LEFT';
+            moveX = -p.speed;
+          } else if (keysPressedRef.current['ArrowRight'] || keysPressedRef.current['d'] || keysPressedRef.current['D']) {
+            desiredDir = 'RIGHT';
+            moveX = p.speed;
           }
 
-          // Kiểm tra nhặt Power-Up
-          powerUpsRef.current = powerUpsRef.current.filter(pu => {
-            if (isColliding(p.x, p.y, TANK_SIZE, TANK_SIZE, pu.x, pu.y, 26, 26)) {
-              applyPowerUp(pu.type);
-              setScore(s => s + 500);
-              return false;
+          if (desiredDir) {
+            p.dir = desiredDir;
+
+            // Hỗ trợ tự căn chỉnh làn (Lane Snapping) giúp rẽ cua 90 độ mượt mà
+            if (desiredDir === 'UP' || desiredDir === 'DOWN') {
+              const alignCol = Math.round(p.x / (TILE_SIZE / 2)) * (TILE_SIZE / 2);
+              if (Math.abs(p.x - alignCol) < 7) p.x = alignCol;
+            } else {
+              const alignRow = Math.round(p.y / (TILE_SIZE / 2)) * (TILE_SIZE / 2);
+              if (Math.abs(p.y - alignRow) < 7) p.y = alignRow;
             }
-            return true;
-          });
+
+            const targetX = p.x + moveX;
+            const targetY = p.y + moveY;
+            if (canMoveTo(p, targetX, targetY)) {
+              p.x = targetX;
+              p.y = targetY;
+            }
+          }
         }
 
-        // Cập nhật xe tăng địch (Enemy Tanks)
-        const isFrozen = freezeTimerRef.current > 0;
-        for (const e of enemiesRef.current) {
-          if (!e.isAlive) continue;
+        // D. Trí tuệ nhân tạo xe tăng địch (Enemy AI)
+        if (freezeTimerRef.current <= 0) {
+          for (const e of enemiesRef.current) {
+            if (!e.isAlive) continue;
 
-          if (!isFrozen) {
-            e.moveTimer = (e.moveTimer || 0) + 1;
-            e.shootTimer = (e.shootTimer || 0) - 1;
-
-            if (e.shootTimer <= 0) {
-              handleEnemyShoot(e);
-              e.shootTimer = Math.random() * 80 + 40;
+            // Bắn đạn
+            e.shootCooldown -= dt;
+            if (e.shootCooldown <= 0) {
+              enemyShoot(e);
+              e.shootCooldown = 1100 + Math.random() * 1200;
             }
 
-            // Đổi hướng AI khi gặp vật cản hoặc định kỳ
-            if (e.moveTimer >= 70 || Math.random() < 0.02) {
-              e.moveTimer = 0;
-              const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-              // Ưu tiên hướng DOWN để công phá đại bàng
-              if (Math.random() < 0.4) {
-                e.dir = 'DOWN';
-              } else {
+            // Di chuyển
+            let mx = 0;
+            let my = 0;
+            if (e.dir === 'UP') my = -e.speed;
+            else if (e.dir === 'DOWN') my = e.speed;
+            else if (e.dir === 'LEFT') mx = -e.speed;
+            else if (e.dir === 'RIGHT') mx = e.speed;
+
+            if (canMoveTo(e, e.x + mx, e.y + my)) {
+              e.x += mx;
+              e.y += my;
+              // Xác suất rẽ ngẫu nhiên
+              if (Math.random() < 0.02) {
+                const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
                 e.dir = dirs[Math.floor(Math.random() * dirs.length)];
               }
-            }
-
-            let enx = e.x;
-            let eny = e.y;
-            switch (e.dir) {
-              case 'UP': eny -= e.speed; break;
-              case 'DOWN': eny += e.speed; break;
-              case 'LEFT': enx -= e.speed; break;
-              case 'RIGHT': enx += e.speed; break;
-            }
-
-            if (canMoveTo(e.id, enx, eny, TANK_SIZE)) {
-              e.x = enx;
-              e.y = eny;
             } else {
-              // Bị cản: đổi hướng ngẫu nhiên
-              const otherDirs: Direction[] = (['UP', 'DOWN', 'LEFT', 'RIGHT'] as Direction[]).filter(d => d !== e.dir);
-              e.dir = otherDirs[Math.floor(Math.random() * otherDirs.length)];
+              // Đụng tường -> Đổi hướng ưu tiên hướng xuống căn cứ đại bàng
+              const dirs: Direction[] = ['DOWN', 'DOWN', 'LEFT', 'RIGHT', 'UP'];
+              e.dir = dirs[Math.floor(Math.random() * dirs.length)];
             }
           }
         }
 
-        // Cập nhật đạn bay (Bullets Physics)
+        // E. Cập nhật đạn bay & va chạm
         for (const b of bulletsRef.current) {
           if (!b.isAlive) continue;
 
@@ -809,43 +855,55 @@ export const GameTank1990: React.FC = () => {
             case 'RIGHT': b.x += b.speed; break;
           }
 
-          // 1. Đạn bay ra ngoài biên
-          if (
-            b.x < OFFSET_X ||
-            b.x > OFFSET_X + ARENA_WIDTH ||
-            b.y < OFFSET_Y ||
-            b.y > OFFSET_Y + ARENA_HEIGHT
-          ) {
+          // 1. Bay ra khỏi biên sân đấu
+          if (b.x < 0 || b.x > ARENA_WIDTH || b.y < 0 || b.y > ARENA_HEIGHT) {
             b.isAlive = false;
+            playHitSteelSound();
             continue;
           }
 
-          // 2. Đạn bắn trúng căn cứ Đại Bàng
-          const baseBox = {
-            x: OFFSET_X + 12 * TILE_SIZE,
-            y: OFFSET_Y + 14 * TILE_SIZE,
-            w: TILE_SIZE * 2,
-            h: TILE_SIZE * 2,
-          };
+          // 2. Va chạm với Căn cứ Đại Bàng
+          const baseBox = { x: 11 * TILE_SIZE, y: 13 * TILE_SIZE, w: TILE_SIZE * 2, h: TILE_SIZE * 2 };
           if (isColliding(b.x - 3, b.y - 3, 6, 6, baseBox.x, baseBox.y, baseBox.w, baseBox.h)) {
             b.isAlive = false;
-            isBaseDestroyedRef.current = true;
-            playExplosionSound();
-            setIsGameOver(true);
+            triggerGameOver(true);
             continue;
           }
 
-          // 3. Đạn va chạm địa hình gạch/thép
-          const col = Math.floor((b.x - OFFSET_X) / TILE_SIZE);
-          const row = Math.floor((b.y - OFFSET_Y) / TILE_SIZE);
+          // 3. Va chạm với các ô địa hình
+          const col = Math.floor(b.x / TILE_SIZE);
+          const row = Math.floor(b.y / TILE_SIZE);
 
           if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
             const tile = mapGridRef.current[row][col];
+
+            // Tường gạch: Phá hủy từng góc (Sub-Tile destruction)
             if (tile === TILE_BRICK) {
               b.isAlive = false;
-              mapGridRef.current[row][col] = TILE_EMPTY; // phá gạch
               playBrickBreakSound();
-              // Hạt bụi gạch văng ra
+
+              let mask = brickMasksRef.current[row]?.[col] ?? 15;
+              // Tùy theo hướng bắn phá hủy phần tương ứng
+              if (b.dir === 'UP') {
+                if ((mask & 12) !== 0) mask &= ~12; // Phá 2 góc dưới (BL:4, BR:8)
+                else mask &= ~3; // Phá tiếp 2 góc trên
+              } else if (b.dir === 'DOWN') {
+                if ((mask & 3) !== 0) mask &= ~3; // Phá 2 góc trên (TL:1, TR:2)
+                else mask &= ~12; // Phá tiếp 2 góc dưới
+              } else if (b.dir === 'LEFT') {
+                if ((mask & 10) !== 0) mask &= ~10; // Phá 2 góc phải (TR:2, BR:8)
+                else mask &= ~5; // Phá tiếp 2 góc trái
+              } else if (b.dir === 'RIGHT') {
+                if ((mask & 5) !== 0) mask &= ~5; // Phá 2 góc trái (TL:1, BL:4)
+                else mask &= ~10; // Phá tiếp 2 góc phải
+              }
+
+              brickMasksRef.current[row][col] = mask;
+              if (mask === 0) {
+                mapGridRef.current[row][col] = TILE_EMPTY;
+              }
+
+              // Hạt bụi gạch văng tung tóe
               for (let i = 0; i < 5; i++) {
                 particlesRef.current.push({
                   id: Date.now() + Math.random(),
@@ -853,26 +911,65 @@ export const GameTank1990: React.FC = () => {
                   y: b.y,
                   vx: (Math.random() - 0.5) * 4,
                   vy: (Math.random() - 0.5) * 4,
-                  color: '#b91c1c',
+                  color: '#ef4444',
                   size: 2.5,
                   alpha: 1,
-                  life: 15,
+                  decay: 0.05
                 });
               }
               continue;
-            } else if (tile === TILE_STEEL) {
+            }
+
+            // Tường thép
+            if (tile === TILE_STEEL) {
               b.isAlive = false;
               if (b.canBreakSteel) {
-                mapGridRef.current[row][col] = TILE_EMPTY; // xe cấp 4 phá được thép
+                // Đạn cấp 4 phá hủy tường thép
+                mapGridRef.current[row][col] = TILE_EMPTY;
                 playBrickBreakSound();
+                for (let i = 0; i < 6; i++) {
+                  particlesRef.current.push({
+                    id: Date.now() + Math.random(),
+                    x: b.x,
+                    y: b.y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    color: '#94a3b8',
+                    size: 3,
+                    alpha: 1,
+                    decay: 0.04
+                  });
+                }
               } else {
                 playHitSteelSound();
+                // Tia lửa kim loại tóe ra
+                for (let i = 0; i < 4; i++) {
+                  particlesRef.current.push({
+                    id: Date.now() + Math.random(),
+                    x: b.x,
+                    y: b.y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    color: '#38bdf8',
+                    size: 2,
+                    alpha: 1,
+                    decay: 0.08
+                  });
+                }
               }
+              continue;
+            }
+
+            // Tán cây rừng: Xe cấp 4 có thể chặt cây dọn đường
+            if (tile === TILE_FOREST && b.canBreakSteel) {
+              mapGridRef.current[row][col] = TILE_EMPTY;
+              b.isAlive = false;
+              playBrickBreakSound();
               continue;
             }
           }
 
-          // 4. Đạn người chơi bắn trúng xe tăng địch
+          // 4. Va chạm đạn người chơi với xe tăng địch
           if (b.isPlayer) {
             for (const e of enemiesRef.current) {
               if (e.isAlive && isColliding(b.x - 3, b.y - 3, 6, 6, e.x, e.y, TANK_SIZE, TANK_SIZE)) {
@@ -881,73 +978,116 @@ export const GameTank1990: React.FC = () => {
 
                 if (e.hp <= 0) {
                   e.isAlive = false;
-                  playExplosionSound();
+                  playExplosionSound(true);
+
+                  // Thưởng điểm
+                  const pts = e.type === 'armor' ? 400 : e.type === 'power' ? 300 : e.type === 'fast' ? 200 : 100;
                   setScore(s => {
-                    const ns = s + (e.type === 'armor' ? 400 : e.type === 'power' ? 300 : 200);
-                    if (ns > highScore) {
-                      setHighScore(ns);
-                      try {
-                        localStorage.setItem('acegames_tank_1990_highscore', ns.toString());
-                      } catch {}
+                    const newS = s + pts;
+                    if (newS > highScore) {
+                      setHighScore(newS);
+                      try { localStorage.setItem('acegames_tank_1990_highscore', String(newS)); } catch {}
                     }
-                    return ns;
+                    return newS;
                   });
 
-                  // Hiệu ứng nổ lớn
+                  floatingTextsRef.current.push({
+                    id: Date.now() + Math.random(),
+                    x: e.x + TANK_SIZE / 2,
+                    y: e.y,
+                    text: `+${pts}`,
+                    color: '#f59e0b',
+                    alpha: 1
+                  });
+
+                  // Hiệu ứng nổ hoành tráng
                   for (let i = 0; i < 16; i++) {
-                    const ang = Math.random() * Math.PI * 2;
-                    const spd = 1.5 + Math.random() * 4;
                     particlesRef.current.push({
                       id: Date.now() + Math.random(),
                       x: e.x + TANK_SIZE / 2,
                       y: e.y + TANK_SIZE / 2,
-                      vx: Math.cos(ang) * spd,
-                      vy: Math.sin(ang) * spd,
-                      color: i % 2 === 0 ? '#f59e0b' : '#ef4444',
-                      size: 3.5,
+                      vx: (Math.random() - 0.5) * 8,
+                      vy: (Math.random() - 0.5) * 8,
+                      color: i % 2 === 0 ? '#ef4444' : '#f59e0b',
+                      size: Math.random() * 4 + 2,
                       alpha: 1,
-                      life: 25,
+                      decay: 0.03
                     });
                   }
 
-                  // Rơi vật phẩm viện trợ nếu là xe bonus
+                  // Nếu là xe tăng đỏ mang viện trợ -> rơi Power-Up
                   if (e.isBonus) {
-                    dropPowerUp(e.x, e.y);
+                    const allTypes: PowerUpType[] = ['star', 'grenade', 'helmet', 'clock', 'shovel', 'tank', 'boat', 'pistol'];
+                    const picked = allTypes[Math.floor(Math.random() * allTypes.length)];
+                    powerUpsRef.current.push({
+                      id: Date.now() + Math.random(),
+                      x: e.x + 2,
+                      y: e.y + 2,
+                      type: picked,
+                      blinkTimer: 0
+                    });
                   }
                 } else {
-                  playHitSteelSound(); // trúng giáp dày
+                  playHitSteelSound();
                 }
                 break;
               }
             }
-          } else {
-            // 5. Đạn địch bắn trúng người chơi
-            const p = playerTankRef.current;
+          }
+
+          // 5. Va chạm đạn địch với xe tăng người chơi
+          if (!b.isPlayer) {
             if (p.isAlive && p.shieldTime <= 0 && isColliding(b.x - 3, b.y - 3, 6, 6, p.x, p.y, TANK_SIZE, TANK_SIZE)) {
               b.isAlive = false;
-              playExplosionSound();
-              setScreenShake(true);
-              setTimeout(() => setScreenShake(false), 300);
+              playExplosionSound(true);
 
-              // Giảm cấp độ hoặc mất mạng
-              if (p.level > 1) {
-                p.level = 1;
-                p.shieldTime = 3000;
-              } else {
-                setLives(l => {
-                  const nl = l - 1;
-                  if (nl <= 0) {
-                    p.isAlive = false;
-                    setIsGameOver(true);
-                  } else {
-                    // Hồi sinh xe tại điểm xuất phát
-                    p.x = OFFSET_X + 9 * TILE_SIZE;
-                    p.y = OFFSET_Y + 14 * TILE_SIZE;
-                    p.dir = 'UP';
-                    p.shieldTime = 4000;
-                  }
-                  return nl;
-                });
+              setLives(l => {
+                const nl = l - 1;
+                if (nl <= 0) {
+                  p.isAlive = false;
+                  triggerGameOver(false);
+                } else {
+                  // Hồi sinh tại điểm xuất phát với khiên bảo vệ
+                  p.x = 8 * TILE_SIZE + 3;
+                  p.y = 13 * TILE_SIZE + 3;
+                  p.dir = 'UP';
+                  p.shieldTime = 4000;
+                  p.level = Math.max(1, p.level - 1);
+                }
+                return nl;
+              });
+              break;
+            }
+          }
+        }
+
+        // F. Cơ chế triệt tiêu 2 viên đạn đối đầu (Bullet vs Bullet Cancellation)
+        for (let i = 0; i < bulletsRef.current.length; i++) {
+          const b1 = bulletsRef.current[i];
+          if (!b1.isAlive) continue;
+          for (let j = i + 1; j < bulletsRef.current.length; j++) {
+            const b2 = bulletsRef.current[j];
+            if (!b2.isAlive) continue;
+            if (b1.isPlayer !== b2.isPlayer) {
+              const dist = Math.hypot(b1.x - b2.x, b1.y - b2.y);
+              if (dist < 10) {
+                b1.isAlive = false;
+                b2.isAlive = false;
+                playHitSteelSound();
+                // Tia lửa triệt tiêu
+                for (let k = 0; k < 6; k++) {
+                  particlesRef.current.push({
+                    id: Date.now() + Math.random(),
+                    x: (b1.x + b2.x) / 2,
+                    y: (b1.y + b2.y) / 2,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    color: '#fbbf24',
+                    size: 2,
+                    alpha: 1,
+                    decay: 0.08
+                  });
+                }
               }
             }
           }
@@ -956,128 +1096,186 @@ export const GameTank1990: React.FC = () => {
         // Dọn đạn chết
         bulletsRef.current = bulletsRef.current.filter(b => b.isAlive);
 
-        // Kiểm tra chiến thắng màn chơi
+        // G. Người chơi nhặt Power-Up
+        for (const pu of powerUpsRef.current) {
+          if (p.isAlive && isColliding(p.x, p.y, TANK_SIZE, TANK_SIZE, pu.x, pu.y, 28, 28)) {
+            playPowerUpSound();
+
+            let txt = '';
+            switch (pu.type) {
+              case 'star':
+                p.level = Math.min(4, p.level + 1);
+                txt = `CẤP ${p.level}! ⭐`;
+                break;
+              case 'pistol':
+                p.level = 4;
+                p.shieldTime = 5000;
+                txt = 'MAX CẤP 4! 🔫';
+                break;
+              case 'helmet':
+                p.shieldTime = 12000;
+                txt = 'KHIÊN BẤT TỬ 12S 🛡️';
+                break;
+              case 'clock':
+                freezeTimerRef.current = 10000;
+                txt = 'ĐÓNG BĂNG ĐỊCH 10S ⏱️';
+                break;
+              case 'shovel':
+                shovelTimerRef.current = 20000;
+                setBaseProtection(TILE_STEEL);
+                txt = 'TƯỜNG THÉP 20S 🧱';
+                break;
+              case 'tank':
+                setLives(l => l + 1);
+                txt = '+1 MẠNG 💖';
+                break;
+              case 'boat':
+                p.hasBoat = true;
+                txt = 'THUYỀN VƯỢT SÔNG ⛵';
+                break;
+              case 'grenade':
+                txt = 'QUÉT SẠCH ĐỊCH 💣';
+                // Tiêu diệt toàn bộ địch trên màn hình
+                for (const e of enemiesRef.current) {
+                  if (e.isAlive) {
+                    e.isAlive = false;
+                    setScore(s => s + 500);
+                    for (let i = 0; i < 12; i++) {
+                      particlesRef.current.push({
+                        id: Date.now() + Math.random(),
+                        x: e.x + TANK_SIZE / 2,
+                        y: e.y + TANK_SIZE / 2,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
+                        color: '#f97316',
+                        size: 3,
+                        alpha: 1,
+                        decay: 0.04
+                      });
+                    }
+                  }
+                }
+                playExplosionSound(true);
+                break;
+            }
+
+            floatingTextsRef.current.push({
+              id: Date.now() + Math.random(),
+              x: pu.x + 14,
+              y: pu.y,
+              text: txt,
+              color: '#38bdf8',
+              alpha: 1
+            });
+
+            // Xóa item
+            powerUpsRef.current = powerUpsRef.current.filter(it => it.id !== pu.id);
+            break;
+          }
+        }
+
+        // H. Kiểm tra Chiến Thắng màn chơi
         const remainingLivingEnemies = enemiesRef.current.filter(e => e.isAlive).length;
-        if (enemiesRemaining <= 0 && remainingLivingEnemies === 0 && !isGameOver) {
+        if (totalEnemiesToSpawnRef.current <= 0 && remainingLivingEnemies === 0 && spawningEnemiesRef.current.length === 0 && !isGameOver) {
           setIsVictory(true);
           confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
         }
       }
 
       // --- 2. VẼ TOÀN BỘ ĐỒ HỌA SÂN ĐẤU BATTLE CITY ---
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      // A. Nền tổng thể khung Arcade
+      // A. Nền tổng thể sân đấu Arcade
       ctx.fillStyle = '#05070a';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // B. Bảng điều khiển quân sự hai bên lề (Military Side Panels)
-      // Panel bên trái
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, OFFSET_X, CANVAS_HEIGHT);
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, OFFSET_X, CANVAS_HEIGHT);
-
-      // Panel bên phải
-      ctx.fillRect(OFFSET_X + ARENA_WIDTH, 0, OFFSET_X, CANVAS_HEIGHT);
-      ctx.strokeRect(OFFSET_X + ARENA_WIDTH, 0, OFFSET_X, CANVAS_HEIGHT);
-
-      // Vẽ icon số lượng xe tăng địch còn lại bên phải
-      const enemyIconCols = 2;
-      const startDrawX = OFFSET_X + ARENA_WIDTH + 14;
-      for (let i = 0; i < enemiesRemaining; i++) {
-        const ix = startDrawX + (i % enemyIconCols) * 18;
-        const iy = 30 + Math.floor(i / enemyIconCols) * 20;
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(ix, iy, 12, 12);
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(ix + 4, iy - 3, 4, 3); // nòng pháo
-      }
-
-      // C. Nền sân đấu chính (Battle Arena Surface)
+      // B. Nền chiến trường chính (0 đến 864px, 0 đến 540px)
       ctx.fillStyle = '#090a0f';
-      ctx.fillRect(OFFSET_X, OFFSET_Y, ARENA_WIDTH, ARENA_HEIGHT);
+      ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+      // Đường kẻ biên giới ngăn cách sân đấu và sidebar
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 3;
-      ctx.strokeRect(OFFSET_X, OFFSET_Y, ARENA_WIDTH, ARENA_HEIGHT);
+      ctx.beginPath();
+      ctx.moveTo(ARENA_WIDTH, 0);
+      ctx.lineTo(ARENA_WIDTH, ARENA_HEIGHT);
+      ctx.stroke();
 
-      // D. Vẽ Địa hình Bản đồ
-      const grid = mapGridRef.current;
+      // C. Vẽ Địa hình Sân đấu
+      const currentTime = Date.now();
+
       for (let r = 0; r < GRID_ROWS; r++) {
         for (let c = 0; c < GRID_COLS; c++) {
-          const tile = grid[r]?.[c];
-          if (!tile) continue;
-
-          const tx = OFFSET_X + c * TILE_SIZE;
-          const ty = OFFSET_Y + r * TILE_SIZE;
+          const tile = mapGridRef.current[r]?.[c] ?? TILE_EMPTY;
+          const tx = c * TILE_SIZE;
+          const ty = r * TILE_SIZE;
 
           switch (tile) {
             case TILE_BRICK: {
-              // Tường gạch nung đỏ 3D sắc nét
-              ctx.fillStyle = '#b91c1c';
-              ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              // Rãnh vữa gạch
-              ctx.strokeStyle = '#450a0a';
-              ctx.lineWidth = 1.5;
-              ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.beginPath();
-              ctx.moveTo(tx, ty + TILE_SIZE / 2);
-              ctx.lineTo(tx + TILE_SIZE, ty + TILE_SIZE / 2);
-              ctx.moveTo(tx + TILE_SIZE / 2, ty);
-              ctx.lineTo(tx + TILE_SIZE / 2, ty + TILE_SIZE / 2);
-              ctx.moveTo(tx + TILE_SIZE / 4, ty + TILE_SIZE / 2);
-              ctx.lineTo(tx + TILE_SIZE / 4, ty + TILE_SIZE);
-              ctx.moveTo(tx + (TILE_SIZE * 3) / 4, ty + TILE_SIZE / 2);
-              ctx.lineTo(tx + (TILE_SIZE * 3) / 4, ty + TILE_SIZE);
-              ctx.stroke();
+              const mask = brickMasksRef.current[r]?.[c] ?? 15;
+              const half = TILE_SIZE / 2;
+              const subTiles = [
+                { x: tx, y: ty, bit: 1 },
+                { x: tx + half, y: ty, bit: 2 },
+                { x: tx, y: ty + half, bit: 4 },
+                { x: tx + half, y: ty + half, bit: 8 },
+              ];
+
+              for (const st of subTiles) {
+                if ((mask & st.bit) !== 0) {
+                  // Khối gạch nung đỏ 3D
+                  ctx.fillStyle = '#b91c1c';
+                  ctx.fillRect(st.x, st.y, half, half);
+                  ctx.strokeStyle = '#450a0a';
+                  ctx.lineWidth = 1;
+                  ctx.strokeRect(st.x, st.y, half, half);
+
+                  // Rãnh vữa nằm ngang
+                  ctx.fillStyle = '#fca5a5';
+                  ctx.fillRect(st.x + 1, st.y + 1, half - 2, 2);
+                  ctx.fillStyle = '#7f1d1d';
+                  ctx.fillRect(st.x + 1, st.y + half - 3, half - 2, 2);
+                }
+              }
               break;
             }
 
             case TILE_STEEL: {
-              // Tường thép trắng bạc kiên cố
               const steelGrad = ctx.createLinearGradient(tx, ty, tx + TILE_SIZE, ty + TILE_SIZE);
               steelGrad.addColorStop(0, '#f8fafc');
-              steelGrad.addColorStop(0.5, '#cbd5e1');
-              steelGrad.addColorStop(1, '#64748b');
+              steelGrad.addColorStop(0.3, '#94a3b8');
+              steelGrad.addColorStop(1, '#475569');
               ctx.fillStyle = steelGrad;
               ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = '#334155';
+              ctx.strokeStyle = '#1e293b';
               ctx.lineWidth = 1.5;
               ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
 
-              // Đinh tán 4 góc
-              ctx.fillStyle = '#334155';
-              [[4, 4], [28, 4], [4, 28], [28, 28]].forEach(([dx, dy]) => {
-                ctx.beginPath();
-                ctx.arc(tx + dx, ty + dy, 1.5, 0, Math.PI * 2);
-                ctx.fill();
-              });
+              // 4 đinh tán thép góc
+              ctx.fillStyle = '#cbd5e1';
+              ctx.beginPath();
+              ctx.arc(tx + 5, ty + 5, 2, 0, Math.PI * 2);
+              ctx.arc(tx + TILE_SIZE - 5, ty + 5, 2, 0, Math.PI * 2);
+              ctx.arc(tx + 5, ty + TILE_SIZE - 5, 2, 0, Math.PI * 2);
+              ctx.arc(tx + TILE_SIZE - 5, ty + TILE_SIZE - 5, 2, 0, Math.PI * 2);
+              ctx.fill();
               break;
             }
 
             case TILE_WATER: {
-              // Sông nước xanh biếc có sóng gợn
               const waterGrad = ctx.createLinearGradient(tx, ty, tx, ty + TILE_SIZE);
               waterGrad.addColorStop(0, '#0284c7');
               waterGrad.addColorStop(1, '#0369a1');
               ctx.fillStyle = waterGrad;
               ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              // Gợn sóng lăn tăn
+
+              // Sóng nước chuyển động
               const waveOff = Math.sin(currentTime * 0.005 + r) * 3;
-              ctx.strokeStyle = '#bae6fd';
-              ctx.lineWidth = 1.2;
-              ctx.beginPath();
-              ctx.moveTo(tx + 4, ty + 10 + waveOff);
-              ctx.lineTo(tx + 28, ty + 10 + waveOff);
-              ctx.moveTo(tx + 4, ty + 22 - waveOff);
-              ctx.lineTo(tx + 28, ty + 22 - waveOff);
-              ctx.stroke();
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+              ctx.fillRect(tx + 4, ty + 8 + waveOff, TILE_SIZE - 8, 2);
+              ctx.fillRect(tx + 8, ty + 20 - waveOff, TILE_SIZE - 16, 2);
               break;
             }
 
             case TILE_ICE: {
-              // Băng trượt xanh ngọc
               ctx.fillStyle = '#e0f2fe';
               ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
               ctx.strokeStyle = '#7dd3fc';
@@ -1089,221 +1287,228 @@ export const GameTank1990: React.FC = () => {
         }
       }
 
-      // E. Vẽ Căn cứ Đại Bàng (Eagle Base) tại cột 12-13, hàng 14-15
-      const eagleX = OFFSET_X + 12 * TILE_SIZE;
-      const eagleY = OFFSET_Y + 14 * TILE_SIZE;
-      const isDestroyed = isBaseDestroyedRef.current;
+      // D. Căn cứ Đại Bàng (Eagle Base) tại cột 11..12, hàng 13..14
+      const bx = 11 * TILE_SIZE;
+      const by = 13 * TILE_SIZE;
+      const bSize = TILE_SIZE * 2; // 72x72px
 
       ctx.save();
-      ctx.translate(eagleX, eagleY);
+      ctx.translate(bx, by);
 
-      if (!isDestroyed) {
-        // Biểu tượng Đại Bàng Vàng Kiêu Hãnh
+      if (!isBaseDestroyedRef.current) {
+        // Đại bàng sống: Nền kim loại & Biểu tượng Phượng Hoàng / Đại Bàng Vàng
         ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, TILE_SIZE * 2, TILE_SIZE * 2);
+        ctx.fillRect(0, 0, bSize, bSize);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, bSize, bSize);
 
         // Đôi cánh vàng
-        ctx.fillStyle = '#eab308';
-        ctx.strokeStyle = '#fef08a';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(6, 48);
-        ctx.lineTo(24, 16);
-        ctx.lineTo(32, 26);
-        ctx.lineTo(40, 16);
-        ctx.lineTo(58, 48);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Đầu chim đại bàng
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(32, 22, 10, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Mỏ vàng nhọn
         ctx.fillStyle = '#f59e0b';
         ctx.beginPath();
-        ctx.moveTo(32, 20);
-        ctx.lineTo(44, 25);
-        ctx.lineTo(32, 30);
+        ctx.moveTo(bSize * 0.5, bSize * 0.15);
+        ctx.lineTo(bSize * 0.85, bSize * 0.45);
+        ctx.lineTo(bSize * 0.7, bSize * 0.75);
+        ctx.lineTo(bSize * 0.5, bSize * 0.6);
+        ctx.lineTo(bSize * 0.3, bSize * 0.75);
+        ctx.lineTo(bSize * 0.15, bSize * 0.45);
         ctx.closePath();
         ctx.fill();
 
-        // Mắt đại bàng
-        ctx.fillStyle = '#0f172a';
+        // Mắt và đầu đại bàng
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(36, 21, 2, 0, Math.PI * 2);
+        ctx.arc(bSize * 0.5, bSize * 0.35, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(bSize * 0.5, bSize * 0.35, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mỏ đại bàng
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(bSize * 0.5, bSize * 0.42);
+        ctx.lineTo(bSize * 0.45, bSize * 0.52);
+        ctx.lineTo(bSize * 0.55, bSize * 0.52);
+        ctx.closePath();
         ctx.fill();
       } else {
-        // Đại bàng bị bắn phá: Đống tro tàn đổ nát
+        // Đại bàng bị phá hủy: Đống đổ nát
         ctx.fillStyle = '#1c1917';
-        ctx.fillRect(0, 0, TILE_SIZE * 2, TILE_SIZE * 2);
+        ctx.fillRect(0, 0, bSize, bSize);
         ctx.fillStyle = '#ef4444';
-        ctx.font = '900 24px sans-serif';
+        ctx.font = '900 28px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('☠', 32, 40);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('☠️', bSize / 2, bSize / 2);
       }
       ctx.restore();
 
-      // F. Vẽ Vật Phẩm Viện Trợ (Power-Ups)
-      for (const pu of powerUpsRef.current) {
-        const pulse = 1 + Math.sin(currentTime * 0.008) * 0.12;
+      // E. Vẽ Hiệu ứng Ngôi Sao đang sinh địch (Spawning Stars)
+      for (const se of spawningEnemiesRef.current) {
+        const sx = se.col * TILE_SIZE + TILE_SIZE / 2;
+        const sy = se.row * TILE_SIZE + TILE_SIZE / 2;
+        const pulse = Math.abs(Math.sin(currentTime * 0.015)) * 14 + 6;
+
         ctx.save();
-        ctx.translate(pu.x + 13, pu.y + 13);
-        ctx.scale(pulse, pulse);
+        ctx.translate(sx, sy);
+        ctx.rotate(currentTime * 0.008);
+        ctx.fillStyle = se.isBonus ? '#ef4444' : '#38bdf8';
+        ctx.shadowColor = se.isBonus ? '#ef4444' : '#38bdf8';
+        ctx.shadowBlur = 12;
 
-        // Hào quang vật phẩm
-        ctx.shadowColor = '#facc15';
-        ctx.shadowBlur = 14;
-
-        ctx.fillStyle = '#0f172a';
+        // Ngôi sao 4 cánh
         ctx.beginPath();
-        ctx.roundRect(-13, -13, 26, 26, 6);
+        for (let i = 0; i < 4; i++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.lineTo(pulse, 0);
+          ctx.lineTo(pulse * 0.3, pulse * 0.3);
+        }
+        ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        let icon = '🌟';
-        if (pu.type === 'grenade') icon = '💣';
-        else if (pu.type === 'helmet') icon = '🛡️';
-        else if (pu.type === 'clock') icon = '⏱️';
-        else if (pu.type === 'shovel') icon = '🧱';
-        else if (pu.type === 'tank') icon = '💖';
-        ctx.fillText(icon, 0, 1);
         ctx.restore();
       }
 
-      // G. Hàm phụ vẽ xe tăng chi tiết (Player & Enemies)
-      const drawTank = (tank: Tank) => {
+      // F. Vẽ Xe Tăng (Hàm vẽ chuẩn chung)
+      const drawTankSprite = (tank: Tank, isPlayer: boolean) => {
         if (!tank.isAlive) return;
 
         ctx.save();
-        ctx.translate(tank.x + TANK_SIZE / 2, tank.y + TANK_SIZE / 2);
+        const centerX = tank.x + TANK_SIZE / 2;
+        const centerY = tank.y + TANK_SIZE / 2;
+        ctx.translate(centerX, centerY);
 
-        // Xoay hướng nòng pháo
-        let rot = 0;
-        if (tank.dir === 'RIGHT') rot = Math.PI / 2;
-        else if (tank.dir === 'DOWN') rot = Math.PI;
-        else if (tank.dir === 'LEFT') rot = -Math.PI / 2;
-        ctx.rotate(rot);
+        // Xoay hướng
+        switch (tank.dir) {
+          case 'UP': ctx.rotate(0); break;
+          case 'RIGHT': ctx.rotate(Math.PI / 2); break;
+          case 'DOWN': ctx.rotate(Math.PI); break;
+          case 'LEFT': ctx.rotate(-Math.PI / 2); break;
+        }
 
-        const isPlayer = tank.type === 'player';
+        // Màu sắc
+        let bodyColor = '#f59e0b';
+        let treadColor = '#475569';
 
-        // 1. Màu sắc xe tăng
-        let bodyColor = '#eab308'; // Vàng người chơi
-        let treadColor = '#713f12';
-        let turretColor = '#ca8a04';
-
-        if (!isPlayer) {
+        if (isPlayer) {
+          if (tank.level === 1) bodyColor = '#facc15';
+          else if (tank.level === 2) bodyColor = '#38bdf8';
+          else if (tank.level === 3) bodyColor = '#a855f7';
+          else bodyColor = '#10b981'; // Cấp 4 pháo đài thép
+        } else {
+          // Xe địch
           if (tank.isBonus && Math.floor(currentTime / 150) % 2 === 0) {
-            bodyColor = '#ef4444'; // Xe mang quà nhấp nháy đỏ
-            turretColor = '#dc2626';
-          } else if (tank.type === 'armor') {
-            // Giáp dày đổi màu theo máu
-            bodyColor = tank.hp === 4 ? '#15803d' : tank.hp === 3 ? '#eab308' : '#ef4444';
-            turretColor = '#0f172a';
-          } else if (tank.type === 'power') {
-            bodyColor = '#0284c7'; // Xe pháo kích xanh
-            turretColor = '#0369a1';
-          } else if (tank.type === 'fast') {
-            bodyColor = '#8b5cf6'; // Xe cơ động tím
-            turretColor = '#7c3aed';
+            bodyColor = '#ef4444'; // Nhấp nháy đỏ
           } else {
-            bodyColor = '#94a3b8'; // Xe cơ bản xám
-            turretColor = '#64748b';
+            if (tank.type === 'basic') bodyColor = '#cbd5e1';
+            else if (tank.type === 'fast') bodyColor = '#3b82f6';
+            else if (tank.type === 'power') bodyColor = '#ec4899';
+            else {
+              // Xe bọc thép nhiều máu (đổi màu theo hp)
+              bodyColor = tank.hp >= 4 ? '#22c55e' : tank.hp === 3 ? '#eab308' : tank.hp === 2 ? '#f97316' : '#ef4444';
+            }
           }
-          treadColor = '#1e293b';
         }
 
-        // 2. Hai dải xích xe tăng (Tank Treads)
+        // Nếu xe đang trên nước (có thuyền), vẽ phao cứu sinh bao quanh
+        if (isPlayer && tank.hasBoat) {
+          ctx.save();
+          ctx.strokeStyle = '#f97316';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(-17, -17, 34, 34);
+          ctx.restore();
+        }
+
+        // Bánh xích hai bên
         ctx.fillStyle = treadColor;
-        ctx.fillRect(-14, -14, 6, 28);
-        ctx.fillRect(8, -14, 6, 28);
+        ctx.fillRect(-15, -15, 6, 30);
+        ctx.fillRect(9, -15, 6, 30);
 
-        // Gân bánh xích chuyển động
-        const treadOffset = (currentTime * 0.05) % 4;
-        ctx.fillStyle = '#0f172a';
-        for (let ty = -12 + treadOffset; ty < 12; ty += 5) {
-          ctx.fillRect(-14, ty, 6, 1.5);
-          ctx.fillRect(8, ty, 6, 1.5);
-        }
-
-        // 3. Thân xe tăng (Hull)
+        // Thân xe
         ctx.fillStyle = bodyColor;
-        ctx.fillRect(-8, -11, 16, 22);
+        ctx.fillRect(-9, -12, 18, 24);
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 1.2;
-        ctx.strokeRect(-8, -11, 16, 22);
+        ctx.strokeRect(-9, -12, 18, 24);
 
-        // 4. Tháp pháo và Nòng pháo (Turret & Cannon)
-        ctx.fillStyle = turretColor;
+        // Tháp pháo và Nòng pháo
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
         ctx.arc(0, 0, 6, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
 
-        // Nòng pháo vươn dài
-        const cannonLen = isPlayer && tank.level >= 2 ? 16 : 12;
-        const cannonW = isPlayer && tank.level >= 4 ? 4.5 : 3;
-        ctx.fillStyle = '#0f172a';
+        const cannonW = isPlayer && tank.level >= 4 ? 5 : 3.5;
+        const cannonLen = isPlayer && tank.level >= 4 ? 18 : 14;
         ctx.fillRect(-cannonW / 2, -cannonLen, cannonW, cannonLen);
 
-        // Nòng đôi cho người chơi cấp 3
+        // Nòng kép cho xe cấp 3
         if (isPlayer && tank.level === 3) {
           ctx.fillRect(-cannonW - 2, -cannonLen + 2, cannonW, cannonLen - 2);
           ctx.fillRect(2, -cannonLen + 2, cannonW, cannonLen - 2);
         }
 
-        ctx.restore();
-
-        // 5. Khiên năng lượng bảo vệ bất tử (Force Shield)
+        // Khiên bảo vệ bất tử
         if (tank.shieldTime > 0) {
-          ctx.save();
-          ctx.translate(tank.x + TANK_SIZE / 2, tank.y + TANK_SIZE / 2);
-          ctx.rotate(currentTime * 0.008);
+          const shieldRadius = 20;
           ctx.strokeStyle = '#38bdf8';
           ctx.lineWidth = 2.5;
-          ctx.shadowColor = '#06b6d4';
-          ctx.shadowBlur = 12;
-          ctx.setLineDash([8, 6]);
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 10;
           ctx.beginPath();
-          ctx.arc(0, 0, TANK_SIZE * 0.75, 0, Math.PI * 2);
+          ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
           ctx.stroke();
+
+          // Vòng sáng xoay tròn
+          ctx.save();
+          ctx.rotate(currentTime * 0.01);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(-shieldRadius, -shieldRadius, shieldRadius * 2, shieldRadius * 2);
           ctx.restore();
         }
+
+        ctx.restore();
       };
 
-      // H. Vẽ xe tăng địch và người chơi
-      enemiesRef.current.forEach(drawTank);
-      drawTank(playerTankRef.current);
+      // Vẽ toàn bộ xe địch
+      for (const e of enemiesRef.current) {
+        drawTankSprite(e, false);
+      }
 
-      // I. Vẽ Rừng Cây (FOREST) đè lên xe tăng để tạo hiệu ứng ẩn nấp
-      for (let r = 0; r < GRID_ROWS; r++) {
-        for (let c = 0; c < GRID_COLS; c++) {
-          if (grid[r]?.[c] === TILE_FOREST) {
-            const tx = OFFSET_X + c * TILE_SIZE;
-            const ty = OFFSET_Y + r * TILE_SIZE;
-            ctx.fillStyle = '#16a34a';
-            ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-            // Tán lá rậm rạp
-            ctx.fillStyle = '#22c55e';
-            ctx.beginPath();
-            ctx.arc(tx + 8, ty + 8, 6, 0, Math.PI * 2);
-            ctx.arc(tx + 24, ty + 10, 7, 0, Math.PI * 2);
-            ctx.arc(tx + 12, ty + 24, 7, 0, Math.PI * 2);
-            ctx.arc(tx + 24, ty + 24, 6, 0, Math.PI * 2);
-            ctx.fill();
-          }
+      // Vẽ xe người chơi
+      drawTankSprite(playerTankRef.current, true);
+
+      // G. Vẽ Viện Trợ (Power-Ups)
+      for (const pu of powerUpsRef.current) {
+        pu.blinkTimer += dt;
+        if (Math.floor(pu.blinkTimer / 150) % 2 === 0) {
+          ctx.save();
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(pu.x, pu.y, 28, 28);
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(pu.x, pu.y, 28, 28);
+
+          ctx.font = '18px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          let icon = '⭐';
+          if (pu.type === 'grenade') icon = '💣';
+          else if (pu.type === 'helmet') icon = '🛡️';
+          else if (pu.type === 'clock') icon = '⏱️';
+          else if (pu.type === 'shovel') icon = '🧱';
+          else if (pu.type === 'tank') icon = '💖';
+          else if (pu.type === 'boat') icon = '⛵';
+          else if (pu.type === 'pistol') icon = '🔫';
+
+          ctx.fillText(icon, pu.x + 14, pu.y + 14);
+          ctx.restore();
         }
       }
 
-      // J. Vẽ Đạn (Bullets)
+      // H. Vẽ Đạn (Bullets)
       for (const b of bulletsRef.current) {
         if (!b.isAlive) continue;
         ctx.save();
@@ -1316,11 +1521,26 @@ export const GameTank1990: React.FC = () => {
         ctx.restore();
       }
 
-      // K. Vẽ Hạt nổ (Particles)
+      // I. Vẽ Tán Cây Rừng (Lớp phủ trên xe tăng và đạn)
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (mapGridRef.current[r]?.[c] === TILE_FOREST) {
+            const tx = c * TILE_SIZE;
+            const ty = r * TILE_SIZE;
+            ctx.fillStyle = '#15803d';
+            ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(tx + 3, ty + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+          }
+        }
+      }
+
+      // J. Vẽ Hiệu ứng Hạt nổ (Particles)
       for (const pt of particlesRef.current) {
         pt.x += pt.vx;
         pt.y += pt.vy;
-        pt.alpha -= 0.04;
+        pt.alpha -= pt.decay;
+
         ctx.save();
         ctx.fillStyle = pt.color;
         ctx.globalAlpha = Math.max(0, pt.alpha);
@@ -1331,30 +1551,123 @@ export const GameTank1990: React.FC = () => {
       }
       particlesRef.current = particlesRef.current.filter(pt => pt.alpha > 0);
 
-      // L. Vẽ Chữ bay (Floating Texts)
+      // K. Vẽ Chữ Điểm bay (Floating Texts)
       for (const ft of floatingTextsRef.current) {
         ft.y -= 1.2;
         ft.alpha -= 0.02;
+
         ctx.save();
-        ctx.font = '900 14px sans-serif';
+        ctx.font = '900 13px sans-serif';
         ctx.fillStyle = ft.color;
         ctx.globalAlpha = Math.max(0, ft.alpha);
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.9)';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 5;
         ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
       }
       floatingTextsRef.current = floatingTextsRef.current.filter(ft => ft.alpha > 0);
 
-      ctx.restore(); // scale dpr
+      // --- 3. BẢNG ĐIỀU KHIỂN QUÂN SỰ BÊN PHẢI (SIDEBAR 96PX) ---
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(SIDEBAR_X, 0, SIDEBAR_WIDTH, CANVAS_HEIGHT);
+
+      // Tiêu đề radar
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '900 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ĐỊCH CÒN', SIDEBAR_X + SIDEBAR_WIDTH / 2, 24);
+
+      // Lưới 20 icon xe tăng địch (2 cột x 10 hàng)
+      const enemyIconsLeft = totalEnemiesToSpawnRef.current + enemiesRef.current.filter(e => e.isAlive).length;
+      for (let i = 0; i < 20; i++) {
+        const colIdx = i % 2;
+        const rowIdx = Math.floor(i / 2);
+        const ix = SIDEBAR_X + 22 + colIdx * 28;
+        const iy = 38 + rowIdx * 19;
+
+        if (i < enemyIconsLeft) {
+          ctx.fillStyle = '#f43f5e';
+          ctx.fillRect(ix, iy, 12, 10);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(ix + 4, iy - 3, 4, 3); // nòng súng
+        } else {
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(ix, iy, 12, 10);
+        }
+      }
+
+      // Vạch phân cách
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(SIDEBAR_X + 12, 240);
+      ctx.lineTo(SIDEBAR_X + SIDEBAR_WIDTH - 12, 240);
+      ctx.stroke();
+
+      // Thông tin Người chơi (Player Status)
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '900 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('NGƯỜI CHƠI', SIDEBAR_X + SIDEBAR_WIDTH / 2, 260);
+
+      // Cấp độ sao (Stars)
+      const plvl = playerTankRef.current.level || 1;
+      let starStr = '⭐';
+      if (plvl === 2) starStr = '⭐⭐';
+      else if (plvl === 3) starStr = '⭐⭐⭐';
+      else if (plvl >= 4) starStr = '⭐⭐⭐⭐';
+      ctx.font = '14px sans-serif';
+      ctx.fillText(starStr, SIDEBAR_X + SIDEBAR_WIDTH / 2, 282);
+
+      // Số mạng còn lại
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillStyle = '#34d399';
+      ctx.fillText(`❤️ x ${lives}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 306);
+
+      // Trạng thái hiệu lực Buffs
+      let buffY = 335;
+      if (playerTankRef.current.shieldTime > 0) {
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(`🛡️ BẤT TỬ`, SIDEBAR_X + SIDEBAR_WIDTH / 2, buffY);
+        buffY += 20;
+      }
+      if (freezeTimerRef.current > 0) {
+        ctx.fillStyle = '#a78bfa';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(`⏱️ ĐÓNG BĂNG`, SIDEBAR_X + SIDEBAR_WIDTH / 2, buffY);
+        buffY += 20;
+      }
+      if (shovelTimerRef.current > 0) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(`🧱 THÉP CĂN CỨ`, SIDEBAR_X + SIDEBAR_WIDTH / 2, buffY);
+        buffY += 20;
+      }
+      if (playerTankRef.current.hasBoat) {
+        ctx.fillStyle = '#fb923c';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(`⛵ THUYỀN`, SIDEBAR_X + SIDEBAR_WIDTH / 2, buffY);
+        buffY += 20;
+      }
+
+      // Cờ màn chơi ở góc dưới sidebar
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '900 11px sans-serif';
+      ctx.fillText('CHIẾN DỊCH', SIDEBAR_X + SIDEBAR_WIDTH / 2, 480);
+      ctx.font = '900 20px sans-serif';
+      ctx.fillStyle = '#facc15';
+      ctx.fillText(`🚩 ${stage}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 510);
+
+      ctx.restore(); // Kết thúc scale dpr
 
       animId = requestAnimationFrame(gameLoop);
     };
 
     animId = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animId);
-  }, [highScore, isGameOver, isPaused, isVictory, mode, playBrickBreakSound, playExplosionSound, playHitSteelSound, spawnEnemy]);
+  }, [highScore, isGameOver, isPaused, isVictory, mode, playBrickBreakSound, playExplosionSound, playHitSteelSound, playPowerUpSound, setBaseProtection, spawnEnemy, triggerGameOver]);
 
   const resetGame = () => {
     soundManager.playButtonClick();
@@ -1370,7 +1683,7 @@ export const GameTank1990: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-between p-2 sm:p-4 select-none overflow-hidden bg-[#05070a]">
+    <div className="relative w-full h-full flex flex-col items-center justify-start p-2 sm:p-4 select-none overflow-hidden bg-[#05070a]">
       {/* Top HUD: Chuẩn hóa 3 Cột, Căn giữa tuyệt đối 50% */}
       <div className="game-top-hud relative flex items-center justify-between w-full max-w-[min(96vw,1320px)] px-3 sm:px-6 py-2 rounded-2xl bg-slate-900/95 border border-white/10 shadow-lg flex-shrink-0 mb-2 min-h-[52px]">
         {/* Khối Trái: Chế độ chơi */}
@@ -1448,7 +1761,7 @@ export const GameTank1990: React.FC = () => {
 
       {/* Sân đấu Widescreen 16:9 Arcade Canvas Container */}
       <div 
-        className={`game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-235px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] touch-none flex-shrink min-h-0 transition-transform duration-100 ${
+        className={`game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-150px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.25)] touch-none flex-1 min-h-0 transition-transform duration-100 ${
           screenShake ? 'scale-[0.99] translate-y-1 animate-pulse' : ''
         }`}
       >
