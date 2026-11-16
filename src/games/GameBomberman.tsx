@@ -854,6 +854,23 @@ export const GameBomberman: React.FC = () => {
             }
           }
 
+          // Rơi hạt tàn lửa từ ngòi nổ
+          if (Math.random() < 0.25) {
+            const bpx = (bomb.vx !== 0 || bomb.vy !== 0 ? bomb.x : bomb.col * TILE_SIZE) + TILE_SIZE / 2 + 2;
+            const bpy = (bomb.vx !== 0 || bomb.vy !== 0 ? bomb.y : bomb.row * TILE_SIZE) + TILE_SIZE / 2 - 22;
+            particlesRef.current.push({
+              id: Date.now() + Math.random(),
+              x: bpx,
+              y: bpy,
+              vx: (Math.random() - 0.5) * 1.5,
+              vy: -Math.random() * 2 - 0.5,
+              color: Math.random() < 0.5 ? '#facc15' : '#ef4444',
+              size: 1.5,
+              alpha: 1,
+              decay: 0.08
+            });
+          }
+
           bomb.timer -= dt;
           if (bomb.timer <= 0) {
             triggerBombExplosion(bomb);
@@ -983,25 +1000,28 @@ export const GameBomberman: React.FC = () => {
         }
       }
 
-      // --- 2. VẼ TOÀN BỘ ĐỒ HỌA BOMBERMAN ARCADE ---
+      // --- 2. VẼ TOÀN BỘ ĐỒ HỌA BOMBERMAN ARCADE NÂNG CẤP CAO CẤP ---
       // A. Nền tổng thể sân đấu
       ctx.fillStyle = '#05070a';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       // B. Nền mê cung sân đấu (0 đến 756px, 0 đến 540px)
-      ctx.fillStyle = '#111827';
-      ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-
-      // Lưới gạch sàn tinh tế
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.lineWidth = 1;
+      // Sàn đấu kiểu gạch lát đá cao cấp xen kẽ hai tông màu
       for (let r = 0; r < GRID_ROWS; r++) {
         for (let c = 0; c < GRID_COLS; c++) {
-          ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          const tx = c * TILE_SIZE;
+          const ty = r * TILE_SIZE;
+          const isEven = (r + c) % 2 === 0;
+          ctx.fillStyle = isEven ? '#0b1120' : '#070d18';
+          ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(tx + 0.5, ty + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
         }
       }
 
-      // Đường ranh giới ngăn cách sân đấu và sidebar
+      // Đường ranh giới kim loại ngăn cách sân đấu và sidebar
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -1017,46 +1037,83 @@ export const GameBomberman: React.FC = () => {
           const ty = r * TILE_SIZE;
 
           if (tile === TILE_SOLID) {
-            // Trụ đá/thép không thể phá hủy 3D
+            // Trụ đá/thép không thể phá hủy 3D Arcade
+            // Thân trụ đổ bóng gradient kim loại
             const solidGrad = ctx.createLinearGradient(tx, ty, tx + TILE_SIZE, ty + TILE_SIZE);
-            solidGrad.addColorStop(0, '#64748b');
-            solidGrad.addColorStop(0.5, '#334155');
-            solidGrad.addColorStop(1, '#1e293b');
+            solidGrad.addColorStop(0, '#475569');
+            solidGrad.addColorStop(0.35, '#334155');
+            solidGrad.addColorStop(1, '#0f172a');
             ctx.fillStyle = solidGrad;
-            ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-
-            // Viền 3D nổi khối
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(tx + 1, ty + 1, TILE_SIZE - 2, TILE_SIZE - 2);
-
-            // Tâm chữ X kim loại
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(tx + 8, ty + 8);
-            ctx.lineTo(tx + TILE_SIZE - 8, ty + TILE_SIZE - 8);
-            ctx.moveTo(tx + TILE_SIZE - 8, ty + 8);
-            ctx.lineTo(tx + 8, ty + TILE_SIZE - 8);
-            ctx.stroke();
-          } else if (tile === TILE_BRICK) {
-            // Gạch mềm nung nâu đỏ phá hủy được
-            const brickGrad = ctx.createLinearGradient(tx, ty, tx, ty + TILE_SIZE);
-            brickGrad.addColorStop(0, '#d97706');
-            brickGrad.addColorStop(1, '#b45309');
-            ctx.fillStyle = brickGrad;
             ctx.fillRect(tx + 1, ty + 1, TILE_SIZE - 2, TILE_SIZE - 2);
 
-            // Viền rãnh vữa gạch
-            ctx.strokeStyle = '#78350f';
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(tx + 1, ty + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+            // Viền vát cạnh 3D (Bevel)
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(tx + 1.5, ty + 1.5, TILE_SIZE - 3, TILE_SIZE - 3);
 
-            // Họa tiết vết nứt gạch
-            ctx.fillStyle = '#fde68a';
-            ctx.fillRect(tx + 4, ty + 6, TILE_SIZE - 8, 3);
-            ctx.fillRect(tx + 4, ty + 18, TILE_SIZE - 8, 3);
-            ctx.fillRect(tx + 4, ty + 28, TILE_SIZE - 8, 3);
+            // Vệt phản chiếu ánh sáng mép trên-trái
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.fillRect(tx + 2, ty + 2, TILE_SIZE - 4, 1.5);
+            ctx.fillRect(tx + 2, ty + 2, 1.5, TILE_SIZE - 4);
+
+            // Viên ngọc năng lượng trung tâm
+            const cx = tx + TILE_SIZE / 2;
+            const cy = ty + TILE_SIZE / 2;
+            ctx.fillStyle = '#0284c7';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Bốn đinh tán kim loại ở 4 góc
+            ctx.fillStyle = '#94a3b8';
+            const rOff = 4;
+            ctx.fillRect(tx + rOff, ty + rOff, 2, 2);
+            ctx.fillRect(tx + TILE_SIZE - rOff - 2, ty + rOff, 2, 2);
+            ctx.fillRect(tx + rOff, ty + TILE_SIZE - rOff - 2, 2, 2);
+            ctx.fillRect(tx + TILE_SIZE - rOff - 2, ty + TILE_SIZE - rOff - 2, 2, 2);
+          } else if (tile === TILE_BRICK) {
+            // Gạch mềm nung nâu đỏ phá hủy được: Xây dựng kiểu 3D Masonry kinh điển
+            ctx.fillStyle = '#3a1306';
+            ctx.fillRect(tx + 1, ty + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+            const bw = (TILE_SIZE - 5) / 2;
+            const bh = (TILE_SIZE - 5) / 2;
+
+            const drawBrickBlock = (bx: number, by: number, w: number, h: number) => {
+              const bg = ctx.createLinearGradient(bx, by, bx, by + h);
+              bg.addColorStop(0, '#c2410c');
+              bg.addColorStop(0.5, '#9a3412');
+              bg.addColorStop(1, '#7c2d12');
+              ctx.fillStyle = bg;
+              ctx.fillRect(bx, by, w, h);
+
+              // Mép sáng trên và trái
+              ctx.fillStyle = '#ea580c';
+              ctx.fillRect(bx, by, w, 1);
+              ctx.fillRect(bx, by, 1, h);
+
+              // Mép tối dưới và phải
+              ctx.fillStyle = '#431407';
+              ctx.fillRect(bx, by + h - 1, w, 1);
+              ctx.fillRect(bx + w - 1, by, 1, h);
+
+              // Vết nứt tinh tế
+              ctx.fillStyle = '#fdba74';
+              ctx.fillRect(bx + w * 0.3, by + h * 0.4, w * 0.4, 0.8);
+            };
+
+            // Hàng trên: 2 viên gạch
+            drawBrickBlock(tx + 2, ty + 2, bw, bh);
+            drawBrickBlock(tx + 3 + bw, ty + 2, bw, bh);
+
+            // Hàng dưới: so le 3 viên
+            const halfW = (bw - 1) / 2;
+            drawBrickBlock(tx + 2, ty + 3 + bh, halfW, bh);
+            drawBrickBlock(tx + 3 + halfW, ty + 3 + bh, bw, bh);
+            drawBrickBlock(tx + 4 + halfW + bw, ty + 3 + bh, halfW, bh);
           }
         }
       }
@@ -1070,11 +1127,11 @@ export const GameBomberman: React.FC = () => {
 
           ctx.save();
           if (item.type === 'portal') {
-            // Cổng qua màn: Nhấp nháy hào quang neon khi quái đã bị quét sạch
+            // Cổng qua màn
             const isPortalOpen = monstersRemaining === 0;
-            ctx.fillStyle = isPortalOpen ? '#10b981' : '#475569';
+            ctx.fillStyle = isPortalOpen ? 'rgba(16, 185, 129, 0.25)' : '#1e293b';
             ctx.fillRect(ix + 2, iy + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-            ctx.strokeStyle = isPortalOpen ? '#34d399' : '#64748b';
+            ctx.strokeStyle = isPortalOpen ? '#10b981' : '#64748b';
             ctx.lineWidth = 2;
             ctx.strokeRect(ix + 2, iy + 2, TILE_SIZE - 4, TILE_SIZE - 4);
 
@@ -1083,7 +1140,7 @@ export const GameBomberman: React.FC = () => {
             ctx.textBaseline = 'middle';
             ctx.fillText(isPortalOpen ? '🌀' : '🚪', ix + TILE_SIZE / 2, iy + TILE_SIZE / 2);
           } else {
-            // Hộp vật phẩm
+            // Hộp vật phẩm sang trọng
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(ix + 3, iy + 3, TILE_SIZE - 6, TILE_SIZE - 6);
             ctx.strokeStyle = '#f59e0b';
@@ -1113,21 +1170,21 @@ export const GameBomberman: React.FC = () => {
       for (const b of bombsRef.current) {
         const bx = b.vx !== 0 || b.vy !== 0 ? b.x : b.col * TILE_SIZE;
         const by = b.vx !== 0 || b.vy !== 0 ? b.y : b.row * TILE_SIZE;
-        const pulse = Math.sin(now * 0.015) * 2;
+        const pulse = Math.sin(now * 0.015) * 1.8;
 
         ctx.save();
         ctx.translate(bx + TILE_SIZE / 2, by + TILE_SIZE / 2);
 
         // Bóng quả bom
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.beginPath();
         ctx.ellipse(0, 12, 12, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Thân bom tròn bóng loáng
+        // Thân bom tròn bóng loáng 3D
         const bombGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, 14 + pulse);
-        bombGrad.addColorStop(0, '#475569');
-        bombGrad.addColorStop(0.4, '#1e293b');
+        bombGrad.addColorStop(0, '#64748b');
+        bombGrad.addColorStop(0.35, '#1e293b');
         bombGrad.addColorStop(1, '#020617');
         ctx.fillStyle = bombGrad;
         ctx.beginPath();
@@ -1136,6 +1193,12 @@ export const GameBomberman: React.FC = () => {
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 1.5;
         ctx.stroke();
+
+        // Điểm phản chiếu ánh sáng trắng
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath();
+        ctx.arc(-4, -4, 3, 0, Math.PI * 2);
+        ctx.fill();
 
         // Cổ ngòi nổ kim loại
         ctx.fillStyle = '#f59e0b';
@@ -1182,111 +1245,281 @@ export const GameBomberman: React.FC = () => {
         ctx.restore();
       }
 
-      // G. Vẽ Quái Vật Mê Cung (Monsters)
+      // G. Vẽ Quái Vật Mê Cung Sinh Động (Animated Monsters)
       for (const m of monstersRef.current) {
         if (!m.isAlive) continue;
 
         ctx.save();
         ctx.translate(m.x + MONSTER_SIZE / 2, m.y + MONSTER_SIZE / 2);
 
-        // Màu sắc và hình thái quái vật
-        let mColor = '#ef4444';
-        if (m.type === 'oneal') mColor = '#10b981';
-        else if (m.type === 'dahl') mColor = '#eab308';
-        else if (m.type === 'minvo') mColor = '#a855f7';
-
-        // Thân quái vật nhấp nhô
-        const bob = Math.sin(now * 0.01 + m.id) * 2;
-        ctx.fillStyle = mColor;
+        // Bóng đổ
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
         ctx.beginPath();
-        ctx.arc(0, bob, 12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Đôi mắt to tròn ngộ nghĩnh
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(-4, bob - 2, 4, 0, Math.PI * 2);
-        ctx.arc(4, bob - 2, 4, 0, Math.PI * 2);
+        ctx.ellipse(0, 11, 8, 3.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Đồng tử mắt nhìn theo hướng
-        ctx.fillStyle = '#0f172a';
-        let eyeDx = 0;
-        let eyeDy = 0;
-        if (m.dir === 'LEFT') eyeDx = -1.5;
-        else if (m.dir === 'RIGHT') eyeDx = 1.5;
-        else if (m.dir === 'UP') eyeDy = -1.5;
-        else if (m.dir === 'DOWN') eyeDy = 1.5;
+        // Độ nhấp nhô & đàn hồi
+        const squish = Math.sin(now * 0.008 + m.id) * 1.5;
 
-        ctx.beginPath();
-        ctx.arc(-4 + eyeDx, bob - 2 + eyeDy, 2, 0, Math.PI * 2);
-        ctx.arc(4 + eyeDx, bob - 2 + eyeDy, 2, 0, Math.PI * 2);
-        ctx.fill();
+        if (m.type === 'valcom') {
+          // Valcom: Quả bóng đỏ tròn trĩnh bóng bẩy
+          const vGrad = ctx.createRadialGradient(-3, -3 + squish, 2, 0, squish, 13);
+          vGrad.addColorStop(0, '#f87171');
+          vGrad.addColorStop(0.6, '#ef4444');
+          vGrad.addColorStop(1, '#991b1b');
+          ctx.fillStyle = vGrad;
+          ctx.beginPath();
+          ctx.arc(0, squish, 12.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#450a0a';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // Điểm sáng phản chiếu
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.beginPath();
+          ctx.arc(-4, -5 + squish, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Đôi mắt to tròn
+          let eyeOffX = 0;
+          let eyeOffY = 0;
+          if (m.dir === 'LEFT') eyeOffX = -2;
+          else if (m.dir === 'RIGHT') eyeOffX = 2;
+          else if (m.dir === 'UP') eyeOffY = -2;
+          else if (m.dir === 'DOWN') eyeOffY = 2;
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-4.5, -1 + squish, 4, 0, Math.PI * 2);
+          ctx.arc(4.5, -1 + squish, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+
+          // Đồng tử mắt
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(-4.5 + eyeOffX, -1 + squish + eyeOffY, 2, 0, Math.PI * 2);
+          ctx.arc(4.5 + eyeOffX, -1 + squish + eyeOffY, 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (m.type === 'oneal') {
+          // O'Neal: Củ hành xanh
+          const oGrad = ctx.createRadialGradient(-3, -3 + squish, 2, 0, squish, 13);
+          oGrad.addColorStop(0, '#4ade80');
+          oGrad.addColorStop(0.6, '#16a34a');
+          oGrad.addColorStop(1, '#14532d');
+          ctx.fillStyle = oGrad;
+          ctx.beginPath();
+          ctx.arc(0, squish, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#052e16';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // Cuống lá sừng trên đầu
+          ctx.strokeStyle = '#22c55e';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(0, -12 + squish);
+          ctx.quadraticCurveTo(4, -18 + squish, 2, -20 + squish);
+          ctx.stroke();
+
+          // Mắt
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-4, -1 + squish, 3.5, 0, Math.PI * 2);
+          ctx.arc(4, -1 + squish, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(-4, -1 + squish, 1.8, 0, Math.PI * 2);
+          ctx.arc(4, -1 + squish, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (m.type === 'dahl') {
+          // Dahl: Cây nấm vàng
+          const dGrad = ctx.createRadialGradient(-3, -3 + squish, 2, 0, squish, 13);
+          dGrad.addColorStop(0, '#fef08a');
+          dGrad.addColorStop(0.6, '#eab308');
+          dGrad.addColorStop(1, '#713f12');
+          ctx.fillStyle = dGrad;
+          ctx.beginPath();
+          ctx.arc(0, squish, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#422006';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // Đốm trắng
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-5, -6 + squish, 2, 0, Math.PI * 2);
+          ctx.arc(5, -6 + squish, 2, 0, Math.PI * 2);
+          ctx.arc(0, 4 + squish, 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Mắt
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-5, -2 + squish, 2, 4);
+          ctx.fillRect(3, -2 + squish, 2, 4);
+        } else {
+          // Minvo: Quái tím
+          const mGrad = ctx.createRadialGradient(-3, -3 + squish, 2, 0, squish, 13);
+          mGrad.addColorStop(0, '#e879f9');
+          mGrad.addColorStop(0.6, '#a855f7');
+          mGrad.addColorStop(1, '#581c87');
+          ctx.fillStyle = mGrad;
+          ctx.beginPath();
+          ctx.arc(0, squish, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#3b0764';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // Vòng hào quang tím
+          ctx.strokeStyle = '#f0abfc';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(0, squish, 15, 6, Math.PI / 6, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-4, -1 + squish, 3, 0, Math.PI * 2);
+          ctx.arc(4, -1 + squish, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(-4, -1 + squish, 1.5, 0, Math.PI * 2);
+          ctx.arc(4, -1 + squish, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         ctx.restore();
       }
 
-      // H. Vẽ Nhân Vật Bomberman
+      // H. Vẽ Nhân Vật Bomberman Đáng Yêu & Tinh Xảo
       const p = playerRef.current;
       if (p.isAlive) {
         ctx.save();
         ctx.translate(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2);
 
-        // Bóng chân
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        // Bóng đổ dưới chân
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.beginPath();
-        ctx.ellipse(0, 11, 9, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 12, 10, 4.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Bước chân hoạt họa
-        const legBob = p.moving ? Math.sin(p.walkFrame * 5) * 2.5 : 0;
+        // Nhịp thở nhấp nhô
+        const breath = p.moving ? Math.sin(p.walkFrame * 5) * 2 : Math.sin(now * 0.005) * 1;
+        const legSwing = p.moving ? Math.sin(p.walkFrame * 5) * 3.5 : 0;
 
-        // Đôi giày hồng
+        // 1. Đôi giày hồng phấn có đế
         ctx.fillStyle = '#f43f5e';
-        ctx.fillRect(-7, 7 + legBob, 5, 4);
-        ctx.fillRect(2, 7 - legBob, 5, 4);
+        // Chân trái
+        ctx.beginPath();
+        ctx.ellipse(-6, 9 + legSwing, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#9f1239';
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-        // Thân áo xanh dương
-        ctx.fillStyle = '#2563eb';
-        ctx.fillRect(-7, -2, 14, 11);
+        // Chân phải
+        ctx.beginPath();
+        ctx.ellipse(6, 9 - legSwing, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 2. Thân áo jumpsuit xanh dương
+        const bodyGrad = ctx.createLinearGradient(-7, -2 + breath, 7, 9 + breath);
+        bodyGrad.addColorStop(0, '#3b82f6');
+        bodyGrad.addColorStop(1, '#1d4ed8');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.roundRect(-7, -2 + breath, 14, 11, 4);
+        ctx.fill();
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 1.2;
-        ctx.strokeRect(-7, -2, 14, 11);
+        ctx.stroke();
 
-        // Đầu và mũ bảo hiểm trắng
+        // Đai lưng đen & mặt thắt lưng vàng
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-7, 4 + breath, 14, 2.5);
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(-2.5, 3.5 + breath, 5, 3.5);
+
+        // 3. Tay & găng tay trắng
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(0, -7, 10, 0, Math.PI * 2);
+        ctx.arc(-8, 3 + breath, 3, 0, Math.PI * 2);
+        ctx.arc(8, 3 + breath, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 4. Mũ bảo hiểm trắng bóng
+        const helmetGrad = ctx.createRadialGradient(-3, -8 + breath, 2, 0, -7 + breath, 12);
+        helmetGrad.addColorStop(0, '#ffffff');
+        helmetGrad.addColorStop(0.7, '#f1f5f9');
+        helmetGrad.addColorStop(1, '#cbd5e1');
+        ctx.fillStyle = helmetGrad;
+        ctx.beginPath();
+        ctx.arc(0, -7 + breath, 11, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Kính mặt nạ màu hồng phấn
-        ctx.fillStyle = '#fbcfe8';
-        ctx.fillRect(-5, -8, 10, 5);
+        // Vệt sáng trắng trên mũ
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(-3, -12 + breath, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 5. Kính bảo hộ / mặt nạ hồng
+        let visorDx = 0;
+        let visorDy = 0;
+        if (p.dir === 'LEFT') visorDx = -2;
+        else if (p.dir === 'RIGHT') visorDx = 2;
+        else if (p.dir === 'UP') visorDy = -2;
+        else if (p.dir === 'DOWN') visorDy = 1;
+
+        if (p.dir !== 'UP') {
+          ctx.fillStyle = '#fbcfe8';
+          ctx.beginPath();
+          ctx.roundRect(-6 + visorDx, -9 + breath + visorDy, 12, 6.5, 2.5);
+          ctx.fill();
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // 2 mắt đen sáng ngời
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-4 + visorDx, -8 + breath + visorDy, 2.5, 4.5);
+          ctx.fillRect(1.5 + visorDx, -8 + breath + visorDy, 2.5, 4.5);
+          // Điểm sáng trong mắt
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-3.5 + visorDx, -7.5 + breath + visorDy, 1, 1.5);
+          ctx.fillRect(2 + visorDx, -7.5 + breath + visorDy, 1, 1.5);
+        }
+
+        // 6. Núm ăng-ten hồng trên đỉnh đầu
+        const pomX = Math.sin(now * 0.01) * 1.5;
         ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-5, -8, 10, 5);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -18 + breath);
+        ctx.lineTo(pomX, -23 + breath);
+        ctx.stroke();
 
-        // 2 Mắt đen tròn
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(-3, -7, 2, 3);
-        ctx.fillRect(1, -7, 2, 3);
-
-        // Núm ăng-ten hồng trên đỉnh đầu
         ctx.fillStyle = '#f43f5e';
         ctx.beginPath();
-        ctx.arc(0, -18, 3.5, 0, Math.PI * 2);
+        ctx.arc(pomX, -24 + breath, 4, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, -15);
-        ctx.lineTo(0, -17);
         ctx.stroke();
 
         // Khiên bảo vệ bất tử (Shield Forcefield)
@@ -1294,17 +1527,16 @@ export const GameBomberman: React.FC = () => {
           ctx.strokeStyle = '#38bdf8';
           ctx.lineWidth = 2.5;
           ctx.shadowColor = '#38bdf8';
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = 12;
           ctx.beginPath();
-          ctx.arc(0, 0, 19, 0, Math.PI * 2);
+          ctx.arc(0, 0, 20, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Vòng quay năng lượng
           ctx.save();
           ctx.rotate(now * 0.008);
-          ctx.strokeStyle = '#ffffff';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
           ctx.lineWidth = 1.5;
-          ctx.strokeRect(-18, -18, 36, 36);
+          ctx.strokeRect(-19, -19, 38, 38);
           ctx.restore();
         }
 
@@ -1344,122 +1576,135 @@ export const GameBomberman: React.FC = () => {
       }
       floatingTextsRef.current = floatingTextsRef.current.filter(ft => ft.alpha > 0);
 
-      // --- 3. BẢNG ĐIỀU KHIỂN ARCADE CÁNH PHẢI (SIDEBAR 204PX) ---
-      ctx.fillStyle = '#0b0f19';
+      // --- 3. BẢNG ĐIỀU KHIỂN ARCADE CÁNH PHẢI (SIDEBAR 204PX) - GỌN GÀNG, ĐỒNG ĐỀU, TỐI GIẢN ---
+      ctx.fillStyle = '#070b14';
       ctx.fillRect(SIDEBAR_X, 0, SIDEBAR_WIDTH, CANVAS_HEIGHT);
 
-      // Tiêu đề
-      ctx.fillStyle = '#f59e0b';
-      ctx.font = '900 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('CHIẾN THUẬT BOMBER', SIDEBAR_X + SIDEBAR_WIDTH / 2, 28);
+      const cardX = SIDEBAR_X + 12;
+      const cardW = SIDEBAR_WIDTH - 24; // 180px
 
-      // Thời gian còn lại
-      ctx.fillStyle = timeLeft < 30 ? '#ef4444' : '#38bdf8';
-      ctx.font = '900 18px monospace';
+      const roundRect = (rx: number, ry: number, rw: number, rh: number, rad: number, fill: string, stroke?: string) => {
+        ctx.beginPath();
+        ctx.roundRect(rx, ry, rw, rh, rad);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      };
+
+      // 1. Thẻ Thời Gian (Timer Card)
+      roundRect(cardX, 14, cardW, 46, 12, '#0f172a', 'rgba(255, 255, 255, 0.08)');
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('⏱️ THỜI GIAN', cardX + 12, 42);
+
       const mins = Math.floor(timeLeft / 60);
       const secs = timeLeft % 60;
-      ctx.fillText(`⏱️ ${mins}:${secs < 10 ? '0' : ''}${secs}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 56);
+      ctx.fillStyle = timeLeft < 30 ? '#ef4444' : '#38bdf8';
+      ctx.font = '900 18px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${mins}:${secs < 10 ? '0' : ''}${secs}`, cardX + cardW - 12, 43);
 
-      // Vạch phân cách
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(SIDEBAR_X + 16, 70);
-      ctx.lineTo(SIDEBAR_X + SIDEBAR_WIDTH - 16, 70);
-      ctx.stroke();
+      // 2. Thẻ Thông Số Nâng Cấp (Stats Card) - Font chữ đồng đều, ngắn gọn
+      roundRect(cardX, 68, cardW, 218, 14, '#0f172a', 'rgba(255, 255, 255, 0.06)');
 
-      // Chỉ số nâng cấp
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '900 11px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('THÔNG SỐ', cardX + 14, 90);
 
-      let statY = 96;
-      ctx.fillText('💣 Số Bom Tối Đa:', SIDEBAR_X + 18, statY);
-      ctx.fillStyle = '#fde047';
-      ctx.font = '900 13px monospace';
-      ctx.fillText(`${maxBombs} quả`, SIDEBAR_X + 135, statY);
+      const statRows = [
+        { label: '💣 Bom', val: `${maxBombs} quả`, color: '#fde047' },
+        { label: '🔥 Tầm lửa', val: `${fireRange} ô`, color: '#f97316' },
+        { label: '👟 Tốc độ', val: `Cấp ${playerSpeedLevel}`, color: '#38bdf8' },
+        { label: '🥊 Đá bom', val: hasKick ? 'CÓ' : 'CHƯA', color: hasKick ? '#34d399' : '#64748b' },
+        { label: '👾 Quái vật', val: `${monstersRemaining}`, color: '#f43f5e' },
+      ];
 
-      statY += 28;
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('🔥 Tầm Xa Nổ:', SIDEBAR_X + 18, statY);
-      ctx.fillStyle = '#f97316';
-      ctx.font = '900 13px monospace';
-      ctx.fillText(`${fireRange} ô`, SIDEBAR_X + 135, statY);
+      let rowY = 118;
+      statRows.forEach((r, idx) => {
+        if (idx > 0) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+          ctx.beginPath();
+          ctx.moveTo(cardX + 12, rowY - 16);
+          ctx.lineTo(cardX + cardW - 12, rowY - 16);
+          ctx.stroke();
+        }
 
-      statY += 28;
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('👟 Tốc Độ Chạy:', SIDEBAR_X + 18, statY);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '900 13px monospace';
-      ctx.fillText(`Cấp ${playerSpeedLevel}`, SIDEBAR_X + 135, statY);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(r.label, cardX + 14, rowY);
 
-      statY += 28;
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('🥊 Kỹ Năng Đá Bom:', SIDEBAR_X + 18, statY);
-      ctx.fillStyle = hasKick ? '#34d399' : '#64748b';
-      ctx.font = '900 12px sans-serif';
-      ctx.fillText(hasKick ? 'ĐÃ CÓ' : 'CHƯA', SIDEBAR_X + 135, statY);
+        ctx.fillStyle = r.color;
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(r.val, cardX + cardW - 14, rowY);
 
-      statY += 28;
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('👾 Quái Vật Còn:', SIDEBAR_X + 18, statY);
-      ctx.fillStyle = '#ef4444';
-      ctx.font = '900 14px monospace';
-      ctx.fillText(`${monstersRemaining}`, SIDEBAR_X + 135, statY);
+        rowY += 34;
+      });
 
-      // Vạch phân cách 2
-      ctx.strokeStyle = '#1e293b';
-      ctx.beginPath();
-      ctx.moveTo(SIDEBAR_X + 16, statY + 16);
-      ctx.lineTo(SIDEBAR_X + SIDEBAR_WIDTH - 16, statY + 16);
-      ctx.stroke();
+      // 3. Thẻ Trạng Thái Cổng Qua Màn (Portal Status Card) - Rõ ràng, không dài dòng
+      const isPortalReady = monstersRemaining === 0;
+      roundRect(
+        cardX,
+        296,
+        cardW,
+        52,
+        12,
+        isPortalReady ? 'rgba(16, 185, 129, 0.15)' : '#0f172a',
+        isPortalReady ? '#10b981' : 'rgba(245, 158, 11, 0.3)'
+      );
 
-      // Trạng thái Cổng Qua Màn (Portal Status)
       ctx.textAlign = 'center';
-      const portalY = statY + 45;
-      if (monstersRemaining > 0) {
-        ctx.fillStyle = '#f59e0b';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText('🔒 CỔNG QUA MÀN KHÓA', SIDEBAR_X + SIDEBAR_WIDTH / 2, portalY);
-        ctx.fillStyle = '#64748b';
-        ctx.font = '10px sans-serif';
-        ctx.fillText('Tiêu diệt hết quái để mở!', SIDEBAR_X + SIDEBAR_WIDTH / 2, portalY + 16);
-      } else {
-        ctx.fillStyle = '#10b981';
-        ctx.font = '900 12px sans-serif';
-        ctx.fillText('🔓 CỔNG QUA MÀN ĐÃ MỞ!', SIDEBAR_X + SIDEBAR_WIDTH / 2, portalY);
+      if (isPortalReady) {
         ctx.fillStyle = '#34d399';
+        ctx.font = '900 12px sans-serif';
+        ctx.fillText('✨ CỔNG ĐÃ MỞ!', cardX + cardW / 2, 318);
+        ctx.fillStyle = '#a7f3d0';
         ctx.font = 'bold 10px sans-serif';
-        ctx.fillText('Bước vào cổng để qua màn ➔', SIDEBAR_X + SIDEBAR_WIDTH / 2, portalY + 16);
+        ctx.fillText('Bước vào cổng để qua màn', cardX + cardW / 2, 334);
+      } else {
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = '900 12px sans-serif';
+        ctx.fillText('🔒 CỔNG KHÓA', cardX + cardW / 2, 318);
+        ctx.fillStyle = '#64748b';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(`Còn ${monstersRemaining} quái vật`, cardX + cardW / 2, 334);
       }
 
-      // Trạng thái Buffs
-      let buffY = portalY + 46;
+      // 4. Các Hiệu Ứng Đang Kích Hoạt (Active Buffs)
+      let buffY = 362;
       if (playerRef.current.shieldTime > 0) {
+        roundRect(cardX, buffY, cardW, 26, 8, 'rgba(56, 189, 248, 0.15)', '#0284c7');
         ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText('🛡️ KHIÊN BẤT TỬ', SIDEBAR_X + SIDEBAR_WIDTH / 2, buffY);
-        buffY += 20;
+        ctx.font = '900 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🛡️ BẤT TỬ', cardX + cardW / 2, buffY + 17);
+        buffY += 32;
       }
       if (freezeTimerRef.current > 0) {
-        ctx.fillStyle = '#a78bfa';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText('⏱️ ĐÓNG BĂNG QUÁI', SIDEBAR_X + SIDEBAR_WIDTH / 2, buffY);
-        buffY += 20;
+        roundRect(cardX, buffY, cardW, 26, 8, 'rgba(168, 85, 247, 0.15)', '#7e22ce');
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '900 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⏱️ ĐÓNG BĂNG QUÁI', cardX + cardW / 2, buffY + 17);
+        buffY += 32;
       }
 
-      // Cờ màn chơi ở góc dưới
+      // 5. Thẻ Cấp Độ Màn Chơi (Stage Card)
+      roundRect(cardX, 474, cardW, 52, 12, '#0f172a', 'rgba(245, 158, 11, 0.25)');
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '900 11px sans-serif';
-      ctx.fillText('CHIẾN DỊCH', SIDEBAR_X + SIDEBAR_WIDTH / 2, 490);
-      ctx.font = '900 22px sans-serif';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('CHIẾN DỊCH', cardX + cardW / 2, 493);
       ctx.fillStyle = '#facc15';
-      ctx.fillText(`MÀN ${stage}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 516);
+      ctx.font = '900 18px sans-serif';
+      ctx.fillText(`MÀN ${stage}`, cardX + cardW / 2, 514);
 
       ctx.restore(); // scale dpr
 
