@@ -42,6 +42,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   onet: 'lofi',
   sudoku: 'lofi',
   pong: 'arcade',
+  pacman: 'arcade',
 };
 
 class SoundManager {

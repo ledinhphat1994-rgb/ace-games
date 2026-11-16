@@ -15,6 +15,7 @@ import { GameSpaceShooter } from '../games/GameSpaceShooter';
 import { GameOnet } from '../games/GameOnet';
 import { GameSudoku } from '../games/GameSudoku';
 import { GamePong } from '../games/GamePong';
+import { GamePacman } from '../games/GamePacman';
 import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
@@ -175,6 +176,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'onet': return <GameOnet key={`${game.id}-${sessionKey}`} />;
       case 'sudoku': return <GameSudoku key={`${game.id}-${sessionKey}`} />;
       case 'pong': return <GamePong key={`${game.id}-${sessionKey}`} />;
+      case 'pacman': return <GamePacman key={`${game.id}-${sessionKey}`} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

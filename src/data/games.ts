@@ -330,5 +330,29 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Pong', 'Bóng bàn', 'Arcade', 'Retro', 'Phản xạ', 'Kinh điển'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'pacman',
+    title: 'Pac-Man',
+    subtitle: 'Mê cung ăn đậu huyền thoại Arcade',
+    category: 'arcade',
+    categoryLabel: 'Arcade Kinh Điển',
+    description: 'Ăn hết các hạt đậu trong mê cung và né 4 bóng ma.',
+    instructions: [
+      'Điều khiển Pac-Man ăn sạch các hạt đậu trên mê cung.',
+      'Ăn hạt năng lượng lớn để phản đòn nuốt chửng 4 con ma.',
+      'Thu thập hoa quả thưởng để đạt điểm kỷ lục tối đa.'
+    ],
+    controls: {
+      desktop: 'Mũi tên / WASD',
+      mobile: 'D-Pad ảo trên màn hình'
+    },
+    thumbnailIcon: '🟡',
+    accentColor: 'from-yellow-400 to-amber-600',
+    rating: 4.99,
+    plays: 289000,
+    tags: ['Pacman', 'Arcade', 'Retro', 'Mê cung', 'Kinh điển', 'Ăn đậu'],
+    isHot: true,
+    isNew: true
   }
 ];

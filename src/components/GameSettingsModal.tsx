@@ -1163,6 +1163,65 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {/* PAC-MAN */}
+          {game.id === 'pacman' && (
+            <>
+              {/* TỐC ĐỘ DI CHUYỂN */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-yellow-400">
+                    <Gauge className="w-4 h-4 text-yellow-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Tốc Độ Game</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'normal', label: 'Chuẩn' },
+                    { key: 'fast', label: 'Nhanh' },
+                    { key: 'turbo', label: 'Siêu Tốc' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('speedMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.speedMode || 'normal') === key
+                          ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SỐ MẠNG KHỞI ĐẦU */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Số Mạng Sống</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[3, 5].map((cnt) => (
+                    <button
+                      key={cnt}
+                      onClick={() => updateSetting('initialLives', cnt)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialLives || 3) === cnt
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {cnt} Mạng
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}
