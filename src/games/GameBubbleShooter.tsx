@@ -941,16 +941,6 @@ export const GameBubbleShooter: React.FC = () => {
 
       // Quả trứng tiếp theo (Next Egg)
       drawSharpBubble(ctx, nextX, nextY, nextBubble, 20, 10);
-
-      // Nhãn TIẾP THEO & nút đổi nhỏ
-      ctx.fillStyle = '#fde68a';
-      ctx.font = 'bold 10px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('TIẾP', nextX, nextY - 25);
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('⇄ ĐỔI', nextX, nextY + 28);
       ctx.restore();
 
       // BƯỚC 8.3: Nòng pháo xoay (Vẽ theo hướng ngắm currentAimAngle)
