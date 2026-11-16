@@ -73,7 +73,7 @@ const GAME_OVER_LIMIT_Y = 445; // Ngưỡng trứng chạm đáy tính thua
 const BUBBLE_PALETTE = [
   { name: 'Ruby', fill: '#ef4444', light: '#fca5a5', dark: '#991b1b', shadow: 'rgba(239,68,68,0.7)', spot: '#f87171' },
   { name: 'Ice', fill: '#06b6d4', light: '#a5f3fc', dark: '#0e7490', shadow: 'rgba(6,182,212,0.7)', spot: '#38bdf8' },
-  { name: 'Emerald', fill: '#10b981', light: '#a7f3d0', dark: '#065f46', shadow: 'rgba(16,185,129,0.7)', spot: '#34d399' },
+  { name: 'Emerald', fill: '#10b981', light: '#a7f3d0', dark: '#065f46', shadow: 'rgba(168,85,247,0.7)', spot: '#34d399' },
   { name: 'Solar', fill: '#f59e0b', light: '#fef08a', dark: '#b45309', shadow: 'rgba(245,158,11,0.7)', spot: '#fbbf24' },
   { name: 'Amethyst', fill: '#a855f7', light: '#f5d0fe', dark: '#6b21a8', shadow: 'rgba(168,85,247,0.7)', spot: '#c084fc' },
 ];
@@ -113,7 +113,9 @@ export const GameBubbleShooter: React.FC = () => {
   // Quả trứng hiện tại và quả tiếp theo
   const [currentBubble, setCurrentBubble] = useState<number>(0);
   const [nextBubble, setNextBubble] = useState<number>(1);
-  const [aimAngle, setAimAngle] = useState<number>(-Math.PI / 2);
+  
+  // Dùng Ref cho góc ngắm để phản hồi chuột 0ms cực mượt, không kích hoạt re-render
+  const aimAngleRef = useRef<number>(-Math.PI / 2);
 
   // Hiệu ứng hạt & chữ bay
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -508,17 +510,18 @@ export const GameBubbleShooter: React.FC = () => {
 
     playShootSound();
 
-    const speed = 20;
+    const currentAngle = aimAngleRef.current;
+    const speed = 22;
     projectileRef.current = {
-      x: CANNON_X,
-      y: CANNON_Y,
-      vx: Math.cos(aimAngle) * speed,
-      vy: Math.sin(aimAngle) * speed,
+      x: CANNON_X + Math.cos(currentAngle) * 35,
+      y: CANNON_Y + Math.sin(currentAngle) * 35,
+      vx: Math.cos(currentAngle) * speed,
+      vy: Math.sin(currentAngle) * speed,
       color: currentBubble,
     };
-  }, [aimAngle, currentBubble, isGameOver, isPaused, isVictory, playShootSound]);
+  }, [currentBubble, isGameOver, isPaused, isVictory, playShootSound]);
 
-  // Cập nhật hướng ngắm theo chuột
+  // Cập nhật hướng ngắm theo chuột tức thì 0ms latency (ghi vào Ref, không re-render React)
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (isPaused || isGameOver || isVictory) return;
     const canvas = canvasRef.current;
@@ -535,8 +538,8 @@ export const GameBubbleShooter: React.FC = () => {
 
     // Giới hạn góc ngắm trong khoảng từ -168 đến -12 độ
     let angle = Math.atan2(dy, dx);
-    const minAngle = -Math.PI + 0.2;
-    const maxAngle = -0.2;
+    const minAngle = -Math.PI + 0.18;
+    const maxAngle = -0.18;
 
     if (angle > 0) {
       angle = dx < 0 ? minAngle : maxAngle;
@@ -544,17 +547,46 @@ export const GameBubbleShooter: React.FC = () => {
       angle = Math.max(minAngle, Math.min(maxAngle, angle));
     }
 
-    setAimAngle(angle);
+    aimAngleRef.current = angle;
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    // Nếu nhấp chuột phải: đổi trứng
+    // Nhấp chuột phải: đổi trứng
     if (e.button === 2) {
       handleSwapBubbles();
       return;
     }
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      const targetX = (e.clientX - rect.left) * scaleX;
+      const targetY = (e.clientY - rect.top) * scaleY;
+
+      // Nhấp vào quả trứng tiếp theo (Next Bubble) ở bệ đỡ bên trái: đổi trứng
+      const distToNext = Math.hypot(targetX - (CANNON_X - 66), targetY - (CANNON_Y + 4));
+      if (distToNext <= 30) {
+        handleSwapBubbles();
+        return;
+      }
+    }
+
     handleShoot();
   };
+
+  // Phím tắt bàn phím: Phím Space để đổi trứng hoặc bắn
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        handleSwapBubbles();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSwapBubbles]);
 
   // Hàm vẽ quả trứng 3D siêu sắc nét (Multi-stop High-DPI Radial Gradient & Glass Specular)
   const drawSharpBubble = useCallback((
@@ -620,7 +652,7 @@ export const GameBubbleShooter: React.FC = () => {
     ctx.restore();
   }, []);
 
-  // Vòng lặp vẽ đồ họa Canvas 60 FPS Retina High-DPI Widescreen
+  // Vòng lặp vẽ đồ họa Canvas 60 FPS Retina High-DPI Widescreen (Chạy mượt 0ms giật lag)
   useEffect(() => {
     let animId: number;
 
@@ -629,6 +661,9 @@ export const GameBubbleShooter: React.FC = () => {
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      // Đọc góc ngắm trực tiếp từ Ref giúp xoay nòng pháo tức thời 0ms
+      const currentAimAngle = aimAngleRef.current;
 
       // Hỗ trợ High-DPI Retina (2x buffer) giúp hình ảnh cực kỳ sắc nét
       const dpr = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
@@ -668,14 +703,14 @@ export const GameBubbleShooter: React.FC = () => {
         }
       }
 
-      // 3. Tia ngắm laser dội tường (Tia mảnh siêu nét, không bị răng cưa)
+      // 3. Tia ngắm laser dội tường (Phản xạ tức thời theo chuột, không bị giật trễ)
       if (aimGuideEnabled && !projectileRef.current && !isGameOver && !isVictory) {
         ctx.save();
 
         let startX = CANNON_X;
         let startY = CANNON_Y;
-        let dirX = Math.cos(aimAngle);
-        let dirY = Math.sin(aimAngle);
+        let dirX = Math.cos(currentAimAngle);
+        let dirY = Math.sin(currentAimAngle);
         let maxSegments = 3;
 
         // Quầng sáng laser ngoài
@@ -728,7 +763,7 @@ export const GameBubbleShooter: React.FC = () => {
         ctx.shadowColor = '#22d3ee';
         ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.arc(CANNON_X + Math.cos(aimAngle) * 55, CANNON_Y + Math.sin(aimAngle) * 55, 4, 0, Math.PI * 2);
+        ctx.arc(CANNON_X + Math.cos(currentAimAngle) * 55, CANNON_Y + Math.sin(currentAimAngle) * 55, 4, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
@@ -852,74 +887,123 @@ export const GameBubbleShooter: React.FC = () => {
         ctx.restore();
       }
 
-      // 8. Vẽ khẩu pháo bắn trứng ở đáy (Turret bằng đồng sắc nét)
+      // 8. VẼ KHẨU PHÁO BẰNG ĐỒNG Ở ĐÁY (Vẽ theo thứ tự lớp chuẩn để đạn luôn hiện rõ 100%)
+      
+      // BƯỚC 8.1: Chân bệ pháo đồng (Vẽ trước tiên làm nền phía dưới)
       ctx.save();
-      ctx.translate(CANNON_X, CANNON_Y);
+      ctx.translate(CANNON_X, CANNON_Y + 18);
 
-      // Quả trứng tiếp theo đặt ở bệ đỡ bên cạnh khẩu pháo (Tích hợp tự nhiên, không cần khung nổi)
-      ctx.save();
-      ctx.translate(-58, 6);
-      drawSharpBubble(ctx, 0, 0, nextBubble, BUBBLE_RADIUS * 0.75, 8);
-      // Nút hoán đổi nhỏ bên cạnh
-      ctx.fillStyle = '#f59e0b';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('⇄', 0, 20);
-      ctx.restore();
+      const baseGrad = ctx.createLinearGradient(-44, 0, 44, 0);
+      baseGrad.addColorStop(0, '#361502');
+      baseGrad.addColorStop(0.5, '#78350f');
+      baseGrad.addColorStop(1, '#361502');
 
-      // Nòng pháo xoay
-      ctx.save();
-      ctx.rotate(aimAngle + Math.PI / 2);
-
-      const cannonGrad = ctx.createLinearGradient(-15, 0, 15, 0);
-      cannonGrad.addColorStop(0, '#78350f');
-      cannonGrad.addColorStop(0.5, '#f59e0b');
-      cannonGrad.addColorStop(1, '#92400e');
-
-      ctx.fillStyle = cannonGrad;
-      ctx.strokeStyle = '#fde68a';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(-15, -58, 30, 54, [8, 8, 4, 4]);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#fde047';
-      ctx.fillRect(-17, -48, 34, 5);
-      ctx.fillRect(-17, -24, 34, 5);
-      ctx.restore();
-
-      // Quả trứng nạp sẵn trong pháo (siêu sắc nét)
-      drawSharpBubble(ctx, 0, 0, currentBubble, BUBBLE_RADIUS, 18);
-
-      // Bệ đỡ pháo đồng chạm khắc
-      ctx.fillStyle = '#451a03';
+      ctx.fillStyle = baseGrad;
       ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(0, 20, 36, Math.PI, 0);
+      ctx.arc(0, 10, 44, Math.PI, 0);
       ctx.fill();
       ctx.stroke();
 
-      // 5 Đèn báo sập trần tích hợp tinh tế trên bệ pháo
+      // 5 Đèn LED báo sập trần tinh xảo trên vành bệ
       for (let i = 0; i < 5; i++) {
-        const angle = Math.PI - 0.45 - (i * (Math.PI - 0.9)) / 4;
-        const lx = Math.cos(angle) * 26;
-        const ly = 20 - Math.sin(angle) * 26;
+        const angle = Math.PI - 0.42 - (i * (Math.PI - 0.84)) / 4;
+        const lx = Math.cos(angle) * 34;
+        const ly = 10 - Math.sin(angle) * 34;
         ctx.beginPath();
-        ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+        ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
         if (i < foulCount) {
           ctx.fillStyle = '#ef4444';
           ctx.shadowColor = '#ef4444';
           ctx.shadowBlur = 8;
         } else {
-          ctx.fillStyle = '#334155';
+          ctx.fillStyle = '#1e293b';
           ctx.shadowBlur = 0;
         }
         ctx.fill();
       }
+      ctx.restore();
+
+      // BƯỚC 8.2: Bệ đỡ và quả trứng tiếp theo (NEXT BUBBLE) bên trái bệ pháo
+      const nextX = CANNON_X - 66;
+      const nextY = CANNON_Y + 4;
+
+      ctx.save();
+      // Đĩa đồng đựng trứng tiếp theo
+      ctx.fillStyle = '#221105';
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(nextX, nextY + 12, 22, Math.PI, 0);
+      ctx.fill();
+      ctx.stroke();
+
+      // Quả trứng tiếp theo (Next Egg)
+      drawSharpBubble(ctx, nextX, nextY, nextBubble, 20, 10);
+
+      // Nhãn TIẾP THEO & nút đổi nhỏ
+      ctx.fillStyle = '#fde68a';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('TIẾP', nextX, nextY - 25);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('⇄ ĐỔI', nextX, nextY + 28);
+      ctx.restore();
+
+      // BƯỚC 8.3: Nòng pháo xoay (Vẽ theo hướng ngắm currentAimAngle)
+      ctx.save();
+      ctx.translate(CANNON_X, CANNON_Y);
+      ctx.rotate(currentAimAngle + Math.PI / 2);
+
+      // Ống pháo kim loại bằng đồng
+      const cannonGrad = ctx.createLinearGradient(-16, 0, 16, 0);
+      cannonGrad.addColorStop(0, '#592005');
+      cannonGrad.addColorStop(0.35, '#f59e0b');
+      cannonGrad.addColorStop(0.7, '#d97706');
+      cannonGrad.addColorStop(1, '#592005');
+
+      ctx.fillStyle = cannonGrad;
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-16, -62, 32, 56, [8, 8, 4, 4]);
+      ctx.fill();
+      ctx.stroke();
+
+      // Đai vàng nẹp nòng pháo
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(-18, -52, 36, 5);
+      ctx.fillRect(-18, -26, 36, 5);
+
+      // Vòng miệng nòng pháo phát sáng
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(0, -62, 14, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
 
       ctx.restore();
+
+      // BƯỚC 8.4: QUẢ TRỨNG SẮP BẮN (LOADED CURRENT BUBBLE) - VẼ Ở LỚP TRÊN CÙNG!
+      // Không bị bất kỳ vật thể nào che khuất, phát sáng rõ ràng
+      const loadedX = CANNON_X + Math.cos(currentAimAngle) * 12;
+      const loadedY = CANNON_Y + Math.sin(currentAimAngle) * 12;
+
+      // Vòng hào quang sáng bao quanh đạn chuẩn bị bắn
+      ctx.save();
+      ctx.shadowColor = BUBBLE_PALETTE[currentBubble].shadow;
+      ctx.shadowBlur = 24;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(loadedX, loadedY, BUBBLE_RADIUS + 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Vẽ quả trứng đang nạp trong nòng pháo
+      drawSharpBubble(ctx, loadedX, loadedY, currentBubble, BUBBLE_RADIUS, 22);
 
       ctx.restore(); // Kết thúc dpr scale
 
@@ -928,7 +1012,7 @@ export const GameBubbleShooter: React.FC = () => {
 
     animId = requestAnimationFrame(renderLoop);
     return () => cancelAnimationFrame(animId);
-  }, [aimAngle, aimGuideEnabled, currentBubble, drawSharpBubble, fallingBubbles, floatingTexts, foulCount, getBubbleCenter, grid, handleBubbleSnapped, isGameOver, isVictory, nextBubble, particles, playBounceSound]);
+  }, [aimGuideEnabled, currentBubble, drawSharpBubble, fallingBubbles, floatingTexts, foulCount, getBubbleCenter, grid, handleBubbleSnapped, isGameOver, isVictory, nextBubble, particles, playBounceSound]);
 
   // Vòng lặp vật lý hạt & bóng rơi
   useEffect(() => {
@@ -1015,7 +1099,7 @@ export const GameBubbleShooter: React.FC = () => {
           <button
             onClick={handleSwapBubbles}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm text-xs font-bold"
-            title="Đổi quả trứng đang chuẩn bị bắn (hoặc nhấp chuột phải)"
+            title="Đổi quả trứng đang chuẩn bị bắn (hoặc nhấp chuột phải / phím Space)"
           >
             <ArrowRightLeft className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">Đổi Trứng</span>
