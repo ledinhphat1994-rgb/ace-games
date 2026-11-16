@@ -15,7 +15,8 @@ import {
   Timer,
   Crosshair,
   ChevronDown,
-  Check
+  Check,
+  Heart
 } from 'lucide-react';
 import type { GameInfo } from '../types/game';
 import { soundManager, BGM_TRACKS, type BgmTrack } from '../utils/sound';
@@ -1396,6 +1397,65 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                       }`}
                     >
                       {t}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* XE TĂNG 1990 (Battle City) */}
+          {game.id === 'tank-1990' && (
+            <>
+              {/* CHẾ ĐỘ CHƠI */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Layers className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'classic', label: 'Cổ Điển' },
+                    { key: 'speed', label: 'Tốc Độ' },
+                    { key: 'endless', label: 'Vô Tận' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('gameMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.gameMode || 'classic') === key
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SỐ MẠNG BAN ĐẦU */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-rose-400">
+                    <Heart className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Số Mạng</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[3, 5, 9].map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => updateSetting('initialLives', l)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialLives || 3) === l
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {l} Mạng
                     </button>
                   ))}
                 </div>

@@ -1067,6 +1067,126 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'tank-1990':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-slate-950 via-[#0a1410] to-[#040806] ${className}`}>
+          {/* Tactical Grid */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#22c55e_1px,transparent_1px)] bg-[size:16px_16px]" />
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="tank-fire-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="star-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="tank-gold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#fef08a" />
+                <stop offset="40%" stopColor="#eab308" />
+                <stop offset="100%" stopColor="#ca8a04" />
+              </linearGradient>
+              <linearGradient id="brick-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#dc2626" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </linearGradient>
+            </defs>
+
+            {/* Brick walls on the sides */}
+            <g opacity="0.85">
+              {/* Left Brick Wall */}
+              <rect x="12" y="24" width="22" height="12" rx="1.5" fill="url(#brick-grad)" stroke="#450a0a" strokeWidth="1" />
+              <rect x="12" y="38" width="22" height="12" rx="1.5" fill="url(#brick-grad)" stroke="#450a0a" strokeWidth="1" />
+              <rect x="12" y="52" width="14" height="12" rx="1.5" fill="url(#brick-grad)" stroke="#450a0a" strokeWidth="1" />
+
+              {/* Right Steel Wall */}
+              <rect x="166" y="24" width="22" height="26" rx="2" fill="#cbd5e1" stroke="#334155" strokeWidth="1.2" />
+              <circle cx="170" cy="28" r="1.5" fill="#334155" />
+              <circle cx="184" cy="28" r="1.5" fill="#334155" />
+              <circle cx="170" cy="46" r="1.5" fill="#334155" />
+              <circle cx="184" cy="46" r="1.5" fill="#334155" />
+            </g>
+
+            {/* Exploding Enemy Tank in Background */}
+            <g transform="translate(145, 36)">
+              {/* Explosion flash */}
+              <circle cx="0" cy="0" r="14" fill="#f59e0b" opacity="0.6" filter="url(#tank-fire-glow)" />
+              <circle cx="0" cy="0" r="8" fill="#fef08a" opacity="0.8" />
+              {/* Shattered metal bits */}
+              <rect x="-12" y="-8" width="8" height="14" rx="2" fill="#475569" transform="rotate(-25)" />
+              <circle cx="8" cy="-10" r="2" fill="#ef4444" />
+              <circle cx="-6" cy="12" r="2.5" fill="#f97316" />
+            </g>
+
+            {/* Main Player Tank in Forefront (Yellow Commander Tank) */}
+            <g transform="translate(90, 72)">
+              {/* Left Tread */}
+              <rect x="-24" y="-22" width="10" height="44" rx="3" fill="#1e293b" stroke="#0f172a" strokeWidth="1.5" />
+              <line x1="-24" y1="-14" x2="-14" y2="-14" stroke="#475569" strokeWidth="1.5" />
+              <line x1="-24" y1="-4" x2="-14" y2="-4" stroke="#475569" strokeWidth="1.5" />
+              <line x1="-24" y1="6" x2="-14" y2="6" stroke="#475569" strokeWidth="1.5" />
+              <line x1="-24" y1="16" x2="-14" y2="16" stroke="#475569" strokeWidth="1.5" />
+
+              {/* Right Tread */}
+              <rect x="14" y="-22" width="10" height="44" rx="3" fill="#1e293b" stroke="#0f172a" strokeWidth="1.5" />
+              <line x1="14" y1="-14" x2="24" y2="-14" stroke="#475569" strokeWidth="1.5" />
+              <line x1="14" y1="-4" x2="24" y2="-4" stroke="#475569" strokeWidth="1.5" />
+              <line x1="14" y1="6" x2="24" y2="6" stroke="#475569" strokeWidth="1.5" />
+              <line x1="14" y1="16" x2="24" y2="16" stroke="#475569" strokeWidth="1.5" />
+
+              {/* Main Hull */}
+              <rect x="-15" y="-18" width="30" height="36" rx="4" fill="url(#tank-gold)" stroke="#713f12" strokeWidth="1.8" />
+              <rect x="-11" y="-14" width="22" height="28" rx="2" fill="#ca8a04" opacity="0.4" />
+
+              {/* Turret */}
+              <circle cx="0" cy="0" r="10" fill="#eab308" stroke="#713f12" strokeWidth="1.8" />
+              <circle cx="0" cy="0" r="6" fill="#fef08a" opacity="0.6" />
+
+              {/* Double Heavy Cannon */}
+              <rect x="-4" y="-30" width="8" height="20" rx="1.5" fill="#0f172a" stroke="#334155" strokeWidth="1.2" />
+              <rect x="-5" y="-32" width="10" height="3" rx="1" fill="#475569" />
+
+              {/* Muzzle Flash Blast */}
+              <g transform="translate(0, -38)" filter="url(#tank-fire-glow)">
+                <path d="M 0 -8 L 4 0 L 10 2 L 4 5 L 0 12 L -4 5 L -10 2 L -4 0 Z" fill="#fef08a" />
+                <circle cx="0" cy="2" r="3" fill="#ffffff" />
+              </g>
+
+              {/* Protective Energy Shield Ring */}
+              <circle cx="0" cy="0" r="32" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="6 4" opacity="0.75" />
+            </g>
+
+            {/* Golden Star Power-Up on Upper Left */}
+            <g transform="translate(42, 48)" filter="url(#star-glow)">
+              <polygon
+                points="0,-12 3.5,-3.5 12,0 3.5,3.5 0,12 -3.5,3.5 -12,0 -3.5,-3.5"
+                fill="#fde047"
+                stroke="#ca8a04"
+                strokeWidth="1"
+              />
+              <circle cx="0" cy="0" r="3" fill="#ffffff" />
+            </g>
+
+            {/* Base Eagle Protected at Bottom Center */}
+            <g transform="translate(90, 126)">
+              {/* Protective Wall */}
+              <rect x="-18" y="-12" width="36" height="12" fill="url(#brick-grad)" stroke="#450a0a" strokeWidth="1" />
+              {/* Golden Eagle Head */}
+              <circle cx="0" cy="-6" r="6" fill="#eab308" />
+              <polygon points="0,-10 6,-6 0,-2" fill="#ffffff" />
+              <polygon points="2,-7 8,-5 2,-3" fill="#f59e0b" />
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

@@ -428,6 +428,31 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 345000,
     tags: ['Đào vàng', 'Gold Miner', 'Thợ mỏ', 'Khai khoáng', 'Kinh điển', 'Arcade'],
     isHot: true,
+    isNew: false
+  },
+  {
+    id: 'tank-1990',
+    title: 'Xe Tăng 1990',
+    subtitle: 'Bắn phá gạch, bảo vệ đại bàng căn cứ',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Huyền thoại Battle City NES! Điều khiển xe tăng chiến đấu tiêu diệt các đợt xe tăng địch, ăn ngôi sao nâng cấp súng và bảo vệ an toàn cho căn cứ đại bàng.',
+    instructions: [
+      'Sử dụng phím WASD hoặc phím Mũi tên để di chuyển xe tăng 4 hướng.',
+      'Bấm phím Space hoặc phím J để bắn pháo phá gạch và tiêu diệt xe tăng địch.',
+      'Bảo vệ biểu tượng Đại Bàng ở đáy bản đồ bằng mọi giá, nếu đại bàng bị bắn trúng trò chơi sẽ kết thúc ngay.',
+      'Thu thập các vật phẩm viện trợ: Ngôi sao (nâng cấp hỏa lực), Bom (hạ toàn bộ địch), Khiên (bất tử), Đồng hồ (đóng băng), Xẻng (tường thép bảo vệ đại bàng).'
+    ],
+    controls: {
+      desktop: 'WASD / Mũi tên (Di chuyển) • Phím Space / J (Bắn)',
+      mobile: 'D-Pad điều hướng ảo • Nút BẮN to tròn'
+    },
+    thumbnailIcon: '🎖️',
+    accentColor: 'from-yellow-500 to-amber-700',
+    rating: 4.99,
+    plays: 512000,
+    tags: ['Xe tăng', 'Battle City', 'Tank 1990', 'Bắn súng', 'NES', 'Kinh điển', 'Arcade'],
+    isHot: true,
     isNew: true
   }
 ];
