@@ -531,6 +531,32 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 910000,
     tags: ['Đua xe', 'Road Fighter', 'Konami', 'Tốc độ', 'NES', 'Siêu xe', 'Kinh điển', 'Arcade'],
     isHot: true,
+    isNew: false
+  },
+  {
+    id: 'zuma',
+    title: 'Bắn Bi Cóc Zuma',
+    subtitle: 'Huyền thoại Zuma Deluxe, giải mã đền thờ Aztec',
+    category: 'puzzle',
+    categoryLabel: 'Giải Đố & Trí Tuệ',
+    description: 'Huyền thoại Bắn Bi Cóc Zuma Deluxe kinh điển! Điều khiển chú cóc đá thần thoại xoay 360 độ bắn phá các chuỗi ngọc ma thuật đang lăn theo rãnh xoắn ốc về phía miệng đầu lâu vàng, kích hoạt chuỗi combo nổ dây chuyền và bùa chú thần bí!',
+    instructions: [
+      'Di chuyển chuột (hoặc chạm ngón tay trên màn hình) để điều khiển Cóc Đá xoay hướng bắn.',
+      'Bấm Chuột Trái (hoặc nút BẮN) để phóng viên ngọc trong miệng cóc vào chuỗi bi trên đường ray.',
+      'Ghép từ 3 viên bi cùng màu trở lên để triệt tiêu chúng. Hai đầu chuỗi cùng màu sẽ tự động hút lại gần nhau tạo ra combo liên hoàn.',
+      'Bấm Phím Space (hoặc Chuột Phải / nút ĐỔI BI) để tráo đổi nhanh giữa viên bi trong miệng và viên bi dự phòng trên lưng cóc.',
+      'Bắn trúng các đồng tiền vàng (Coin) ở các góc để nhận thêm 500 điểm thưởng và lấp đầy thanh Zuma giải mã đền thờ.'
+    ],
+    controls: {
+      desktop: 'Di chuyển chuột (Ngắm) • Chuột Trái (Bắn) • Chuột Phải hoặc Phím Space (Đổi bi)',
+      mobile: 'Chạm kéo xoay hướng ngắm • Nút BẮN to tròn • Nút ĐỔI BI dự phòng'
+    },
+    thumbnailIcon: '🐸',
+    accentColor: 'from-amber-500 via-emerald-600 to-yellow-600',
+    rating: 4.99,
+    plays: 950000,
+    tags: ['Zuma', 'Bắn bi', 'PopCap', 'Giải đố', 'Match 3', 'Cóc đá', 'Kinh điển', 'Arcade'],
+    isHot: true,
     isNew: true
   }
 ];

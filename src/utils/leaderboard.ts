@@ -190,6 +190,13 @@ const SEED_DATA: Record<string, { name: string; score: number; date: string }[]>
     { name: 'Tay Lái Lụa NES', score: 16500, date: '13/11/2026' },
     { name: 'SpeedDemon', score: 11200, date: '11/11/2026' },
   ],
+  zuma: [
+    { name: 'Phù Thủy Zuma', score: 45800, date: '17/11/2026' },
+    { name: 'Cóc Vàng Aztec', score: 36200, date: '16/11/2026' },
+    { name: 'Xạ Thủ Ngọc Ma', score: 28400, date: '15/11/2026' },
+    { name: 'ZumaMaster', score: 21500, date: '13/11/2026' },
+    { name: 'ComboLord99', score: 14800, date: '11/11/2026' },
+  ],
 };
 
 // Retrieve user's local best score for a specific game
@@ -218,6 +225,7 @@ const getUserScore = (gameId: string): number => {
       case 'bomberman': return parseInt(localStorage.getItem('acegames_bomberman_highscore') || '0', 10);
       case 'galaga': return parseInt(localStorage.getItem('acegames_galaga_highscore') || '0', 10);
       case 'road-fighter': return parseInt(localStorage.getItem('acegames_road_fighter_highscore') || '0', 10);
+      case 'zuma': return parseInt(localStorage.getItem('acegames_zuma_highscore') || '0', 10);
       default: return 0;
     }
   } catch {

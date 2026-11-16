@@ -1570,6 +1570,143 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'zuma':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#0c131f] via-[#111c2e] to-[#070b12] ${className}`}>
+          {/* Ancient Aztec Stone Pattern */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] bg-[size:16px_16px]" />
+
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="zuma-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <radialGradient id="zuma-ball-red" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#fca5a5" />
+                <stop offset="50%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </radialGradient>
+              <radialGradient id="zuma-ball-blue" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#7dd3fc" />
+                <stop offset="50%" stopColor="#0ea5e9" />
+                <stop offset="100%" stopColor="#0369a1" />
+              </radialGradient>
+              <radialGradient id="zuma-ball-yellow" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#fef08a" />
+                <stop offset="50%" stopColor="#eab308" />
+                <stop offset="100%" stopColor="#854d0e" />
+              </radialGradient>
+              <radialGradient id="zuma-ball-green" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#6ee7b7" />
+                <stop offset="50%" stopColor="#10b981" />
+                <stop offset="100%" stopColor="#065f46" />
+              </radialGradient>
+              <radialGradient id="zuma-ball-purple" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#d8b4fe" />
+                <stop offset="50%" stopColor="#a855f7" />
+                <stop offset="100%" stopColor="#581c87" />
+              </radialGradient>
+            </defs>
+
+            {/* Ancient Stone Spiral Trench */}
+            <path
+              d="M 25,20 C 120,-10 185,30 185,85 C 185,130 115,138 65,115 C 30,95 40,55 85,50 C 130,45 150,85 130,105"
+              stroke="#0f172a"
+              strokeWidth="18"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <path
+              d="M 25,20 C 120,-10 185,30 185,85 C 185,130 115,138 65,115 C 30,95 40,55 85,50 C 130,45 150,85 130,105"
+              stroke="#334155"
+              strokeWidth="14"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <path
+              d="M 25,20 C 120,-10 185,30 185,85 C 185,130 115,138 65,115 C 30,95 40,55 85,50 C 130,45 150,85 130,105"
+              stroke="#1e293b"
+              strokeWidth="10"
+              strokeLinecap="round"
+              fill="none"
+            />
+
+            {/* Golden Skull Pit at Endpoint */}
+            <g transform="translate(130, 105)">
+              <circle cx="0" cy="0" r="14" fill="#eab308" filter="url(#zuma-glow)" opacity="0.6" />
+              <circle cx="0" cy="-2" r="11" fill="#facc15" />
+              <rect x="-6" y="5" width="12" height="7" rx="2" fill="#ca8a04" />
+              <circle cx="-4" cy="-3" r="3" fill="#0f172a" />
+              <circle cx="4" cy="-3" r="3" fill="#0f172a" />
+            </g>
+
+            {/* Rolling Marble Chain Along The Trench */}
+            {/* Red */}
+            <circle cx="35" cy="22" r="7" fill="url(#zuma-ball-red)" />
+            <circle cx="50" cy="18" r="7" fill="url(#zuma-ball-red)" />
+            <circle cx="65" cy="16" r="7" fill="url(#zuma-ball-blue)" />
+            {/* Blue */}
+            <circle cx="80" cy="16" r="7" fill="url(#zuma-ball-blue)" />
+            <circle cx="95" cy="18" r="7" fill="url(#zuma-ball-yellow)" />
+            {/* Yellow */}
+            <circle cx="110" cy="22" r="7" fill="url(#zuma-ball-yellow)" />
+            <circle cx="125" cy="28" r="7" fill="url(#zuma-ball-green)" />
+            {/* Green */}
+            <circle cx="140" cy="36" r="7" fill="url(#zuma-ball-green)" />
+            <circle cx="155" cy="48" r="7" fill="url(#zuma-ball-purple)" />
+            {/* Outer curve */}
+            <circle cx="175" cy="70" r="7" fill="url(#zuma-ball-purple)" />
+            <circle cx="180" cy="85" r="7" fill="url(#zuma-ball-red)" />
+            <circle cx="175" cy="100" r="7" fill="url(#zuma-ball-red)" />
+            <circle cx="160" cy="115" r="7" fill="url(#zuma-ball-yellow)" />
+            <circle cx="140" cy="125" r="7" fill="url(#zuma-ball-blue)" />
+            <circle cx="120" cy="128" r="7" fill="url(#zuma-ball-blue)" />
+            <circle cx="100" cy="125" r="7" fill="url(#zuma-ball-green)" />
+            <circle cx="80" cy="120" r="7" fill="url(#zuma-ball-green)" />
+            <circle cx="62" cy="110" r="7" fill="url(#zuma-ball-red)" />
+
+            {/* Flying Bullet Ball towards Match */}
+            <g transform="translate(94, 62)" filter="url(#zuma-glow)">
+              <circle cx="0" cy="0" r="7" fill="url(#zuma-ball-yellow)" />
+              {/* Sparkle Trail */}
+              <circle cx="-8" cy="8" r="2.5" fill="#fef08a" opacity="0.8" />
+              <circle cx="-16" cy="15" r="1.5" fill="#fef08a" opacity="0.5" />
+            </g>
+
+            {/* Central Zuma Stone Frog */}
+            <g transform="translate(100, 78) rotate(-45)">
+              {/* Shadow */}
+              <ellipse cx="2" cy="3" rx="20" ry="17" fill="#000000" opacity="0.5" />
+
+              {/* Stone Body */}
+              <ellipse cx="0" cy="0" rx="19" ry="16" fill="#065f46" stroke="#047857" strokeWidth="1.5" />
+
+              {/* Big Eyes */}
+              <circle cx="11" cy="-10" r="6" fill="#047857" />
+              <circle cx="11" cy="10" r="6" fill="#047857" />
+              <circle cx="12" cy="-10" r="2.5" fill="#facc15" />
+              <circle cx="12" cy="10" r="2.5" fill="#facc15" />
+
+              {/* Next Ball on Frog Back */}
+              <circle cx="-9" cy="0" r="5" fill="url(#zuma-ball-purple)" />
+
+              {/* Current Ball in Mouth */}
+              <circle cx="15" cy="0" r="6.5" fill="url(#zuma-ball-yellow)" filter="url(#zuma-glow)" />
+            </g>
+
+            {/* Golden Coin Target */}
+            <g transform="translate(24, 115)" filter="url(#zuma-glow)">
+              <circle cx="0" cy="0" r="9" fill="#facc15" stroke="#ca8a04" strokeWidth="1.5" />
+              <text x="0" y="3" fill="#78350f" fontSize="8" fontWeight="bold" textAnchor="middle">$</text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>
