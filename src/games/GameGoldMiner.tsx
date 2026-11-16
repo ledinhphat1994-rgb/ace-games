@@ -1995,93 +1995,181 @@ export const GameGoldMiner: React.FC = () => {
 
         {/* Cửa Hàng Thợ Mỏ Giữa Các Màn (Shop Modal) */}
         {isShopOpen && (
-          <div className="absolute inset-0 bg-slate-950/92 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40">
-            <div className="w-full max-w-xl p-6 rounded-3xl bg-slate-900 border-2 border-amber-500/40 shadow-2xl space-y-5">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-6 text-center z-40 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-full max-w-2xl p-4 sm:p-6 rounded-3xl bg-slate-900/95 border-2 border-amber-500/50 shadow-[0_0_50px_rgba(245,158,11,0.25)] space-y-4 sm:space-y-5">
+              {/* Header cửa hàng */}
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div className="flex items-center gap-2 text-amber-400 font-black text-lg">
-                  <ShoppingBag className="w-6 h-6" />
+                <div className="flex items-center gap-2.5 text-amber-400 font-black text-base sm:text-xl tracking-wide">
+                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                    <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 animate-pulse" />
+                  </div>
                   <span>CỬA HÀNG THỢ MỎ</span>
                 </div>
-                <div className="px-3 py-1 rounded-xl bg-slate-950 border border-amber-500/30 text-amber-300 font-black font-mono">
-                  TIỀN VÀNG: ${score.toLocaleString()}
+                <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-950 border border-amber-500/40 text-amber-300 font-black font-mono text-sm sm:text-base shadow-inner">
+                  <span className="text-amber-400 text-xs sm:text-sm">VÀNG:</span>
+                  <span>${score.toLocaleString()}</span>
                 </div>
               </div>
 
-              {/* Danh sách vật phẩm có thể mua */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
-                {/* 1. Thuốc nổ */}
-                <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex flex-col justify-between">
-                  <div>
-                    <div className="text-2xl mb-1">💣</div>
-                    <span className="text-xs font-bold text-white block">Thuốc Nổ</span>
-                    <span className="text-[10px] text-gray-400 block mb-2">Phá đá nặng khi bị kéo nhầm</span>
+              {/* 4 Thẻ Vật Phẩm Trực Quan To Rõ & Animated (Chữ ít) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+                {/* 1. Thuốc Nổ */}
+                <div className="group relative p-3 sm:p-4 rounded-2xl bg-slate-950/80 border-2 border-rose-500/30 hover:border-rose-400 hover:shadow-[0_0_25px_rgba(244,63,94,0.3)] transition-all duration-300 hover:scale-105 flex flex-col justify-between items-center text-center">
+                  <div className="w-full flex flex-col items-center">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <div className="absolute inset-2 bg-rose-500/20 rounded-full blur-xl group-hover:bg-rose-500/35 transition-colors" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full relative z-10" fill="none">
+                        <circle cx="50" cy="18" r="6" fill="#fef08a" className="animate-ping opacity-75" />
+                        <circle cx="50" cy="18" r="4" fill="#f59e0b" className="animate-pulse" />
+                        <circle cx="50" cy="18" r="2" fill="#ffffff" />
+                        <path d="M 50 18 Q 44 26 50 36" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
+                        <rect x="26" y="36" width="14" height="48" rx="4" fill="#dc2626" stroke="#991b1b" strokeWidth="1.5" />
+                        <rect x="29" y="38" width="4" height="44" rx="2" fill="#ef4444" opacity="0.6" />
+                        <rect x="60" y="36" width="14" height="48" rx="4" fill="#dc2626" stroke="#991b1b" strokeWidth="1.5" />
+                        <rect x="63" y="38" width="4" height="44" rx="2" fill="#ef4444" opacity="0.6" />
+                        <rect x="42" y="32" width="16" height="54" rx="4" fill="#ef4444" stroke="#7f1d1d" strokeWidth="1.5" />
+                        <rect x="45" y="34" width="4" height="50" rx="2" fill="#fca5a5" opacity="0.7" />
+                        <rect x="24" y="44" width="52" height="6" rx="2" fill="#f59e0b" stroke="#78350f" strokeWidth="1" />
+                        <rect x="24" y="68" width="52" height="6" rx="2" fill="#f59e0b" stroke="#78350f" strokeWidth="1" />
+                        <text x="50" y="61" fill="#ffffff" fontSize="9" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">TNT</text>
+                      </svg>
+                    </div>
+
+                    <span className="text-xs sm:text-sm font-black text-white mt-1.5 block">THUỐC NỔ</span>
+                    <span className="mt-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-black text-[10px] sm:text-[11px]">
+                      +1 💣 NỔ ĐÁ
+                    </span>
                   </div>
+
                   <button
                     onClick={() => handleBuyItem('dynamite', 150)}
                     disabled={score < 150}
-                    className="w-full py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs transition cursor-pointer"
+                    className="w-full mt-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 disabled:opacity-40 text-slate-950 font-black text-xs sm:text-sm transition cursor-pointer shadow-md active:scale-95"
                   >
                     $150
                   </button>
                 </div>
 
-                {/* 2. Nước tăng lực */}
-                <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex flex-col justify-between">
-                  <div>
-                    <div className="text-2xl mb-1">⚡</div>
-                    <span className="text-xs font-bold text-white block">Nước Tăng Lực</span>
-                    <span className="text-[10px] text-gray-400 block mb-2">Kéo quặng nhanh gấp đôi màn sau</span>
+                {/* 2. Nước Tăng Lực */}
+                <div className="group relative p-3 sm:p-4 rounded-2xl bg-slate-950/80 border-2 border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all duration-300 hover:scale-105 flex flex-col justify-between items-center text-center">
+                  <div className="w-full flex flex-col items-center">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <div className="absolute inset-2 bg-cyan-500/20 rounded-full blur-xl group-hover:bg-cyan-500/35 transition-colors" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full relative z-10" fill="none">
+                        <rect x="42" y="16" width="16" height="8" rx="2" fill="#b45309" stroke="#78350f" strokeWidth="1" />
+                        <path d="M 44 24 L 44 32 L 32 48 C 24 58 24 74 34 84 C 42 92 58 92 66 84 C 76 74 76 58 68 48 L 56 32 L 56 24 Z" fill="#083344" stroke="#38bdf8" strokeWidth="2" />
+                        <path d="M 32 60 C 32 78 40 86 50 86 C 60 86 68 78 68 60 C 62 62 56 58 50 60 C 44 62 38 58 32 60 Z" fill="#0284c7" />
+                        <circle cx="44" cy="72" r="3" fill="#ffffff" opacity="0.6" className="animate-bounce" />
+                        <circle cx="56" cy="66" r="2" fill="#ffffff" opacity="0.7" className="animate-ping" />
+                        <path d="M 53 38 L 44 54 L 51 54 L 46 72 L 58 52 L 50 52 Z" fill="#fef08a" stroke="#f59e0b" strokeWidth="1" className="animate-pulse" />
+                        <path d="M 36 52 C 30 62 30 74 38 82" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+                      </svg>
+                    </div>
+
+                    <span className="text-xs sm:text-sm font-black text-white mt-1.5 block">TĂNG LỰC</span>
+                    <span className="mt-1 px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-black text-[10px] sm:text-[11px]">
+                      ⚡ KÉO x2
+                    </span>
                   </div>
+
                   <button
                     onClick={() => handleBuyItem('strength', 200)}
                     disabled={score < 200 || hasStrengthPotion}
-                    className="w-full py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 font-black text-xs transition cursor-pointer"
+                    className={`w-full mt-3 py-2 rounded-xl font-black text-xs sm:text-sm transition cursor-pointer shadow-md active:scale-95 ${
+                      hasStrengthPotion
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 cursor-default'
+                        : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 disabled:opacity-40 text-slate-950'
+                    }`}
                   >
-                    {hasStrengthPotion ? 'ĐÃ CÓ' : '$200'}
+                    {hasStrengthPotion ? '✓ ĐÃ CÓ' : '$200'}
                   </button>
                 </div>
 
-                {/* 3. Đánh bóng kim cương */}
-                <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex flex-col justify-between">
-                  <div>
-                    <div className="text-2xl mb-1">💎</div>
-                    <span className="text-xs font-bold text-white block">Nước Đánh Bóng</span>
-                    <span className="text-[10px] text-gray-400 block mb-2">Kim cương tăng thêm +$200</span>
+                {/* 3. Đánh Bóng Kim Cương */}
+                <div className="group relative p-3 sm:p-4 rounded-2xl bg-slate-950/80 border-2 border-fuchsia-500/30 hover:border-fuchsia-400 hover:shadow-[0_0_25px_rgba(217,70,239,0.3)] transition-all duration-300 hover:scale-105 flex flex-col justify-between items-center text-center">
+                  <div className="w-full flex flex-col items-center">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <div className="absolute inset-2 bg-fuchsia-500/20 rounded-full blur-xl group-hover:bg-fuchsia-500/35 transition-colors" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full relative z-10" fill="none">
+                        <polygon points="50,20 78,42 66,80 34,80 22,42" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
+                        <polygon points="50,20 62,42 50,56 38,42" fill="#ffffff" opacity="0.6" />
+                        <polygon points="38,42 50,56 34,80" fill="#38bdf8" opacity="0.7" />
+                        <polygon points="62,42 50,56 66,80" fill="#0369a1" opacity="0.8" />
+                        <polygon points="50,56 34,80 66,80" fill="#075985" opacity="0.9" />
+                        <g transform="translate(74, 30)" className="animate-pulse">
+                          <path d="M 0 -8 L 1.5 -2 L 8 0 L 1.5 2 L 0 8 L -1.5 2 L -8 0 L -1.5 -2 Z" fill="#ffffff" />
+                        </g>
+                        <g transform="translate(24, 62)" className="animate-pulse">
+                          <path d="M 0 -6 L 1.2 -1.5 L 6 0 L 1.2 1.5 L 0 6 L -1.2 1.5 L -6 0 L -1.2 -1.5 Z" fill="#ffffff" />
+                        </g>
+                      </svg>
+                    </div>
+
+                    <span className="text-xs sm:text-sm font-black text-white mt-1.5 block">ĐÁNH BÓNG</span>
+                    <span className="mt-1 px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 font-black text-[10px] sm:text-[11px]">
+                      💎 +$200
+                    </span>
                   </div>
+
                   <button
                     onClick={() => handleBuyItem('polish', 180)}
                     disabled={score < 180 || hasDiamondPolish}
-                    className="w-full py-1.5 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 disabled:opacity-40 text-slate-950 font-black text-xs transition cursor-pointer"
+                    className={`w-full mt-3 py-2 rounded-xl font-black text-xs sm:text-sm transition cursor-pointer shadow-md active:scale-95 ${
+                      hasDiamondPolish
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 cursor-default'
+                        : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:brightness-110 disabled:opacity-40 text-slate-950'
+                    }`}
                   >
-                    {hasDiamondPolish ? 'ĐÃ CÓ' : '$180'}
+                    {hasDiamondPolish ? '✓ ĐÃ CÓ' : '$180'}
                   </button>
                 </div>
 
-                {/* 4. Cỏ 4 lá may mắn */}
-                <div className="p-3 rounded-2xl bg-slate-950 border border-white/10 flex flex-col justify-between">
-                  <div>
-                    <div className="text-2xl mb-1">🍀</div>
-                    <span className="text-xs font-bold text-white block">Cỏ May Mắn</span>
-                    <span className="text-[10px] text-gray-400 block mb-2">Túi bí ẩn mở ra phần thưởng xịn</span>
+                {/* 4. Cỏ May Mắn */}
+                <div className="group relative p-3 sm:p-4 rounded-2xl bg-slate-950/80 border-2 border-emerald-500/30 hover:border-emerald-400 hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 hover:scale-105 flex flex-col justify-between items-center text-center">
+                  <div className="w-full flex flex-col items-center">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <div className="absolute inset-2 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/35 transition-colors" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full relative z-10" fill="none">
+                        <path d="M 50 50 Q 56 74 46 88" stroke="#15803d" strokeWidth="3.5" strokeLinecap="round" />
+                        <path d="M 50 50 C 40 36 34 22 46 16 C 54 12 50 28 50 50 C 50 28 46 12 54 16 C 66 22 60 36 50 50 Z" fill="#22c55e" stroke="#166534" strokeWidth="1.2" />
+                        <path d="M 50 50 C 64 40 78 34 84 46 C 88 54 72 50 50 50 C 72 50 88 46 84 54 C 78 66 64 60 50 50 Z" fill="#22c55e" stroke="#166534" strokeWidth="1.2" />
+                        <path d="M 50 50 C 60 64 66 78 54 84 C 46 88 50 72 50 50 C 50 72 54 88 46 84 C 34 78 40 64 50 50 Z" fill="#22c55e" stroke="#166534" strokeWidth="1.2" />
+                        <path d="M 50 50 C 36 60 22 66 16 54 C 12 46 28 50 50 50 C 28 50 12 54 16 46 C 22 34 36 40 50 50 Z" fill="#22c55e" stroke="#166534" strokeWidth="1.2" />
+                        <circle cx="50" cy="50" r="3" fill="#fde047" className="animate-ping opacity-60" />
+                        <circle cx="50" cy="50" r="2.5" fill="#facc15" />
+                        <circle cx="70" cy="28" r="2.5" fill="#fef08a" className="animate-pulse" />
+                        <circle cx="28" cy="32" r="2" fill="#fef08a" className="animate-pulse" />
+                      </svg>
+                    </div>
+
+                    <span className="text-xs sm:text-sm font-black text-white mt-1.5 block">CỎ MAY MẮN</span>
+                    <span className="mt-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black text-[10px] sm:text-[11px]">
+                      🍀 QUÀ XỊN
+                    </span>
                   </div>
+
                   <button
                     onClick={() => handleBuyItem('clover', 120)}
                     disabled={score < 120 || hasLuckyClover}
-                    className="w-full py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black text-xs transition cursor-pointer"
+                    className={`w-full mt-3 py-2 rounded-xl font-black text-xs sm:text-sm transition cursor-pointer shadow-md active:scale-95 ${
+                      hasLuckyClover
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 cursor-default'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 disabled:opacity-40 text-slate-950'
+                    }`}
                   >
-                    {hasLuckyClover ? 'ĐÃ CÓ' : '$120'}
+                    {hasLuckyClover ? '✓ ĐÃ CÓ' : '$120'}
                   </button>
                 </div>
               </div>
 
               {/* Nút sang màn tiếp theo */}
-              <div className="pt-2">
+              <div className="pt-1">
                 <button
                   onClick={handleNextLevelFromShop}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg hover:brightness-110 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="group w-full py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Bắt Đầu Màn {level + 1}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1.5 transition-transform" />
                 </button>
               </div>
             </div>
