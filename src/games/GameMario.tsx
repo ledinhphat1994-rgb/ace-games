@@ -12,19 +12,17 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
-// Kích thước chuẩn Widescreen 16:9 Cinema Arcade
+// Kích thước chuẩn Widescreen 16:9 Cinema Arcade Full Viewport
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 540;
 
-// Sân khấu chính 740x540px, Sidebar thông số bên phải 220px
-const ARENA_WIDTH = 740;
-const ARENA_HEIGHT = 540;
-const SIDEBAR_X = ARENA_WIDTH;
-const SIDEBAR_WIDTH = CANVAS_WIDTH - ARENA_WIDTH;
+// Sử dụng toàn bộ 960px chiều ngang cho sân khấu phiêu lưu, tầm nhìn rộng mở tối đa
+const ARENA_WIDTH = CANVAS_WIDTH;
+const ARENA_HEIGHT = CANVAS_HEIGHT;
 
-// Kích thước chuẩn các khối địa hình (48x48 cho đồ họa lớn, rõ nét)
+// Kích thước khối địa hình chuẩn (48x48) & Cao độ mặt đất (y = 468 để có 468px không gian bay nhảy)
 const BLOCK_SIZE = 48;
-const GROUND_Y = 432;
+const GROUND_Y = 468;
 
 type MarioForm = 'small' | 'super' | 'fire';
 
@@ -59,7 +57,7 @@ interface Block {
   y: number;
   w: number;
   h: number;
-  type: 'ground' | 'brick' | 'question' | 'empty' | 'pipe' | 'hard_block';
+  type: 'ground' | 'brick' | 'question' | 'empty' | 'hard_block';
   content?: 'coin' | 'mushroom' | 'fireflower' | 'star' | '1up';
   isHit?: boolean;
   hitOffsetY?: number;
@@ -158,7 +156,7 @@ export const GameMario: React.FC = () => {
   useEffect(() => { marioFormRef.current = marioForm; }, [marioForm]);
   useEffect(() => { isStarRef.current = isStarInvincible; }, [isStarInvincible]);
 
-  // Player Mario Ref (Kích thước lớn: Small 38x54, Super 46x76)
+  // Player Mario Ref (Kích thước lớn sắc sảo: Small 38x54, Super 46x76)
   const marioRef = useRef({
     x: 100,
     y: GROUND_Y - 54,
@@ -187,8 +185,8 @@ export const GameMario: React.FC = () => {
   const fireballsRef = useRef<Fireball[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const floatersRef = useRef<Floater[]>([]);
-  const flagpoleRef = useRef({ x: 3400, y: 120, h: 312, flagY: 130 });
-  const castleRef = useRef({ x: 3560, y: 192, w: 220, h: 240, hasFlag: false, castleFlagY: 192 });
+  const flagpoleRef = useRef({ x: 3400, y: 140, h: 328, flagY: 150 });
+  const castleRef = useRef({ x: 3560, y: 228, w: 240, h: 240, hasFlag: false, castleFlagY: 228 });
   const axeRef = useRef<{ x: number; y: number; active: boolean } | null>(null);
   const bridgeBlocksRef = useRef<Block[]>([]);
 
@@ -298,7 +296,7 @@ export const GameMario: React.FC = () => {
             x: bx,
             y: GROUND_Y,
             w: BLOCK_SIZE,
-            h: 120,
+            h: 72,
             type: 'ground',
           });
         }
@@ -319,7 +317,7 @@ export const GameMario: React.FC = () => {
         pipesRef.current.push({
           x: p.x,
           y: GROUND_Y - p.h,
-          w: 64,
+          w: 68,
           h: p.h,
           hasPiranha: p.hasPiranha,
           piranhaOffset: 0,
@@ -332,39 +330,39 @@ export const GameMario: React.FC = () => {
     // 3. Khối gạch & Khối Hỏi Chấm [?] (Kích thước 48x48)
     const blockLayouts: Array<{ x: number; y: number; type: 'brick' | 'question'; content?: 'coin' | 'mushroom' | 'fireflower' | 'star' }> = [
       // Nhóm khối đầu tiên
-      { x: 384, y: 288, type: 'question', content: 'coin' },
-      { x: 432, y: 288, type: 'brick' },
-      { x: 480, y: 288, type: 'question', content: 'mushroom' },
-      { x: 528, y: 288, type: 'brick' },
-      { x: 576, y: 288, type: 'question', content: 'coin' },
+      { x: 384, y: 312, type: 'question', content: 'coin' },
+      { x: 432, y: 312, type: 'brick' },
+      { x: 480, y: 312, type: 'question', content: 'mushroom' },
+      { x: 528, y: 312, type: 'brick' },
+      { x: 576, y: 312, type: 'question', content: 'coin' },
 
       // Cầu gạch trên cao
-      { x: 768, y: 192, type: 'brick' },
-      { x: 816, y: 192, type: 'question', content: 'star' },
-      { x: 864, y: 192, type: 'brick' },
-      { x: 912, y: 192, type: 'brick' },
+      { x: 768, y: 216, type: 'brick' },
+      { x: 816, y: 216, type: 'question', content: 'star' },
+      { x: 864, y: 216, type: 'brick' },
+      { x: 912, y: 216, type: 'brick' },
 
       // Nhóm khối giữa màn
-      { x: 1392, y: 288, type: 'brick' },
-      { x: 1440, y: 288, type: 'question', content: 'fireflower' },
-      { x: 1488, y: 288, type: 'brick' },
+      { x: 1392, y: 312, type: 'brick' },
+      { x: 1440, y: 312, type: 'question', content: 'fireflower' },
+      { x: 1488, y: 312, type: 'brick' },
 
       // Dãy gạch vượt hố
-      { x: 1776, y: 240, type: 'question', content: 'coin' },
-      { x: 1824, y: 240, type: 'question', content: 'coin' },
-      { x: 1872, y: 240, type: 'question', content: 'mushroom' },
+      { x: 1776, y: 264, type: 'question', content: 'coin' },
+      { x: 1824, y: 264, type: 'question', content: 'coin' },
+      { x: 1872, y: 264, type: 'question', content: 'mushroom' },
 
       // Bậc thang kim tự tháp cuối màn
-      { x: 3120, y: 384, type: 'hard_block' as any },
-      { x: 3168, y: 384, type: 'hard_block' as any },
-      { x: 3168, y: 336, type: 'hard_block' as any },
-      { x: 3216, y: 384, type: 'hard_block' as any },
-      { x: 3216, y: 336, type: 'hard_block' as any },
-      { x: 3216, y: 288, type: 'hard_block' as any },
-      { x: 3264, y: 384, type: 'hard_block' as any },
-      { x: 3264, y: 336, type: 'hard_block' as any },
-      { x: 3264, y: 288, type: 'hard_block' as any },
-      { x: 3264, y: 240, type: 'hard_block' as any },
+      { x: 3120, y: 420, type: 'hard_block' as any },
+      { x: 3168, y: 420, type: 'hard_block' as any },
+      { x: 3168, y: 372, type: 'hard_block' as any },
+      { x: 3216, y: 420, type: 'hard_block' as any },
+      { x: 3216, y: 372, type: 'hard_block' as any },
+      { x: 3216, y: 324, type: 'hard_block' as any },
+      { x: 3264, y: 420, type: 'hard_block' as any },
+      { x: 3264, y: 372, type: 'hard_block' as any },
+      { x: 3264, y: 324, type: 'hard_block' as any },
+      { x: 3264, y: 276, type: 'hard_block' as any },
     ];
 
     blockLayouts.forEach(b => {
@@ -453,17 +451,17 @@ export const GameMario: React.FC = () => {
     // 5. Cột cờ và Lâu đài đích đến
     flagpoleRef.current = {
       x: levelLen - 340,
-      y: GROUND_Y - 300,
-      h: 300,
-      flagY: GROUND_Y - 290,
+      y: GROUND_Y - 328,
+      h: 328,
+      flagY: GROUND_Y - 318,
     };
     castleRef.current = {
       x: levelLen - 180,
-      y: GROUND_Y - 220,
-      w: 220,
-      h: 220,
+      y: GROUND_Y - 240,
+      w: 240,
+      h: 240,
       hasFlag: false,
-      castleFlagY: GROUND_Y - 220,
+      castleFlagY: GROUND_Y - 240,
     };
 
     // Reset vị trí Mario
@@ -878,8 +876,8 @@ export const GameMario: React.FC = () => {
             m.animFrame = 0;
           }
 
-          // Camera cuộn mượt
-          const targetCamX = m.x - ARENA_WIDTH * 0.36;
+          // Camera cuộn mượt (Sử dụng tỷ lệ 0.38 của ARENA_WIDTH 960px)
+          const targetCamX = m.x - ARENA_WIDTH * 0.38;
           if (targetCamX > cameraXRef.current) {
             cameraXRef.current = targetCamX;
           }
@@ -1081,14 +1079,9 @@ export const GameMario: React.FC = () => {
       // 2. RENDER GRAPHICS
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-      ctx.clip();
-
       const camX = cameraXRef.current;
 
-      // HẬU CẢNH CHI TIẾT SỐNG ĐỘNG
+      // HẬU CẢNH CHI TIẾT SỐNG ĐỘNG TOÀN MÀN HÌNH WIDESCREEN
       if (currentStage === 4) {
         // Lâu đài dung nham Bowser
         const lavaSky = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
@@ -1100,7 +1093,7 @@ export const GameMario: React.FC = () => {
 
         // Vách đá nham thạch đen
         ctx.fillStyle = '#170b14';
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 10; i++) {
           const hX = (i * 380 - camX * 0.3) % (worldLengthRef.current + 200);
           ctx.beginPath();
           ctx.moveTo(hX, GROUND_Y);
@@ -1119,7 +1112,7 @@ export const GameMario: React.FC = () => {
 
         // Tinh thể pha lê lấp lánh trên trần hang
         ctx.fillStyle = '#38bdf8';
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 20; i++) {
           const cx = (i * 240 - camX * 0.2) % (worldLengthRef.current + 200);
           ctx.beginPath();
           ctx.moveTo(cx, 0);
@@ -1131,68 +1124,102 @@ export const GameMario: React.FC = () => {
         // Màn 1 & 3: Bầu trời xanh nhiệt đới rực rỡ nắng vàng
         const skyGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
         skyGrad.addColorStop(0, '#0284c7');
-        skyGrad.addColorStop(0.4, '#38bdf8');
-        skyGrad.addColorStop(0.8, '#7dd3fc');
+        skyGrad.addColorStop(0.35, '#38bdf8');
+        skyGrad.addColorStop(0.75, '#7dd3fc');
         skyGrad.addColorStop(1, '#bae6fd');
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
-        // Mặt trời tỏa tia nắng dịu
-        const sunGrad = ctx.createRadialGradient(620, 90, 10, 620, 90, 85);
-        sunGrad.addColorStop(0, '#fffbeb');
-        sunGrad.addColorStop(0.4, 'rgba(253, 224, 71, 0.45)');
-        sunGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
-        ctx.fillStyle = sunGrad;
-        ctx.beginPath();
-        ctx.arc(620, 90, 85, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Mây trắng hoạt hình Super Mario có mắt cười ngộ nghĩnh
-        for (let i = 0; i < 10; i++) {
-          const cX = (i * 420 - camX * 0.22) % (worldLengthRef.current + 300);
-          const cY = 55 + (i % 3) * 50;
-          ctx.fillStyle = '#ffffff';
+        // Dãy núi xa xăm tuyết phủ (Distant Snowy Mountains - Parallax cực đẹp)
+        for (let i = 0; i < 7; i++) {
+          const mX = (i * 540 - camX * 0.12) % (worldLengthRef.current + 400);
+          ctx.fillStyle = '#64748b';
           ctx.beginPath();
-          ctx.arc(cX, cY, 32, 0, Math.PI * 2);
-          ctx.arc(cX + 28, cY - 14, 38, 0, Math.PI * 2);
-          ctx.arc(cX + 64, cY, 32, 0, Math.PI * 2);
+          ctx.moveTo(mX - 120, GROUND_Y);
+          ctx.lineTo(mX + 60, 140);
+          ctx.lineTo(mX + 240, GROUND_Y);
           ctx.fill();
 
-          // 2 Mắt đen tròn có chấm trắng
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(cX + 20, cY - 8, 4, 10);
-          ctx.fillRect(cX + 36, cY - 8, 4, 10);
+          // Chóp tuyết trắng đỉnh núi
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(cX + 21, cY - 7, 2, 4);
-          ctx.fillRect(cX + 37, cY - 7, 2, 4);
+          ctx.beginPath();
+          ctx.moveTo(mX + 60, 140);
+          ctx.lineTo(mX + 18, 205);
+          ctx.lineTo(mX + 45, 195);
+          ctx.lineTo(mX + 60, 215);
+          ctx.lineTo(mX + 80, 195);
+          ctx.lineTo(mX + 102, 205);
+          ctx.closePath();
+          ctx.fill();
         }
 
-        // Đồi xanh nhấp nhô có sọc đổ bóng và mắt cười
+        // Đồi cỏ xanh nhiều tầng Super Mario có sọc bóng & mắt cười ngộ nghĩnh
         for (let i = 0; i < 8; i++) {
-          const hillX = (i * 580 - camX * 0.45) % (worldLengthRef.current + 300);
+          const hillX = (i * 520 - camX * 0.28) % (worldLengthRef.current + 400);
+          // Đồi lớn
           ctx.fillStyle = '#16a34a';
           ctx.beginPath();
-          ctx.ellipse(hillX, GROUND_Y, 140, 95, 0, Math.PI, 0);
+          ctx.ellipse(hillX, GROUND_Y, 150, 110, 0, Math.PI, 0);
           ctx.fill();
 
-          // Sọc đổ bóng xanh thẫm
+          // Sọc đổ bóng xanh đậm
           ctx.fillStyle = '#15803d';
           ctx.beginPath();
-          ctx.ellipse(hillX - 25, GROUND_Y - 20, 18, 10, 0, 0, Math.PI * 2);
-          ctx.ellipse(hillX + 35, GROUND_Y - 35, 14, 8, 0, 0, Math.PI * 2);
+          ctx.ellipse(hillX - 30, GROUND_Y - 25, 22, 12, 0, 0, Math.PI * 2);
+          ctx.ellipse(hillX + 40, GROUND_Y - 45, 18, 10, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          // 2 Mắt đồi Super Mario
+          // Mắt đồi hoạt hình Super Mario
           ctx.fillStyle = '#064e3b';
-          ctx.fillRect(hillX - 8, GROUND_Y - 65, 4, 10);
-          ctx.fillRect(hillX + 4, GROUND_Y - 65, 4, 10);
+          ctx.fillRect(hillX - 10, GROUND_Y - 75, 5, 12);
+          ctx.fillRect(hillX + 5, GROUND_Y - 75, 5, 12);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(hillX - 9, GROUND_Y - 74, 2, 4);
+          ctx.fillRect(hillX + 6, GROUND_Y - 74, 2, 4);
+        }
+
+        // Mây trắng hoạt hình Super Mario có mắt cười
+        for (let i = 0; i < 10; i++) {
+          const cX = (i * 420 - camX * 0.2) % (worldLengthRef.current + 400);
+          const cY = 70 + (i % 3) * 45;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(cX, cY, 34, 0, Math.PI * 2);
+          ctx.arc(cX + 30, cY - 16, 42, 0, Math.PI * 2);
+          ctx.arc(cX + 68, cY, 34, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 2 Mắt đen tròn có chấm phản quang
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(cX + 22, cY - 8, 4.5, 12);
+          ctx.fillRect(cX + 42, cY - 8, 4.5, 12);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(cX + 23, cY - 7, 2, 4);
+          ctx.fillRect(cX + 43, cY - 7, 2, 4);
+        }
+
+        // Bụi cây xanh ven đường có chùm quả đỏ
+        for (let i = 0; i < 12; i++) {
+          const bushX = (i * 360 - camX * 0.5) % (worldLengthRef.current + 300);
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(bushX, GROUND_Y - 8, 22, 0, Math.PI * 2);
+          ctx.arc(bushX + 24, GROUND_Y - 14, 26, 0, Math.PI * 2);
+          ctx.arc(bushX + 48, GROUND_Y - 8, 22, 0, Math.PI * 2);
+          ctx.fill();
+          // Chùm quả mọng đỏ
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(bushX + 16, GROUND_Y - 16, 3.5, 0, Math.PI * 2);
+          ctx.arc(bushX + 32, GROUND_Y - 20, 3.5, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
       ctx.save();
       ctx.translate(-camX, 0);
 
-      // VẼ MẶT ĐẤT VÀ KHỐI GẠCH 3D
+      // VẼ MẶT ĐẤT VÀ KHỐI ĐỊA HÌNH 3D CHI TIẾT
       blocksRef.current.forEach(b => {
         if (b.x + b.w < camX - 60 || b.x > camX + ARENA_WIDTH + 60) return;
 
@@ -1203,14 +1230,14 @@ export const GameMario: React.FC = () => {
         }
 
         if (b.type === 'ground') {
-          // Lòng đất màu đất nung ấm
+          // Lớp đất modular 3D nhiều sắc độ
           const gGrad = ctx.createLinearGradient(b.x, renderY, b.x, renderY + b.h);
           gGrad.addColorStop(0, currentStage === 4 ? '#27272a' : currentStage === 2 ? '#1e293b' : '#b45309');
           gGrad.addColorStop(1, currentStage === 4 ? '#09090b' : currentStage === 2 ? '#0f172a' : '#78350f');
           ctx.fillStyle = gGrad;
           ctx.fillRect(b.x, renderY, b.w, b.h);
 
-          // Thảm cỏ xanh mượt mà trên mặt
+          // Thảm cỏ xanh mượt mà trên mặt có hoa cúc dại
           if (currentStage === 1 || currentStage === 3) {
             ctx.fillStyle = '#22c55e';
             ctx.fillRect(b.x, renderY, b.w, 14);
@@ -1223,14 +1250,25 @@ export const GameMario: React.FC = () => {
               ctx.lineTo(cx + 12, renderY + 14);
               ctx.fill();
             }
+            // Hoa cúc vàng nhỏ trên thảm cỏ
+            if (Math.floor(b.x) % 96 === 0) {
+              ctx.fillStyle = '#fef08a';
+              ctx.beginPath();
+              ctx.arc(b.x + 24, renderY + 5, 3.5, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#f59e0b';
+              ctx.beginPath();
+              ctx.arc(b.x + 24, renderY + 5, 1.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
 
           // Viền đá nứt phong trần 3D
-          ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
           ctx.lineWidth = 2;
           ctx.strokeRect(b.x, renderY, b.w, b.h);
         } else if (b.type === 'question') {
-          // KHỐI HỎI CHẤM [?] VÀNG KIM NỔI BẬT
+          // KHỐI HỎI CHẤM [?] MẠ VÀNG 3D RỰC RỠ CỰC ĐẸP
           const qGrad = ctx.createLinearGradient(b.x, renderY, b.x + b.w, renderY + b.h);
           qGrad.addColorStop(0, '#fef08a');
           qGrad.addColorStop(0.3, '#facc15');
@@ -1239,29 +1277,37 @@ export const GameMario: React.FC = () => {
           ctx.fillStyle = qGrad;
           ctx.fillRect(b.x, renderY, b.w, b.h);
 
-          // Viền vát 3D vàng kim
+          // Khung viền vát 3D dập nổi
           ctx.strokeStyle = '#854d0e';
           ctx.lineWidth = 3;
           ctx.strokeRect(b.x, renderY, b.w, b.h);
 
-          // Đinh tán 4 góc
+          // Vệt sáng chéo kim loại phản quang (Metallic Shimmer)
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.beginPath();
+          ctx.moveTo(b.x + 4, renderY + 4);
+          ctx.lineTo(b.x + 18, renderY + 4);
+          ctx.lineTo(b.x + 4, renderY + 18);
+          ctx.closePath();
+          ctx.fill();
+
+          // 4 Đinh tán đồng 4 góc
           ctx.fillStyle = '#713f12';
           ctx.fillRect(b.x + 4, renderY + 4, 4, 4);
           ctx.fillRect(b.x + b.w - 8, renderY + 4, 4, 4);
           ctx.fillRect(b.x + 4, renderY + b.h - 8, 4, 4);
           ctx.fillRect(b.x + b.w - 8, renderY + b.h - 8, 4, 4);
 
-          // Chữ [?] màu nâu đậm dập nổi
+          // Dấu hỏi màu nâu đậm nổi khối 3D rõ nét
           ctx.fillStyle = '#78350f';
           ctx.font = 'black 26px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('?', b.x + b.w / 2, renderY + b.h / 2 + 1);
         } else if (b.type === 'brick') {
-          // Khối gạch nâu đất nung
+          // Khối gạch nâu đất nung cổ điển có vân nổi
           ctx.fillStyle = currentStage === 4 ? '#991b1b' : currentStage === 2 ? '#334155' : '#b45309';
           ctx.fillRect(b.x, renderY, b.w, b.h);
-          // Đường ron gạch màu sẫm
           ctx.strokeStyle = '#451a03';
           ctx.lineWidth = 2.5;
           ctx.strokeRect(b.x, renderY, b.w, b.h);
@@ -1276,7 +1322,7 @@ export const GameMario: React.FC = () => {
           ctx.lineTo(b.x + (b.w * 3) / 4, renderY + b.h);
           ctx.stroke();
         } else if (b.type === 'empty') {
-          // Khối sắt đã dùng
+          // Khối sắt xám đã ăn hết đồ
           ctx.fillStyle = '#71717a';
           ctx.fillRect(b.x, renderY, b.w, b.h);
           ctx.strokeStyle = '#3f3f46';
@@ -1290,7 +1336,7 @@ export const GameMario: React.FC = () => {
         }
       });
 
-      // VẼ ĐƯỜNG ỐNG NƯỚC XANH 3D
+      // VẼ ĐƯỜNG ỐNG NƯỚC XANH 3D CỰC ĐẸP (Glossy Warp Pipes)
       pipesRef.current.forEach(p => {
         if (p.x + p.w < camX - 60 || p.x > camX + ARENA_WIDTH + 60) return;
 
@@ -1308,21 +1354,20 @@ export const GameMario: React.FC = () => {
           ctx.arc(p.x + p.w / 2 - 6, plantY + 10, 4, 0, Math.PI * 2);
           ctx.arc(p.x + p.w / 2 + 6, plantY + 18, 3.5, 0, Math.PI * 2);
           ctx.fill();
-          // Hàm răng trắng
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(p.x + p.w / 2 - 10, plantY + 22, 20, 5);
         }
 
-        // Thân ống nước đổ bóng 3D
+        // Thân ống nước đổ bóng trụ tròn 3D
         const pGrad = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y);
         pGrad.addColorStop(0, '#15803d');
-        pGrad.addColorStop(0.25, '#4ade80');
+        pGrad.addColorStop(0.22, '#4ade80');
         pGrad.addColorStop(0.7, '#22c55e');
         pGrad.addColorStop(1, '#14532d');
         ctx.fillStyle = pGrad;
         ctx.fillRect(p.x + 4, p.y + 22, p.w - 8, p.h - 22);
 
-        // Miệng vành ống nước nổi
+        // Miệng vành ống nước 3D có gờ nổi
         ctx.fillRect(p.x, p.y, p.w, 24);
         ctx.strokeStyle = '#052e16';
         ctx.lineWidth = 3;
@@ -1341,73 +1386,78 @@ export const GameMario: React.FC = () => {
         ctx.fillRect(ax.x + 14, ax.y + 24, 8, 26);
       }
 
-      // VẼ CỘT CỜ CHIẾN THẮNG & LÂU ĐÀI KỲ VĨ
+      // VẼ CỘT CỜ CHIẾN THẮNG & LÂU ĐÀI NGUY NGA TRÁNG LỆ
       const fp = flagpoleRef.current;
-      // Trụ cờ đồng thau 3D
+      // Bệ đá 3 tầng đỡ cột cờ
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(fp.x - 14, GROUND_Y - 14, 36, 14);
+      ctx.fillRect(fp.x - 8, GROUND_Y - 24, 24, 10);
+
+      // Thân cột cờ đồng thau 3D ánh kim
       ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(fp.x + 6, fp.y, 6, fp.h);
-      // Quả cầu vàng đỉnh cột
-      const orbGrad = ctx.createRadialGradient(fp.x + 9, fp.y, 2, fp.x + 9, fp.y, 14);
+      ctx.fillRect(fp.x + 2, fp.y, 6, fp.h - 24);
+
+      // Quả cầu vàng đỉnh cột cờ
+      const orbGrad = ctx.createRadialGradient(fp.x + 5, fp.y, 2, fp.x + 5, fp.y, 14);
       orbGrad.addColorStop(0, '#fef08a');
       orbGrad.addColorStop(1, '#ca8a04');
       ctx.fillStyle = orbGrad;
       ctx.beginPath();
-      ctx.arc(fp.x + 9, fp.y, 14, 0, Math.PI * 2);
+      ctx.arc(fp.x + 5, fp.y, 14, 0, Math.PI * 2);
       ctx.fill();
 
-      // Lá cờ xanh/vàng Super Mario
-      const flagY = m.isFlagpoleSliding || m.walkToCastle ? fp.y + fp.h - 50 : fp.flagY;
+      // Lá cờ xanh uốn lượn mượt mà khi trượt
+      const flagY = m.isFlagpoleSliding || m.walkToCastle ? fp.y + fp.h - 60 : fp.flagY;
       ctx.fillStyle = '#22c55e';
       ctx.beginPath();
-      ctx.moveTo(fp.x + 12, flagY);
+      ctx.moveTo(fp.x + 8, flagY);
       ctx.lineTo(fp.x + 58, flagY + 22);
-      ctx.lineTo(fp.x + 12, flagY + 44);
+      ctx.lineTo(fp.x + 8, flagY + 44);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = '#15803d';
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
-      // LÂU ĐÀI ĐÍCH ĐẾN NGUY NGA (Stone Castle)
+      // LÂU ĐÀI ĐÍCH ĐẾN NGUY NGA TRUNG CỔ
       const cst = castleRef.current;
-      // Khối đá lâu đài trung tâm
       const castleGrad = ctx.createLinearGradient(cst.x, cst.y, cst.x + cst.w, cst.y + cst.h);
       castleGrad.addColorStop(0, currentStage === 4 ? '#450a0a' : '#64748b');
       castleGrad.addColorStop(1, currentStage === 4 ? '#1a0404' : '#334155');
       ctx.fillStyle = castleGrad;
       ctx.fillRect(cst.x, cst.y, cst.w, cst.h);
 
-      // Tháp canh 2 bên với mái nón đỏ
-      const towerW = 46;
-      ctx.fillRect(cst.x - 18, cst.y - 30, towerW, cst.h + 30);
-      ctx.fillRect(cst.x + cst.w - 28, cst.y - 30, towerW, cst.h + 30);
+      // Tháp canh 2 bên có chóp nón đỏ rực
+      const towerW = 50;
+      ctx.fillRect(cst.x - 22, cst.y - 36, towerW, cst.h + 36);
+      ctx.fillRect(cst.x + cst.w - 28, cst.y - 36, towerW, cst.h + 36);
 
-      // Mái nón chóp tháp đỏ rực
+      // Mái nón chóp tháp đỏ
       ctx.fillStyle = '#dc2626';
       ctx.beginPath();
-      ctx.moveTo(cst.x - 22, cst.y - 30);
-      ctx.lineTo(cst.x + 5, cst.y - 75);
-      ctx.lineTo(cst.x + 32, cst.y - 30);
+      ctx.moveTo(cst.x - 26, cst.y - 36);
+      ctx.lineTo(cst.x + 3, cst.y - 88);
+      ctx.lineTo(cst.x + 32, cst.y - 36);
       ctx.closePath();
       ctx.fill();
 
       ctx.beginPath();
-      ctx.moveTo(cst.x + cst.w - 32, cst.y - 30);
-      ctx.lineTo(cst.x + cst.w - 5, cst.y - 75);
-      ctx.lineTo(cst.x + cst.w + 22, cst.y - 30);
+      ctx.moveTo(cst.x + cst.w - 32, cst.y - 36);
+      ctx.lineTo(cst.x + cst.w - 3, cst.y - 88);
+      ctx.lineTo(cst.x + cst.w + 26, cst.y - 36);
       ctx.closePath();
       ctx.fill();
 
       // Cờ đỏ tung bay trên đỉnh tháp
       ctx.fillStyle = '#ef4444';
-      ctx.fillRect(cst.x + 3, cst.y - 95, 2, 20);
+      ctx.fillRect(cst.x + 2, cst.y - 110, 2.5, 22);
       ctx.beginPath();
-      ctx.moveTo(cst.x + 5, cst.y - 95);
-      ctx.lineTo(cst.x + 25, cst.y - 85);
-      ctx.lineTo(cst.x + 5, cst.y - 75);
+      ctx.moveTo(cst.x + 4.5, cst.y - 110);
+      ctx.lineTo(cst.x + 28, cst.y - 98);
+      ctx.lineTo(cst.x + 4.5, cst.y - 88);
       ctx.fill();
 
-      // Răng cưa tường thành trung tâm
+      // Răng cưa pháo đài trung tâm
       ctx.fillStyle = castleGrad;
       for (let bx = cst.x + 32; bx < cst.x + cst.w - 32; bx += 32) {
         ctx.fillRect(bx, cst.y - 20, 20, 20);
@@ -1416,22 +1466,21 @@ export const GameMario: React.FC = () => {
       // Cổng vòm gỗ kiên cố của Lâu Đài
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.arc(cst.x + cst.w / 2, cst.y + cst.h - 55, 34, Math.PI, 0);
-      ctx.fillRect(cst.x + cst.w / 2 - 34, cst.y + cst.h - 55, 68, 55);
+      ctx.arc(cst.x + cst.w / 2, cst.y + cst.h - 60, 36, Math.PI, 0);
+      ctx.fillRect(cst.x + cst.w / 2 - 36, cst.y + cst.h - 60, 72, 60);
       ctx.fill();
 
-      // Đèn lồng đuốc 2 bên cổng phát sáng ấm áp
+      // Đèn đuốc phát sáng lung linh 2 bên cổng
       ctx.fillStyle = '#f97316';
       ctx.beginPath();
-      ctx.arc(cst.x + cst.w / 2 - 46, cst.y + cst.h - 45, 6, 0, Math.PI * 2);
-      ctx.arc(cst.x + cst.w / 2 + 46, cst.y + cst.h - 45, 6, 0, Math.PI * 2);
+      ctx.arc(cst.x + cst.w / 2 - 48, cst.y + cst.h - 50, 7, 0, Math.PI * 2);
+      ctx.arc(cst.x + cst.w / 2 + 48, cst.y + cst.h - 50, 7, 0, Math.PI * 2);
       ctx.fill();
 
       // VẼ VẬT PHẨM (NẤM, HOA LỬA, SAO)
       itemsRef.current.forEach(item => {
         if (!item.isAlive) return;
         if (item.type === 'mushroom') {
-          // Nấm đỏ Super Mushroom
           ctx.fillStyle = '#ef4444';
           ctx.beginPath();
           ctx.arc(item.x + item.w / 2, item.y + 16, 17, Math.PI, 0);
@@ -1442,14 +1491,12 @@ export const GameMario: React.FC = () => {
           ctx.arc(item.x + 6, item.y + 14, 4, 0, Math.PI * 2);
           ctx.arc(item.x + item.w - 6, item.y + 14, 4, 0, Math.PI * 2);
           ctx.fill();
-          // Thân nấm kem & 2 mắt
           ctx.fillStyle = '#fef3c7';
           ctx.fillRect(item.x + 9, item.y + 16, item.w - 18, 16);
           ctx.fillStyle = '#000000';
           ctx.fillRect(item.x + 13, item.y + 19, 3, 7);
           ctx.fillRect(item.x + item.w - 16, item.y + 19, 3, 7);
         } else if (item.type === 'fireflower') {
-          // Hoa Lửa
           ctx.fillStyle = '#f97316';
           ctx.beginPath();
           ctx.arc(item.x + item.w / 2, item.y + 14, 15, 0, Math.PI * 2);
@@ -1461,7 +1508,6 @@ export const GameMario: React.FC = () => {
           ctx.fillStyle = '#16a34a';
           ctx.fillRect(item.x + item.w / 2 - 3, item.y + 24, 6, 12);
         } else if (item.type === 'star') {
-          // Sao vàng
           ctx.fillStyle = '#facc15';
           ctx.beginPath();
           const cx = item.x + item.w / 2;
@@ -1487,7 +1533,7 @@ export const GameMario: React.FC = () => {
             ctx.fillStyle = '#78350f';
             ctx.fillRect(en.x, en.y, en.w, 14);
           } else {
-            // Nấm Goomba to rõ nét
+            // Nấm Goomba to tròn có nanh nhọn & mắt giận dữ
             ctx.fillStyle = '#78350f';
             ctx.beginPath();
             ctx.arc(en.x + en.w / 2, en.y + 18, 20, Math.PI, 0);
@@ -1496,7 +1542,6 @@ export const GameMario: React.FC = () => {
             ctx.closePath();
             ctx.fill();
 
-            // Thân kem
             ctx.fillStyle = '#fef3c7';
             ctx.fillRect(en.x + 8, en.y + 28, en.w - 16, 10);
 
@@ -1528,7 +1573,6 @@ export const GameMario: React.FC = () => {
           }
         } else if (en.type === 'koopa') {
           if (en.isShell) {
-            // Mai rùa Koopa lớn
             ctx.fillStyle = '#16a34a';
             ctx.beginPath();
             ctx.arc(en.x + en.w / 2, en.y + 18, 18, 0, Math.PI * 2);
@@ -1537,13 +1581,11 @@ export const GameMario: React.FC = () => {
             ctx.lineWidth = 2.5;
             ctx.stroke();
           } else {
-            // Rùa Koopa tuần tra
             ctx.fillStyle = '#16a34a';
             ctx.beginPath();
             ctx.ellipse(en.x + en.w / 2, en.y + 32, 17, 21, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Đầu rùa vàng
             ctx.fillStyle = '#facc15';
             const headX = en.facing === 'left' ? en.x + 6 : en.x + en.w - 6;
             ctx.beginPath();
@@ -1552,16 +1594,13 @@ export const GameMario: React.FC = () => {
             ctx.fillStyle = '#000000';
             ctx.fillRect(headX + (en.facing === 'left' ? -5 : 3), en.y + 10, 4, 7);
 
-            // Bốt chân cam
             ctx.fillStyle = '#f97316';
             ctx.fillRect(en.x + 3, en.y + 52, 14, 10);
             ctx.fillRect(en.x + en.w - 17, en.y + 52, 14, 10);
           }
         } else if (en.type === 'bowser') {
-          // Boss Bowser khổng lồ uy dũng
           ctx.fillStyle = '#15803d';
           ctx.fillRect(en.x + 18, en.y + 20, 60, 68);
-          // Gai nhọn mai rùa
           ctx.fillStyle = '#ffffff';
           for (let sp = 0; sp < 4; sp++) {
             ctx.beginPath();
@@ -1570,16 +1609,12 @@ export const GameMario: React.FC = () => {
             ctx.lineTo(en.x + 78, sp * 16 + 36 + en.y);
             ctx.fill();
           }
-          // Đầu rồng hung tợn
           ctx.fillStyle = '#eab308';
           ctx.fillRect(en.x, en.y + 14, 38, 38);
-          // Sừng vàng cong
           ctx.fillStyle = '#fef08a';
           ctx.fillRect(en.x + 4, en.y, 8, 16);
-          // Mắt đỏ rực
           ctx.fillStyle = '#dc2626';
           ctx.fillRect(en.x + 10, en.y + 22, 7, 7);
-          // Bờm tóc đỏ rực lửa
           ctx.fillStyle = '#ef4444';
           ctx.fillRect(en.x + 24, en.y + 6, 26, 16);
         }
@@ -1619,7 +1654,6 @@ export const GameMario: React.FC = () => {
           ctx.beginPath();
           ctx.ellipse(0, -m.h / 2 + 11, isSuper ? 16 : 13, isSuper ? 12 : 10, 0, 0, Math.PI * 2);
           ctx.fill();
-          // Vành mũ nhô phía trước
           ctx.fillRect(0, -m.h / 2 + 14, isSuper ? 18 : 15, 6);
           // Huy hiệu tròn trắng chữ M
           ctx.fillStyle = '#ffffff';
@@ -1637,22 +1671,18 @@ export const GameMario: React.FC = () => {
           ctx.arc(0, -m.h / 2 + 22 + bodyYOffset, isSuper ? 12 : 10, 0, Math.PI * 2);
           ctx.fill();
 
-          // Mũi to tròn
           ctx.beginPath();
           ctx.arc(isSuper ? 11 : 9, -m.h / 2 + 22 + bodyYOffset, isSuper ? 6 : 5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Mắt xanh sáng ngời
           ctx.fillStyle = '#2563eb';
           ctx.fillRect(isSuper ? 4 : 3, -m.h / 2 + 18 + bodyYOffset, 3.5, 6);
 
-          // Ria mép cong huyền thoại
           ctx.fillStyle = '#1e1b4b';
           ctx.beginPath();
           ctx.ellipse(isSuper ? 8 : 6, -m.h / 2 + 27 + bodyYOffset, isSuper ? 9 : 7.5, isSuper ? 5 : 4, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          // Tóc mai nâu sẫm
           ctx.fillStyle = '#78350f';
           ctx.fillRect(-m.h / 4, -m.h / 2 + 20 + bodyYOffset, 5, 11);
 
@@ -1660,7 +1690,6 @@ export const GameMario: React.FC = () => {
           ctx.fillStyle = shirtColor;
           ctx.fillRect(-m.w / 2 + 5, -m.h / 2 + 30 + bodyYOffset, m.w - 10, isSuper ? 22 : 14);
 
-          // Quần yếm
           ctx.fillStyle = overallsColor;
           ctx.fillRect(-m.w / 2 + 6, -m.h / 2 + 36 + bodyYOffset, m.w - 12, isSuper ? 24 : 16);
 
@@ -1675,7 +1704,6 @@ export const GameMario: React.FC = () => {
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
           if (m.animFrame === 3) {
-            // Nhảy giơ tay cao
             ctx.arc(m.w / 2 - 2, -m.h / 2 + 6, 6, 0, Math.PI * 2);
             ctx.arc(-m.w / 2 + 6, -m.h / 2 + 36, 6, 0, Math.PI * 2);
           } else {
@@ -1748,154 +1776,45 @@ export const GameMario: React.FC = () => {
 
       ctx.restore(); // Kết thúc dịch chuyển Camera
 
-      // BANNER HUD PHÍA TRÊN SÂN KHẤU (To, Rõ, Đậm Chất Arcade)
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 0, ARENA_WIDTH, 40);
+      // BANNER HUD ARCADE ĐẲNG CẤP TRÊN ĐẦU TOÀN MÀN HÌNH WIDESCREEN
+      ctx.fillStyle = 'rgba(9, 13, 22, 0.9)';
+      ctx.fillRect(0, 0, ARENA_WIDTH, 42);
+
+      // Điểm số & Tên nhân vật
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'black 14px monospace';
       ctx.textAlign = 'left';
-      ctx.fillText('MARIO', 24, 25);
+      ctx.fillText('MARIO', 30, 26);
       ctx.fillStyle = '#facc15';
-      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 85, 25);
+      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 95, 26);
 
+      // Tiền xu vàng
       ctx.fillStyle = '#facc15';
-      ctx.fillText(`🪙 x${coinsRef.current.toString().padStart(2, '0')}`, 215, 25);
+      ctx.fillText(`🪙 x${coinsRef.current.toString().padStart(2, '0')}`, 235, 26);
 
+      // Màn chơi
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('WORLD', 360, 25);
+      ctx.fillText('WORLD', 380, 26);
       ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`${currentWorld}-${currentStage}`, 420, 25);
+      ctx.fillText(`${currentWorld}-${currentStage}`, 445, 26);
 
+      // Thời gian còn lại
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('TIME', 530, 25);
+      ctx.fillText('TIME', 560, 26);
       ctx.fillStyle = timeLeft < 50 ? '#ef4444' : '#f8fafc';
-      ctx.fillText(`${Math.ceil(timeLeft)}`, 575, 25);
+      ctx.fillText(`${Math.ceil(timeLeft)}`, 610, 26);
 
+      // Số mạng sống
       ctx.fillStyle = '#f43f5e';
-      ctx.fillText(`♥ x ${livesRef.current}`, 660, 25);
+      ctx.fillText(`♥ x ${livesRef.current}`, 715, 26);
 
-      ctx.restore(); // Kết thúc clip Arena
-
-      // 3. SIDEBAR THÔNG SỐ BÊN PHẢI (220px, Sắc Nét, Đẳng Cấp)
-      ctx.fillStyle = '#060a12';
-      ctx.fillRect(SIDEBAR_X, 0, SIDEBAR_WIDTH, CANVAS_HEIGHT);
-
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(SIDEBAR_X, 0);
-      ctx.lineTo(SIDEBAR_X, CANVAS_HEIGHT);
-      ctx.stroke();
-
-      ctx.fillStyle = '#f97316';
-      ctx.font = 'black 14px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('SUPER MARIO BROS', SIDEBAR_X + SIDEBAR_WIDTH / 2, 30);
-
-      // Card Hình Dạng Mario
-      const cardY = 50;
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, cardY, SIDEBAR_WIDTH - 32, 68, 12);
-      ctx.fill();
-      ctx.strokeStyle = isStarRef.current ? '#facc15' : marioFormRef.current === 'fire' ? '#ef4444' : marioFormRef.current === 'super' ? '#3b82f6' : '#64748b';
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-
-      ctx.font = '24px sans-serif';
-      const formIcon = isStarRef.current ? '⭐' : marioFormRef.current === 'fire' ? '🔥' : marioFormRef.current === 'super' ? '🍄' : '👨';
-      ctx.fillText(formIcon, SIDEBAR_X + 46, cardY + 42);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = 'black 13px sans-serif';
-      ctx.textAlign = 'left';
-      const formText = isStarRef.current ? 'BẤT TỬ' : marioFormRef.current === 'fire' ? 'MARIO LỬA' : marioFormRef.current === 'super' ? 'SIÊU MARIO' : 'MARIO NHỎ';
-      ctx.fillText(formText, SIDEBAR_X + 76, cardY + 34);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '11px sans-serif';
-      ctx.fillText(isStarRef.current ? `${Math.ceil(starTimerRef.current)}s còn lại` : marioFormRef.current === 'fire' ? 'Phím J: Bắn lửa' : 'Húc gạch tìm nấm', SIDEBAR_X + 76, cardY + 52);
-
-      // Tiến Trình Màn Chơi (World Progress)
-      const progY = 134;
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, progY, SIDEBAR_WIDTH - 32, 74, 12);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-      ctx.stroke();
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('TIẾN ĐỘ VƯỢNG QUỐC', SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 22);
-
-      const progRatio = Math.min(1, Math.max(0, m.x / (worldLengthRef.current - 240)));
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(SIDEBAR_X + 28, progY + 36, SIDEBAR_WIDTH - 56, 12);
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(SIDEBAR_X + 28, progY + 36, (SIDEBAR_WIDTH - 56) * progRatio, 12);
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText(`MÀN ${currentWorld}-${currentStage} • ${Math.round(progRatio * 100)}%`, SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 62);
-
-      // Bảng Điểm Số
-      const scoreBoxY = 224;
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, scoreBoxY, SIDEBAR_WIDTH - 32, 70, 12);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-      ctx.stroke();
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('ĐIỂM SỐ', SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 24);
-
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'black 22px monospace';
-      ctx.fillText(`${scoreRef.current.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 52);
-
-      // Kỷ Lục
-      ctx.fillStyle = '#64748b';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText(`KỶ LỤC: ${highScore.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 320);
-
-      // Phím Điều Khiển Nhanh
-      const keyGuideY = 345;
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, keyGuideY, SIDEBAR_WIDTH - 32, 175, 12);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.stroke();
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'black 11px sans-serif';
-      ctx.fillText('PHÍM ĐIỀU KHIỂN', SIDEBAR_X + SIDEBAR_WIDTH / 2, keyGuideY + 24);
-
-      const guides = [
-        { key: 'A / D', action: 'Chạy Trái / Phải' },
-        { key: 'S', action: 'Cúi / Xuống ống' },
-        { key: 'K / Space', action: 'Nhảy bổng' },
-        { key: 'J / Z', action: 'Bắn lửa & Chạy' },
-      ];
-
-      guides.forEach((g, idx) => {
-        const rowY = keyGuideY + 50 + idx * 29;
-        ctx.fillStyle = '#334155';
-        ctx.fillRect(SIDEBAR_X + 24, rowY - 12, 58, 20);
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(g.key, SIDEBAR_X + 53, rowY + 2);
-
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(g.action, SIDEBAR_X + 90, rowY + 2);
-      });
+      // Huy hiệu hình thái Mario
+      const curForm = isStarRef.current ? '⭐ STAR' : marioFormRef.current === 'fire' ? '🔥 FIRE' : marioFormRef.current === 'super' ? '🍄 SUPER' : '👨 SMALL';
+      const formColor = isStarRef.current ? '#facc15' : marioFormRef.current === 'fire' ? '#ef4444' : marioFormRef.current === 'super' ? '#38bdf8' : '#94a3b8';
+      ctx.fillStyle = formColor;
+      ctx.font = 'black 12px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(curForm, ARENA_WIDTH - 30, 26);
     };
 
     animId = requestAnimationFrame(loop);
@@ -1938,7 +1857,7 @@ export const GameMario: React.FC = () => {
         </div>
 
         {/* Chọn Màn Chơi Nhanh Trong Trận Đấu */}
-        <div className="absolute top-2 right-[230px] z-20 hidden md:flex items-center gap-1 bg-slate-950/75 p-1 rounded-xl border border-white/10 backdrop-blur-md">
+        <div className="absolute top-2 right-24 z-20 hidden md:flex items-center gap-1 bg-slate-950/75 p-1 rounded-xl border border-white/10 backdrop-blur-md">
           {[1, 2, 3, 4].map(stg => (
             <button
               key={stg}
