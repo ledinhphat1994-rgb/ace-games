@@ -118,6 +118,1252 @@ interface Fireball {
   isEnemy?: boolean;
 }
 
+// ==========================================
+// BỘ VẼ ĐỒ HỌA VECTOR CAO CẤP CHO SUPER MARIO
+// ==========================================
+
+/**
+ * 1. Vẽ đồng xu vàng 3D ánh kim (Không dùng Unicode emoji để chống lỗi ▯ trên hệ điều hành)
+ */
+function drawVectorCoin(ctx: CanvasRenderingContext2D, x: number, y: number, r: number = 8) {
+  ctx.save();
+  // Bóng đổ nhẹ
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.arc(x + 1, y + 1.5, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Vành ngoài vàng gradient
+  const goldGrad = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
+  goldGrad.addColorStop(0, '#fef08a');
+  goldGrad.addColorStop(0.3, '#facc15');
+  goldGrad.addColorStop(0.7, '#eab308');
+  goldGrad.addColorStop(1, '#ca8a04');
+  ctx.fillStyle = goldGrad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Viền vàng đậm 3D
+  ctx.strokeStyle = '#a16207';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Vòng tròn kim loại bên trong
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.65, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Rãnh giữa đồng xu
+  ctx.fillStyle = '#854d0e';
+  ctx.fillRect(x - 1, y - r * 0.45, 2, r * 0.9);
+
+  // Đốm sáng phản quang (Shimmer highlight)
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x - r * 0.32, y - r * 0.32, r * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * 2. Vẽ huy hiệu khuôn mặt Mario Vector cho Sidebar bên phải (thay thế emoji 👦)
+ */
+function drawMarioAvatarBadge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  form: MarioForm,
+  isStar: boolean,
+  now: number
+) {
+  ctx.save();
+  // Vòng hào quang ngoài
+  const badgeGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+  if (isStar) {
+    const hue = (Math.floor(now / 40) * 45) % 360;
+    badgeGrad.addColorStop(0, `hsl(${hue}, 100%, 75%)`);
+    badgeGrad.addColorStop(1, `hsl(${(hue + 40) % 360}, 100%, 45%)`);
+  } else if (form === 'fire') {
+    badgeGrad.addColorStop(0, '#fee2e2');
+    badgeGrad.addColorStop(1, '#ef4444');
+  } else if (form === 'super') {
+    badgeGrad.addColorStop(0, '#dbeafe');
+    badgeGrad.addColorStop(1, '#2563eb');
+  } else {
+    badgeGrad.addColorStop(0, '#fed7aa');
+    badgeGrad.addColorStop(1, '#ea580c');
+  }
+  ctx.fillStyle = badgeGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  // Clip vùng vẽ khuôn mặt Mario bên trong
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2);
+  ctx.clip();
+
+  const capColor = isStar ? '#facc15' : form === 'fire' ? '#ffffff' : '#dc2626';
+  const shirtColor = isStar ? '#60a5fa' : form === 'fire' ? '#ffffff' : '#dc2626';
+
+  // Áo / cổ áo
+  ctx.fillStyle = shirtColor;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.85, r * 0.8, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mặt đào hồng hào
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.arc(cx, cy + 1, r * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mũ thợ sửa ống nước
+  ctx.fillStyle = capColor;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - r * 0.35, r * 0.65, r * 0.42, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(cx - r * 0.5, cy - r * 0.15, r * 1.1, r * 0.22);
+
+  // Huy hiệu M trên mũ
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.45, r * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#dc2626';
+  ctx.font = `bold ${Math.round(r * 0.28)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('M', cx, cy - r * 0.43);
+
+  // Mũi to tròn
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.arc(cx + r * 0.15, cy + r * 0.1, r * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ea580c';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // Ria mép cánh bướm huyền thoại
+  ctx.fillStyle = '#1c1917';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.32, r * 0.42, r * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mắt xanh hoạt hình
+  ctx.fillStyle = '#0284c7';
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.12, cy - r * 0.02, r * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.14, cy - r * 0.05, r * 0.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+  ctx.restore();
+}
+
+/**
+ * 3. Vẽ nhân vật Mario chi tiết chuẩn người thật (Giải phẫu đầy đủ, ria mép, nếp quần yếm, giày da bò)
+ */
+function drawDetailedMario(
+  ctx: CanvasRenderingContext2D,
+  m: {
+    w: number;
+    h: number;
+    vx: number;
+    vy: number;
+    isGrounded: boolean;
+    isCrouching: boolean;
+    isSkidding: boolean;
+    animFrame: number;
+    isDead?: boolean;
+  },
+  form: MarioForm,
+  isStar: boolean,
+  now: number
+) {
+  const isSuper = form !== 'small';
+  const scale = isSuper ? 1.35 : 1.0;
+
+  // Xoay vòng màu sắc khi bất tử Star
+  const starHue = isStar ? (Math.floor(now / 40) * 45) % 360 : null;
+  const capColor = starHue !== null ? `hsl(${starHue}, 100%, 50%)` : form === 'fire' ? '#ffffff' : '#dc2626';
+  const capShadow = starHue !== null ? `hsl(${starHue}, 100%, 40%)` : form === 'fire' ? '#cbd5e1' : '#991b1b';
+  const shirtColor = starHue !== null ? `hsl(${starHue}, 100%, 50%)` : form === 'fire' ? '#ffffff' : '#dc2626';
+  const shirtShadow = starHue !== null ? `hsl(${starHue}, 100%, 38%)` : form === 'fire' ? '#94a3b8' : '#991b1b';
+  const overallsColor = starHue !== null ? `hsl(${(starHue + 180) % 360}, 100%, 50%)` : form === 'fire' ? '#dc2626' : '#2563eb';
+  const overallsShadow = starHue !== null ? `hsl(${(starHue + 180) % 360}, 100%, 35%)` : form === 'fire' ? '#991b1b' : '#1d4ed8';
+
+  const skinColor = '#fed7aa';
+  const skinShadow = '#ea580c';
+  const hairColor = '#451a03';
+  const mustacheColor = '#1c1917';
+  const bootColor = '#78350f';
+  const bootShadow = '#451a03';
+
+  ctx.save();
+  ctx.scale(scale, scale);
+
+  // Tư thế cúi người
+  if (m.isCrouching) {
+    ctx.scale(1, 0.7);
+    ctx.translate(0, 10);
+  }
+
+  // Tư thế phanh trượt (skid)
+  if (m.isSkidding) {
+    ctx.rotate(-0.15);
+  }
+
+  const isJumping = !m.isGrounded && !m.isDead;
+  const isRunning = m.isGrounded && Math.abs(m.vx) > 0.5 && !m.isDead;
+
+  // A. CÁNH TAY & GĂNG TAY PHÍA SAU
+  ctx.save();
+  if (isJumping) {
+    ctx.fillStyle = shirtShadow;
+    ctx.beginPath();
+    ctx.ellipse(-14, 2, 5, 8, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(-17, 9, 5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (isRunning) {
+    const armSwing = Math.sin((m.animFrame * Math.PI) / 2);
+    ctx.fillStyle = shirtShadow;
+    ctx.beginPath();
+    ctx.ellipse(-8 + armSwing * 6, 4, 4.5, 7, -armSwing * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(-8 + armSwing * 9, 10, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = shirtShadow;
+    ctx.beginPath();
+    ctx.ellipse(-7, 6, 4, 6, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(-7, 12, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // B. CHÂN & ỦNG DA BÒ
+  ctx.save();
+  if (isJumping) {
+    // Chân sau co lại, chân trước duỗi hướng tới
+    ctx.fillStyle = overallsShadow;
+    ctx.beginPath();
+    ctx.ellipse(-7, 14, 5, 8, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = bootColor;
+    ctx.beginPath();
+    ctx.roundRect(-15, 17, 10, 8, 3);
+    ctx.fill();
+
+    ctx.fillStyle = overallsColor;
+    ctx.beginPath();
+    ctx.ellipse(6, 13, 6, 8, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = bootColor;
+    ctx.beginPath();
+    ctx.roundRect(5, 17, 12, 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(5, 23, 12, 2.5);
+  } else if (m.isSkidding) {
+    ctx.fillStyle = overallsColor;
+    ctx.fillRect(-8, 10, 16, 8);
+    ctx.fillStyle = bootColor;
+    ctx.beginPath();
+    ctx.roundRect(-8, 16, 18, 9, 3);
+    ctx.fill();
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(-8, 23, 18, 2.5);
+  } else if (isRunning) {
+    const legPhase = m.animFrame % 4;
+    let leftLegX = -5, rightLegX = 5, leftLegY = 18, rightLegY = 18;
+    if (legPhase === 1) {
+      leftLegX = -9; leftLegY = 15;
+      rightLegX = 7; rightLegY = 19;
+    } else if (legPhase === 3) {
+      leftLegX = 8; leftLegY = 15;
+      rightLegX = -8; rightLegY = 19;
+    }
+    ctx.fillStyle = overallsShadow;
+    ctx.beginPath();
+    ctx.ellipse(leftLegX, 13, 5, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = overallsColor;
+    ctx.beginPath();
+    ctx.ellipse(rightLegX, 13, 5, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = bootShadow;
+    ctx.beginPath();
+    ctx.roundRect(leftLegX - 5, leftLegY, 11, 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(leftLegX - 5, leftLegY + 6, 11, 2);
+
+    ctx.fillStyle = bootColor;
+    ctx.beginPath();
+    ctx.roundRect(rightLegX - 5, rightLegY, 11, 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(rightLegX - 5, rightLegY + 6, 11, 2);
+  } else {
+    ctx.fillStyle = overallsColor;
+    ctx.fillRect(-8, 10, 16, 8);
+    ctx.fillStyle = bootColor;
+    ctx.beginPath();
+    ctx.roundRect(-10, 17, 10, 8, 3);
+    ctx.roundRect(1, 17, 10, 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(-10, 23, 10, 2);
+    ctx.fillRect(1, 23, 10, 2);
+  }
+  ctx.restore();
+
+  // C. THÂN MÌNH (ÁO & QUẦN YẾM DENIM)
+  ctx.save();
+  ctx.fillStyle = shirtColor;
+  ctx.beginPath();
+  ctx.roundRect(-8, 0, 16, 12, 4);
+  ctx.fill();
+
+  ctx.fillStyle = overallsColor;
+  ctx.beginPath();
+  ctx.roundRect(-7, 3, 14, 11, [2, 2, 4, 4]);
+  ctx.fill();
+
+  ctx.fillStyle = overallsColor;
+  ctx.fillRect(1, 0, 4.5, 9);
+  ctx.fillStyle = overallsShadow;
+  ctx.fillRect(-5.5, 0, 4, 9);
+
+  // Cúc kim loại vàng óng
+  ctx.fillStyle = '#facc15';
+  ctx.beginPath();
+  ctx.arc(3.2, 5.5, 2, 0, Math.PI * 2);
+  ctx.arc(-3.5, 5.5, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fef08a';
+  ctx.fillRect(2.5, 4.8, 1.2, 1.2);
+  ctx.restore();
+
+  // D. CÁNH TAY TRƯỚC & GĂNG TAY TRẮNG
+  ctx.save();
+  if (isJumping) {
+    // Nắm đấm vươn lên trời kinh điển
+    ctx.fillStyle = shirtColor;
+    ctx.beginPath();
+    ctx.ellipse(3, -10, 5, 9, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(4, -18, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.arc(2, -18, 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (isRunning) {
+    const armSwing = Math.sin((m.animFrame * Math.PI) / 2);
+    ctx.fillStyle = shirtColor;
+    ctx.beginPath();
+    ctx.ellipse(6 - armSwing * 6, 4, 4.5, 7, armSwing * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(6 - armSwing * 8, 10, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(6 - armSwing * 8 - 2, 9, 4, 2);
+  } else {
+    ctx.fillStyle = shirtColor;
+    ctx.beginPath();
+    ctx.ellipse(6, 4, 4.5, 6.5, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(7, 10, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // E. KHUÔN MẶT, MŨ NỒI, RIA MÉP & MẮT ANIME
+  ctx.save();
+  const headY = -10;
+
+  // Lọn tóc nâu sẫm sau gáy
+  ctx.fillStyle = hairColor;
+  ctx.beginPath();
+  ctx.arc(-8, headY + 3, 5, 0, Math.PI * 2);
+  ctx.arc(-9, headY + 7, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Khuôn mặt bầu bĩnh màu đào
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.ellipse(0, headY + 1, 9, 8.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Má ửng hồng
+  ctx.fillStyle = 'rgba(244, 63, 94, 0.25)';
+  ctx.beginPath();
+  ctx.arc(-1, headY + 3, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Vành tai
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(-6.5, headY + 1, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = skinShadow;
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // Lọn tóc mai
+  ctx.fillStyle = hairColor;
+  ctx.fillRect(-5, headY - 3, 2.5, 5);
+
+  // Đôi mắt hoạt hình lớn có hồn
+  if (m.isDead) {
+    // Mắt 'X' khi trúng đòn
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(2, headY - 4); ctx.lineTo(6, headY + 2);
+    ctx.moveTo(6, headY - 4); ctx.lineTo(2, headY + 2);
+    ctx.stroke();
+  } else {
+    // Tròng trắng
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(3, headY - 1, 3.8, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // Tròng xanh biếc
+    ctx.fillStyle = '#0284c7';
+    ctx.beginPath();
+    ctx.ellipse(4, headY - 1, 2.2, 3.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Con ngươi đen
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(4.4, headY - 1, 1.4, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Đốm sáng phản chiếu (Catchlight)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(3.6, headY - 2.5, 0.9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Chiếc mũi cà chua to tròn có highlight
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(8.5, headY + 1, 4.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = skinShadow;
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(9.2, headY - 0.5, 1.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bộ ria mép cánh bướm dày dặn uốn lượn
+  ctx.fillStyle = mustacheColor;
+  ctx.beginPath();
+  ctx.moveTo(0, headY + 4);
+  ctx.quadraticCurveTo(5, headY + 1.5, 9, headY + 3.5);
+  ctx.quadraticCurveTo(12, headY + 4.5, 10, headY + 7);
+  ctx.quadraticCurveTo(6, headY + 8, 3, headY + 6.5);
+  ctx.quadraticCurveTo(0, headY + 8, -3, headY + 5.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Mũ nồi thợ sửa ống nước 3D
+  // Đổ bóng vành mũ lên trán
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(-2, headY - 5, 12, 3);
+
+  // Vành lưỡi trai nhô ra phía trước
+  ctx.fillStyle = capColor;
+  ctx.beginPath();
+  ctx.roundRect(-2, headY - 7, 14, 4.5, [1, 3, 3, 1]);
+  ctx.fill();
+  ctx.fillStyle = capShadow;
+  ctx.fillRect(-2, headY - 3.5, 14, 1.2);
+
+  // Vòm mũ cong mềm
+  ctx.fillStyle = capColor;
+  ctx.beginPath();
+  ctx.ellipse(0, headY - 9, 12, 7.5, -0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Highlight vòm mũ
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.beginPath();
+  ctx.ellipse(-2, headY - 12.5, 7, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Huy hiệu tròn trắng chữ M
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(1.5, headY - 10, 4.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = capShadow;
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+
+  ctx.fillStyle = '#dc2626';
+  ctx.font = 'bold 5.5px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('M', 1.5, headY - 9.5);
+
+  ctx.restore();
+
+  // F. HIỆU ỨNG SAO BẤT TỬ ORBITING GLINTS
+  if (isStar) {
+    ctx.save();
+    for (let sp = 0; sp < 4; sp++) {
+      const angle = (now * 0.006 + sp * (Math.PI / 2)) % (Math.PI * 2);
+      const orbitR = 18;
+      const px = Math.cos(angle) * orbitR;
+      const py = Math.sin(angle) * orbitR * 0.6 - 4;
+      ctx.fillStyle = sp % 2 === 0 ? '#facc15' : '#ffffff';
+      ctx.beginPath();
+      ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+/**
+ * 4. Hậu cảnh thiên nhiên sống động, triệt tiêu hoàn toàn lỗi chóp núi lơ lửng
+ */
+function drawBackgroundScene(
+  ctx: CanvasRenderingContext2D,
+  stage: number,
+  camX: number,
+  worldLen: number
+) {
+  if (stage === 4) {
+    // Màn 4: Pháo đài dung nham rực lửa
+    const lavaSky = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
+    lavaSky.addColorStop(0, '#090408');
+    lavaSky.addColorStop(0.5, '#1e0816');
+    lavaSky.addColorStop(1, '#450a0a');
+    ctx.fillStyle = lavaSky;
+    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+    ctx.fillStyle = '#18181b';
+    for (let i = 0; i < 6; i++) {
+      const fx = ((i * 320 - camX * 0.25) % (worldLen + 400) + (worldLen + 400)) % (worldLen + 400) - 200;
+      ctx.fillRect(fx, 180, 240, GROUND_Y - 180);
+      for (let c = 0; c < 5; c++) {
+        ctx.fillRect(fx + c * 48, 160, 28, 20);
+      }
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(fx + 60, 240, 24, 36);
+      ctx.fillRect(fx + 150, 240, 24, 36);
+      ctx.fillStyle = '#18181b';
+    }
+    return;
+  }
+
+  if (stage === 2) {
+    // Màn 2: Động thạch nhũ băng lam ngầm
+    const caveGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
+    caveGrad.addColorStop(0, '#020617');
+    caveGrad.addColorStop(0.6, '#07162c');
+    caveGrad.addColorStop(1, '#0c274c');
+    ctx.fillStyle = caveGrad;
+    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+    ctx.fillStyle = '#1e293b';
+    for (let i = 0; i < 16; i++) {
+      const cx = ((i * 180 - camX * 0.2) % (worldLen + 300) + (worldLen + 300)) % (worldLen + 300) - 100;
+      const h = 40 + (i % 4) * 22;
+      ctx.beginPath();
+      ctx.moveTo(cx, 0);
+      ctx.lineTo(cx + 16, h);
+      ctx.lineTo(cx + 32, 0);
+      ctx.fill();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(cx + 12, h - 14);
+      ctx.lineTo(cx + 16, h);
+      ctx.lineTo(cx + 20, h - 14);
+      ctx.fill();
+      ctx.fillStyle = '#1e293b';
+    }
+    return;
+  }
+
+  // Màn 1 & 3: Bầu trời xanh nhiệt đới gradient & Dãy núi tuyết nguyên khối
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
+  skyGrad.addColorStop(0, '#0284c7');
+  skyGrad.addColorStop(0.35, '#38bdf8');
+  skyGrad.addColorStop(0.75, '#7dd3fc');
+  skyGrad.addColorStop(1, '#bae6fd');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+  const wrapLimit = worldLen + 500;
+
+  // 1. DÃY NÚI TUYẾT NGUYÊN KHỐI NẰM TRÊN MẶT ĐẤT (KHÔNG CÒN LƠ LỬNG)
+  for (let i = 0; i < 5; i++) {
+    const rawX = i * 520 - camX * 0.12;
+    const mX = ((rawX % wrapLimit) + wrapLimit) % wrapLimit - 150;
+    const peakY = 140 + (i % 2) * 35;
+    const baseW = 340;
+    const peakX = mX + baseW * 0.45;
+
+    // Sườn núi đổ bóng (bên phải)
+    ctx.fillStyle = '#3b5266';
+    ctx.beginPath();
+    ctx.moveTo(peakX, peakY);
+    ctx.lineTo(mX + baseW, GROUND_Y);
+    ctx.lineTo(peakX, GROUND_Y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sườn núi đón sáng (bên trái)
+    ctx.fillStyle = '#5c7c99';
+    ctx.beginPath();
+    ctx.moveTo(mX, GROUND_Y);
+    ctx.lineTo(peakX, peakY);
+    ctx.lineTo(peakX, GROUND_Y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Chóp tuyết dính liền thân đỉnh núi (Snowcap Liền Khối)
+    const snowH = 60;
+    const snowY = peakY + snowH;
+
+    // Chóp tuyết bóng đổ
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.moveTo(peakX, peakY);
+    ctx.lineTo(peakX + snowH * 0.9, snowY);
+    ctx.lineTo(peakX + snowH * 0.6, snowY - 10);
+    ctx.lineTo(peakX + snowH * 0.3, snowY + 5);
+    ctx.lineTo(peakX, snowY - 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Chóp tuyết sáng
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(peakX, peakY);
+    ctx.lineTo(peakX, snowY - 6);
+    ctx.lineTo(peakX - snowH * 0.35, snowY + 4);
+    ctx.lineTo(peakX - snowH * 0.65, snowY - 8);
+    ctx.lineTo(peakX - snowH * 0.95, snowY);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 2. ĐỒI CỎ TRÒN XANH SUPER MARIO CÓ MẮT CƯỜI
+  for (let i = 0; i < 6; i++) {
+    const rawX = i * 440 - camX * 0.25;
+    const hillX = ((rawX % wrapLimit) + wrapLimit) % wrapLimit - 120;
+    const hillR = 120 + (i % 3) * 20;
+    const hillH = 90 + (i % 3) * 15;
+
+    // Đồi cỏ xanh
+    ctx.fillStyle = '#16a34a';
+    ctx.beginPath();
+    ctx.ellipse(hillX, GROUND_Y, hillR, hillH, 0, Math.PI, 0);
+    ctx.fill();
+
+    // Sọc cỏ đổ bóng đặc trưng Super Mario
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath();
+    ctx.ellipse(hillX - hillR * 0.35, GROUND_Y - 25, 18, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(hillX + hillR * 0.38, GROUND_Y - 35, 16, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Đôi mắt hoạt hình Super Mario trên đồi cỏ
+    const eyeY = GROUND_Y - hillH * 0.65;
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(hillX - 8, eyeY, 4.5, 12, 2);
+    ctx.roundRect(hillX + 5, eyeY, 4.5, 12, 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(hillX - 7, eyeY + 1, 2.5, 4);
+    ctx.fillRect(hillX + 6, eyeY + 1, 2.5, 4);
+  }
+
+  // 3. MÂY TRẮNG BỒNG BỀNH CÓ MẮT CƯỜI
+  for (let i = 0; i < 7; i++) {
+    const rawX = i * 360 - camX * 0.18;
+    const cX = ((rawX % wrapLimit) + wrapLimit) % wrapLimit - 100;
+    const cY = 60 + (i % 3) * 45;
+
+    // Bóng mây xanh lam nhạt dưới đáy
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(cX, cY + 3, 26, 0, Math.PI * 2);
+    ctx.arc(cX + 24, cY - 10, 32, 0, Math.PI * 2);
+    ctx.arc(cX + 54, cY + 3, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Khối mây trắng tinh
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cX, cY, 26, 0, Math.PI * 2);
+    ctx.arc(cX + 24, cY - 14, 32, 0, Math.PI * 2);
+    ctx.arc(cX + 54, cY, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Đôi mắt mây thân thiện
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(cX + 16, cY - 8, 3.8, 10, 2);
+    ctx.roundRect(cX + 32, cY - 8, 3.8, 10, 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cX + 17, cY - 7, 2, 3.5);
+    ctx.fillRect(cX + 33, cY - 7, 2, 3.5);
+  }
+
+  // 4. BỤI CÂY VEN ĐƯỜNG CÓ QUẢ MỌNG ĐỎ
+  for (let i = 0; i < 8; i++) {
+    const rawX = i * 380 - camX * 0.45;
+    const bx = ((rawX % wrapLimit) + wrapLimit) % wrapLimit - 80;
+
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(bx, GROUND_Y - 5, 18, 0, Math.PI * 2);
+    ctx.arc(bx + 20, GROUND_Y - 12, 22, 0, Math.PI * 2);
+    ctx.arc(bx + 40, GROUND_Y - 5, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(bx + 12, GROUND_Y - 14, 3, 0, Math.PI * 2);
+    ctx.arc(bx + 28, GROUND_Y - 17, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/**
+ * 5. Vẽ địa hình mặt đất sa thạch 2 tầng (Xóa bỏ hoàn toàn hình ảnh hàng rào gỗ)
+ */
+function drawGroundTerrain(
+  ctx: CanvasRenderingContext2D,
+  b: { x: number; y: number; w: number; h: number },
+  renderY: number,
+  stage: number
+) {
+  if (stage === 4) {
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(b.x, renderY, b.w, b.h);
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(b.x, renderY, b.w, 48);
+    ctx.strokeRect(b.x - 24, renderY + 48, b.w, 52);
+    return;
+  }
+
+  if (stage === 2) {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(b.x, renderY, b.w, b.h);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(b.x, renderY, b.w, 48);
+    ctx.strokeRect(b.x - 24, renderY + 48, b.w, 52);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(b.x + 12, renderY + 18, 4, 4);
+    ctx.fillRect(b.x + 32, renderY + 68, 3, 3);
+    return;
+  }
+
+  // TẦNG 1: KHỐI ĐÁ SA THẠCH CÓ THẢM CỎ HOA VÀNG (Cao 48px)
+  const topGrad = ctx.createLinearGradient(b.x, renderY, b.x, renderY + 48);
+  topGrad.addColorStop(0, '#b45309');
+  topGrad.addColorStop(1, '#92400e');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(b.x, renderY, b.w, 48);
+
+  // Vát cạnh 3D (highlight trên/trái, shadow dưới/phải)
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(b.x, renderY, b.w, 3);
+  ctx.fillRect(b.x, renderY, 3, 48);
+
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(b.x, renderY + 45, b.w, 3);
+  ctx.fillRect(b.x + b.w - 3, renderY, 3, 48);
+
+  // Vân đá nứt nhẹ
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(b.x + 10, renderY + 24, 3, 2);
+  ctx.fillRect(b.x + 32, renderY + 34, 4, 2);
+
+  // Thảm cỏ xanh ngọc dày dặn đỉnh đất
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(b.x, renderY, b.w, 13);
+  ctx.fillStyle = '#86efac';
+  ctx.fillRect(b.x, renderY, b.w, 2.5);
+
+  // Khóm cỏ nhọn rủ xuống
+  ctx.fillStyle = '#16a34a';
+  for (let gx = b.x; gx < b.x + b.w; gx += 12) {
+    ctx.beginPath();
+    ctx.moveTo(gx, renderY + 13);
+    ctx.lineTo(gx + 6, renderY + 20);
+    ctx.lineTo(gx + 12, renderY + 13);
+    ctx.fill();
+  }
+
+  // Điểm xuyết hoa cúc vàng li ti
+  if (Math.floor(b.x) % 96 === 0) {
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(b.x + 22, renderY + 6, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(b.x + 22, renderY + 6, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // TẦNG 2: LỚP ĐẤT NGẦM SO LE 24PX (Không thẳng hàng cột dọc = không còn giống hàng rào)
+  const botGrad = ctx.createLinearGradient(b.x, renderY + 48, b.x, renderY + 100);
+  botGrad.addColorStop(0, '#92400e');
+  botGrad.addColorStop(1, '#78350f');
+  ctx.fillStyle = botGrad;
+  ctx.fillRect(b.x, renderY + 48, b.w, 52);
+
+  // Đường mạch rãnh ngang ngăn cách 2 tầng
+  ctx.fillStyle = '#451a03';
+  ctx.fillRect(b.x, renderY + 47, b.w, 2);
+
+  // Đường rãnh dọc so le tại vị trí b.x + 24
+  ctx.fillStyle = '#451a03';
+  ctx.fillRect(b.x + 24, renderY + 48, 2, 52);
+
+  // Sỏi cuội đính kèm trong lòng đất
+  ctx.fillStyle = '#78350f';
+  ctx.beginPath();
+  ctx.arc(b.x + 14, renderY + 70, 4, 0, Math.PI * 2);
+  ctx.arc(b.x + 36, renderY + 82, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#b45309';
+  ctx.beginPath();
+  ctx.arc(b.x + 13, renderY + 69, 1.5, 0, Math.PI * 2);
+  ctx.arc(b.x + 35, renderY + 81, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/**
+ * 6. Vẽ đường ống nước 3D và cây ăn thịt Piranha có cuống thân, lá xanh và hàm răng cắn
+ */
+function drawPipeAndPiranha(
+  ctx: CanvasRenderingContext2D,
+  p: Pipe,
+  marioX: number
+) {
+  // Cây ăn thịt Piranha
+  if (p.hasPiranha) {
+    p.piranhaTimer = (p.piranhaTimer || 0) + 0.04;
+    const isMarioNear = Math.abs(marioX - (p.x + p.w / 2)) < 60;
+    const peakHeight = 44;
+    const animPhase = Math.sin(p.piranhaTimer);
+    const plantRise = isMarioNear ? 0 : Math.max(0, animPhase) * peakHeight;
+    const plantY = p.y - plantRise;
+
+    if (plantRise > 4) {
+      const centerX = p.x + p.w / 2;
+
+      // Cuống thân xanh vươn từ trong lòng ống
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(centerX - 4.5, plantY + 16, 9, p.y - (plantY + 16) + 4);
+
+      // 2 lá xanh đỡ hai bên cuống
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.ellipse(centerX - 13, plantY + 22, 10, 5, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(centerX + 13, plantY + 22, 10, 5, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Đầu hoa nụ đỏ Venus Flytrap có hàm răng nhọn
+      const mouthOpen = Math.abs(Math.sin(p.piranhaTimer * 3)) * 0.35 + 0.1;
+
+      // Họng hoa đỏ sẫm
+      ctx.fillStyle = '#450a0a';
+      ctx.beginPath();
+      ctx.ellipse(centerX, plantY + 10, 16, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hàm trên đỏ chấm bi trắng
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(centerX, plantY + 8 - mouthOpen * 8, 16, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(centerX - 7, plantY + 2 - mouthOpen * 8, 3.2, 0, Math.PI * 2);
+      ctx.arc(centerX + 6, plantY + 1 - mouthOpen * 8, 3, 0, Math.PI * 2);
+      ctx.arc(centerX, plantY - 2 - mouthOpen * 8, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Răng nhọn hàm trên
+      ctx.fillStyle = '#ffffff';
+      for (let t = -3; t <= 3; t += 2) {
+        ctx.beginPath();
+        ctx.moveTo(centerX + t * 3.5, plantY + 8 - mouthOpen * 8);
+        ctx.lineTo(centerX + t * 3.5 + 2, plantY + 12 - mouthOpen * 8);
+        ctx.lineTo(centerX + t * 3.5 + 4, plantY + 8 - mouthOpen * 8);
+        ctx.fill();
+      }
+
+      // Hàm dưới đỏ
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(centerX, plantY + 12 + mouthOpen * 8, 14, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(centerX - 5, plantY + 18 + mouthOpen * 8, 2.8, 0, Math.PI * 2);
+      ctx.arc(centerX + 6, plantY + 17 + mouthOpen * 8, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Răng nhọn hàm dưới
+      ctx.fillStyle = '#ffffff';
+      for (let t = -2; t <= 2; t += 2) {
+        ctx.beginPath();
+        ctx.moveTo(centerX + t * 3.5, plantY + 12 + mouthOpen * 8);
+        ctx.lineTo(centerX + t * 3.5 + 2, plantY + 8 + mouthOpen * 8);
+        ctx.lineTo(centerX + t * 3.5 + 4, plantY + 12 + mouthOpen * 8);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Thân ống & Miệng vành ống nước 3D
+  const collarH = 26;
+  const collarW = p.w + 8;
+  const collarX = p.x - 4;
+
+  // Lòng ống sâu đen huyền bí
+  ctx.fillStyle = '#052e16';
+  ctx.beginPath();
+  ctx.ellipse(p.x + p.w / 2, p.y + 4, p.w / 2, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Thân ống nước hình trụ 3D
+  const bodyGrad = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y);
+  bodyGrad.addColorStop(0, '#15803d');
+  bodyGrad.addColorStop(0.18, '#4ade80');
+  bodyGrad.addColorStop(0.35, '#86efac');
+  bodyGrad.addColorStop(0.65, '#22c55e');
+  bodyGrad.addColorStop(1, '#14532d');
+  ctx.fillStyle = bodyGrad;
+  ctx.fillRect(p.x + 3, p.y + collarH, p.w - 6, p.h - collarH);
+
+  // Vành miệng cống
+  const collarGrad = ctx.createLinearGradient(collarX, p.y, collarX + collarW, p.y);
+  collarGrad.addColorStop(0, '#15803d');
+  collarGrad.addColorStop(0.18, '#4ade80');
+  collarGrad.addColorStop(0.35, '#86efac');
+  collarGrad.addColorStop(0.65, '#22c55e');
+  collarGrad.addColorStop(1, '#14532d');
+  ctx.fillStyle = collarGrad;
+  ctx.beginPath();
+  ctx.roundRect(collarX, p.y, collarW, collarH, 3);
+  ctx.fill();
+
+  // Đường viền kim loại
+  ctx.strokeStyle = '#052e16';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(collarX, p.y, collarW, collarH);
+  ctx.strokeRect(p.x + 3, p.y + collarH, p.w - 6, p.h - collarH);
+
+  // Vệt phản quang ánh kim chạy dọc
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.fillRect(collarX + collarW * 0.28, p.y + 2, 4, collarH - 4);
+  ctx.fillRect(p.x + p.w * 0.28, p.y + collarH + 2, 3.5, p.h - collarH - 4);
+}
+
+/**
+ * 7. Vẽ khối gạch hỏi chấm [?] mạ vàng 3D và khối gạch nung
+ */
+function drawQuestionBlock(
+  ctx: CanvasRenderingContext2D,
+  b: Block,
+  renderY: number,
+  now: number
+) {
+  const qGrad = ctx.createLinearGradient(b.x, renderY, b.x + b.w, renderY + b.h);
+  qGrad.addColorStop(0, '#fef08a');
+  qGrad.addColorStop(0.3, '#facc15');
+  qGrad.addColorStop(0.7, '#eab308');
+  qGrad.addColorStop(1, '#ca8a04');
+  ctx.fillStyle = qGrad;
+  ctx.beginPath();
+  ctx.roundRect(b.x, renderY, b.w, b.h, 4);
+  ctx.fill();
+
+  ctx.strokeStyle = '#854d0e';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(b.x, renderY, b.w, b.h);
+
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(b.x + 3, renderY + 3, b.w - 6, b.h - 6);
+
+  // 4 đinh tán góc
+  ctx.fillStyle = '#713f12';
+  ctx.fillRect(b.x + 5, renderY + 5, 4, 4);
+  ctx.fillRect(b.x + b.w - 9, renderY + 5, 4, 4);
+  ctx.fillRect(b.x + 5, renderY + b.h - 9, 4, 4);
+  ctx.fillRect(b.x + b.w - 9, renderY + b.h - 9, 4, 4);
+
+  // Ánh kim phản quang di chuyển
+  const glintPos = (now * 0.05) % (b.w * 3);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(b.x, renderY, b.w, b.h);
+  ctx.clip();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.beginPath();
+  ctx.moveTo(b.x - 20 + glintPos, renderY);
+  ctx.lineTo(b.x - 5 + glintPos, renderY);
+  ctx.lineTo(b.x - 25 + glintPos, renderY + b.h);
+  ctx.lineTo(b.x - 40 + glintPos, renderY + b.h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Dấu hỏi ? dập nổi 3D
+  ctx.fillStyle = '#713f12';
+  ctx.font = 'black 28px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('?', b.x + b.w / 2 + 1.5, renderY + b.h / 2 + 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('?', b.x + b.w / 2, renderY + b.h / 2);
+}
+
+function drawBrickBlock(
+  ctx: CanvasRenderingContext2D,
+  b: Block,
+  renderY: number,
+  stage: number
+) {
+  ctx.fillStyle = stage === 4 ? '#991b1b' : stage === 2 ? '#334155' : '#b45309';
+  ctx.fillRect(b.x, renderY, b.w, b.h);
+  ctx.strokeStyle = '#451a03';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(b.x, renderY, b.w, b.h);
+
+  // Mạch vữa phân chia 4 viên gạch nhỏ
+  ctx.beginPath();
+  ctx.moveTo(b.x, renderY + b.h / 2);
+  ctx.lineTo(b.x + b.w, renderY + b.h / 2);
+  ctx.moveTo(b.x + b.w / 2, renderY);
+  ctx.lineTo(b.x + b.w / 2, renderY + b.h / 2);
+  ctx.moveTo(b.x + b.w / 4, renderY + b.h / 2);
+  ctx.lineTo(b.x + b.w / 4, renderY + b.h);
+  ctx.moveTo(b.x + (b.w * 3) / 4, renderY + b.h / 2);
+  ctx.lineTo(b.x + (b.w * 3) / 4, renderY + b.h);
+  ctx.stroke();
+
+  // Highlight vát 3D trên viên gạch
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.fillRect(b.x + 2, renderY + 2, b.w / 2 - 4, 3);
+  ctx.fillRect(b.x + b.w / 2 + 2, renderY + 2, b.w / 2 - 4, 3);
+}
+
+/**
+ * 8. Vẽ Goomba nấm hạt dẻ chân thật có răng nanh và bước đi lắc lư
+ */
+function drawGoomba(ctx: CanvasRenderingContext2D, en: Enemy, now: number) {
+  if (en.isStomped) {
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.roundRect(en.x, en.y + en.h - 14, en.w, 14, 4);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.8;
+    ctx.strokeText('x   x', en.x + 8, en.y + en.h - 4);
+    return;
+  }
+
+  // Bước đi lắc lư
+  const waddle = Math.sin(now * 0.012);
+  const leftFootY = en.y + en.h - 10 + (waddle > 0 ? -3 : 0);
+  const rightFootY = en.y + en.h - 10 + (waddle < 0 ? -3 : 0);
+
+  // Chân da nâu
+  ctx.fillStyle = '#1c1917';
+  ctx.beginPath();
+  ctx.roundRect(en.x + 2, leftFootY, 14, 10, 4);
+  ctx.roundRect(en.x + en.w - 16, rightFootY, 14, 10, 4);
+  ctx.fill();
+
+  // Thân / cổ màu be
+  ctx.fillStyle = '#fef3c7';
+  ctx.beginPath();
+  ctx.roundRect(en.x + 7, en.y + 16, en.w - 14, 20, 6);
+  ctx.fill();
+
+  // Mũ nấm hạt dẻ cong mềm
+  const capGrad = ctx.createRadialGradient(
+    en.x + en.w / 2,
+    en.y + 12,
+    4,
+    en.x + en.w / 2,
+    en.y + 18,
+    22
+  );
+  capGrad.addColorStop(0, '#b45309');
+  capGrad.addColorStop(0.7, '#78350f');
+  capGrad.addColorStop(1, '#451a03');
+  ctx.fillStyle = capGrad;
+  ctx.beginPath();
+  ctx.moveTo(en.x, en.y + 26);
+  ctx.quadraticCurveTo(en.x + en.w / 2, en.y - 2, en.x + en.w, en.y + 26);
+  ctx.quadraticCurveTo(en.x + en.w / 2, en.y + 32, en.x, en.y + 26);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lông mày góc cạnh hung dữ
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.moveTo(en.x + 9, en.y + 18);
+  ctx.lineTo(en.x + 18, en.y + 23);
+  ctx.lineTo(en.x + 9, en.y + 21);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(en.x + en.w - 9, en.y + 18);
+  ctx.lineTo(en.x + en.w - 18, en.y + 23);
+  ctx.lineTo(en.x + en.w - 9, en.y + 21);
+  ctx.fill();
+
+  // Mắt hoạt hình lớn
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(en.x + 13, en.y + 25, 3.5, 5.5, -0.15, 0, Math.PI * 2);
+  ctx.ellipse(en.x + en.w - 13, en.y + 25, 3.5, 5.5, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.ellipse(en.x + 14, en.y + 25, 2, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(en.x + en.w - 14, en.y + 25, 2, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Răng nanh trắng nhô lên
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(en.x + 10, en.y + 36);
+  ctx.lineTo(en.x + 13, en.y + 30);
+  ctx.lineTo(en.x + 16, en.y + 36);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(en.x + en.w - 16, en.y + 36);
+  ctx.lineTo(en.x + en.w - 13, en.y + 30);
+  ctx.lineTo(en.x + en.w - 10, en.y + 36);
+  ctx.fill();
+}
+
+/**
+ * 9. Vẽ rùa Koopa Troopa
+ */
+function drawKoopa(ctx: CanvasRenderingContext2D, en: Enemy, now: number) {
+  if (en.isShell) {
+    ctx.save();
+    ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
+    if (Math.abs(en.shellSpeed || 0) > 0) {
+      ctx.rotate((now * 0.02) % (Math.PI * 2));
+    }
+    ctx.fillStyle = '#16a34a';
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
+  if (en.facing === 'left') ctx.scale(-1, 1);
+
+  ctx.fillStyle = '#16a34a';
+  ctx.beginPath();
+  ctx.ellipse(-2, 2, 16, 20, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#facc15';
+  ctx.beginPath();
+  ctx.arc(8, -12, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(15, -9, 7, 4.5, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(9, -14, 3.5, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(10, -14, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  const walkPhase = Math.sin(now * 0.015);
+  ctx.fillStyle = '#f97316';
+  ctx.beginPath();
+  ctx.roundRect(-8 + walkPhase * 4, 18, 12, 8, 3);
+  ctx.roundRect(2 - walkPhase * 4, 18, 12, 8, 3);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 export const GameMario: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -1068,134 +2314,13 @@ export const GameMario: React.FC = () => {
 
       const camX = cameraXRef.current;
 
-      // HẬU CẢNH THIÊN NHIÊN SỐNG ĐỘNG
-      if (currentStage === 4) {
-        const lavaSky = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
-        lavaSky.addColorStop(0, '#09050e');
-        lavaSky.addColorStop(0.5, '#1e0816');
-        lavaSky.addColorStop(1, '#450a0a');
-        ctx.fillStyle = lavaSky;
-        ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-
-        ctx.fillStyle = '#170b14';
-        for (let i = 0; i < 8; i++) {
-          const hX = (i * 380 - camX * 0.3) % (worldLengthRef.current + 200);
-          ctx.beginPath();
-          ctx.moveTo(hX, GROUND_Y);
-          ctx.lineTo(hX + 120, 180);
-          ctx.lineTo(hX + 240, GROUND_Y);
-          ctx.fill();
-        }
-      } else if (currentStage === 2) {
-        const caveGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
-        caveGrad.addColorStop(0, '#040b17');
-        caveGrad.addColorStop(0.7, '#07162c');
-        caveGrad.addColorStop(1, '#0c274c');
-        ctx.fillStyle = caveGrad;
-        ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-
-        ctx.fillStyle = '#38bdf8';
-        for (let i = 0; i < 15; i++) {
-          const cx = (i * 240 - camX * 0.2) % (worldLengthRef.current + 200);
-          ctx.beginPath();
-          ctx.moveTo(cx, 0);
-          ctx.lineTo(cx + 12, 45);
-          ctx.lineTo(cx + 24, 0);
-          ctx.fill();
-        }
-      } else {
-        // Màn 1 & 3: Bầu trời xanh nhiệt đới gradient
-        const skyGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
-        skyGrad.addColorStop(0, '#0284c7');
-        skyGrad.addColorStop(0.35, '#38bdf8');
-        skyGrad.addColorStop(0.75, '#7dd3fc');
-        skyGrad.addColorStop(1, '#bae6fd');
-        ctx.fillStyle = skyGrad;
-        ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-
-        // Dãy núi uốn lượn tự nhiên mềm mại mờ ảo (Soft Mountain Horizons)
-        for (let i = 0; i < 6; i++) {
-          const mX = (i * 480 - camX * 0.15) % (worldLengthRef.current + 300);
-          ctx.fillStyle = 'rgba(71, 85, 105, 0.45)';
-          ctx.beginPath();
-          ctx.moveTo(mX - 100, GROUND_Y);
-          ctx.quadraticCurveTo(mX + 60, 150, mX + 220, GROUND_Y);
-          ctx.fill();
-
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
-          ctx.beginPath();
-          ctx.moveTo(mX + 60, 150);
-          ctx.lineTo(mX + 25, 200);
-          ctx.lineTo(mX + 50, 190);
-          ctx.lineTo(mX + 65, 205);
-          ctx.lineTo(mX + 80, 190);
-          ctx.lineTo(mX + 95, 200);
-          ctx.closePath();
-          ctx.fill();
-        }
-
-        // Đồi cỏ tròn xanh Super Mario có sọc đổ bóng và mắt cười
-        for (let i = 0; i < 7; i++) {
-          const hillX = (i * 460 - camX * 0.3) % (worldLengthRef.current + 300);
-          ctx.fillStyle = '#16a34a';
-          ctx.beginPath();
-          ctx.ellipse(hillX, GROUND_Y, 130, 95, 0, Math.PI, 0);
-          ctx.fill();
-
-          ctx.fillStyle = '#15803d';
-          ctx.beginPath();
-          ctx.ellipse(hillX - 25, GROUND_Y - 22, 18, 10, 0, 0, Math.PI * 2);
-          ctx.ellipse(hillX + 35, GROUND_Y - 38, 15, 8, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#064e3b';
-          ctx.fillRect(hillX - 8, GROUND_Y - 65, 4, 10);
-          ctx.fillRect(hillX + 4, GROUND_Y - 65, 4, 10);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(hillX - 7, GROUND_Y - 64, 2, 4);
-          ctx.fillRect(hillX + 5, GROUND_Y - 64, 2, 4);
-        }
-
-        // Mây trắng hoạt hình Super Mario bồng bềnh có mắt cười
-        for (let i = 0; i < 8; i++) {
-          const cX = (i * 380 - camX * 0.22) % (worldLengthRef.current + 300);
-          const cY = 65 + (i % 3) * 45;
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(cX, cY, 30, 0, Math.PI * 2);
-          ctx.arc(cX + 26, cY - 14, 38, 0, Math.PI * 2);
-          ctx.arc(cX + 60, cY, 30, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(cX + 18, cY - 8, 4, 10);
-          ctx.fillRect(cX + 36, cY - 8, 4, 10);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(cX + 19, cY - 7, 2, 4);
-          ctx.fillRect(cX + 37, cY - 7, 2, 4);
-        }
-
-        // Bụi cây xanh ven đường có quả đỏ
-        for (let i = 0; i < 10; i++) {
-          const bushX = (i * 340 - camX * 0.5) % (worldLengthRef.current + 250);
-          ctx.fillStyle = '#22c55e';
-          ctx.beginPath();
-          ctx.arc(bushX, GROUND_Y - 6, 20, 0, Math.PI * 2);
-          ctx.arc(bushX + 22, GROUND_Y - 12, 24, 0, Math.PI * 2);
-          ctx.arc(bushX + 44, GROUND_Y - 6, 20, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.arc(bushX + 14, GROUND_Y - 14, 3, 0, Math.PI * 2);
-          ctx.arc(bushX + 30, GROUND_Y - 18, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
+      // HẬU CẢNH THIÊN NHIÊN SỐNG ĐỘNG (Parallax núi nguyên khối, đồi cỏ Super Mario & mây cười)
+      drawBackgroundScene(ctx, currentStage, camX, worldLengthRef.current);
 
       ctx.save();
       ctx.translate(-camX, 0);
 
-      // VẼ MẶT ĐẤT VÀ KHỐI GẠCH ĐỊA HÌNH 3D
+      // VẼ MẶT ĐẤT VÀ KHỐI GẠCH ĐỊA HÌNH 3D (Sa thạch 2 tầng, Khối ? mạ vàng ánh kim)
       blocksRef.current.forEach(b => {
         if (b.x + b.w < camX - 60 || b.x > camX + ARENA_WIDTH + 60) return;
 
@@ -1206,93 +2331,17 @@ export const GameMario: React.FC = () => {
         }
 
         if (b.type === 'ground') {
-          // Lớp đất đá nung sa thạch 3D
-          const gGrad = ctx.createLinearGradient(b.x, renderY, b.x, renderY + b.h);
-          gGrad.addColorStop(0, currentStage === 4 ? '#27272a' : currentStage === 2 ? '#1e293b' : '#b45309');
-          gGrad.addColorStop(1, currentStage === 4 ? '#09090b' : currentStage === 2 ? '#0f172a' : '#78350f');
-          ctx.fillStyle = gGrad;
-          ctx.fillRect(b.x, renderY, b.w, b.h);
-
-          // Thảm cỏ xanh mượt mà trên mặt có hoa cúc nhỏ
-          if (currentStage === 1 || currentStage === 3) {
-            ctx.fillStyle = '#22c55e';
-            ctx.fillRect(b.x, renderY, b.w, 14);
-            ctx.fillStyle = '#16a34a';
-            for (let cx = b.x; cx < b.x + b.w; cx += 12) {
-              ctx.beginPath();
-              ctx.moveTo(cx, renderY + 14);
-              ctx.lineTo(cx + 6, renderY + 22);
-              ctx.lineTo(cx + 12, renderY + 14);
-              ctx.fill();
-            }
-            if (Math.floor(b.x) % 96 === 0) {
-              ctx.fillStyle = '#fef08a';
-              ctx.beginPath();
-              ctx.arc(b.x + 24, renderY + 5, 3.5, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = '#f59e0b';
-              ctx.beginPath();
-              ctx.arc(b.x + 24, renderY + 5, 1.5, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-
-          ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(b.x, renderY, b.w, b.h);
+          drawGroundTerrain(ctx, b, renderY, currentStage);
         } else if (b.type === 'question') {
-          // KHỐI HỎI CHẤM [?] MẠ VÀNG 3D RỰC RỠ
-          const qGrad = ctx.createLinearGradient(b.x, renderY, b.x + b.w, renderY + b.h);
-          qGrad.addColorStop(0, '#fef08a');
-          qGrad.addColorStop(0.3, '#facc15');
-          qGrad.addColorStop(0.7, '#eab308');
-          qGrad.addColorStop(1, '#ca8a04');
-          ctx.fillStyle = qGrad;
-          ctx.fillRect(b.x, renderY, b.w, b.h);
-
-          ctx.strokeStyle = '#854d0e';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(b.x, renderY, b.w, b.h);
-
-          // Vệt sáng kim loại phản quang (Metallic Shimmer)
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-          ctx.beginPath();
-          ctx.moveTo(b.x + 4, renderY + 4);
-          ctx.lineTo(b.x + 18, renderY + 4);
-          ctx.lineTo(b.x + 4, renderY + 18);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.fillStyle = '#713f12';
-          ctx.fillRect(b.x + 4, renderY + 4, 4, 4);
-          ctx.fillRect(b.x + b.w - 8, renderY + 4, 4, 4);
-          ctx.fillRect(b.x + 4, renderY + b.h - 8, 4, 4);
-          ctx.fillRect(b.x + b.w - 8, renderY + b.h - 8, 4, 4);
-
-          ctx.fillStyle = '#78350f';
-          ctx.font = 'black 26px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('?', b.x + b.w / 2, renderY + b.h / 2 + 1);
+          drawQuestionBlock(ctx, b, renderY, now);
         } else if (b.type === 'brick') {
-          ctx.fillStyle = currentStage === 4 ? '#991b1b' : currentStage === 2 ? '#334155' : '#b45309';
-          ctx.fillRect(b.x, renderY, b.w, b.h);
-          ctx.strokeStyle = '#451a03';
-          ctx.lineWidth = 2.5;
-          ctx.strokeRect(b.x, renderY, b.w, b.h);
-          ctx.beginPath();
-          ctx.moveTo(b.x, renderY + b.h / 2);
-          ctx.lineTo(b.x + b.w, renderY + b.h / 2);
-          ctx.moveTo(b.x + b.w / 2, renderY);
-          ctx.lineTo(b.x + b.w / 2, renderY + b.h / 2);
-          ctx.moveTo(b.x + b.w / 4, renderY + b.h / 2);
-          ctx.lineTo(b.x + b.w / 4, renderY + b.h);
-          ctx.moveTo(b.x + (b.w * 3) / 4, renderY + b.h / 2);
-          ctx.lineTo(b.x + (b.w * 3) / 4, renderY + b.h);
-          ctx.stroke();
+          drawBrickBlock(ctx, b, renderY, currentStage);
         } else if (b.type === 'empty') {
+          // Khối gạch rỗng sau khi đập
           ctx.fillStyle = '#71717a';
-          ctx.fillRect(b.x, renderY, b.w, b.h);
+          ctx.beginPath();
+          ctx.roundRect(b.x, renderY, b.w, b.h, 4);
+          ctx.fill();
           ctx.strokeStyle = '#3f3f46';
           ctx.lineWidth = 2.5;
           ctx.strokeRect(b.x, renderY, b.w, b.h);
@@ -1304,40 +2353,10 @@ export const GameMario: React.FC = () => {
         }
       });
 
-      // VẼ ĐƯỜNG ỐNG NƯỚC XANH 3D
+      // VẼ ĐƯỜNG ỐNG NƯỚC XANH 3D & CÂY ĂN THỊT PIRANHA
       pipesRef.current.forEach(p => {
         if (p.x + p.w < camX - 60 || p.x > camX + ARENA_WIDTH + 60) return;
-
-        if (p.hasPiranha) {
-          const plantY = p.y - 40 + (Math.sin(p.piranhaTimer || 0) > 0 ? 0 : 44);
-          p.piranhaTimer = (p.piranhaTimer || 0) + 0.05;
-
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.arc(p.x + p.w / 2, plantY + 16, 18, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(p.x + p.w / 2 - 6, plantY + 10, 4, 0, Math.PI * 2);
-          ctx.arc(p.x + p.w / 2 + 6, plantY + 18, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(p.x + p.w / 2 - 10, plantY + 22, 20, 5);
-        }
-
-        const pGrad = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y);
-        pGrad.addColorStop(0, '#15803d');
-        pGrad.addColorStop(0.22, '#4ade80');
-        pGrad.addColorStop(0.7, '#22c55e');
-        pGrad.addColorStop(1, '#14532d');
-        ctx.fillStyle = pGrad;
-        ctx.fillRect(p.x + 4, p.y + 22, p.w - 8, p.h - 22);
-
-        ctx.fillRect(p.x, p.y, p.w, 24);
-        ctx.strokeStyle = '#052e16';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(p.x, p.y, p.w, 24);
-        ctx.strokeRect(p.x + 4, p.y + 24, p.w - 8, p.h - 24);
+        drawPipeAndPiranha(ctx, p, m.x);
       });
 
       // VẼ RÌU CẮT CẦU (MÀN 4)
@@ -1468,8 +2487,8 @@ export const GameMario: React.FC = () => {
           const cx = item.x + item.w / 2;
           const cy = item.y + item.h / 2;
           for (let i = 0; i < 5; i++) {
-            ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 17 + cx, -Math.sin((18 + i * 72) * Math.PI / 180) * 17 + cy);
-            ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 7.5 + cx, -Math.sin((54 + i * 72) * Math.PI / 180) * 7.5 + cy);
+            ctx.lineTo(Math.cos(((18 + i * 72) * Math.PI) / 180) * 17 + cx, -Math.sin(((18 + i * 72) * Math.PI) / 180) * 17 + cy);
+            ctx.lineTo(Math.cos(((54 + i * 72) * Math.PI) / 180) * 7.5 + cx, -Math.sin(((54 + i * 72) * Math.PI) / 180) * 7.5 + cy);
           }
           ctx.closePath();
           ctx.fill();
@@ -1484,71 +2503,9 @@ export const GameMario: React.FC = () => {
         if (!en.isAlive) return;
 
         if (en.type === 'goomba') {
-          if (en.isStomped) {
-            ctx.fillStyle = '#78350f';
-            ctx.fillRect(en.x, en.y, en.w, 14);
-          } else {
-            ctx.fillStyle = '#78350f';
-            ctx.beginPath();
-            ctx.arc(en.x + en.w / 2, en.y + 18, 20, Math.PI, 0);
-            ctx.lineTo(en.x + en.w, en.y + 32);
-            ctx.lineTo(en.x, en.y + 32);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = '#fef3c7';
-            ctx.fillRect(en.x + 8, en.y + 28, en.w - 16, 10);
-
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(en.x + 9, en.y + 14, 7, 11);
-            ctx.fillRect(en.x + en.w - 16, en.y + 14, 7, 11);
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(en.x + 12, en.y + 16, 4, 9);
-            ctx.fillRect(en.x + en.w - 15, en.y + 16, 4, 9);
-
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.moveTo(en.x + 11, en.y + 32);
-            ctx.lineTo(en.x + 14, en.y + 26);
-            ctx.lineTo(en.x + 17, en.y + 32);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(en.x + en.w - 17, en.y + 32);
-            ctx.lineTo(en.x + en.w - 14, en.y + 26);
-            ctx.lineTo(en.x + en.w - 11, en.y + 32);
-            ctx.fill();
-
-            ctx.fillStyle = '#1c1917';
-            ctx.fillRect(en.x + 3, en.y + 36, 14, 8);
-            ctx.fillRect(en.x + en.w - 17, en.y + 36, 14, 8);
-          }
+          drawGoomba(ctx, en, now);
         } else if (en.type === 'koopa') {
-          if (en.isShell) {
-            ctx.fillStyle = '#16a34a';
-            ctx.beginPath();
-            ctx.arc(en.x + en.w / 2, en.y + 18, 18, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-          } else {
-            ctx.fillStyle = '#16a34a';
-            ctx.beginPath();
-            ctx.ellipse(en.x + en.w / 2, en.y + 32, 17, 21, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#facc15';
-            const headX = en.facing === 'left' ? en.x + 6 : en.x + en.w - 6;
-            ctx.beginPath();
-            ctx.arc(headX, en.y + 14, 14, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(headX + (en.facing === 'left' ? -5 : 3), en.y + 10, 4, 7);
-
-            ctx.fillStyle = '#f97316';
-            ctx.fillRect(en.x + 3, en.y + 52, 14, 10);
-            ctx.fillRect(en.x + en.w - 17, en.y + 52, 14, 10);
-          }
+          drawKoopa(ctx, en, now);
         } else if (en.type === 'bowser') {
           ctx.fillStyle = '#15803d';
           ctx.fillRect(en.x + 18, en.y + 20, 60, 68);
@@ -1584,97 +2541,14 @@ export const GameMario: React.FC = () => {
         ctx.fill();
       });
 
-      // VẼ NHÂN VẬT MARIO CHÂN THỰC, SẮC NÉT
+      // VẼ NHÂN VẬT MARIO CHÂN THỰC, SẮC NÉT (Bộ vẽ vector Mario chi tiết)
       if (!m.isDead || (m.isDead && m.y < CANVAS_HEIGHT + 80)) {
-        const isFlickering = (invulnerableTimerRef.current > 0 && Math.floor(now / 50) % 2 === 0);
+        const isFlickering = invulnerableTimerRef.current > 0 && Math.floor(now / 50) % 2 === 0;
         if (!isFlickering) {
           ctx.save();
           ctx.translate(m.x + m.w / 2, m.y + m.h / 2);
           if (m.facing === 'left') ctx.scale(-1, 1);
-
-          const starHue = isStarRef.current ? (Math.floor(now / 40) * 60) % 360 : null;
-          const shirtColor = starHue !== null ? `hsl(${starHue}, 100%, 50%)` : marioFormRef.current === 'fire' ? '#ffffff' : '#dc2626';
-          const overallsColor = starHue !== null ? `hsl(${(starHue + 180) % 360}, 100%, 50%)` : marioFormRef.current === 'fire' ? '#dc2626' : '#2563eb';
-          const capColor = starHue !== null ? `hsl(${starHue}, 100%, 50%)` : marioFormRef.current === 'fire' ? '#ffffff' : '#dc2626';
-
-          const isSuper = marioFormRef.current !== 'small';
-          const bodyYOffset = isSuper ? -8 : 0;
-
-          // 1. Mũ đỏ & Vành mũ
-          ctx.fillStyle = capColor;
-          ctx.beginPath();
-          ctx.ellipse(0, -m.h / 2 + 11, isSuper ? 16 : 13, isSuper ? 12 : 10, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillRect(0, -m.h / 2 + 14, isSuper ? 18 : 15, 6);
-          // Huy hiệu tròn trắng chữ M
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(-2, -m.h / 2 + 9, isSuper ? 5.5 : 4.5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#dc2626';
-          ctx.font = `bold ${isSuper ? 8 : 7}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.fillText('M', -2, -m.h / 2 + 12);
-
-          // 2. Khuôn mặt, Mũi to tròn, Ria mép rậm & Mắt xanh
-          ctx.fillStyle = '#fed7aa';
-          ctx.beginPath();
-          ctx.arc(0, -m.h / 2 + 22 + bodyYOffset, isSuper ? 12 : 10, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.arc(isSuper ? 11 : 9, -m.h / 2 + 22 + bodyYOffset, isSuper ? 6 : 5, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#2563eb';
-          ctx.fillRect(isSuper ? 4 : 3, -m.h / 2 + 18 + bodyYOffset, 3.5, 6);
-
-          ctx.fillStyle = '#1e1b4b';
-          ctx.beginPath();
-          ctx.ellipse(isSuper ? 8 : 6, -m.h / 2 + 27 + bodyYOffset, isSuper ? 9 : 7.5, isSuper ? 5 : 4, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#78350f';
-          ctx.fillRect(-m.h / 4, -m.h / 2 + 20 + bodyYOffset, 5, 11);
-
-          // 3. Áo & Quần yếm xanh
-          ctx.fillStyle = shirtColor;
-          ctx.fillRect(-m.w / 2 + 5, -m.h / 2 + 30 + bodyYOffset, m.w - 10, isSuper ? 22 : 14);
-
-          ctx.fillStyle = overallsColor;
-          ctx.fillRect(-m.w / 2 + 6, -m.h / 2 + 36 + bodyYOffset, m.w - 12, isSuper ? 24 : 16);
-
-          ctx.fillStyle = '#facc15';
-          ctx.beginPath();
-          ctx.arc(-m.w / 4, -m.h / 2 + 39 + bodyYOffset, 2.8, 0, Math.PI * 2);
-          ctx.arc(m.w / 4 - 3, -m.h / 2 + 39 + bodyYOffset, 2.8, 0, Math.PI * 2);
-          ctx.fill();
-
-          // 4. Bàn tay đeo găng trắng
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          if (m.animFrame === 3) {
-            ctx.arc(m.w / 2 - 2, -m.h / 2 + 6, 6, 0, Math.PI * 2);
-            ctx.arc(-m.w / 2 + 6, -m.h / 2 + 36, 6, 0, Math.PI * 2);
-          } else {
-            ctx.arc(m.w / 2 - 2, -m.h / 2 + 38 + bodyYOffset, 6, 0, Math.PI * 2);
-            ctx.arc(-m.w / 2 + 6, -m.h / 2 + 38 + bodyYOffset, 6, 0, Math.PI * 2);
-          }
-          ctx.fill();
-
-          // 5. Đôi ủng da nâu
-          ctx.fillStyle = '#78350f';
-          if (m.animFrame === 1) {
-            ctx.fillRect(-m.w / 2 + 2, m.h / 2 - 11, 14, 11);
-            ctx.fillRect(m.w / 2 - 14, m.h / 2 - 7, 14, 7);
-          } else if (m.animFrame === 2) {
-            ctx.fillRect(-m.w / 2 + 6, m.h / 2 - 7, 14, 7);
-            ctx.fillRect(m.w / 2 - 11, m.h / 2 - 11, 14, 11);
-          } else {
-            ctx.fillRect(-m.w / 2 + 3, m.h / 2 - 10, 14, 10);
-            ctx.fillRect(m.w / 2 - 16, m.h / 2 - 10, 14, 10);
-          }
-
+          drawDetailedMario(ctx, m, marioFormRef.current, isStarRef.current, now);
           ctx.restore();
         }
       }
@@ -1726,32 +2600,42 @@ export const GameMario: React.FC = () => {
 
       ctx.restore(); // Kết thúc dịch chuyển Camera
 
-      // BANNER HUD PHÍA TRÊN SÂN KHẤU (Retro Top Banner)
+      // BANNER HUD PHÍA TRÊN SÂN KHẤU (Chuẩn Retro Arcade Top HUD)
       ctx.fillStyle = '#090d16';
       ctx.fillRect(0, 0, ARENA_WIDTH, 38);
 
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = 'black 13px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('MARIO', 24, 24);
-      ctx.fillStyle = '#facc15';
-      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 80, 24);
-
-      ctx.fillStyle = '#facc15';
-      ctx.fillText(`🪙 x${coinsRef.current.toString().padStart(2, '0')}`, 200, 24);
-
+      // MARIO & Điểm số
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('WORLD', 330, 24);
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('MARIO', 115, 24);
+      ctx.fillStyle = '#facc15';
+      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 165, 24);
+
+      // Icon Đồng Xu Vàng 3D Vector & Số Lượng Xu
+      drawVectorCoin(ctx, 255, 20, 7.5);
+      ctx.fillStyle = '#facc15';
+      ctx.fillText(`x ${coinsRef.current.toString().padStart(2, '0')}`, 270, 24);
+
+      // World
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('WORLD', 335, 24);
       ctx.fillStyle = '#38bdf8';
       ctx.fillText(`${currentWorld}-${currentStage}`, 385, 24);
 
+      // Time
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('TIME', 485, 24);
+      ctx.fillText('TIME', 445, 24);
       ctx.fillStyle = timeLeft < 50 ? '#ef4444' : '#f8fafc';
-      ctx.fillText(`${Math.ceil(timeLeft)}`, 525, 24);
+      ctx.fillText(`${Math.ceil(timeLeft)}`, 485, 24);
 
-      ctx.fillStyle = '#f43f5e';
-      ctx.fillText(`♥ x ${livesRef.current}`, 620, 24);
+      // Mạng sống (Biểu tượng trái tim)
+      const heartCount = livesRef.current;
+      for (let hIdx = 0; hIdx < 3; hIdx++) {
+        ctx.fillStyle = hIdx < heartCount ? '#f43f5e' : '#334155';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('♥', 545 + hIdx * 16, 24);
+      }
 
       ctx.restore(); // Kết thúc clip Arena
 
@@ -1778,22 +2662,49 @@ export const GameMario: React.FC = () => {
       ctx.beginPath();
       ctx.roundRect(SIDEBAR_X + 16, cardY, SIDEBAR_WIDTH - 32, 64, 12);
       ctx.fill();
-      ctx.strokeStyle = isStarRef.current ? '#facc15' : marioFormRef.current === 'fire' ? '#ef4444' : marioFormRef.current === 'super' ? '#3b82f6' : '#64748b';
+      ctx.strokeStyle = isStarRef.current
+        ? '#facc15'
+        : marioFormRef.current === 'fire'
+        ? '#ef4444'
+        : marioFormRef.current === 'super'
+        ? '#3b82f6'
+        : '#64748b';
       ctx.lineWidth = 1.6;
       ctx.stroke();
 
-      ctx.font = '22px sans-serif';
-      const formIcon = isStarRef.current ? '⭐' : marioFormRef.current === 'fire' ? '🔥' : marioFormRef.current === 'super' ? '🍄' : '👨';
-      ctx.fillText(formIcon, SIDEBAR_X + 44, cardY + 38);
+      // Avatar Vector Mario Face Badge (Thay thế hoàn toàn emoji điện thoại)
+      drawMarioAvatarBadge(
+        ctx,
+        SIDEBAR_X + 44,
+        cardY + 32,
+        20,
+        marioFormRef.current,
+        isStarRef.current,
+        now
+      );
 
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'left';
-      const formText = isStarRef.current ? 'BẤT TỬ' : marioFormRef.current === 'fire' ? 'MARIO LỬA' : marioFormRef.current === 'super' ? 'SIÊU MARIO' : 'MARIO NHỎ';
-      ctx.fillText(formText, SIDEBAR_X + 70, cardY + 32);
+      const formText = isStarRef.current
+        ? 'BẤT TỬ'
+        : marioFormRef.current === 'fire'
+        ? 'MARIO LỬA'
+        : marioFormRef.current === 'super'
+        ? 'SIÊU MARIO'
+        : 'MARIO NHỎ';
+      ctx.fillText(formText, SIDEBAR_X + 74, cardY + 30);
       ctx.fillStyle = '#94a3b8';
       ctx.font = '10px sans-serif';
-      ctx.fillText(isStarRef.current ? `${Math.ceil(starTimerRef.current)}s còn lại` : marioFormRef.current === 'fire' ? 'Phím J: Bắn lửa' : 'Húc gạch tìm nấm', SIDEBAR_X + 70, cardY + 48);
+      ctx.fillText(
+        isStarRef.current
+          ? `${Math.ceil(starTimerRef.current)}s còn lại`
+          : marioFormRef.current === 'fire'
+          ? 'Phím J: Bắn lửa'
+          : 'Húc gạch tìm nấm',
+        SIDEBAR_X + 74,
+        cardY + 48
+      );
 
       // Quân Số Mạng (Căn giữa chuẩn xác trục tâm)
       const livesY = 124;
@@ -1822,7 +2733,7 @@ export const GameMario: React.FC = () => {
         ctx.fillText(hasLife ? '♥' : '✕', lx, ly + 4);
       }
 
-      // Tiến Trình Màn Chơi (World Progress)
+      // Tiến Trình Màn Chơi (World Progress - Tính chuẩn xác theo đích đến flagpole)
       const progY = 180;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
@@ -1835,15 +2746,28 @@ export const GameMario: React.FC = () => {
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText('TIẾN ĐỘ VƯỢNG QUỐC', SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 22);
 
-      const progRatio = Math.min(1, Math.max(0, m.x / (worldLengthRef.current - 240)));
+      const finishTargetX = flagpoleRef.current ? Math.max(1, flagpoleRef.current.x - 100) : 3400;
+      const progRatio = Math.min(1, Math.max(0, m.x / finishTargetX));
+      const progPct = Math.round(progRatio * 100);
+
       ctx.fillStyle = '#1e293b';
-      ctx.fillRect(SIDEBAR_X + 26, progY + 36, SIDEBAR_WIDTH - 52, 12);
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(SIDEBAR_X + 26, progY + 36, (SIDEBAR_WIDTH - 52) * progRatio, 12);
+      ctx.beginPath();
+      ctx.roundRect(SIDEBAR_X + 26, progY + 36, SIDEBAR_WIDTH - 52, 12, 6);
+      ctx.fill();
+
+      if (progRatio > 0.02) {
+        const barGrad = ctx.createLinearGradient(SIDEBAR_X + 26, 0, SIDEBAR_X + SIDEBAR_WIDTH - 26, 0);
+        barGrad.addColorStop(0, '#10b981');
+        barGrad.addColorStop(1, '#22c55e');
+        ctx.fillStyle = barGrad;
+        ctx.beginPath();
+        ctx.roundRect(SIDEBAR_X + 26, progY + 36, (SIDEBAR_WIDTH - 52) * progRatio, 12, 6);
+        ctx.fill();
+      }
 
       ctx.fillStyle = '#38bdf8';
       ctx.font = 'bold 10px monospace';
-      ctx.fillText(`MÀN ${currentWorld}-${currentStage} • ${Math.round(progRatio * 100)}%`, SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 62);
+      ctx.fillText(`MÀN ${currentWorld}-${currentStage} • ${progPct}%`, SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 62);
 
       // Điểm Số Chiến Trường
       const scoreBoxY = 270;
@@ -1890,7 +2814,9 @@ export const GameMario: React.FC = () => {
       guides.forEach((g, idx) => {
         const rowY = keyGuideY + 42 + idx * 24;
         ctx.fillStyle = '#334155';
-        ctx.fillRect(SIDEBAR_X + 22, rowY - 10, 52, 16);
+        ctx.beginPath();
+        ctx.roundRect(SIDEBAR_X + 22, rowY - 10, 52, 16, 4);
+        ctx.fill();
         ctx.fillStyle = '#f8fafc';
         ctx.font = 'bold 9px monospace';
         ctx.textAlign = 'center';
