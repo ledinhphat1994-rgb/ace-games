@@ -1256,50 +1256,115 @@ export const GameZuma: React.FC = () => {
         ctx.arc(0, 0, BALL_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
-        // Ký hiệu cổ tự khắc chìm (Engraved Rune)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(col.rune, 0, 1);
-
-        // Biểu tượng Ngọc Phép Thuật Đặc Biệt (Power-Up Emblems)
-        if (b.power === 'bomb') {
-          // Bùa nổ đỏ chớp sáng
+        // Ký hiệu cổ tự hoặc Biểu tượng Ngọc Phép Thuật Đặc Biệt
+        if (b.power === 'none') {
+          // Ký hiệu cổ tự khắc chìm (Engraved Rune)
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(col.rune, 0, 1);
+        } else if (b.power === 'bomb') {
+          // Bùa nổ đỏ: Vòng phát sáng + Bom vector sắc nét
+          const pulse = Math.sin(Date.now() / 100) * 1.5;
           ctx.strokeStyle = '#ef4444';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, BALL_RADIUS + 2, 0, Math.PI * 2);
+          ctx.arc(0, 0, BALL_RADIUS + 2 + pulse, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.fillStyle = '#fef08a';
-          ctx.font = 'bold 10px sans-serif';
-          ctx.fillText('💣', 0, 1);
+
+          // Thân bom đen
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(0, 1.5, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fca5a5';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Ngòi nổ & tia lửa vàng
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fillRect(-2, -5.5, 4, 2);
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, -5.5);
+          ctx.quadraticCurveTo(3, -9, 5, -8);
+          ctx.stroke();
+
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(5, -8, 2, 0, Math.PI * 2);
+          ctx.fill();
         } else if (b.power === 'slow') {
-          // Bùa làm chậm băng tuyết
+          // Bùa làm chậm: Vòng tuyết + Hoa tuyết 6 cánh vector
+          const pulse = Math.sin(Date.now() / 150) * 1.5;
           ctx.strokeStyle = '#38bdf8';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, BALL_RADIUS + 2, 0, Math.PI * 2);
+          ctx.arc(0, 0, BALL_RADIUS + 2 + pulse, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 10px sans-serif';
-          ctx.fillText('❄', 0, 1);
+
+          // Hoa tuyết băng 6 nhánh
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          for (let a = 0; a < 3; a++) {
+            const ang = a * (Math.PI / 3);
+            ctx.beginPath();
+            ctx.moveTo(-Math.cos(ang) * 7, -Math.sin(ang) * 7);
+            ctx.lineTo(Math.cos(ang) * 7, Math.sin(ang) * 7);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+          ctx.fill();
         } else if (b.power === 'reverse') {
-          // Bùa lùi bước tím
+          // Bùa lùi bước tím: Vòng tím + Mũi tên kép << vector sắc nét
+          const pulse = Math.sin(Date.now() / 120) * 1.5;
           ctx.strokeStyle = '#c084fc';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, BALL_RADIUS + 2, 0, Math.PI * 2);
+          ctx.arc(0, 0, BALL_RADIUS + 2 + pulse, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 10px sans-serif';
-          ctx.fillText('⏪', 0, 1);
+
+          // Vẽ 2 mũi tên lùi <<
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+
+          // Mũi tên 1
+          ctx.beginPath();
+          ctx.moveTo(3, -6);
+          ctx.lineTo(-2, 0);
+          ctx.lineTo(3, 6);
+          ctx.stroke();
+
+          // Mũi tên 2
+          ctx.beginPath();
+          ctx.moveTo(-3, -6);
+          ctx.lineTo(-8, 0);
+          ctx.lineTo(-3, 6);
+          ctx.stroke();
         } else if (b.power === 'laser') {
-          // Bùa tia ngắm vàng
+          // Bùa tia ngắm vàng: Vòng vàng + Tâm ngắm Crosshair vector
+          const pulse = Math.sin(Date.now() / 140) * 1.5;
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, BALL_RADIUS + 2, 0, Math.PI * 2);
+          ctx.arc(0, 0, BALL_RADIUS + 2 + pulse, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, -8); ctx.lineTo(0, 8);
+          ctx.moveTo(-8, 0); ctx.lineTo(8, 0);
           ctx.stroke();
         }
 
@@ -1543,14 +1608,17 @@ export const GameZuma: React.FC = () => {
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText(isZumaReached ? '★ ZUMA COMPLETE ★' : `ZUMA: ${Math.round(zumaMeter)}%`, SIDEBAR_X + SIDEBAR_WIDTH / 2, zbY + 16);
 
-      // 2. MẠNG SỐNG CÓC ĐÁ (3 Sacred Frog Idols)
+      // 2. MẠNG SỐNG CÓC ĐÁ (3 Sacred Frog Idols - Căn giữa chuẩn xác 100% Sidebar)
       const livesY = 96;
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
       ctx.fillText('MẠNG CÓC THẦN', SIDEBAR_X + SIDEBAR_WIDTH / 2, livesY);
 
+      const spacing = 34;
+      const centerX = SIDEBAR_X + SIDEBAR_WIDTH / 2;
       for (let i = 0; i < 3; i++) {
-        const lx = SIDEBAR_X + 52 + i * 36;
+        const lx = centerX + (i - 1) * spacing;
         const ly = livesY + 22;
         const hasLife = i < lives;
 
@@ -1562,9 +1630,27 @@ export const GameZuma: React.FC = () => {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        ctx.fillStyle = hasLife ? '#fef08a' : '#64748b';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText('🐸', lx, ly + 3.5);
+        if (hasLife) {
+          // Icon đầu cóc thần vàng xinh xắn sắc nét vector
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.ellipse(lx, ly + 1, 5.5, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Mắt cóc
+          ctx.fillStyle = '#065f46';
+          ctx.beginPath();
+          ctx.arc(lx - 2.8, ly - 2, 1.8, 0, Math.PI * 2);
+          ctx.arc(lx + 2.8, ly - 2, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Mất mạng: Dấu X xám
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(lx - 3.5, ly - 3.5); ctx.lineTo(lx + 3.5, ly + 3.5);
+          ctx.moveTo(lx + 3.5, ly - 3.5); ctx.lineTo(lx - 3.5, ly + 3.5);
+          ctx.stroke();
+        }
       }
 
       // 3. SỐ BI TRÊN ĐƯỜNG RAY & MÀN
@@ -1623,13 +1709,6 @@ export const GameZuma: React.FC = () => {
         ctx.fillText(`⏪ LÙI BƯỚC: ${reverseTimerRef.current.toFixed(1)}S`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 435);
       }
 
-      // Hướng dẫn đổi bi nổi bật
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 10px sans-serif';
-      ctx.fillText('[SPACE / CHUỘT PHẢI]', SIDEBAR_X + SIDEBAR_WIDTH / 2, 485);
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('ĐỔI MÀU BI', SIDEBAR_X + SIDEBAR_WIDTH / 2, 505);
-
       animId = requestAnimationFrame(gameLoop);
     };
 
@@ -1672,7 +1751,7 @@ export const GameZuma: React.FC = () => {
   return (
     <div className="flex flex-col items-center w-full select-none">
       {/* 3-Column Top HUD Bar */}
-      <div className="w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-2 mb-2 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm">
+      <div className="relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-2 mb-2 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm">
         {/* Cột 1: Thông tin chế độ */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
@@ -1687,8 +1766,8 @@ export const GameZuma: React.FC = () => {
           </div>
         </div>
 
-        {/* Cột 2: Điểm số & Mạng & Số bi */}
-        <div className="flex items-center gap-4 sm:gap-6 font-mono font-bold">
+        {/* Cột 2: Điểm số & Mạng & Số bi - CĂN CHÍNH GIỮA TUYỆT ĐỐI 50% THANH HUD */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4 sm:gap-6 font-mono font-bold pointer-events-none">
           <div className="flex items-center gap-1 text-amber-400">
             <Trophy className="w-4 h-4" />
             <span className="text-gray-400 text-xs hidden sm:inline">ĐIỂM:</span>
