@@ -1815,7 +1815,7 @@ export const GameMario: React.FC = () => {
     buildLevel(targetStage);
   }, [buildLevel]);
 
-  // Hồi sinh tại chỗ khi mất mạng
+  // Hồi sinh an toàn khi mất mạng
   const respawnMario = useCallback(() => {
     if (livesRef.current <= 1) {
       setGameState('game_over');
@@ -1827,17 +1827,43 @@ export const GameMario: React.FC = () => {
     setMarioForm('small');
     marioFormRef.current = 'small';
     setIsStarInvincible(false);
+    isStarRef.current = false;
+    starTimerRef.current = 0;
     invulnerableTimerRef.current = 2.5;
 
-    marioRef.current.x = Math.max(100, cameraXRef.current + 80);
+    // Tìm vị trí đất vững an toàn gần Camera nhất (không bao giờ sinh ra trên hố vực)
+    let safeX = Math.max(80, cameraXRef.current + 80);
+    const groundBlocks = blocksRef.current.filter(b => (b.type === 'ground' || b.type === 'hard_block') && b.y >= GROUND_Y - 20);
+    const hasGround = groundBlocks.some(b => safeX + 18 >= b.x && safeX + 18 <= b.x + b.w);
+    if (!hasGround && groundBlocks.length > 0) {
+      const nearestBlock = groundBlocks.find(b => b.x >= cameraXRef.current) || groundBlocks[0];
+      if (nearestBlock) safeX = nearestBlock.x + 12;
+    }
+
+    marioRef.current.x = safeX;
     marioRef.current.y = GROUND_Y - 54;
     marioRef.current.w = 36;
     marioRef.current.h = 54;
     marioRef.current.vx = 0;
     marioRef.current.vy = 0;
+    marioRef.current.deathVy = 0;
     marioRef.current.isDead = false;
     marioRef.current.isGrounded = true;
   }, []);
+
+  // Xử lý rơi xuống vực sâu (Rơi hố là chết ngay lập tức, xuyên qua cả Ngôi sao Bất tử)
+  const killMarioFall = useCallback(() => {
+    if (marioRef.current.isDead) return;
+    marioRef.current.isDead = true;
+    marioRef.current.vx = 0;
+    marioRef.current.vy = 0;
+    marioRef.current.deathVy = 0;
+    setIsStarInvincible(false);
+    isStarRef.current = false;
+    starTimerRef.current = 0;
+    soundManager.playMarioDie();
+    setTimeout(respawnMario, 2000);
+  }, [respawnMario]);
 
   // Biến đổi hình thái Mario
   const upgradeMario = (newForm: MarioForm) => {
@@ -1853,7 +1879,7 @@ export const GameMario: React.FC = () => {
   };
 
   const damageMario = () => {
-    if (invulnerableTimerRef.current > 0 || isStarRef.current) return;
+    if (invulnerableTimerRef.current > 0 || isStarRef.current || marioRef.current.isDead) return;
 
     if (marioFormRef.current === 'fire') {
       upgradeMario('super');
@@ -2132,8 +2158,8 @@ export const GameMario: React.FC = () => {
             }
           });
 
-          if (m.y > CANVAS_HEIGHT + 60) {
-            damageMario();
+          if (m.y > CANVAS_HEIGHT + 20) {
+            killMarioFall();
           }
 
           const fp = flagpoleRef.current;
@@ -2194,12 +2220,34 @@ export const GameMario: React.FC = () => {
         itemsRef.current.forEach(item => {
           if (!item.isAlive) return;
           item.vy += 26 * dt;
+          if (item.vy > 14) item.vy = 14;
           item.x += item.vx;
           item.y += item.vy;
 
-          if (item.y + item.h >= GROUND_Y) {
-            item.y = GROUND_Y - item.h;
-            item.vy = item.type === 'star' ? -8.5 : 0;
+          // Va chạm sàn thật sự (Đất, Gạch, Bậc đá) - không đi trên không qua hố
+          blocksRef.current.forEach(b => {
+            if (b.y < 8000 && item.x + item.w > b.x && item.x < b.x + b.w) {
+              if (item.vy >= 0 && item.y + item.h >= b.y && item.y + item.h <= b.y + 24) {
+                item.y = b.y - item.h;
+                item.vy = item.type === 'star' ? -8.5 : 0;
+              }
+            }
+            if (b.type !== 'ground') {
+              if (item.x + item.w > b.x && item.x < b.x + b.w && item.y + item.h > b.y + 4 && item.y < b.y + b.h) {
+                item.vx = -item.vx;
+              }
+            }
+          });
+
+          pipesRef.current.forEach(p => {
+            if (item.x + item.w > p.x && item.x < p.x + p.w && item.y + item.h > p.y) {
+              item.vx = -item.vx;
+            }
+          });
+
+          // Rơi xuống vực sâu hố tử thần
+          if (item.y > CANVAS_HEIGHT + 60) {
+            item.isAlive = false;
           }
 
           if (m.x + m.w > item.x && m.x < item.x + item.w && m.y + m.h > item.y && m.y < item.y + item.h) {
@@ -2229,13 +2277,25 @@ export const GameMario: React.FC = () => {
           if (en.type === 'goomba' || en.type === 'koopa') {
             if (!en.isStomped) {
               en.vy += 26 * dt;
+              if (en.vy > 14) en.vy = 14;
               en.x += en.vx;
               en.y += en.vy;
 
-              if (en.y + en.h >= GROUND_Y) {
-                en.y = GROUND_Y - en.h;
-                en.vy = 0;
-              }
+              // Va chạm địa hình thật (rơi hố nếu không có đất bên dưới)
+              blocksRef.current.forEach(b => {
+                if (b.y < 8000 && en.x + en.w > b.x + 2 && en.x < b.x + b.w - 2) {
+                  if (en.vy >= 0 && en.y + en.h >= b.y && en.y + en.h <= b.y + 24) {
+                    en.y = b.y - en.h;
+                    en.vy = 0;
+                  }
+                }
+                if (b.type !== 'ground') {
+                  if (en.x + en.w > b.x && en.x < b.x + b.w && en.y + en.h > b.y + 4 && en.y < b.y + b.h) {
+                    en.vx = -en.vx;
+                    en.facing = en.vx > 0 ? 'right' : 'left';
+                  }
+                }
+              });
 
               pipesRef.current.forEach(p => {
                 if (en.x + en.w > p.x && en.x < p.x + p.w && en.y + en.h > p.y) {
@@ -2243,6 +2303,11 @@ export const GameMario: React.FC = () => {
                   en.facing = en.vx > 0 ? 'right' : 'left';
                 }
               });
+
+              // Rơi xuống vực sâu hố tử thần -> quái bị tiêu diệt
+              if (en.y > CANVAS_HEIGHT + 60) {
+                en.isAlive = false;
+              }
 
               if (!m.isDead && m.x + m.w > en.x + 4 && m.x < en.x + en.w - 4 && m.y + m.h > en.y + 4 && m.y < en.y + en.h) {
                 if (isStarRef.current) {
@@ -2283,7 +2348,37 @@ export const GameMario: React.FC = () => {
                 }
               }
             } else if (en.isShell && Math.abs(en.vx) > 0.1) {
+              en.vy += 26 * dt;
+              if (en.vy > 14) en.vy = 14;
               en.x += en.vx;
+              en.y += en.vy;
+
+              blocksRef.current.forEach(b => {
+                if (b.y < 8000 && en.x + en.w > b.x + 2 && en.x < b.x + b.w - 2) {
+                  if (en.vy >= 0 && en.y + en.h >= b.y && en.y + en.h <= b.y + 24) {
+                    en.y = b.y - en.h;
+                    en.vy = 0;
+                  }
+                }
+                if (b.type !== 'ground') {
+                  if (en.x + en.w > b.x && en.x < b.x + b.w && en.y + en.h > b.y + 4 && en.y < b.y + b.h) {
+                    en.vx = -en.vx;
+                    soundManager.playMarioBrick();
+                  }
+                }
+              });
+
+              pipesRef.current.forEach(p => {
+                if (en.x + en.w > p.x && en.x < p.x + p.w && en.y + en.h > p.y) {
+                  en.vx = -en.vx;
+                  soundManager.playMarioBrick();
+                }
+              });
+
+              if (en.y > CANVAS_HEIGHT + 60) {
+                en.isAlive = false;
+              }
+
               enemiesRef.current.forEach(other => {
                 if (other.id !== en.id && other.isAlive && !other.isStomped) {
                   if (en.x + en.w > other.x && en.x < other.x + other.w && en.y + en.h > other.y && en.y < other.y + other.h) {
@@ -2294,6 +2389,21 @@ export const GameMario: React.FC = () => {
                   }
                 }
               });
+
+              if (!m.isDead && m.x + m.w > en.x + 4 && m.x < en.x + en.w - 4 && m.y + m.h > en.y + 4 && m.y < en.y + en.h) {
+                if (isStarRef.current) {
+                  en.isAlive = false;
+                  soundManager.playMarioKick();
+                  addParticles(en.x + en.w / 2, en.y + en.h / 2, 10, '#ef4444');
+                  addScore(400, en.x, en.y);
+                } else if (m.vy > 0 && m.y + m.h <= en.y + 24) {
+                  en.vx = 0;
+                  m.vy = -10.5;
+                  soundManager.playMarioStomp();
+                } else {
+                  damageMario();
+                }
+              }
             }
           } else if (en.type === 'bowser') {
             en.animTimer += dt;
@@ -2312,14 +2422,29 @@ export const GameMario: React.FC = () => {
               soundManager.playMarioFireball();
             }
 
-            if (Math.sin(en.animTimer * 2) > 0.8 && en.y >= GROUND_Y - en.h) {
+            // Bowser nhảy nhẹ khi đứng trên cầu dung nham
+            let bowserOnGround = false;
+            blocksRef.current.forEach(b => {
+              if (b.y < 8000 && en.x + en.w > b.x && en.x < b.x + b.w) {
+                if (en.vy >= 0 && en.y + en.h >= b.y && en.y + en.h <= b.y + 24) {
+                  en.y = b.y - en.h;
+                  en.vy = 0;
+                  bowserOnGround = true;
+                }
+              }
+            });
+
+            if (Math.sin(en.animTimer * 2) > 0.8 && bowserOnGround) {
               en.vy = -7.5;
             }
             en.vy += 26 * dt;
+            if (en.vy > 14) en.vy = 14;
             en.y += en.vy;
-            if (en.y + en.h >= GROUND_Y) {
-              en.y = GROUND_Y - en.h;
-              en.vy = 0;
+
+            // Bowser rơi xuống hố dung nham
+            if (en.y > CANVAS_HEIGHT + 60) {
+              en.isAlive = false;
+              addScore(8000, en.x, en.y);
             }
 
             if (!m.isDead && m.x + m.w > en.x && m.x < en.x + en.w && m.y + m.h > en.y && m.y < en.y + en.h) {
