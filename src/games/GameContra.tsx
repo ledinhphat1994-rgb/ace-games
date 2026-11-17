@@ -174,7 +174,7 @@ export const GameContra: React.FC = () => {
   const [enemiesKilled, setEnemiesKilled] = useState<number>(0);
   const [screenShake, setScreenShake] = useState<boolean>(false);
 
-  // References độc lập cho game loop 60 FPS (Không gây re-render hay giật lag)
+  // References độc lập cho game loop 60 FPS
   const scoreRef = useRef<number>(0);
   const livesRef = useRef<number>(3);
   const weaponRef = useRef<WeaponType>('normal');
@@ -212,7 +212,7 @@ export const GameContra: React.FC = () => {
   const playerRef = useRef({
     x: 80,
     y: 380,
-    width: 32,
+    width: 34,
     height: 56,
     vx: 0,
     vy: 0,
@@ -299,7 +299,7 @@ export const GameContra: React.FC = () => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(320, ctx.currentTime);
+      osc.frequency.setValueAtTime(340, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(70, ctx.currentTime + 0.14);
       gain.gain.setValueAtTime(0.2, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
@@ -401,8 +401,7 @@ export const GameContra: React.FC = () => {
     setTimeout(() => setScreenShake(false), 240);
   }, []);
 
-  // Spawn hiệu ứng hạt nổ rực lửa
-  const createExplosion = (x: number, y: number, count: number = 20, colorTheme: 'fire' | 'metal' = 'fire') => {
+  const createExplosion = (x: number, y: number, count: number = 22, colorTheme: 'fire' | 'metal' = 'fire') => {
     for (let i = 0; i < count; i++) {
       const ang = Math.random() * Math.PI * 2;
       const spd = Math.random() * 6.5 + 1.5;
@@ -437,7 +436,7 @@ export const GameContra: React.FC = () => {
     playerRef.current = {
       x: 80,
       y: 380,
-      width: 32,
+      width: 34,
       height: 56,
       vx: 0,
       vy: 0,
@@ -474,27 +473,18 @@ export const GameContra: React.FC = () => {
       pulseTime: 0,
     };
 
-    // Khởi tạo các trạm lính canh, tháp pháo và hộp phần thưởng dọc đường
     const initialEnemies: Enemy[] = [
-      // 1. Lính bắn tỉa ẩn nấp trên mỏm đá đầu tiên
-      { id: 1, type: 'sniper', x: 520, y: 200, width: 36, height: 48, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 1.8, facing: 'left', isAlive: true },
-      // 2. Tháp pháo xoay 360 độ trên vách đá
-      { id: 2, type: 'turret', x: 820, y: 300, width: 44, height: 44, vx: 0, vy: 0, hp: 12, maxHp: 12, shootCooldown: 2.2, facing: 'left', isAlive: true, aimAngle: Math.PI },
-      // 3. Hộp cảm biến vách đá chứa ĐẠN SPREAD (S)
-      { id: 3, type: 'wall_pod', x: 680, y: 265, width: 38, height: 38, vx: 0, vy: 0, hp: 4, maxHp: 4, shootCooldown: 999, facing: 'left', itemDrop: 'spread', isAlive: true },
-      // 4. Chim ưng bay mang ĐẠN MACHINE (M)
-      { id: 4, type: 'flying_capsule', x: 450, y: 150, width: 42, height: 28, vx: 2.2, vy: 0, hp: 1, maxHp: 1, shootCooldown: 999, facing: 'right', itemDrop: 'machine', isAlive: true, sineTime: 0 },
-      // 5. Tháp pháo và lính bắn tỉa đoạn giữa
-      { id: 5, type: 'sniper', x: 1720, y: 210, width: 36, height: 48, vx: 0, vy: 0, hp: 8, maxHp: 8, shootCooldown: 1.6, facing: 'left', isAlive: true },
-      { id: 6, type: 'turret', x: 1940, y: 310, width: 44, height: 44, vx: 0, vy: 0, hp: 14, maxHp: 14, shootCooldown: 2.0, facing: 'left', isAlive: true, aimAngle: Math.PI },
-      // 6. Hộp cảm biến chứa LASER (L)
-      { id: 7, type: 'wall_pod', x: 1520, y: 275, width: 38, height: 38, vx: 0, vy: 0, hp: 5, maxHp: 5, shootCooldown: 999, facing: 'left', itemDrop: 'laser', isAlive: true },
-      // 7. Chim ưng bay mang KHIÊN BẤT TỬ (B)
-      { id: 8, type: 'flying_capsule', x: 1650, y: 140, width: 42, height: 28, vx: 2.4, vy: 0, hp: 1, maxHp: 1, shootCooldown: 999, facing: 'right', itemDrop: 'barrier', isAlive: true, sineTime: 1.5 },
-      // 8. Tiền đồn trước căn cứ Boss
-      { id: 9, type: 'sniper', x: 2980, y: 200, width: 36, height: 48, vx: 0, vy: 0, hp: 10, maxHp: 10, shootCooldown: 1.5, facing: 'left', isAlive: true },
-      { id: 10, type: 'turret', x: 3260, y: 310, width: 44, height: 44, vx: 0, vy: 0, hp: 16, maxHp: 16, shootCooldown: 1.8, facing: 'left', isAlive: true, aimAngle: Math.PI },
-      { id: 11, type: 'wall_pod', x: 2750, y: 265, width: 38, height: 38, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 999, facing: 'left', itemDrop: 'spread', isAlive: true },
+      { id: 1, type: 'sniper', x: 520, y: 200, width: 44, height: 48, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 1.8, facing: 'left', isAlive: true },
+      { id: 2, type: 'turret', x: 820, y: 295, width: 46, height: 46, vx: 0, vy: 0, hp: 12, maxHp: 12, shootCooldown: 2.2, facing: 'left', isAlive: true, aimAngle: Math.PI },
+      { id: 3, type: 'wall_pod', x: 680, y: 265, width: 40, height: 40, vx: 0, vy: 0, hp: 4, maxHp: 4, shootCooldown: 999, facing: 'left', itemDrop: 'spread', isAlive: true },
+      { id: 4, type: 'flying_capsule', x: 450, y: 150, width: 44, height: 30, vx: 2.2, vy: 0, hp: 1, maxHp: 1, shootCooldown: 999, facing: 'right', itemDrop: 'machine', isAlive: true, sineTime: 0 },
+      { id: 5, type: 'sniper', x: 1720, y: 210, width: 44, height: 48, vx: 0, vy: 0, hp: 8, maxHp: 8, shootCooldown: 1.6, facing: 'left', isAlive: true },
+      { id: 6, type: 'turret', x: 1940, y: 305, width: 46, height: 46, vx: 0, vy: 0, hp: 14, maxHp: 14, shootCooldown: 2.0, facing: 'left', isAlive: true, aimAngle: Math.PI },
+      { id: 7, type: 'wall_pod', x: 1520, y: 275, width: 40, height: 40, vx: 0, vy: 0, hp: 5, maxHp: 5, shootCooldown: 999, facing: 'left', itemDrop: 'laser', isAlive: true },
+      { id: 8, type: 'flying_capsule', x: 1650, y: 140, width: 44, height: 30, vx: 2.4, vy: 0, hp: 1, maxHp: 1, shootCooldown: 999, facing: 'right', itemDrop: 'barrier', isAlive: true, sineTime: 1.5 },
+      { id: 9, type: 'sniper', x: 2980, y: 200, width: 44, height: 48, vx: 0, vy: 0, hp: 10, maxHp: 10, shootCooldown: 1.5, facing: 'left', isAlive: true },
+      { id: 10, type: 'turret', x: 3260, y: 305, width: 46, height: 46, vx: 0, vy: 0, hp: 16, maxHp: 16, shootCooldown: 1.8, facing: 'left', isAlive: true, aimAngle: Math.PI },
+      { id: 11, type: 'wall_pod', x: 2750, y: 265, width: 40, height: 40, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 999, facing: 'left', itemDrop: 'spread', isAlive: true },
     ];
     enemiesRef.current = initialEnemies;
 
@@ -512,7 +502,6 @@ export const GameContra: React.FC = () => {
     isPausedRef.current = false;
   }, [initialLives]);
 
-  // Sang màn kế tiếp
   const nextStage = useCallback(() => {
     setStage((s) => {
       const nextS = s + 1;
@@ -522,7 +511,6 @@ export const GameContra: React.FC = () => {
     resetGame();
   }, [resetGame]);
 
-  // Hành động Bắn đạn của người chơi
   const handlePlayerShoot = useCallback(() => {
     const p = playerRef.current;
     if (p.shootCooldown > 0 || isPausedRef.current || isGameOverRef.current || isVictoryRef.current) return;
@@ -563,7 +551,6 @@ export const GameContra: React.FC = () => {
     p.muzzleFlashTimer = 0.08;
 
     if (curWeapon === 'spread') {
-      // ĐẠN HOA CẢI (SPREAD GUN S) 5 TIA TỎA RỰC RỠ VỚI ĐƯỜNG BAY ĐẬM CHẤT CONTRA
       const baseAngle = Math.atan2(dirY, dirX);
       const spreadAngles = [-0.30, -0.15, 0, 0.15, 0.30];
 
@@ -584,7 +571,6 @@ export const GameContra: React.FC = () => {
       });
       p.shootCooldown = 0.18;
     } else if (curWeapon === 'laser') {
-      // SÚNG LASER TIA CHÙM NĂNG LƯỢNG XUYÊN PHÁ ĐA MỤC TIÊU
       bulletsRef.current.push({
         id: Date.now() + Math.random(),
         x: startX,
@@ -600,7 +586,6 @@ export const GameContra: React.FC = () => {
       });
       p.shootCooldown = 0.22;
     } else {
-      // SÚNG MÁY / RIFLE TIÊU CHUẨN
       bulletsRef.current.push({
         id: Date.now() + Math.random(),
         x: startX,
@@ -616,7 +601,6 @@ export const GameContra: React.FC = () => {
     }
   }, [playShootSound]);
 
-  // Hành động Nhảy của người chơi
   const handlePlayerJump = useCallback(() => {
     const p = playerRef.current;
     if (isPausedRef.current || isGameOverRef.current || isVictoryRef.current) return;
@@ -626,12 +610,10 @@ export const GameContra: React.FC = () => {
 
     if (p.isGrounded) {
       if (isHoldingDown) {
-        // Tụt xuống tầng dưới
         p.y += 14;
         p.isGrounded = false;
         p.vy = 4;
       } else {
-        // Nhảy lộn nhào lên cao
         p.vy = -12.5;
         p.isGrounded = false;
         p.isJumping = true;
@@ -641,7 +623,6 @@ export const GameContra: React.FC = () => {
     }
   }, [playJumpSound]);
 
-  // Lắng nghe bàn phím độc lập
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       initAudio();
@@ -678,12 +659,11 @@ export const GameContra: React.FC = () => {
     };
   }, [handlePlayerJump, handlePlayerShoot, initAudio]);
 
-  // Khởi tạo game ban đầu 1 lần
   useEffect(() => {
     resetGame();
   }, [resetGame]);
 
-  // Main Game Loop 60 FPS Độc Lập
+  // Main Game Loop 60 FPS
   useEffect(() => {
     let animId = 0;
 
@@ -703,7 +683,6 @@ export const GameContra: React.FC = () => {
         return;
       }
 
-      // Khớp chuẩn Retina High-DPI
       const dpr = window.devicePixelRatio || 1;
       if (canvas.width !== CANVAS_WIDTH * dpr || canvas.height !== CANVAS_HEIGHT * dpr) {
         canvas.width = CANVAS_WIDTH * dpr;
@@ -727,7 +706,6 @@ export const GameContra: React.FC = () => {
         }
         if (p.barrierTimer > 0) p.barrierTimer -= dt;
 
-        // A. XÁC ĐỊNH HƯỚNG NGẮM BẮN (8 Directions Aiming)
         const isLeft = keys['ArrowLeft'] || keys['KeyA'];
         const isRight = keys['ArrowRight'] || keys['KeyD'];
         const isUp = keys['ArrowUp'] || keys['KeyW'];
@@ -756,7 +734,6 @@ export const GameContra: React.FC = () => {
           p.aimDir = p.facing;
         }
 
-        // B. DI CHUYỂN NGANG & ANIMATION CHẠY
         const moveSpeed = gameModeRef.current === 'speed' ? 240 : 185;
         if (isRight && !p.isProne) {
           p.vx = moveSpeed;
@@ -781,7 +758,6 @@ export const GameContra: React.FC = () => {
           handlePlayerShoot();
         }
 
-        // C. TRỌNG LỰC & VA CHẠM ĐỊA HÌNH
         const gravity = 32;
         p.vy += gravity * dt;
         p.y += p.vy;
@@ -851,13 +827,12 @@ export const GameContra: React.FC = () => {
           triggerShake();
         }
 
-        // D. CAMERA CUỘN MÀN HÌNH THEO NHÂN VẬT
         const targetCamX = p.x - ARENA_WIDTH * 0.38;
         if (targetCamX > cameraXRef.current) {
           cameraXRef.current = Math.min(targetCamX, BOSS_X - ARENA_WIDTH + 240);
         }
 
-        // E. CẬP NHẬT QUÂN ĐỊCH
+        // Cập nhật quân địch
         enemiesRef.current.forEach((en) => {
           if (!en.isAlive) return;
 
@@ -946,7 +921,7 @@ export const GameContra: React.FC = () => {
           }
         });
 
-        // ĐIỀU TIẾT SINH LÍNH BỘ BINH (RUNNERS) NHỊP NHÀNG KHÔNG BỊ DỒN ĐỐNG
+        // Điều tiết nhịp sinh lính bộ binh (Runners) tối đa 2 lính trên màn hình
         runnerSpawnCooldownRef.current -= dt;
         if (runnerSpawnCooldownRef.current <= 0 && p.x < BOSS_X - 500) {
           const activeRunners = enemiesRef.current.filter(
@@ -954,7 +929,7 @@ export const GameContra: React.FC = () => {
           ).length;
 
           if (activeRunners < 2) {
-            runnerSpawnCooldownRef.current = Math.random() * 1.5 + 2.5; // Giãn cách 2.5 - 4.0 giây
+            runnerSpawnCooldownRef.current = Math.random() * 1.5 + 2.5;
             const spawnAhead = Math.random() < 0.8;
             const spawnX = spawnAhead ? cameraXRef.current + ARENA_WIDTH + 30 : cameraXRef.current - 20;
             enemiesRef.current.push({
@@ -962,8 +937,8 @@ export const GameContra: React.FC = () => {
               type: 'runner',
               x: spawnX,
               y: 380,
-              width: 30,
-              height: 50,
+              width: 32,
+              height: 52,
               vx: spawnAhead ? -125 : 125,
               vy: 0,
               hp: 2,
@@ -975,7 +950,6 @@ export const GameContra: React.FC = () => {
           }
         }
 
-        // Sinh chim ưng bay mang vũ khí định kỳ
         if (Math.random() < 0.005 && itemsRef.current.length === 0) {
           const wChoices: WeaponType[] = ['spread', 'machine', 'laser', 'barrier'];
           const pickedW = wChoices[Math.floor(Math.random() * wChoices.length)];
@@ -984,8 +958,8 @@ export const GameContra: React.FC = () => {
             type: 'flying_capsule',
             x: cameraXRef.current - 40,
             y: 130,
-            width: 42,
-            height: 28,
+            width: 44,
+            height: 30,
             vx: 2.5,
             vy: 0,
             hp: 1,
@@ -998,7 +972,6 @@ export const GameContra: React.FC = () => {
           });
         }
 
-        // F. CẬP NHẬT BOSS CĂN CỨ RED FALCON
         const boss = bossRef.current;
         if (boss.isAlive && p.x > BOSS_X - 650) {
           boss.shootTimer += dt;
@@ -1037,7 +1010,6 @@ export const GameContra: React.FC = () => {
           }
         }
 
-        // G. CẬP NHẬT VÀ XỬ LÝ VA CHẠM ĐẠN (BULLETS)
         bulletsRef.current.forEach((b) => {
           b.x += b.vx;
           b.y += b.vy;
@@ -1189,7 +1161,6 @@ export const GameContra: React.FC = () => {
           (b) => b.damage > 0 && b.x > cameraXRef.current - 60 && b.x < cameraXRef.current + ARENA_WIDTH + 60 && b.y > -60 && b.y < ARENA_HEIGHT + 60
         );
 
-        // H. CẬP NHẬT VẬT PHẨM VŨ KHÍ RƠI (ITEMS)
         itemsRef.current.forEach((it) => {
           it.y += it.vy;
           it.vy += 0.16;
@@ -1267,10 +1238,10 @@ export const GameContra: React.FC = () => {
       // A. BẦU TRỜI ĐÊM GALUGA PARALLAX & TRĂNG MÁU
       // ------------------------------------------
       const skyGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
-      skyGrad.addColorStop(0, '#030712');
-      skyGrad.addColorStop(0.4, '#09152b');
-      skyGrad.addColorStop(0.75, '#122646');
-      skyGrad.addColorStop(1, '#1b385e');
+      skyGrad.addColorStop(0, '#02050f');
+      skyGrad.addColorStop(0.4, '#081427');
+      skyGrad.addColorStop(0.75, '#0e233d');
+      skyGrad.addColorStop(1, '#153252');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
@@ -1312,15 +1283,14 @@ export const GameContra: React.FC = () => {
       ctx.arc(moonX + 4, moonY - 14, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Dải mây mờ trôi ngang mặt trăng
       ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
       ctx.beginPath();
       ctx.ellipse(moonX - 25, moonY + 16, 45, 8, -0.08, 0, Math.PI * 2);
       ctx.ellipse(moonX + 20, moonY + 22, 50, 10, 0.05, 0, Math.PI * 2);
       ctx.fill();
 
-      // Dãy núi đá lửa trùng điệp phương xa (Parallax 0.12)
-      ctx.fillStyle = '#08111e';
+      // Dãy núi đá lửa phương xa (Parallax 0.12)
+      ctx.fillStyle = '#060d17';
       for (let i = -1; i < 7; i++) {
         const mx = i * 280 - (camX * 0.12) % 280;
         ctx.beginPath();
@@ -1341,7 +1311,7 @@ export const GameContra: React.FC = () => {
         ctx.stroke();
       }
 
-      // Thác nước xa chảy từ hẻm núi
+      // Thác nước chảy từ hẻm núi xa
       for (let i = -1; i < 5; i++) {
         const wfx = i * 360 - (camX * 0.12) % 360 + 130;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
@@ -1350,15 +1320,16 @@ export const GameContra: React.FC = () => {
       }
 
       // Rừng nhiệt đới Galuga hùng vĩ (Parallax 0.38)
-      // Cây cọ nhiệt đới vươn tán lá cong tự nhiên và tán rừng rậm rạp
+      // Loại bỏ hoàn toàn hình khối tròn/mút xốp đơn điệu, vẽ cây cọ và thảm thực vật nhiệt đới
       for (let j = -1; j < 14; j++) {
         const px = j * 160 - (camX * 0.38) % 160;
         const trunkBaseX = px + 60;
         const trunkTopX = px + 80;
         const trunkTopY = 240;
 
+        // Thân cây cọ rừng vân gỗ gồ ghề tự nhiên
         ctx.strokeStyle = '#1c1917';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 11;
         ctx.beginPath();
         ctx.moveTo(trunkBaseX, 420);
         ctx.quadraticCurveTo(trunkBaseX + 12, 330, trunkTopX, trunkTopY);
@@ -1395,27 +1366,21 @@ export const GameContra: React.FC = () => {
           ctx.fill();
         });
 
-        // Tán bụi rậm nền rừng dày đặc
-        ctx.fillStyle = '#022c16';
-        ctx.beginPath();
-        ctx.arc(px + 40, 360, 48, 0, Math.PI * 2);
-        ctx.arc(px + 90, 350, 56, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#064e3b';
-        ctx.beginPath();
-        ctx.arc(px + 45, 355, 38, 0, Math.PI * 2);
-        ctx.arc(px + 85, 345, 44, 0, Math.PI * 2);
-        ctx.fill();
-
         // Dây leo rừng rủ xuống đung đưa
         const vineSwing = Math.sin(Date.now() / 500 + j) * 8;
         ctx.strokeStyle = '#047857';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.moveTo(px + 50, 340);
-        ctx.quadraticCurveTo(px + 50 + vineSwing, 380, px + 52 + vineSwing * 1.5, 410);
+        ctx.moveTo(px + 65, 300);
+        ctx.quadraticCurveTo(px + 65 + vineSwing, 360, px + 68 + vineSwing * 1.5, 410);
         ctx.stroke();
+
+        // Hoa rừng đỏ tươi trên dây leo
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(px + 66 + vineSwing * 0.7, 350, 3, 0, Math.PI * 2);
+        ctx.arc(px + 68 + vineSwing * 1.2, 385, 3.5, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       // ------------------------------------------
@@ -1427,7 +1392,6 @@ export const GameContra: React.FC = () => {
         if (screenPlatX + plat.width < -60 || screenPlatX > ARENA_WIDTH + 60) return;
 
         if (plat.isWater) {
-          // Dòng nước sông trong xanh biếc với bọt sóng cuộn
           const waterGrad = ctx.createLinearGradient(0, plat.y, 0, plat.y + plat.height);
           waterGrad.addColorStop(0, '#0284c7');
           waterGrad.addColorStop(0.35, '#0369a1');
@@ -1436,7 +1400,6 @@ export const GameContra: React.FC = () => {
           ctx.fillStyle = waterGrad;
           ctx.fillRect(screenPlatX, plat.y, plat.width, plat.height);
 
-          // Lớp sóng động lấp lánh
           ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
           for (let w = 0; w < plat.width; w += 28) {
             const waveY = Math.sin(Date.now() / 160 + w * 0.12) * 3.5;
@@ -1448,7 +1411,6 @@ export const GameContra: React.FC = () => {
             ctx.fillRect(screenPlatX + w, plat.y + 12 + waveY, 22, 2);
           }
         } else if (plat.isBridge) {
-          // Cầu sắt quân sự có thể nổ
           ctx.fillStyle = plat.isExploding ? '#dc2626' : '#334155';
           ctx.fillRect(screenPlatX, plat.y, plat.width, 10);
           ctx.strokeStyle = '#0f172a';
@@ -1460,13 +1422,11 @@ export const GameContra: React.FC = () => {
             ctx.lineTo(screenPlatX + bx + 28, plat.y + 24);
             ctx.stroke();
           }
-          // Viền sọc cảnh báo vàng đen
           ctx.fillStyle = '#facc15';
           for (let bx = 0; bx < plat.width; bx += 20) {
             ctx.fillRect(screenPlatX + bx, plat.y + 1, 10, 4);
           }
 
-          // Ngòi nổ cháy xì khói nếu đang kích hoạt nổ
           if (plat.isExploding) {
             const fuseX = screenPlatX + Math.random() * plat.width;
             ctx.fillStyle = '#ffffff';
@@ -1488,7 +1448,6 @@ export const GameContra: React.FC = () => {
           ctx.fillStyle = rockGrad;
           ctx.fillRect(screenPlatX, plat.y + 6, plat.width, plat.height - 6);
 
-          // Các rãnh nứt và vết cắt đá kiến tạo
           ctx.strokeStyle = '#4a2c1b';
           ctx.lineWidth = 1.5;
           for (let bx = 0; bx < plat.width; bx += 32) {
@@ -1502,11 +1461,9 @@ export const GameContra: React.FC = () => {
             ctx.strokeRect(screenPlatX + bx + 2, plat.y + 12, 28, 18);
           }
 
-          // Thảm cỏ nhung nhiệt đới tự nhiên phủ mép đá
           ctx.fillStyle = '#14532d';
           ctx.fillRect(screenPlatX, plat.y, plat.width, 8);
 
-          // Phiến cỏ mặt nhấp nhô sống động
           ctx.fillStyle = '#16a34a';
           ctx.beginPath();
           ctx.moveTo(screenPlatX, plat.y);
@@ -1520,7 +1477,6 @@ export const GameContra: React.FC = () => {
           ctx.closePath();
           ctx.fill();
 
-          // Dây leo và rễ cây rủ xuống từ mép đá
           for (let rx = 10; rx < plat.width - 10; rx += 24) {
             const rootLen = ((rx * 13) % 14) + 6;
             ctx.strokeStyle = '#15803d';
@@ -1542,7 +1498,6 @@ export const GameContra: React.FC = () => {
         ctx.save();
         ctx.translate(screenBossX, boss.y);
 
-        // Bức tường thép phòng thủ kiên cố
         const wallGrad = ctx.createLinearGradient(0, 0, boss.width, boss.height);
         wallGrad.addColorStop(0, '#475569');
         wallGrad.addColorStop(0.5, '#334155');
@@ -1553,7 +1508,6 @@ export const GameContra: React.FC = () => {
         ctx.lineWidth = 4;
         ctx.strokeRect(0, 0, boss.width, boss.height);
 
-        // Tấm thép tán đinh và rãnh ghép khối
         ctx.strokeStyle = '#64748b';
         ctx.lineWidth = 1.5;
         for (let py = 40; py < boss.height; py += 55) {
@@ -1570,12 +1524,10 @@ export const GameContra: React.FC = () => {
           }
         }
 
-        // Họa tiết vạch sọc nguy hiểm ngoài hành tinh
         ctx.fillStyle = '#dc2626';
         ctx.fillRect(10, 10, boss.width - 20, 8);
         ctx.fillRect(10, boss.height - 18, boss.width - 20, 8);
 
-        // 1. LÔ CỐT PHÁO TRÊN
         if (boss.topTurretHp > 0) {
           ctx.fillStyle = '#475569';
           ctx.beginPath();
@@ -1585,7 +1537,6 @@ export const GameContra: React.FC = () => {
           ctx.lineWidth = 2.5;
           ctx.stroke();
 
-          // Nòng pháo đôi hầm hố
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(-24, 52, 36, 7);
           ctx.fillRect(-24, 63, 36, 7);
@@ -1598,7 +1549,6 @@ export const GameContra: React.FC = () => {
           ctx.fillRect(16, 50, 14, 12);
         }
 
-        // 2. LÔ CỐT PHÁO DƯỚI
         if (boss.bottomTurretHp > 0) {
           ctx.fillStyle = '#475569';
           ctx.beginPath();
@@ -1617,7 +1567,6 @@ export const GameContra: React.FC = () => {
           ctx.fillRect(8, 170, 56, 40);
         }
 
-        // 3. TRÁI TIM NĂNG LƯỢNG ĐỎ TRUNG TÂM (RED FALCON CORE)
         const coreY = 125;
         const pulse = Math.sin(Date.now() / 120) * 5;
         if (!boss.isCoreDestroyed) {
@@ -1639,7 +1588,6 @@ export const GameContra: React.FC = () => {
           ctx.arc(36, coreY, 22 + pulse, 0, Math.PI * 2);
           ctx.fill();
 
-          // Tia điện chạy quanh lõi tim
           ctx.strokeStyle = '#fef08a';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -1658,7 +1606,7 @@ export const GameContra: React.FC = () => {
       }
 
       // ------------------------------------------
-      // D. VẼ QUÂN ĐỊCH VÀ CÁC ĐƠN VỊ CHIẾN ĐẤU
+      // D. VẼ QUÂN ĐỊCH - HÌNH THỂ NGƯỜI THẬT SỐNG ĐỘNG
       // ------------------------------------------
       enemiesRef.current.forEach((en) => {
         if (!en.isAlive) return;
@@ -1669,68 +1617,202 @@ export const GameContra: React.FC = () => {
         ctx.translate(sx, en.y);
 
         if (en.type === 'runner') {
-          // BỘ BINH ĐỎ CHẠY (Red Infantry Runner)
+          // --- 1. BỘ BINH ĐỎ NGƯỜI THẬT SPRINT (HUMAN INFANTRY RUNNER) ---
+          const isLeft = en.facing === 'left';
           const runLeg = Math.floor(Date.now() / 90) % 2 === 0;
 
-          // Quần đỏ & Ủng chiến đấu bọc thép
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(5, 26, 8, runLeg ? 18 : 12);
-          ctx.fillRect(17, 26, 8, runLeg ? 12 : 18);
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(4, runLeg ? 42 : 36, 11, 7);
-          ctx.fillRect(16, runLeg ? 36 : 42, 11, 7);
+          ctx.save();
+          if (!isLeft) {
+            ctx.scale(-1, 1);
+            ctx.translate(-en.width, 0);
+          }
 
-          // Áo giáp chiến thuật trắng có gân nổi
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(5, 12, 20, 16);
-          ctx.strokeStyle = '#94a3b8';
-          ctx.lineWidth = 1.2;
-          ctx.strokeRect(5, 12, 20, 16);
-
-          // Đầu và Mũ sắt đỏ quân sự có vành
-          ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(8, 2, 14, 11);
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(6, 0, 18, 6);
-          ctx.fillStyle = '#b91c1c';
-          ctx.fillRect(4, 5, 22, 2.5); // Vành mũ
-
-          // Súng trường tiến công chĩa ra phía trước
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(en.facing === 'left' ? -8 : 18, 16, 18, 5);
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(en.facing === 'left' ? -6 : 22, 14, 8, 3);
-        } else if (en.type === 'sniper') {
-          // LÍNH BẮN TỈA NẤP LÙM CÂY / CÁT
-          ctx.fillStyle = '#14532d';
+          // Chân sau
+          ctx.fillStyle = '#991b1b';
           ctx.beginPath();
-          ctx.arc(en.width / 2, en.height / 2 + 6, 24, 0, Math.PI * 2);
+          ctx.moveTo(18, 28);
+          ctx.lineTo(runLeg ? 26 : 10, 38);
+          ctx.lineTo(runLeg ? 28 : 8, 46);
+          ctx.lineTo(runLeg ? 22 : 4, 46);
+          ctx.closePath();
           ctx.fill();
 
-          ctx.fillStyle = '#16a34a';
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(runLeg ? 22 : 4, 45, 11, 6);
+
+          // Chân trước
+          ctx.fillStyle = '#dc2626';
           ctx.beginPath();
-          ctx.arc(en.width / 2 - 4, en.height / 2 + 4, 18, 0, Math.PI * 2);
+          ctx.moveTo(14, 28);
+          ctx.lineTo(runLeg ? 6 : 22, 38);
+          ctx.lineTo(runLeg ? 4 : 26, 46);
+          ctx.lineTo(runLeg ? 9 : 30, 46);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(runLeg ? 2 : 24, 45, 11, 6);
+
+          // Thân người nghiêng lao về phía trước
+          ctx.fillStyle = '#dc2626';
+          ctx.beginPath();
+          ctx.moveTo(10, 12);
+          ctx.lineTo(24, 14);
+          ctx.lineTo(20, 29);
+          ctx.lineTo(9, 28);
+          ctx.closePath();
+          ctx.fill();
+
+          // Dây đai trang bị chéo ngực & Túi đạn
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(11, 13);
+          ctx.lineTo(21, 28);
+          ctx.stroke();
+
+          // Đầu & Mũ bảo hiểm quân sự đỏ có quai
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.ellipse(14, 6, 6, 6, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(8, 6, 2, 2);
+          ctx.fillStyle = '#ea580c';
+          ctx.fillRect(6, 8, 2, 1.5);
+
+          ctx.fillStyle = '#b91c1c';
+          ctx.beginPath();
+          ctx.arc(14, 4, 7.5, Math.PI, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(6, 3, 14, 3);
+
+          // Cánh tay và súng trường tiến công
+          ctx.fillStyle = '#dc2626';
+          ctx.beginPath();
+          ctx.ellipse(12, 16, 5, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-6, 17, 22, 5);
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(-10, 18, 6, 3);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(2, 22, 4, 6);
+
+          ctx.restore();
+        } else if (en.type === 'sniper') {
+          // --- 2. LÍNH BẮN TỈA NGƯỜI THẬT TRONG CÔNG SỰ BAO CÁT (HOÀN TOÀN KHÔNG DÙNG HÌNH TRÒN KHỐI) ---
+          const isFacingLeft = en.facing === 'left';
+
+          // A. CÔNG SỰ BAO CÁT CHIẾN ĐẤU (Burlap Sandbags)
+          ctx.fillStyle = '#92400e';
+          ctx.beginPath();
+          ctx.roundRect(0, 24, 22, 14, 5);
+          ctx.roundRect(18, 24, 22, 14, 5);
+          ctx.fill();
+          ctx.strokeStyle = '#451a03';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          ctx.fillStyle = '#b45309';
+          ctx.beginPath();
+          ctx.roundRect(8, 14, 26, 13, 5);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+          ctx.beginPath();
+          ctx.moveTo(12, 20); ctx.lineTo(30, 20);
+          ctx.moveTo(4, 30); ctx.lineTo(18, 30);
+          ctx.moveTo(22, 30); ctx.lineTo(36, 30);
+          ctx.stroke();
+
+          // B. NGƯỜI LÍNH BẮN TỈA QUỲ NGẮM BẮN
+          ctx.save();
+          if (!isFacingLeft) {
+            ctx.scale(-1, 1);
+            ctx.translate(-en.width, 0);
+          }
+
+          // Vai & Áo lính rằn ri ngụy trang
+          ctx.fillStyle = '#14532d';
+          ctx.beginPath();
+          ctx.ellipse(22, 10, 9, 8, 0, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.fillStyle = '#166534';
-          ctx.fillRect(8, 6, 20, 18);
-          ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(10, 2, 16, 10);
-          ctx.fillStyle = '#15803d';
-          ctx.fillRect(8, -1, 20, 5);
+          ctx.fillRect(16, 8, 5, 4);
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(21, 11, 4, 3);
 
-          // Tia ngắm laser đỏ sắc nhọn
-          ctx.strokeStyle = '#ef4444';
+          // Cánh tay tì chắc súng
+          ctx.fillStyle = '#15803d';
+          ctx.beginPath();
+          ctx.moveTo(20, 8);
+          ctx.lineTo(8, 11);
+          ctx.lineTo(6, 15);
+          ctx.lineTo(18, 15);
+          ctx.closePath();
+          ctx.fill();
+
+          // Đầu người lính & Kính ngắm quang học chuyên dụng
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.arc(20, 3, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#06b6d4';
+          ctx.fillRect(12, 1, 6, 3.5);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(13, 1.5, 2, 1.5);
+
+          // Mũ sắt ngụy trang lá cây
+          ctx.fillStyle = '#166534';
+          ctx.beginPath();
+          ctx.arc(20, 1, 7.5, Math.PI, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#15803d';
+          ctx.fillRect(14, -4, 4, 3);
+          ctx.fillRect(20, -5, 5, 3);
+
+          // C. SÚNG BẮN TỈA HẠNG NẶNG GÁC CHÂN TRÊN BAO CÁT
+          // Giá 2 chân (Bipod)
+          ctx.strokeStyle = '#0f172a';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.moveTo(en.facing === 'left' ? 2 : en.width - 2, 14);
-          ctx.lineTo(en.facing === 'left' ? -220 : en.width + 220, 14);
+          ctx.moveTo(8, 13); ctx.lineTo(4, 20);
+          ctx.moveTo(8, 13); ctx.lineTo(12, 20);
           ctx.stroke();
 
+          // Thân súng & Nòng súng giảm thanh dài
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(en.facing === 'left' ? -16 : 18, 12, 26, 5);
+          ctx.fillRect(4, 9, 18, 5);
+          ctx.fillStyle = '#334155';
+          ctx.fillRect(-14, 10, 20, 3.5);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-18, 9, 5, 5.5);
+
+          // Kính ngắm to phía trên
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(6, 5, 12, 4);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(4, 6, 2.5, 2);
+
+          // D. TIA LAZER ĐỊNH VỊ MỤC TIÊU
+          const laserPulse = (Math.sin(Date.now() / 100) + 1) * 0.35 + 0.3;
+          ctx.strokeStyle = `rgba(239, 68, 68, ${laserPulse})`;
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(-18, 11.5);
+          ctx.lineTo(-450, 11.5);
+          ctx.stroke();
+
+          ctx.restore();
         } else if (en.type === 'turret') {
-          // THÁP PHÁO XOAY 360 ĐỘ
+          // --- 3. THÁP PHÁO CƠ KHÍ XOAY 360 ĐỘ ---
           ctx.fillStyle = '#1e293b';
           ctx.beginPath();
           ctx.arc(en.width / 2, en.height / 2, 22, 0, Math.PI * 2);
@@ -1739,7 +1821,6 @@ export const GameContra: React.FC = () => {
           ctx.lineWidth = 3;
           ctx.stroke();
 
-          // Vạch sọc cảnh báo vàng đen trên bệ pháo
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 2;
           ctx.strokeRect(en.width / 2 - 16, en.height / 2 - 16, 32, 32);
@@ -1748,7 +1829,6 @@ export const GameContra: React.FC = () => {
           ctx.translate(en.width / 2, en.height / 2);
           ctx.rotate(en.aimAngle || 0);
 
-          // Đôi nòng pháo vươn dài bọc thép
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(12, -6, 22, 5);
           ctx.fillRect(12, 1, 22, 5);
@@ -1767,7 +1847,7 @@ export const GameContra: React.FC = () => {
           ctx.fill();
           ctx.restore();
         } else if (en.type === 'wall_pod') {
-          // HỘP CẢM BIẾN VÁCH ĐÁ CHỨA VŨ KHÍ
+          // --- 4. HỘP CẢM BIẾN VÁCH ĐÁ CHỨA VŨ KHÍ ---
           ctx.fillStyle = '#1e293b';
           ctx.beginPath();
           ctx.roundRect(0, 0, en.width, en.height, 8);
@@ -1776,7 +1856,6 @@ export const GameContra: React.FC = () => {
           ctx.lineWidth = 2.5;
           ctx.stroke();
 
-          // Mắt cảm biến đỏ nhấp nháy
           const eyePulse = Math.sin(Date.now() / 140) * 3.5;
           ctx.fillStyle = '#ef4444';
           ctx.beginPath();
@@ -1787,31 +1866,82 @@ export const GameContra: React.FC = () => {
           ctx.arc(en.width / 2 - 3, en.height / 2 - 3, 3.5, 0, Math.PI * 2);
           ctx.fill();
         } else if (en.type === 'flying_capsule') {
-          // CHIM ƯNG KIM LOẠI BAY LƯỢN MANG VŨ KHÍ
-          const wingFlap = Math.sin(Date.now() / 70) * 9;
+          // --- 5. CHIM ƯNG KIM LOẠI ROBOT CƠ KHÍ BAY VỖ CÁNH (CYBER FALCON) ---
+          const wingAngle = Math.sin(Date.now() / 70) * 0.45;
+
+          ctx.save();
+          ctx.translate(en.width / 2, en.height / 2);
+
           ctx.fillStyle = '#dc2626';
+          ctx.strokeStyle = '#991b1b';
+          ctx.lineWidth = 1.5;
+
+          ctx.save();
+          ctx.rotate(wingAngle);
           ctx.beginPath();
-          ctx.moveTo(-18, 6);
-          ctx.lineTo(0, 16 + wingFlap);
-          ctx.lineTo(18, 6);
-          ctx.lineTo(0, -6 - wingFlap);
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-24, -14);
+          ctx.lineTo(-20, 4);
+          ctx.lineTo(-8, 6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.save();
+          ctx.rotate(-wingAngle);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(24, -14);
+          ctx.lineTo(20, 4);
+          ctx.lineTo(8, 6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.fillStyle = '#f8fafc';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 11, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.stroke();
+
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.moveTo(8, -2);
+          ctx.lineTo(16, 0);
+          ctx.lineTo(8, 3);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(8, -2, 2.5, 2);
+
+          const jetPulse = Math.sin(Date.now() / 40) * 4;
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.moveTo(-10, -2);
+          ctx.lineTo(-18 - jetPulse, 0);
+          ctx.lineTo(-10, 2);
           ctx.closePath();
           ctx.fill();
 
           ctx.fillStyle = '#facc15';
           ctx.beginPath();
-          ctx.ellipse(en.width / 2, en.height / 2, 15, 11, 0, 0, Math.PI * 2);
+          ctx.arc(0, 12, 9, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = '#ca8a04';
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
           ctx.fillStyle = '#78350f';
-          ctx.font = 'black 12px monospace';
+          ctx.font = '900 11px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           const tag = en.itemDrop === 'spread' ? 'S' : en.itemDrop === 'laser' ? 'L' : en.itemDrop === 'machine' ? 'M' : 'B';
-          ctx.fillText(tag, en.width / 2, en.height / 2 + 1);
+          ctx.fillText(tag, 0, 13);
+
+          ctx.restore();
         }
 
         ctx.restore();
@@ -1875,7 +2005,6 @@ export const GameContra: React.FC = () => {
         ctx.translate(sx, b.y);
 
         if (b.isSpread) {
-          // ĐẠN HOA CẢI S: 5 CẦU LỬA PLASMA RỰC RỠ VỚI ĐUÔI TIA LỬA
           const fGrad = ctx.createRadialGradient(0, 0, 1, 0, 0, b.radius + 4);
           fGrad.addColorStop(0, '#ffffff');
           fGrad.addColorStop(0.3, '#fef08a');
@@ -1886,11 +2015,9 @@ export const GameContra: React.FC = () => {
           ctx.arc(0, 0, b.radius + 4, 0, Math.PI * 2);
           ctx.fill();
 
-          // Tia lửa văng phía sau đạn
           ctx.fillStyle = '#facc15';
           ctx.fillRect(-b.vx * 1.2, -b.vy * 1.2, 3, 3);
         } else if (b.isLaser) {
-          // TIA LASER L: VẠCH NĂNG LƯỢNG CYAN DÀI SẮC NÉT
           ctx.strokeStyle = '#67e8f9';
           ctx.lineWidth = 7;
           ctx.beginPath();
@@ -1905,7 +2032,6 @@ export const GameContra: React.FC = () => {
           ctx.lineTo(18, 0);
           ctx.stroke();
         } else {
-          // ĐẠN THƯỜNG / ĐẠN ĐỊCH
           ctx.fillStyle = b.color;
           ctx.beginPath();
           ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
@@ -1919,7 +2045,7 @@ export const GameContra: React.FC = () => {
       });
 
       // ------------------------------------------
-      // G. VẼ BIỆT KÍCH RAMBO BILL RIZER (HERO)
+      // G. VẼ BIỆT KÍCH RAMBO BILL RIZER - HÌNH THỂ NGƯỜI THẬT GIẢI PHẪU CHUẨN XÁC
       // ------------------------------------------
       const p = playerRef.current;
       const screenPX = p.x - camX;
@@ -1927,7 +2053,6 @@ export const GameContra: React.FC = () => {
       ctx.save();
       ctx.translate(screenPX, p.y);
 
-      // Khiên hộ mệnh bất tử cầu vồng (Barrier B)
       if (p.barrierTimer > 0) {
         const bPulse = Math.sin(Date.now() / 70) * 5;
         const shieldColors = ['#ef4444', '#f59e0b', '#38bdf8', '#10b981', '#a855f7'];
@@ -1942,176 +2067,341 @@ export const GameContra: React.FC = () => {
         ctx.globalAlpha = 0.4;
       }
 
+      const fRight = p.facing === 'right';
+
       if (p.isInWater) {
-        // ĐANG NGÂM MÌNH DƯỚI NƯỚC: Chỉ nhô đầu, khăn rằn và súng
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
-        ctx.fillRect(-6, p.height - 18, p.width + 12, 3.5);
+        // --- 1. TƯ THẾ BƠI LẶN DƯỚI NƯỚC (SWIMMING) ---
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.ellipse(p.width / 2, p.height - 16, 22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(8, p.height - 22, 16, 14);
-        ctx.fillStyle = '#78350f';
-        ctx.fillRect(6, p.height - 26, 20, 5);
-
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(4, p.height - 24, 24, 4.5);
+        ctx.beginPath();
+        ctx.ellipse(16, p.height - 24, 8, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.fillStyle = '#0f172a';
-        ctx.fillRect(p.facing === 'right' ? 16 : -10, p.height - 18, 24, 5.5);
+        ctx.fillRect(fRight ? 18 : 12, p.height - 26, 2.5, 2.5);
+
+        ctx.fillStyle = '#b45309';
+        ctx.beginPath();
+        ctx.arc(16, p.height - 28, 8, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(11, p.height - 32, 10, 4);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(8, p.height - 27, 16, 4);
+        ctx.beginPath();
+        ctx.moveTo(fRight ? 8 : 24, p.height - 25);
+        ctx.lineTo(fRight ? -6 : 38, p.height - 23 + Math.sin(Date.now() / 90) * 3);
+        ctx.lineTo(fRight ? 8 : 24, p.height - 22);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(fRight ? 18 : -10, p.height - 28, 24, 6);
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(fRight ? 22 : -6, p.height - 30, 10, 3);
       } else if (!p.isGrounded && p.isJumping) {
-        // NHẢY LỘN NHÀO CUỘN TRÒN QUẢ CẦU (SOMERSAULT SPINNING BALL)
+        // --- 2. NHẢY LỘN NHÀO CUỘN TRÒN QUẢ CẦU (SOMERSAULT SPINNING BALL) ---
         ctx.save();
         ctx.translate(p.width / 2, p.height / 2);
         ctx.rotate(p.spinAngle);
 
         ctx.fillStyle = '#1e3a8a';
         ctx.beginPath();
-        ctx.arc(0, 0, 19, 0, Math.PI * 2);
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 2.5;
         ctx.stroke();
 
         ctx.fillStyle = '#fed7aa';
         ctx.beginPath();
-        ctx.arc(4, 2, 8, 0, Math.PI * 2);
+        ctx.arc(6, -2, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#b45309';
+        ctx.beginPath();
+        ctx.arc(8, -6, 6, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(-18, -4, 36, 7);
+        ctx.beginPath();
+        ctx.moveTo(-4, -14);
+        ctx.quadraticCurveTo(-18, -12, -26, 0);
+        ctx.lineTo(-20, 0);
+        ctx.quadraticCurveTo(-14, -8, -2, -10);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-8, 6, 16, 6);
+
         ctx.restore();
       } else if (p.isProne) {
-        // NẰM RẠP NGƯỜI XUỐNG ĐẤT (PRONE DUCK)
+        // --- 3. TƯ THẾ NẰM RẠP BẮN SÁT MẶT ĐẤT (PRONE CRAWL) ---
         ctx.fillStyle = '#1e3a8a';
-        ctx.fillRect(p.facing === 'right' ? 0 : 8, p.height - 14, 26, 12);
-        ctx.strokeStyle = '#1d4ed8';
-        ctx.strokeRect(p.facing === 'right' ? 0 : 8, p.height - 14, 26, 12);
-
-        ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(p.facing === 'right' ? 24 : 0, p.height - 14, 16, 12);
-
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(p.facing === 'right' ? 32 : -6, p.height - 18, 14, 4.5);
-
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(p.facing === 'right' ? 28 : -16, p.height - 8, 28, 6);
-      } else {
-        // ĐỨNG & CHẠY BỘ BIỆT KÍCH CHI TIẾT ĐẸP MẮT
-        const fRight = p.facing === 'right';
-
-        const legOffsets = [
-          { l1: -5, l2: 7 },
-          { l1: 0, l2: 0 },
-          { l1: 7, l2: -5 },
-          { l1: 0, l2: 0 },
-        ];
-        const curLeg = legOffsets[p.runFrame];
-
-        // 1. Quần chiến đấu xanh biển có nếp gấp
-        ctx.fillStyle = '#1e3a8a';
-        ctx.fillRect(7 + curLeg.l1, 28, 9, 22);
-        ctx.fillRect(17 + curLeg.l2, 28, 9, 22);
-        ctx.fillStyle = '#1d4ed8';
-        ctx.fillRect(9 + curLeg.l1, 30, 4, 12);
-        ctx.fillRect(19 + curLeg.l2, 30, 4, 12);
-
-        // Ủng bọc thép quân sự
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(5 + curLeg.l1, 48, 13, 8);
-        ctx.fillRect(15 + curLeg.l2, 48, 13, 8);
-        ctx.fillStyle = '#334155';
-        ctx.fillRect(5 + curLeg.l1, 48, 13, 3);
-        ctx.fillRect(15 + curLeg.l2, 48, 13, 3);
-
-        // 2. Thân người ngực trần cơ bắp vạm vỡ & Đai chiến thuật
-        ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(8, 13, 17, 17);
-        // Cơ bắp ngực và bụng 6 múi
-        ctx.fillStyle = '#fba86b';
-        ctx.fillRect(9, 14, 7, 6);
-        ctx.fillRect(17, 14, 7, 6);
-        ctx.fillRect(12, 21, 9, 8);
-
-        // Dây đai đeo đạn chéo qua vai
-        ctx.strokeStyle = '#1e40af';
-        ctx.lineWidth = 3.5;
         ctx.beginPath();
-        ctx.moveTo(8, 13);
-        ctx.lineTo(25, 30);
-        ctx.stroke();
-
-        // 3. Đầu, tóc nâu và Khăn Rằn Đỏ đặc trưng
-        ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(10, 3, 15, 12);
-        ctx.fillStyle = '#78350f';
-        ctx.fillRect(8, -1, 19, 5);
-
-        // Khăn đỏ quấn đầu và đuôi khăn bay phấp phới trong gió
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(6, 3, 22, 4.5);
-        const ribbonWiggle = Math.sin(Date.now() / 80) * 4;
-        ctx.beginPath();
-        ctx.moveTo(fRight ? 6 : 28, 5);
-        ctx.lineTo(fRight ? -12 : 44, 5 + ribbonWiggle);
-        ctx.lineTo(fRight ? -10 : 42, 9 + ribbonWiggle);
-        ctx.lineTo(fRight ? 6 : 28, 7.5);
-        ctx.closePath();
+        ctx.ellipse(fRight ? 8 : 24, p.height - 9, 14, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 4. Súng trường công nghệ cao theo hướng ngắm 8 chiều
         ctx.fillStyle = '#0f172a';
-        if (p.aimDir === 'up') {
-          ctx.fillRect(fRight ? 16 : 9, -14, 7, 28);
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(fRight ? 17 : 10, -8, 5, 12);
-        } else if (p.aimDir === 'up-right') {
-          ctx.save();
-          ctx.translate(16, 16);
-          ctx.rotate(-Math.PI / 4);
-          ctx.fillRect(0, -3.5, 28, 7);
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(6, -2, 12, 4);
-          ctx.restore();
-        } else if (p.aimDir === 'up-left') {
-          ctx.save();
-          ctx.translate(16, 16);
-          ctx.rotate(-Math.PI * 3 / 4);
-          ctx.fillRect(0, -3.5, 28, 7);
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(6, -2, 12, 4);
-          ctx.restore();
-        } else if (p.aimDir === 'down-right') {
-          ctx.save();
-          ctx.translate(16, 18);
-          ctx.rotate(Math.PI / 4);
-          ctx.fillRect(0, -3.5, 28, 7);
-          ctx.restore();
-        } else if (p.aimDir === 'down-left') {
-          ctx.save();
-          ctx.translate(16, 18);
-          ctx.rotate(Math.PI * 3 / 4);
-          ctx.fillRect(0, -3.5, 28, 7);
-          ctx.restore();
-        } else {
-          ctx.fillRect(fRight ? 16 : -12, 17, 28, 7);
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(fRight ? 20 : -6, 19, 12, 3);
-          // Băng đạn cong
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(fRight ? 24 : -2, 24, 5, 8);
-        }
+        ctx.fillRect(fRight ? -6 : 32, p.height - 13, 8, 8);
 
-        // Tia lửa đầu nòng khi vừa bắn (Muzzle flash)
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.ellipse(fRight ? 22 : 10, p.height - 11, 10, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ea580c';
+        ctx.fillRect(fRight ? 20 : 8, p.height - 12, 5, 4);
+
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.ellipse(fRight ? 28 : 4, p.height - 17, 6, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(fRight ? 31 : 3, p.height - 18, 2, 2);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(fRight ? 24 : 0, p.height - 20, 10, 3.5);
+        ctx.beginPath();
+        ctx.moveTo(fRight ? 24 : 10, p.height - 19);
+        ctx.lineTo(fRight ? 12 : 22, p.height - 17);
+        ctx.lineTo(fRight ? 24 : 10, p.height - 15);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(fRight ? 26 : -18, p.height - 9, 26, 6);
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(fRight ? 30 : -14, p.height - 11, 10, 3);
+
         if (p.muzzleFlashTimer > 0) {
           ctx.fillStyle = '#fef08a';
           ctx.beginPath();
-          const flashX = fRight ? 46 : -14;
-          ctx.arc(flashX, 20, 7, 0, Math.PI * 2);
+          ctx.arc(fRight ? 54 : -20, p.height - 6, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        // --- 4. TƯ THẾ ĐỨNG VÀ CHẠY CHI TIẾT NGƯỜI THẬT (RUN & SHOOT) ---
+        // A. CHÂN & ỦNG CHIẾN ĐẤU (Articulated Human Legs)
+        const legOffsets = [
+          { hip1: -6, hip2: 8, k1: -4, k2: 12, f1: -8, f2: 16 },
+          { hip1: 0, hip2: 0, k1: 0, k2: 0, f1: 0, f2: 0 },
+          { hip1: 8, hip2: -6, k1: 12, k2: -4, f1: 16, f2: -8 },
+          { hip1: 0, hip2: 0, k1: 0, k2: 0, f1: 0, f2: 0 },
+        ];
+        const anim = legOffsets[p.runFrame];
+
+        // Chân sau
+        ctx.fillStyle = '#1e3a8a';
+        ctx.beginPath();
+        ctx.moveTo(18, 30);
+        ctx.lineTo(19 + anim.hip2, 40);
+        ctx.lineTo(19 + anim.k2, 48);
+        ctx.lineTo(17 + anim.k2, 48);
+        ctx.lineTo(15 + anim.hip2, 40);
+        ctx.lineTo(15, 30);
+        ctx.closePath();
+        ctx.fill();
+
+        // Ủng chân sau
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(14 + anim.f2, 48, 12, 8);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(14 + anim.f2, 54, 12, 2);
+
+        // Chân trước
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath();
+        ctx.moveTo(13, 30);
+        ctx.lineTo(13 + anim.hip1, 40);
+        ctx.lineTo(13 + anim.k1, 48);
+        ctx.lineTo(9 + anim.k1, 48);
+        ctx.lineTo(9 + anim.hip1, 40);
+        ctx.lineTo(10, 30);
+        ctx.closePath();
+        ctx.fill();
+
+        // Miếng đệm đầu gối (Kneepad)
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.ellipse(11 + anim.hip1, 40, 4, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ủng chân trước
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(8 + anim.f1, 48, 12, 8);
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(8 + anim.f1, 48, 12, 2.5);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(8 + anim.f1, 54, 12, 2);
+
+        // B. HÔNG & THẮT LƯNG QUÂN SỰ
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(9, 28, 16, 5);
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(15, 29, 4, 3);
+
+        // C. CƠ BẮP NGỰC TRẦN & ĐAI ĐẠN CHIẾN THUẬT
+        const torsoGrad = ctx.createLinearGradient(9, 12, 25, 28);
+        torsoGrad.addColorStop(0, '#ffedd5');
+        torsoGrad.addColorStop(0.5, '#fed7aa');
+        torsoGrad.addColorStop(1, '#fba86b');
+        ctx.fillStyle = torsoGrad;
+        ctx.beginPath();
+        ctx.moveTo(9, 14);
+        ctx.lineTo(25, 14);
+        ctx.lineTo(23, 28);
+        ctx.lineTo(11, 28);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rãnh ngực & cơ bụng 6 múi
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(17, 14);
+        ctx.lineTo(17, 24);
+        ctx.moveTo(11, 19);
+        ctx.quadraticCurveTo(14, 21, 17, 19);
+        ctx.quadraticCurveTo(20, 21, 23, 19);
+        ctx.moveTo(13, 22);
+        ctx.lineTo(21, 22);
+        ctx.moveTo(13, 25);
+        ctx.lineTo(21, 25);
+        ctx.stroke();
+
+        // Dây đai đeo đạn chéo qua vai
+        ctx.strokeStyle = '#1d4ed8';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(10, 13);
+        ctx.lineTo(24, 29);
+        ctx.stroke();
+
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(16, 20, 3, 4);
+
+        // D. ĐẦU, KHUÔN MẶT, TÓC & BĂNG ĐÔ ĐỎ
+        ctx.fillStyle = '#fba86b';
+        ctx.fillRect(15, 11, 4, 4);
+
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.moveTo(11, 6);
+        ctx.lineTo(23, 6);
+        ctx.lineTo(21, 14);
+        ctx.quadraticCurveTo(17, 16, 13, 14);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(fRight ? 19 : 13, 8, 3, 1.5);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(fRight ? 20 : 13, 9.5, 2, 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(fRight ? 19 : 14, 9.5, 1, 1);
+
+        ctx.fillStyle = '#ea580c';
+        ctx.fillRect(fRight ? 22 : 11, 11, 2, 1.5);
+
+        ctx.fillStyle = '#b45309';
+        ctx.beginPath();
+        ctx.moveTo(10, 6);
+        ctx.lineTo(8, 2);
+        ctx.lineTo(13, -2);
+        ctx.lineTo(17, 0);
+        ctx.lineTo(21, -2);
+        ctx.lineTo(25, 3);
+        ctx.lineTo(23, 6);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(12, 0, 7, 3);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(9, 5, 15, 3.5);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(11, 5.5, 10, 1);
+
+        // Đuôi khăn rằn đỏ bay phấp phới trong gió
+        const ribW1 = Math.sin(Date.now() / 70) * 4.5;
+        const ribW2 = Math.cos(Date.now() / 90) * 3;
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.moveTo(fRight ? 9 : 25, 6);
+        ctx.quadraticCurveTo(fRight ? 0 : 34, 6 + ribW1, fRight ? -14 : 48, 6 + ribW1 + ribW2);
+        ctx.lineTo(fRight ? -12 : 46, 10 + ribW1 + ribW2);
+        ctx.quadraticCurveTo(fRight ? 0 : 34, 9 + ribW1, fRight ? 9 : 25, 8.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // E. CÁNH TAY CƠ BẮP & SÚNG TRƯỜNG TẤN CÔNG (Assault Rifle)
+        ctx.save();
+        const pivotX = fRight ? 16 : 18;
+        const pivotY = 18;
+        ctx.translate(pivotX, pivotY);
+
+        let gunAngle = 0;
+        if (p.aimDir === 'up') gunAngle = -Math.PI / 2;
+        else if (p.aimDir === 'up-right') gunAngle = -Math.PI / 4;
+        else if (p.aimDir === 'up-left') gunAngle = -Math.PI * 3 / 4;
+        else if (p.aimDir === 'down-right') gunAngle = Math.PI / 4;
+        else if (p.aimDir === 'down-left') gunAngle = Math.PI * 3 / 4;
+        else gunAngle = fRight ? 0 : Math.PI;
+
+        ctx.rotate(gunAngle);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-6, -3, 14, 6);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(4, -2.5, 16, 5);
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(20, -1.5, 10, 3);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(28, -2.5, 3, 5);
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(8, -6, 8, 3.5);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(14, -5.5, 2, 2);
+
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.moveTo(6, 3);
+        ctx.lineTo(10, 11);
+        ctx.lineTo(6, 12);
+        ctx.lineTo(3, 3);
+        ctx.closePath();
+        ctx.fill();
+
+        if (p.muzzleFlashTimer > 0) {
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(36, 0, 8, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#f97316';
           ctx.beginPath();
-          ctx.arc(flashX, 20, 11, 0, Math.PI * 2);
+          ctx.arc(36, 0, 13, 0, Math.PI * 2);
           ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(31, -2, 10, 4);
         }
+
+        ctx.restore();
+
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.ellipse(14, 18, 5, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fba86b';
+        ctx.beginPath();
+        ctx.ellipse(fRight ? 20 : 8, 20, 5, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fed7aa';
+        ctx.fillRect(fRight ? 22 : 6, 18, 4, 4);
       }
 
       ctx.restore();
@@ -2150,13 +2440,12 @@ export const GameContra: React.FC = () => {
       ctx.lineTo(SIDEBAR_X, CANVAS_HEIGHT);
       ctx.stroke();
 
-      // Tiêu đề Sidebar
       ctx.fillStyle = '#ef4444';
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('CONTRA COMMAND', SIDEBAR_X + SIDEBAR_WIDTH / 2, 28);
 
-      // 1. HUY HIỆU VŨ KHÍ HIỆN TẠI (Weapon Badge)
+      // 1. Huy hiệu vũ khí
       const wbX = SIDEBAR_X + 16;
       const wbY = 46;
       const wbW = SIDEBAR_WIDTH - 32;
@@ -2176,7 +2465,7 @@ export const GameContra: React.FC = () => {
       const wLabel = curW === 'spread' ? '[ S ] SPREAD' : curW === 'laser' ? '[ L ] LASER' : curW === 'machine' ? '[ M ] MACHINE' : '[ R ] RIFLE';
       ctx.fillText(wLabel, SIDEBAR_X + SIDEBAR_WIDTH / 2, wbY + 32);
 
-      // 2. MẠNG SỐNG BIỆT KÍCH (Lives) - CĂN GIỮA CHUẨN XÁC TRỤC TÂM
+      // 2. Mạng biệt kích (Lives) - Căn giữa chuẩn xác trục tâm
       const livesY = 120;
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
@@ -2204,7 +2493,7 @@ export const GameContra: React.FC = () => {
         ctx.fillText(hasLife ? '♥' : '✕', lx, ly);
       }
 
-      // 3. TIẾN TRÌNH CHIẾN DỊCH TỚI CĂN CỨ BOSS
+      // 3. Tiến độ chiến dịch
       const progBoxY = 180;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
@@ -2227,12 +2516,12 @@ export const GameContra: React.FC = () => {
       ctx.font = 'bold 11px monospace';
       ctx.fillText(`${Math.round(progRatio * 100)}% [BOSS]`, SIDEBAR_X + SIDEBAR_WIDTH / 2, progBoxY + 68);
 
-      // 4. KẺ ĐỊCH TIÊU DIỆT
+      // 4. Kẻ địch tiêu diệt
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText(`ĐÃ DIỆT: ${enemiesKilledRef.current} ĐỊCH`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 295);
 
-      // 5. ĐIỂM SỐ CHIẾN TRƯỜNG
+      // 5. Điểm số chiến trường
       const scoreBoxY = 320;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
@@ -2249,12 +2538,10 @@ export const GameContra: React.FC = () => {
       ctx.font = 'black 22px monospace';
       ctx.fillText(`${scoreRef.current.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 54);
 
-      // Kỷ lục cao nhất
       ctx.fillStyle = '#64748b';
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText(`KỶ LỤC: ${highScore.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 425);
 
-      // Máu Trùm nếu đã tới căn cứ
       if (boss.isAlive && p.x > BOSS_X - 600) {
         ctx.fillStyle = '#ef4444';
         ctx.font = 'bold 11px sans-serif';
@@ -2270,7 +2557,6 @@ export const GameContra: React.FC = () => {
     };
   }, [handlePlayerShoot, highScore, playExplosionSound, playPowerupSound, triggerShake]);
 
-  // Lưu điểm cao kỷ lục
   useEffect(() => {
     if (score > highScore) {
       setHighScore(score);
@@ -2360,7 +2646,6 @@ export const GameContra: React.FC = () => {
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:hidden z-30">
           <div />
           <div className="flex items-end justify-between w-full pointer-events-auto">
-            {/* D-Pad 4 hướng ảo */}
             <div className="grid grid-cols-3 gap-1 bg-slate-950/70 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
               <div />
               <button
@@ -2399,7 +2684,6 @@ export const GameContra: React.FC = () => {
               <div />
             </div>
 
-            {/* Cụm Nút BẮN & NHẢY */}
             <div className="flex items-center gap-3">
               <button
                 onTouchStart={handlePlayerJump}
