@@ -1828,6 +1828,345 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'mario':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#075985] ${className}`}>
+          {/* Subtle Cyber Arcade Scanline & Particle Dots */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] bg-[size:14px_14px]" />
+
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="mario-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="mario-coin-shine" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="mario-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="55%" stopColor="#0284c7" />
+                <stop offset="100%" stopColor="#0369a1" />
+              </linearGradient>
+              <linearGradient id="mario-gold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#fef08a" />
+                <stop offset="35%" stopColor="#facc15" />
+                <stop offset="70%" stopColor="#eab308" />
+                <stop offset="100%" stopColor="#ca8a04" />
+              </linearGradient>
+              <linearGradient id="mario-pipe" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#15803d" />
+                <stop offset="25%" stopColor="#22c55e" />
+                <stop offset="60%" stopColor="#16a34a" />
+                <stop offset="100%" stopColor="#14532d" />
+              </linearGradient>
+              <linearGradient id="mario-brick" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#d97706" />
+                <stop offset="100%" stopColor="#92400e" />
+              </linearGradient>
+              <linearGradient id="mario-title-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="30%" stopColor="#fef08a" />
+                <stop offset="70%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </linearGradient>
+            </defs>
+
+            {/* Sky Background */}
+            <rect width="200" height="140" fill="url(#mario-sky)" />
+
+            {/* Radiant Sun Glow */}
+            <circle cx="165" cy="25" r="32" fill="#fef08a" opacity="0.25" filter="url(#mario-glow)" />
+            <circle cx="165" cy="25" r="14" fill="#ffffff" opacity="0.6" />
+
+            {/* Super Mario Smiling Clouds */}
+            <g transform="translate(18, 16)">
+              <rect x="6" y="8" width="28" height="12" rx="6" fill="#ffffff" />
+              <circle cx="14" cy="9" r="7" fill="#ffffff" />
+              <circle cx="24" cy="7" r="9" fill="#ffffff" />
+              {/* Cute oval black eyes */}
+              <ellipse cx="17" cy="11" rx="1" ry="2.2" fill="#000000" />
+              <ellipse cx="23" cy="11" rx="1" ry="2.2" fill="#000000" />
+            </g>
+            <g transform="translate(135, 32) scale(0.75)">
+              <rect x="6" y="8" width="28" height="12" rx="6" fill="#ffffff" opacity="0.9" />
+              <circle cx="14" cy="9" r="7" fill="#ffffff" />
+              <circle cx="24" cy="7" r="9" fill="#ffffff" />
+              <ellipse cx="17" cy="11" rx="1" ry="2.2" fill="#000000" />
+              <ellipse cx="23" cy="11" rx="1" ry="2.2" fill="#000000" />
+            </g>
+
+            {/* Distant Snowcap Mountain */}
+            <path d="M10 115 L45 55 L80 115 Z" fill="#475569" />
+            <path d="M35 72 L45 55 L55 72 L50 68 L45 74 L40 68 Z" fill="#f8fafc" />
+
+            {/* Classic Super Mario Rounded Green Hill with Eyes */}
+            <ellipse cx="80" cy="115" rx="46" ry="38" fill="#16a34a" />
+            <ellipse cx="80" cy="115" rx="40" ry="32" fill="#22c55e" opacity="0.4" />
+            <ellipse cx="73" cy="90" rx="1.5" ry="3.5" fill="#0f172a" />
+            <ellipse cx="87" cy="90" rx="1.5" ry="3.5" fill="#0f172a" />
+
+            {/* Super Mario Ground with Grass Layer */}
+            <rect x="0" y="115" width="200" height="25" fill="#92400e" />
+            {/* Ground Brick Texture */}
+            <line x1="0" y1="127" x2="200" y2="127" stroke="#78350f" strokeWidth="1" />
+            <line x1="25" y1="115" x2="25" y2="127" stroke="#78350f" strokeWidth="1" />
+            <line x1="75" y1="115" x2="75" y2="127" stroke="#78350f" strokeWidth="1" />
+            <line x1="125" y1="115" x2="125" y2="127" stroke="#78350f" strokeWidth="1" />
+            <line x1="175" y1="115" x2="175" y2="127" stroke="#78350f" strokeWidth="1" />
+            <line x1="50" y1="127" x2="50" y2="140" stroke="#78350f" strokeWidth="1" />
+            <line x1="100" y1="127" x2="100" y2="140" stroke="#78350f" strokeWidth="1" />
+            <line x1="150" y1="127" x2="150" y2="140" stroke="#78350f" strokeWidth="1" />
+            {/* Top Grass Strip with Frills */}
+            <rect x="0" y="115" width="200" height="4" fill="#15803d" />
+            <path d="M0 119 Q5 122 10 119 Q15 122 20 119 Q25 122 30 119 Q35 122 40 119 Q45 122 50 119 Q55 122 60 119 Q65 122 70 119 Q75 122 80 119 Q85 122 90 119 Q95 122 100 119 Q105 122 110 119 Q115 122 120 119 Q125 122 130 119 Q135 122 140 119 Q145 122 150 119 Q155 122 160 119 Q165 122 170 119 Q175 122 180 119 Q185 122 190 119 Q195 122 200 119" stroke="#16a34a" strokeWidth="1.5" fill="none" />
+
+            {/* Iconic Green Warp Pipe on Right */}
+            <rect x="156" y="85" width="30" height="30" fill="url(#mario-pipe)" stroke="#052e16" strokeWidth="1.2" />
+            <rect x="152" y="72" width="38" height="14" rx="2" fill="url(#mario-pipe)" stroke="#052e16" strokeWidth="1.5" />
+            {/* Pipe Highlight & Shadow */}
+            <rect x="156" y="74" width="5" height="10" fill="#86efac" opacity="0.6" />
+            <rect x="160" y="87" width="4" height="28" fill="#86efac" opacity="0.6" />
+
+            {/* Brick Blocks & Golden [?] Question Block */}
+            {/* Left Brick */}
+            <rect x="52" y="52" width="18" height="18" rx="2" fill="url(#mario-brick)" stroke="#451a03" strokeWidth="1" />
+            <line x1="52" y1="61" x2="70" y2="61" stroke="#78350f" strokeWidth="1" />
+            <line x1="61" y1="52" x2="61" y2="61" stroke="#78350f" strokeWidth="0.8" />
+
+            {/* Center [?] Question Block (Golden Glowing) */}
+            <g filter="url(#mario-glow)">
+              <rect x="74" y="50" width="20" height="20" rx="3" fill="url(#mario-gold)" stroke="#78350f" strokeWidth="1.2" />
+              {/* Corner Screws */}
+              <circle cx="77" cy="53" r="1" fill="#78350f" />
+              <circle cx="91" cy="53" r="1" fill="#78350f" />
+              <circle cx="77" cy="67" r="1" fill="#78350f" />
+              <circle cx="91" cy="67" r="1" fill="#78350f" />
+              {/* Bold [?] Question Mark */}
+              <text x="84" y="66" fill="#78350f" fontSize="14" fontWeight="900" fontFamily="monospace" textAnchor="middle">?</text>
+              <text x="83.5" y="65.5" fill="#ffffff" fontSize="14" fontWeight="900" fontFamily="monospace" textAnchor="middle">?</text>
+            </g>
+
+            {/* Right Brick */}
+            <rect x="98" y="52" width="18" height="18" rx="2" fill="url(#mario-brick)" stroke="#451a03" strokeWidth="1" />
+            <line x1="98" y1="61" x2="116" y2="61" stroke="#78350f" strokeWidth="1" />
+            <line x1="107" y1="61" x2="107" y2="70" stroke="#78350f" strokeWidth="0.8" />
+
+            {/* Bursting Golden Coin Popping Out */}
+            <g transform="translate(84, 25)" filter="url(#mario-coin-shine)">
+              <ellipse cx="0" cy="0" rx="6" ry="8" fill="url(#mario-gold)" stroke="#78350f" strokeWidth="1" />
+              <ellipse cx="0" cy="0" rx="3.5" ry="5.5" stroke="#fef08a" strokeWidth="0.8" fill="none" />
+              <rect x="-0.8" y="-4" width="1.6" height="8" fill="#ca8a04" />
+              {/* Sparkle burst rays */}
+              <line x1="-10" y1="-10" x2="-6" y2="-6" stroke="#fef08a" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="10" y1="-10" x2="6" y2="-6" stroke="#fef08a" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="0" y1="-12" x2="0" y2="-8" stroke="#fef08a" strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+
+            {/* Super Mushroom Sitting on Left Brick */}
+            <g transform="translate(61, 40)">
+              {/* Stem */}
+              <rect x="-4" y="2" width="8" height="10" rx="2" fill="#fef3c7" />
+              <rect x="-2" y="5" width="1.5" height="4" fill="#000000" />
+              <rect x="0.5" y="5" width="1.5" height="4" fill="#000000" />
+              {/* Red Dome */}
+              <path d="M-8 3 Q0 -7 8 3 Z" fill="#ef4444" stroke="#991b1b" strokeWidth="0.8" />
+              {/* White Spots */}
+              <circle cx="0" cy="-0.5" r="2.8" fill="#ffffff" />
+              <circle cx="-6" cy="1" r="1.8" fill="#ffffff" />
+              <circle cx="6" cy="1" r="1.8" fill="#ffffff" />
+            </g>
+
+            {/* Jumping Mario Figure in Action! */}
+            <g transform="translate(82, 80)">
+              {/* Raised Punching Fist (Top Right) */}
+              <circle cx="12" cy="-26" r="4.5" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
+
+              {/* Red Mario Cap */}
+              <path d="M-7 -22 C-7 -28 6 -30 9 -23 L14 -22 L8 -18 L-7 -18 Z" fill="#dc2626" stroke="#991b1b" strokeWidth="1" />
+              {/* White Cap Emblem with Red M */}
+              <circle cx="2" cy="-22" r="3" fill="#ffffff" />
+              <text x="2" y="-20" fill="#dc2626" fontSize="3.5" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">M</text>
+
+              {/* Head & Face */}
+              <circle cx="-1" cy="-14" r="5.5" fill="#fed7aa" />
+              <circle cx="4" cy="-14" r="2.2" fill="#fed7aa" /> {/* Big round nose */}
+              {/* Eye */}
+              <ellipse cx="2" cy="-16" rx="0.9" ry="1.4" fill="#0f172a" />
+              {/* Mustache */}
+              <path d="M-2 -12 Q3 -13 6 -11 Q3 -10 0 -11 Z" fill="#451a03" />
+              {/* Brown Hair & Sideburn */}
+              <rect x="-6" y="-17" width="3" height="4" rx="1" fill="#451a03" />
+
+              {/* Red Shirt Torso */}
+              <rect x="-5" y="-9" width="9" height="10" rx="2" fill="#dc2626" />
+
+              {/* Left Arm (Behind) */}
+              <circle cx="-8" cy="-6" r="3.5" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.8" />
+
+              {/* Blue Overalls */}
+              <path d="M-5 -4 L4 -4 L3 6 L-4 6 Z" fill="#2563eb" stroke="#1d4ed8" strokeWidth="0.8" />
+              {/* Yellow Overall Button */}
+              <circle cx="1.5" cy="-2.5" r="1.2" fill="#facc15" />
+
+              {/* Kicking Legs in Jump Pose */}
+              {/* Forward Leg */}
+              <rect x="1" y="5" width="4.5" height="7" rx="1" fill="#1d4ed8" transform="rotate(-25 1 5)" />
+              {/* Brown Shoe Forward */}
+              <ellipse cx="6" cy="13" rx="4.5" ry="2.8" fill="#78350f" />
+
+              {/* Back Leg Bent */}
+              <rect x="-6" y="5" width="4.5" height="6" rx="1" fill="#1e40af" transform="rotate(30 -6 5)" />
+              {/* Brown Shoe Back */}
+              <ellipse cx="-8" cy="11" rx="4" ry="2.5" fill="#78350f" />
+            </g>
+
+            {/* Retro SUPER MARIO Title Badge */}
+            <g transform="translate(14, 126)">
+              <rect x="-4" y="-13" width="84" height="18" rx="4" fill="#030712" opacity="0.9" stroke="#ef4444" strokeWidth="1" />
+              <text x="38" y="0" fill="url(#mario-title-grad)" fontSize="10.5" fontWeight="900" fontFamily="monospace" letterSpacing="1" textAnchor="middle">
+                SUPER MARIO
+              </text>
+            </g>
+          </svg>
+        </div>
+      );
+
+    case 'duck-hunt':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#0284c7] via-[#0ea5e9] to-[#0369a1] ${className}`}>
+          {/* Retro Radar Dots & CRT Lines */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#22c55e_1px,transparent_1px)] bg-[size:14px_14px]" />
+
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="dh-reticle-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="dh-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="65%" stopColor="#7dd3fc" />
+                <stop offset="100%" stopColor="#bae6fd" />
+              </linearGradient>
+              <linearGradient id="dh-title-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="35%" stopColor="#fde047" />
+                <stop offset="70%" stopColor="#ea580c" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </linearGradient>
+            </defs>
+
+            {/* Sky Background */}
+            <rect width="200" height="140" fill="url(#dh-sky)" />
+
+            {/* Distant Hills */}
+            <path d="M0 100 Q60 85 120 95 Q170 88 200 95 L200 140 L0 140 Z" fill="#65a30d" opacity="0.6" />
+
+            {/* Iconic Big Twisted Tree on the Left */}
+            <g transform="translate(16, 30)">
+              {/* Tree Canopy Foliage */}
+              <circle cx="2" cy="0" r="18" fill="#15803d" />
+              <circle cx="-10" cy="-6" r="14" fill="#166534" />
+              <circle cx="12" cy="-4" r="15" fill="#15803d" />
+              <circle cx="0" cy="-14" r="16" fill="#16a34a" />
+              <circle cx="8" cy="-12" r="12" fill="#22c55e" opacity="0.7" />
+              {/* Trunk */}
+              <path d="M-2 15 C-4 35 -10 50 -12 70 L6 70 C4 50 1 35 0 15 Z" fill="#78350f" stroke="#451a03" strokeWidth="1" />
+              {/* Branch */}
+              <path d="M-1 28 Q12 25 18 20" stroke="#78350f" strokeWidth="3" strokeLinecap="round" />
+            </g>
+
+            {/* Foreground Lush Grass with Bush */}
+            <rect x="0" y="105" width="200" height="35" fill="#15803d" />
+            <path d="M0 105 Q10 98 20 105 Q30 96 40 105 Q50 97 60 105 Q70 95 80 105 Q90 96 100 105 Q110 98 120 105 Q130 95 140 105 Q150 97 160 105 Q170 95 180 105 Q190 98 200 105 L200 140 L0 140 Z" fill="#16a34a" />
+
+            {/* Flying Clay Skeet Disc (Top Right) */}
+            <g transform="translate(170, 32) rotate(-15)">
+              <ellipse cx="0" cy="0" rx="14" ry="4" fill="#ef4444" stroke="#991b1b" strokeWidth="1" />
+              <ellipse cx="0" cy="-0.5" rx="10" ry="2" fill="#fca5a5" />
+              <line x1="-18" y1="6" x2="-26" y2="9" stroke="#fca5a5" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+            </g>
+
+            {/* Iconic Mallard Duck in Rapid Flight! */}
+            <g transform="translate(112, 48)">
+              {/* Wing Flap Speed Wind Lines */}
+              <line x1="-24" y1="6" x2="-12" y2="4" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+              <line x1="-22" y1="-4" x2="-10" y2="-2" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+
+              {/* Body */}
+              <ellipse cx="0" cy="0" rx="13" ry="8" fill="#78350f" stroke="#451a03" strokeWidth="1" />
+              {/* White Neck Ring */}
+              <rect x="6" y="-6" width="3" height="6" rx="1" fill="#ffffff" />
+              {/* Emerald Green Duck Head */}
+              <circle cx="11" cy="-7" r="6" fill="#15803d" stroke="#052e16" strokeWidth="1" />
+              {/* Eye */}
+              <circle cx="12" cy="-8" r="1.5" fill="#ffffff" />
+              <circle cx="12.5" cy="-8" r="0.8" fill="#000000" />
+              {/* Yellow Bill */}
+              <path d="M16 -7 L22 -6 L16 -4 Z" fill="#facc15" stroke="#ca8a04" strokeWidth="0.8" />
+
+              {/* Upper Wing Flapping High */}
+              <path d="M-4 -4 C-6 -22 6 -20 12 -6 Z" fill="#0284c7" stroke="#0369a1" strokeWidth="1" />
+              <path d="M0 -8 L8 -6" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" />
+
+              {/* Tail Feathers */}
+              <path d="M-13 -2 L-18 -5 L-15 2 Z" fill="#451a03" />
+
+              {/* Orange Webbed Feet */}
+              <path d="M-4 6 L-2 11 L-6 11 Z" fill="#f97316" />
+            </g>
+
+            {/* NES Zapper Gun Crosshair Reticle Locked on Duck */}
+            <g transform="translate(118, 44)" filter="url(#dh-reticle-glow)">
+              <circle cx="0" cy="0" r="16" stroke="#ef4444" strokeWidth="2" fill="none" opacity="0.85" />
+              <circle cx="0" cy="0" r="2.5" fill="#ef4444" />
+              <line x1="-22" y1="0" x2="-10" y2="0" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+              <line x1="10" y1="0" x2="22" y2="0" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+              <line x1="0" y1="-22" x2="0" y2="-10" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+              <line x1="0" y1="10" x2="0" y2="22" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+            </g>
+
+            {/* The Famous Duck Hunt Dog Peeking from Grass */}
+            <g transform="translate(68, 106)">
+              {/* Brown Dog Head */}
+              <ellipse cx="0" cy="-6" rx="9" ry="10" fill="#a16207" stroke="#713f12" strokeWidth="1" />
+              {/* Snout */}
+              <ellipse cx="0" cy="-3" rx="5" ry="4" fill="#fed7aa" />
+              {/* Black Nose */}
+              <circle cx="0" cy="-5" r="2" fill="#000000" />
+              {/* Happy Eyes */}
+              <path d="M-4 -9 Q-2 -12 0 -9" stroke="#000000" strokeWidth="1.2" fill="none" />
+              <path d="M0 -9 Q2 -12 4 -9" stroke="#000000" strokeWidth="1.2" fill="none" />
+              {/* Floppy Brown Ears */}
+              <ellipse cx="-9" cy="-5" rx="3.5" ry="8" fill="#713f12" transform="rotate(15 -9 -5)" />
+              <ellipse cx="9" cy="-5" rx="3.5" ry="8" fill="#713f12" transform="rotate(-15 9 -5)" />
+              {/* Paws Resting on Grass */}
+              <ellipse cx="-6" cy="4" rx="4" ry="3" fill="#fed7aa" stroke="#a16207" strokeWidth="1" />
+              <ellipse cx="6" cy="4" rx="4" ry="3" fill="#fed7aa" stroke="#a16207" strokeWidth="1" />
+            </g>
+
+            {/* Retro DUCK HUNT Arcade Title Badge */}
+            <g transform="translate(14, 126)">
+              <rect x="-4" y="-13" width="76" height="18" rx="4" fill="#030712" opacity="0.9" stroke="#f59e0b" strokeWidth="1" />
+              <text x="34" y="0" fill="url(#dh-title-grad)" fontSize="10.5" fontWeight="900" fontFamily="monospace" letterSpacing="1" textAnchor="middle">
+                DUCK HUNT
+              </text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

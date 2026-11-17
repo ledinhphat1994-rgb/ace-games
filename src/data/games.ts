@@ -610,5 +610,31 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Mario', 'Nấm lùn', 'Super Mario', 'Nintendo', 'Đi cảnh', 'Retro', 'NES', 'Arcade', 'Kinh điển'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'duck-hunt',
+    title: 'Bắn Vịt Cổ Điển',
+    subtitle: 'Huyền thoại Bắn Vịt NES 1984 & Chú chó săn hóm hỉnh',
+    category: 'arcade',
+    categoryLabel: 'Bắn Súng Phản Xạ',
+    description: 'Huyền thoại Bắn Vịt Duck Hunt NES 1984 kinh điển trên máy băng 4 nút! Cầm súng Zapper ngắm bắn những chú vịt trời bay lượn ngẫu hứng qua đồng cỏ bát ngát hoặc thử thách kỹ năng xạ thủ với chế độ Bắn Đĩa sét tốc độ cao (Clay Shooting). Hãy bắn thật chuẩn trước khi vịt kịp bay thoát lên trời xanh và để chú chó săn lém lỉnh cười nhạo bạn!',
+    instructions: [
+      'Rê chuột để di chuyển tâm ngắm súng Zapper và Nhấp chuột trái để bóp cò bắn.',
+      'Trên điện thoại/tablet: Chạm ngón tay trực tiếp vào vịt hoặc đĩa bay để bắn tức thì.',
+      'Mỗi lượt bay bạn có tối đa 3 viên đạn. Hãy bắn hạ mục tiêu trước khi vịt bay vọt lên trời.',
+      'Bắn trúng nhiều mục tiêu liên tiếp để tích lũy điểm thưởng Combo và nhân hệ số điểm.',
+      'Hoàn thành chỉ tiêu số lượng trúng trong mỗi vòng (Round) để tiến vào vòng tiếp theo với tốc độ bay nhanh hơn.'
+    ],
+    controls: {
+      desktop: 'Chuột: Di chuyển tâm ngắm • Nhấp chuột trái: Bóp cò bắn • Phím 1, 2, 3: Đổi chế độ',
+      mobile: 'Chạm tay trực tiếp vào vịt trời hoặc đĩa bay trên màn hình để bắn tức thì'
+    },
+    thumbnailIcon: '🦆',
+    accentColor: 'from-amber-500 via-emerald-500 to-sky-500',
+    rating: 4.99,
+    plays: 1420000,
+    tags: ['Bắn vịt', 'Duck Hunt', 'NES', 'Băng 4 nút', 'Súng Zapper', 'Retro', 'Arcade', 'Kinh điển', 'Phản xạ'],
+    isHot: true,
+    isNew: true
   }
 ];

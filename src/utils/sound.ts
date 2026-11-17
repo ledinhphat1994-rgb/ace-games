@@ -1529,6 +1529,216 @@ class SoundManager {
     } catch {}
   }
 
+  // ==========================================
+  // DUCK HUNT SOUND SYSTEM (AUTHENTIC RETRO 8-BIT)
+  // ==========================================
+  public playDuckHuntShot() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // 1. Sharp gun crack noise
+      const bufferSize = this.ctx.sampleRate * 0.12;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.035));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.45 * sfx, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      noise.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
+      noise.start(now);
+
+      // 2. Low-frequency punch
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+      gain.gain.setValueAtTime(0.35 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+    } catch {}
+  }
+
+  public playDuckHuntQuack() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.linearRampToValueAtTime(450, now + 0.06);
+      osc.frequency.linearRampToValueAtTime(280, now + 0.14);
+      gain.gain.setValueAtTime(0.18 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.16);
+    } catch {}
+  }
+
+  public playDuckHuntFlap() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+      gain.gain.setValueAtTime(0.12 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.06);
+    } catch {}
+  }
+
+  public playDuckHuntHit() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // High retro ding chirp
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(987, now);
+      osc.frequency.setValueAtTime(1318, now + 0.06);
+      gain.gain.setValueAtTime(0.25 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.23);
+    } catch {}
+  }
+
+  public playDuckHuntFall() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.45);
+      gain.gain.setValueAtTime(0.15 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.46);
+    } catch {}
+  }
+
+  public playDuckHuntDogBark() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [0, 0.1].forEach((delay) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sawtooth';
+        const t = now + delay;
+        osc.frequency.setValueAtTime(280, t);
+        osc.frequency.exponentialRampToValueAtTime(110, t + 0.07);
+        gain.gain.setValueAtTime(0.22 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.09);
+      });
+    } catch {}
+  }
+
+  public playDuckHuntDogLaugh() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // Iconic Duck Hunt dog chuckle: 3 staccato bursts
+      [0, 0.12, 0.24].forEach((delay) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'square';
+        const t = now + delay;
+        osc.frequency.setValueAtTime(659, t);
+        osc.frequency.setValueAtTime(784, t + 0.04);
+        gain.gain.setValueAtTime(0.18 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.09);
+      });
+    } catch {}
+  }
+
+  public playDuckHuntRoundClear() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [
+        { f: 440, d: 0.1 },
+        { f: 554, d: 0.1 },
+        { f: 659, d: 0.1 },
+        { f: 880, d: 0.3 },
+      ];
+      let offset = 0;
+      notes.forEach((n) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.2 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.9;
+      });
+    } catch {}
+  }
+
+  public playDuckHuntClayLaunch() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(450, now + 0.15);
+      gain.gain.setValueAtTime(0.15 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.19);
+    } catch {}
+  }
+
   // Studio-Grade Synthesized Fallbacks (Epic, Sharp, Heroic Acoustics)
   private synthWoodClick(freq: number = 430, dur: number = 0.09) {
     const sfx = this.getEffectiveSfxVolume();
