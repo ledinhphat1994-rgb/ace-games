@@ -312,7 +312,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       {/* Big Immersive Game Viewport (100% Focused on Game, Zero Text Clutter) */}
       <div className={`flex-1 w-full h-full overflow-hidden flex items-center justify-center ${
         viewMode === 'vung2'
-          ? 'p-1.5 sm:p-3 bg-gradient-to-b from-[#060913] to-[#04060a]'
+          ? 'p-0 sm:p-1 bg-gradient-to-b from-[#060913] to-[#04060a]'
           : 'p-0 bg-black'
       }`}>
         {renderGameContent()}

@@ -997,10 +997,9 @@ function drawPipeAndPiranha(
 ) {
   // Cây ăn thịt Piranha
   if (p.hasPiranha) {
-    p.piranhaTimer = (p.piranhaTimer || 0) + 0.04;
     const isMarioNear = Math.abs(marioX - (p.x + p.w / 2)) < 60;
     const peakHeight = 44;
-    const animPhase = Math.sin(p.piranhaTimer);
+    const animPhase = Math.sin(p.piranhaTimer || 0);
     const plantRise = isMarioNear ? 0 : Math.max(0, animPhase) * peakHeight;
     const plantY = p.y - plantRise;
 
@@ -1019,7 +1018,7 @@ function drawPipeAndPiranha(
       ctx.fill();
 
       // Đầu hoa nụ đỏ Venus Flytrap có hàm răng nhọn
-      const mouthOpen = Math.abs(Math.sin(p.piranhaTimer * 3)) * 0.35 + 0.1;
+      const mouthOpen = Math.abs(Math.sin((p.piranhaTimer || 0) * 3)) * 0.35 + 0.1;
 
       // Họng hoa đỏ sẫm
       ctx.fillStyle = '#450a0a';
@@ -2046,6 +2045,30 @@ export const GameMario: React.FC = () => {
           });
 
           pipesRef.current.forEach(p => {
+            if (p.hasPiranha) {
+              p.piranhaTimer = (p.piranhaTimer || 0) + dt * 2.5;
+              const isMarioNear = Math.abs(m.x - (p.x + p.w / 2)) < 60;
+              const animPhase = Math.sin(p.piranhaTimer);
+              const plantRise = isMarioNear ? 0 : Math.max(0, animPhase) * 44;
+              const plantY = p.y - plantRise;
+
+              // Va chạm gây sát thương cho Mario khi cây trồi lên khỏi miệng cống
+              if (plantRise > 12 && !m.isDead) {
+                const pLeft = p.x + 12;
+                const pRight = p.x + p.w - 12;
+                if (m.x + m.w > pLeft && m.x < pRight && m.y + m.h > plantY + 4 && m.y < p.y) {
+                  if (isStarRef.current) {
+                    p.hasPiranha = false;
+                    soundManager.playMarioKick();
+                    addParticles(p.x + p.w / 2, plantY + 12, 10, '#ef4444');
+                    addScore(400, p.x, plantY);
+                  } else {
+                    damageMario();
+                  }
+                }
+              }
+            }
+
             if (m.x + m.w > p.x + 3 && m.x < p.x + p.w - 3) {
               if (m.vy >= 0 && m.y + m.h >= p.y && m.y + m.h <= p.y + 20) {
                 m.y = p.y - m.h;
@@ -2277,6 +2300,26 @@ export const GameMario: React.FC = () => {
           }
 
           if (!fb.isEnemy) {
+            pipesRef.current.forEach(p => {
+              if (p.hasPiranha) {
+                const animPhase = Math.sin(p.piranhaTimer || 0);
+                const isMarioNear = Math.abs(m.x - (p.x + p.w / 2)) < 60;
+                const plantRise = isMarioNear ? 0 : Math.max(0, animPhase) * 44;
+                const plantY = p.y - plantRise;
+                if (plantRise > 10) {
+                  const pLeft = p.x + 12;
+                  const pRight = p.x + p.w - 12;
+                  if (fb.x + fb.radius > pLeft && fb.x - fb.radius < pRight && fb.y + fb.radius > plantY && fb.y - fb.radius < p.y) {
+                    fb.isAlive = false;
+                    p.hasPiranha = false;
+                    soundManager.playMarioKick();
+                    addParticles(p.x + p.w / 2, plantY + 12, 10, '#ef4444');
+                    addScore(200, p.x, plantY);
+                  }
+                }
+              }
+            });
+
             enemiesRef.current.forEach(en => {
               if (en.isAlive && !en.isStomped) {
                 if (fb.x + fb.radius > en.x && fb.x - fb.radius < en.x + en.w && fb.y + fb.radius > en.y && fb.y - fb.radius < en.y + en.h) {
@@ -2600,46 +2643,43 @@ export const GameMario: React.FC = () => {
 
       ctx.restore(); // Kết thúc dịch chuyển Camera
 
-      // BANNER HUD PHÍA TRÊN SÂN KHẤU (Chuẩn Retro Arcade Top HUD)
+      // BANNER HUD PHÍA TRÊN SÂN KHẤU (Chuẩn Retro Arcade Top HUD - Tối Giản, Ít Chữ, Rõ Ràng)
       ctx.fillStyle = '#090d16';
       ctx.fillRect(0, 0, ARENA_WIDTH, 38);
 
-      // MARIO & Điểm số
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('MARIO', 115, 24);
+      // Điểm số dạng số vàng lớn nổi bật
       ctx.fillStyle = '#facc15';
-      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 165, 24);
+      ctx.font = 'bold 15px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 105, 24);
 
       // Icon Đồng Xu Vàng 3D Vector & Số Lượng Xu
-      drawVectorCoin(ctx, 255, 20, 7.5);
+      drawVectorCoin(ctx, 210, 19, 7.5);
       ctx.fillStyle = '#facc15';
-      ctx.fillText(`x ${coinsRef.current.toString().padStart(2, '0')}`, 270, 24);
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(`x ${coinsRef.current.toString().padStart(2, '0')}`, 224, 24);
 
-      // World
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('WORLD', 335, 24);
+      // Màn chơi
       ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`${currentWorld}-${currentStage}`, 385, 24);
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(`W${currentWorld}-${currentStage}`, 300, 24);
 
-      // Time
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('TIME', 445, 24);
+      // Thời gian còn lại
       ctx.fillStyle = timeLeft < 50 ? '#ef4444' : '#f8fafc';
-      ctx.fillText(`${Math.ceil(timeLeft)}`, 485, 24);
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(`TIME ${Math.ceil(timeLeft)}`, 385, 24);
 
-      // Mạng sống (Biểu tượng trái tim)
+      // Mạng sống (Biểu tượng trái tim ♥)
       const heartCount = livesRef.current;
       for (let hIdx = 0; hIdx < 3; hIdx++) {
         ctx.fillStyle = hIdx < heartCount ? '#f43f5e' : '#334155';
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText('♥', 545 + hIdx * 16, 24);
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText('♥', 485 + hIdx * 16, 24);
       }
 
       ctx.restore(); // Kết thúc clip Arena
 
-      // 3. SIDEBAR THÔNG SỐ BÊN PHẢI (204px) - CẤU HÌNH CHUNG ĐỒNG BỘ CÙNG CONTRA & ZUMA
+      // 3. SIDEBAR THÔNG SỐ BÊN PHẢI (204px) - TINH GỌN, XÓA HẾT HƯỚNG DẪN & CHÚ THÍCH THỪA
       ctx.fillStyle = '#060a12';
       ctx.fillRect(SIDEBAR_X, 0, SIDEBAR_WIDTH, CANVAS_HEIGHT);
 
@@ -2650,14 +2690,14 @@ export const GameMario: React.FC = () => {
       ctx.lineTo(SIDEBAR_X, CANVAS_HEIGHT);
       ctx.stroke();
 
-      // Tiêu đề Sidebar
+      // Tiêu đề Sidebar duy nhất
       ctx.fillStyle = '#f97316';
       ctx.font = 'bold 13px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('SUPER MARIO BROS', SIDEBAR_X + SIDEBAR_WIDTH / 2, 28);
 
-      // Card Hình Thái Mario Hiện Tại
-      const cardY = 46;
+      // Card 1: Hình Thái Mario (Xóa sạch chú thích thừa, chỉ giữ huy hiệu & tên hình thái)
+      const cardY = 50;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
       ctx.roundRect(SIDEBAR_X + 16, cardY, SIDEBAR_WIDTH - 32, 64, 12);
@@ -2672,10 +2712,10 @@ export const GameMario: React.FC = () => {
       ctx.lineWidth = 1.6;
       ctx.stroke();
 
-      // Avatar Vector Mario Face Badge (Thay thế hoàn toàn emoji điện thoại)
+      // Avatar Vector Mario Face Badge
       drawMarioAvatarBadge(
         ctx,
-        SIDEBAR_X + 44,
+        SIDEBAR_X + 46,
         cardY + 32,
         20,
         marioFormRef.current,
@@ -2684,8 +2724,9 @@ export const GameMario: React.FC = () => {
       );
 
       ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
       const formText = isStarRef.current
         ? 'BẤT TỬ'
         : marioFormRef.current === 'fire'
@@ -2693,58 +2734,48 @@ export const GameMario: React.FC = () => {
         : marioFormRef.current === 'super'
         ? 'SIÊU MARIO'
         : 'MARIO NHỎ';
-      ctx.fillText(formText, SIDEBAR_X + 74, cardY + 30);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '10px sans-serif';
-      ctx.fillText(
-        isStarRef.current
-          ? `${Math.ceil(starTimerRef.current)}s còn lại`
-          : marioFormRef.current === 'fire'
-          ? 'Phím J: Bắn lửa'
-          : 'Húc gạch tìm nấm',
-        SIDEBAR_X + 74,
-        cardY + 48
-      );
+      ctx.fillText(formText, SIDEBAR_X + 76, cardY + 32);
+      ctx.textBaseline = 'alphabetic';
 
-      // Quân Số Mạng (Căn giữa chuẩn xác trục tâm)
-      const livesY = 124;
+      // Card 2: Quân Số Mạng (Căn giữa chuẩn xác trục tâm)
+      const livesY = 138;
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('QUÂN SỐ MẠNG', SIDEBAR_X + SIDEBAR_WIDTH / 2, livesY);
 
-      const spacing = 36;
+      const spacing = 38;
       const centerX = SIDEBAR_X + SIDEBAR_WIDTH / 2;
       for (let i = 0; i < 3; i++) {
         const lx = centerX + (i - 1) * spacing;
-        const ly = livesY + 22;
+        const ly = livesY + 24;
         const hasLife = i < livesRef.current;
 
         ctx.fillStyle = hasLife ? '#ef4444' : '#1e293b';
         ctx.beginPath();
-        ctx.arc(lx, ly, 13, 0, Math.PI * 2);
+        ctx.arc(lx, ly, 14, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = hasLife ? '#dc2626' : '#334155';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         ctx.fillStyle = hasLife ? '#ffffff' : '#64748b';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillText(hasLife ? '♥' : '✕', lx, ly + 4);
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(hasLife ? '♥' : '✕', lx, ly + 5);
       }
 
-      // Tiến Trình Màn Chơi (World Progress - Tính chuẩn xác theo đích đến flagpole)
-      const progY = 180;
+      // Card 3: Tiến Độ Màn Chơi (Thanh tiến trình gọn gàng, không chú thích rườm rà)
+      const progY = 210;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, progY, SIDEBAR_WIDTH - 32, 74, 10);
+      ctx.roundRect(SIDEBAR_X + 16, progY, SIDEBAR_WIDTH - 32, 76, 12);
       ctx.fill();
       ctx.strokeStyle = '#1e293b';
       ctx.stroke();
 
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('TIẾN ĐỘ VƯỢNG QUỐC', SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 22);
+      ctx.fillText('TIẾN ĐỘ', SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 22);
 
       const finishTargetX = flagpoleRef.current ? Math.max(1, flagpoleRef.current.x - 100) : 3400;
       const progRatio = Math.min(1, Math.max(0, m.x / finishTargetX));
@@ -2766,67 +2797,29 @@ export const GameMario: React.FC = () => {
       }
 
       ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 10px monospace';
-      ctx.fillText(`MÀN ${currentWorld}-${currentStage} • ${progPct}%`, SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 62);
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(`MÀN 1-${currentStage} • ${progPct}%`, SIDEBAR_X + SIDEBAR_WIDTH / 2, progY + 65);
 
-      // Điểm Số Chiến Trường
-      const scoreBoxY = 270;
+      // Card 4: Điểm Số Chiến Trường & Kỷ Lục
+      const scoreBoxY = 310;
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, scoreBoxY, SIDEBAR_WIDTH - 32, 70, 10);
+      ctx.roundRect(SIDEBAR_X + 16, scoreBoxY, SIDEBAR_WIDTH - 32, 90, 12);
       ctx.fill();
       ctx.strokeStyle = '#1e293b';
       ctx.stroke();
 
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('ĐIỂM SỐ', SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 22);
+      ctx.fillText('ĐIỂM SỐ', SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 24);
 
       ctx.fillStyle = '#facc15';
-      ctx.font = 'black 22px monospace';
-      ctx.fillText(`${scoreRef.current.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 52);
+      ctx.font = 'black 24px monospace';
+      ctx.fillText(`${scoreRef.current.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 56);
 
-      // Kỷ Lục
       ctx.fillStyle = '#64748b';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText(`KỶ LỤC: ${highScore.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 360);
-
-      // Phím Điều Khiển Nhanh
-      const keyGuideY = 380;
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.roundRect(SIDEBAR_X + 16, keyGuideY, SIDEBAR_WIDTH - 32, 140, 10);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.stroke();
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('PHÍM ĐIỀU KHIỂN', SIDEBAR_X + SIDEBAR_WIDTH / 2, keyGuideY + 20);
-
-      const guides = [
-        { key: 'A / D', action: 'Chạy Trái / Phải' },
-        { key: 'S', action: 'Cúi / Xuống ống' },
-        { key: 'K / Space', action: 'Nhảy bổng' },
-        { key: 'J / Z', action: 'Bắn lửa & Chạy' },
-      ];
-
-      guides.forEach((g, idx) => {
-        const rowY = keyGuideY + 42 + idx * 24;
-        ctx.fillStyle = '#334155';
-        ctx.beginPath();
-        ctx.roundRect(SIDEBAR_X + 22, rowY - 10, 52, 16, 4);
-        ctx.fill();
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = 'bold 9px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(g.key, SIDEBAR_X + 48, rowY + 2);
-
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(g.action, SIDEBAR_X + 80, rowY + 2);
-      });
+      ctx.fillText(`KỶ LỤC: ${highScore.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 78);
     };
 
     animId = requestAnimationFrame(loop);
@@ -2838,9 +2831,19 @@ export const GameMario: React.FC = () => {
   }, [startNewGame]);
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center select-none bg-slate-950 overflow-hidden p-1 sm:p-2">
-      {/* Khung Canvas Trò Chơi Widescreen 16:9 Maximize Toàn Vùng Viewport */}
-      <div className="relative w-full max-w-[min(98vw,1340px)] aspect-[16/9] bg-slate-950 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.85)] flex items-center justify-center">
+    <div 
+      className="relative w-full h-full flex items-center justify-center select-none bg-slate-950 overflow-hidden p-0"
+      style={{ containerType: 'size' }}
+    >
+      {/* Khung Canvas Trò Chơi Widescreen 16:9 Maximize Toàn Vùng Viewport Tự Động Co Giãn Tối Đa */}
+      <div 
+        className="relative bg-slate-950 rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.85)] flex items-center justify-center"
+        style={{
+          width: 'min(100cqw, calc(100cqh * 16 / 9))',
+          height: 'min(100cqh, calc(100cqw * 9 / 16))',
+          aspectRatio: '16 / 9',
+        }}
+      >
         <canvas
           ref={canvasRef}
           style={{ width: '100%', height: '100%', display: 'block' }}
