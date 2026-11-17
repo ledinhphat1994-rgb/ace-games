@@ -1209,6 +1209,60 @@ function drawBrickBlock(
 }
 
 /**
+ * Vẽ khối đá bậc thang kim tự tháp (Hard Stone Pyramid Block)
+ */
+function drawHardBlock(
+  ctx: CanvasRenderingContext2D,
+  b: Block,
+  renderY: number,
+  stage: number
+) {
+  const baseColor = stage === 4 ? '#450a0a' : stage === 2 ? '#1e293b' : '#334155';
+  const highlightColor = stage === 4 ? '#7f1d1d' : stage === 2 ? '#475569' : '#64748b';
+  const shadowColor = stage === 4 ? '#1a0505' : stage === 2 ? '#0f172a' : '#1e293b';
+
+  // Thân khối đá vững chắc
+  ctx.fillStyle = baseColor;
+  ctx.beginPath();
+  ctx.roundRect(b.x, renderY, b.w, b.h, 4);
+  ctx.fill();
+
+  // Viền nổi khối 3D vát cạnh (Bevel 3D)
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = highlightColor;
+  ctx.beginPath();
+  ctx.moveTo(b.x, renderY + b.h);
+  ctx.lineTo(b.x, renderY);
+  ctx.lineTo(b.x + b.w, renderY);
+  ctx.stroke();
+
+  ctx.strokeStyle = shadowColor;
+  ctx.beginPath();
+  ctx.moveTo(b.x + b.w, renderY);
+  ctx.lineTo(b.x + b.w, renderY + b.h);
+  ctx.lineTo(b.x, renderY + b.h);
+  ctx.stroke();
+
+  // Lòng đá chìm
+  ctx.fillStyle = shadowColor;
+  ctx.fillRect(b.x + 5, renderY + 5, b.w - 10, b.h - 10);
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(b.x + 7, renderY + 7, b.w - 14, b.h - 14);
+
+  // 4 đinh tán kim loại ở 4 góc khối đá
+  const rivets = [
+    { x: b.x + 8, y: renderY + 8 },
+    { x: b.x + b.w - 12, y: renderY + 8 },
+    { x: b.x + 8, y: renderY + b.h - 12 },
+    { x: b.x + b.w - 12, y: renderY + b.h - 12 },
+  ];
+  ctx.fillStyle = '#94a3b8';
+  rivets.forEach(rv => {
+    ctx.fillRect(rv.x, rv.y, 4, 4);
+  });
+}
+
+/**
  * 8. Vẽ Goomba nấm hạt dẻ chân thật có răng nanh và bước đi lắc lư
  */
 function drawGoomba(ctx: CanvasRenderingContext2D, en: Enemy, now: number) {
@@ -2379,6 +2433,8 @@ export const GameMario: React.FC = () => {
           drawQuestionBlock(ctx, b, renderY, now);
         } else if (b.type === 'brick') {
           drawBrickBlock(ctx, b, renderY, currentStage);
+        } else if (b.type === 'hard_block') {
+          drawHardBlock(ctx, b, renderY, currentStage);
         } else if (b.type === 'empty') {
           // Khối gạch rỗng sau khi đập
           ctx.fillStyle = '#71717a';
@@ -2837,7 +2893,7 @@ export const GameMario: React.FC = () => {
     >
       {/* Khung Canvas Trò Chơi Widescreen 16:9 Maximize Toàn Vùng Viewport Tự Động Co Giãn Tối Đa */}
       <div 
-        className="relative bg-slate-950 rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.85)] flex items-center justify-center"
+        className="relative bg-slate-950 overflow-hidden flex items-center justify-center"
         style={{
           width: 'min(100cqw, calc(100cqh * 16 / 9))',
           height: 'min(100cqh, calc(100cqw * 9 / 16))',
