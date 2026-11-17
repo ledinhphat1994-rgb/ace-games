@@ -6,20 +6,18 @@ import {
   Trophy, 
   Pause, 
   Heart, 
-  Crosshair, 
-  Zap, 
-  ArrowLeft, 
+  Shield, 
+  Flame, 
+  Target,
+  ArrowLeft,
   ArrowRight,
   ArrowUp,
-  ArrowDown,
-  Shield,
-  Flame,
-  Target
+  ArrowDown
 } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
 type GameMode = 'classic' | 'speed' | 'hardcore';
-type WeaponType = 'normal' | 'machine' | 'spread' | 'laser' | 'barrier';
+type WeaponType = 'normal' | 'machine' | 'spread' | 'laser' | 'flame' | 'barrier';
 
 // Kích thước chuẩn Widescreen 16:9 Cinema Arcade
 const CANVAS_WIDTH = 960;
@@ -35,7 +33,7 @@ const SIDEBAR_WIDTH = CANVAS_WIDTH - ARENA_WIDTH;
 
 // Chiều dài bản đồ màn 1 (Rừng nhiệt đới Galuga): 4200px
 const LEVEL_LENGTH = 4200;
-const BOSS_X = LEVEL_LENGTH - 480;
+const BOSS_X = LEVEL_LENGTH - 460;
 
 interface Platform {
   x: number;
@@ -43,6 +41,10 @@ interface Platform {
   width: number;
   height: number;
   isWater?: boolean;
+  isBridge?: boolean;
+  isExploding?: boolean;
+  explodeTimer?: number;
+  isDestroyed?: boolean;
 }
 
 interface Bullet {
@@ -57,11 +59,14 @@ interface Bullet {
   damage: number;
   isSpread?: boolean;
   isLaser?: boolean;
+  isFlame?: boolean;
+  angle?: number;
+  pierce?: number;
 }
 
 interface Enemy {
   id: number;
-  type: 'runner' | 'sniper' | 'turret' | 'capsule';
+  type: 'runner' | 'sniper' | 'turret' | 'wall_pod' | 'flying_capsule';
   x: number;
   y: number;
   width: number;
@@ -74,6 +79,9 @@ interface Enemy {
   facing: 'left' | 'right';
   itemDrop?: WeaponType;
   isAlive: boolean;
+  aimAngle?: number;
+  sineTime?: number;
+  animFrame?: number;
 }
 
 interface WeaponItem {
@@ -83,6 +91,7 @@ interface WeaponItem {
   y: number;
   vy: number;
   isAlive: boolean;
+  letter: string;
 }
 
 interface Particle {
@@ -95,6 +104,7 @@ interface Particle {
   alpha: number;
   life: number;
   maxLife: number;
+  sizeDecay?: number;
 }
 
 interface FloatingText {
@@ -110,56 +120,82 @@ interface FloatingText {
 const generatePlatforms = (): Platform[] => {
   const list: Platform[] = [];
 
-  // Mặt đất chính (có đoạn ngắt quãng qua sông)
-  list.push({ x: 0, y: 440, width: 900, height: 100 });
-  list.push({ x: 900, y: 480, width: 350, height: 60, isWater: true }); // Đoạn sông nước
-  list.push({ x: 1250, y: 440, width: 850, height: 100 });
-  list.push({ x: 2100, y: 480, width: 380, height: 60, isWater: true }); // Đoạn sông nước 2
-  list.push({ x: 2480, y: 440, width: 1800, height: 100 }); // Sân trước căn cứ Boss
+  // Mặt đất chính (xen kẽ hào nước và cầu nổ)
+  list.push({ x: 0, y: 440, width: 920, height: 100 });
+  
+  // Cầu treo số 1 (Cầu phát nổ khi bước lên)
+  list.push({ x: 920, y: 440, width: 320, height: 24, isBridge: true });
+  list.push({ x: 920, y: 480, width: 320, height: 60, isWater: true }); // Nước dưới cầu 1
 
-  // Các mỏm đá tầng 2 và tầng 3 để nhảy bắn
-  const highLedges = [
-    { x: 200, y: 340, width: 180, height: 20 },
-    { x: 450, y: 260, width: 220, height: 20 },
-    { x: 750, y: 350, width: 160, height: 20 },
-    // Cầu treo qua sông 1
-    { x: 920, y: 420, width: 300, height: 16 },
-    { x: 1350, y: 340, width: 200, height: 20 },
-    { x: 1600, y: 250, width: 220, height: 20 },
-    { x: 1880, y: 330, width: 200, height: 20 },
-    // Cầu treo qua sông 2
-    { x: 2120, y: 420, width: 320, height: 16 },
-    { x: 2550, y: 350, width: 200, height: 20 },
-    { x: 2800, y: 260, width: 240, height: 20 },
-    { x: 3100, y: 340, width: 220, height: 20 },
-    { x: 3400, y: 260, width: 260, height: 20 },
+  list.push({ x: 1240, y: 440, width: 880, height: 100 });
+
+  // Cầu treo số 2 qua sông sâu
+  list.push({ x: 2120, y: 440, width: 360, height: 24, isBridge: true });
+  list.push({ x: 2120, y: 480, width: 360, height: 60, isWater: true }); // Nước dưới cầu 2
+
+  // Tiền đồn và sân trước căn cứ Boss Red Falcon
+  list.push({ x: 2480, y: 440, width: 1800, height: 100 });
+
+  // Các mỏm đá tầng 2 và tầng 3 để nhảy bắn ngắm cao
+  const ledges = [
+    { x: 180, y: 340, width: 190, height: 22 },
+    { x: 420, y: 250, width: 230, height: 22 },
+    { x: 720, y: 340, width: 180, height: 22 },
+    { x: 1350, y: 350, width: 200, height: 22 },
+    { x: 1600, y: 260, width: 220, height: 22 },
+    { x: 1860, y: 350, width: 180, height: 22 },
+    { x: 2580, y: 340, width: 210, height: 22 },
+    { x: 2860, y: 250, width: 240, height: 22 },
+    { x: 3180, y: 350, width: 220, height: 22 },
+    { x: 3480, y: 300, width: 200, height: 22 },
   ];
 
-  highLedges.forEach((l) => list.push(l));
+  ledges.forEach((lg) => {
+    list.push({ x: lg.x, y: lg.y, width: lg.width, height: lg.height });
+  });
+
   return list;
 };
 
 export const GameContra: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Cấu hình game
-  const [gameMode, setGameMode] = useState<GameMode>('classic');
-  const [initialLives, setInitialLives] = useState<number>(3);
-
-  // Trạng thái màn chơi
-  const [stage, setStage] = useState<number>(1);
+  // Trạng thái hiển thị giao diện React
   const [score, setScore] = useState<number>(0);
   const [highScore, setHighScore] = useState<number>(0);
   const [lives, setLives] = useState<number>(3);
-  const [weapon, setWeapon] = useState<WeaponType>('spread');
-  const [enemiesKilled, setEnemiesKilled] = useState<number>(0);
-
+  const [initialLives, setInitialLives] = useState<number>(3);
+  const [stage, setStage] = useState<number>(1);
+  const [weapon, setWeapon] = useState<WeaponType>('normal');
+  const [gameMode, setGameMode] = useState<GameMode>('classic');
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isVictory, setIsVictory] = useState<boolean>(false);
+  const [enemiesKilled, setEnemiesKilled] = useState<number>(0);
   const [screenShake, setScreenShake] = useState<boolean>(false);
 
-  // References cho physics & game loop
+  // References độc lập cho game loop 60 FPS (Không gây re-render hay giật lag)
+  const scoreRef = useRef<number>(0);
+  const livesRef = useRef<number>(3);
+  const weaponRef = useRef<WeaponType>('normal');
+  const stageRef = useRef<number>(1);
+  const enemiesKilledRef = useRef<number>(0);
+  const isPausedRef = useRef<boolean>(false);
+  const isGameOverRef = useRef<boolean>(false);
+  const isVictoryRef = useRef<boolean>(false);
+  const gameModeRef = useRef<GameMode>('classic');
+
+  // Đồng bộ refs với state
+  useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { livesRef.current = lives; }, [lives]);
+  useEffect(() => { weaponRef.current = weapon; }, [weapon]);
+  useEffect(() => { stageRef.current = stage; }, [stage]);
+  useEffect(() => { enemiesKilledRef.current = enemiesKilled; }, [enemiesKilled]);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  useEffect(() => { isGameOverRef.current = isGameOver; }, [isGameOver]);
+  useEffect(() => { isVictoryRef.current = isVictory; }, [isVictory]);
+  useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
+
   const lastTimeRef = useRef<number>(0);
   const keysPressedRef = useRef<{ [key: string]: boolean }>({});
   const cameraXRef = useRef<number>(0);
@@ -169,13 +205,14 @@ export const GameContra: React.FC = () => {
   const itemsRef = useRef<WeaponItem[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const floatingTextsRef = useRef<FloatingText[]>([]);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // Nhân vật chính: Biệt kích Bill Rizer
   const playerRef = useRef({
     x: 80,
     y: 380,
-    width: 28,
-    height: 52,
+    width: 32,
+    height: 56,
     vx: 0,
     vy: 0,
     facing: 'right' as 'left' | 'right',
@@ -184,30 +221,33 @@ export const GameContra: React.FC = () => {
     isJumping: false,
     isProne: false, // Nằm rạp người bắn
     isInWater: false,
-    jumpTimer: 0,
-    shootCooldown: 0,
     isInvulnerable: false,
     invulnerableTimer: 0,
-    barrierTimer: 0, // Bùa hộ mệnh bất tử
+    barrierTimer: 0,
+    shootCooldown: 0,
+    spinAngle: 0, // Góc xoay lộn nhào khi nhảy
+    runAnimTimer: 0,
+    runFrame: 0,
+    muzzleFlashTimer: 0,
   });
 
-  // Trùm Màn 1: Căn Cứ Hỏa Lực Đảo Galuga (Defense Wall Base)
+  // Boss Căn cứ Phòng thủ Red Falcon (Gromaides Stage 1)
   const bossRef = useRef({
     x: BOSS_X,
-    y: 180,
+    y: 160,
     width: 220,
-    height: 260,
-    coreHp: 65,
-    maxCoreHp: 65,
-    topTurretHp: 20,
-    bottomTurretHp: 20,
-    isAlive: true,
+    height: 280,
+    topTurretHp: 60,
+    maxTopTurretHp: 60,
+    bottomTurretHp: 60,
+    maxBottomTurretHp: 60,
+    coreHp: 160,
+    maxCoreHp: 160,
     isCoreDestroyed: false,
+    isAlive: true,
     shootTimer: 0,
+    pulseTime: 0,
   });
-
-  // Web Audio Context
-  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // Load HighScore & Settings
   useEffect(() => {
@@ -218,12 +258,19 @@ export const GameContra: React.FC = () => {
       const savedSettings = localStorage.getItem('ace_game_settings_contra');
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        if (parsed.gameMode) setGameMode(parsed.gameMode as GameMode);
+        if (parsed.gameMode) {
+          setGameMode(parsed.gameMode as GameMode);
+          gameModeRef.current = parsed.gameMode as GameMode;
+        }
         if (parsed.initialLives) {
           setInitialLives(parsed.initialLives);
           setLives(parsed.initialLives);
+          livesRef.current = parsed.initialLives;
         }
-        if (parsed.initialWeapon) setWeapon(parsed.initialWeapon as WeaponType);
+        if (parsed.initialWeapon) {
+          setWeapon(parsed.initialWeapon as WeaponType);
+          weaponRef.current = parsed.initialWeapon as WeaponType;
+        }
       }
     } catch {
       // ignore
@@ -238,7 +285,7 @@ export const GameContra: React.FC = () => {
         audioCtxRef.current = new AudioCtx();
       }
     } else if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
+      audioCtxRef.current.resume().catch(() => {});
     }
   }, []);
 
@@ -246,36 +293,47 @@ export const GameContra: React.FC = () => {
     initAudio();
     if (!audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
     if (wType === 'spread') {
-      // Tiếng đạn hoa cải S vang dội bùng nổ
+      // Tiếng đạn chùm S dội lửa nặng hạt
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(320, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.16);
+      osc.frequency.exponentialRampToValueAtTime(70, ctx.currentTime + 0.14);
       gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.16);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.14);
     } else if (wType === 'laser') {
-      // Tiếng tia laser sắc bén
-      osc.type = 'sine';
+      // Tiếng laser năng lượng cao quét
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
       osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.2);
+      osc.frequency.linearRampToValueAtTime(220, ctx.currentTime + 0.18);
       gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.18);
     } else {
-      // Tiếng súng thường / súng máy
+      // Súng máy / Rifle thường
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.type = 'square';
-      osc.frequency.setValueAtTime(480, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(450, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
     }
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.2);
   }, [initAudio]);
 
   const playJumpSound = useCallback(() => {
@@ -284,37 +342,37 @@ export const GameContra: React.FC = () => {
     const ctx = audioCtxRef.current;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(180, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(460, ctx.currentTime + 0.14);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(160, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(520, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.14, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start();
-    osc.stop(ctx.currentTime + 0.14);
+    osc.stop(ctx.currentTime + 0.12);
   }, [initAudio]);
 
   const playExplosionSound = useCallback(() => {
     initAudio();
     if (!audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
-    const bufferSize = ctx.sampleRate * 0.4;
+    const bufferSize = ctx.sampleRate * 0.35;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.12));
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.1));
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(350, ctx.currentTime);
-    filter.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.35);
+    filter.frequency.setValueAtTime(320, ctx.currentTime);
+    filter.frequency.linearRampToValueAtTime(50, ctx.currentTime + 0.32);
 
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.32);
 
     noise.connect(filter);
     filter.connect(gain);
@@ -326,30 +384,52 @@ export const GameContra: React.FC = () => {
     initAudio();
     if (!audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
-    [440, 554.37, 659.25, 880].forEach((freq, i) => {
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.06);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime + i * 0.06);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.12);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.05);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.05 + 0.1);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + i * 0.06);
-      osc.stop(ctx.currentTime + i * 0.06 + 0.12);
+      osc.start(ctx.currentTime + i * 0.05);
+      osc.stop(ctx.currentTime + i * 0.05 + 0.1);
     });
   }, [initAudio]);
 
   const triggerShake = useCallback(() => {
     setScreenShake(true);
-    setTimeout(() => setScreenShake(false), 220);
+    setTimeout(() => setScreenShake(false), 240);
   }, []);
+
+  // Spawn hiệu ứng hạt nổ rực lửa
+  const createExplosion = (x: number, y: number, count: number = 18, colorTheme: 'fire' | 'metal' = 'fire') => {
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = Math.random() * 6 + 1.5;
+      const colors = colorTheme === 'fire' 
+        ? ['#fef08a', '#f97316', '#ef4444', '#dc2626', '#ffffff'] 
+        : ['#94a3b8', '#64748b', '#cbd5e1', '#f59e0b'];
+      particlesRef.current.push({
+        x,
+        y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 1,
+        radius: Math.random() * 4 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: 1,
+        life: 0,
+        maxLife: Math.floor(Math.random() * 25 + 20),
+        sizeDecay: 0.95,
+      });
+    }
+  };
 
   // Khởi tạo lại toàn bộ màn chơi
   const resetGame = useCallback(() => {
     platformsRef.current = generatePlatforms();
     bulletsRef.current = [];
-    enemiesRef.current = [];
     itemsRef.current = [];
     particlesRef.current = [];
     floatingTextsRef.current = [];
@@ -358,73 +438,97 @@ export const GameContra: React.FC = () => {
     playerRef.current = {
       x: 80,
       y: 380,
-      width: 28,
-      height: 52,
+      width: 32,
+      height: 56,
       vx: 0,
       vy: 0,
       facing: 'right',
       aimDir: 'right',
-      isGrounded: true,
+      isGrounded: false,
       isJumping: false,
       isProne: false,
       isInWater: false,
-      jumpTimer: 0,
-      shootCooldown: 0,
       isInvulnerable: false,
       invulnerableTimer: 0,
       barrierTimer: 0,
+      shootCooldown: 0,
+      spinAngle: 0,
+      runAnimTimer: 0,
+      runFrame: 0,
+      muzzleFlashTimer: 0,
     };
 
     bossRef.current = {
       x: BOSS_X,
-      y: 180,
+      y: 160,
       width: 220,
-      height: 260,
-      coreHp: 65,
-      maxCoreHp: 65,
-      topTurretHp: 20,
-      bottomTurretHp: 20,
-      isAlive: true,
+      height: 280,
+      topTurretHp: 60,
+      maxTopTurretHp: 60,
+      bottomTurretHp: 60,
+      maxBottomTurretHp: 60,
+      coreHp: 160,
+      maxCoreHp: 160,
       isCoreDestroyed: false,
+      isAlive: true,
       shootTimer: 0,
+      pulseTime: 0,
     };
 
-    // Sinh các hỏa điểm và xạ thủ địch ban đầu
+    // Khởi tạo các trạm lính canh, tháp pháo và hộp phần thưởng dọc đường
     const initialEnemies: Enemy[] = [
-      { id: 1, type: 'turret', x: 480, y: 225, width: 34, height: 34, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 2, facing: 'left', isAlive: true },
-      { id: 2, type: 'sniper', x: 780, y: 315, width: 28, height: 42, vx: 0, vy: 0, hp: 4, maxHp: 4, shootCooldown: 1.5, facing: 'left', isAlive: true },
-      { id: 3, type: 'capsule', x: 300, y: 160, width: 32, height: 24, vx: 1.5, vy: 0, hp: 1, maxHp: 1, shootCooldown: 0, facing: 'right', itemDrop: 'spread', isAlive: true },
-      { id: 4, type: 'capsule', x: 800, y: 140, width: 32, height: 24, vx: 1.5, vy: 0, hp: 1, maxHp: 1, shootCooldown: 0, facing: 'right', itemDrop: 'laser', isAlive: true },
-      { id: 5, type: 'capsule', x: 1400, y: 150, width: 32, height: 24, vx: 1.5, vy: 0, hp: 1, maxHp: 1, shootCooldown: 0, facing: 'right', itemDrop: 'barrier', isAlive: true },
-      { id: 6, type: 'turret', x: 1650, y: 215, width: 34, height: 34, vx: 0, vy: 0, hp: 8, maxHp: 8, shootCooldown: 1.8, facing: 'left', isAlive: true },
-      { id: 7, type: 'sniper', x: 1920, y: 295, width: 28, height: 42, vx: 0, vy: 0, hp: 5, maxHp: 5, shootCooldown: 1.6, facing: 'left', isAlive: true },
-      { id: 8, type: 'capsule', x: 2200, y: 150, width: 32, height: 24, vx: 1.5, vy: 0, hp: 1, maxHp: 1, shootCooldown: 0, facing: 'right', itemDrop: 'machine', isAlive: true },
-      { id: 9, type: 'turret', x: 2850, y: 225, width: 34, height: 34, vx: 0, vy: 0, hp: 10, maxHp: 10, shootCooldown: 1.5, facing: 'left', isAlive: true },
-      { id: 10, type: 'sniper', x: 3450, y: 225, width: 28, height: 42, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 1.4, facing: 'left', isAlive: true },
+      // 1. Lính bắn tỉa ẩn nấp trên mỏm đá đầu tiên
+      { id: 1, type: 'sniper', x: 520, y: 200, width: 34, height: 48, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 1.8, facing: 'left', isAlive: true },
+      // 2. Tháp pháo xoay 360 độ trên vách đá
+      { id: 2, type: 'turret', x: 820, y: 300, width: 40, height: 40, vx: 0, vy: 0, hp: 12, maxHp: 12, shootCooldown: 2.2, facing: 'left', isAlive: true, aimAngle: Math.PI },
+      // 3. Hộp cảm biến vách đá chứa ĐẠN SPREAD (S)
+      { id: 3, type: 'wall_pod', x: 680, y: 270, width: 36, height: 36, vx: 0, vy: 0, hp: 4, maxHp: 4, shootCooldown: 999, facing: 'left', itemDrop: 'spread', isAlive: true },
+      // 4. Chim ưng bay mang ĐẠN MACHINE (M)
+      { id: 4, type: 'flying_capsule', x: 450, y: 150, width: 38, height: 26, vx: 2.2, vy: 0, hp: 1, maxHp: 1, shootCooldown: 999, facing: 'right', itemDrop: 'machine', isAlive: true, sineTime: 0 },
+      // 5. Tháp pháo và lính bắn tỉa đoạn giữa
+      { id: 5, type: 'sniper', x: 1720, y: 210, width: 34, height: 48, vx: 0, vy: 0, hp: 8, maxHp: 8, shootCooldown: 1.6, facing: 'left', isAlive: true },
+      { id: 6, type: 'turret', x: 1940, y: 310, width: 40, height: 40, vx: 0, vy: 0, hp: 14, maxHp: 14, shootCooldown: 2.0, facing: 'left', isAlive: true, aimAngle: Math.PI },
+      // 6. Hộp cảm biến chứa LASER (L)
+      { id: 7, type: 'wall_pod', x: 1520, y: 280, width: 36, height: 36, vx: 0, vy: 0, hp: 5, maxHp: 5, shootCooldown: 999, facing: 'left', itemDrop: 'laser', isAlive: true },
+      // 7. Chim ưng bay mang KHIÊN BẤT TỬ (B)
+      { id: 8, type: 'flying_capsule', x: 1650, y: 140, width: 38, height: 26, vx: 2.4, vy: 0, hp: 1, maxHp: 1, shootCooldown: 999, facing: 'right', itemDrop: 'barrier', isAlive: true, sineTime: 1.5 },
+      // 8. Tiền đồn trước căn cứ Boss
+      { id: 9, type: 'sniper', x: 2980, y: 200, width: 34, height: 48, vx: 0, vy: 0, hp: 10, maxHp: 10, shootCooldown: 1.5, facing: 'left', isAlive: true },
+      { id: 10, type: 'turret', x: 3260, y: 310, width: 40, height: 40, vx: 0, vy: 0, hp: 16, maxHp: 16, shootCooldown: 1.8, facing: 'left', isAlive: true, aimAngle: Math.PI },
+      { id: 11, type: 'wall_pod', x: 2750, y: 270, width: 36, height: 36, vx: 0, vy: 0, hp: 6, maxHp: 6, shootCooldown: 999, facing: 'left', itemDrop: 'spread', isAlive: true },
     ];
     enemiesRef.current = initialEnemies;
 
     setScore(0);
+    scoreRef.current = 0;
     setLives(initialLives);
+    livesRef.current = initialLives;
     setEnemiesKilled(0);
+    enemiesKilledRef.current = 0;
     setIsGameOver(false);
+    isGameOverRef.current = false;
     setIsVictory(false);
+    isVictoryRef.current = false;
     setIsPaused(false);
+    isPausedRef.current = false;
   }, [initialLives]);
 
   // Sang màn kế tiếp
   const nextStage = useCallback(() => {
-    setStage((s) => s + 1);
+    setStage((s) => {
+      const nextS = s + 1;
+      stageRef.current = nextS;
+      return nextS;
+    });
     resetGame();
   }, [resetGame]);
 
-  // Hành động BẮN SÚNG của người chơi
+  // Hành động Bắn đạn của người chơi
   const handlePlayerShoot = useCallback(() => {
     const p = playerRef.current;
-    if (p.shootCooldown > 0 || isPaused || isGameOver || isVictory) return;
-    initAudio();
+    if (p.shootCooldown > 0 || isPausedRef.current || isGameOverRef.current || isVictoryRef.current) return;
 
-    // Hướng bắn theo tư thế di chuyển và ngắm
+    // Tính vector góc bắn theo hướng ngắm 8 chiều
     let dirX = p.facing === 'right' ? 1 : -1;
     let dirY = 0;
 
@@ -444,22 +548,26 @@ export const GameContra: React.FC = () => {
       dirX = -0.707;
       dirY = 0.707;
     } else if (p.aimDir === 'down') {
-      // Khi đang nhảy trên không có thể bắn thẳng xuống
       if (!p.isGrounded) {
         dirX = 0;
         dirY = 1;
       }
     }
 
-    const startX = p.x + (dirX > 0 ? p.width + 6 : dirX < 0 ? -6 : p.width / 2);
-    const startY = p.isProne ? p.y + p.height - 12 : p.y + (dirY < 0 ? -4 : dirY > 0 ? p.height + 4 : 20);
+    const startX = p.x + (dirX > 0 ? p.width + 10 : dirX < 0 ? -10 : p.width / 2);
+    const startY = p.isProne 
+      ? p.y + p.height - 12 
+      : p.y + (dirY < 0 ? -6 : dirY > 0 ? p.height + 6 : 22);
 
-    const speed = 14;
+    const speed = 15;
+    const curWeapon = weaponRef.current;
+    playShootSound(curWeapon);
+    p.muzzleFlashTimer = 0.08;
 
-    if (weapon === 'spread') {
-      // ĐẠN HOA CẢI (SPREAD GUN S) HUYỀN THOẠI BẮN 5 TIA TỎA HÌNH QUẠT
+    if (curWeapon === 'spread') {
+      // ĐẠN HOA CẢI (SPREAD GUN S) 5 TIA TỎA RỰC RỠ VỚI ĐƯỜNG BAY ĐẬM CHẤT CONTRA
       const baseAngle = Math.atan2(dirY, dirX);
-      const spreadAngles = [-0.28, -0.14, 0, 0.14, 0.28]; // 5 tia tỏa đều
+      const spreadAngles = [-0.30, -0.15, 0, 0.15, 0.30];
 
       spreadAngles.forEach((angOffset) => {
         const finalAng = baseAngle + angOffset;
@@ -469,31 +577,32 @@ export const GameContra: React.FC = () => {
           y: startY,
           vx: Math.cos(finalAng) * speed,
           vy: Math.sin(finalAng) * speed,
-          radius: 5,
+          radius: 6,
           color: '#ef4444',
           isPlayer: true,
           damage: 2,
           isSpread: true,
         });
       });
-      p.shootCooldown = 0.18; // Giãn cách bắn
-    } else if (weapon === 'laser') {
-      // SÚNG LASER TIA NĂNG LƯỢNG
+      p.shootCooldown = 0.18;
+    } else if (curWeapon === 'laser') {
+      // SÚNG LASER TIA CHÙM NĂNG LƯỢNG XUYÊN PHÁ ĐA MỤC TIÊU
       bulletsRef.current.push({
         id: Date.now() + Math.random(),
         x: startX,
         y: startY,
-        vx: dirX * speed * 1.3,
-        vy: dirY * speed * 1.3,
-        radius: 4,
+        vx: dirX * speed * 1.4,
+        vy: dirY * speed * 1.4,
+        radius: 5,
         color: '#06b6d4',
         isPlayer: true,
         damage: 4,
         isLaser: true,
+        pierce: 3,
       });
       p.shootCooldown = 0.22;
     } else {
-      // SÚNG MÁY / SÚNG THƯỜNG
+      // SÚNG MÁY / RIFLE TIÊU CHUẨN
       bulletsRef.current.push({
         id: Date.now() + Math.random(),
         x: startX,
@@ -505,24 +614,36 @@ export const GameContra: React.FC = () => {
         isPlayer: true,
         damage: 1,
       });
-      p.shootCooldown = weapon === 'machine' ? 0.09 : 0.16;
+      p.shootCooldown = curWeapon === 'machine' ? 0.09 : 0.16;
     }
+  }, [playShootSound]);
 
-    playShootSound(weapon);
-  }, [weapon, isPaused, isGameOver, isVictory, initAudio, playShootSound]);
-
-  // Hành động NHẢY của người chơi
+  // Hành động Nhảy của người chơi (Bấm K, Space hoặc X - KHÔNG BẤM W)
   const handlePlayerJump = useCallback(() => {
     const p = playerRef.current;
-    if (p.isGrounded && !p.isProne && !isPaused && !isGameOver && !isVictory) {
-      p.vy = -13.5;
-      p.isGrounded = false;
-      p.isJumping = true;
-      playJumpSound();
-    }
-  }, [isPaused, isGameOver, isVictory, playJumpSound]);
+    if (isPausedRef.current || isGameOverRef.current || isVictoryRef.current) return;
 
-  // Lắng nghe bàn phím
+    const keys = keysPressedRef.current;
+    const isHoldingDown = keys['ArrowDown'] || keys['KeyS'];
+
+    if (p.isGrounded) {
+      if (isHoldingDown) {
+        // Tụt xuống tầng dưới (Drop down platform)
+        p.y += 14;
+        p.isGrounded = false;
+        p.vy = 4;
+      } else {
+        // Nhảy lộn nhào lên cao
+        p.vy = -12.5;
+        p.isGrounded = false;
+        p.isJumping = true;
+        p.spinAngle = 0;
+        playJumpSound();
+      }
+    }
+  }, [playJumpSound]);
+
+  // Lắng nghe bàn phím độc lập
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       initAudio();
@@ -532,10 +653,20 @@ export const GameContra: React.FC = () => {
       keysPressedRef.current[e.code] = true;
 
       if (e.code === 'KeyP') {
-        setIsPaused((p) => !p);
+        setIsPaused((p) => {
+          isPausedRef.current = !p;
+          return !p;
+        });
       }
-      if (e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'KeyK') {
+
+      // CHỈ NHẢY KHI BẤM PHÍM NHẢY: Space, KeyK, KeyX (Phím W và ArrowUp chỉ để NGẮM BẮN LÊN CAO)
+      if (e.code === 'KeyK' || e.code === 'KeyX' || e.code === 'Space') {
         handlePlayerJump();
+      }
+
+      // BẮN PHÍM J, Z, C
+      if (e.code === 'KeyJ' || e.code === 'KeyZ' || e.code === 'KeyC') {
+        handlePlayerShoot();
       }
     };
 
@@ -549,16 +680,20 @@ export const GameContra: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handlePlayerJump, initAudio]);
+  }, [handlePlayerJump, handlePlayerShoot, initAudio]);
 
-  // Main Game Loop 60 FPS
+  // Khởi tạo game ban đầu 1 lần
   useEffect(() => {
     resetGame();
+  }, [resetGame]);
+
+  // Main Game Loop 60 FPS Độc Lập - MƯỢT MÀ KHÔNG BỊ KHỞI TẠO LẠI KHI STATE ĐỔI
+  useEffect(() => {
     let animId = 0;
 
     const gameLoop = (timestamp: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const dt = Math.min((timestamp - lastTimeRef.current) / 1000, 0.1);
+      const dt = Math.min((timestamp - lastTimeRef.current) / 1000, 0.05);
       lastTimeRef.current = timestamp;
 
       const canvas = canvasRef.current;
@@ -582,14 +717,15 @@ export const GameContra: React.FC = () => {
       ctx.scale(dpr, dpr);
 
       // ==========================================
-      // 1. CẬP NHẬT VẬT LÝ VÀ LOGIC
+      // 1. CẬP NHẬT VẬT LÝ VÀ LOGIC GAME
       // ==========================================
-      if (!isPaused && !isGameOver && !isVictory) {
+      if (!isPausedRef.current && !isGameOverRef.current && !isVictoryRef.current) {
         const p = playerRef.current;
         const keys = keysPressedRef.current;
 
         // Giảm hồi chiêu bắn & bất tử
         if (p.shootCooldown > 0) p.shootCooldown -= dt;
+        if (p.muzzleFlashTimer > 0) p.muzzleFlashTimer -= dt;
         if (p.isInvulnerable) {
           p.invulnerableTimer -= dt;
           if (p.invulnerableTimer <= 0) p.isInvulnerable = false;
@@ -605,22 +741,42 @@ export const GameContra: React.FC = () => {
         if (isRight) p.facing = 'right';
         if (isLeft) p.facing = 'left';
 
-        // Tư thế nằm rạp người né đạn
+        // Tư thế nằm rạp người né đạn trên mặt đất (Prone)
         p.isProne = isDown && p.isGrounded && !isLeft && !isRight;
 
-        if (isUp && isRight) p.aimDir = 'up-right';
-        else if (isUp && isLeft) p.aimDir = 'up-left';
-        else if (isDown && isRight) p.aimDir = 'down-right';
-        else if (isDown && isLeft) p.aimDir = 'down-left';
-        else if (isUp) p.aimDir = 'up';
-        else if (isDown && !p.isGrounded) p.aimDir = 'down';
-        else p.aimDir = p.facing;
+        // Tính toán hướng ngắm nòng súng 8 chiều
+        if (p.isProne) {
+          p.aimDir = p.facing;
+        } else if (isUp && !isLeft && !isRight) {
+          p.aimDir = 'up';
+        } else if (isUp && isRight) {
+          p.aimDir = 'up-right';
+        } else if (isUp && isLeft) {
+          p.aimDir = 'up-left';
+        } else if (isDown && isRight) {
+          p.aimDir = 'down-right';
+        } else if (isDown && isLeft) {
+          p.aimDir = 'down-left';
+        } else if (isDown && !p.isGrounded) {
+          p.aimDir = 'down';
+        } else {
+          p.aimDir = p.facing;
+        }
 
-        // B. DI CHUYỂN TRỤC NGANG (X-AXIS)
-        const moveSpeed = p.isProne ? 0 : 210;
-        if (isRight) p.vx = moveSpeed;
-        else if (isLeft) p.vx = -moveSpeed;
-        else p.vx = 0;
+        // B. DI CHUYỂN NGANG & ANIMATION CHẠY
+        const moveSpeed = gameModeRef.current === 'speed' ? 240 : 185;
+        if (isRight && !p.isProne) {
+          p.vx = moveSpeed;
+          p.runAnimTimer += dt * 10;
+          p.runFrame = Math.floor(p.runAnimTimer) % 4;
+        } else if (isLeft && !p.isProne) {
+          p.vx = -moveSpeed;
+          p.runAnimTimer += dt * 10;
+          p.runFrame = Math.floor(p.runAnimTimer) % 4;
+        } else {
+          p.vx = 0;
+          p.runFrame = 0;
+        }
 
         p.x += p.vx * dt;
 
@@ -629,12 +785,12 @@ export const GameContra: React.FC = () => {
           p.x = cameraXRef.current + 10;
         }
 
-        // BẮN LIÊN THANH KHI GIỮ PHÍM SPACE / PHÍM J
-        if (keys['Space'] || keys['KeyJ']) {
+        // BẮN TỰ ĐỘNG KHI GIỮ PHÍM BẮN (Auto-Fire trên J, Z, C)
+        if (keys['KeyJ'] || keys['KeyZ'] || keys['KeyC']) {
           handlePlayerShoot();
         }
 
-        // C. TRỌNG LỰC & VA CHẠM ĐỊA HÌNH (GRAVITY & PLATFORMS)
+        // C. TRỌNG LỰC & VA CHẠM ĐỊA HÌNH
         const gravity = 32;
         p.vy += gravity * dt;
         p.y += p.vy;
@@ -643,6 +799,8 @@ export const GameContra: React.FC = () => {
         p.isInWater = false;
 
         platformsRef.current.forEach((plat) => {
+          if (plat.isDestroyed) return;
+
           // Va chạm mặt trên của bệ đá (One-way platform)
           const isAbove = p.y + p.height - p.vy <= plat.y + 12;
           const isHitting = p.y + p.height >= plat.y && p.y + p.height <= plat.y + plat.height;
@@ -653,145 +811,239 @@ export const GameContra: React.FC = () => {
             p.vy = 0;
             p.isGrounded = true;
             p.isJumping = false;
+            p.spinAngle = 0;
+
             if (plat.isWater) {
               p.isInWater = true;
+            }
+
+            // Kích hoạt nổ cầu treo khi nhân vật đặt chân lên
+            if (plat.isBridge && !plat.isExploding && !plat.isDestroyed) {
+              plat.isExploding = true;
+              plat.explodeTimer = 0.45;
             }
           }
         });
 
-        // Rơi xuống vực sâu
-        if (p.y > ARENA_HEIGHT + 60) {
-          // Mất 1 mạng và hồi sinh ở mỏm đá gần nhất
+        // Xử lý nổ sập từng nhịp của cầu treo
+        platformsRef.current.forEach((plat) => {
+          if (plat.isBridge && plat.isExploding && !plat.isDestroyed) {
+            plat.explodeTimer = (plat.explodeTimer || 0) - dt;
+            if (plat.explodeTimer <= 0) {
+              plat.isDestroyed = true;
+              plat.isExploding = false;
+              createExplosion(plat.x + plat.width / 2, plat.y + 10, 24, 'fire');
+              playExplosionSound();
+              triggerShake();
+            }
+          }
+        });
+
+        // Xoay somersault lộn nhào khi đang nhảy
+        if (!p.isGrounded && p.isJumping) {
+          p.spinAngle += (p.facing === 'right' ? 1 : -1) * 16 * dt;
+        }
+
+        // Rơi xuống hố vực sâu mất 1 mạng
+        if (p.y > ARENA_HEIGHT + 20) {
           setLives((l) => {
             const nextL = l - 1;
+            livesRef.current = nextL;
             if (nextL <= 0) {
               setIsGameOver(true);
+              isGameOverRef.current = true;
               soundManager.playButtonClick();
             }
             return nextL;
           });
-          p.x = cameraXRef.current + 80;
-          p.y = 100;
+
+          // Hồi sinh từ trực thăng nhảy dù trên không
+          p.x = cameraXRef.current + 100;
+          p.y = 80;
           p.vy = 0;
           p.isInvulnerable = true;
-          p.invulnerableTimer = 2.5;
-          playExplosionSound();
+          p.invulnerableTimer = 3.0;
+          triggerShake();
         }
 
-        // D. CUỘN CAMERA THEO BƯỚC TIẾN CỦA BIỆT KÍCH (Smooth Side-scrolling)
-        const targetCamX = Math.max(0, p.x - 240);
+        // D. CAMERA CUỘN MÀN HÌNH THEO NHÂN VẬT (Side-scrolling camera)
+        const targetCamX = p.x - ARENA_WIDTH * 0.38;
         if (targetCamX > cameraXRef.current) {
-          cameraXRef.current += (targetCamX - cameraXRef.current) * 0.12;
-        }
-        // Giới hạn camera không vượt quá căn cứ Boss
-        cameraXRef.current = Math.min(LEVEL_LENGTH - ARENA_WIDTH, cameraXRef.current);
-
-        // SINH QUÂN ĐỊCH BỘ BINH CHẠY (Enemy Runners) ĐỊNH KỲ
-        if (Math.random() < 0.025 && p.x < BOSS_X - 100) {
-          const spawnRight = cameraXRef.current + ARENA_WIDTH + 30;
-          enemiesRef.current.push({
-            id: Date.now() + Math.random(),
-            type: 'runner',
-            x: spawnRight,
-            y: 390,
-            width: 26,
-            height: 48,
-            vx: -130 - Math.random() * 40,
-            vy: 0,
-            hp: 1,
-            maxHp: 1,
-            shootCooldown: 0,
-            facing: 'left',
-            isAlive: true,
-          });
+          cameraXRef.current = Math.min(targetCamX, BOSS_X - ARENA_WIDTH + 240);
         }
 
-        // CẬP NHẬT QUÂN ĐỊCH (ENEMIES)
+        // E. CẬP NHẬT QUÂN ĐỊCH
         enemiesRef.current.forEach((en) => {
           if (!en.isAlive) return;
 
           if (en.type === 'runner') {
+            // Bộ binh đỏ lao về phía người chơi
             en.x += en.vx * dt;
-          } else if (en.type === 'capsule') {
-            en.x += en.vx;
-            en.y += Math.sin(Date.now() / 250 + en.id) * 1.5;
-          } else if (en.type === 'sniper' || en.type === 'turret') {
-            // Ngắm và bắn về phía người chơi
+            en.vy += gravity * dt;
+            en.y += en.vy;
+
+            platformsRef.current.forEach((plat) => {
+              if (plat.isDestroyed) return;
+              if (
+                en.x + en.width > plat.x &&
+                en.x < plat.x + plat.width &&
+                en.y + en.height >= plat.y &&
+                en.y + en.height <= plat.y + plat.height &&
+                en.vy >= 0
+              ) {
+                en.y = plat.y - en.height;
+                en.vy = 0;
+              }
+            });
+
+            // Va chạm cơ thể với người chơi
+            if (
+              !p.isInvulnerable &&
+              p.barrierTimer <= 0 &&
+              Math.abs(p.x + p.width / 2 - (en.x + en.width / 2)) < 22 &&
+              Math.abs(p.y + p.height / 2 - (en.y + en.height / 2)) < 30
+            ) {
+              en.isAlive = false;
+              createExplosion(en.x + en.width / 2, en.y + en.height / 2, 16, 'fire');
+              setLives((l) => {
+                const nextL = l - 1;
+                livesRef.current = nextL;
+                if (nextL <= 0) {
+                  setIsGameOver(true);
+                  isGameOverRef.current = true;
+                }
+                return nextL;
+              });
+              p.isInvulnerable = true;
+              p.invulnerableTimer = 2.5;
+              playExplosionSound();
+              triggerShake();
+            }
+          } else if (en.type === 'sniper') {
+            // Lính bắn tỉa ngắm người chơi và bắn định kỳ
+            en.facing = p.x < en.x ? 'left' : 'right';
             en.shootCooldown -= dt;
             if (en.shootCooldown <= 0 && Math.abs(en.x - p.x) < 550) {
-              en.shootCooldown = 2.2 + Math.random() * 0.8;
-              const angle = Math.atan2(p.y - en.y, p.x - en.x);
+              en.shootCooldown = 2.2;
+              const angle = Math.atan2((p.y + 20) - en.y, (p.x + 10) - en.x);
               bulletsRef.current.push({
                 id: Date.now() + Math.random(),
-                x: en.x + en.width / 2,
-                y: en.y + en.height / 2,
+                x: en.x + (en.facing === 'left' ? -6 : en.width + 6),
+                y: en.y + 16,
                 vx: Math.cos(angle) * 7.5,
                 vy: Math.sin(angle) * 7.5,
                 radius: 4,
-                color: '#f97316',
+                color: '#f87171',
                 isPlayer: false,
                 damage: 1,
               });
             }
-          }
-
-          // Kiểm tra va chạm giữa người chơi và bộ binh địch
-          if (
-            !p.isInvulnerable &&
-            p.barrierTimer <= 0 &&
-            Math.abs(p.x - en.x) < 22 &&
-            Math.abs(p.y - en.y) < 32 &&
-            en.type === 'runner'
-          ) {
-            // Mất mạng do va chạm
-            setLives((l) => {
-              const nextL = l - 1;
-              if (nextL <= 0) {
-                setIsGameOver(true);
-                soundManager.playButtonClick();
-              }
-              return nextL;
-            });
-            p.isInvulnerable = true;
-            p.invulnerableTimer = 2.5;
-            playExplosionSound();
+          } else if (en.type === 'turret') {
+            // Tháp pháo xoay 360 độ ngắm thẳng theo Bill Rizer
+            const dx = (p.x + p.width / 2) - (en.x + en.width / 2);
+            const dy = (p.y + p.height / 2) - (en.y + en.height / 2);
+            en.aimAngle = Math.atan2(dy, dx);
+            en.shootCooldown -= dt;
+            if (en.shootCooldown <= 0 && Math.abs(dx) < 580) {
+              en.shootCooldown = 2.0;
+              bulletsRef.current.push({
+                id: Date.now() + Math.random(),
+                x: en.x + en.width / 2 + Math.cos(en.aimAngle) * 20,
+                y: en.y + en.height / 2 + Math.sin(en.aimAngle) * 20,
+                vx: Math.cos(en.aimAngle) * 8,
+                vy: Math.sin(en.aimAngle) * 8,
+                radius: 4.5,
+                color: '#ef4444',
+                isPlayer: false,
+                damage: 1,
+              });
+            }
+          } else if (en.type === 'flying_capsule') {
+            // Chim ưng bay lượn hình sin mang vũ khí
+            en.sineTime = (en.sineTime || 0) + dt * 3.5;
+            en.x += en.vx * 60 * dt;
+            en.y = 140 + Math.sin(en.sineTime) * 35;
           }
         });
 
-        // Dọn dẹp địch ra xa khỏi màn hình
-        enemiesRef.current = enemiesRef.current.filter(
-          (en) => en.isAlive && en.x > cameraXRef.current - 120 && en.x < cameraXRef.current + ARENA_WIDTH + 180
-        );
+        // Sinh lính bộ binh chạy ngẫu nhiên (Runners)
+        if (Math.random() < 0.025 && p.x < BOSS_X - 500) {
+          const spawnAhead = Math.random() < 0.7;
+          const spawnX = spawnAhead ? cameraXRef.current + ARENA_WIDTH + 30 : cameraXRef.current - 20;
+          enemiesRef.current.push({
+            id: Date.now() + Math.random(),
+            type: 'runner',
+            x: spawnX,
+            y: 380,
+            width: 28,
+            height: 48,
+            vx: spawnAhead ? -120 : 120,
+            vy: 0,
+            hp: 2,
+            maxHp: 2,
+            shootCooldown: 999,
+            facing: spawnAhead ? 'left' : 'right',
+            isAlive: true,
+          });
+        }
 
-        // CẬP NHẬT CĂN CỨ BOSS MÀN 1 (DEFENSE WALL BASE)
+        // Sinh chim ưng bay mang vũ khí định kỳ
+        if (Math.random() < 0.005 && itemsRef.current.length === 0) {
+          const wChoices: WeaponType[] = ['spread', 'machine', 'laser', 'barrier'];
+          const pickedW = wChoices[Math.floor(Math.random() * wChoices.length)];
+          enemiesRef.current.push({
+            id: Date.now() + Math.random(),
+            type: 'flying_capsule',
+            x: cameraXRef.current - 40,
+            y: 130,
+            width: 38,
+            height: 26,
+            vx: 2.5,
+            vy: 0,
+            hp: 1,
+            maxHp: 1,
+            shootCooldown: 999,
+            facing: 'right',
+            itemDrop: pickedW,
+            isAlive: true,
+            sineTime: 0,
+          });
+        }
+
+        // F. CẬP NHẬT BOSS CĂN CỨ RED FALCON
         const boss = bossRef.current;
-        if (boss.isAlive && cameraXRef.current > BOSS_X - ARENA_WIDTH - 50) {
+        if (boss.isAlive && p.x > BOSS_X - 650) {
           boss.shootTimer += dt;
-          if (boss.shootTimer >= 1.6 && !boss.isCoreDestroyed) {
+          boss.pulseTime += dt;
+
+          if (boss.shootTimer > 2.0) {
             boss.shootTimer = 0;
-            // Bắn từ 2 lô cốt pháo
+            // Tháp trên bắn loạt đạn pháo
             if (boss.topTurretHp > 0) {
+              const ang = Math.atan2((p.y + 20) - (boss.y + 60), (p.x + 10) - (boss.x + 20));
               bulletsRef.current.push({
                 id: Date.now() + Math.random(),
                 x: boss.x + 20,
                 y: boss.y + 60,
-                vx: -8,
-                vy: (p.y - (boss.y + 60)) * 0.015,
+                vx: Math.cos(ang) * 9,
+                vy: Math.sin(ang) * 9,
                 radius: 5,
-                color: '#ef4444',
+                color: '#f87171',
                 isPlayer: false,
                 damage: 1,
               });
             }
+            // Tháp dưới bắn
             if (boss.bottomTurretHp > 0) {
+              const ang = Math.atan2((p.y + 20) - (boss.y + 190), (p.x + 10) - (boss.x + 20));
               bulletsRef.current.push({
                 id: Date.now() + Math.random(),
                 x: boss.x + 20,
                 y: boss.y + 190,
-                vx: -8,
-                vy: (p.y - (boss.y + 190)) * 0.015,
+                vx: Math.cos(ang) * 9,
+                vy: Math.sin(ang) * 9,
                 radius: 5,
-                color: '#ef4444',
+                color: '#f87171',
                 isPlayer: false,
                 damage: 1,
               });
@@ -799,98 +1051,125 @@ export const GameContra: React.FC = () => {
           }
         }
 
-        // CẬP NHẬT ĐẠN BAY & VA CHẠM (BULLETS & COLLISIONS)
+        // G. CẬP NHẬT VÀ XỬ LÝ VA CHẠM ĐẠN (BULLETS)
         bulletsRef.current.forEach((b) => {
           b.x += b.vx;
           b.y += b.vy;
 
           if (b.isPlayer) {
-            // Đạn người chơi bắn trúng quân địch
+            // Đạn của người chơi va chạm Quân địch
             enemiesRef.current.forEach((en) => {
               if (
                 en.isAlive &&
+                b.damage > 0 &&
                 b.x > en.x &&
                 b.x < en.x + en.width &&
                 b.y > en.y &&
                 b.y < en.y + en.height
               ) {
                 en.hp -= b.damage;
-                b.damage = 0; // Hủy đạn sau va chạm
+                if (!b.pierce) b.damage = 0;
+                else b.pierce--;
+
+                // Tia lửa va chạm
+                createExplosion(b.x, b.y, 6, 'fire');
 
                 if (en.hp <= 0) {
                   en.isAlive = false;
-                  setScore((s) => s + (en.type === 'turret' ? 300 : en.type === 'sniper' ? 200 : 100));
-                  setEnemiesKilled((k) => k + 1);
+                  setScore((s) => {
+                    const nextS = s + 200;
+                    scoreRef.current = nextS;
+                    return nextS;
+                  });
+                  setEnemiesKilled((k) => {
+                    const nextK = k + 1;
+                    enemiesKilledRef.current = nextK;
+                    return nextK;
+                  });
+                  playExplosionSound();
+                  createExplosion(en.x + en.width / 2, en.y + en.height / 2, 18, 'fire');
 
-                  // Rơi vật phẩm vũ khí nếu là viên nang bay
+                  // Rơi huy hiệu vũ khí nếu có
                   if (en.itemDrop) {
+                    const letters: Record<WeaponType, string> = {
+                      spread: 'S',
+                      machine: 'M',
+                      laser: 'L',
+                      flame: 'F',
+                      barrier: 'B',
+                      normal: 'R'
+                    };
                     itemsRef.current.push({
                       id: Date.now(),
                       type: en.itemDrop,
-                      x: en.x,
+                      x: en.x + en.width / 2,
                       y: en.y,
                       vy: -3.5,
                       isAlive: true,
+                      letter: letters[en.itemDrop] || 'S',
                     });
                   }
-
-                  // Hiệu ứng nổ quân địch
-                  for (let i = 0; i < 16; i++) {
-                    const ang = Math.random() * Math.PI * 2;
-                    const spd = 1 + Math.random() * 4;
-                    particlesRef.current.push({
-                      x: en.x + en.width / 2,
-                      y: en.y + en.height / 2,
-                      vx: Math.cos(ang) * spd,
-                      vy: Math.sin(ang) * spd,
-                      radius: 2 + Math.random() * 3,
-                      color: ['#ef4444', '#f97316', '#facc15'][Math.floor(Math.random() * 3)],
-                      alpha: 1,
-                      life: 0,
-                      maxLife: 18,
-                    });
-                  }
-                  playExplosionSound();
                 }
               }
             });
 
-            // Đạn bắn trúng các bộ phận Căn cứ Boss
-            if (boss.isAlive && b.x > boss.x && b.x < boss.x + boss.width) {
-              // Bắn trúng pháo trên
-              if (boss.topTurretHp > 0 && b.y > boss.y + 40 && b.y < boss.y + 90) {
+            // Đạn người chơi bắn trúng Boss
+            if (
+              boss.isAlive &&
+              b.damage > 0 &&
+              b.x > boss.x &&
+              b.x < boss.x + boss.width &&
+              b.y > boss.y &&
+              b.y < boss.y + boss.height
+            ) {
+              createExplosion(b.x, b.y, 8, 'metal');
+
+              // Bắn vào Tháp trên
+              if (b.y < boss.y + 100 && boss.topTurretHp > 0) {
                 boss.topTurretHp -= b.damage;
                 b.damage = 0;
                 if (boss.topTurretHp <= 0) {
                   setScore((s) => s + 500);
+                  scoreRef.current += 500;
+                  createExplosion(boss.x + 30, boss.y + 65, 25, 'fire');
                   playExplosionSound();
                 }
               }
-              // Bắn trúng pháo dưới
-              else if (boss.bottomTurretHp > 0 && b.y > boss.y + 170 && b.y < boss.y + 220) {
+              // Bắn vào Tháp dưới
+              else if (b.y > boss.y + 170 && boss.bottomTurretHp > 0) {
                 boss.bottomTurretHp -= b.damage;
                 b.damage = 0;
                 if (boss.bottomTurretHp <= 0) {
                   setScore((s) => s + 500);
+                  scoreRef.current += 500;
+                  createExplosion(boss.x + 30, boss.y + 195, 25, 'fire');
                   playExplosionSound();
                 }
               }
-              // Bắn trực diện vào LÕI NĂNG LƯỢNG ĐỎ (Red Core)
-              else if (b.y > boss.y + 105 && b.y < boss.y + 165) {
+              // Bắn vào LÕI NĂNG LƯỢNG ĐỎ (Red Core)
+              else if (b.y >= boss.y + 100 && b.y <= boss.y + 170) {
                 boss.coreHp -= b.damage;
                 b.damage = 0;
 
                 if (boss.coreHp <= 0 && !boss.isCoreDestroyed) {
                   boss.isCoreDestroyed = true;
                   boss.isAlive = false;
-                  setScore((s) => s + 5000);
+                  setScore((s) => {
+                    const nextS = s + 5000;
+                    scoreRef.current = nextS;
+                    return nextS;
+                  });
                   setIsVictory(true);
+                  isVictoryRef.current = true;
                   triggerShake();
 
                   // Chuỗi nổ tung căn cứ trùm
+                  createExplosion(boss.x + 30, boss.y + 135, 50, 'fire');
+                  createExplosion(boss.x + 60, boss.y + 80, 40, 'fire');
+                  createExplosion(boss.x + 60, boss.y + 200, 40, 'fire');
                   confetti({
-                    particleCount: 150,
-                    spread: 85,
+                    particleCount: 160,
+                    spread: 90,
                     origin: { y: 0.6 },
                   });
                   soundManager.playVictory();
@@ -906,15 +1185,17 @@ export const GameContra: React.FC = () => {
               b.x > p.x &&
               b.x < p.x + p.width &&
               b.y > p.y + (p.isProne ? p.height - hitPad : 0) &&
-              b.y < p.y + p.height - (p.isInWater ? 20 : 0);
+              b.y < p.y + p.height - (p.isInWater ? 22 : 0);
 
             if (isHitPlayer) {
               b.damage = 0;
               triggerShake();
               setLives((l) => {
                 const nextL = l - 1;
+                livesRef.current = nextL;
                 if (nextL <= 0) {
                   setIsGameOver(true);
+                  isGameOverRef.current = true;
                   soundManager.playButtonClick();
                 }
                 return nextL;
@@ -922,313 +1203,570 @@ export const GameContra: React.FC = () => {
               p.isInvulnerable = true;
               p.invulnerableTimer = 2.5;
               playExplosionSound();
+              createExplosion(p.x + p.width / 2, p.y + p.height / 2, 20, 'fire');
             }
           }
         });
 
-        // Dọn dẹp đạn đã va chạm hoặc bay ra ngoài
+        // Dọn dẹp đạn đã chạm hoặc bay ra ngoài
         bulletsRef.current = bulletsRef.current.filter(
-          (b) => b.damage > 0 && b.x > cameraXRef.current - 50 && b.x < cameraXRef.current + ARENA_WIDTH + 50 && b.y > -50 && b.y < ARENA_HEIGHT + 50
+          (b) => b.damage > 0 && b.x > cameraXRef.current - 60 && b.x < cameraXRef.current + ARENA_WIDTH + 60 && b.y > -60 && b.y < ARENA_HEIGHT + 60
         );
 
-        // CẬP NHẬT VẬT PHẨM VŨ KHÍ RƠI (WEAPON ITEMS)
+        // H. CẬP NHẬT VẬT PHẨM VŨ KHÍ RƠI (ITEMS)
         itemsRef.current.forEach((it) => {
           it.y += it.vy;
-          it.vy += 0.15; // Rơi chậm xuống mặt đất
+          it.vy += 0.16; // Rơi chậm xuống nền đá
 
           // Nhặt vũ khí
           if (
             it.isAlive &&
-            Math.abs(p.x + p.width / 2 - it.x) < 28 &&
-            Math.abs(p.y + p.height / 2 - it.y) < 34
+            Math.abs(p.x + p.width / 2 - it.x) < 32 &&
+            Math.abs(p.y + p.height / 2 - it.y) < 36
           ) {
             it.isAlive = false;
-            setScore((s) => s + 1000);
+            setScore((s) => {
+              const nextS = s + 1000;
+              scoreRef.current = nextS;
+              return nextS;
+            });
             playPowerupSound();
 
             if (it.type === 'barrier') {
-              p.barrierTimer = 10.0; // 10 giây khiên bất tử
+              p.barrierTimer = 10.0;
               floatingTextsRef.current.push({
                 id: Date.now(),
-                text: 'KHIÊN BẤT TỬ B!',
+                text: 'KHIÊN BẤT TỬ [B]!',
                 x: it.x,
-                y: it.y - 15,
+                y: it.y - 18,
                 color: '#38bdf8',
                 alpha: 1,
               });
             } else {
               setWeapon(it.type);
+              weaponRef.current = it.type;
+              const names: Record<WeaponType, string> = {
+                spread: 'ĐẠN HOA CẢI [S]!',
+                machine: 'SÚNG MÁY [M]!',
+                laser: 'LASER NĂNG LƯỢNG [L]!',
+                flame: 'CẦU LỬA [F]!',
+                barrier: 'KHIÊN B!',
+                normal: 'RIFLE!'
+              };
               floatingTextsRef.current.push({
                 id: Date.now(),
-                text: it.type === 'spread' ? 'ĐẠN HOA CẢI S!' : it.type === 'laser' ? 'LASER L!' : 'SÚNG MÁY M!',
+                text: names[it.type] || 'VŨ KHÍ MỚI!',
                 x: it.x,
-                y: it.y - 15,
+                y: it.y - 18,
                 color: '#facc15',
                 alpha: 1,
               });
             }
           }
         });
-        itemsRef.current = itemsRef.current.filter((it) => it.isAlive && it.y < ARENA_HEIGHT + 40);
+        itemsRef.current = itemsRef.current.filter((it) => it.isAlive && it.y < ARENA_HEIGHT + 50);
 
         // Cập nhật hạt bụi và text nổi
         particlesRef.current.forEach((pt) => {
           pt.x += pt.vx;
           pt.y += pt.vy;
           pt.life++;
+          if (pt.sizeDecay) pt.radius *= pt.sizeDecay;
           pt.alpha = 1 - pt.life / pt.maxLife;
         });
         particlesRef.current = particlesRef.current.filter((pt) => pt.life < pt.maxLife);
 
         floatingTextsRef.current.forEach((ft) => {
-          ft.y -= 25 * dt;
+          ft.y -= 30 * dt;
           ft.alpha -= dt * 0.9;
         });
         floatingTextsRef.current = floatingTextsRef.current.filter((ft) => ft.alpha > 0);
       }
 
       // ==========================================
-      // 2. RENDER GRAPHICS LÊN RETINA CANVAS
+      // 2. RENDER ĐỒ HỌA RETRO-MODERN TRÊN CANVAS
       // ==========================================
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
       const camX = cameraXRef.current;
 
-      // A. BẦU TRỜI & NÚI NON GALUGA PARALLAX (Distant Mountains & Jungle Sky)
-      ctx.fillStyle = '#070f1e';
+      // ------------------------------------------
+      // A. BẦU TRỜI ĐÊM GALUGA PARALLAX & TRĂNG MÁU
+      // ------------------------------------------
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, ARENA_HEIGHT);
+      skyGrad.addColorStop(0, '#040714');
+      skyGrad.addColorStop(0.55, '#0b162c');
+      skyGrad.addColorStop(1, '#1b2a47');
+      ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
-      // Núi xa cuộn chậm (Parallax factor 0.2)
-      ctx.fillStyle = '#10223b';
-      for (let i = 0; i < 8; i++) {
-        const mx = i * 280 - (camX * 0.2) % 280;
+      // Mặt trăng khổng lồ với quầng sáng sương mù
+      const moonX = 580 - (camX * 0.04) % 900;
+      const moonGrad = ctx.createRadialGradient(moonX, 90, 8, moonX, 90, 48);
+      moonGrad.addColorStop(0, '#ffffff');
+      moonGrad.addColorStop(0.3, '#fef08a');
+      moonGrad.addColorStop(0.7, '#f97316');
+      moonGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+      ctx.fillStyle = moonGrad;
+      ctx.beginPath();
+      ctx.arc(moonX, 90, 48, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dãy núi đá hiểm trở xa cuộn chậm (Parallax 0.15)
+      ctx.fillStyle = '#0f172a';
+      for (let i = -1; i < 7; i++) {
+        const mx = i * 260 - (camX * 0.15) % 260;
         ctx.beginPath();
-        ctx.moveTo(mx, 360);
-        ctx.lineTo(mx + 140, 160);
-        ctx.lineTo(mx + 280, 360);
+        ctx.moveTo(mx - 40, 360);
+        ctx.lineTo(mx + 90, 160);
+        ctx.lineTo(mx + 150, 210);
+        ctx.lineTo(mx + 220, 130);
+        ctx.lineTo(mx + 300, 360);
         ctx.closePath();
         ctx.fill();
       }
 
-      // Rặng cây nhiệt đới tầm trung (Parallax factor 0.5)
-      ctx.fillStyle = '#0f3822';
-      for (let j = 0; j < 14; j++) {
-        const tx = j * 160 - (camX * 0.5) % 160;
+      // Rừng cọ nhiệt đới tầm trung (Parallax 0.45)
+      for (let j = -1; j < 12; j++) {
+        const tx = j * 140 - (camX * 0.45) % 140;
+        // Thân cây cọ uốn lượn
+        ctx.strokeStyle = '#062817';
+        ctx.lineWidth = 6;
         ctx.beginPath();
-        ctx.arc(tx + 80, 370, 70, 0, Math.PI * 2);
+        ctx.moveTo(tx + 40, 410);
+        ctx.quadraticCurveTo(tx + 50, 320, tx + 65, 260);
+        ctx.stroke();
+
+        // Tán lá dừa xoè rộng phong cách Contra
+        ctx.fillStyle = '#064e3b';
+        ctx.beginPath();
+        ctx.ellipse(tx + 65, 260, 52, 28, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#047857';
+        ctx.beginPath();
+        ctx.ellipse(tx + 75, 255, 42, 20, 0.2, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // B. VẼ ĐỊA HÌNH, MỎM ĐÁ & SÔNG NƯỚC (Platforms & Rivers)
+      // ------------------------------------------
+      // B. VẼ ĐỊA HÌNH, MỎM ĐÁ, CẦU VÀ NƯỚC SÔNG
+      // ------------------------------------------
       platformsRef.current.forEach((plat) => {
+        if (plat.isDestroyed) return;
         const screenPlatX = plat.x - camX;
-        // Bỏ qua nếu nằm ngoài màn hình
-        if (screenPlatX + plat.width < -50 || screenPlatX > ARENA_WIDTH + 50) return;
+        if (screenPlatX + plat.width < -60 || screenPlatX > ARENA_WIDTH + 60) return;
 
         if (plat.isWater) {
-          // Dòng nước sông xanh biếc
-          ctx.fillStyle = '#0284c7';
+          // Dòng nước sông trong xanh biếc với bọt sóng cuộn
+          const waterGrad = ctx.createLinearGradient(0, plat.y, 0, plat.y + plat.height);
+          waterGrad.addColorStop(0, '#0284c7');
+          waterGrad.addColorStop(0.5, '#0369a1');
+          waterGrad.addColorStop(1, '#082f49');
+          ctx.fillStyle = waterGrad;
           ctx.fillRect(screenPlatX, plat.y, plat.width, plat.height);
-          // Gợn sóng nhấp nhô
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-          for (let w = 0; w < plat.width; w += 40) {
-            const waveOffset = Math.sin(Date.now() / 200 + w) * 3;
-            ctx.fillRect(screenPlatX + w, plat.y + 6 + waveOffset, 24, 2);
+
+          // Lớp sóng động lấp lánh
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+          for (let w = 0; w < plat.width; w += 35) {
+            const waveY = Math.sin(Date.now() / 180 + w * 0.1) * 3;
+            ctx.fillRect(screenPlatX + w, plat.y + 4 + waveY, 20, 2);
+          }
+        } else if (plat.isBridge) {
+          // Cầu sắt quân sự có thể nổ
+          ctx.fillStyle = plat.isExploding ? '#dc2626' : '#475569';
+          ctx.fillRect(screenPlatX, plat.y, plat.width, 10);
+          // Các thanh giằng thép chữ X
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 2.5;
+          for (let bx = 0; bx < plat.width; bx += 28) {
+            ctx.strokeRect(screenPlatX + bx, plat.y + 10, 28, 14);
+            ctx.beginPath();
+            ctx.moveTo(screenPlatX + bx, plat.y + 10);
+            ctx.lineTo(screenPlatX + bx + 28, plat.y + 24);
+            ctx.stroke();
+          }
+          // Viền cảnh báo vàng đen
+          ctx.fillStyle = '#facc15';
+          for (let bx = 0; bx < plat.width; bx += 20) {
+            ctx.fillRect(screenPlatX + bx, plat.y + 1, 10, 4);
           }
         } else {
-          // Mỏm đá vách rừng phong cách Contra kinh điển
-          // Mặt cỏ xanh trên cùng
-          ctx.fillStyle = '#15803d';
-          ctx.fillRect(screenPlatX, plat.y, plat.width, 8);
-          // Thân đất đá nâu đỏ
-          ctx.fillStyle = '#78350f';
-          ctx.fillRect(screenPlatX, plat.y + 8, plat.width, plat.height - 8);
+          // Mỏm đá vách rừng Contra kinh điển (Lớp đất đá đa tầng)
+          const rockGrad = ctx.createLinearGradient(0, plat.y, 0, plat.y + plat.height);
+          rockGrad.addColorStop(0, '#15803d');
+          rockGrad.addColorStop(0.08, '#166534');
+          rockGrad.addColorStop(0.18, '#854d0e');
+          rockGrad.addColorStop(0.5, '#451a03');
+          rockGrad.addColorStop(1, '#1c1917');
+          ctx.fillStyle = rockGrad;
+          ctx.fillRect(screenPlatX, plat.y, plat.width, plat.height);
 
-          // Hoa văn khối đá xếp tầng
-          ctx.strokeStyle = '#451a03';
+          // Cỏ nhung xanh rủ xuống mép đá
+          ctx.fillStyle = '#22c55e';
+          for (let gx = 0; gx < plat.width; gx += 8) {
+            const h = (gx % 16 === 0) ? 9 : 6;
+            ctx.fillRect(screenPlatX + gx, plat.y - 1, 6, h);
+          }
+
+          // Khối đá nứt và đinh tán địa chất
+          ctx.strokeStyle = '#292524';
           ctx.lineWidth = 1.5;
-          for (let bx = 0; bx < plat.width; bx += 32) {
-            ctx.strokeRect(screenPlatX + bx, plat.y + 8, 32, plat.height - 8);
+          for (let bx = 0; bx < plat.width; bx += 36) {
+            ctx.strokeRect(screenPlatX + bx, plat.y + 12, 36, plat.height - 12);
           }
         }
       });
 
-      // C. VẼ CĂN CỨ BOSS MÀN 1 (Defense Wall Base)
+      // ------------------------------------------
+      // C. VẼ CĂN CỨ PHÒNG THỦ RED FALCON (BOSS)
+      // ------------------------------------------
       const boss = bossRef.current;
       const screenBossX = boss.x - camX;
-      if (screenBossX < ARENA_WIDTH + 100 && screenBossX + boss.width > -100) {
+      if (screenBossX < ARENA_WIDTH + 120 && screenBossX + boss.width > -120) {
         ctx.save();
         ctx.translate(screenBossX, boss.y);
 
-        // Bức tường thép phòng thủ kiên cố
-        ctx.fillStyle = '#334155';
+        // Bức tường thép phòng thủ kiên cố có tán đinh
+        const wallGrad = ctx.createLinearGradient(0, 0, boss.width, boss.height);
+        wallGrad.addColorStop(0, '#475569');
+        wallGrad.addColorStop(0.5, '#334155');
+        wallGrad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = wallGrad;
         ctx.fillRect(0, 0, boss.width, boss.height);
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 4;
         ctx.strokeRect(0, 0, boss.width, boss.height);
 
-        // LÔ CỐT PHÁO TRÊN
+        // Họa tiết vạch sọc nguy hiểm cảnh báo công nghệ ngoài hành tinh
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(10, 10, boss.width - 20, 8);
+        ctx.fillRect(10, boss.height - 18, boss.width - 20, 8);
+
+        // 1. LÔ CỐT PHÁO TRÊN
         if (boss.topTurretHp > 0) {
           ctx.fillStyle = '#64748b';
           ctx.beginPath();
-          ctx.arc(30, 65, 20, 0, Math.PI * 2);
+          ctx.arc(36, 60, 24, 0, Math.PI * 2);
           ctx.fill();
-          // Nòng súng pháo đen hướng về người chơi
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Nòng pháo đôi chĩa thẳng ra phía người chơi
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-15, 61, 30, 8);
+          ctx.fillRect(-22, 53, 34, 6);
+          ctx.fillRect(-22, 63, 34, 6);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(-24, 53, 4, 16);
         } else {
-          // Pháo bị phá hủy
+          // Pháo bị nổ tan hoang
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(10, 50, 40, 30);
+          ctx.fillRect(10, 42, 50, 36);
+          ctx.fillStyle = '#ea580c';
+          ctx.fillRect(16, 50, 12, 10);
         }
 
-        // LÔ CỐT PHÁO DƯỚI
+        // 2. LÔ CỐT PHÁO DƯỚI
         if (boss.bottomTurretHp > 0) {
           ctx.fillStyle = '#64748b';
           ctx.beginPath();
-          ctx.arc(30, 195, 20, 0, Math.PI * 2);
+          ctx.arc(36, 190, 24, 0, Math.PI * 2);
           ctx.fill();
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 2;
+          ctx.stroke();
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-15, 191, 30, 8);
+          ctx.fillRect(-22, 183, 34, 6);
+          ctx.fillRect(-22, 193, 34, 6);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(-24, 183, 4, 16);
         } else {
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(10, 180, 40, 30);
+          ctx.fillRect(10, 172, 50, 36);
         }
 
-        // TRÁI TIM NĂNG LƯỢNG ĐỎ TRUNG TÂM (RED CORE)
-        const coreY = 135;
-        const pulse = Math.sin(Date.now() / 150) * 4;
-        ctx.fillStyle = boss.isCoreDestroyed ? '#1e293b' : '#ef4444';
-        ctx.beginPath();
-        ctx.arc(30, coreY, 22 + pulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // 3. TRÁI TIM NĂNG LƯỢNG ĐỎ TRUNG TÂM (RED FALCON CORE)
+        const coreY = 125;
+        const pulse = Math.sin(Date.now() / 120) * 5;
+        if (!boss.isCoreDestroyed) {
+          // Lớp vỏ sinh học bảo vệ
+          ctx.fillStyle = '#450a0a';
+          ctx.beginPath();
+          ctx.ellipse(36, coreY, 32, 28, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Trái tim năng lượng đập liên tục
+          const coreGrad = ctx.createRadialGradient(36, coreY, 2, 36, coreY, 22 + pulse);
+          coreGrad.addColorStop(0, '#ffffff');
+          coreGrad.addColorStop(0.3, '#fef08a');
+          coreGrad.addColorStop(0.7, '#ef4444');
+          coreGrad.addColorStop(1, '#7f1d1d');
+          ctx.fillStyle = coreGrad;
+          ctx.beginPath();
+          ctx.arc(36, coreY, 20 + pulse, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(36, coreY, 26, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         ctx.restore();
       }
 
-      // D. VẼ QUÂN ĐỊCH (ENEMIES)
+      // ------------------------------------------
+      // D. VẼ QUÂN ĐỊCH VÀ CÁC ĐƠN VỊ CHIẾN ĐẤU
+      // ------------------------------------------
       enemiesRef.current.forEach((en) => {
         if (!en.isAlive) return;
         const sx = en.x - camX;
-        if (sx < -60 || sx > ARENA_WIDTH + 60) return;
+        if (sx < -70 || sx > ARENA_WIDTH + 70) return;
 
         ctx.save();
         ctx.translate(sx, en.y);
 
         if (en.type === 'runner') {
-          // Bộ binh địch chạy (Quần đỏ, áo trắng)
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(4, 26, 18, 22); // Quần đỏ
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(4, 12, 18, 14); // Áo trắng
-          // Đầu và mũ sắt
+          // BỘ BINH ĐỎ CHẠY (Red Infantry)
+          const runLeg = Math.floor(Date.now() / 80) % 2 === 0;
+          // Quần đỏ & Giày chiến đấu đen
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(4, 26, 8, runLeg ? 18 : 12);
+          ctx.fillRect(16, 26, 8, runLeg ? 12 : 18);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(3, runLeg ? 42 : 36, 10, 6);
+          ctx.fillRect(15, runLeg ? 36 : 42, 10, 6);
+
+          // Áo giáp chiến thuật trắng viền xám
+          ctx.fillStyle = '#f1f5f9';
+          ctx.fillRect(4, 12, 20, 15);
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(4, 12, 20, 15);
+
+          // Đầu mang mũ sắt đỏ quân sự
           ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(6, 2, 14, 10);
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(4, 0, 18, 4);
-          // Súng trường
+          ctx.fillRect(7, 2, 14, 11);
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(5, 0, 18, 6);
+
+          // Súng trường chĩa ra trước
           ctx.fillStyle = '#1e293b';
-          ctx.fillRect(-4, 18, 12, 4);
+          ctx.fillRect(en.facing === 'left' ? -6 : 18, 16, 16, 5);
         } else if (en.type === 'sniper') {
-          // Xạ thủ bắn tỉa nấp trong lùm cây
+          // LÍNH BẮN TỈA NẤP LÙM CÂY / CÁT
+          // Lùm cây ngụy trang
           ctx.fillStyle = '#15803d';
           ctx.beginPath();
-          ctx.arc(en.width / 2, en.height / 2, 22, 0, Math.PI * 2);
+          ctx.arc(en.width / 2, en.height / 2 + 6, 22, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(4, 10, 18, 18);
+
+          // Thân trên và Mũ ngụy trang
+          ctx.fillStyle = '#166534';
+          ctx.fillRect(8, 6, 18, 18);
+          ctx.fillStyle = '#fed7aa';
+          ctx.fillRect(10, 2, 14, 10);
+          ctx.fillStyle = '#15803d';
+          ctx.fillRect(8, -1, 18, 5);
+
+          // Nòng súng bắn tỉa dài kèm tia ngắm laser đỏ
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(en.facing === 'left' ? 2 : en.width - 2, 14);
+          ctx.lineTo(en.facing === 'left' ? -180 : en.width + 180, 14);
+          ctx.stroke();
+
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-8, 16, 16, 4);
+          ctx.fillRect(en.facing === 'left' ? -14 : 18, 12, 22, 4);
         } else if (en.type === 'turret') {
-          // Tháp pháo xoay ẩn trong vách núi
-          ctx.fillStyle = '#475569';
+          // THÁP PHÁO XOAY 360 ĐỘ
+          // Bệ đế tháp bọc thép
+          ctx.fillStyle = '#1e293b';
           ctx.beginPath();
-          ctx.arc(en.width / 2, en.height / 2, 16, 0, Math.PI * 2);
+          ctx.arc(en.width / 2, en.height / 2, 20, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#0f172a';
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Nắp vòm xoay theo hướng góc aimAngle
+          ctx.save();
+          ctx.translate(en.width / 2, en.height / 2);
+          ctx.rotate(en.aimAngle || 0);
+
+          // Đôi nòng pháo vươn dài
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(10, -5, 18, 4);
+          ctx.fillRect(10, 1, 18, 4);
+
+          // Mũ vòm pháo
+          ctx.fillStyle = '#64748b';
+          ctx.beginPath();
+          ctx.arc(0, 0, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#dc2626';
+          ctx.beginPath();
+          ctx.arc(0, 0, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (en.type === 'wall_pod') {
+          // HỘP CẢM BIẾN VÁCH ĐÁ CHỨA VŨ KHÍ
+          ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.roundRect(0, 0, en.width, en.height, 6);
+          ctx.fill();
+          ctx.strokeStyle = '#94a3b8';
           ctx.lineWidth = 2;
           ctx.stroke();
-          // Nòng súng đen
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-6, en.height / 2 - 3, 12, 6);
-        } else if (en.type === 'capsule') {
-          // Viên nang bay Falcon chứa vũ khí
+
+          // Mắt cảm biến đỏ nhấp nháy
+          const eyePulse = Math.sin(Date.now() / 150) * 3;
           ctx.fillStyle = '#ef4444';
           ctx.beginPath();
-          ctx.ellipse(en.width / 2, en.height / 2, 16, 11, 0, 0, Math.PI * 2);
+          ctx.arc(en.width / 2, en.height / 2, 9 + eyePulse, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          // Chữ cái huy hiệu
           ctx.fillStyle = '#ffffff';
-          ctx.font = 'black 12px sans-serif';
+          ctx.beginPath();
+          ctx.arc(en.width / 2 - 2, en.height / 2 - 2, 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (en.type === 'flying_capsule') {
+          // CHIM ƯNG KIM LOẠI BAY LƯỢN MANG VŨ KHÍ
+          // Đôi cánh cơ khí vỗ nhịp
+          const wingFlap = Math.sin(Date.now() / 80) * 8;
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(-16, 6);
+          ctx.lineTo(0, 14 + wingFlap);
+          ctx.lineTo(16, 6);
+          ctx.lineTo(0, -6 - wingFlap);
+          ctx.closePath();
+          ctx.fill();
+
+          // Vỏ nhộng chứa huy hiệu vũ khí phát sáng
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.ellipse(en.width / 2, en.height / 2, 14, 10, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ca8a04';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          ctx.fillStyle = '#78350f';
+          ctx.font = 'black 11px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText(en.itemDrop === 'spread' ? 'S' : en.itemDrop === 'laser' ? 'L' : en.itemDrop === 'barrier' ? 'B' : 'M', en.width / 2, en.height / 2 + 4);
+          ctx.textBaseline = 'middle';
+          const tag = en.itemDrop === 'spread' ? 'S' : en.itemDrop === 'laser' ? 'L' : en.itemDrop === 'machine' ? 'M' : 'B';
+          ctx.fillText(tag, en.width / 2, en.height / 2 + 1);
         }
 
         ctx.restore();
       });
 
-      // E. VẼ VẬT PHẨM VŨ KHÍ RƠI TRÊN MẶT ĐẤT
+      // ------------------------------------------
+      // E. VẼ VẬT PHẨM VŨ KHÍ RƠI (WEAPON BADGES)
+      // ------------------------------------------
       itemsRef.current.forEach((it) => {
-        if (!it.isAlive) return;
         const sx = it.x - camX;
         ctx.save();
         ctx.translate(sx, it.y);
 
-        // Hào quang chớp sáng
-        ctx.fillStyle = '#facc15';
+        // Vòng hào quang phát sáng xung quanh phù hiệu
+        const halo = Math.sin(Date.now() / 90) * 3;
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
         ctx.beginPath();
-        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.arc(0, 0, 16 + halo, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#ef4444';
+        // Cánh chim ưng bạc hai bên
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(-8, -8);
+        ctx.lineTo(-8, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(18, 0);
+        ctx.lineTo(8, -8);
+        ctx.lineTo(8, 8);
+        ctx.closePath();
+        ctx.fill();
+
+        // Huy hiệu tròn mang chữ cái vũ khí [S], [M], [L], [B]
+        const badgeGrad = ctx.createRadialGradient(-2, -2, 2, 0, 0, 12);
+        badgeGrad.addColorStop(0, '#ffffff');
+        badgeGrad.addColorStop(0.4, '#facc15');
+        badgeGrad.addColorStop(1, '#ea580c');
+        ctx.fillStyle = badgeGrad;
         ctx.beginPath();
         ctx.arc(0, 0, 11, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'black 12px sans-serif';
+        ctx.fillStyle = '#7c2d12';
+        ctx.font = '900 12px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(it.type === 'spread' ? 'S' : it.type === 'laser' ? 'L' : it.type === 'barrier' ? 'B' : 'M', 0, 0);
+        ctx.fillText(it.letter, 0, 1);
+
         ctx.restore();
       });
 
-      // F. VẼ VIÊN ĐẠN BAY TRÊN MÀN HÌNH
+      // ------------------------------------------
+      // F. VẼ ĐẠN BAY VÀ HIỆU ỨNG ÁNH SÁNG
+      // ------------------------------------------
       bulletsRef.current.forEach((b) => {
         const sx = b.x - camX;
         ctx.save();
         ctx.translate(sx, b.y);
 
         if (b.isSpread) {
-          // Đạn hoa cải S màu đỏ cam rực lửa
-          ctx.fillStyle = '#f97316';
+          // ĐẠN HOA CẢI S: CẦU LỬA PLASMA VỚI QUẦNG NĂNG LƯỢNG RỰC RỠ
+          const fGrad = ctx.createRadialGradient(0, 0, 1, 0, 0, b.radius + 3);
+          fGrad.addColorStop(0, '#ffffff');
+          fGrad.addColorStop(0.3, '#fef08a');
+          fGrad.addColorStop(0.65, '#f97316');
+          fGrad.addColorStop(1, '#dc2626');
+          ctx.fillStyle = fGrad;
           ctx.beginPath();
-          ctx.arc(0, 0, b.radius + 2, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+          ctx.arc(0, 0, b.radius + 3, 0, Math.PI * 2);
           ctx.fill();
         } else if (b.isLaser) {
-          // Tia laser dài xanh neon
-          ctx.fillStyle = '#38bdf8';
-          ctx.fillRect(-12, -2, 24, 4);
+          // TIA LASER L: VẠCH NĂNG LƯỢNG CYAN DÀI SẮC NÉT
+          ctx.strokeStyle = '#67e8f9';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(-16, 0);
+          ctx.lineTo(16, 0);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(-16, 0);
+          ctx.lineTo(16, 0);
+          ctx.stroke();
         } else {
+          // ĐẠN THƯỜNG / ĐẠN ĐỊCH
           ctx.fillStyle = b.color;
           ctx.beginPath();
           ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-1, -1, b.radius * 0.4, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
       });
 
-      // G. VẼ BIỆT KÍCH RAMBO BILL RIZER (PLAYER HERO)
+      // ------------------------------------------
+      // G. VẼ BIỆT KÍCH RAMBO BILL RIZER (HERO)
+      // ------------------------------------------
       const p = playerRef.current;
       const screenPX = p.x - camX;
 
@@ -1237,124 +1775,191 @@ export const GameContra: React.FC = () => {
 
       // Khiên hộ mệnh bất tử cầu vồng (Barrier B)
       if (p.barrierTimer > 0) {
-        const bPulse = Math.sin(Date.now() / 80) * 3;
-        ctx.strokeStyle = ['#ef4444', '#f59e0b', '#38bdf8', '#a855f7'][Math.floor(Date.now() / 100) % 4];
+        const bPulse = Math.sin(Date.now() / 70) * 4;
+        const shieldColors = ['#ef4444', '#f59e0b', '#38bdf8', '#10b981', '#a855f7'];
+        ctx.strokeStyle = shieldColors[Math.floor(Date.now() / 80) % shieldColors.length];
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(p.width / 2, p.height / 2, 34 + bPulse, 0, Math.PI * 2);
+        ctx.arc(p.width / 2, p.height / 2, 36 + bPulse, 0, Math.PI * 2);
         ctx.stroke();
       }
 
       // Nhấp nháy khi vừa hồi sinh bất tử
-      if (p.isInvulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
-        ctx.globalAlpha = 0.35;
+      if (p.isInvulnerable && Math.floor(Date.now() / 90) % 2 === 0) {
+        ctx.globalAlpha = 0.4;
       }
 
       if (p.isInWater) {
-        // Đang ngâm mình dưới nước: Chỉ nhô đầu và súng lên
+        // ĐANG NGÂM MÌNH DƯỚI NƯỚC: Chỉ nhô đầu, khăn rằn và súng
+        // Gợn nước bao quanh cổ
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.fillRect(-4, p.height - 18, p.width + 8, 3);
+
+        // Đầu và tóc nâu
         ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(6, p.height - 18, 16, 12);
-        // Khăn rằn đỏ đặc trưng
+        ctx.fillRect(8, p.height - 20, 16, 14);
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(6, p.height - 24, 20, 5);
+
+        // Khăn rằn đỏ bay theo sóng
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(4, p.height - 20, 20, 4);
-        // Súng nhô lên mặt nước
+        ctx.fillRect(4, p.height - 22, 24, 4);
+
+        // Súng nhô cao trên mặt nước
         ctx.fillStyle = '#1e293b';
-        ctx.fillRect(p.facing === 'right' ? 14 : -6, p.height - 14, 18, 4);
-      } else if (p.isProne) {
-        // Nằm rạp người xuống đất
-        // Thân người nằm dài
-        ctx.fillStyle = '#1e3a8a'; // Quần xanh
-        ctx.fillRect(p.facing === 'right' ? 0 : 10, p.height - 14, 26, 12);
-        // Ngực trần cơ bắp
-        ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(p.facing === 'right' ? 24 : 0, p.height - 14, 16, 12);
-        // Khăn đỏ
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(p.facing === 'right' ? 34 : 0, p.height - 16, 8, 4);
-        // Súng chĩa ngang mặt đất
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(p.facing === 'right' ? 38 : -14, p.height - 8, 20, 4);
-      } else if (p.isJumping) {
-        // Động tác nhảy lộn nhào thành quả cầu lửa xoay tròn kinh điển
-        const spinAngle = (Date.now() / 80) * (p.facing === 'right' ? 1 : -1);
+        ctx.fillRect(p.facing === 'right' ? 16 : -8, p.height - 16, 22, 5);
+      } else if (!p.isGrounded && p.isJumping) {
+        // NHẢY LỘN NHÀO CUỘN TRÒN QUẢ CẦU (SOMERSAULT SPINNING BALL)
         ctx.save();
         ctx.translate(p.width / 2, p.height / 2);
-        ctx.rotate(spinAngle);
+        ctx.rotate(p.spinAngle);
+
+        // Bóng biệt kích cuộn tròn
         ctx.fillStyle = '#1e3a8a';
         ctx.beginPath();
-        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(-6, -10, 12, 10);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Dải khăn rằn đỏ xoay tít
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(-8, -12, 16, 4);
+        ctx.fillRect(-16, -4, 32, 6);
         ctx.restore();
-      } else {
-        // Đứng hoặc chạy bình thường
-        // Chân & Quần xanh quân đội
+      } else if (p.isProne) {
+        // NẰM RẠP NGƯỜI XUỐNG ĐẤT (PRONE DUCK)
+        // Quần chiến thuật xanh
         ctx.fillStyle = '#1e3a8a';
-        ctx.fillRect(4, 28, 9, 24);
-        ctx.fillRect(15, 28, 9, 24);
+        ctx.fillRect(p.facing === 'right' ? 0 : 8, p.height - 14, 26, 12);
 
-        // Thân người & Ngực trần cơ bắp
+        // Cơ bắp ngực trần
         ctx.fillStyle = '#fed7aa';
-        ctx.fillRect(4, 12, 20, 16);
+        ctx.fillRect(p.facing === 'right' ? 24 : 0, p.height - 14, 16, 12);
 
-        // Dây đạn chéo qua vai
-        ctx.fillStyle = '#facc15';
-        ctx.fillRect(6, 12, 4, 16);
-
-        // Đầu & Tóc nâu
-        ctx.fillStyle = '#78350f';
-        ctx.fillRect(6, 2, 16, 10);
-        // Khăn rằn đỏ quấn trán
+        // Khăn rằn đỏ
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(4, 3, 20, 4);
-        // Đuôi khăn bay sau đầu
-        ctx.fillRect(p.facing === 'right' ? 0 : 20, 4, 6, 2);
+        ctx.fillRect(p.facing === 'right' ? 32 : -6, p.height - 18, 12, 4);
 
-        // Khẩu súng lớn chĩa theo hướng ngắm
+        // Súng trường kê sát mặt đất bắn thẳng
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(p.facing === 'right' ? 28 : -14, p.height - 8, 26, 5);
+      } else {
+        // ĐỨNG & CHẠY BỘ BIỆT KÍCH CHI TIẾT ĐẸP MẮT (RUN & SHOOT)
+        const fRight = p.facing === 'right';
+
+        // 1. Đôi chân và giày ủng chiến đấu (Animation 4 khung hình)
+        const legOffsets = [
+          { l1: -4, l2: 6 },
+          { l1: 0, l2: 0 },
+          { l1: 6, l2: -4 },
+          { l1: 0, l2: 0 },
+        ];
+        const curLeg = legOffsets[p.runFrame];
+
+        ctx.fillStyle = '#1e3a8a'; // Quần chiến đấu xanh biển
+        ctx.fillRect(8 + curLeg.l1, 30, 8, 20);
+        ctx.fillRect(16 + curLeg.l2, 30, 8, 20);
+
+        // Ủng bọc thép quân sự
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(6 + curLeg.l1, 48, 11, 8);
+        ctx.fillRect(14 + curLeg.l2, 48, 11, 8);
+
+        // 2. Thân người ngực trần cơ bắp vạm vỡ & Đai chiến thuật
+        ctx.fillStyle = '#fed7aa';
+        ctx.fillRect(8, 14, 16, 18);
+        // Dây đai đeo đạn chéo qua vai
+        ctx.strokeStyle = '#1e40af';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(8, 14);
+        ctx.lineTo(24, 30);
+        ctx.stroke();
+
+        // 3. Đầu, tóc nâu và Khăn Rằn Đỏ đặc trưng
+        ctx.fillStyle = '#fed7aa';
+        ctx.fillRect(10, 4, 14, 12);
+        // Tóc nâu phong trần
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(8, 0, 18, 5);
+
+        // Khăn đỏ quấn đầu và đuôi khăn bay phấp phới trong gió
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(6, 4, 20, 4);
+        const ribbonWiggle = Math.sin(Date.now() / 90) * 3;
+        ctx.beginPath();
+        ctx.moveTo(fRight ? 6 : 26, 6);
+        ctx.lineTo(fRight ? -10 : 42, 6 + ribbonWiggle);
+        ctx.lineTo(fRight ? -8 : 40, 10 + ribbonWiggle);
+        ctx.lineTo(fRight ? 6 : 26, 8);
+        ctx.closePath();
+        ctx.fill();
+
+        // 4. Súng trường công nghệ cao theo hướng ngắm 8 chiều
         ctx.fillStyle = '#0f172a';
         if (p.aimDir === 'up') {
-          ctx.fillRect(p.width / 2 - 3, -12, 6, 24);
+          ctx.fillRect(fRight ? 16 : 10, -12, 6, 26);
         } else if (p.aimDir === 'up-right') {
           ctx.save();
-          ctx.translate(14, 16);
+          ctx.translate(16, 16);
           ctx.rotate(-Math.PI / 4);
-          ctx.fillRect(0, -3, 22, 6);
+          ctx.fillRect(0, -3, 26, 6);
           ctx.restore();
         } else if (p.aimDir === 'up-left') {
           ctx.save();
-          ctx.translate(14, 16);
-          ctx.rotate(-3 * Math.PI / 4);
-          ctx.fillRect(0, -3, 22, 6);
+          ctx.translate(16, 16);
+          ctx.rotate(-Math.PI * 3 / 4);
+          ctx.fillRect(0, -3, 26, 6);
+          ctx.restore();
+        } else if (p.aimDir === 'down-right') {
+          ctx.save();
+          ctx.translate(16, 18);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillRect(0, -3, 26, 6);
+          ctx.restore();
+        } else if (p.aimDir === 'down-left') {
+          ctx.save();
+          ctx.translate(16, 18);
+          ctx.rotate(Math.PI * 3 / 4);
+          ctx.fillRect(0, -3, 26, 6);
           ctx.restore();
         } else {
-          ctx.fillRect(p.facing === 'right' ? 14 : -12, 18, 26, 6);
+          // Bắn thẳng ngang
+          ctx.fillRect(fRight ? 16 : -10, 18, 26, 6);
+        }
+
+        // Tia lửa đầu nòng khi vừa bắn (Muzzle flash)
+        if (p.muzzleFlashTimer > 0) {
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          const flashX = fRight ? 44 : -12;
+          ctx.arc(flashX, 21, 6, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
       ctx.restore();
 
-      // H. HẠT BỤI NỔ & TEXT NỔI (Particles & Floating Texts)
+      // H. HẠT NỔ & CHỮ NỔI
       particlesRef.current.forEach((pt) => {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, pt.alpha);
+        const sx = pt.x - camX;
         ctx.fillStyle = pt.color;
+        ctx.globalAlpha = Math.max(0, pt.alpha);
         ctx.beginPath();
-        ctx.arc(pt.x - camX, pt.y, pt.radius, 0, Math.PI * 2);
+        ctx.arc(sx, pt.y, Math.max(1, pt.radius), 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
+        ctx.globalAlpha = 1.0;
       });
 
       floatingTextsRef.current.forEach((ft) => {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, ft.alpha);
+        const sx = ft.x - camX;
         ctx.fillStyle = ft.color;
-        ctx.font = 'black 16px sans-serif';
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.font = '900 13px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(ft.text, ft.x - camX, ft.y);
-        ctx.restore();
+        ctx.fillText(ft.text, sx, ft.y);
+        ctx.globalAlpha = 1.0;
       });
 
       // ==========================================
@@ -1374,7 +1979,7 @@ export const GameContra: React.FC = () => {
       ctx.fillStyle = '#ef4444';
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('CONTRA COMMAND', SIDEBAR_X + SIDEBAR_WIDTH / 2, 26);
+      ctx.fillText('CONTRA COMMAND', SIDEBAR_X + SIDEBAR_WIDTH / 2, 28);
 
       // 1. HUY HIỆU VŨ KHÍ HIỆN TẠI (Weapon Badge)
       const wbX = SIDEBAR_X + 16;
@@ -1390,36 +1995,38 @@ export const GameContra: React.FC = () => {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.fillStyle = weapon === 'spread' ? '#ef4444' : weapon === 'laser' ? '#38bdf8' : '#facc15';
-      ctx.font = 'black 22px monospace';
-      const wLabel = weapon === 'spread' ? '[ S ] SPREAD' : weapon === 'laser' ? '[ L ] LASER' : weapon === 'machine' ? '[ M ] MACHINE' : '[ R ] RIFLE';
+      const curW = weaponRef.current;
+      ctx.fillStyle = curW === 'spread' ? '#ef4444' : curW === 'laser' ? '#38bdf8' : curW === 'machine' ? '#facc15' : '#e2e8f0';
+      ctx.font = 'black 20px monospace';
+      const wLabel = curW === 'spread' ? '[ S ] SPREAD' : curW === 'laser' ? '[ L ] LASER' : curW === 'machine' ? '[ M ] MACHINE' : '[ R ] RIFLE';
       ctx.fillText(wLabel, SIDEBAR_X + SIDEBAR_WIDTH / 2, wbY + 32);
 
-      // 2. MẠNG SỐNG BIỆT KÍCH (Lives)
+      // 2. MẠNG SỐNG BIỆT KÍCH (Lives) - CĂN GIỮA CHUẨN XÁC TRỤC TÂM
       const livesY = 120;
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText('QUÂN SỐ MẠNG', SIDEBAR_X + SIDEBAR_WIDTH / 2, livesY);
 
-      const spacing = 34;
+      const spacing = 36;
       const centerX = SIDEBAR_X + SIDEBAR_WIDTH / 2;
+      const curLives = livesRef.current;
       for (let i = 0; i < 3; i++) {
         const lx = centerX + (i - 1) * spacing;
         const ly = livesY + 24;
-        const hasLife = i < lives;
+        const hasLife = i < curLives;
 
         ctx.fillStyle = hasLife ? '#dc2626' : '#1e293b';
         ctx.beginPath();
-        ctx.arc(lx, ly, 11, 0, Math.PI * 2);
+        ctx.arc(lx, ly, 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = hasLife ? '#f87171' : '#334155';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         ctx.fillStyle = hasLife ? '#ffffff' : '#64748b';
-        ctx.font = 'bold 10px sans-serif';
+        ctx.font = 'bold 11px sans-serif';
         ctx.textBaseline = 'middle';
-        ctx.fillText(hasLife ? '♥' : '✖', lx, ly);
+        ctx.fillText(hasLife ? '♥' : '✕', lx, ly);
       }
 
       // 3. TIẾN TRÌNH CHIẾN DỊCH TỚI CĂN CỨ BOSS
@@ -1448,7 +2055,7 @@ export const GameContra: React.FC = () => {
       // 4. KẺ ĐỊCH TIÊU DIỆT
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText(`ĐÃ DIỆT: ${enemiesKilled} ĐỊCH`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 295);
+      ctx.fillText(`ĐÃ DIỆT: ${enemiesKilledRef.current} ĐỊCH`, SIDEBAR_X + SIDEBAR_WIDTH / 2, 295);
 
       // 5. ĐIỂM SỐ CHIẾN TRƯỜNG
       const scoreBoxY = 320;
@@ -1465,7 +2072,7 @@ export const GameContra: React.FC = () => {
 
       ctx.fillStyle = '#facc15';
       ctx.font = 'black 22px monospace';
-      ctx.fillText(`${score.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 54);
+      ctx.fillText(`${scoreRef.current.toLocaleString()}`, SIDEBAR_X + SIDEBAR_WIDTH / 2, scoreBoxY + 54);
 
       // Kỷ lục cao nhất
       ctx.fillStyle = '#64748b';
@@ -1486,23 +2093,7 @@ export const GameContra: React.FC = () => {
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [
-    isPaused, 
-    isGameOver, 
-    isVictory, 
-    stage, 
-    score, 
-    highScore, 
-    lives, 
-    weapon, 
-    enemiesKilled, 
-    gameMode, 
-    resetGame, 
-    handlePlayerShoot, 
-    playExplosionSound, 
-    playPowerupSound,
-    triggerShake
-  ]);
+  }, [handlePlayerShoot, highScore, playExplosionSound, playPowerupSound, triggerShake]);
 
   // Lưu điểm cao kỷ lục
   useEffect(() => {
@@ -1557,7 +2148,12 @@ export const GameContra: React.FC = () => {
         {/* Cột 3: Nút điều khiển Tạm dừng & Chơi lại */}
         <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setIsPaused((p) => !p)}
+            onClick={() => {
+              setIsPaused((p) => {
+                isPausedRef.current = !p;
+                return !p;
+              });
+            }}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
             title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
           >
@@ -1576,74 +2172,99 @@ export const GameContra: React.FC = () => {
 
       {/* Sân đấu Widescreen 16:9 Arcade Canvas Container */}
       <div 
-        className={`game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-150px)] bg-slate-950 rounded-3xl overflow-hidden border-4 border-red-500/40 shadow-[0_0_60px_rgba(239,68,68,0.25)] touch-none flex-1 min-h-0 transition-transform duration-100 ${
+        className={`relative w-full max-w-[min(96vw,1320px)] aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center transition-transform duration-75 ${
           screenShake ? 'scale-[0.99] translate-y-1 animate-pulse' : ''
         }`}
       >
         <canvas
           ref={canvasRef}
-          className="w-full h-full block"
+          style={{ width: '100%', height: '100%', display: 'block' }}
         />
 
-        {/* Điều khiển ảo trên Điện thoại Mobile */}
-        <div className="sm:hidden absolute inset-0 pointer-events-none flex justify-between items-end p-4 z-20">
-          {/* Cụm D-Pad ảo (Trái, Phải, Ngắm Lên, Nằm Xuống) */}
-          <div className="flex flex-col gap-1.5 pointer-events-auto">
-            <div className="flex justify-center">
+        {/* Cụm nút ảo Mobile D-Pad & Nút Bắn / Nhảy */}
+        <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:hidden z-30">
+          <div />
+          <div className="flex items-end justify-between w-full pointer-events-auto">
+            {/* D-Pad 4 hướng ảo */}
+            <div className="grid grid-cols-3 gap-1 bg-slate-950/70 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
+              <div />
               <button
                 onTouchStart={() => { keysPressedRef.current['ArrowUp'] = true; }}
                 onTouchEnd={() => { keysPressedRef.current['ArrowUp'] = false; }}
-                className="w-12 h-12 bg-slate-800/80 active:bg-red-500 rounded-xl border border-white/20 flex items-center justify-center text-white"
+                className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-cyan-600 flex items-center justify-center text-white"
               >
                 <ArrowUp className="w-5 h-5" />
               </button>
-            </div>
-            <div className="flex items-center gap-2">
+              <div />
+
               <button
                 onTouchStart={() => { keysPressedRef.current['ArrowLeft'] = true; }}
                 onTouchEnd={() => { keysPressedRef.current['ArrowLeft'] = false; }}
-                className="w-12 h-12 bg-slate-800/80 active:bg-red-500 rounded-xl border border-white/20 flex items-center justify-center text-white"
+                className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-cyan-600 flex items-center justify-center text-white"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <button
-                onTouchStart={() => { keysPressedRef.current['ArrowDown'] = true; }}
-                onTouchEnd={() => { keysPressedRef.current['ArrowDown'] = false; }}
-                className="w-12 h-12 bg-slate-800/80 active:bg-red-500 rounded-xl border border-white/20 flex items-center justify-center text-white"
-              >
-                <ArrowDown className="w-5 h-5" />
-              </button>
+              <div />
               <button
                 onTouchStart={() => { keysPressedRef.current['ArrowRight'] = true; }}
                 onTouchEnd={() => { keysPressedRef.current['ArrowRight'] = false; }}
-                className="w-12 h-12 bg-slate-800/80 active:bg-red-500 rounded-xl border border-white/20 flex items-center justify-center text-white"
+                className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-cyan-600 flex items-center justify-center text-white"
               >
                 <ArrowRight className="w-5 h-5" />
               </button>
+
+              <div />
+              <button
+                onTouchStart={() => { keysPressedRef.current['ArrowDown'] = true; }}
+                onTouchEnd={() => { keysPressedRef.current['ArrowDown'] = false; }}
+                className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-cyan-600 flex items-center justify-center text-white"
+              >
+                <ArrowDown className="w-5 h-5" />
+              </button>
+              <div />
             </div>
-          </div>
 
-          {/* Cụm Nút NHẢY và BẮN */}
-          <div className="flex items-center gap-3 pointer-events-auto">
-            <button
-              onTouchStart={handlePlayerJump}
-              className="w-14 h-14 rounded-2xl bg-slate-800/90 active:bg-amber-500 border border-white/20 text-white font-bold text-xs flex flex-col items-center justify-center"
-            >
-              <Crosshair className="w-5 h-5 mb-0.5 text-amber-400" />
-              <span>NHẢY</span>
-            </button>
-
-            <button
-              onTouchStart={handlePlayerShoot}
-              className="w-16 h-16 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white font-black flex items-center justify-center shadow-2xl active:scale-90 border-2 border-white/30 text-xs flex-col"
-            >
-              <Zap className="w-6 h-6 mb-0.5 fill-white" />
-              <span>BẮN</span>
-            </button>
+            {/* Cụm Nút BẮN & NHẢY */}
+            <div className="flex items-center gap-3">
+              <button
+                onTouchStart={handlePlayerJump}
+                className="w-14 h-14 rounded-full bg-blue-600/90 active:bg-blue-500 border-2 border-blue-400 flex items-center justify-center text-white font-black text-sm shadow-lg active:scale-95"
+              >
+                NHẢY
+              </button>
+              <button
+                onTouchStart={handlePlayerShoot}
+                className="w-16 h-16 rounded-full bg-red-600/90 active:bg-red-500 border-2 border-red-400 flex items-center justify-center text-white font-black text-base shadow-lg active:scale-95"
+              >
+                BẮN
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Modal Thắng Màn */}
+        {/* Màn hình Tạm dừng */}
+        {isPaused && (
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-40 animate-in fade-in duration-150">
+            <span className="text-4xl mb-3">⏸️</span>
+            <h3 className="text-xl sm:text-2xl font-black text-amber-400 mb-1 tracking-wider uppercase">
+              TẠM DỪNG CHIẾN DỊCH
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-300 mb-5">
+              Bấm [P] hoặc nút Tiếp tục để trở lại trận địa Galuga
+            </p>
+            <button
+              onClick={() => {
+                setIsPaused(false);
+                isPausedRef.current = false;
+              }}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-red-600 text-white font-bold text-sm shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer"
+            >
+              Tiếp Tục
+            </button>
+          </div>
+        )}
+
+        {/* Modal Chiến Thắng (Phá hủy căn cứ) */}
         {isVictory && (
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40 animate-in fade-in zoom-in-95 duration-200">
             <span className="text-5xl mb-2 animate-bounce">🏆</span>
