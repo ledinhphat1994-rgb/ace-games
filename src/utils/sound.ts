@@ -52,6 +52,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   'road-fighter': 'arcade',
   zuma: 'arcade',
   contra: 'heroic',
+  mario: 'arcade',
 };
 
 class SoundManager {
@@ -1271,6 +1272,261 @@ class SoundManager {
     this.playSoundFile('/sounds/notify.mp3', 0.75, () => {
       this.playButtonClick();
     });
+  }
+
+  // Super Mario Retro NES Chiptune Sound Suite
+  public playMarioJump(isSuper: boolean = false) {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      const startF = isSuper ? 160 : 140;
+      const endF = isSuper ? 560 : 460;
+      const dur = isSuper ? 0.22 : 0.18;
+      osc.frequency.setValueAtTime(startF, now);
+      osc.frequency.exponentialRampToValueAtTime(endF, now + dur);
+      gain.gain.setValueAtTime(0.14 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + dur + 0.02);
+    } catch {}
+  }
+
+  public playMarioCoin() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(987.77, now); // B5
+      gain1.gain.setValueAtTime(0.16 * sfx, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.09);
+
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+      gain2.gain.setValueAtTime(0.2 * sfx, now + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.4);
+    } catch {}
+  }
+
+  public playMarioPowerup() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const freqs = [330, 392, 523, 587, 659, 784, 880, 1046];
+      freqs.forEach((f, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        const t = now + i * 0.045;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.12 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.065);
+      });
+    } catch {}
+  }
+
+  public playMarioPowerdown() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const freqs = [659, 622, 587, 523, 494, 440, 392];
+      freqs.forEach((f, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sawtooth';
+        const t = now + i * 0.06;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.12 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.085);
+      });
+    } catch {}
+  }
+
+  public playMarioFireball() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(700, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.1);
+      gain.gain.setValueAtTime(0.16 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.11);
+    } catch {}
+  }
+
+  public playMarioStomp() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.12);
+      gain.gain.setValueAtTime(0.2 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+    } catch {}
+  }
+
+  public playMarioKick() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.16);
+      gain.gain.setValueAtTime(0.18 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.17);
+    } catch {}
+  }
+
+  public playMarioBrick() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(380, now);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.14);
+      gain.gain.setValueAtTime(0.22 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch {}
+  }
+
+  public playMarioFlag() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(784, now);
+      osc.frequency.linearRampToValueAtTime(220, now + 0.8);
+      gain.gain.setValueAtTime(0.18 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.86);
+    } catch {}
+  }
+
+  public playMarioStageClear() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // C4, E4, G4, C5, E5, G5, C6 triumph fanfare
+      const melody = [
+        { f: 261.63, d: 0.1 },
+        { f: 329.63, d: 0.1 },
+        { f: 392.00, d: 0.1 },
+        { f: 523.25, d: 0.15 },
+        { f: 659.25, d: 0.15 },
+        { f: 783.99, d: 0.2 },
+        { f: 1046.50, d: 0.5 },
+      ];
+      let offset = 0;
+      melody.forEach(n => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'square';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.15 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.9;
+      });
+    } catch {}
+  }
+
+  public playMarioDie() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const melody = [
+        { f: 523, d: 0.12 },
+        { f: 494, d: 0.12 },
+        { f: 440, d: 0.12 },
+        { f: 392, d: 0.25 },
+        { f: 330, d: 0.25 },
+        { f: 261, d: 0.4 },
+      ];
+      let offset = 0;
+      melody.forEach(n => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.15 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.95;
+      });
+    } catch {}
   }
 
   // Studio-Grade Synthesized Fallbacks (Epic, Sharp, Heroic Acoustics)

@@ -584,5 +584,31 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Contra', 'Rambo', 'Konami', 'Bắn súng', 'Đi cảnh', 'Đạn S', 'NES', 'Arcade', 'Kinh điển'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'mario',
+    title: 'Super Mario',
+    subtitle: 'Huyền thoại Nấm Mario 1985 giải cứu Công chúa Peach',
+    category: 'arcade',
+    categoryLabel: 'Phiêu Lưu & Nhảy Bậc',
+    description: 'Huyền thoại phiêu lưu đi cảnh màn ngang Super Mario Bros nguyên bản 1985! Điều khiển anh chàng thợ sửa ống nước quả cảm vượt qua Vương quốc Nấm, húc khối gạch bí mật [?], thu thập tiền vàng, ăn nấm đỏ Super Mushroom biến lớn, hái hoa lửa Fire Flower bắn cầu lửa nảy đất, dẫm bẹp Goomba, sút mai rùa Koopa và hạ gục rồng Bowser trên cầu dung nham.',
+    instructions: [
+      'Phím A / D (hoặc Mũi tên Trái / Phải) để di chuyển chạy qua các đồi cỏ, đường hầm ngầm và lâu đài.',
+      'Phím K hoặc Space để nhảy; Nhấn giữ lâu hơn để nhảy bổng cao qua các hố sâu và chướng ngại vật.',
+      'Phím S hoặc Mũi tên Xuống để cúi người hoặc tụt xuống các đường ống nước ngầm bí mật.',
+      'Phím J hoặc Z để chạy nhanh (Dash) và bắn cầu lửa khi đã nhặt Hoa Lửa (Fire Mario).',
+      'Húc đầu vào khối [?] để mở nấm lớn, tiền vàng và ngôi sao bất tử; Dẫm lên đầu kẻ địch để tiêu diệt.'
+    ],
+    controls: {
+      desktop: 'A / D (Chạy) • S (Cúi / Xuống ống) • Phím K / Space (Nhảy cao) • Phím J / Z (Bắn lửa & Tăng tốc)',
+      mobile: 'D-Pad điều hướng bên trái • Nút B (Bắn lửa / Chạy nhanh) • Nút A (Nhảy) bên phải'
+    },
+    thumbnailIcon: '🍄',
+    accentColor: 'from-red-600 via-orange-500 to-amber-500',
+    rating: 5.0,
+    plays: 1680000,
+    tags: ['Mario', 'Nấm lùn', 'Super Mario', 'Nintendo', 'Đi cảnh', 'Retro', 'NES', 'Arcade', 'Kinh điển'],
+    isHot: true,
+    isNew: true
   }
 ];

@@ -1820,6 +1820,98 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {game.id === 'mario' && (
+            <>
+              {/* CHỌN MÀN CHƠI KHỞI ĐIỂM */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-orange-400">
+                    <Layers className="w-4 h-4 text-orange-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Màn Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { stage: 1, label: '1-1 Đồng Cỏ' },
+                    { stage: 2, label: '1-2 Hang Ngầm' },
+                    { stage: 3, label: '1-3 Đỉnh Nấm' },
+                    { stage: 4, label: '1-4 Bowser' },
+                  ].map(({ stage, label }) => (
+                    <button
+                      key={stage}
+                      onClick={() => updateSetting('initialStage', stage)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialStage || 1) === stage
+                          ? 'bg-orange-500/20 text-orange-300 border border-orange-400/40 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SỐ MẠNG KHỞI ĐẦU */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-rose-400">
+                    <Heart className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Số Mạng</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { count: 3, label: '3 Mạng' },
+                    { count: 5, label: '5 Mạng' },
+                    { count: 10, label: '10 Mạng (Thoải mái)' }
+                  ].map(({ count, label }) => (
+                    <button
+                      key={count}
+                      onClick={() => updateSetting('initialLives', count)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialLives || 3) === count
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* HÌNH THÁI KHỞI ĐIỂM */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Hình Thái Mario</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'small', label: 'Mario Nhỏ' },
+                    { key: 'super', label: 'Siêu Mario' },
+                    { key: 'fire', label: 'Mario Lửa' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('initialForm', key)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialForm || 'small') === key
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}
