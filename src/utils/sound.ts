@@ -51,6 +51,7 @@ export const DEFAULT_GAME_TRACKS: Record<string, BgmTrack> = {
   galaga: 'arcade',
   'road-fighter': 'arcade',
   zuma: 'arcade',
+  contra: 'heroic',
 };
 
 class SoundManager {

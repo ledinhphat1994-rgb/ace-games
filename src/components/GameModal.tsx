@@ -24,6 +24,7 @@ import { GameBomberman } from '../games/GameBomberman';
 import { GameGalaga } from '../games/GameGalaga';
 import { GameRoadFighter } from '../games/GameRoadFighter';
 import { GameZuma } from '../games/GameZuma';
+import { GameContra } from '../games/GameContra';
 import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
@@ -193,6 +194,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'galaga': return <GameGalaga key={`${game.id}-${sessionKey}`} />;
       case 'road-fighter': return <GameRoadFighter key={`${game.id}-${sessionKey}`} />;
       case 'zuma': return <GameZuma key={`${game.id}-${sessionKey}`} />;
+      case 'contra': return <GameContra key={`${game.id}-${sessionKey}`} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">

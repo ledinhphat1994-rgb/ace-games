@@ -1707,6 +1707,127 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'contra':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#1c0808] via-[#2d0e14] to-[#0a0408] ${className}`}>
+          {/* Volcanic Ember Particles & Grid */}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#ef4444_1px,transparent_1px)] bg-[size:14px_14px]" />
+
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="contra-fire-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <radialGradient id="contra-fire" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="30%" stopColor="#fde047" />
+                <stop offset="65%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#dc2626" />
+              </radialGradient>
+              <linearGradient id="contra-metal" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#94a3b8" />
+                <stop offset="50%" stopColor="#475569" />
+                <stop offset="100%" stopColor="#1e293b" />
+              </linearGradient>
+              <linearGradient id="contra-title-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="35%" stopColor="#fef08a" />
+                <stop offset="70%" stopColor="#ea580c" />
+                <stop offset="100%" stopColor="#7f1d1d" />
+              </linearGradient>
+            </defs>
+
+            {/* Distant Volcanic Mountains & Blood Moon */}
+            <circle cx="165" cy="30" r="18" fill="#dc2626" opacity="0.3" filter="url(#contra-fire-glow)" />
+            <path d="M120 140 L145 65 L175 140 Z" fill="#2d151d" />
+            <path d="M150 140 L175 75 L200 140 Z" fill="#1f0d14" />
+
+            {/* Jungle Cliff Ground Platform */}
+            <path d="M0 108 L95 108 L115 125 L200 125 L200 140 L0 140 Z" fill="#0f172a" />
+            <path d="M0 108 L95 108" stroke="#15803d" strokeWidth="3" />
+            <path d="M115 125 L200 125" stroke="#15803d" strokeWidth="2.5" />
+            {/* Rock Strata Details */}
+            <rect x="15" y="116" width="22" height="6" rx="2" fill="#1e293b" />
+            <rect x="52" y="118" width="30" height="7" rx="2" fill="#1e293b" />
+            <rect x="135" y="130" width="35" height="5" rx="2" fill="#1e293b" />
+
+            {/* Red Falcon Defense Fortress Wall on Right */}
+            <rect x="160" y="80" width="40" height="45" rx="3" fill="url(#contra-metal)" stroke="#334155" strokeWidth="1.5" />
+            <circle cx="178" cy="98" r="8" fill="#450a0a" stroke="#dc2626" strokeWidth="2" filter="url(#contra-fire-glow)" />
+            <circle cx="178" cy="98" r="4.5" fill="#ef4444" />
+            {/* Cannon Barrel */}
+            <rect x="150" y="96" width="12" height="4" rx="1" fill="#64748b" />
+            <circle cx="149" cy="98" r="2.5" fill="#f87171" filter="url(#contra-fire-glow)" />
+
+            {/* Flying Falcon Power-Up Capsule */}
+            <g transform="translate(100, 32)">
+              {/* Wings */}
+              <path d="M-14 -1 L-6 4 L-14 9 Z" fill="#ef4444" />
+              <path d="M14 -1 L6 4 L14 9 Z" fill="#ef4444" />
+              {/* Capsule Pod */}
+              <rect x="-7" y="-1" width="14" height="10" rx="3" fill="#facc15" stroke="#ca8a04" strokeWidth="1" filter="url(#contra-fire-glow)" />
+              <text x="0" y="7" fill="#78350f" fontSize="7" fontWeight="900" fontFamily="monospace" textAnchor="middle">S</text>
+            </g>
+
+            {/* Commando Hero (Bill Rizer) in Action Stance */}
+            <g transform="translate(48, 78)">
+              {/* Dynamic Shadow */}
+              <ellipse cx="0" cy="30" rx="14" ry="4" fill="#000000" opacity="0.6" />
+
+              {/* Red Headband Streaming Wind */}
+              <path d="M-10 -15 C-18 -18 -22 -14 -30 -16" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M-10 -13 C-16 -14 -20 -11 -27 -12" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" />
+
+              {/* Head & Face */}
+              <circle cx="-5" cy="-14" r="5" fill="#fed7aa" />
+              <rect x="-8" y="-16" width="7" height="2.5" fill="#ef4444" /> {/* Headband knot */}
+              <rect x="-6" y="-19" width="6" height="3.5" rx="1" fill="#78350f" /> {/* Spiky Brown Hair */}
+
+              {/* Muscular Torso with Blue Combat Vest */}
+              <path d="M-8 -9 L2 -9 L0 5 L-7 5 Z" fill="#2563eb" stroke="#1d4ed8" strokeWidth="1" />
+              {/* Bare Muscular Shoulders / Arms */}
+              <circle cx="-8" cy="-6" r="3" fill="#fed7aa" />
+              <path d="M-8 -5 L-3 2 L8 -4" stroke="#fed7aa" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+
+              {/* Heavy Assault Rifle */}
+              <rect x="0" y="-7" width="22" height="4.5" rx="1" fill="#334155" stroke="#64748b" strokeWidth="0.8" />
+              <rect x="6" y="-2" width="4" height="6" fill="#1e293b" />
+              <rect x="18" y="-9" width="3" height="2" fill="#ef4444" /> {/* Laser Sight */}
+
+              {/* Combat Pants & Boots */}
+              <rect x="-7" y="5" width="5" height="15" rx="2" fill="#1e40af" />
+              <rect x="-1" y="5" width="5" height="15" rx="2" fill="#1e3a8a" />
+              <rect x="-9" y="19" width="7" height="5" rx="1.5" fill="#0f172a" />
+              <rect x="-2" y="19" width="7" height="5" rx="1.5" fill="#0f172a" />
+
+              {/* Spread Gun Fireballs [S] - 5 Multi-angle Projectiles */}
+              <g transform="translate(24, -5)" filter="url(#contra-fire-glow)">
+                {/* Center Shot */}
+                <circle cx="12" cy="0" r="4.5" fill="url(#contra-fire)" />
+                {/* Up Diagonal */}
+                <circle cx="11" cy="-7" r="4" fill="url(#contra-fire)" />
+                <circle cx="9" cy="-14" r="3.5" fill="url(#contra-fire)" />
+                {/* Down Diagonal */}
+                <circle cx="11" cy="7" r="4" fill="url(#contra-fire)" />
+                <circle cx="9" cy="14" r="3.5" fill="url(#contra-fire)" />
+              </g>
+            </g>
+
+            {/* Retro Metallic CONTRA Title Badge */}
+            <g transform="translate(18, 22)">
+              <rect x="-4" y="-12" width="68" height="18" rx="4" fill="#030712" opacity="0.85" stroke="#ef4444" strokeWidth="1" />
+              <text x="30" y="2" fill="url(#contra-title-grad)" fontSize="13" fontWeight="900" fontFamily="sans-serif" letterSpacing="1.5" textAnchor="middle">
+                CONTRA
+              </text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

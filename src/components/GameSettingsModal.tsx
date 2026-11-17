@@ -1728,6 +1728,98 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
             </>
           )}
 
+          {game.id === 'contra' && (
+            <>
+              {/* CHẾ ĐỘ CHIẾN DỊCH */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-red-400">
+                    <Layers className="w-4 h-4 text-red-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Chế Độ Chơi</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'classic', label: 'Cổ Điển' },
+                    { key: 'speed', label: 'Tốc Độ' },
+                    { key: 'hardcore', label: 'Chiến Tướng' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('gameMode', key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.gameMode || 'classic') === key
+                          ? 'bg-red-500/20 text-red-300 border border-red-400/40 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SỐ MẠNG KHỞI ĐIỂM (KONAMI 30 LIVES) */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-rose-400">
+                    <Heart className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Số Mạng</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { count: 3, label: '3 Mạng' },
+                    { count: 5, label: '5 Mạng' },
+                    { count: 30, label: '30 Mạng (Konami)' }
+                  ].map(({ count, label }) => (
+                    <button
+                      key={count}
+                      onClick={() => updateSetting('initialLives', count)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialLives || 3) === count
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* VŨ KHÍ KHỞI ĐẦU */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-slate-800 text-amber-400">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-gray-200">Vũ Khí Đầu</span>
+                </div>
+                <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10">
+                  {[
+                    { key: 'normal', label: 'Rifle' },
+                    { key: 'spread', label: 'Đạn S' },
+                    { key: 'machine', label: 'Đạn M' },
+                    { key: 'laser', label: 'Laser' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => updateSetting('initialWeapon', key)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        (settings.initialWeapon || 'normal') === key
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-sm'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Footer Bar: 2 nút HỦY BỎ và ÁP DỤNG chuẩn logic thiết kế giao diện cài đặt */}

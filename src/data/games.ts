@@ -557,6 +557,32 @@ export const GAMES_CATALOG: GameInfo[] = [
     plays: 950000,
     tags: ['Zuma', 'Bắn bi', 'PopCap', 'Giải đố', 'Match 3', 'Cóc đá', 'Kinh điển', 'Arcade'],
     isHot: true,
+    isNew: false
+  },
+  {
+    id: 'contra',
+    title: 'Contra Cổ Điển',
+    subtitle: 'Huyền thoại Rambo NES 1987, tiêu diệt sào huyệt Red Falcon',
+    category: 'arcade',
+    categoryLabel: 'Arcade & Bắn Súng',
+    description: 'Huyền thoại bắn súng đi cảnh màn ngang Contra Konami 1987 kinh điển! Vào vai chiến binh biệt kích dũng mãnh Bill Rizer xâm nhập hòn đảo Galuga, ngắm bắn 8 hướng linh hoạt, nhảy lộn nhào né đạn, nhặt phù hiệu chim ưng bọc thép trang bị đạn chùm Spread Gun (S), súng máy Machine Gun (M) và Laser (L) hủy diệt phòng tuyến Red Falcon!',
+    instructions: [
+      'Sử dụng phím A / D (hoặc Mũi tên Trái / Phải) để di chuyển chạy qua các mỏm đá và rừng rậm nhiệt đới.',
+      'Bấm phím W / Mũi tên Lên để ngắm bắn lên cao; Bấm phím S / Mũi tên Xuống để nằm rạp xuống đất né đạn hoặc ngụp lặn dưới nước.',
+      'Kết hợp phím Chạy + Lên/Xuống để ngắm bắn chéo 8 hướng cực kỳ linh hoạt chuẩn xác.',
+      'Bấm phím K (hoặc Space / X) để nhảy lộn nhào lên các tầng vách đá; Giữ phím S + K để nhảy hạ xuống tầng dưới.',
+      'Bấm giữ phím J (hoặc Z / C) để xả súng tiêu diệt lính gác, tháp pháo xoay và lõi tim pháo đài Red Falcon.'
+    ],
+    controls: {
+      desktop: 'A / D (Chạy) • W / S (Ngắm lên / Nằm rạp) • Phím K hoặc Space (Nhảy) • Phím J hoặc Z (Bắn 8 hướng)',
+      mobile: 'Cần D-Pad 8 hướng ảo • Nút NHẢY • Nút BẮN hỏa lực'
+    },
+    thumbnailIcon: '🎖️',
+    accentColor: 'from-red-600 via-amber-500 to-rose-700',
+    rating: 5.0,
+    plays: 1250000,
+    tags: ['Contra', 'Rambo', 'Konami', 'Bắn súng', 'Đi cảnh', 'Đạn S', 'NES', 'Arcade', 'Kinh điển'],
+    isHot: true,
     isNew: true
   }
 ];
