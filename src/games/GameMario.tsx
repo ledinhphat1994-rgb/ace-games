@@ -8,7 +8,11 @@ import {
   ArrowRight, 
   ArrowDown, 
   Trophy, 
-  ChevronRight
+  ChevronRight,
+  Coins,
+  Clock,
+  Heart,
+  Flame
 } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 
@@ -2719,6 +2723,8 @@ export const GameMario: React.FC = () => {
           ctx.fillStyle = '#000000';
           ctx.fillRect(cx - 3.5, cy - 4, 2.5, 8);
           ctx.fillRect(cx + 1, cy - 4, 2.5, 8);
+        } else if (item.type === 'coin') {
+          drawVectorCoin(ctx, item.x + item.w / 2, item.y + item.h / 2, 10);
         }
       });
 
@@ -2823,40 +2829,6 @@ export const GameMario: React.FC = () => {
       });
 
       ctx.restore(); // Kết thúc dịch chuyển Camera
-
-      // BANNER HUD PHÍA TRÊN SÂN KHẤU (Chuẩn Retro Arcade Top HUD - Tối Giản, Ít Chữ, Rõ Ràng)
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 0, ARENA_WIDTH, 38);
-
-      // Điểm số dạng số vàng lớn nổi bật
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'bold 15px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(`${scoreRef.current.toString().padStart(6, '0')}`, 105, 24);
-
-      // Icon Đồng Xu Vàng 3D Vector & Số Lượng Xu
-      drawVectorCoin(ctx, 210, 19, 7.5);
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText(`x ${coinsRef.current.toString().padStart(2, '0')}`, 224, 24);
-
-      // Màn chơi
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText(`W${currentWorld}-${currentStage}`, 300, 24);
-
-      // Thời gian còn lại
-      ctx.fillStyle = timeLeft < 50 ? '#ef4444' : '#f8fafc';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText(`TIME ${Math.ceil(timeLeft)}`, 385, 24);
-
-      // Mạng sống (Biểu tượng trái tim ♥)
-      const heartCount = livesRef.current;
-      for (let hIdx = 0; hIdx < 3; hIdx++) {
-        ctx.fillStyle = hIdx < heartCount ? '#f43f5e' : '#334155';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.fillText('♥', 485 + hIdx * 16, 24);
-      }
 
       ctx.restore(); // Kết thúc clip Arena
 
@@ -3012,65 +2984,88 @@ export const GameMario: React.FC = () => {
   }, [startNewGame]);
 
   return (
-    <div 
-      className="relative w-full h-full flex items-center justify-center select-none bg-slate-950 overflow-hidden p-0"
-      style={{ containerType: 'size' }}
-    >
-      {/* Khung Canvas Trò Chơi Widescreen 16:9 Maximize Toàn Vùng Viewport Tự Động Co Giãn Tối Đa */}
+    <div className="flex flex-col items-center justify-center w-full h-full select-none">
+      {/* 3-Column Top HUD Bar chuẩn hệ thống Ace Games */}
+      <div className="relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-1.5 mb-1.5 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm flex-shrink-0">
+        {/* Cột 1: Thông tin màn chơi & Chuyển màn nhanh */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-500/20 text-orange-300 font-bold border border-orange-500/30">
+            <Flame className="w-3.5 h-3.5 text-orange-400" />
+            <span className="text-xs uppercase font-mono">Màn 1-{currentStage}</span>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1 bg-slate-950/60 p-0.5 rounded-lg border border-white/5">
+            {[1, 2, 3, 4].map(stg => (
+              <button
+                key={stg}
+                onClick={() => {
+                  soundManager.playButtonClick();
+                  startNewGame(stg);
+                }}
+                className={`px-2 py-0.5 rounded text-xs font-bold transition cursor-pointer ${
+                  currentStage === stg
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                1-{stg}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Cột 2: Điểm số & Mạng - CĂN CHÍNH GIỮA TUYỆT ĐỐI */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 sm:gap-5 font-mono font-bold text-xs sm:text-sm pointer-events-none">
+          <div className="flex items-center gap-1 text-amber-400">
+            <Trophy className="w-3.5 h-3.5" />
+            <span className="text-gray-400 text-xs hidden md:inline">ĐIỂM:</span>
+            <span>{score.toLocaleString()}</span>
+          </div>
+
+          <div className="flex items-center gap-1 text-yellow-400">
+            <Coins className="w-3.5 h-3.5" />
+            <span>x{coins.toString().padStart(2, '0')}</span>
+          </div>
+
+          <div className="flex items-center gap-1 text-cyan-300">
+            <Clock className="w-3.5 h-3.5" />
+            <span>{Math.ceil(timeLeft)}s</span>
+          </div>
+
+          <div className="flex items-center gap-1 text-rose-400">
+            <Heart className="w-3.5 h-3.5 fill-rose-500" />
+            <span>{lives} MẠNG</span>
+          </div>
+        </div>
+
+        {/* Cột 3: Nút điều khiển Tạm dừng & Chơi lại */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setGameState(prev => prev === 'playing' ? 'paused' : prev === 'paused' ? 'playing' : prev)}
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+            title={gameState === 'paused' ? 'Tiếp tục' : 'Tạm dừng (P)'}
+          >
+            {gameState === 'paused' ? <Play className="w-3.5 h-3.5 text-emerald-400" /> : <Pause className="w-3.5 h-3.5 text-amber-400" />}
+          </button>
+
+          <button
+            onClick={() => startNewGame(currentStage)}
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-white/10 transition cursor-pointer active:scale-95 shadow-sm"
+            title="Chơi Lại Ván Này"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Sân đấu Widescreen 16:9 Arcade Canvas Container */}
       <div 
-        className="relative bg-slate-950 overflow-hidden flex items-center justify-center"
-        style={{
-          width: 'min(100cqw, calc(100cqh * 16 / 9))',
-          height: 'min(100cqh, calc(100cqw * 9 / 16))',
-          aspectRatio: '16 / 9',
-        }}
+        className="relative w-full max-w-[min(96vw,1320px)] max-h-[calc(100dvh-185px)] aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center flex-1 min-h-0"
       >
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: '100%', display: 'block' }}
+          className="w-full h-full max-w-full max-h-full object-contain block"
         />
-
-        {/* Thanh Điều Khiển Tiện Ích Trong Trận Đấu */}
-        <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-slate-950/75 p-1 rounded-xl border border-white/10 backdrop-blur-md">
-          <button
-            onClick={() => startNewGame(currentStage)}
-            className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-gray-300 hover:text-white transition active:scale-90 cursor-pointer"
-            title="Chơi lại ván này"
-          >
-            <RotateCcw className="w-4 h-4 text-cyan-400" />
-          </button>
-          <button
-            onClick={() => setGameState(prev => prev === 'playing' ? 'paused' : prev === 'paused' ? 'playing' : prev)}
-            className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-gray-300 hover:text-white transition active:scale-90 cursor-pointer"
-            title={gameState === 'paused' ? 'Tiếp tục' : 'Tạm dừng'}
-          >
-            {gameState === 'paused' ? (
-              <Play className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <Pause className="w-4 h-4 text-amber-400" />
-            )}
-          </button>
-        </div>
-
-        {/* Chọn Màn Chơi Nhanh Trong Trận Đấu (Góc trên bên phải của Arena) */}
-        <div className="absolute top-2 right-[215px] z-20 hidden md:flex items-center gap-1 bg-slate-950/75 p-1 rounded-xl border border-white/10 backdrop-blur-md">
-          {[1, 2, 3, 4].map(stg => (
-            <button
-              key={stg}
-              onClick={() => {
-                soundManager.playButtonClick();
-                startNewGame(stg);
-              }}
-              className={`px-2 py-0.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                currentStage === stg
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/40'
-                  : 'text-gray-400 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              1-{stg}
-            </button>
-          ))}
-        </div>
 
         {/* Nút Điều Khiển Cảm Ứng Ảo Trên Thiết Bị Di Động */}
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:hidden z-30">

@@ -87,74 +87,81 @@ export function App() {
       {/* Interactive Animated Cyberpunk Arcade Background */}
       <ArcadeBackground />
 
-      {/* Top Navigation: Ẩn hoàn toàn khi đang chơi game để màn hình game Full 100% Viewport */}
-      {!activeGame && (
-        <Header
-          searchQuery={searchQuery}
-          onSearchChange={(q) => {
-            setSearchQuery(q);
-            if (q) setActiveGame(null);
-          }}
-          selectedCategory={selectedCategory}
-          onCategoryChange={(cat) => {
-            setSelectedCategory(cat);
-            setActiveGame(null);
-          }}
-          onRandomGame={handleRandomGame}
-        />
-      )}
+      {/* Top Navigation */}
+      <Header
+        searchQuery={searchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          if (q) setActiveGame(null);
+        }}
+        selectedCategory={selectedCategory}
+        onCategoryChange={(cat) => {
+          setSelectedCategory(cat);
+          setActiveGame(null);
+        }}
+        onRandomGame={handleRandomGame}
+      />
 
-      {/* Main Content Arena: Full Màn Hình khi chơi game, Grid Catalog khi chọn game */}
-      {activeGame ? (
-        <GameModal
-          game={activeGame}
-          onClose={handleCloseActiveGame}
-        />
-      ) : (
-        <main className="relative z-10 flex-1 max-w-[1360px] mx-auto w-full px-3 sm:px-6 py-4 sm:py-6">
-          {/* Normal Catalog Mode: Show Game Cards Grid when not playing */}
-          {filteredGames.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4.5">
-              {filteredGames.map((game, idx) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  onPlay={handlePlayGame}
-                  isFavorite={favorites.includes(game.id)}
-                  onToggleFavorite={handleToggleFavorite}
-                  isFeatured={selectedCategory === 'all' && !searchQuery && idx === 0}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 max-w-md mx-auto my-12">
-              <span className="text-5xl mb-3 block">
-                {selectedCategory === 'favorites' ? '💔' : '🔍'}
-              </span>
-              <h3 className="text-base font-bold text-white mb-1.5">
-                {selectedCategory === 'favorites'
-                  ? 'Chưa có game yêu thích'
-                  : 'Không tìm thấy game'}
-              </h3>
-              <p className="text-xs text-gray-400 mb-4">
-                {selectedCategory === 'favorites'
-                  ? 'Bấm ❤️ ở thẻ game để lưu vào đây.'
-                  : 'Thử tìm từ khóa: cờ, 2048, rắn, gạch...'}
-              </p>
-              <button
-                onClick={() => {
-                  soundManager.playButtonClick();
-                  setSearchQuery('');
-                  setSelectedCategory('all');
-                }}
-                className="px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-full text-xs shadow-lg shadow-cyan-500/30 transition cursor-pointer"
-              >
-                Xem Toàn Bộ Game
-              </button>
-            </div>
-          )}
-        </main>
-      )}
+      {/* Main Content Arena: VÙNG 2 (Central Container, Max-width: 1360px) */}
+      <main className={`relative z-10 flex-1 max-w-[1360px] mx-auto w-full px-3 sm:px-6 ${
+        activeGame 
+          ? 'h-[calc(100dvh-104px)] py-2 sm:py-3 flex flex-col overflow-hidden' 
+          : 'py-4 sm:py-6'
+      }`}>
+        {/* If a game is active: ONLY show the current game in VÙNG 2, NO scrollbar, NO other games */}
+        {activeGame ? (
+          <div className="w-full h-full flex flex-col overflow-hidden">
+            <GameModal
+              game={activeGame}
+              onClose={handleCloseActiveGame}
+            />
+          </div>
+        ) : (
+          /* Normal Catalog Mode: Show Game Cards Grid when not playing */
+          <>
+            {filteredGames.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4.5">
+                {filteredGames.map((game, idx) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    onPlay={handlePlayGame}
+                    isFavorite={favorites.includes(game.id)}
+                    onToggleFavorite={handleToggleFavorite}
+                    isFeatured={selectedCategory === 'all' && !searchQuery && idx === 0}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 max-w-md mx-auto my-12">
+                <span className="text-5xl mb-3 block">
+                  {selectedCategory === 'favorites' ? '💔' : '🔍'}
+                </span>
+                <h3 className="text-base font-bold text-white mb-1.5">
+                  {selectedCategory === 'favorites'
+                    ? 'Chưa có game yêu thích'
+                    : 'Không tìm thấy game'}
+                </h3>
+                <p className="text-xs text-gray-400 mb-4">
+                  {selectedCategory === 'favorites'
+                    ? 'Bấm ❤️ ở thẻ game để lưu vào đây.'
+                    : 'Thử tìm từ khóa: cờ, 2048, rắn, gạch...'}
+                </p>
+                <button
+                  onClick={() => {
+                    soundManager.playButtonClick();
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                  }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-full text-xs shadow-lg shadow-cyan-500/30 transition cursor-pointer"
+                >
+                  Xem Toàn Bộ Game
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </main>
 
       {/* Footer: Shown ONLY in catalog mode, hidden when playing to avoid scrolling */}
       {!activeGame && <Footer />}
