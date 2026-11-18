@@ -256,7 +256,7 @@ export const GameDuckHunt: React.FC = () => {
       claysRef.current.forEach(c => {
         if (c.state === 'flying') {
           const dist = Math.hypot(targetX - c.x, targetY - c.y);
-          if (dist <= c.radius + 18) {
+          if (dist <= c.radius + 24) {
             c.state = 'shattered';
             hitClay = true;
             addScore(c.points, c.x, c.y);
@@ -291,7 +291,7 @@ export const GameDuckHunt: React.FC = () => {
     ducksRef.current.forEach(d => {
       if (d.state === 'flying') {
         const dist = Math.hypot(targetX - d.x, targetY - d.y);
-        if (dist <= 38) {
+        if (dist <= 48) {
           d.state = 'shot_pause';
           d.shotPauseTimer = 0.35;
           hitAny = true;
@@ -323,40 +323,38 @@ export const GameDuckHunt: React.FC = () => {
     }
   }, [addScore]);
 
-  // Handle Mouse Click & Touch on Canvas
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Precise Canvas Coordinate Converter (Bulletproof for all screens and fullscreen)
+  const getCanvasCoords = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-    mousePosRef.current = { x, y, isDown: true };
-    shootGun(x, y);
+    if (rect.width <= 0 || rect.height <= 0) return null;
+
+    const x = ((clientX - rect.left) / rect.width) * CANVAS_WIDTH;
+    const y = ((clientY - rect.top) / rect.height) * CANVAS_HEIGHT;
+
+    return {
+      x: Math.max(0, Math.min(CANVAS_WIDTH, x)),
+      y: Math.max(0, Math.min(CANVAS_HEIGHT, y)),
+    };
+  }, []);
+
+  // Handle Pointer Movement & Shot (Mouse & Touch with 0ms latency)
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    if (coords) {
+      mousePosRef.current.x = coords.x;
+      mousePosRef.current.y = coords.y;
+    }
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
-    mousePosRef.current.x = (e.clientX - rect.left) * scaleX;
-    mousePosRef.current.y = (e.clientY - rect.top) * scaleY;
-  };
-
-  const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || e.touches.length === 0) return;
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
-    const x = (touch.clientX - rect.left) * scaleX;
-    const y = (touch.clientY - rect.top) * scaleY;
-    mousePosRef.current = { x, y, isDown: true };
-    shootGun(x, y);
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    if (coords) {
+      mousePosRef.current = { x: coords.x, y: coords.y, isDown: true };
+      shootGun(coords.x, coords.y);
+    }
   };
 
   // Keyboard Shortcuts (1/2/3 change mode, Space shoot)
@@ -927,6 +925,25 @@ export const GameDuckHunt: React.FC = () => {
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       }
 
+      // 2.10.1 "FLY AWAY" Banner (Khi vịt bay thoát)
+      const hasEscaping = ducksRef.current.some(d => d.state === 'escaped');
+      if (hasEscaping && st === 'hunting') {
+        ctx.save();
+        ctx.fillStyle = '#ec4899';
+        ctx.beginPath();
+        ctx.roundRect(CANVAS_WIDTH / 2 - 100, 130, 200, 44, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#fbcfe8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 22px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('FLY AWAY', CANVAS_WIDTH / 2, 152);
+        ctx.restore();
+      }
+
       // 2.11 Animated NES Zapper Crosshair Reticle (Follows Cursor)
       const mouse = mousePosRef.current;
       ctx.save();
@@ -1014,9 +1031,9 @@ export const GameDuckHunt: React.FC = () => {
   }, [startNewGame]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full select-none">
+    <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full select-none">
       {/* 3-Column Top HUD Bar chuẩn hệ thống Ace Games */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-1.5 mb-1.5 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm flex-shrink-0">
+      <div className="game-top-hud relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-1.5 mb-1.5 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm flex-shrink-0">
         {/* Cột 1: Chế độ chơi & Vòng */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
@@ -1096,14 +1113,13 @@ export const GameDuckHunt: React.FC = () => {
 
       {/* Sân đấu Widescreen 16:9 Arcade Canvas Container */}
       <div 
-        className="relative w-full max-w-[min(96vw,1320px)] max-h-[calc(100dvh-185px)] aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center flex-1 min-h-0 cursor-crosshair"
+        className="game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-185px)] bg-slate-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center flex-1 min-h-0 cursor-none"
       >
         <canvas
           ref={canvasRef}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onTouchStart={handleCanvasTouchStart}
-          className="w-full h-full max-w-full max-h-full object-contain block"
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          className="w-full h-full block cursor-none touch-none select-none"
         />
       </div>
     </div>

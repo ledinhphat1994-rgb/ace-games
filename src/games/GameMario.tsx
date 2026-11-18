@@ -2984,9 +2984,9 @@ export const GameMario: React.FC = () => {
   }, [startNewGame]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full select-none">
+    <div className="game-arena-wrapper flex flex-col items-center justify-center w-full h-full select-none">
       {/* 3-Column Top HUD Bar chuẩn hệ thống Ace Games */}
-      <div className="relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-1.5 mb-1.5 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm flex-shrink-0">
+      <div className="game-top-hud relative w-full max-w-[min(96vw,1320px)] flex items-center justify-between px-3 sm:px-4 py-1.5 mb-1.5 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg text-xs sm:text-sm flex-shrink-0">
         {/* Cột 1: Thông tin màn chơi & Chuyển màn nhanh */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-500/20 text-orange-300 font-bold border border-orange-500/30">
@@ -3060,11 +3060,11 @@ export const GameMario: React.FC = () => {
 
       {/* Sân đấu Widescreen 16:9 Arcade Canvas Container */}
       <div 
-        className="relative w-full max-w-[min(96vw,1320px)] max-h-[calc(100dvh-185px)] aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center flex-1 min-h-0"
+        className="game-arena-box relative w-full aspect-[16/9] max-w-[min(96vw,1320px)] max-h-[calc(100dvh-185px)] bg-slate-950 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center flex-1 min-h-0"
       >
         <canvas
           ref={canvasRef}
-          className="w-full h-full max-w-full max-h-full object-contain block"
+          className="w-full h-full block"
         />
 
         {/* Nút Điều Khiển Cảm Ứng Ảo Trên Thiết Bị Di Động */}

@@ -57,18 +57,22 @@
 /* True Fullscreen Game Layout when user expands to full screen */
 .is-game-fullscreen .game-arena-wrapper {
   max-width: 100vw !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-height: 100vh !important;
-  padding: 0 8px 8px 8px !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  padding: 4px 8px 8px 8px !important;
   margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
   justify-content: flex-start !important;
+  overflow: hidden !important;
 }
 
 .is-game-fullscreen .game-top-hud {
-  max-width: 100vw !important;
+  max-width: min(100vw, calc((100vh - 105px) * 16 / 9)) !important;
   width: 100% !important;
-  margin-top: 4px !important;
+  margin-top: 2px !important;
   margin-bottom: 4px !important;
   padding-top: 4px !important;
   padding-bottom: 4px !important;
@@ -77,15 +81,19 @@
 }
 
 .is-game-fullscreen .game-arena-box {
+  width: min(100vw, calc((100vh - 105px) * 16 / 9)) !important;
+  height: min(calc(100vh - 105px), calc(100vw * 9 / 16)) !important;
   max-width: 100vw !important;
-  max-height: calc(100vh - 54px) !important;
-  height: calc(100vh - 54px) !important;
+  max-height: calc(100vh - 105px) !important;
+  aspect-ratio: 16 / 9 !important;
   border-radius: 16px !important;
   margin: 0 auto !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
 }
 
 .is-game-fullscreen .game-board-inner {
-  max-height: calc(100vh - 72px) !important;
+  max-height: calc(100vh - 105px) !important;
   height: 100% !important;
 }
 
