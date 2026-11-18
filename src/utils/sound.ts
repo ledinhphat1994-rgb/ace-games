@@ -2285,6 +2285,177 @@ class SoundManager {
     } catch {}
   }
 
+  // --- KUNG FU (SPARTAN X) PROCEDURAL SOUNDS ---
+  public playKungFuPunch() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(480, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.18 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.09);
+    } catch {}
+  }
+
+  public playKungFuKick() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.22 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.13);
+    } catch {}
+  }
+
+  public playKungFuJump() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(540, this.ctx.currentTime + 0.14);
+      gain.gain.setValueAtTime(0.12 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.14);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.15);
+    } catch {}
+  }
+
+  public playKungFuHit() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.18);
+      gain.gain.setValueAtTime(0.2 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.19);
+    } catch {}
+  }
+
+  public playKungFuKnife() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(900, this.ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.08 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.16);
+    } catch {}
+  }
+
+  public playKungFuBossHit() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.2);
+      gain.gain.setValueAtTime(0.25 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.21);
+    } catch {}
+  }
+
+  public playKungFuStageClear() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // Iconic 8-bit Kung Fu triumphant fanfare
+      const melody = [
+        { f: 523, d: 0.12 }, // C5
+        { f: 659, d: 0.12 }, // E5
+        { f: 784, d: 0.12 }, // G5
+        { f: 1046, d: 0.28 }, // C6
+        { f: 880, d: 0.14 }, // A5
+        { f: 1046, d: 0.45 }, // C6
+      ];
+      let offset = 0;
+      melody.forEach((n) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'square';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.18 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.95;
+      });
+    } catch {}
+  }
+
+  public playKungFuGameOver() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [
+        { f: 392, d: 0.2 },
+        { f: 370, d: 0.2 },
+        { f: 349, d: 0.2 },
+        { f: 330, d: 0.45 },
+      ];
+      let offset = 0;
+      notes.forEach((n) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sawtooth';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.18 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.9;
+      });
+    } catch {}
+  }
+
   private synthBeep(freq: number, dur: number) {
     const sfx = this.getEffectiveSfxVolume();
     if (sfx <= 0.001 || !this.ctx) return;

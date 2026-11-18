@@ -688,5 +688,32 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Dig Dug', 'Namco', 'NES', 'Băng 4 nút', 'Đào đất', 'Bơm quái', 'Pooka', 'Fygar', 'Arcade', 'Kinh điển', 'Retro'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'kung-fu',
+    title: 'Võ Thuật Cổ Điển',
+    subtitle: 'Huyền thoại Kung Fu NES 1984 - Đột kích Tháp 5 Tầng Cứu Silvia',
+    category: 'arcade',
+    categoryLabel: 'Võ Thuật & Đối Kháng',
+    description: 'Huyền thoại Võ Thuật Kung Fu (Spartan X) kinh điển trên máy băng 4 nút NES 1984 của Nintendo & Irem! Cùng võ sư Thomas đột kích qua 5 tầng tháp ma quỷ đầy hiểm nguy để giải cứu người yêu Silvia bị bắt cóc. Sử dụng những cú đấm thép thần tốc, cú đá sấm sét tầm xa, cú nhảy đá phi long trên không và cúi người né tránh phi đao để đánh bại binh đoàn côn đồ, kẻ lùn nhào lộn và các Đại Cao Thủ Trùm cuối mỗi tầng!',
+    instructions: [
+      'Phím A / D hoặc Mũi tên Trái / Phải để di chuyển tiến lùi; Phím S / Mũi tên Xuống để Cúi né dao; Phím W / Mũi tên Lên để Nhảy.',
+      'Phím J hoặc Z để tung Cú Đấm (Punch) nhanh như chớp (200 điểm); Phím K hoặc Space để tung Cú Đá (Kick) sải chân dài (100 điểm).',
+      'Nhảy đá trên không (Jump Kick): Nhảy lên và bấm Đá để tung cước phi long tiêu diệt mục tiêu tầm cao.',
+      'Cúi đấm / Cúi đá (Crouch Strike): Cúi người né dao ném thấp và hạ gục kẻ lùn nhào lộn Tom Tom.',
+      'Nếu bị kẻ địch ôm lấy (Grippers), hãy bấm phím Trái/Phải liên tục để hất văng chúng ra trước khi bị rút cạn máu.',
+      'Hạ gục Trùm cuối mỗi tầng (Gậy thiết côn, Boomerang, Đô vật khổng lồ, Pháp sư phù thủy, Chưởng môn Mr. X) để lên tầng tiếp theo!'
+    ],
+    controls: {
+      desktop: 'A / D: Tiến/Lùi • W: Nhảy • S: Cúi né • Phím J / Z: Đấm • Phím K / Space: Đá • R: Chơi lại',
+      mobile: 'Cụm D-Pad 4 hướng bên trái • Nút ĐẤM (J) & Nút ĐÁ (K) bên phải'
+    },
+    thumbnailIcon: '🥋',
+    accentColor: 'from-red-600 via-rose-500 to-amber-500',
+    rating: 5.0,
+    plays: 1850000,
+    tags: ['Kung Fu', 'Spartan X', 'Võ thuật', 'NES', 'Băng 4 nút', 'Nintendo', 'Irem', 'Đối kháng', 'Retro', 'Arcade', 'Kinh điển'],
+    isHot: true,
+    isNew: true
   }
 ];
