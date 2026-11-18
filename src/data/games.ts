@@ -636,5 +636,31 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Bắn vịt', 'Duck Hunt', 'NES', 'Băng 4 nút', 'Súng Zapper', 'Retro', 'Arcade', 'Kinh điển', 'Phản xạ'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'circus-charlie',
+    title: 'Xiếc Hề Cổ Điển',
+    subtitle: 'Huyền thoại Circus Charlie NES 1984 - Cưỡi Sư Tử Nhảy Vòng Lửa',
+    category: 'arcade',
+    categoryLabel: 'Hành Động & Phản Xạ',
+    description: 'Huyền thoại Xiếc Hề Circus Charlie kinh điển trên máy băng 4 nút NES 1984 của Konami! Cùng chú hề Charlie quả cảm trổ tài làm xiếc đỉnh cao: Cưỡi sư tử nhảy qua các vòng lửa đỏ rực và chậu lửa bốc cháy, giữ thăng bằng trên dây thép né tránh đàn khỉ nhào lộn, và nhảy bật trên các tấm bạt lò xo nhịp nhàng. Âm nhạc rộn rã cùng tiếng hò reo cổ vũ của khán giả rạp xiếc!',
+    instructions: [
+      'Phím A / D hoặc Mũi tên Trái / Phải để tăng tốc chạy tới hoặc ghìm cương lùi lại.',
+      'Phím K hoặc Space để nhảy bổng; Căn chuẩn thời điểm để nhảy qua vòng lửa và chậu lửa.',
+      'Nhảy qua các vòng lửa nhỏ và ăn túi tiền xu $ bên trong để nhận điểm thưởng khổng lồ.',
+      'Màn 2: Đi dây né tránh đàn khỉ xanh và khỉ nâu nhảy vọt qua đầu.',
+      'Vượt qua 100 mét đường chạy để đáp xuống bục vinh quang rực rỡ!'
+    ],
+    controls: {
+      desktop: 'A / D (hoặc Mũi tên): Chạy tới / Lùi lại • Phím K / Space: Nhảy qua lửa • Phím 1, 2, 3: Chọn Màn',
+      mobile: 'Nút mũi tên Trái / Phải bên trái • Nút Nhảy (JUMP) bên phải'
+    },
+    thumbnailIcon: '🎪',
+    accentColor: 'from-amber-500 via-rose-500 to-indigo-600',
+    rating: 5.0,
+    plays: 1530000,
+    tags: ['Xiếc hề', 'Circus Charlie', 'Konami', 'NES', 'Băng 4 nút', 'Cưỡi sư tử', 'Vòng lửa', 'Retro', 'Arcade', 'Kinh điển'],
+    isHot: true,
+    isNew: true
   }
 ];

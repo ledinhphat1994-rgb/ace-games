@@ -1739,6 +1739,136 @@ class SoundManager {
     } catch {}
   }
 
+  // ==========================================
+  // CIRCUS CHARLIE SOUND SYSTEM (RETRO KONAMI 8-BIT)
+  // ==========================================
+  public playCircusJump() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(680, now + 0.16);
+      gain.gain.setValueAtTime(0.18 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.19);
+    } catch {}
+  }
+
+  public playCircusBonus() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [
+        { f: 880, d: 0.06 },
+        { f: 1175, d: 0.08 },
+        { f: 1760, d: 0.14 },
+      ].forEach((n, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        const t = now + i * 0.06;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.22 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+      });
+    } catch {}
+  }
+
+  public playCircusFlame() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const bufferSize = this.ctx.sampleRate * 0.18;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.07));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.2 * sfx, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      noise.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+    } catch {}
+  }
+
+  public playCircusFail() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [
+        { f: 310, d: 0.12 },
+        { f: 290, d: 0.12 },
+        { f: 270, d: 0.12 },
+        { f: 230, d: 0.35 },
+      ];
+      let offset = 0;
+      notes.forEach((n) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sawtooth';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.2 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.9;
+      });
+    } catch {}
+  }
+
+  public playCircusStageClear() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // High-energy 8-bit circus triumph fanfare
+      const melody = [
+        { f: 523, d: 0.1 },
+        { f: 659, d: 0.1 },
+        { f: 784, d: 0.1 },
+        { f: 1046, d: 0.25 },
+        { f: 880, d: 0.12 },
+        { f: 1046, d: 0.4 },
+      ];
+      let offset = 0;
+      melody.forEach((n) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'square';
+        const t = now + offset;
+        osc.frequency.setValueAtTime(n.f, t);
+        gain.gain.setValueAtTime(0.2 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + n.d + 0.02);
+        offset += n.d * 0.92;
+      });
+    } catch {}
+  }
+
   // Studio-Grade Synthesized Fallbacks (Epic, Sharp, Heroic Acoustics)
   private synthWoodClick(freq: number = 430, dur: number = 0.09) {
     const sfx = this.getEffectiveSfxVolume();

@@ -2167,6 +2167,167 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'circus-charlie':
+      return (
+        <div className={`relative w-full h-full overflow-hidden bg-gradient-to-br from-[#1e1b4b] via-[#2e1065] to-[#0f172a] ${className}`}>
+          {/* Subtle Circus Spotlight Glow */}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] bg-[size:14px_14px]" />
+
+          <svg className="w-full h-full" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="circus-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <linearGradient id="circus-fire" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="25%" stopColor="#fef08a" />
+                <stop offset="60%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#dc2626" />
+              </linearGradient>
+              <linearGradient id="circus-title-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="35%" stopColor="#fde047" />
+                <stop offset="70%" stopColor="#ea580c" />
+                <stop offset="100%" stopColor="#7f1d1d" />
+              </linearGradient>
+            </defs>
+
+            {/* Circus Big Top Tent Stripes Background */}
+            <path d="M0 0 L200 0 L200 85 L0 85 Z" fill="#1e1b4b" />
+            <path d="M20 0 L40 0 L35 85 L15 85 Z" fill="#431407" opacity="0.6" />
+            <path d="M60 0 L80 0 L75 85 L55 85 Z" fill="#431407" opacity="0.6" />
+            <path d="M100 0 L120 0 L115 85 L95 85 Z" fill="#431407" opacity="0.6" />
+            <path d="M140 0 L160 0 L155 85 L135 85 Z" fill="#431407" opacity="0.6" />
+            <path d="M180 0 L200 0 L195 85 L175 85 Z" fill="#431407" opacity="0.6" />
+
+            {/* Glowing Spotlight Cone from Ceiling */}
+            <polygon points="100,0 20,140 180,140" fill="#fef08a" opacity="0.12" filter="url(#circus-glow)" />
+
+            {/* Cheering Spectator Silhouette Benches */}
+            <path d="M0 72 Q50 68 100 72 Q150 68 200 72 L200 86 L0 86 Z" fill="#090d16" />
+            {/* Silhouettes of heads */}
+            {[10, 25, 40, 58, 72, 88, 105, 122, 138, 155, 172, 188].map(hx => (
+              <circle key={hx} cx={hx} cy={70} r={3.5} fill="#090d16" />
+            ))}
+
+            {/* Circus Arena Floor with Star Trim */}
+            <rect x="0" y="86" width="200" height="54" fill="#0284c7" />
+            <rect x="0" y="86" width="200" height="5" fill="#f59e0b" />
+            <rect x="0" y="118" width="200" height="22" fill="#0369a1" />
+
+            {/* Flaming Fire Pot on Ground (Right) */}
+            <g transform="translate(162, 110)">
+              <rect x="-8" y="0" width="16" height="8" rx="2" fill="#1e293b" stroke="#475569" strokeWidth="1" />
+              {/* Flames rising from pot */}
+              <path d="M-6 0 Q-2 -16 0 0 Q2 -20 6 0 Z" fill="url(#circus-fire)" filter="url(#circus-glow)" />
+            </g>
+
+            {/* Flaming Fire Hoop (Center-Right) */}
+            <g transform="translate(142, 68)" filter="url(#circus-glow)">
+              {/* Outer Flaming Ring */}
+              <ellipse cx="0" cy="0" rx="14" ry="32" stroke="url(#circus-fire)" strokeWidth="4.5" fill="none" />
+              <ellipse cx="0" cy="0" rx="14" ry="32" stroke="#ffffff" strokeWidth="1.5" fill="none" />
+              {/* Fire Flame Licks along the Ring */}
+              <path d="M-13 -18 Q-20 -24 -12 -12" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M13 -18 Q20 -24 12 -12" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M-13 18 Q-20 24 -12 12" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M13 18 Q20 24 12 12" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M0 -32 Q-4 -42 0 -36" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
+              <path d="M0 32 Q4 42 0 36" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
+
+              {/* Bonus Money Pouch Hanging in Center of Hoop */}
+              <g transform="translate(0, 0)">
+                <ellipse cx="0" cy="2" rx="4" ry="4.5" fill="#facc15" stroke="#a16207" strokeWidth="0.8" />
+                <text x="0" y="4.5" fill="#78350f" fontSize="5" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">$</text>
+              </g>
+            </g>
+
+            {/* Charlie the Clown Riding the Galloping Lion! */}
+            <g transform="translate(70, 78)">
+              {/* 1. Galloping Lion */}
+              {/* Lion Body */}
+              <ellipse cx="0" cy="18" rx="22" ry="12" fill="#f59e0b" stroke="#b45309" strokeWidth="1" />
+              {/* Lion White Belly */}
+              <ellipse cx="0" cy="21" rx="16" ry="7" fill="#fde68a" />
+
+              {/* Lion Back Legs (Galloping Back) */}
+              <path d="M-14 20 L-26 30 L-22 34 L-12 24" fill="#d97706" />
+              <path d="M-18 18 L-30 26 L-27 30 L-14 22" fill="#b45309" />
+
+              {/* Lion Front Legs (Leaping Forward) */}
+              <path d="M12 22 L26 32 L22 35 L10 26" fill="#d97706" />
+              <path d="M16 20 L30 28 L27 31 L14 23" fill="#b45309" />
+
+              {/* Lion Tail */}
+              <path d="M-20 14 C-28 6 -32 18 -36 12" stroke="#b45309" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              <circle cx="-37" cy="12" r="3" fill="#78350f" />
+
+              {/* Lion Brown Fluffy Mane */}
+              <circle cx="16" cy="10" r="14" fill="#78350f" />
+              <circle cx="12" cy="4" r="9" fill="#92400e" />
+              <circle cx="22" cy="12" r="8" fill="#92400e" />
+
+              {/* Lion Head */}
+              <circle cx="20" cy="10" r="8" fill="#f59e0b" />
+              {/* Lion Snout */}
+              <ellipse cx="25" cy="12" rx="4" ry="3.5" fill="#fde68a" />
+              <circle cx="26" cy="10" r="1.5" fill="#451a03" />
+              {/* Lion Fierce/Friendly Eye */}
+              <circle cx="21" cy="7" r="1.5" fill="#ffffff" />
+              <circle cx="21.5" cy="7" r="0.8" fill="#000000" />
+              {/* Lion Ears */}
+              <circle cx="14" cy="2" r="2.5" fill="#f59e0b" />
+
+              {/* 2. Charlie the Clown Riding on Top */}
+              {/* Blue Circus Pants */}
+              <ellipse cx="-4" cy="11" rx="6" ry="5" fill="#2563eb" />
+              {/* Red Circus Boots */}
+              <ellipse cx="-4" cy="17" rx="3.5" ry="2" fill="#ef4444" />
+
+              {/* Charlie's Torso (Yellow Circus Jumpsuit with Red Polka Dots) */}
+              <rect x="-8" y="-3" width="9" height="11" rx="2" fill="#facc15" stroke="#ca8a04" strokeWidth="0.8" />
+              <circle cx="-5" cy="0" r="1" fill="#ef4444" />
+              <circle cx="-2" cy="4" r="1" fill="#ef4444" />
+
+              {/* Ruffled White Clown Collar */}
+              <ellipse cx="-4" cy="-3" rx="6" ry="2.5" fill="#ffffff" />
+
+              {/* Charlie's Head (White Clown Makeup) */}
+              <circle cx="-4" cy="-10" r="6" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.8" />
+              {/* Red Clown Nose */}
+              <circle cx="-1" cy="-10" r="2" fill="#ef4444" />
+              {/* Clown Smiling Painted Mouth */}
+              <path d="M-3 -7 Q-1 -5 1 -7" stroke="#dc2626" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              {/* Happy Eye */}
+              <circle cx="-2" cy="-12" r="1" fill="#0f172a" />
+              {/* Red Clown Hair Tufts on Sides */}
+              <circle cx="-10" cy="-10" r="2.5" fill="#f97316" />
+              <circle cx="-9" cy="-13" r="2" fill="#f97316" />
+
+              {/* Pointy Red Clown Party Hat with Blue Pom-Pom */}
+              <path d="M-7 -15 L-3 -23 L0 -15 Z" fill="#ef4444" />
+              <circle cx="-3" cy="-24" r="2" fill="#38bdf8" />
+
+              {/* Charlie's Arms Waving to Crowd */}
+              <path d="M-1 -2 L8 -7 L12 -12" stroke="#fed7aa" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="12" cy="-12" r="2" fill="#ffffff" />
+            </g>
+
+            {/* Retro CIRCUS CHARLIE Arcade Title Badge */}
+            <g transform="translate(14, 126)">
+              <rect x="-4" y="-13" width="98" height="18" rx="4" fill="#030712" opacity="0.92" stroke="#f59e0b" strokeWidth="1" />
+              <text x="45" y="0" fill="url(#circus-title-grad)" fontSize="10" fontWeight="900" fontFamily="monospace" letterSpacing="0.8" textAnchor="middle">
+                CIRCUS CHARLIE
+              </text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>
