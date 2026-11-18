@@ -5,9 +5,9 @@ import { soundManager } from '../utils/sound';
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 540;
-const GROUND_Y = 440; // Ground floor level
+const GROUND_Y = 430; // Polished wooden floor baseline
 const STAGE_LENGTH_METERS = 100;
-const PX_PER_METER = 35; // Total corridor length = 3500px
+const PX_PER_METER = 35; // 3500px total corridor length
 
 type Direction = 'left' | 'right';
 type GameState = 'playing' | 'stage_clear' | 'game_over' | 'paused';
@@ -132,7 +132,8 @@ export const GameKungFu: React.FC = () => {
     dir: 'right' as Direction,
     action: 'idle' as PlayerAction,
     actionTimer: 0,
-    speed: 3.4,
+    maxActionTimer: 0,
+    speed: 3.5,
     animTimer: 0,
     hp: 16,
     maxHp: 16,
@@ -142,6 +143,9 @@ export const GameKungFu: React.FC = () => {
     grippedCount: 0,
     shakeCount: 0,
     lastShakeDir: '' as string,
+    // Hit tracking to prevent multiple hits on same enemy per attack swing
+    hitEnemiesThisSwing: new Set<number>(),
+    hitBossThisSwing: false,
   });
 
   // Camera & Screen Shake
@@ -208,17 +212,17 @@ export const GameKungFu: React.FC = () => {
   };
 
   // Combat Particles
-  const spawnParticles = (x: number, y: number, color: string, count = 14) => {
+  const spawnParticles = (x: number, y: number, color: string, count = 16) => {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 5.5;
+      const speed = 2.5 + Math.random() * 5.5;
       particlesRef.current.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 1.5,
+        vy: Math.sin(angle) * speed - 1.8,
         color,
-        size: 3 + Math.random() * 4,
+        size: 3 + Math.random() * 4.5,
         life: 20 + Math.random() * 15,
         maxLife: 35,
       });
@@ -235,22 +239,22 @@ export const GameKungFu: React.FC = () => {
     soundManager.playKungFuHit();
 
     if (p.shakeCount >= 3) {
-      // Violent Kung Fu Burst!
+      // Violent Martial Arts Shockwave
       p.shakeCount = 0;
       p.grippedCount = 0;
       setIsGripped(false);
       soundManager.playKungFuKick();
-      screenShakeRef.current = 10;
+      screenShakeRef.current = 12;
 
       // Knock all grabbing enemies away!
       for (const en of enemiesRef.current) {
         if (en.isGripping) {
           en.isGripping = false;
           en.isDead = true;
-          en.knockbackVx = Math.random() > 0.5 ? 7 : -7;
-          en.knockbackVy = -7;
-          spawnParticles(en.worldX - cameraXRef.current, en.y - 40, '#3b82f6', 16);
-          addFloater(en.worldX - cameraXRef.current, en.y - 60, 'HẤT VĂNG!', '#38bdf8');
+          en.knockbackVx = Math.random() > 0.5 ? 8.5 : -8.5;
+          en.knockbackVy = -8;
+          spawnParticles(en.worldX - cameraXRef.current, en.y - 45, '#3b82f6', 20);
+          addFloater(en.worldX - cameraXRef.current, en.y - 65, 'HẤT VĂNG!', '#38bdf8');
         }
       }
     }
@@ -269,7 +273,8 @@ export const GameKungFu: React.FC = () => {
       dir: 'right',
       action: 'idle',
       actionTimer: 0,
-      speed: 3.4,
+      maxActionTimer: 0,
+      speed: 3.5,
       animTimer: 0,
       hp: 16,
       maxHp: 16,
@@ -279,6 +284,8 @@ export const GameKungFu: React.FC = () => {
       grippedCount: 0,
       shakeCount: 0,
       lastShakeDir: '',
+      hitEnemiesThisSwing: new Set(),
+      hitBossThisSwing: false,
     };
 
     setPlayerHp(16);
@@ -286,7 +293,7 @@ export const GameKungFu: React.FC = () => {
     cameraXRef.current = 0;
     setIsGripped(false);
 
-    // Boss waits at 92 meters (before the stairs)
+    // Boss waits at 92 meters
     bossRef.current = {
       active: false,
       floor: targetFloor,
@@ -328,7 +335,7 @@ export const GameKungFu: React.FC = () => {
     p.actionTimer = 16;
     screenShakeRef.current = 8;
     soundManager.playKungFuHit();
-    spawnParticles(p.worldX - cameraXRef.current, p.y - 45, '#ef4444', 16);
+    spawnParticles(p.worldX - cameraXRef.current, p.y - 50, '#ef4444', 18);
 
     if (p.hp <= 0) {
       p.isDead = true;
@@ -363,7 +370,7 @@ export const GameKungFu: React.FC = () => {
         // Jump
         if (p.isGrounded && !p.isDead && p.actionTimer <= 0 && p.grippedCount === 0) {
           p.isGrounded = false;
-          p.vy = -13.5;
+          p.vy = -14;
           p.action = 'jump';
           soundManager.playKungFuJump();
         }
@@ -418,124 +425,146 @@ export const GameKungFu: React.FC = () => {
     const p = playerRef.current;
     if (p.isDead || gameStateRef.current !== 'playing' || p.grippedCount > 0) return;
 
+    // Reset swing hit tracking
+    p.hitEnemiesThisSwing.clear();
+    p.hitBossThisSwing = false;
+
     if (!p.isGrounded) {
-      // Flying Dragon Kick in Mid-Air!
+      // Mid-Air Flying Dragon Kick
       p.action = 'jump_kick';
-      p.actionTimer = 18;
+      p.actionTimer = 22;
+      p.maxActionTimer = 22;
       soundManager.playKungFuKick();
-      checkAttackHit('jump_kick');
+      checkActiveHitbox();
     } else if (keysRef.current.down) {
-      // Crouch Strike
+      // Low Crouch Strike
       if (type === 'punch') {
         p.action = 'crouch_punch';
         p.actionTimer = 12;
+        p.maxActionTimer = 12;
         soundManager.playKungFuPunch();
-        checkAttackHit('crouch_punch');
+        checkActiveHitbox();
       } else {
         p.action = 'crouch_kick';
         p.actionTimer = 15;
+        p.maxActionTimer = 15;
         soundManager.playKungFuKick();
-        checkAttackHit('crouch_kick');
+        checkActiveHitbox();
       }
     } else {
       // Standing Strike
       if (type === 'punch') {
         p.action = 'punch';
         p.actionTimer = 11;
+        p.maxActionTimer = 11;
         soundManager.playKungFuPunch();
-        checkAttackHit('punch');
+        checkActiveHitbox();
       } else {
         p.action = 'kick';
         p.actionTimer = 15;
+        p.maxActionTimer = 15;
         soundManager.playKungFuKick();
-        checkAttackHit('kick');
+        checkActiveHitbox();
       }
     }
   };
 
-  // Combat Hit Detection
-  const checkAttackHit = (atkType: PlayerAction) => {
+  // Continuous Hitbox Checking while attack is active
+  const checkActiveHitbox = () => {
     const p = playerRef.current;
+    if (
+      p.action !== 'punch' &&
+      p.action !== 'kick' &&
+      p.action !== 'jump_kick' &&
+      p.action !== 'crouch_punch' &&
+      p.action !== 'crouch_kick'
+    ) {
+      return;
+    }
+
     const isFacingRight = p.dir === 'right';
 
-    // Strike reach and bounds (scaled for 80px tall Thomas)
-    let strikeReach = 65;
-    let strikeTop = p.y - 75;
-    let strikeBottom = p.y;
+    // Reach and height bounds calibrated to 96px character model
+    let reach = 70;
+    let topY = p.y - 85;
+    let bottomY = p.y;
     let pts = 100;
 
-    if (atkType === 'punch') {
-      strikeReach = 60;
-      strikeTop = p.y - 75;
-      strikeBottom = p.y - 35;
+    if (p.action === 'punch') {
+      reach = 68;
+      topY = p.y - 88;
+      bottomY = p.y - 40;
       pts = 200;
-    } else if (atkType === 'kick') {
-      strikeReach = 85;
-      strikeTop = p.y - 65;
-      strikeBottom = p.y - 20;
+    } else if (p.action === 'kick') {
+      reach = 92;
+      topY = p.y - 80;
+      bottomY = p.y - 20;
       pts = 100;
-    } else if (atkType === 'jump_kick') {
-      strikeReach = 90;
-      strikeTop = p.y - 90;
-      strikeBottom = p.y - 10;
+    } else if (p.action === 'jump_kick') {
+      reach = 100;
+      topY = p.y - 100;
+      bottomY = p.y - 10;
       pts = 300;
-    } else if (atkType === 'crouch_punch') {
-      strikeReach = 65;
-      strikeTop = p.y - 45;
-      strikeBottom = p.y;
+    } else if (p.action === 'crouch_punch') {
+      reach = 72;
+      topY = p.y - 50;
+      bottomY = p.y;
       pts = 200;
-    } else if (atkType === 'crouch_kick') {
-      strikeReach = 80;
-      strikeTop = p.y - 40;
-      strikeBottom = p.y;
+    } else if (p.action === 'crouch_kick') {
+      reach = 90;
+      topY = p.y - 45;
+      bottomY = p.y;
       pts = 100;
     }
 
-    const strikeLeft = isFacingRight ? p.worldX : p.worldX - strikeReach;
-    const strikeRight = isFacingRight ? p.worldX + strikeReach : p.worldX;
+    const strikeLeft = isFacingRight ? p.worldX : p.worldX - reach;
+    const strikeRight = isFacingRight ? p.worldX + reach : p.worldX;
 
-    // 1. Deflect Flying Knives in mid-air!
+    // 1. Deflect Flying Knives in mid-air
     for (const kn of knivesRef.current) {
       if (kn.isDeflected) continue;
-      if (kn.x >= strikeLeft && kn.x <= strikeRight && kn.y >= strikeTop && kn.y <= strikeBottom) {
+      if (kn.x >= strikeLeft && kn.x <= strikeRight && kn.y >= topY && kn.y <= bottomY) {
         kn.isDeflected = true;
         kn.vx = -kn.vx * 1.8;
         soundManager.playKungFuKick();
         screenShakeRef.current = 4;
-        addFloater(kn.x - cameraXRef.current, kn.y - 15, '+500 KENG!', '#fde047');
-        spawnParticles(kn.x - cameraXRef.current, kn.y, '#facc15', 10);
+        addFloater(kn.x - cameraXRef.current, kn.y - 15, '+500 PHẢN ĐÒN!', '#fde047');
+        spawnParticles(kn.x - cameraXRef.current, kn.y, '#facc15', 12);
         setScore((s) => s + 500);
       }
     }
 
     // 2. Strike Standard Enemies
     for (const en of enemiesRef.current) {
-      if (en.isDead) continue;
+      if (en.isDead || p.hitEnemiesThisSwing.has(en.id)) continue;
+
       if (
-        en.worldX >= strikeLeft - 25 &&
-        en.worldX <= strikeRight + 25 &&
-        en.y >= strikeTop &&
-        en.y <= strikeBottom + 10
+        en.worldX >= strikeLeft - 30 &&
+        en.worldX <= strikeRight + 30 &&
+        en.y >= topY - 10 &&
+        en.y <= bottomY + 15
       ) {
+        p.hitEnemiesThisSwing.add(en.id);
         en.hp--;
+
         if (en.hp <= 0) {
           en.isDead = true;
           en.isGripping = false;
-          en.knockbackVx = isFacingRight ? 8.5 : -8.5;
-          en.knockbackVy = -7.5;
+          en.knockbackVx = isFacingRight ? 9 : -9;
+          en.knockbackVy = -8;
           screenShakeRef.current = 6;
 
           setScore((s) => s + pts);
-          addFloater(en.worldX - cameraXRef.current, en.y - 50, `+${pts}`);
+          addFloater(en.worldX - cameraXRef.current, en.y - 55, `+${pts}`);
           spawnParticles(
             en.worldX - cameraXRef.current,
-            en.y - 40,
+            en.y - 45,
             en.type === 'gripper' ? '#3b82f6' : en.type === 'knife_thrower' ? '#ef4444' : '#facc15',
-            18
+            20
           );
         } else {
           // Hurt stagger
-          en.worldX += isFacingRight ? 30 : -30;
+          en.worldX += isFacingRight ? 35 : -35;
           soundManager.playKungFuHit();
         }
       }
@@ -543,21 +572,22 @@ export const GameKungFu: React.FC = () => {
 
     // 3. Strike Boss
     const boss = bossRef.current;
-    if (boss && boss.active && boss.hp > 0) {
+    if (boss && boss.active && boss.hp > 0 && !p.hitBossThisSwing) {
       if (
-        boss.worldX >= strikeLeft - 35 &&
-        boss.worldX <= strikeRight + 35 &&
-        boss.y >= strikeTop - 15 &&
-        boss.y <= strikeBottom + 15
+        boss.worldX >= strikeLeft - 40 &&
+        boss.worldX <= strikeRight + 40 &&
+        boss.y >= topY - 20 &&
+        boss.y <= bottomY + 20
       ) {
+        p.hitBossThisSwing = true;
         boss.hp--;
         setBossHp(boss.hp);
         boss.state = 'hurt';
         boss.stateTimer = 18;
-        screenShakeRef.current = 9;
+        screenShakeRef.current = 10;
         soundManager.playKungFuBossHit();
-        spawnParticles(boss.worldX - cameraXRef.current, boss.y - 50, '#f59e0b', 22);
-        addFloater(boss.worldX - cameraXRef.current, boss.y - 70, '+500', '#fbbf24');
+        spawnParticles(boss.worldX - cameraXRef.current, boss.y - 60, '#f59e0b', 25);
+        addFloater(boss.worldX - cameraXRef.current, boss.y - 80, '+500', '#fbbf24');
         setScore((s) => s + 500);
 
         if (boss.hp <= 0) {
@@ -566,13 +596,13 @@ export const GameKungFu: React.FC = () => {
           setBossActive(false);
           soundManager.playKungFuStageClear();
           confetti({
-            particleCount: 70,
+            particleCount: 80,
             spread: 80,
             origin: { y: 0.6 },
           });
 
           setScore((s) => s + 5000);
-          addFloater(boss.worldX - cameraXRef.current, boss.y - 90, '+5,000 ĐIỂM THƯỞNG!', '#10b981');
+          addFloater(boss.worldX - cameraXRef.current, boss.y - 100, '+5,000 ĐIỂM THƯỞNG!', '#10b981');
 
           setGameState('stage_clear');
           setTimeout(() => {
@@ -638,20 +668,22 @@ export const GameKungFu: React.FC = () => {
       // Gravity & Jump Physics
       if (!p.isGrounded) {
         p.y += p.vy;
-        p.vy += 0.75; // gravity
+        p.vy += 0.8; // crisp gravity
         if (p.y >= GROUND_Y) {
           p.y = GROUND_Y;
           p.vy = 0;
           p.isGrounded = true;
           if (p.action === 'jump' || p.action === 'jump_kick') {
             p.action = 'idle';
+            p.actionTimer = 0;
           }
         }
       }
 
-      // Action Timer
+      // Active attack frame checks
       if (p.actionTimer > 0) {
         p.actionTimer--;
+        checkActiveHitbox(); // Active hitbox on every frame!
         if (p.actionTimer <= 0) {
           if (p.isGrounded) {
             p.action = keys.down ? 'crouch' : 'idle';
@@ -668,12 +700,12 @@ export const GameKungFu: React.FC = () => {
           p.worldX = Math.max(50, p.worldX - p.speed);
           p.dir = 'left';
           p.action = 'walk';
-          p.animTimer += 0.25;
+          p.animTimer += 0.28;
         } else if (keys.right) {
           p.worldX = Math.min(STAGE_LENGTH_METERS * PX_PER_METER, p.worldX + p.speed);
           p.dir = 'right';
           p.action = 'walk';
-          p.animTimer += 0.25;
+          p.animTimer += 0.28;
         } else {
           p.action = 'idle';
           p.animTimer += 0.05;
@@ -682,6 +714,9 @@ export const GameKungFu: React.FC = () => {
         // Air Drift
         if (keys.left) p.worldX = Math.max(50, p.worldX - p.speed * 0.7);
         if (keys.right) p.worldX = Math.min(STAGE_LENGTH_METERS * PX_PER_METER, p.worldX + p.speed * 0.7);
+        if (p.action === 'jump_kick') {
+          checkActiveHitbox(); // Flying kick stays active while in mid-air!
+        }
       }
 
       // Update distance to stairs
@@ -689,18 +724,16 @@ export const GameKungFu: React.FC = () => {
       setMetersLeft(distM);
 
       // Camera smoothly tracks player
-      const targetCamX = Math.max(0, p.worldX - CANVAS_WIDTH * 0.4);
-      cameraXRef.current += (targetCamX - cameraXRef.current) * 0.12;
+      const targetCamX = Math.max(0, p.worldX - CANVAS_WIDTH * 0.38);
+      cameraXRef.current += (targetCamX - cameraXRef.current) * 0.14;
 
       // 2. SPAWN ENEMIES
       spawnTimerRef.current++;
       const boss = bossRef.current;
       const canSpawn = !boss || !boss.active;
-
-      // Ensure at most 4 enemies on screen at once
       const activeEnemiesCount = enemiesRef.current.filter((en) => !en.isDead).length;
 
-      if (canSpawn && activeEnemiesCount < 4 && spawnTimerRef.current > 80) {
+      if (canSpawn && activeEnemiesCount < 4 && spawnTimerRef.current > 85) {
         spawnTimerRef.current = 0;
         const roll = Math.random();
         const spawnRight = Math.random() < 0.65;
@@ -715,7 +748,7 @@ export const GameKungFu: React.FC = () => {
               worldX: spawnX,
               y: GROUND_Y,
               dir: spawnRight ? 'left' : 'right',
-              speed: 2.4 + floorRef.current * 0.15,
+              speed: 2.3 + floorRef.current * 0.15,
               hp: 1,
               isGripping: false,
               gripTimer: 0,
@@ -738,7 +771,7 @@ export const GameKungFu: React.FC = () => {
               hp: 2,
               isGripping: false,
               gripTimer: 0,
-              throwCooldown: 50,
+              throwCooldown: 55,
               animTimer: 0,
               isDead: false,
               knockbackVx: 0,
@@ -753,7 +786,7 @@ export const GameKungFu: React.FC = () => {
               worldX: spawnX,
               y: GROUND_Y,
               dir: spawnRight ? 'left' : 'right',
-              speed: 3.5,
+              speed: 3.6,
               hp: 1,
               isGripping: false,
               gripTimer: 0,
@@ -783,7 +816,7 @@ export const GameKungFu: React.FC = () => {
           en.worldX += en.knockbackVx;
           en.y += en.knockbackVy;
           en.knockbackVy += 0.5; // gravity
-          en.rotation += 0.2;
+          en.rotation += 0.22;
           if (en.y > CANVAS_HEIGHT + 100) {
             enemiesRef.current.splice(i, 1);
           }
@@ -792,12 +825,12 @@ export const GameKungFu: React.FC = () => {
 
         // Face player
         en.dir = en.worldX > p.worldX ? 'left' : 'right';
-        en.animTimer += 0.2;
+        en.animTimer += 0.22;
 
         if (en.type === 'gripper') {
           if (en.isGripping) {
             currentGrippers++;
-            en.worldX = p.worldX + (en.dir === 'left' ? 14 : -14);
+            en.worldX = p.worldX + (en.dir === 'left' ? 16 : -16);
             en.gripTimer++;
             if (en.gripTimer % 50 === 0) {
               hurtPlayer(1);
@@ -805,14 +838,14 @@ export const GameKungFu: React.FC = () => {
           } else {
             // Run toward player
             en.worldX += en.dir === 'left' ? -en.speed : en.speed;
-            if (Math.abs(en.worldX - p.worldX) < 24 && Math.abs(en.y - p.y) < 25) {
+            if (Math.abs(en.worldX - p.worldX) < 26 && Math.abs(en.y - p.y) < 25) {
               en.isGripping = true;
               soundManager.playKungFuHit();
             }
           }
         } else if (en.type === 'knife_thrower') {
           const distToP = Math.abs(en.worldX - p.worldX);
-          if (distToP > 230) {
+          if (distToP > 240) {
             en.worldX += en.dir === 'left' ? -en.speed : en.speed;
           } else {
             // Throw knives at player!
@@ -822,10 +855,10 @@ export const GameKungFu: React.FC = () => {
               const throwHigh = Math.random() < 0.6;
               knivesRef.current.push({
                 id: Date.now() + Math.random(),
-                x: en.worldX + (en.dir === 'left' ? -25 : 25),
-                // High knife at 380px (head height when standing, dodged by crouch)
-                // Low knife at 425px (knee height, dodged by jumping)
-                y: throwHigh ? 380 : 425,
+                x: en.worldX + (en.dir === 'left' ? -28 : 28),
+                // High knife at 368px (head/chest height when standing, dodged by crouch)
+                // Low knife at 420px (knee height, dodged by jumping)
+                y: throwHigh ? 368 : 420,
                 vx: en.dir === 'left' ? -5.8 : 5.8,
                 angle: 0,
                 heightType: throwHigh ? 'high' : 'low',
@@ -837,11 +870,11 @@ export const GameKungFu: React.FC = () => {
         } else if (en.type === 'tom_tom') {
           // Rolling acrobat
           en.worldX += en.dir === 'left' ? -en.speed : en.speed;
-          if (Math.abs(en.worldX - p.worldX) < 26 && Math.abs(en.y - p.y) < 25) {
+          if (Math.abs(en.worldX - p.worldX) < 28 && Math.abs(en.y - p.y) < 25) {
             hurtPlayer(1);
             en.isDead = true;
-            en.knockbackVx = en.dir === 'left' ? 5 : -5;
-            en.knockbackVy = -6;
+            en.knockbackVx = en.dir === 'left' ? 6 : -6;
+            en.knockbackVy = -7;
           }
         }
       }
@@ -852,10 +885,10 @@ export const GameKungFu: React.FC = () => {
       for (let i = knivesRef.current.length - 1; i >= 0; i--) {
         const kn = knivesRef.current[i];
         kn.x += kn.vx;
-        kn.angle += kn.vx > 0 ? 0.3 : -0.3;
+        kn.angle += kn.vx > 0 ? 0.35 : -0.35;
 
         // Collision with player
-        if (!kn.isDeflected && Math.abs(kn.x - p.worldX) < 22) {
+        if (!kn.isDeflected && Math.abs(kn.x - p.worldX) < 24) {
           const isCrouching = p.action === 'crouch' || p.action === 'crouch_punch' || p.action === 'crouch_kick';
           const isJumping = !p.isGrounded;
 
@@ -885,14 +918,14 @@ export const GameKungFu: React.FC = () => {
       // 6. UPDATE BOSS AI
       if (boss && boss.active && boss.hp > 0) {
         boss.dir = boss.worldX > p.worldX ? 'left' : 'right';
-        boss.animTimer += 0.2;
+        boss.animTimer += 0.22;
 
         if (boss.state === 'hurt') {
           boss.stateTimer--;
           if (boss.stateTimer <= 0) boss.state = 'idle';
         } else {
           const dist = Math.abs(boss.worldX - p.worldX);
-          if (dist > 75) {
+          if (dist > 80) {
             boss.worldX += boss.dir === 'left' ? -boss.speed : boss.speed;
           } else {
             // In attack range: swing bo staff or strike
@@ -903,7 +936,7 @@ export const GameKungFu: React.FC = () => {
               soundManager.playKungFuKick();
 
               // Hit player
-              if (Math.abs(boss.worldX - p.worldX) < 85) {
+              if (Math.abs(boss.worldX - p.worldX) < 90) {
                 hurtPlayer(2);
               }
             }
@@ -960,90 +993,96 @@ export const GameKungFu: React.FC = () => {
 
       // 1. Deep Midnight Twilight Sky
       const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-      skyGrad.addColorStop(0, '#060913');
-      skyGrad.addColorStop(0.5, '#131238');
-      skyGrad.addColorStop(1, '#2c0b4d');
+      skyGrad.addColorStop(0, '#040711');
+      skyGrad.addColorStop(0.5, '#0f1026');
+      skyGrad.addColorStop(1, '#1e0c38');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       // 2. Giant Luminous Full Moon
       const moonX = CANVAS_WIDTH * 0.72 - (camX * 0.08) % CANVAS_WIDTH;
-      const moonGrad = ctx.createRadialGradient(moonX, 130, 10, moonX, 130, 65);
+      const moonGrad = ctx.createRadialGradient(moonX, 130, 10, moonX, 130, 70);
       moonGrad.addColorStop(0, '#ffffff');
-      moonGrad.addColorStop(0.3, '#fef08a');
+      moonGrad.addColorStop(0.35, '#fef08a');
       moonGrad.addColorStop(0.8, '#facc15');
       moonGrad.addColorStop(1, 'rgba(234, 179, 8, 0)');
       ctx.fillStyle = moonGrad;
       ctx.beginPath();
-      ctx.arc(moonX, 130, 65, 0, Math.PI * 2);
+      ctx.arc(moonX, 130, 70, 0, Math.PI * 2);
       ctx.fill();
 
-      // Atmospheric Cloud Drift across the Moon
-      ctx.fillStyle = 'rgba(30, 27, 75, 0.45)';
+      // Atmospheric Wispy Cloud Drift
+      ctx.fillStyle = 'rgba(24, 20, 50, 0.45)';
       ctx.beginPath();
-      ctx.ellipse(moonX - 25, 145, 55, 14, -0.1, 0, Math.PI * 2);
-      ctx.ellipse(moonX + 35, 115, 45, 11, 0.1, 0, Math.PI * 2);
+      ctx.ellipse(moonX - 30, 145, 65, 14, -0.1, 0, Math.PI * 2);
+      ctx.ellipse(moonX + 40, 115, 55, 12, 0.1, 0, Math.PI * 2);
       ctx.fill();
 
-      // Distant Pagoda Rooftops Silhouette
-      ctx.fillStyle = '#0a0d1d';
-      for (let i = 0; i < 12; i++) {
-        const rx = i * 280 - (camX * 0.15) % 280;
-        ctx.beginPath();
-        ctx.moveTo(rx, 260);
-        ctx.lineTo(rx + 40, 210);
-        ctx.lineTo(rx + 80, 260);
-        ctx.fill();
-        // Spire
-        ctx.fillRect(rx + 38, 180, 4, 30);
-      }
+      // Ancient Pine Bonsai Tree Silhouette on Veranda
+      ctx.strokeStyle = '#080b18';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(moonX - 110, GROUND_Y);
+      ctx.quadraticCurveTo(moonX - 95, GROUND_Y - 90, moonX - 60, GROUND_Y - 140);
+      ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(moonX - 75, GROUND_Y - 115);
+      ctx.quadraticCurveTo(moonX - 40, GROUND_Y - 120, moonX - 25, GROUND_Y - 135);
+      ctx.stroke();
+      // Pine needles tufts
+      ctx.fillStyle = '#080b18';
+      ctx.beginPath();
+      ctx.arc(moonX - 60, GROUND_Y - 142, 22, 0, Math.PI * 2);
+      ctx.arc(moonX - 25, GROUND_Y - 137, 18, 0, Math.PI * 2);
+      ctx.fill();
 
-      // 3. Traditional Japanese/Chinese Shoji Screen Windows
+      // 3. Traditional Japanese Shoji Screen Lattice Panels
       for (let i = 0; i < 18; i++) {
         const winX = i * 210 - (camX * 0.35) % 210;
 
-        // Rice paper translucent warm glow
+        // Rice paper warm glow
         ctx.fillStyle = '#fef3c7';
-        ctx.fillRect(winX, 85, 130, 200);
+        ctx.fillRect(winX, 80, 120, 220);
 
-        // Mahogany wooden lattice grill
-        ctx.fillStyle = '#451a03';
-        // Vertical frames
-        ctx.fillRect(winX, 85, 6, 200);
-        ctx.fillRect(winX + 42, 85, 4, 200);
-        ctx.fillRect(winX + 84, 85, 4, 200);
-        ctx.fillRect(winX + 126, 85, 6, 200);
-        // Horizontal frames
-        ctx.fillRect(winX, 85, 130, 6);
-        ctx.fillRect(winX, 135, 130, 4);
-        ctx.fillRect(winX, 185, 130, 4);
-        ctx.fillRect(winX, 235, 130, 4);
-        ctx.fillRect(winX, 280, 130, 6);
+        // Mahogany wooden frames & delicate lattice
+        ctx.fillStyle = '#3a1700';
+        ctx.fillRect(winX, 80, 6, 220);
+        ctx.fillRect(winX + 38, 80, 4, 220);
+        ctx.fillRect(winX + 76, 80, 4, 220);
+        ctx.fillRect(winX + 114, 80, 6, 220);
+
+        ctx.fillRect(winX, 80, 120, 6);
+        ctx.fillRect(winX, 125, 120, 3);
+        ctx.fillRect(winX, 170, 120, 3);
+        ctx.fillRect(winX, 215, 120, 3);
+        ctx.fillRect(winX, 260, 120, 3);
+        ctx.fillRect(winX, 294, 120, 6);
       }
 
-      // 4. Massive Red Temple Pillars
+      // 4. Heavy Red Lacquered Temple Pillars
       for (let i = 0; i < 15; i++) {
         const pilX = i * 280 - (camX * 0.5) % 280;
         const pilGrad = ctx.createLinearGradient(pilX, 0, pilX + 24, 0);
-        pilGrad.addColorStop(0, '#450a0a');
-        pilGrad.addColorStop(0.4, '#b91c1c');
-        pilGrad.addColorStop(0.8, '#dc2626');
-        pilGrad.addColorStop(1, '#450a0a');
+        pilGrad.addColorStop(0, '#3f0707');
+        pilGrad.addColorStop(0.35, '#991b1b');
+        pilGrad.addColorStop(0.75, '#b91c1c');
+        pilGrad.addColorStop(1, '#3f0707');
         ctx.fillStyle = pilGrad;
         ctx.fillRect(pilX, 0, 24, GROUND_Y);
 
-        // Gold brass bands on pillar
-        ctx.fillStyle = '#f59e0b';
+        // Polished brass fixtures
+        ctx.fillStyle = '#d97706';
         ctx.fillRect(pilX - 2, 45, 28, 6);
-        ctx.fillRect(pilX - 2, 290, 28, 6);
+        ctx.fillRect(pilX - 2, 310, 28, 6);
       }
 
-      // 5. Ornate Chinese Red Hanging Lanterns
+      // 5. Ornate Chinese Palace Lanterns (Rich glow & calligraphy)
       for (let i = 0; i < 14; i++) {
         const lx = i * 280 + 130 - (camX * 0.5) % 280;
 
         // Lantern Hanging Cord
-        ctx.strokeStyle = '#f59e0b';
+        ctx.strokeStyle = '#d97706';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(lx, 0);
@@ -1051,144 +1090,143 @@ export const GameKungFu: React.FC = () => {
         ctx.stroke();
 
         // Warm radial light aura
-        const glow = ctx.createRadialGradient(lx, 70, 5, lx, 70, 55);
-        glow.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
-        glow.addColorStop(0.6, 'rgba(245, 158, 11, 0.15)');
+        const glow = ctx.createRadialGradient(lx, 70, 4, lx, 70, 60);
+        glow.addColorStop(0, 'rgba(239, 68, 68, 0.45)');
+        glow.addColorStop(0.6, 'rgba(245, 158, 11, 0.16)');
         glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(lx, 70, 55, 0, Math.PI * 2);
+        ctx.arc(lx, 70, 60, 0, Math.PI * 2);
         ctx.fill();
 
-        // Red Oval Silk Lantern Body
-        ctx.fillStyle = '#dc2626';
+        // Hexagonal / Oval Red Silk Lantern Body
+        ctx.fillStyle = '#b91c1c';
         ctx.beginPath();
-        ctx.ellipse(lx, 70, 16, 22, 0, 0, Math.PI * 2);
+        ctx.ellipse(lx, 70, 17, 24, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#991b1b';
+        ctx.strokeStyle = '#7f1d1d';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Golden calligraphy symbol "武" (Martial)
         ctx.fillStyle = '#fef08a';
-        ctx.font = 'bold 12px sans-serif';
+        ctx.font = 'bold 12px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('武', lx, 70);
 
         // Brass Top & Bottom caps
         ctx.fillStyle = '#f59e0b';
-        ctx.fillRect(lx - 10, 48, 20, 5);
-        ctx.fillRect(lx - 10, 87, 20, 5);
+        ctx.fillRect(lx - 11, 46, 22, 6);
+        ctx.fillRect(lx - 11, 88, 22, 6);
 
-        // Golden hanging silk tassel
-        ctx.strokeStyle = '#facc15';
+        // Swaying golden silk tassel
+        ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(lx, 92);
-        ctx.lineTo(lx, 112);
+        ctx.moveTo(lx, 94);
+        ctx.lineTo(lx, 115);
         ctx.stroke();
       }
 
-      // 6. Pagoda Ceiling Eaves & Carved Rafters (Top 0 - 35px)
-      ctx.fillStyle = '#260404';
-      ctx.fillRect(0, 0, CANVAS_WIDTH, 35);
-      const eaveGrad = ctx.createLinearGradient(0, 0, 0, 35);
+      // 6. Pagoda Rafter Eaves (Top 0 - 36px)
+      ctx.fillStyle = '#1e0505';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, 36);
+      const eaveGrad = ctx.createLinearGradient(0, 0, 0, 36);
       eaveGrad.addColorStop(0, '#7f1d1d');
       eaveGrad.addColorStop(1, '#450a0a');
       ctx.fillStyle = eaveGrad;
-      ctx.fillRect(0, 24, CANVAS_WIDTH, 11);
+      ctx.fillRect(0, 22, CANVAS_WIDTH, 14);
       ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(0, 32, CANVAS_WIDTH, 3); // Golden trim line
+      ctx.fillRect(0, 32, CANVAS_WIDTH, 4); // Imperial gold trim
 
-      // 7. Polished Wooden Dojo Floor (GROUND_Y = 440 to 540)
+      // 7. Polished Mahogany Floor (GROUND_Y = 430 to 540)
       const floorGrad = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_HEIGHT);
-      floorGrad.addColorStop(0, '#5c2411');
-      floorGrad.addColorStop(0.2, '#431407');
-      floorGrad.addColorStop(1, '#240a04');
+      floorGrad.addColorStop(0, '#451a03');
+      floorGrad.addColorStop(0.25, '#2e1002');
+      floorGrad.addColorStop(1, '#170801');
       ctx.fillStyle = floorGrad;
       ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
 
-      // Floor polished surface gloss line
-      ctx.fillStyle = '#9a3412';
+      // Floor polished gloss reflection line
+      ctx.fillStyle = '#78350f';
       ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, 4);
 
-      // Floor wooden plank lines with perspective
-      ctx.strokeStyle = '#2b0e06';
+      // Floor wooden planks with perspective
+      ctx.strokeStyle = '#1c0a02';
       ctx.lineWidth = 1.5;
-      for (let y = GROUND_Y + 22; y < CANVAS_HEIGHT; y += 24) {
+      for (let y = GROUND_Y + 24; y < CANVAS_HEIGHT; y += 26) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(CANVAS_WIDTH, y);
         ctx.stroke();
       }
 
-      // 8. Temple Stairs at 100 Meters
+      // 8. Stairs & Finish Line at 100 Meters
       const stairsScreenX = STAGE_LENGTH_METERS * PX_PER_METER - camX;
-      if (stairsScreenX > -200 && stairsScreenX < CANVAS_WIDTH + 200) {
-        // Red carpeted steps
+      if (stairsScreenX > -250 && stairsScreenX < CANVAS_WIDTH + 250) {
+        // Red carpet steps
         ctx.fillStyle = '#7f1d1d';
-        ctx.fillRect(stairsScreenX, GROUND_Y - 140, 160, 140);
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(stairsScreenX + 30, GROUND_Y - 140, 100, 140); // Red carpet runner
+        ctx.fillRect(stairsScreenX, GROUND_Y - 145, 170, 145);
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(stairsScreenX + 35, GROUND_Y - 145, 100, 145);
         ctx.fillStyle = '#f59e0b';
-        ctx.fillRect(stairsScreenX + 28, GROUND_Y - 140, 4, 140);
-        ctx.fillRect(stairsScreenX + 128, GROUND_Y - 140, 4, 140);
+        ctx.fillRect(stairsScreenX + 33, GROUND_Y - 145, 4, 145);
+        ctx.fillRect(stairsScreenX + 133, GROUND_Y - 145, 4, 145);
 
         // Signboard
         ctx.fillStyle = '#030712';
-        ctx.fillRect(stairsScreenX + 10, GROUND_Y - 130, 140, 28);
+        ctx.fillRect(stairsScreenX + 15, GROUND_Y - 135, 140, 30);
         ctx.strokeStyle = '#f59e0b';
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(stairsScreenX + 10, GROUND_Y - 130, 140, 28);
+        ctx.strokeRect(stairsScreenX + 15, GROUND_Y - 135, 140, 30);
         ctx.fillStyle = '#fde047';
         ctx.font = 'bold 12px sans-serif';
-        ctx.fillText(`LỐI LÊN TẦNG ${floorRef.current + 1}`, stairsScreenX + 80, GROUND_Y - 116);
+        ctx.fillText(`LỐI LÊN TẦNG ${floorRef.current + 1}`, stairsScreenX + 85, GROUND_Y - 118);
 
-        // Floor 5: Silvia in pink cheongsam tied to sacred pillar!
+        // Floor 5: Silvia in pink silk tied to pillar
         if (floorRef.current === 5) {
           ctx.save();
-          ctx.translate(stairsScreenX + 80, GROUND_Y - 60);
+          ctx.translate(stairsScreenX + 85, GROUND_Y - 65);
 
-          // Sacred wooden pillar
+          // Pillar
           ctx.fillStyle = '#78350f';
-          ctx.fillRect(-15, -45, 30, 105);
+          ctx.fillRect(-16, -50, 32, 115);
 
           // Silvia in Pink Cheongsam
           ctx.fillStyle = '#f472b6';
-          ctx.fillRect(-10, -25, 20, 50);
+          ctx.fillRect(-12, -28, 24, 55);
           ctx.fillStyle = '#db2777';
-          ctx.fillRect(-10, 0, 20, 4); // Sash
+          ctx.fillRect(-12, 0, 24, 5);
 
           // Head & Hair
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(0, -35, 10, 0, Math.PI * 2);
+          ctx.arc(0, -40, 11, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = '#1e1b4b';
+          ctx.fillStyle = '#0f172a';
           ctx.beginPath();
-          ctx.arc(0, -38, 11, Math.PI, 0);
+          ctx.arc(0, -44, 12, Math.PI, 0);
           ctx.fill();
-          // Golden hairpin
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(6, -42, 6, 2);
+          ctx.fillRect(6, -48, 8, 3); // Hairpin
 
-          // Calling speech bubble
+          // Speech bubble
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(-35, -75, 70, 22);
+          ctx.fillRect(-40, -82, 80, 24);
           ctx.fillStyle = '#ef4444';
           ctx.font = 'bold 11px sans-serif';
-          ctx.fillText('THOMAS CỨU!', 0, -64);
+          ctx.fillText('THOMAS CỨU!', 0, -68);
           ctx.restore();
         }
       }
 
       // ==========================================
-      // B. DRAW ENEMIES (SCALED UP & DETAILED)
+      // B. DRAW ENEMIES (ANATOMICAL & DETAILED)
       // ==========================================
       for (const en of enemiesRef.current) {
         const sx = en.worldX - camX;
-        if (sx < -80 || sx > CANVAS_WIDTH + 80) continue;
+        if (sx < -90 || sx > CANVAS_WIDTH + 90) continue;
 
         ctx.save();
         ctx.translate(sx, en.y);
@@ -1200,102 +1238,120 @@ export const GameKungFu: React.FC = () => {
         }
 
         if (en.type === 'gripper') {
-          // --- GRIPPER (LÍNH ÁO XANH) ---
-          // Height: ~76px
-          const legSwing = Math.sin(en.animTimer * 4) * 8;
+          // --- GRIPPER (LÍNH QUẤN LẤY - ÁO XANH) ---
+          // Height: 85px
+          const legSwing = Math.sin(en.animTimer * 4.5) * 10;
 
-          // Blue Kung Fu Baggy Pants
-          ctx.fillStyle = '#1d4ed8';
-          ctx.fillRect(-10, -28, 9, 28 - legSwing);
-          ctx.fillRect(1, -28, 9, 28 + legSwing);
+          // Baggy Blue Martial Trousers
+          ctx.fillStyle = '#1e40af';
+          ctx.fillRect(-11, -34, 10, 34 - legSwing);
+          ctx.fillRect(1, -34, 10, 34 + legSwing);
           // Black Kung Fu shoes
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-11, -4 - legSwing, 10, 5);
-          ctx.fillRect(1, -4 + legSwing, 10, 5);
+          ctx.fillRect(-13, -5 - legSwing, 12, 6);
+          ctx.fillRect(1, -5 + legSwing, 12, 6);
 
-          // Blue Martial Vest
-          ctx.fillStyle = '#3b82f6';
-          ctx.fillRect(-14, -62, 28, 36);
+          // Blue Vest Torso with Shading
+          ctx.fillStyle = '#2563eb';
+          ctx.fillRect(-15, -72, 30, 40);
           ctx.strokeStyle = '#1d4ed8';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(-14, -62, 28, 36);
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(-15, -72, 30, 40);
 
-          // Yellow Martial Belt
+          // Yellow Martial Sash
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(-15, -42, 30, 6);
+          ctx.fillRect(-16, -48, 32, 7);
 
-          // Head & Face
+          // Muscular Arms Reaching to Grab
+          ctx.fillStyle = '#fed7aa';
+          ctx.fillRect(8, -65, 30, 9);
+          // Yellow wristband
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(24, -66, 5, 11);
+          // Open claw hand
+          ctx.beginPath();
+          ctx.arc(38, -60, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Head & Facial Expression
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(0, -72, 11, 0, Math.PI * 2);
+          ctx.arc(0, -82, 12, 0, Math.PI * 2);
           ctx.fill();
-          // Black Shaved / Topknot Hair
+          // Black Shaved Topknot Hair
           ctx.fillStyle = '#0f172a';
           ctx.beginPath();
-          ctx.arc(0, -76, 11, Math.PI, 0);
+          ctx.arc(0, -87, 12.5, Math.PI, 0);
           ctx.fill();
-          // Menacing eyes
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(2, -73, 4, 2);
+          ctx.fillRect(-3, -100, 6, 6); // Topknot tuft
 
-          // Outstretched Grabbing Arms
-          ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(6, -56, 26, 8);
-          ctx.fillStyle = '#facc15';
-          ctx.fillRect(20, -57, 4, 10); // Wristband
+          // Fierce Aggressive Face
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(3, -83, 4, 3); // Grimacing eye
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(2, -76, 6, 2); // Mouth
         } else if (en.type === 'knife_thrower') {
           // --- KNIFE THROWER (LÍNH NÉM DAO - ÁO ĐỎ) ---
-          // Height: ~78px
-          // Red Martial Robes
-          ctx.fillStyle = '#991b1b';
-          ctx.fillRect(-11, -30, 10, 30);
-          ctx.fillRect(1, -30, 10, 30);
-
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(-15, -64, 30, 36);
+          // Height: 88px
+          // Red Martial Robes with Shading
+          ctx.fillStyle = '#7f1d1d';
+          ctx.fillRect(-12, -35, 11, 35);
+          ctx.fillRect(1, -35, 11, 35);
+          ctx.fillStyle = '#b91c1c';
+          ctx.fillRect(-16, -74, 32, 42);
 
           // White Sash
           ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(-16, -44, 32, 6);
+          ctx.fillRect(-17, -50, 34, 7);
 
-          // Head with White Headband
+          // Head with White Bandana
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(0, -74, 11, 0, Math.PI * 2);
+          ctx.arc(0, -84, 12, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(-12, -80, 24, 5);
-          // Hair
+          // White Headband wrapped on UPPER forehead
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(-13, -92, 26, 6);
+          // Black Hair
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-11, -84, 22, 5);
+          ctx.beginPath();
+          ctx.arc(0, -94, 12.5, Math.PI, 0);
+          ctx.fill();
 
-          // Throwing Arm holding Dagger
+          // Eyes & Face
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(3, -84, 4, 3);
+
+          // Throwing Arm with Dagger
           ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(8, -58, 22, 8);
-          // Steel Kunai / Dagger in hand
+          ctx.fillRect(8, -66, 24, 9);
+          // Gleaming Silver Kunai Dagger
           ctx.fillStyle = '#cbd5e1';
           ctx.beginPath();
-          ctx.moveTo(30, -54);
-          ctx.lineTo(44, -54);
-          ctx.lineTo(36, -60);
+          ctx.moveTo(32, -61);
+          ctx.lineTo(48, -61);
+          ctx.lineTo(38, -68);
           ctx.closePath();
           ctx.fill();
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = 1;
+          ctx.stroke();
         } else if (en.type === 'tom_tom') {
           // --- TOM TOM (KẺ LÙN NHÀO LỘN) ---
-          ctx.rotate(en.animTimer * 5);
-          ctx.fillStyle = '#facc15';
+          ctx.rotate(en.animTimer * 6);
+          ctx.fillStyle = '#eab308';
           ctx.beginPath();
-          ctx.arc(0, -20, 20, 0, Math.PI * 2);
+          ctx.arc(0, -22, 22, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#ca8a04';
+          ctx.strokeStyle = '#a16207';
           ctx.lineWidth = 2;
           ctx.stroke();
 
-          // Ninja Mask
+          // Ninja Mask & Eyes
           ctx.fillStyle = '#dc2626';
-          ctx.fillRect(-16, -26, 32, 10);
+          ctx.fillRect(-18, -28, 36, 12);
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(2, -24, 5, 4);
+          ctx.fillRect(3, -26, 6, 5);
         }
 
         ctx.restore();
@@ -1317,57 +1373,56 @@ export const GameKungFu: React.FC = () => {
 
         // TẦNG 1: STICK MASTER (GẬY THIẾT CÔN)
         if (boss.floor === 1) {
-          // Height: ~95px
-          // Purple Master Robes with Gold Trim
-          ctx.fillStyle = '#581c87';
-          ctx.fillRect(-18, -40, 16, 40);
-          ctx.fillRect(2, -40, 16, 40);
-          ctx.fillStyle = '#7e22ce';
-          ctx.fillRect(-22, -85, 44, 50);
+          // Imperial Violet Robe with Embroidered Gold
+          ctx.fillStyle = '#4c1d95';
+          ctx.fillRect(-20, -42, 18, 42);
+          ctx.fillRect(2, -42, 18, 42);
+          ctx.fillStyle = '#6d28d9';
+          ctx.fillRect(-24, -92, 48, 54);
 
-          // Gold Imperial Embroidery
+          // Imperial Gold Dragon Embroidered Sash
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(-24, -58, 48, 8);
+          ctx.fillRect(-26, -64, 52, 9);
 
-          // Head with White Beard
+          // Master's Head & Face
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(0, -98, 14, 0, Math.PI * 2);
+          ctx.arc(0, -104, 15, 0, Math.PI * 2);
           ctx.fill();
-          // Long White Beard
+          // White Flowing Beard
           ctx.fillStyle = '#f8fafc';
           ctx.beginPath();
-          ctx.moveTo(-10, -94);
-          ctx.lineTo(0, -72);
-          ctx.lineTo(10, -94);
+          ctx.moveTo(-11, -100);
+          ctx.lineTo(0, -75);
+          ctx.lineTo(11, -100);
           ctx.closePath();
           ctx.fill();
 
-          // Wooden Bo Staff Weapon
+          // Heavy Wooden Bo Staff Weapon
           ctx.save();
           if (boss.state === 'attack') {
-            ctx.rotate(0.5);
+            ctx.rotate(0.55);
           }
-          ctx.strokeStyle = '#d97706';
-          ctx.lineWidth = 6;
+          ctx.strokeStyle = '#b45309';
+          ctx.lineWidth = 7;
           ctx.beginPath();
-          ctx.moveTo(-20, -125);
-          ctx.lineTo(38, 0);
+          ctx.moveTo(-24, -135);
+          ctx.lineTo(44, 5);
           ctx.stroke();
-          // Gold staff ends
+          // Brass Ferrules on Bo Staff Ends
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(-23, -128, 6, 8);
-          ctx.fillRect(35, -4, 6, 8);
+          ctx.fillRect(-28, -138, 8, 9);
+          ctx.fillRect(40, 2, 8, 9);
           ctx.restore();
         } else {
           // General Boss Body
           ctx.fillStyle = '#7f1d1d';
-          ctx.fillRect(-20, -85, 40, 85);
+          ctx.fillRect(-22, -92, 44, 92);
           ctx.fillStyle = '#f59e0b';
-          ctx.fillRect(-22, -55, 44, 8);
+          ctx.fillRect(-24, -60, 48, 9);
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(0, -98, 14, 0, Math.PI * 2);
+          ctx.arc(0, -104, 15, 0, Math.PI * 2);
           ctx.fill();
         }
 
@@ -1384,32 +1439,32 @@ export const GameKungFu: React.FC = () => {
         ctx.rotate(kn.angle);
 
         // Motion Trail
-        ctx.fillStyle = kn.isDeflected ? 'rgba(250, 204, 21, 0.4)' : 'rgba(248, 250, 252, 0.35)';
-        ctx.fillRect(-24, -3, 24, 6);
+        ctx.fillStyle = kn.isDeflected ? 'rgba(250, 204, 21, 0.45)' : 'rgba(248, 250, 252, 0.4)';
+        ctx.fillRect(-26, -3, 26, 6);
 
-        // Silver Blade
+        // Gleaming Silver Blade
         ctx.fillStyle = kn.isDeflected ? '#facc15' : '#f8fafc';
         ctx.beginPath();
-        ctx.moveTo(14, 0);
-        ctx.lineTo(-6, -5);
+        ctx.moveTo(16, 0);
+        ctx.lineTo(-7, -6);
         ctx.lineTo(-4, 0);
-        ctx.lineTo(-6, 5);
+        ctx.lineTo(-7, 6);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeStyle = '#64748b';
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Kunai ring handle
+        // Red ring handle
         ctx.strokeStyle = '#dc2626';
         ctx.lineWidth = 2;
-        ctx.strokeRect(-12, -2, 6, 4);
+        ctx.strokeRect(-14, -3, 7, 6);
 
         ctx.restore();
       }
 
       // ==========================================
-      // E. DRAW PLAYER THOMAS (MARTIAL ARTS MASTER)
+      // E. DRAW PLAYER THOMAS (HEROIC ARCADE MARTIAL ARTIST)
       // ==========================================
       if (!p.isDead) {
         const psx = p.worldX - camX;
@@ -1426,128 +1481,144 @@ export const GameKungFu: React.FC = () => {
         }
 
         const isCrouching = p.action === 'crouch' || p.action === 'crouch_punch' || p.action === 'crouch_kick';
-        const yOff = isCrouching ? 28 : 0; // Low crouch drop
+        const yOff = isCrouching ? 32 : 0; // Deep martial crouch
 
-        // 1. LEGS (VIVID SCARLET RED TROUSERS)
-        ctx.fillStyle = '#ef4444';
+        // 1. LEGS (VIVID SCARLET RED MARTIAL PANTS)
+        ctx.fillStyle = '#dc2626';
         if (p.action === 'kick' || p.action === 'crouch_kick') {
-          // Razor High Side Kick
-          ctx.fillRect(-10, -32 + yOff, 11, 32);
-          ctx.fillRect(0, -48 + yOff, 52, 14); // Extended kicking leg
-          // White shoe with red sole
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(48, -50 + yOff, 15, 18);
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(48, -34 + yOff, 15, 3);
+          // Razor Sharp High Side Kick
+          ctx.fillRect(-11, -36 + yOff, 12, 36);
+          // Extended Kicking Leg
+          ctx.fillRect(0, -56 + yOff, 62, 16);
+          // White Kung Fu Shoe with red trim
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(58, -58 + yOff, 18, 20);
+          ctx.fillStyle = '#b91c1c';
+          ctx.fillRect(58, -40 + yOff, 18, 4);
+          // Dynamic Strike Shockwave
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(78, -54 + yOff, 14, 5);
+          ctx.fillRect(76, -46 + yOff, 10, 4);
         } else if (p.action === 'jump_kick') {
           // Legendary Bruce Lee Mid-Air Flying Kick!
-          ctx.fillRect(-18, -30, 16, 14); // Tucked back leg
-          ctx.fillRect(0, -48, 62, 16); // Extended dragon kick
-          // White shoe striking forward
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(58, -50, 16, 20);
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(58, -32, 16, 4);
-          // Speed trail sparks
+          ctx.fillRect(-20, -34, 18, 16); // Tucked back leg
+          ctx.fillRect(0, -56, 72, 18); // Fully thrust leg
+          // White Kung Fu Shoe
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(68, -58, 18, 22);
+          ctx.fillStyle = '#b91c1c';
+          ctx.fillRect(68, -38, 18, 4);
+          // Strike speed sparks
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(74, -45, 10, 4);
-          ctx.fillRect(72, -38, 8, 3);
+          ctx.fillRect(88, -52, 16, 5);
+          ctx.fillRect(86, -44, 12, 4);
         } else if (isCrouching) {
-          // Low Dragon Crouch on one knee
-          ctx.fillRect(-14, -22 + yOff, 26, 22);
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(-16, -6 + yOff, 14, 6);
-          ctx.fillRect(6, -6 + yOff, 14, 6);
+          // Deep Tiger Crouch on Ground
+          ctx.fillRect(-16, -26 + yOff, 30, 26);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-18, -8 + yOff, 16, 8);
+          ctx.fillRect(6, -8 + yOff, 16, 8);
         } else {
-          // Walking / Idle stance
-          const walkSwing = p.action === 'walk' ? Math.sin(p.animTimer * 5) * 10 : 0;
-          ctx.fillRect(-11, -32, 10, 32 - walkSwing);
-          ctx.fillRect(1, -32, 10, 32 + walkSwing);
-          // White shoes with black soles
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(-13, -5 - walkSwing, 13, 6);
-          ctx.fillRect(1, -5 + walkSwing, 13, 6);
+          // Walking or Idle footwork
+          const walkSwing = p.action === 'walk' ? Math.sin(p.animTimer * 5) * 11 : 0;
+          ctx.fillRect(-12, -36, 11, 36 - walkSwing);
+          ctx.fillRect(1, -36, 11, 36 + walkSwing);
+          // White Shoes with black soles
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-14, -6 - walkSwing, 14, 7);
+          ctx.fillRect(1, -6 + walkSwing, 14, 7);
         }
 
-        // 2. WHITE SLEEVELESS GI TORSO
+        // 2. WHITE SLEEVELESS GI (DOGI) TORSO
         ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(-14, -68 + yOff, 28, 38);
+        ctx.fillRect(-16, -78 + yOff, 32, 44);
         ctx.strokeStyle = '#cbd5e1';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-14, -68 + yOff, 28, 38);
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-16, -78 + yOff, 32, 44);
 
-        // V-Neck Muscular Chest
+        // Muscular V-Neck Chest
         ctx.fillStyle = '#fed7aa';
         ctx.beginPath();
-        ctx.moveTo(-6, -68 + yOff);
-        ctx.lineTo(0, -54 + yOff);
-        ctx.lineTo(6, -68 + yOff);
+        ctx.moveTo(-7, -78 + yOff);
+        ctx.lineTo(0, -60 + yOff);
+        ctx.lineTo(7, -78 + yOff);
         ctx.closePath();
         ctx.fill();
 
-        // 3. ROYAL BLUE SASH BELT
-        ctx.fillStyle = '#2563eb';
-        ctx.fillRect(-16, -46 + yOff, 32, 8);
+        // 3. SAPPHIRE BLUE SASH BELT & TRAILING RIBBONS
+        ctx.fillStyle = '#1d4ed8';
+        ctx.fillRect(-18, -52 + yOff, 36, 9);
         // Belt knot & trailing ribbons
         ctx.beginPath();
-        ctx.moveTo(-4, -38 + yOff);
-        ctx.lineTo(-8, -20 + yOff);
-        ctx.lineTo(-2, -20 + yOff);
+        ctx.moveTo(-4, -43 + yOff);
+        ctx.lineTo(-9, -24 + yOff);
+        ctx.lineTo(-2, -24 + yOff);
         ctx.closePath();
         ctx.fill();
 
-        // 4. HEAD, HEADBAND & SPIKY ANIME HAIR
+        // 4. SCULPTED ANIME HEAD, BANDANA & HAIR
         ctx.fillStyle = '#fed7aa';
         ctx.beginPath();
-        ctx.arc(0, -78 + yOff, 13, 0, Math.PI * 2);
+        ctx.arc(0, -90 + yOff, 14, 0, Math.PI * 2);
         ctx.fill();
 
-        // Red Martial Bandana / Headband
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(-14, -84 + yOff, 28, 6);
-        // Headband tails fluttering behind
+        // Determined Martial Artist Eyes & Brows (PROPERLY VISIBLE!)
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(3, -92 + yOff, 5, 4); // Eye
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(5, -92 + yOff, 2, 2); // Glint
+        // Fierce Brow
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(-14, -82 + yOff);
-        ctx.lineTo(-26, -88 + yOff);
-        ctx.lineTo(-24, -78 + yOff);
+        ctx.moveTo(1, -95 + yOff);
+        ctx.lineTo(9, -93 + yOff);
+        ctx.stroke();
+
+        // Mouth & Chin
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(3, -83 + yOff, 4, 2);
+
+        // CRIMSON HEADBAND (Wrapped on UPPER Forehead: -103 to -97, WELL ABOVE EYES!)
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(-15, -103 + yOff, 30, 7);
+        // Flowing Headband Tails Fluttering Behind
+        ctx.beginPath();
+        ctx.moveTo(-15, -100 + yOff);
+        ctx.lineTo(-32, -108 + yOff);
+        ctx.lineTo(-30, -96 + yOff);
         ctx.closePath();
         ctx.fill();
 
-        // Black Spiky Hair
+        // Spiky Black Anime Hair on Top
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.arc(0, -88 + yOff, 13.5, Math.PI, 0);
+        ctx.arc(0, -104 + yOff, 14.5, Math.PI, 0);
         ctx.fill();
-        ctx.fillRect(-14, -88 + yOff, 8, 4);
+        ctx.fillRect(-16, -104 + yOff, 10, 5); // Hair spiky fringe
 
-        // Determined Martial Artist Eyes
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(3, -79 + yOff, 4, 3);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(5, -79 + yOff, 2, 2);
-
-        // 5. PUNCH / GUARD ARMS
+        // 5. ARMS, PUNCH & GUARD
         if (p.action === 'punch' || p.action === 'crouch_punch') {
-          // Powerful Straight Jab Strike!
+          // Explosive Straight Punch Strike!
           ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(6, -62 + yOff, 38, 10);
+          ctx.fillRect(6, -72 + yOff, 46, 12);
           // Blue Wristband
-          ctx.fillStyle = '#2563eb';
-          ctx.fillRect(26, -63 + yOff, 6, 12);
-          // Clenched Striking Fist
+          ctx.fillStyle = '#1d4ed8';
+          ctx.fillRect(32, -73 + yOff, 7, 14);
+          // Anatomical Clenched Fist
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(42, -57 + yOff, 7, 0, Math.PI * 2);
+          ctx.arc(52, -66 + yOff, 8.5, 0, Math.PI * 2);
           ctx.fill();
-          // Speed strike lines
+          // Speed wind trail
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(49, -58 + yOff, 10, 3);
+          ctx.fillRect(62, -67 + yOff, 14, 4);
         } else if (p.action !== 'kick' && p.action !== 'jump_kick' && p.action !== 'crouch_kick') {
-          // Guard Arms
+          // Dynamic Martial Ready Guard (Jeet Kune Do style)
           ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(4, -62 + yOff, 16, 9);
-          ctx.fillStyle = '#2563eb';
-          ctx.fillRect(14, -63 + yOff, 5, 11);
+          ctx.fillRect(4, -72 + yOff, 20, 11);
+          ctx.fillStyle = '#1d4ed8';
+          ctx.fillRect(16, -73 + yOff, 6, 13);
         }
 
         ctx.restore();
@@ -1555,16 +1626,16 @@ export const GameKungFu: React.FC = () => {
         // 6. Shake Off Floating Alert if Gripped
         if (p.grippedCount > 0) {
           ctx.save();
-          ctx.translate(psx, p.y - 105);
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(-70, -14, 140, 22);
+          ctx.translate(psx, p.y - 120);
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(-75, -15, 150, 24);
           ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 1.5;
-          ctx.strokeRect(-70, -14, 140, 22);
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-75, -15, 150, 24);
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 11px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(`LẮC PHÍM ◀ ▶ ĐỂ HẤT VĂNG! (${p.shakeCount}/3)`, 0, 1);
+          ctx.fillText(`LẮC PHÍM ◀ ▶ ĐỂ HẤT VĂNG! (${p.shakeCount}/3)`, 0, 2);
           ctx.restore();
         }
       }
@@ -1593,7 +1664,7 @@ export const GameKungFu: React.FC = () => {
         ctx.restore();
       }
 
-      ctx.restore(); // Restore shake
+      ctx.restore(); // Restore camera shake
     };
 
     let lastTime = performance.now();
@@ -1791,7 +1862,7 @@ export const GameKungFu: React.FC = () => {
                   const p = playerRef.current;
                   if (p.isGrounded && !p.isDead && p.actionTimer <= 0 && p.grippedCount === 0) {
                     p.isGrounded = false;
-                    p.vy = -13.5;
+                    p.vy = -14;
                     p.action = 'jump';
                     soundManager.playKungFuJump();
                   }
