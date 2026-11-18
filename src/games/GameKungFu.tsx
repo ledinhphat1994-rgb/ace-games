@@ -5,9 +5,9 @@ import { soundManager } from '../utils/sound';
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 540;
-const GROUND_Y = 430; // Polished wooden floor baseline
+const GROUND_Y = 430; // Ground floor level - characters' feet stand firmly here!
 const STAGE_LENGTH_METERS = 100;
-const PX_PER_METER = 35; // 3500px total corridor length
+const PX_PER_METER = 35; // Total corridor length = 3500px
 
 type Direction = 'left' | 'right';
 type GameState = 'playing' | 'stage_clear' | 'game_over' | 'paused';
@@ -132,8 +132,7 @@ export const GameKungFu: React.FC = () => {
     dir: 'right' as Direction,
     action: 'idle' as PlayerAction,
     actionTimer: 0,
-    maxActionTimer: 0,
-    speed: 3.5,
+    speed: 3.6,
     animTimer: 0,
     hp: 16,
     maxHp: 16,
@@ -143,14 +142,14 @@ export const GameKungFu: React.FC = () => {
     grippedCount: 0,
     shakeCount: 0,
     lastShakeDir: '' as string,
-    // Hit tracking to prevent multiple hits on same enemy per attack swing
     hitEnemiesThisSwing: new Set<number>(),
     hitBossThisSwing: false,
   });
 
-  // Camera & Screen Shake
+  // Camera, Hitstop & Screen Shake
   const cameraXRef = useRef(0);
   const screenShakeRef = useRef(0);
+  const hitStopRef = useRef(0); // Micro-pause on heavy impact
 
   // Entities
   const enemiesRef = useRef<Enemy[]>([]);
@@ -200,7 +199,7 @@ export const GameKungFu: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  // Floating score text
+  // Floating text
   const addFloater = (x: number, y: number, text: string, color = '#facc15') => {
     floatersRef.current.push({
       x,
@@ -239,22 +238,21 @@ export const GameKungFu: React.FC = () => {
     soundManager.playKungFuHit();
 
     if (p.shakeCount >= 3) {
-      // Violent Martial Arts Shockwave
       p.shakeCount = 0;
       p.grippedCount = 0;
       setIsGripped(false);
       soundManager.playKungFuKick();
-      screenShakeRef.current = 12;
+      screenShakeRef.current = 14;
 
-      // Knock all grabbing enemies away!
+      // Knock all grabbing enemies away violently!
       for (const en of enemiesRef.current) {
         if (en.isGripping) {
           en.isGripping = false;
           en.isDead = true;
-          en.knockbackVx = Math.random() > 0.5 ? 8.5 : -8.5;
-          en.knockbackVy = -8;
-          spawnParticles(en.worldX - cameraXRef.current, en.y - 45, '#3b82f6', 20);
-          addFloater(en.worldX - cameraXRef.current, en.y - 65, 'HẤT VĂNG!', '#38bdf8');
+          en.knockbackVx = Math.random() > 0.5 ? 9 : -9;
+          en.knockbackVy = -8.5;
+          spawnParticles(en.worldX - cameraXRef.current, en.y - 45, '#3b82f6', 22);
+          addFloater(en.worldX - cameraXRef.current, en.y - 70, 'HẤT VĂNG!', '#38bdf8');
         }
       }
     }
@@ -273,8 +271,7 @@ export const GameKungFu: React.FC = () => {
       dir: 'right',
       action: 'idle',
       actionTimer: 0,
-      maxActionTimer: 0,
-      speed: 3.5,
+      speed: 3.6,
       animTimer: 0,
       hp: 16,
       maxHp: 16,
@@ -425,29 +422,25 @@ export const GameKungFu: React.FC = () => {
     const p = playerRef.current;
     if (p.isDead || gameStateRef.current !== 'playing' || p.grippedCount > 0) return;
 
-    // Reset swing hit tracking
     p.hitEnemiesThisSwing.clear();
     p.hitBossThisSwing = false;
 
     if (!p.isGrounded) {
-      // Mid-Air Flying Dragon Kick
+      // Flying Dragon Kick in Mid-Air!
       p.action = 'jump_kick';
       p.actionTimer = 22;
-      p.maxActionTimer = 22;
       soundManager.playKungFuKick();
       checkActiveHitbox();
     } else if (keysRef.current.down) {
-      // Low Crouch Strike
+      // Low Crouch Strike (Feet stay firmly on the ground at y=0, hips and torso lower!)
       if (type === 'punch') {
         p.action = 'crouch_punch';
         p.actionTimer = 12;
-        p.maxActionTimer = 12;
         soundManager.playKungFuPunch();
         checkActiveHitbox();
       } else {
         p.action = 'crouch_kick';
         p.actionTimer = 15;
-        p.maxActionTimer = 15;
         soundManager.playKungFuKick();
         checkActiveHitbox();
       }
@@ -456,13 +449,11 @@ export const GameKungFu: React.FC = () => {
       if (type === 'punch') {
         p.action = 'punch';
         p.actionTimer = 11;
-        p.maxActionTimer = 11;
         soundManager.playKungFuPunch();
         checkActiveHitbox();
       } else {
         p.action = 'kick';
         p.actionTimer = 15;
-        p.maxActionTimer = 15;
         soundManager.playKungFuKick();
         checkActiveHitbox();
       }
@@ -484,35 +475,35 @@ export const GameKungFu: React.FC = () => {
 
     const isFacingRight = p.dir === 'right';
 
-    // Reach and height bounds calibrated to 96px character model
-    let reach = 70;
-    let topY = p.y - 85;
+    // Reach and height bounds calibrated strictly above floor level!
+    let reach = 72;
+    let topY = p.y - 92;
     let bottomY = p.y;
     let pts = 100;
 
     if (p.action === 'punch') {
-      reach = 68;
+      reach = 70;
       topY = p.y - 88;
       bottomY = p.y - 40;
       pts = 200;
     } else if (p.action === 'kick') {
-      reach = 92;
-      topY = p.y - 80;
+      reach = 94;
+      topY = p.y - 82;
       bottomY = p.y - 20;
       pts = 100;
     } else if (p.action === 'jump_kick') {
-      reach = 100;
-      topY = p.y - 100;
+      reach = 102;
+      topY = p.y - 105;
       bottomY = p.y - 10;
       pts = 300;
     } else if (p.action === 'crouch_punch') {
       reach = 72;
-      topY = p.y - 50;
+      topY = p.y - 52;
       bottomY = p.y;
       pts = 200;
     } else if (p.action === 'crouch_kick') {
-      reach = 90;
-      topY = p.y - 45;
+      reach = 92;
+      topY = p.y - 35;
       bottomY = p.y;
       pts = 100;
     }
@@ -546,21 +537,22 @@ export const GameKungFu: React.FC = () => {
       ) {
         p.hitEnemiesThisSwing.add(en.id);
         en.hp--;
+        hitStopRef.current = 4; // micro-pause for punchy martial impact!
 
         if (en.hp <= 0) {
           en.isDead = true;
           en.isGripping = false;
-          en.knockbackVx = isFacingRight ? 9 : -9;
-          en.knockbackVy = -8;
-          screenShakeRef.current = 6;
+          en.knockbackVx = isFacingRight ? 9.5 : -9.5;
+          en.knockbackVy = -8.5;
+          screenShakeRef.current = 7;
 
           setScore((s) => s + pts);
-          addFloater(en.worldX - cameraXRef.current, en.y - 55, `+${pts}`);
+          addFloater(en.worldX - cameraXRef.current, en.y - 60, `+${pts}`);
           spawnParticles(
             en.worldX - cameraXRef.current,
             en.y - 45,
             en.type === 'gripper' ? '#3b82f6' : en.type === 'knife_thrower' ? '#ef4444' : '#facc15',
-            20
+            22
           );
         } else {
           // Hurt stagger
@@ -581,13 +573,14 @@ export const GameKungFu: React.FC = () => {
       ) {
         p.hitBossThisSwing = true;
         boss.hp--;
+        hitStopRef.current = 6;
         setBossHp(boss.hp);
         boss.state = 'hurt';
         boss.stateTimer = 18;
-        screenShakeRef.current = 10;
+        screenShakeRef.current = 11;
         soundManager.playKungFuBossHit();
-        spawnParticles(boss.worldX - cameraXRef.current, boss.y - 60, '#f59e0b', 25);
-        addFloater(boss.worldX - cameraXRef.current, boss.y - 80, '+500', '#fbbf24');
+        spawnParticles(boss.worldX - cameraXRef.current, boss.y - 65, '#f59e0b', 26);
+        addFloater(boss.worldX - cameraXRef.current, boss.y - 85, '+500', '#fbbf24');
         setScore((s) => s + 500);
 
         if (boss.hp <= 0) {
@@ -596,13 +589,13 @@ export const GameKungFu: React.FC = () => {
           setBossActive(false);
           soundManager.playKungFuStageClear();
           confetti({
-            particleCount: 80,
-            spread: 80,
+            particleCount: 85,
+            spread: 85,
             origin: { y: 0.6 },
           });
 
           setScore((s) => s + 5000);
-          addFloater(boss.worldX - cameraXRef.current, boss.y - 100, '+5,000 ĐIỂM THƯỞNG!', '#10b981');
+          addFloater(boss.worldX - cameraXRef.current, boss.y - 105, '+5,000 ĐIỂM THƯỞNG!', '#10b981');
 
           setGameState('stage_clear');
           setTimeout(() => {
@@ -631,6 +624,12 @@ export const GameKungFu: React.FC = () => {
 
     const updateGame = () => {
       if (gameStateRef.current !== 'playing') return;
+
+      // Handle Hitstop (impact pause)
+      if (hitStopRef.current > 0) {
+        hitStopRef.current--;
+        return;
+      }
 
       const p = playerRef.current;
       const keys = keysRef.current;
@@ -668,7 +667,7 @@ export const GameKungFu: React.FC = () => {
       // Gravity & Jump Physics
       if (!p.isGrounded) {
         p.y += p.vy;
-        p.vy += 0.8; // crisp gravity
+        p.vy += 0.82; // snappy arcade gravity
         if (p.y >= GROUND_Y) {
           p.y = GROUND_Y;
           p.vy = 0;
@@ -1138,7 +1137,7 @@ export const GameKungFu: React.FC = () => {
       ctx.fillStyle = eaveGrad;
       ctx.fillRect(0, 22, CANVAS_WIDTH, 14);
       ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(0, 32, CANVAS_WIDTH, 4); // Imperial gold trim
+      ctx.fillRect(0, 32, CANVAS_WIDTH, 4);
 
       // 7. Polished Mahogany Floor (GROUND_Y = 430 to 540)
       const floorGrad = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_HEIGHT);
@@ -1239,10 +1238,9 @@ export const GameKungFu: React.FC = () => {
 
         if (en.type === 'gripper') {
           // --- GRIPPER (LÍNH QUẤN LẤY - ÁO XANH) ---
-          // Height: 85px
           const legSwing = Math.sin(en.animTimer * 4.5) * 10;
 
-          // Baggy Blue Martial Trousers
+          // Baggy Blue Martial Trousers (Feet at y=0, grounded!)
           ctx.fillStyle = '#1e40af';
           ctx.fillRect(-11, -34, 10, 34 - legSwing);
           ctx.fillRect(1, -34, 10, 34 + legSwing);
@@ -1273,7 +1271,7 @@ export const GameKungFu: React.FC = () => {
           ctx.arc(38, -60, 6, 0, Math.PI * 2);
           ctx.fill();
 
-          // Head & Facial Expression
+          // Head & Facial Expression (Eyes are fully visible and fierce, NO blindfold!)
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
           ctx.arc(0, -82, 12, 0, Math.PI * 2);
@@ -1283,17 +1281,16 @@ export const GameKungFu: React.FC = () => {
           ctx.beginPath();
           ctx.arc(0, -87, 12.5, Math.PI, 0);
           ctx.fill();
-          ctx.fillRect(-3, -100, 6, 6); // Topknot tuft
+          ctx.fillRect(-3, -100, 6, 6);
 
           // Fierce Aggressive Face
           ctx.fillStyle = '#dc2626';
-          ctx.fillRect(3, -83, 4, 3); // Grimacing eye
+          ctx.fillRect(3, -83, 4, 3);
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(2, -76, 6, 2); // Mouth
+          ctx.fillRect(2, -76, 6, 2);
         } else if (en.type === 'knife_thrower') {
           // --- KNIFE THROWER (LÍNH NÉM DAO - ÁO ĐỎ) ---
-          // Height: 88px
-          // Red Martial Robes with Shading
+          // Feet at y=0, grounded!
           ctx.fillStyle = '#7f1d1d';
           ctx.fillRect(-12, -35, 11, 35);
           ctx.fillRect(1, -35, 11, 35);
@@ -1304,23 +1301,25 @@ export const GameKungFu: React.FC = () => {
           ctx.fillStyle = '#f8fafc';
           ctx.fillRect(-17, -50, 34, 7);
 
-          // Head with White Bandana
+          // Head with White Bandana (Wrapped strictly at forehead y = -94 to -88, eyes at -84 are CLEARLY VISIBLE!)
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
           ctx.arc(0, -84, 12, 0, Math.PI * 2);
           ctx.fill();
-          // White Headband wrapped on UPPER forehead
+          // White Headband on FOREHEAD (NOT over eyes!)
           ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(-13, -92, 26, 6);
+          ctx.fillRect(-13, -94, 26, 6);
           // Black Hair
           ctx.fillStyle = '#0f172a';
           ctx.beginPath();
-          ctx.arc(0, -94, 12.5, Math.PI, 0);
+          ctx.arc(0, -96, 12.5, Math.PI, 0);
           ctx.fill();
 
-          // Eyes & Face
+          // Visible Eyes & Brows
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(3, -84, 4, 3);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(5, -84, 1.5, 1.5);
 
           // Throwing Arm with Dagger
           ctx.fillStyle = '#fed7aa';
@@ -1366,14 +1365,12 @@ export const GameKungFu: React.FC = () => {
         ctx.translate(bsx, boss.y);
         if (boss.dir === 'left') ctx.scale(-1, 1);
 
-        // Hurt flash
         if (boss.state === 'hurt' && Math.floor(Date.now() / 60) % 2 === 0) {
           ctx.filter = 'brightness(3)';
         }
 
         // TẦNG 1: STICK MASTER (GẬY THIẾT CÔN)
         if (boss.floor === 1) {
-          // Imperial Violet Robe with Embroidered Gold
           ctx.fillStyle = '#4c1d95';
           ctx.fillRect(-20, -42, 18, 42);
           ctx.fillRect(2, -42, 18, 42);
@@ -1415,7 +1412,6 @@ export const GameKungFu: React.FC = () => {
           ctx.fillRect(40, 2, 8, 9);
           ctx.restore();
         } else {
-          // General Boss Body
           ctx.fillStyle = '#7f1d1d';
           ctx.fillRect(-22, -92, 44, 92);
           ctx.fillStyle = '#f59e0b';
@@ -1464,7 +1460,8 @@ export const GameKungFu: React.FC = () => {
       }
 
       // ==========================================
-      // E. DRAW PLAYER THOMAS (HEROIC ARCADE MARTIAL ARTIST)
+      // E. DRAW PLAYER THOMAS (HEROIC MARTIAL ARTIST)
+      // FIXED: NEVER SINKS INTO THE FLOOR! FEET ARE GROUNDED AT Y=0!
       // ==========================================
       if (!p.isDead) {
         const psx = p.worldX - camX;
@@ -1481,144 +1478,265 @@ export const GameKungFu: React.FC = () => {
         }
 
         const isCrouching = p.action === 'crouch' || p.action === 'crouch_punch' || p.action === 'crouch_kick';
-        const yOff = isCrouching ? 32 : 0; // Deep martial crouch
 
-        // 1. LEGS (VIVID SCARLET RED MARTIAL PANTS)
-        ctx.fillStyle = '#dc2626';
-        if (p.action === 'kick' || p.action === 'crouch_kick') {
-          // Razor Sharp High Side Kick
-          ctx.fillRect(-11, -36 + yOff, 12, 36);
-          // Extended Kicking Leg
-          ctx.fillRect(0, -56 + yOff, 62, 16);
-          // White Kung Fu Shoe with red trim
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(58, -58 + yOff, 18, 20);
-          ctx.fillStyle = '#b91c1c';
-          ctx.fillRect(58, -40 + yOff, 18, 4);
-          // Dynamic Strike Shockwave
-          ctx.fillStyle = '#facc15';
-          ctx.fillRect(78, -54 + yOff, 14, 5);
-          ctx.fillRect(76, -46 + yOff, 10, 4);
-        } else if (p.action === 'jump_kick') {
-          // Legendary Bruce Lee Mid-Air Flying Kick!
-          ctx.fillRect(-20, -34, 18, 16); // Tucked back leg
-          ctx.fillRect(0, -56, 72, 18); // Fully thrust leg
-          // White Kung Fu Shoe
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(68, -58, 18, 22);
-          ctx.fillStyle = '#b91c1c';
-          ctx.fillRect(68, -38, 18, 4);
-          // Strike speed sparks
-          ctx.fillStyle = '#facc15';
-          ctx.fillRect(88, -52, 16, 5);
-          ctx.fillRect(86, -44, 12, 4);
-        } else if (isCrouching) {
-          // Deep Tiger Crouch on Ground
-          ctx.fillRect(-16, -26 + yOff, 30, 26);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(-18, -8 + yOff, 16, 8);
-          ctx.fillRect(6, -8 + yOff, 16, 8);
-        } else {
-          // Walking or Idle footwork
-          const walkSwing = p.action === 'walk' ? Math.sin(p.animTimer * 5) * 11 : 0;
-          ctx.fillRect(-12, -36, 11, 36 - walkSwing);
-          ctx.fillRect(1, -36, 11, 36 + walkSwing);
-          // White Shoes with black soles
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(-14, -6 - walkSwing, 14, 7);
-          ctx.fillRect(1, -6 + walkSwing, 14, 7);
-        }
+        if (isCrouching) {
+          // ====================================================
+          // CROUCHING POSE (FEET FIRMLY ON THE FLOOR AT Y = 0!)
+          // HIPS LOWERED TO Y = -30, TORSO AT Y = -54, HEAD AT Y = -72!
+          // 100% REALISTIC TIGER SQUAT STANCE!
+          // ====================================================
 
-        // 2. WHITE SLEEVELESS GI (DOGI) TORSO
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(-16, -78 + yOff, 32, 44);
-        ctx.strokeStyle = '#cbd5e1';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(-16, -78 + yOff, 32, 44);
+          // 1. Planted Feet & Squatting Legs
+          ctx.fillStyle = '#dc2626';
+          if (p.action === 'crouch_kick') {
+            // Low sweeping dragon kick skimming 4px above the floor!
+            // Planted Support Leg (Deep bent knee)
+            ctx.beginPath();
+            ctx.moveTo(-16, -26);
+            ctx.lineTo(-6, -26);
+            ctx.lineTo(-10, 0);
+            ctx.lineTo(-20, 0);
+            ctx.closePath();
+            ctx.fill();
+            // Planted shoe
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-22, -6, 16, 6);
 
-        // Muscular V-Neck Chest
-        ctx.fillStyle = '#fed7aa';
-        ctx.beginPath();
-        ctx.moveTo(-7, -78 + yOff);
-        ctx.lineTo(0, -60 + yOff);
-        ctx.lineTo(7, -78 + yOff);
-        ctx.closePath();
-        ctx.fill();
+            // Kicking Leg Sweeping Straight Forward (Horizontally right above floor)
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(-6, -18, 64, 14);
+            // Sweeping shoe
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(56, -19, 18, 16);
+            ctx.fillStyle = '#b91c1c';
+            ctx.fillRect(56, -5, 18, 3);
+            // Floor dust sweep particles
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(72, -14, 12, 3);
+            ctx.fillRect(70, -8, 8, 2);
+          } else {
+            // Deep Martial Crouch / Squat
+            // Both legs bent with knees driving forward, feet planted at y = 0
+            ctx.fillRect(-18, -26, 14, 26);
+            ctx.fillRect(4, -26, 14, 26);
+            // Both shoes flat on the floor at y=0!
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-20, -6, 16, 6);
+            ctx.fillRect(4, -6, 16, 6);
+          }
 
-        // 3. SAPPHIRE BLUE SASH BELT & TRAILING RIBBONS
-        ctx.fillStyle = '#1d4ed8';
-        ctx.fillRect(-18, -52 + yOff, 36, 9);
-        // Belt knot & trailing ribbons
-        ctx.beginPath();
-        ctx.moveTo(-4, -43 + yOff);
-        ctx.lineTo(-9, -24 + yOff);
-        ctx.lineTo(-2, -24 + yOff);
-        ctx.closePath();
-        ctx.fill();
+          // 2. Lowered White Gi Torso (Hips at -30, Shoulders at -54)
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(-15, -54, 30, 28);
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(-15, -54, 30, 28);
 
-        // 4. SCULPTED ANIME HEAD, BANDANA & HAIR
-        ctx.fillStyle = '#fed7aa';
-        ctx.beginPath();
-        ctx.arc(0, -90 + yOff, 14, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Determined Martial Artist Eyes & Brows (PROPERLY VISIBLE!)
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(3, -92 + yOff, 5, 4); // Eye
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(5, -92 + yOff, 2, 2); // Glint
-        // Fierce Brow
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(1, -95 + yOff);
-        ctx.lineTo(9, -93 + yOff);
-        ctx.stroke();
-
-        // Mouth & Chin
-        ctx.fillStyle = '#b45309';
-        ctx.fillRect(3, -83 + yOff, 4, 2);
-
-        // CRIMSON HEADBAND (Wrapped on UPPER Forehead: -103 to -97, WELL ABOVE EYES!)
-        ctx.fillStyle = '#dc2626';
-        ctx.fillRect(-15, -103 + yOff, 30, 7);
-        // Flowing Headband Tails Fluttering Behind
-        ctx.beginPath();
-        ctx.moveTo(-15, -100 + yOff);
-        ctx.lineTo(-32, -108 + yOff);
-        ctx.lineTo(-30, -96 + yOff);
-        ctx.closePath();
-        ctx.fill();
-
-        // Spiky Black Anime Hair on Top
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.arc(0, -104 + yOff, 14.5, Math.PI, 0);
-        ctx.fill();
-        ctx.fillRect(-16, -104 + yOff, 10, 5); // Hair spiky fringe
-
-        // 5. ARMS, PUNCH & GUARD
-        if (p.action === 'punch' || p.action === 'crouch_punch') {
-          // Explosive Straight Punch Strike!
-          ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(6, -72 + yOff, 46, 12);
-          // Blue Wristband
-          ctx.fillStyle = '#1d4ed8';
-          ctx.fillRect(32, -73 + yOff, 7, 14);
-          // Anatomical Clenched Fist
+          // V-Neck Chest
           ctx.fillStyle = '#fed7aa';
           ctx.beginPath();
-          ctx.arc(52, -66 + yOff, 8.5, 0, Math.PI * 2);
+          ctx.moveTo(-6, -54);
+          ctx.lineTo(0, -42);
+          ctx.lineTo(6, -54);
+          ctx.closePath();
           ctx.fill();
-          // Speed wind trail
-          ctx.fillStyle = '#facc15';
-          ctx.fillRect(62, -67 + yOff, 14, 4);
-        } else if (p.action !== 'kick' && p.action !== 'jump_kick' && p.action !== 'crouch_kick') {
-          // Dynamic Martial Ready Guard (Jeet Kune Do style)
-          ctx.fillStyle = '#fed7aa';
-          ctx.fillRect(4, -72 + yOff, 20, 11);
+
+          // 3. Blue Sash Belt (At Waist y = -34)
           ctx.fillStyle = '#1d4ed8';
-          ctx.fillRect(16, -73 + yOff, 6, 13);
+          ctx.fillRect(-17, -35, 34, 8);
+          // Belt knot
+          ctx.fillRect(-5, -28, 8, 14);
+
+          // 4. Lowered Head & Face (Head Center at y = -68, Top of hair at y = -82)
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.arc(0, -68, 13, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Eyes & Eyebrows (Clearly visible looking forward!)
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(3, -70, 4, 3); // Eye
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(5, -70, 1.5, 1.5);
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(1, -73);
+          ctx.lineTo(8, -71);
+          ctx.stroke();
+
+          // Crimson Headband (Wrapped on UPPER Forehead y = -79 to -74, ABOVE EYES!)
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(-14, -79, 28, 6);
+          // Headband tails fluttering behind
+          ctx.beginPath();
+          ctx.moveTo(-14, -76);
+          ctx.lineTo(-28, -82);
+          ctx.lineTo(-26, -72);
+          ctx.closePath();
+          ctx.fill();
+
+          // Spiky Black Hair
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(0, -80, 13.5, Math.PI, 0);
+          ctx.fill();
+
+          // 5. Arms & Strikes in Crouch
+          if (p.action === 'crouch_punch') {
+            // Low Straight Punch at y = -48
+            ctx.fillStyle = '#fed7aa';
+            ctx.fillRect(6, -50, 44, 11);
+            ctx.fillStyle = '#1d4ed8';
+            ctx.fillRect(28, -51, 6, 13);
+            ctx.fillStyle = '#fed7aa';
+            ctx.beginPath();
+            ctx.arc(50, -45, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Speed wind lines
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(58, -46, 12, 3);
+          } else if (p.action !== 'crouch_kick') {
+            // Tight Low Guard
+            ctx.fillStyle = '#fed7aa';
+            ctx.fillRect(4, -50, 18, 10);
+            ctx.fillStyle = '#1d4ed8';
+            ctx.fillRect(14, -51, 5, 12);
+          }
+        } else {
+          // ====================================================
+          // STANDING / WALKING / JUMPING / KICKING / PUNCHING
+          // ====================================================
+
+          // 1. LEGS (VIVID SCARLET RED MARTIAL PANTS)
+          ctx.fillStyle = '#dc2626';
+          if (p.action === 'kick') {
+            // Razor Sharp High Side Kick
+            ctx.fillRect(-11, -36, 12, 36);
+            // Extended Kicking Leg
+            ctx.fillRect(0, -56, 62, 16);
+            // White Kung Fu Shoe with red trim
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(58, -58, 18, 20);
+            ctx.fillStyle = '#b91c1c';
+            ctx.fillRect(58, -40, 18, 4);
+            // Dynamic Strike Shockwave
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(78, -54, 14, 5);
+            ctx.fillRect(76, -46, 10, 4);
+          } else if (p.action === 'jump_kick') {
+            // Legendary Bruce Lee Mid-Air Flying Kick!
+            ctx.fillRect(-20, -34, 18, 16);
+            ctx.fillRect(0, -56, 72, 18);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(68, -58, 18, 22);
+            ctx.fillStyle = '#b91c1c';
+            ctx.fillRect(68, -38, 18, 4);
+            // Strike speed sparks
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(88, -52, 16, 5);
+            ctx.fillRect(86, -44, 12, 4);
+          } else {
+            // Walking or Idle footwork
+            const walkSwing = p.action === 'walk' ? Math.sin(p.animTimer * 5) * 11 : 0;
+            ctx.fillRect(-12, -36, 11, 36 - walkSwing);
+            ctx.fillRect(1, -36, 11, 36 + walkSwing);
+            // White Shoes with black soles (Grounded at y=0!)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-14, -6 - walkSwing, 14, 7);
+            ctx.fillRect(1, -6 + walkSwing, 14, 7);
+          }
+
+          // 2. WHITE SLEEVELESS GI (DOGI) TORSO
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(-16, -78, 32, 44);
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(-16, -78, 32, 44);
+
+          // Muscular V-Neck Chest
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.moveTo(-7, -78);
+          ctx.lineTo(0, -60);
+          ctx.lineTo(7, -78);
+          ctx.closePath();
+          ctx.fill();
+
+          // 3. SAPPHIRE BLUE SASH BELT & TRAILING RIBBONS
+          ctx.fillStyle = '#1d4ed8';
+          ctx.fillRect(-18, -52, 36, 9);
+          // Belt knot & trailing ribbons
+          ctx.beginPath();
+          ctx.moveTo(-4, -43);
+          ctx.lineTo(-9, -24);
+          ctx.lineTo(-2, -24);
+          ctx.closePath();
+          ctx.fill();
+
+          // 4. SCULPTED ANIME HEAD, BANDANA & HAIR
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.arc(0, -90, 14, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Determined Martial Artist Eyes & Brows (CLEARLY VISIBLE, NEVER COVERED!)
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(3, -92, 5, 4); // Eye
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(5, -92, 2, 2); // Glint
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(1, -95);
+          ctx.lineTo(9, -93);
+          ctx.stroke();
+
+          // Mouth & Chin
+          ctx.fillStyle = '#b45309';
+          ctx.fillRect(3, -83, 4, 2);
+
+          // CRIMSON HEADBAND (Wrapped strictly on UPPER Forehead y = -103 to -97, WELL ABOVE EYES!)
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(-15, -103, 30, 7);
+          // Flowing Headband Tails Fluttering Behind
+          ctx.beginPath();
+          ctx.moveTo(-15, -100);
+          ctx.lineTo(-32, -108);
+          ctx.lineTo(-30, -96);
+          ctx.closePath();
+          ctx.fill();
+
+          // Spiky Black Anime Hair on Top
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(0, -104, 14.5, Math.PI, 0);
+          ctx.fill();
+          ctx.fillRect(-16, -104, 10, 5);
+
+          // 5. ARMS, PUNCH & GUARD
+          if (p.action === 'punch') {
+            // Explosive Straight Punch Strike!
+            ctx.fillStyle = '#fed7aa';
+            ctx.fillRect(6, -72, 46, 12);
+            // Blue Wristband
+            ctx.fillStyle = '#1d4ed8';
+            ctx.fillRect(32, -73, 7, 14);
+            // Anatomical Clenched Fist
+            ctx.fillStyle = '#fed7aa';
+            ctx.beginPath();
+            ctx.arc(52, -66, 8.5, 0, Math.PI * 2);
+            ctx.fill();
+            // Speed wind trail
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(62, -67, 14, 4);
+          } else if (p.action !== 'kick' && p.action !== 'jump_kick') {
+            // Dynamic Martial Ready Guard
+            ctx.fillStyle = '#fed7aa';
+            ctx.fillRect(4, -72, 20, 11);
+            ctx.fillStyle = '#1d4ed8';
+            ctx.fillRect(16, -73, 6, 13);
+          }
         }
 
         ctx.restore();
