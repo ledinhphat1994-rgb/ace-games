@@ -662,5 +662,31 @@ export const GAMES_CATALOG: GameInfo[] = [
     tags: ['Xiếc hề', 'Circus Charlie', 'Konami', 'NES', 'Băng 4 nút', 'Cưỡi sư tử', 'Vòng lửa', 'Retro', 'Arcade', 'Kinh điển'],
     isHot: true,
     isNew: true
+  },
+  {
+    id: 'dig-dug',
+    title: 'Đào Đất Bơm Quái',
+    subtitle: 'Huyền thoại Dig Dug Namco 1982 - Đào hầm & Bơm nổ quái vật',
+    category: 'arcade',
+    categoryLabel: 'Đào Hầm & Bơm Quái',
+    description: 'Huyền thoại Dig Dug kinh điển của Namco (1982/1985) làm say mê hàng triệu game thủ máy thùng Arcade và máy băng 4 nút NES! Nhập vai chàng thợ đào dũng cảm Taizo Hori, dùng xẻng đào các đường hầm chằng chịt trong lòng đất sâu, phóng dây bơm hơi vào quái vật bong bóng Pooka và rồng phun lửa Fygar để bơm căng phồng cho tới khi chúng phát nổ tung tóe. Hãy khéo léo đào dưới những tảng đá khổng lồ để tảng đá rơi nghiền nát lũ quái vật bám đuôi và thu thập củ quả thưởng!',
+    instructions: [
+      'Dùng phím A / D / W / S hoặc Mũi tên để di chuyển và đào đường hầm xuyên qua các lớp đất sâu.',
+      'Phím Space hoặc K để phóng ống bơm khí; Nhấn liên tục hoặc giữ phím để bơm quái vật căng phồng tới khi NỔ TUNG!',
+      'Đào hầm ngay bên dưới tảng đá để tảng đá rung lắc rồi rơi xuống, đè bẹp lũ quái vật để nhận điểm thưởng Combo.',
+      'Hãy cẩn thận: Quái rồng Fygar có thể khè ra luồng lửa thiêu đốt ngang hầm, và quái vật có thể biến thành bóng ma xuyên qua đất!',
+      'Sau khi làm rơi 2 tảng đá, củ quả thưởng sẽ xuất hiện ở giữa bản đồ trong thời gian ngắn.'
+    ],
+    controls: {
+      desktop: 'W / A / S / D hoặc Mũi tên: Di chuyển & Đào đất • Space / K: Phóng ống bơm & Bơm quái • R: Chơi lại',
+      mobile: 'Cụm D-Pad 4 hướng bên trái • Nút BƠM (PUMP) lớn bên phải'
+    },
+    thumbnailIcon: '⛏️',
+    accentColor: 'from-amber-600 via-orange-500 to-rose-600',
+    rating: 5.0,
+    plays: 1720000,
+    tags: ['Dig Dug', 'Namco', 'NES', 'Băng 4 nút', 'Đào đất', 'Bơm quái', 'Pooka', 'Fygar', 'Arcade', 'Kinh điển', 'Retro'],
+    isHot: true,
+    isNew: true
   }
 ];

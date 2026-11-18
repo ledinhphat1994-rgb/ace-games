@@ -2328,6 +2328,180 @@ export const GameCover: React.FC<GameCoverProps> = ({ gameId, className = '' }) 
         </div>
       );
 
+    case 'dig-dug':
+      return (
+        <div className={`w-full h-full relative overflow-hidden bg-slate-950 ${className}`}>
+          <svg viewBox="0 0 240 140" className="w-full h-full block select-none">
+            <defs>
+              <linearGradient id="sky-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="100%" stopColor="#0284c7" />
+              </linearGradient>
+              <linearGradient id="dig-title-grad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#facc15" />
+                <stop offset="50%" stopColor="#fb923c" />
+                <stop offset="100%" stopColor="#f43f5e" />
+              </linearGradient>
+              <linearGradient id="pooka-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#f87171" />
+                <stop offset="60%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </linearGradient>
+              <linearGradient id="fygar-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#34d399" />
+                <stop offset="60%" stopColor="#059669" />
+                <stop offset="100%" stopColor="#064e3b" />
+              </linearGradient>
+              <linearGradient id="rock-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#94a3b8" />
+                <stop offset="50%" stopColor="#64748b" />
+                <stop offset="100%" stopColor="#334155" />
+              </linearGradient>
+              <filter id="flame-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            {/* Surface Sky (0 - 22) */}
+            <rect x="0" y="0" width="240" height="20" fill="url(#sky-band)" />
+            {/* Green Grass Border (20 - 26) */}
+            <rect x="0" y="20" width="240" height="6" fill="#16a34a" />
+            <path d="M0 26 L240 26" stroke="#22c55e" strokeWidth="1.5" />
+            {/* Flowers on surface */}
+            <circle cx="25" cy="18" r="2.5" fill="#f43f5e" />
+            <circle cx="25" cy="18" r="1" fill="#facc15" />
+            <circle cx="210" cy="18" r="2.5" fill="#eab308" />
+            <circle cx="210" cy="18" r="1" fill="#ffffff" />
+            <circle cx="225" cy="17" r="3" fill="#ec4899" />
+
+            {/* Dirt Strata 1: Golden Sand (26 - 54) */}
+            <rect x="0" y="26" width="240" height="28" fill="#ca8a04" />
+            <line x1="0" y1="26" x2="240" y2="26" stroke="#eab308" strokeWidth="1" strokeDasharray="3 3" />
+
+            {/* Dirt Strata 2: Warm Brown (54 - 82) */}
+            <rect x="0" y="54" width="240" height="28" fill="#a16207" />
+            <line x1="0" y1="54" x2="240" y2="54" stroke="#d97706" strokeWidth="1" strokeDasharray="4 2" />
+
+            {/* Dirt Strata 3: Orange Clay (82 - 110) */}
+            <rect x="0" y="82" width="240" height="28" fill="#c2410c" />
+            <line x1="0" y1="82" x2="240" y2="82" stroke="#ea580c" strokeWidth="1" strokeDasharray="5 3" />
+
+            {/* Dirt Strata 4: Deep Crimson (110 - 140) */}
+            <rect x="0" y="110" width="240" height="30" fill="#881337" />
+            <line x1="0" y1="110" x2="240" y2="110" stroke="#be123c" strokeWidth="1" strokeDasharray="4 4" />
+
+            {/* Underground Tunnels (Excavated Darkness #050811) */}
+            {/* Vertical Tunnel Left */}
+            <rect x="36" y="26" width="26" height="74" rx="4" fill="#050811" />
+            {/* Horizontal Tunnel Middle */}
+            <rect x="36" y="74" width="130" height="24" rx="4" fill="#050811" />
+            {/* Vertical Shaft Right */}
+            <rect x="144" y="44" width="24" height="60" rx="4" fill="#050811" />
+            {/* Bottom Chamber */}
+            <rect x="80" y="114" width="140" height="22" rx="4" fill="#050811" />
+
+            {/* Falling Boulder Rock in Right Shaft */}
+            <g transform="translate(156, 44)">
+              <circle cx="0" cy="0" r="10" fill="url(#rock-grad)" stroke="#475569" strokeWidth="1.2" />
+              {/* Rock Texture Cracks */}
+              <path d="M-5 -4 L-1 -1 L-4 5" stroke="#1e293b" strokeWidth="1" fill="none" />
+              <path d="M2 -6 L5 1 L1 6" stroke="#1e293b" strokeWidth="0.8" fill="none" />
+              {/* Wobble / Speed lines */}
+              <line x1="-12" y1="-5" x2="-12" y2="6" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
+              <line x1="12" y1="-5" x2="12" y2="6" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
+            </g>
+
+            {/* Dig Dug (Hero) in Middle Tunnel */}
+            <g transform="translate(56, 86)">
+              {/* White Suit Body */}
+              <rect x="-8" y="-9" width="16" height="15" rx="3" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1" />
+              {/* Blue Helmet */}
+              <circle cx="0" cy="-12" r="7.5" fill="#2563eb" />
+              <path d="M-6 -12 C-6 -17 6 -17 6 -12 Z" fill="#3b82f6" />
+              {/* Red Visor / Goggles */}
+              <rect x="-5" y="-14" width="11" height="5" rx="2" fill="#ef4444" />
+              <rect x="-3" y="-13" width="7" height="2.5" rx="1" fill="#ffffff" opacity="0.8" />
+              {/* Feet (Digging boots) */}
+              <rect x="-7" y="6" width="6" height="4" rx="1.5" fill="#1e3a8a" />
+              <rect x="1" y="6" width="6" height="4" rx="1.5" fill="#1e3a8a" />
+              {/* Shovel / Pump Unit on Back */}
+              <rect x="-11" y="-7" width="4" height="11" rx="1" fill="#e11d48" />
+              {/* Arm holding Pump Handle */}
+              <path d="M3 -3 L9 -1" stroke="#f8fafc" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="9" cy="-1" r="2.5" fill="#f59e0b" />
+            </g>
+
+            {/* Pump Hose Wire Stretching to Monster */}
+            <path
+              d="M66 85 C80 84 95 85 106 85"
+              stroke="#fbbf24"
+              strokeWidth="2.5"
+              strokeDasharray="4 2"
+              fill="none"
+            />
+            {/* Harpoon Needle Point Stuck in Pooka */}
+            <polygon points="106,82 112,85 106,88" fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8" />
+
+            {/* Pooka (Inflating Big Red Balloon Monster!) */}
+            <g transform="translate(126, 86)">
+              {/* Inflated Round Body with Pulse */}
+              <circle cx="0" cy="0" r="14" fill="url(#pooka-grad)" stroke="#dc2626" strokeWidth="1.5" />
+              {/* Big Yellow Goggles */}
+              <ellipse cx="-4" cy="-3" rx="5" ry="4" fill="#fef08a" stroke="#ca8a04" strokeWidth="1" />
+              <ellipse cx="6" cy="-3" rx="5" ry="4" fill="#fef08a" stroke="#ca8a04" strokeWidth="1" />
+              {/* Bulging Black Eyes (Strained expression) */}
+              <circle cx="-3" cy="-3" r="2" fill="#0f172a" />
+              <circle cx="5" cy="-3" r="2" fill="#0f172a" />
+              {/* Cute Little Yellow Feet */}
+              <ellipse cx="-7" cy="13" rx="3.5" ry="2" fill="#facc15" />
+              <ellipse cx="6" cy="13" rx="3.5" ry="2" fill="#facc15" />
+              {/* Inflation Air Pressure Sparks */}
+              <text x="-16" y="-12" fill="#facc15" fontSize="8" fontWeight="bold">💨</text>
+              <text x="10" y="-12" fill="#facc15" fontSize="8" fontWeight="bold">💢</text>
+            </g>
+
+            {/* Fygar (Green Dragon in Bottom Chamber) */}
+            <g transform="translate(160, 125)">
+              {/* Green Dragon Body */}
+              <ellipse cx="0" cy="0" rx="10" ry="7" fill="url(#fygar-grad)" stroke="#047857" strokeWidth="1" />
+              {/* Dragon Head */}
+              <circle cx="-8" cy="-2" r="5" fill="#10b981" />
+              <circle cx="-10" cy="-3" r="1.5" fill="#fef08a" />
+              <circle cx="-10" cy="-3" r="0.8" fill="#0f172a" />
+              {/* Orange Wing */}
+              <polygon points="0,-4 8,-12 4,-2" fill="#f97316" />
+              {/* Tail with spike */}
+              <path d="M10 0 Q14 -2 16 -6" stroke="#059669" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              {/* Fire Breath Burst */}
+              <path
+                d="M-13 -2 L-28 -8 L-24 -2 L-34 0 L-24 2 L-28 8 Z"
+                fill="#f59e0b"
+                filter="url(#flame-glow)"
+              />
+              <path
+                d="M-13 -2 L-22 -4 L-20 -2 L-26 0 L-20 2 L-22 4 Z"
+                fill="#ef4444"
+              />
+            </g>
+
+            {/* Bonus Fruit (Carrot in Chamber) */}
+            <g transform="translate(95, 125)">
+              <polygon points="0,-5 8,0 0,5 -3,0" fill="#f97316" />
+              <path d="M-3 0 L-7 -3 M-3 0 L-7 3" stroke="#22c55e" strokeWidth="1.5" />
+            </g>
+
+            {/* Retro DIG DUG Title Badge */}
+            <g transform="translate(12, 128)">
+              <rect x="-4" y="-14" width="68" height="19" rx="4" fill="#030712" opacity="0.94" stroke="#f59e0b" strokeWidth="1.2" />
+              <text x="30" y="0" fill="url(#dig-title-grad)" fontSize="11" fontWeight="900" fontFamily="monospace" letterSpacing="1.2" textAnchor="middle">
+                DIG DUG
+              </text>
+            </g>
+          </svg>
+        </div>
+      );
+
     default:
       return (
         <div className={`w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex items-center justify-center ${className}`}>

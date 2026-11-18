@@ -2086,6 +2086,205 @@ class SoundManager {
     } catch {}
   }
 
+  // --- DIG DUG PROCEDURAL SOUNDS ---
+  private digDugStepNoteIdx = 0;
+  public playDigDugStep() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      // Classic bouncy walking melody sequence from Dig Dug
+      const melody = [523, 587, 659, 698, 784, 880, 988, 1046, 880, 784, 698, 659];
+      const freq = melody[this.digDugStepNoteIdx % melody.length];
+      this.digDugStepNoteIdx++;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.06 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.09);
+    } catch {}
+  }
+
+  public playDigDugPump() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(640, this.ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.12 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.09);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.1);
+    } catch {}
+  }
+
+  public playDigDugPop() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // High pop chirp + low rumble
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(800, now);
+      osc1.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+      gain1.gain.setValueAtTime(0.2 * sfx, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.16);
+
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(200, now);
+      osc2.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+      gain2.gain.setValueAtTime(0.15 * sfx, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(now);
+      osc2.stop(now + 0.21);
+    } catch {}
+  }
+
+  public playDigDugRockDrop() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(90, this.ctx.currentTime + 0.4);
+      gain.gain.setValueAtTime(0.12 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.42);
+    } catch {}
+  }
+
+  public playDigDugRockBreak() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.18 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.22);
+    } catch {}
+  }
+
+  public playDigDugBonus() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [587, 740, 880, 1174];
+      notes.forEach((f, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        const t = now + i * 0.07;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.15 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.11);
+      });
+    } catch {}
+  }
+
+  public playDigDugFire() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(180, this.ctx.currentTime + 0.25);
+      gain.gain.setValueAtTime(0.12 * sfx, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.26);
+    } catch {}
+  }
+
+  public playDigDugDeath() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [440, 415, 392, 349, 311, 261];
+      notes.forEach((f, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sawtooth';
+        const t = now + i * 0.1;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.18 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.13);
+      });
+    } catch {}
+  }
+
+  public playDigDugRoundClear() {
+    const sfx = this.getEffectiveSfxVolume();
+    if (sfx <= 0.001 || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [523, 659, 784, 1046, 880, 1046, 1318];
+      notes.forEach((f, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        const t = now + i * 0.09;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.18 * sfx, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(t);
+        osc.stop(t + 0.16);
+      });
+    } catch {}
+  }
+
   private synthBeep(freq: number, dur: number) {
     const sfx = this.getEffectiveSfxVolume();
     if (sfx <= 0.001 || !this.ctx) return;

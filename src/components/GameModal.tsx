@@ -28,6 +28,7 @@ import { GameContra } from '../games/GameContra';
 import { GameMario } from '../games/GameMario';
 import { GameDuckHunt } from '../games/GameDuckHunt';
 import { GameCircusCharlie } from '../games/GameCircusCharlie';
+import { GameDigDug } from '../games/GameDigDug';
 import { soundManager } from '../utils/sound';
 import { LeaderboardModal } from './LeaderboardModal';
 import { GameGuideModal } from './GameGuideModal';
@@ -205,6 +206,7 @@ export const GameModal: React.FC<GameModalProps> = ({ game, onClose }) => {
       case 'mario': return <GameMario key={`${game.id}-${sessionKey}`} />;
       case 'duck-hunt': return <GameDuckHunt key={`${game.id}-${sessionKey}`} />;
       case 'circus-charlie': return <GameCircusCharlie key={`${game.id}-${sessionKey}`} />;
+      case 'dig-dug': return <GameDigDug key={`${game.id}-${sessionKey}`} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400">
